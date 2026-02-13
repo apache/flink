@@ -26,7 +26,10 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -38,10 +41,13 @@ import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import org.junit.jupiter.api.parallel.Execution;
@@ -272,5 +278,81 @@ class LogicalTypeCastsTest {
         assertThat(LogicalTypeCasts.supportsExplicitCast(sourceType, targetType))
                 .as("Supports explicit casting")
                 .isEqualTo(supportsExplicit);
+    }
+
+    /**
+     * Test data for injective cast tests. Each argument contains: (sourceType, targetType,
+     * expectedInjective).
+     */
+    private static Stream<Arguments> injectiveCastTestData() {
+        return Stream.of(
+                // Implicit casts are always injective (type widening preserves uniqueness)
+                Arguments.of(new SmallIntType(), new BigIntType(), true),
+                Arguments.of(new IntType(), new BigIntType(), true),
+                Arguments.of(new TinyIntType(), new IntType(), true),
+
+                // Explicit casts to STRING from integer types are injective
+                Arguments.of(new TinyIntType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new SmallIntType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new IntType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new BigIntType(), VarCharType.STRING_TYPE, true),
+
+                // Explicit casts to STRING from floating point types are injective
+                Arguments.of(new FloatType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new DoubleType(), VarCharType.STRING_TYPE, true),
+
+                // Explicit casts to STRING from boolean are injective
+                Arguments.of(new BooleanType(), VarCharType.STRING_TYPE, true),
+
+                // Explicit casts to STRING from date/time types are injective
+                Arguments.of(new DateType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new TimestampType(3), VarCharType.STRING_TYPE, true),
+                Arguments.of(new TimestampType(9), VarCharType.STRING_TYPE, true),
+                Arguments.of(new LocalZonedTimestampType(3), VarCharType.STRING_TYPE, true),
+                Arguments.of(new ZonedTimestampType(3), VarCharType.STRING_TYPE, true),
+
+                // Explicit casts to CHAR are also injective for the same source types
+                Arguments.of(new IntType(), new CharType(100), true),
+                Arguments.of(new BigIntType(), new CharType(100), true),
+
+                // Narrowing casts are NOT injective (lossy)
+                Arguments.of(VarCharType.STRING_TYPE, new IntType(), false),
+                Arguments.of(new BigIntType(), new IntType(), false),
+                Arguments.of(new DoubleType(), new FloatType(), false),
+                // Note: TIMESTAMP->DATE is an implicit cast in Flink, so it returns true
+                // even though time-of-day is lost. This is consistent with existing isFidelityCast.
+                Arguments.of(new TimestampType(3), new DateType(), true),
+
+                // DECIMAL to STRING is NOT considered injective
+                // (different precision representations could be ambiguous)
+                Arguments.of(new DecimalType(10, 2), VarCharType.STRING_TYPE, false),
+
+                // BYTES to STRING is NOT injective (invalid UTF-8 sequences collapse)
+                Arguments.of(new VarBinaryType(100), VarCharType.STRING_TYPE, false),
+                Arguments.of(new BinaryType(100), VarCharType.STRING_TYPE, false),
+
+                // TIME to STRING is NOT injective (not in the whitelist)
+                Arguments.of(new TimeType(3), VarCharType.STRING_TYPE, false),
+
+                // Casts to non-string types are generally not injective (unless implicit)
+                // Note: INT->FLOAT is an implicit cast, so it returns true
+                Arguments.of(new IntType(), new FloatType(), true),
+                // STRING->BOOLEAN is explicit only, so not injective
+                Arguments.of(VarCharType.STRING_TYPE, new BooleanType(), false),
+                // INT->DOUBLE is implicit, so injective
+                Arguments.of(new IntType(), new DoubleType(), true),
+                // DOUBLE->INT is explicit narrowing, not injective
+                Arguments.of(new DoubleType(), new IntType(), false));
+    }
+
+    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Injective: {2}]")
+    @MethodSource("injectiveCastTestData")
+    void testInjectiveCast(
+            LogicalType sourceType, LogicalType targetType, boolean expectedInjective) {
+        assertThat(LogicalTypeCasts.supportsInjectiveCast(sourceType, targetType))
+                .as(
+                        "Cast from %s to %s should %s injective",
+                        sourceType, targetType, expectedInjective ? "be" : "not be")
+                .isEqualTo(expectedInjective);
     }
 }
