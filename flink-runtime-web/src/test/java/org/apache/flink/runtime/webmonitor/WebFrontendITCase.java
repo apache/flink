@@ -554,6 +554,7 @@ class WebFrontendITCase {
                 .setParallelism(2)
                 .addSink(new SinkFunction<>() {});
         StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setJobId(JobID.generate());
         final JobID jid = streamGraph.getJobID();
 
         clusterClient.submitJob(streamGraph).get();

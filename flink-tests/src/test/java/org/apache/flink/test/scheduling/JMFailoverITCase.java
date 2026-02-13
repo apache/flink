@@ -468,6 +468,7 @@ class JMFailoverITCase {
                 .slotSharingGroup("group4");
 
         StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setJobId(JobID.generate());
         streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         streamGraph.setJobType(JobType.BATCH);
         streamGraph.setJobName(jobName);
@@ -500,6 +501,7 @@ class JMFailoverITCase {
                 .slotSharingGroup("group4");
 
         StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setJobId(JobID.generate());
         streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         streamGraph.setJobType(JobType.BATCH);
         streamGraph.setJobName(jobName);
