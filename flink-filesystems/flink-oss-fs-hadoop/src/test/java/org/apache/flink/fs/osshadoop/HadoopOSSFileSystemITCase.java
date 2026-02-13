@@ -26,6 +26,7 @@ import org.apache.flink.testutils.oss.OSSTestCredentials;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -78,5 +79,68 @@ class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
                 .isEqualTo(OSSTestCredentials.getOSSAccessKey());
         assertThat(configuration.get("fs.oss.accessKeySecret"))
                 .isEqualTo(OSSTestCredentials.getOSSSecretKey());
+    }
+
+    @Test
+    @SetEnvironmentVariable(
+            key = RRSACredentialsProvider.OIDC_PROVIDER_ARN_ENV,
+            value = "acs:ram::123456789:oidc-provider/ack-rrsa-test")
+    @SetEnvironmentVariable(
+            key = RRSACredentialsProvider.ROLE_ARN_ENV,
+            value = "acs:ram::123456789:role/test-rrsa-role")
+    @SetEnvironmentVariable(
+            key = RRSACredentialsProvider.OIDC_TOKEN_FILE_ENV,
+            value = "/tmp/oidc-token")
+    void testRRSACredentialsProviderConfiguration() {
+        // Test that RRSA provider is automatically configured when environment variables are
+        // present
+        final Configuration conf = new Configuration();
+        conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
+        conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
+        conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
+
+        OSSFileSystemFactory ossfsFactory = new OSSFileSystemFactory();
+        ossfsFactory.configure(conf);
+        org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
+
+        // Verify that RRSA provider is prepended to the credential provider chain
+        String credentialsProvider = configuration.get("fs.oss.credentials.provider");
+        assertThat(credentialsProvider)
+                .as("RRSA provider should be configured")
+                .isNotNull()
+                .contains("org.apache.flink.fs.osshadoop.RRSACredentialsProvider");
+    }
+
+    @Test
+    @SetEnvironmentVariable(
+            key = RRSACredentialsProvider.OIDC_PROVIDER_ARN_ENV,
+            value = "acs:ram::123456789:oidc-provider/ack-rrsa-test")
+    @SetEnvironmentVariable(
+            key = RRSACredentialsProvider.ROLE_ARN_ENV,
+            value = "acs:ram::123456789:role/test-rrsa-role")
+    @SetEnvironmentVariable(
+            key = RRSACredentialsProvider.OIDC_TOKEN_FILE_ENV,
+            value = "/tmp/oidc-token")
+    void testRRSACredentialsProviderPrependedToChain() {
+        // Test that RRSA provider is prepended to existing provider chain
+        final Configuration conf = new Configuration();
+        conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
+        conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
+        conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
+        conf.setString(
+                "fs.oss.credentials.provider",
+                "org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider");
+
+        OSSFileSystemFactory ossfsFactory = new OSSFileSystemFactory();
+        ossfsFactory.configure(conf);
+        org.apache.hadoop.conf.Configuration configuration = ossfsFactory.getHadoopConfiguration();
+
+        String credentialsProvider = configuration.get("fs.oss.credentials.provider");
+        assertThat(credentialsProvider)
+                .as("RRSA provider should be prepended to existing chain")
+                .isNotNull()
+                .startsWith("org.apache.flink.fs.osshadoop.RRSACredentialsProvider,")
+                .contains(
+                        "org.apache.flink.fs.osshadoop.shaded.org.apache.hadoop.fs.aliyun.oss.AliyunCredentialsProvider");
     }
 }
