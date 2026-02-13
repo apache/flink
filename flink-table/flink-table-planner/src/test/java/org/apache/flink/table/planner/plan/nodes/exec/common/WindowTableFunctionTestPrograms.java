@@ -115,6 +115,49 @@ public class WindowTableFunctionTestPrograms {
                     + "     %s\n"
                     + " GROUP BY window_start, window_end";
 
+    public static final String QUERY_TVF_UNION_ALL_VALUES =
+            "INSERT INTO sink_t SELECT\n"
+                    + "    * FROM (\n"
+                    + "    WITH values_table AS (\n"
+                    + "        SELECT cast('2024-01-01 10:00:00' AS TIMESTAMP_LTZ) AS event_time\n"
+                    + "        UNION ALL\n"
+                    + "        SELECT cast('2024-01-01 10:05:00' AS TIMESTAMP_LTZ) AS event_time\n"
+                    + "        UNION ALL\n"
+                    + "        SELECT cast('2024-01-01 10:10:00' AS TIMESTAMP_LTZ) AS event_time\n"
+                    + "    ) SELECT\n"
+                    + "        window_start,\n"
+                    + "        window_end\n"
+                    + "    FROM TABLE(\n"
+                    + "        HOP(\n"
+                    + "            TABLE values_table,\n"
+                    + "            DESCRIPTOR(event_time),\n"
+                    + "            INTERVAL '1' MINUTES,\n"
+                    + "            INTERVAL '2' MINUTES)\n"
+                    + "    ) GROUP BY\n"
+                    + "          window_start,\n"
+                    + "          window_end\n"
+                    + ")";
+
+    public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF_UNION_ALL =
+            TableTestProgram.of(
+                            "window-table-function-tumble-tvf-union-all",
+                            "validates window with BinaryRowData using non-compact timestamp precision")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "window_start TIMESTAMP(3)", "window_end TIMESTAMP(3)")
+                                    .consumedBeforeRestore(
+                                            "+I[2024-01-01T09:59, 2024-01-01T10:01]",
+                                            "+I[2024-01-01T10:00, 2024-01-01T10:02]",
+                                            "+I[2024-01-01T10:04, 2024-01-01T10:06]",
+                                            "+I[2024-01-01T10:05, 2024-01-01T10:07]",
+                                            "+I[2024-01-01T10:09, 2024-01-01T10:11]",
+                                            "+I[2024-01-01T10:10, 2024-01-01T10:12]")
+                                    .build())
+                    .setupConfig(TableConfigOptions.LOCAL_TIME_ZONE, "UTC")
+                    .runSql(QUERY_TVF_UNION_ALL_VALUES)
+                    .build();
+
     public static final TableTestProgram WINDOW_TABLE_FUNCTION_TUMBLE_TVF =
             TableTestProgram.of(
                             "window-table-function-tumble-tvf",

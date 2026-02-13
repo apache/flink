@@ -40,6 +40,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.operator.WindowTableF
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -110,8 +111,13 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                 TimeWindowUtil.getShiftTimeZone(
                         windowingStrategy.getTimeAttributeType(),
                         TableConfigUtils.getLocalTimeZone(config));
+        final int timestampPrecision =
+                LogicalTypeChecks.getPrecision(windowingStrategy.getTimeAttributeType());
         return new AlignedWindowTableFunctionOperator(
-                windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
+                windowAssigner,
+                windowingStrategy.getTimeAttributeIndex(),
+                timestampPrecision,
+                shiftTimeZone);
     }
 
     protected abstract Transformation<RowData> translateWithUnalignedWindow(
