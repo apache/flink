@@ -16,21 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3hadoop.token;
+package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.fs.s3.common.token.HadoopS3DelegationTokenProvider;
 
-/** Delegation token provider for S3 Hadoop filesystems using AWS SDK v2. */
+import org.apache.hadoop.fs.s3a.S3AFileSystem;
+import software.amazon.awssdk.services.s3.S3Client;
+
+/**
+ * Extension of Hadoop's S3AFileSystem that exposes the S3Client for use in Flink's recoverable
+ * writers.
+ *
+ * <p>This class simply makes the protected {@link S3AFileSystem#getS3Client()} method public,
+ * avoiding the need to use internal S3A APIs.
+ */
 @Internal
-public class S3HadoopDelegationTokenProvider extends HadoopS3DelegationTokenProvider {
-    @Override
-    public String serviceName() {
-        return "s3-hadoop";
-    }
+public class FlinkS3AFileSystem extends S3AFileSystem {
 
+    /**
+     * Returns the S3Client used by this filesystem.
+     *
+     * @return the S3Client instance
+     */
     @Override
-    public String serviceConfigPrefix() {
-        return "security.delegation.token.provider.s3-hadoop";
+    public S3Client getS3Client() {
+        return super.getS3Client();
     }
 }

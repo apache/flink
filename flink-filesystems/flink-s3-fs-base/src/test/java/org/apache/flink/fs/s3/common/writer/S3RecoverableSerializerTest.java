@@ -18,8 +18,8 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-import com.amazonaws.services.s3.model.PartETag;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -94,33 +94,36 @@ class S3RecoverableSerializerTest {
                 .isEqualTo(expectedRecoverable.incompleteObjectName());
         assertThat(actualRecoverable.incompleteObjectLength())
                 .isEqualTo(expectedRecoverable.incompleteObjectLength());
-        assertThat(actualRecoverable.parts().stream().map(PartETag::getETag).toArray())
-                .isEqualTo(expectedRecoverable.parts().stream().map(PartETag::getETag).toArray());
+        assertThat(actualRecoverable.parts().stream().map(CompletedPart::eTag).toArray())
+                .isEqualTo(expectedRecoverable.parts().stream().map(CompletedPart::eTag).toArray());
     }
 
     // --------------------------------- Test Utils ---------------------------------
 
     private static S3Recoverable createTestS3Recoverable(
             boolean withIncompletePart, int... partNumbers) {
-        List<PartETag> etags = new ArrayList<>();
+        List<CompletedPart> parts = new ArrayList<>();
         for (int i : partNumbers) {
-            etags.add(createEtag(i));
+            parts.add(createCompletedPart(i));
         }
 
         if (withIncompletePart) {
             return new S3Recoverable(
                     TEST_OBJECT_NAME,
                     TEST_UPLOAD_ID,
-                    etags,
+                    parts,
                     12345L,
                     INCOMPLETE_OBJECT_NAME,
                     54321L);
         } else {
-            return new S3Recoverable(TEST_OBJECT_NAME, TEST_UPLOAD_ID, etags, 12345L);
+            return new S3Recoverable(TEST_OBJECT_NAME, TEST_UPLOAD_ID, parts, 12345L);
         }
     }
 
-    private static PartETag createEtag(int partNumber) {
-        return new PartETag(partNumber, ETAG_PREFIX + partNumber);
+    private static CompletedPart createCompletedPart(int partNumber) {
+        return CompletedPart.builder()
+                .partNumber(partNumber)
+                .eTag(ETAG_PREFIX + partNumber)
+                .build();
     }
 }

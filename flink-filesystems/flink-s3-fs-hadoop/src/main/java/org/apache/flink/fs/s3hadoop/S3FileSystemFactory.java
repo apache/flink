@@ -24,7 +24,6 @@ import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +67,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
     @Override
     protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
-        return new S3AFileSystem();
+        return new FlinkS3AFileSystem();
     }
 
     @Override
@@ -93,7 +92,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     @Nullable
     @Override
     protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-        final S3AFileSystem s3Afs = (S3AFileSystem) fs;
+        final FlinkS3AFileSystem s3Afs = (FlinkS3AFileSystem) fs;
         return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
     }
 }
