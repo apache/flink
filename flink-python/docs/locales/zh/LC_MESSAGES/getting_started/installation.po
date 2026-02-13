@@ -1,0 +1,118 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../getting_started/installation.rst:20
+msgid "Installation"
+msgstr ""
+
+#: ../../getting_started/installation.rst:23
+msgid "Environment Requirements"
+msgstr ""
+
+#: ../../getting_started/installation.rst:26
+msgid ""
+"Python version (3.9, 3.10, 3.11 or 3.12) is required for PyFlink. Please "
+"run the following command to make sure that it meets the requirements:"
+msgstr ""
+
+#: ../../getting_started/installation.rst:35
+msgid "Environment Setup"
+msgstr ""
+
+#: ../../getting_started/installation.rst:37
+msgid ""
+"Your system may include multiple Python versions, and thus also include "
+"multiple Python binary executables. You can run the following ``ls`` "
+"command to find out what Python binary executables are available in your "
+"system:"
+msgstr ""
+
+#: ../../getting_started/installation.rst:44
+msgid ""
+"To satisfy the PyFlink requirement regarding the Python environment "
+"version, you can choose to soft link ``python`` to point to your "
+"``python3`` interpreter:"
+msgstr ""
+
+#: ../../getting_started/installation.rst:50
+msgid ""
+"In addition to creating a soft link, you can also choose to create a "
+"Python virtual environment (``venv``):"
+msgstr ""
+
+#: ../../getting_started/installation.rst:57
+msgid ""
+"You can refer to the :flinkdoc:`Deployment Preparation <docs/deployment"
+"/resource-providers/standalone/overview/>` documentation page for details"
+" on how to achieve that setup."
+msgstr ""
+
+#: ../../getting_started/installation.rst:59
+msgid ""
+"If you don't want to use a soft link to change the system's ``python`` "
+"interpreter point to, you can use the configuration way to specify the "
+"Python interpreter. For specifying the Python interpreter used to compile"
+" the jobs, you can refer to the configuration "
+":doc:`../user_guide/configuration`. For specifying the Python interpreter"
+" used to execute the Python UDF, you can refer to the configuration "
+":doc:`../user_guide/configuration`."
+msgstr ""
+
+#: ../../getting_started/installation.rst:64
+msgid "Installation of PyFlink"
+msgstr ""
+
+#: ../../getting_started/installation.rst:66
+msgid ""
+"PyFlink is available in `PyPi <https://pypi.org/project/apache-flink/>`_ "
+"and can be installed as follows:"
+msgstr ""
+
+#: ../../getting_started/installation.rst:72
+msgid ""
+"You can also build PyFlink from source by following the `development "
+"guide <https://flink.apache.org/docs/latest/flinkdev/building/#build-"
+"pyflink>`_."
+msgstr ""
+
+#: ../../getting_started/installation.rst:75
+msgid ""
+"Starting from Flink 1.11, it's also supported to run PyFlink jobs locally"
+" on Windows and so you could develop and debug PyFlink jobs on Windows."
+msgstr ""
+

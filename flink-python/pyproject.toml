@@ -68,7 +68,8 @@ sphinx = [
     "sphinxcontrib.devhelp<1.0.6",
     "sphinxcontrib.htmlhelp<2.0.5",
     "sphinxcontrib-serializinghtml<1.1.10",
-    "sphinxcontrib-qthelp<1.0.7"
+    "sphinxcontrib-qthelp<1.0.7",
+    "sphinx-intl"
 ]
 mypy = [
     "mypy==1.5.1",
