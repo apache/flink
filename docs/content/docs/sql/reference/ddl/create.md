@@ -860,7 +860,7 @@ If the view already exists, nothing happens.
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON] 
-  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+  [USING JAR|ARTIFACT '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
   [WITH (key1=val1, key2=val2, ...)]
 ```
 
