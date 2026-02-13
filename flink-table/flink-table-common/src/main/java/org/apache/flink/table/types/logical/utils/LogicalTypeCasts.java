@@ -294,6 +294,88 @@ public final class LogicalTypeCasts {
     }
 
     /**
+     * Returns whether the cast from source type to target type is injective
+     * (uniqueness-preserving).
+     *
+     * <p>An injective cast guarantees that every distinct input value maps to a distinct output
+     * value. This property is useful for upsert key tracking through projections: if a key column
+     * is cast using an injective conversion, the uniqueness of the key is preserved.
+     *
+     * <p>This method returns {@code true} for casts that are either:
+     *
+     * <ul>
+     *   <li>Implicit casts (handled by {@link #supportsImplicitCast}), which are always safe type
+     *       widenings
+     *   <li>Explicit casts to STRING from types with deterministic string representations: TINYINT,
+     *       SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, BOOLEAN, DATE, and TIMESTAMP variants
+     * </ul>
+     *
+     * <p>Note: BYTES to STRING is explicitly excluded in this first version because they are a
+     * special case and need additional testing (i.e., invalid UTF-8 bytes are replaced with the
+     * Unicode replacement character).
+     *
+     * @param sourceType the source type
+     * @param targetType the target type
+     * @return {@code true} if the cast preserves uniqueness
+     */
+    public static boolean supportsInjectiveCast(LogicalType sourceType, LogicalType targetType) {
+        // Implicit casts are always injective (safe widening)
+        if (supportsImplicitCast(sourceType, targetType)) {
+            return true;
+        }
+
+        // Handle DISTINCT types by unwrapping
+        final LogicalTypeRoot sourceRoot = sourceType.getTypeRoot();
+        final LogicalTypeRoot targetRoot = targetType.getTypeRoot();
+
+        if (sourceRoot == DISTINCT_TYPE) {
+            return supportsInjectiveCast(((DistinctType) sourceType).getSourceType(), targetType);
+        }
+        if (targetRoot == DISTINCT_TYPE) {
+            return supportsInjectiveCast(sourceType, ((DistinctType) targetType).getSourceType());
+        }
+
+        // Check explicit injective casts (primarily to STRING)
+        return isInjectiveExplicitCast(sourceRoot, targetRoot);
+    }
+
+    /**
+     * Checks if an explicit cast from sourceRoot to targetRoot is injective.
+     *
+     * <p>Currently, this covers conversions to VARCHAR/CHAR from types that have deterministic,
+     * unique string representations.
+     */
+    private static boolean isInjectiveExplicitCast(
+            LogicalTypeRoot sourceRoot, LogicalTypeRoot targetRoot) {
+        // Only VARCHAR and CHAR are considered as injective targets for explicit casts
+        if (targetRoot != VARCHAR && targetRoot != CHAR) {
+            return false;
+        }
+
+        switch (sourceRoot) {
+            // Integer types: toString() is injective
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+            // Floating point types: IEEE-754 toString() is injective
+            case FLOAT:
+            case DOUBLE:
+            // Boolean: two values map to two distinct strings
+            case BOOLEAN:
+            // Date: ISO format is injective
+            case DATE:
+            // Timestamp variants: ISO format is injective
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
      * Returns whether the source type can be reinterpreted as the target type.
      *
      * <p>Reinterpret casts correspond to the SQL reinterpret_cast and represent the logic behind a
