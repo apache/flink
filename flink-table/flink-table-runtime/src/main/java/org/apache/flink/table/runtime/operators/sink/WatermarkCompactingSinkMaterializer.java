@@ -26,10 +26,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.InsertConflictStrategy;
@@ -68,7 +72,7 @@ import static org.apache.flink.types.RowKind.UPDATE_AFTER;
  * changelog disorder when the upsert key differs from the sink's primary key.
  */
 public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<RowData>
-        implements OneInputStreamOperator<RowData, RowData> {
+        implements OneInputStreamOperator<RowData, RowData>, Triggerable<RowData, VoidNamespace> {
 
     private static final long serialVersionUID = 1L;
 
@@ -115,6 +119,17 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     // Tracks the current watermark. Used to detect in-flight records after restore.
     private transient long currentWatermark = Long.MIN_VALUE;
 
+    private transient InternalTimerService<VoidNamespace> timerService;
+
+    // Tracks whether this operator instance was restored from checkpoint
+    private transient boolean restoredFromCheckpoint;
+
+    // Descriptor for per-key consolidation tracking (not checkpointed - cleared before snapshot)
+    private transient ValueStateDescriptor<Boolean> consolidatedDescriptor;
+
+    // Per-key state tracking whether consolidation was done after restore
+    private transient ValueState<Boolean> consolidated;
+
     public WatermarkCompactingSinkMaterializer(
             InsertConflictStrategy conflictStrategy,
             TypeSerializer<RowData> serializer,
@@ -158,19 +173,23 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
                 new ValueStateDescriptor<>("current-value", serializer);
         this.currentValue = context.getKeyedStateStore().getState(currentValueDescriptor);
 
-        if (context.isRestored()) {
-            // Detect ordered state backend before consolidation
-            detectOrderedStateBackend();
+        this.consolidatedDescriptor = new ValueStateDescriptor<>("consolidated", Boolean.class);
+        this.consolidated = context.getKeyedStateStore().getState(consolidatedDescriptor);
 
-            // Consolidate all buffered records to MIN_VALUE for each key.
-            // This ensures they are compacted on the first watermark after restore.
-            getKeyedStateBackend()
-                    .applyToAllKeys(
-                            VoidNamespace.INSTANCE,
-                            VoidNamespaceSerializer.INSTANCE,
-                            bufferDescriptor,
-                            (key, state) -> consolidateBufferToMinValue());
-        }
+        this.restoredFromCheckpoint = context.isRestored();
+    }
+
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {
+        // Clear consolidation flags before checkpoint - they should not be persisted
+        getKeyedStateBackend()
+                .applyToAllKeys(
+                        VoidNamespace.INSTANCE,
+                        VoidNamespaceSerializer.INSTANCE,
+                        consolidatedDescriptor,
+                        (key, state) -> state.clear());
+
+        super.snapshotState(context);
     }
 
     private void consolidateBufferToMinValue() throws Exception {
@@ -204,6 +223,20 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         }
     }
 
+    private void maybeConsolidateAfterRestore() throws Exception {
+        if (!restoredFromCheckpoint) {
+            return;
+        }
+
+        if (Boolean.TRUE.equals(this.consolidated.value())) {
+            return; // Already consolidated this key
+        }
+
+        consolidateBufferToMinValue();
+        this.consolidated.update(true);
+        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, Long.MIN_VALUE);
+    }
+
     @Override
     public void open() throws Exception {
         super.open();
@@ -211,6 +244,10 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         initializeKeyFieldGetters();
         detectOrderedStateBackend();
         this.collector = new TimestampedCollector<>(output);
+
+        this.timerService =
+                getInternalTimerService(
+                        "compaction-timers", VoidNamespaceSerializer.INSTANCE, this);
     }
 
     private void initializeKeyFieldGetters() {
@@ -249,6 +286,8 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         RowData row = element.getValue();
         long assignedTimestamp = element.getTimestamp();
 
+        maybeConsolidateAfterRestore();
+
         // If we haven't received any watermark yet (still at MIN_VALUE after restore)
         // and the timestamp is beyond MIN_VALUE, it's from in-flight data that was
         // checkpointed before restore. Assign to MIN_VALUE.
@@ -281,22 +320,25 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
                 break;
         }
         buffer.put(timestamp, records);
+
+        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
     }
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        final long watermarkTimestamp = mark.getTimestamp();
-        this.currentWatermark = watermarkTimestamp;
-
-        // Iterate over all keys and compact their buffered records
-        this.<RowData>getKeyedStateBackend()
-                .applyToAllKeys(
-                        VoidNamespace.INSTANCE,
-                        VoidNamespaceSerializer.INSTANCE,
-                        bufferDescriptor,
-                        (key, state) -> compactAndEmit(watermarkTimestamp));
-
+        this.currentWatermark = mark.getTimestamp();
         super.processWatermark(mark);
+    }
+
+    @Override
+    public void onEventTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
+        maybeConsolidateAfterRestore();
+        compactAndEmit(currentWatermark);
+    }
+
+    @Override
+    public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
+        throw new UnsupportedOperationException("Processing-time timers are not supported");
     }
 
     private void compactAndEmit(long newWatermark) throws Exception {
