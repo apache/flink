@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.groups.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -30,7 +31,8 @@ import org.apache.flink.runtime.metrics.groups.ProxyMetricGroup;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class GaugeSetInvocationTrackingSinkCommitterMetricGroup
+@Internal
+public class InvocationTrackingInternalSinkCommitterMetricGroup
         extends ProxyMetricGroup<MetricGroup> implements SinkCommitterMetricGroup {
 
     private final AtomicInteger gaugeCallCount = new AtomicInteger(0);
@@ -43,7 +45,7 @@ public class GaugeSetInvocationTrackingSinkCommitterMetricGroup
     private final OperatorIOMetricGroup operatorIOMetricGroup;
 
     @VisibleForTesting
-    public GaugeSetInvocationTrackingSinkCommitterMetricGroup(
+    public InvocationTrackingInternalSinkCommitterMetricGroup(
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
         numCommittablesTotal = parentMetricGroup.counter(MetricNames.TOTAL_COMMITTABLES);
@@ -56,9 +58,9 @@ public class GaugeSetInvocationTrackingSinkCommitterMetricGroup
         this.operatorIOMetricGroup = operatorIOMetricGroup;
     }
 
-    public static GaugeSetInvocationTrackingSinkCommitterMetricGroup wrap(
+    public static InvocationTrackingInternalSinkCommitterMetricGroup wrap(
             OperatorMetricGroup operatorMetricGroup) {
-        return new GaugeSetInvocationTrackingSinkCommitterMetricGroup(
+        return new InvocationTrackingInternalSinkCommitterMetricGroup(
                 operatorMetricGroup, operatorMetricGroup.getIOMetricGroup());
     }
 

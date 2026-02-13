@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
-import org.apache.flink.runtime.metrics.groups.utils.GaugeSetInvocationTrackingSinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.utils.InvocationTrackingInternalSinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,8 +28,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CommittableCollectorTest {
-    private static final GaugeSetInvocationTrackingSinkCommitterMetricGroup METRIC_GROUP =
-            MetricsGroupTestUtils.mockGaugeSetInvocationTrackingCommitterMetricGroup();
+    private static final InvocationTrackingInternalSinkCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockInvocationTrackingInternalCommitterMetricGroup();
 
     @BeforeEach
     public void setUp() {
