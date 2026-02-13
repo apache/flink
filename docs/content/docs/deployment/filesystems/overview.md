@@ -92,6 +92,8 @@ To add a new file system:
   - Add a service entry. Create a file `META-INF/services/org.apache.flink.core.fs.FileSystemFactory` which contains the class name of your file system factory class
   (see the [Java Service Loader docs](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html) for more details).
 
+  - Optionally, override `getPriority()` in your factory to declare a relative priority. This is useful when multiple factories may be present for the same URI scheme (for example, during a migration between FS backends). The factory with the highest priority is selected. The default priority is `0`. See [Common Configurations]({{< ref "docs/deployment/filesystems/common" >}}#file-system-factory-priority) for details on overriding priority via configuration. For new experimental factories it is recommended to override: `getPriority()` to `return -1`. This way you provide production safe defaults for file system migrations. 
+
 During plugins discovery, the file system factory class will be loaded by a dedicated Java class loader to avoid class conflicts with other plugins and Flink components.
 The same class loader should be used during file system instantiation and the file system operation calls.
 
