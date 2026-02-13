@@ -61,6 +61,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     @VisibleForTesting static final char SCOPE_SEPARATOR = '_';
     @VisibleForTesting static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
+    private static final String CHECKPOINT_PATH_METRIC_NAME = "lastCheckpointExternalPath";
 
     private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>>
             collectorsWithCountByMetricName = new HashMap<>();
@@ -153,36 +154,54 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
             String scopedMetricName,
             String helpString) {
         Collector collector;
-        switch (metric.getMetricType()) {
-            case GAUGE:
-            case COUNTER:
-            case METER:
-                collector =
-                        io.prometheus.client.Gauge.build()
-                                .name(scopedMetricName)
-                                .help(helpString)
-                                .labelNames(toArray(dimensionKeys))
-                                .create();
-                break;
-            case HISTOGRAM:
-                collector =
-                        new HistogramSummaryProxy(
-                                (Histogram) metric,
-                                scopedMetricName,
-                                helpString,
-                                dimensionKeys,
-                                dimensionValues);
-                break;
-            default:
-                log.warn(
-                        "Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
-                        metric.getClass().getName());
-                collector = null;
+
+        // Special handling for checkpoint path metric - export as info-style metric
+        if (scopedMetricName.endsWith(CHECKPOINT_PATH_METRIC_NAME)) {
+            // Add _info suffix to follow Prometheus naming convention for info metrics
+            String infoMetricName = scopedMetricName + "_info";
+            @SuppressWarnings("unchecked")
+            Gauge<String> pathGauge = (Gauge<String>) metric;
+            collector =
+                    new CheckpointPathInfoCollector(
+                            pathGauge, infoMetricName, helpString, dimensionKeys, dimensionValues);
+        } else {
+            switch (metric.getMetricType()) {
+                case GAUGE:
+                case COUNTER:
+                case METER:
+                    collector =
+                            io.prometheus.client.Gauge.build()
+                                    .name(scopedMetricName)
+                                    .help(helpString)
+                                    .labelNames(toArray(dimensionKeys))
+                                    .create();
+                    break;
+                case HISTOGRAM:
+                    collector =
+                            new HistogramSummaryProxy(
+                                    (Histogram) metric,
+                                    scopedMetricName,
+                                    helpString,
+                                    dimensionKeys,
+                                    dimensionValues);
+                    break;
+                default:
+                    log.warn(
+                            "Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+                            metric.getClass().getName());
+                    collector = null;
+            }
         }
         return collector;
     }
 
     private void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+        // CheckpointPathInfoCollector doesn't need addChild - it reads directly from the gauge
+        if (collector instanceof CheckpointPathInfoCollector) {
+            // No-op: CheckpointPathInfoCollector reads the value directly in collect()
+            return;
+        }
+
         switch (metric.getMetricType()) {
             case GAUGE:
                 ((io.prometheus.client.Gauge) collector)
@@ -207,6 +226,12 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
     }
 
     private void removeMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+        // CheckpointPathInfoCollector doesn't need remove - it reads directly from the gauge
+        if (collector instanceof CheckpointPathInfoCollector) {
+            // No-op: CheckpointPathInfoCollector reads the value directly in collect()
+            return;
+        }
+
         switch (metric.getMetricType()) {
             case GAUGE:
                 ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
@@ -389,5 +414,69 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private static String[] toArray(List<String> list) {
         return list.toArray(new String[list.size()]);
+    }
+
+    /**
+     * Collector for checkpoint path metrics that exports them as Prometheus info-style metrics.
+     *
+     * <p>This collector is specifically designed for the lastCheckpointExternalPath metric. Instead
+     * of exporting the path as a metric value (which would be meaningless as a number), it exports
+     * the path as a label value with the metric value always set to 1.0. This follows the
+     * Prometheus convention for info-style metrics.
+     *
+     * <p>Example output: {@code
+     * flink_jobmanager_job_lastCheckpointExternalPath_info{host="...",job_id="...",path="hdfs://..."}
+     * 1.0 }
+     */
+    static class CheckpointPathInfoCollector extends Collector {
+        private final Gauge<String> checkpointPathGauge;
+        private final String metricName;
+        private final String helpString;
+        private final List<String> labelNames;
+        private final List<String> labelValues;
+
+        CheckpointPathInfoCollector(
+                Gauge<String> checkpointPathGauge,
+                String metricName,
+                String helpString,
+                List<String> labelNames,
+                List<String> labelValues) {
+            this.checkpointPathGauge = checkpointPathGauge;
+            this.metricName = metricName;
+            this.helpString = helpString;
+
+            // Add "path" as an additional label
+            this.labelNames = new ArrayList<>(labelNames);
+            this.labelNames.add("path");
+
+            this.labelValues = new ArrayList<>(labelValues);
+        }
+
+        @Override
+        public List<MetricFamilySamples> collect() {
+            // Get the current checkpoint path from the gauge
+            String checkpointPath = checkpointPathGauge.getValue();
+
+            // If path is null or empty, don't export any samples
+            if (checkpointPath == null || checkpointPath.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            // Create label values including the checkpoint path
+            List<String> sampleLabelValues = new ArrayList<>(labelValues);
+            sampleLabelValues.add(checkpointPath);
+
+            // Create a sample with value 1.0 (info-style metric)
+            MetricFamilySamples.Sample sample =
+                    new MetricFamilySamples.Sample(
+                            metricName, labelNames, sampleLabelValues, 1.0);
+
+            // Create and return the metric family
+            MetricFamilySamples metricFamilySamples =
+                    new MetricFamilySamples(
+                            metricName, Type.GAUGE, helpString, Collections.singletonList(sample));
+
+            return Collections.singletonList(metricFamilySamples);
+        }
     }
 }
