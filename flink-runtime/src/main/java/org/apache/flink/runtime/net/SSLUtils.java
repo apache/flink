@@ -367,8 +367,6 @@ public class SSLUtils {
             sslContextBuilder = SslContextBuilder.forServer(kmf);
         }
 
-        setHostnameVerification(sslContextBuilder, config, clientMode);
-
         Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, true);
         tmf.map(sslContextBuilder::trustManager);
 
@@ -430,12 +428,12 @@ public class SSLUtils {
                 KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
                 sslContextBuilder.keyManager(kmf);
             }
+            sslContextBuilder.endpointIdentificationAlgorithm(
+                    config.get(SecurityOptions.SSL_REST_VERIFY_HOSTNAME) ? "HTTPS" : null);
         } else {
             KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
             sslContextBuilder = SslContextBuilder.forServer(kmf);
         }
-
-        setHostnameVerification(sslContextBuilder, config, clientMode);
 
         if (clientMode || clientAuth != ClientAuth.NONE) {
             Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, false);
@@ -456,18 +454,6 @@ public class SSLUtils {
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
-
-    /**
-     * Set hostname verification. By default, Netty will enable hostname verification since 4.2.x
-     * for client-mode connections.
-     */
-    private static void setHostnameVerification(
-            SslContextBuilder sslContextBuilder, Configuration config, boolean clientMode) {
-        if (clientMode) {
-            sslContextBuilder.endpointIdentificationAlgorithm(
-                    config.get(SecurityOptions.SSL_VERIFY_HOSTNAME) ? "HTTPS" : null);
-        }
-    }
 
     private static String getAndCheckOption(
             Configuration config,
