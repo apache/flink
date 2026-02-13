@@ -265,7 +265,70 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
   }
 }
 
+/**
+ * This rule handles all [[SqlRankFunction]] types (ROW_NUMBER, RANK, DENSE_RANK) with both constant
+ * and variable rank ranges. Unlike [[FlinkLogicalRankRuleForRangeEnd]], it does not throw an
+ * exception for [[ConstantRankRangeWithoutEnd]], making it safe for use in the Volcano (cost-based)
+ * optimizer phase where exceptions in `matches()` are wrapped and cause planning failures.
+ *
+ * This rule silently rejects [[ConstantRankRangeWithoutEnd]] (rank end not specified) rather than
+ * throwing, deferring that error to [[FlinkLogicalRankRuleForRangeEnd]] in a later HEP phase where
+ * exceptions are properly surfaced to the user.
+ */
+class FlinkLogicalRankRuleForConstantRangeAllFunctions extends FlinkLogicalRankRuleBase {
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc: FlinkLogicalCalc = call.rel(0)
+    val window: FlinkLogicalOverAggregate = call.rel(1)
+
+    if (window.groups.size > 1) {
+      // only accept one window
+      return false
+    }
+
+    val group = window.groups.get(0)
+    if (group.aggCalls.size > 1) {
+      // only accept one agg call
+      return false
+    }
+
+    val agg = group.aggCalls.get(0)
+    if (!agg.getOperator.isInstanceOf[SqlRankFunction]) {
+      // only accept SqlRankFunction for Rank
+      return false
+    }
+
+    if (group.lowerBound.isUnbounded && group.upperBound.isCurrentRow) {
+      val condition = calc.getProgram.getCondition
+      if (condition != null) {
+        val predicate = calc.getProgram.expandLocalRef(condition)
+        // the rank function is the last field of FlinkLogicalOverAggregate
+        val rankFieldIndex = window.getRowType.getFieldCount - 1
+        val tableConfig = unwrapTableConfig(calc)
+        val (rankRange, remainingPreds) = RankUtil.extractRankRange(
+          predicate,
+          rankFieldIndex,
+          calc.getCluster.getRexBuilder,
+          tableConfig,
+          unwrapClassLoader(calc))
+
+        // remaining predicate must not access rank field attributes
+        val remainingPredsAccessRank = remainingPreds.isDefined &&
+          RankUtil.accessesRankField(remainingPreds.get, rankFieldIndex)
+
+        // accept any rank range except ConstantRankRangeWithoutEnd (rank end not specified)
+        rankRange.exists(!_.isInstanceOf[ConstantRankRangeWithoutEnd]) &&
+          !remainingPredsAccessRank
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
 object FlinkLogicalRankRule {
   val INSTANCE = new FlinkLogicalRankRuleForRangeEnd
   val CONSTANT_RANGE_INSTANCE = new FlinkLogicalRankRuleForConstantRange
+  val CONSTANT_RANGE_ALL_FUNCTIONS_INSTANCE = new FlinkLogicalRankRuleForConstantRangeAllFunctions
 }

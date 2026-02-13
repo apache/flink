@@ -296,6 +296,13 @@ object FlinkStreamRuleSets {
     // expand grouping sets
     DecomposeGroupingSetsRule.INSTANCE,
 
+    // rank rules
+    FlinkLogicalRankRule.CONSTANT_RANGE_ALL_FUNCTIONS_INSTANCE,
+    // transpose calc past rank to reduce rank input fields
+    CalcRankTransposeRule.INSTANCE,
+    // remove output of rank number when it is a constant
+    ConstantRankNumberColumnRemoveRule.INSTANCE,
+
     // calc rules
     FlinkFilterCalcMergeRule.INSTANCE,
     FlinkProjectCalcMergeRule.INSTANCE,
