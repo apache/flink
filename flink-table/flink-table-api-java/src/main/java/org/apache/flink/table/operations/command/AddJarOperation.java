@@ -53,7 +53,7 @@ public class AddJarOperation implements Operation, ExecutableOperation {
     public TableResultInternal execute(Context ctx) {
         ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, getPath());
         try {
-            ctx.getResourceManager().registerJarResources(Collections.singletonList(resourceUri));
+            ctx.getResourceManager().registerResources(Collections.singletonList(resourceUri));
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (IOException e) {
             throw new TableException(
