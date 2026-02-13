@@ -22,18 +22,28 @@ import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class CommittableCollectorTest {
     private static final SinkCommitterMetricGroup METRIC_GROUP =
-            MetricsGroupTestUtils.mockCommitterMetricGroup();
+            spy(MetricsGroupTestUtils.mockCommitterMetricGroup());
+
+    @BeforeEach
+    void setUp() {
+        Mockito.reset(METRIC_GROUP);
+    }
 
     @Test
     void testGetCheckpointCommittablesUpTo() {
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP);
+                new CommittableCollector<>(METRIC_GROUP, true);
         CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0);
         committableCollector.addMessage(first);
         CommittableSummary<Integer> second = new CommittableSummary<>(1, 1, 2L, 1, 0);
@@ -41,5 +51,19 @@ class CommittableCollectorTest {
         committableCollector.addMessage(new CommittableSummary<>(1, 1, 3L, 1, 0));
 
         assertThat(committableCollector.getCheckpointCommittablesUpTo(2)).hasSize(2);
+    }
+
+    @Test
+    void testCopyCommittableCollectorDoesNotTriggerMetricUpdates() {
+        final CommittableCollector<Integer> committableCollector =
+                new CommittableCollector<>(METRIC_GROUP, true);
+
+        // before
+        verify(METRIC_GROUP, times(1)).setCurrentPendingCommittablesGauge(Mockito.any());
+
+        committableCollector.copy();
+
+        // after
+        verify(METRIC_GROUP, times(1)).setCurrentPendingCommittablesGauge(Mockito.any());
     }
 }

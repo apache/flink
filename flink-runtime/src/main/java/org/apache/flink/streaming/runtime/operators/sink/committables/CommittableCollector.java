@@ -54,19 +54,20 @@ public class CommittableCollector<CommT> {
 
     private final SinkCommitterMetricGroup metricGroup;
 
-    public CommittableCollector(SinkCommitterMetricGroup metricGroup) {
-        this(new TreeMap<>(), metricGroup, true);
+    public CommittableCollector(
+            SinkCommitterMetricGroup metricGroup, boolean setCurrentPendingCommittablesGauge) {
+        this(new TreeMap<>(), metricGroup, setCurrentPendingCommittablesGauge);
     }
 
     /** For deep-copy. */
     CommittableCollector(
             Map<Long, CheckpointCommittableManagerImpl<CommT>> checkpointCommittables,
             SinkCommitterMetricGroup metricGroup,
-            boolean setCurrentPendingCommitablesGauge) {
+            boolean setCurrentPendingCommittablesGauge) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
         this.metricGroup = metricGroup;
 
-        if (setCurrentPendingCommitablesGauge) {
+        if (setCurrentPendingCommittablesGauge) {
             this.metricGroup.setCurrentPendingCommittablesGauge(this::getNumPending);
         }
     }
@@ -86,7 +87,7 @@ public class CommittableCollector<CommT> {
      * @return {@link CommittableCollector}
      */
     public static <CommT> CommittableCollector<CommT> of(SinkCommitterMetricGroup metricGroup) {
-        return new CommittableCollector<>(metricGroup);
+        return new CommittableCollector<>(metricGroup, true);
     }
 
     /**
@@ -100,7 +101,8 @@ public class CommittableCollector<CommT> {
      */
     static <CommT> CommittableCollector<CommT> ofLegacy(
             List<CommT> committables, SinkCommitterMetricGroup metricGroup) {
-        CommittableCollector<CommT> committableCollector = new CommittableCollector<>(metricGroup);
+        CommittableCollector<CommT> committableCollector =
+                new CommittableCollector<>(metricGroup, false);
         // add a checkpoint with the lowest checkpoint id, this will be merged into the next
         // checkpoint data, subtask id is arbitrary
         CommittableSummary<CommT> summary =
