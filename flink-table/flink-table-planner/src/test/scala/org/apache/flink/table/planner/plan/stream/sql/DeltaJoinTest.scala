@@ -634,11 +634,11 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2 " +
         "on conflict do deduplicate")
 
+    // snk2 is a retract sink, so ON CONFLICT is not allowed
     stmt.addInsertSql(
       "insert into snk2 select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2 " +
-        "on conflict do deduplicate")
+        "and src1.a2 = src2.b2")
 
     util.verifyExecPlan(stmt)
   }

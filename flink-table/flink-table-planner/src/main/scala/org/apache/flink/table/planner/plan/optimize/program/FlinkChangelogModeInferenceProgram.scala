@@ -1056,6 +1056,22 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val sinkIsAppend = sinkChangelogMode.containsOnly(RowKind.INSERT)
       val sinkIsRetract = sinkChangelogMode.contains(RowKind.UPDATE_BEFORE)
 
+      // Validate ON CONFLICT is only allowed for upsert sinks
+      if (sink.conflictStrategy != null) {
+        val isUpsertSink = !sinkIsAppend && !sinkIsRetract
+        if (!isUpsertSink) {
+          val reason = if (sinkIsAppend) {
+            "it only accepts INSERT (append-only) changes"
+          } else {
+            "it requires UPDATE_BEFORE (retract mode)"
+          }
+          throw new ValidationException(
+            s"ON CONFLICT clause is only allowed for upsert sinks. " +
+              s"The sink '${sink.contextResolvedTable.getIdentifier.asSummaryString}' " +
+              s"is not an upsert sink because $reason.")
+        }
+      }
+
       tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty && !sinkIsRetract
         case UpsertMaterialize.NONE => false
