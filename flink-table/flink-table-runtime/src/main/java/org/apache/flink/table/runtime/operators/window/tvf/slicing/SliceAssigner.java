@@ -65,4 +65,13 @@ public interface SliceAssigner extends WindowAssigner {
      * slice assigned.
      */
     long getSliceEndInterval();
+
+    /** Returns the window offset if supported or zero otherwise. */
+    long getWindowOffset();
+
+    /**
+     * Returns {@code true} if elements are assigned to windows based on event time, {@code false}
+     * based on processing time.
+     */
+    boolean isEventTime();
 }
