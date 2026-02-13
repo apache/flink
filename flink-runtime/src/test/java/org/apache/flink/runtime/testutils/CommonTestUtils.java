@@ -47,6 +47,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -69,6 +70,9 @@ public class CommonTestUtils {
     private static final Logger LOG = LoggerFactory.getLogger(CommonTestUtils.class);
 
     private static final long RETRY_INTERVAL = 100L;
+
+    /** Default timeout for waiting on tasks to reach running state. */
+    public static final Duration DEFAULT_WAIT_FOR_TASKS_TIMEOUT = Duration.ofMinutes(5);
 
     /**
      * Gets the classpath with which the current JVM was started.
@@ -155,6 +159,27 @@ public class CommonTestUtils {
     }
 
     public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition, Duration timeout)
+            throws Exception {
+        waitUntilCondition(condition, Duration.ofMillis(RETRY_INTERVAL), timeout);
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition,
+            Duration retryInterval,
+            Duration timeout)
+            throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (!condition.get()) {
+            if (System.nanoTime() >= deadline) {
+                throw new TimeoutException(
+                        "Condition was not met within the timeout of " + timeout);
+            }
+            Thread.sleep(retryInterval.toMillis());
+        }
+    }
+
+    public static void waitUntilCondition(
             SupplierWithException<Boolean, Exception> condition, int retryAttempts)
             throws Exception {
         waitUntilCondition(condition, RETRY_INTERVAL, retryAttempts);
@@ -180,7 +205,13 @@ public class CommonTestUtils {
 
     public static void waitForAllTaskRunning(
             MiniCluster miniCluster, JobID jobId, boolean allowFinished) throws Exception {
-        waitForAllTaskRunning(() -> getGraph(miniCluster, jobId), allowFinished);
+        waitForAllTaskRunning(miniCluster, jobId, allowFinished, DEFAULT_WAIT_FOR_TASKS_TIMEOUT);
+    }
+
+    public static void waitForAllTaskRunning(
+            MiniCluster miniCluster, JobID jobId, boolean allowFinished, Duration timeout)
+            throws Exception {
+        waitForAllTaskRunning(() -> getGraph(miniCluster, jobId), allowFinished, timeout);
     }
 
     private static AccessExecutionGraph getGraph(MiniCluster miniCluster, JobID jobId)
@@ -191,6 +222,15 @@ public class CommonTestUtils {
     public static void waitForAllTaskRunning(
             SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
             boolean allowFinished)
+            throws Exception {
+        waitForAllTaskRunning(
+                executionGraphSupplier, allowFinished, DEFAULT_WAIT_FOR_TASKS_TIMEOUT);
+    }
+
+    public static void waitForAllTaskRunning(
+            SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
+            boolean allowFinished,
+            Duration timeout)
             throws Exception {
         Predicate<AccessExecutionVertex> subtaskPredicate =
                 task -> {
@@ -224,11 +264,18 @@ public class CommonTestUtils {
                                             jobVertex ->
                                                     Arrays.stream(jobVertex.getTaskVertices())
                                                             .allMatch(subtaskPredicate));
-                });
+                },
+                timeout);
     }
 
     public static void waitForAllTaskRunning(
             SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier) throws Exception {
+        waitForAllTaskRunning(jobDetailsSupplier, DEFAULT_WAIT_FOR_TASKS_TIMEOUT);
+    }
+
+    public static void waitForAllTaskRunning(
+            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier, Duration timeout)
+            throws Exception {
         waitUntilCondition(
                 () -> {
                     final JobDetailsInfo jobDetailsInfo = jobDetailsSupplier.get();
@@ -246,7 +293,8 @@ public class CommonTestUtils {
                         }
                     }
                     return true;
-                });
+                },
+                timeout);
     }
 
     public static void waitForNoTaskRunning(
