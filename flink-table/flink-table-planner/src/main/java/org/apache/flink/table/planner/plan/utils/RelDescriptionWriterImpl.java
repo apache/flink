@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
@@ -57,8 +59,22 @@ public class RelDescriptionWriterImpl implements RelWriter {
     public void explain(RelNode rel, List<Pair<String, Object>> valueList) {
         StringBuilder s = new StringBuilder();
         s.append(getNodeTypeName(rel));
+
+        // Add changelog mode for streaming physical nodes
+        List<Pair<String, Object>> extendedValueList = new ArrayList<>(valueList);
+        if (rel instanceof StreamPhysicalRel) {
+            StreamPhysicalRel streamRel = (StreamPhysicalRel) rel;
+            scala.Option<ChangelogMode> changelogModeOpt =
+                    ChangelogPlanUtils.getChangelogMode(streamRel);
+            if (changelogModeOpt.isDefined()) {
+                String changelogModeStr =
+                        ChangelogPlanUtils.stringifyChangelogMode(changelogModeOpt);
+                extendedValueList.add(Pair.of("changelogMode", changelogModeStr));
+            }
+        }
+
         int j = 0;
-        for (Pair<String, Object> value : valueList) {
+        for (Pair<String, Object> value : extendedValueList) {
             if (j++ == 0) {
                 s.append("(");
             } else {
