@@ -43,7 +43,7 @@ The following Flink features have not been tested with Java 11:
 
 ## Java 17
 
-We use Java 17 by default in Flink 2.0.0 and is the recommended Java version to run Flink on.
+We use Java 17 by default since Flink 2.0.0 and is the recommended Java version to run Flink on.
 This is the default version for docker images.
 
 ### Untested Flink features
@@ -73,7 +73,7 @@ Since Flink uses reflection for serializing user-defined functions and data (via
 
 These should be configured via the [env.java.opts.all]({{< ref "docs/deployment/config" >}}#env-java-opts-all) option.
 
-In the default configuration in the Flink distribution this option is configured such that Flink itself works on Java 17.  
+In the default configuration in the Flink distribution this option is configured such that Flink itself works on Java 17.
 The list of configured arguments must not be shortened, but only extended.
 
 ### Known issues
