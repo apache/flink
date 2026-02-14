@@ -73,14 +73,15 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
 
     @Override
     public Collection<SlotOffer> offerSlots(
-            Collection<? extends SlotOffer> offers,
+            Collection<? extends SlotOffer> slotOffers,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
         if (!isBlockedTaskManager(taskManagerLocation.getResourceID())) {
-            return super.offerSlots(offers, taskManagerLocation, taskManagerGateway, currentTime);
+            return super.offerSlots(
+                    slotOffers, taskManagerLocation, taskManagerGateway, currentTime);
         } else {
-            return internalOfferSlotsFromBlockedTaskManager(offers, taskManagerLocation);
+            return internalOfferSlotsFromBlockedTaskManager(slotOffers, taskManagerLocation);
         }
     }
 
