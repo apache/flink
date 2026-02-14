@@ -106,6 +106,34 @@ public class ExecutionConfigOptions {
                                                     + "an additional stateful operator.")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<RowtimeNullHandling> TABLE_EXEC_SOURCE_ROWTIME_NULL_HANDLING =
+            key("table.exec.source.rowtime-null-handling")
+                    .enumType(RowtimeNullHandling.class)
+                    .defaultValue(RowtimeNullHandling.FAIL)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Specifies the behavior when the rowtime field is null "
+                                                    + "during watermark generation.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "FAIL (default, recommended): Throw a runtime exception when encountering "
+                                                    + "null rowtime. A null rowtime typically indicates that the source is receiving "
+                                                    + "unexpected null values in a column that should not be null, which suggests "
+                                                    + "the data flow needs to be cleaned up.")
+                                    .linebreak()
+                                    .text(
+                                            "DROP: Drop the record silently. The 'numNullRowtimeRecordsDropped' "
+                                                    + "metric will be incremented. Note that this may result in data loss.")
+                                    .linebreak()
+                                    .text(
+                                            "SKIP_WATERMARK: Forward the record without advancing the watermark. "
+                                                    + "The 'numNullRowtimeRecordsSkipped' metric will be incremented. Note that "
+                                                    + "this may cause issues in downstream operators if they expect valid rowtime values.")
+                                    .build());
+
     // ------------------------------------------------------------------------
     //  Sink Options
     // ------------------------------------------------------------------------
@@ -1001,6 +1029,34 @@ public class ExecutionConfigOptions {
         private final InlineElement description;
 
         RowtimeInserter(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /**
+     * Specifies the behavior when the rowtime field is null during watermark generation in
+     * streaming mode.
+     */
+    @PublicEvolving
+    public enum RowtimeNullHandling implements DescribedEnum {
+        FAIL(text("Throw a runtime exception when encountering null rowtime.")),
+        DROP(
+                text(
+                        "Drop the record silently and increment the 'numNullRowtimeRecordsDropped' metric.")),
+        SKIP_WATERMARK(
+                text(
+                        "Forward the record without advancing the watermark "
+                                + "and increment the 'numNullRowtimeRecordsSkipped' metric."));
+
+        private final InlineElement description;
+
+        RowtimeNullHandling(InlineElement description) {
             this.description = description;
         }
 

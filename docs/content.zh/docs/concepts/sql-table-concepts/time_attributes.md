@@ -367,6 +367,24 @@ select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='align
 **Note:** 如果源连接器(source connector)未实现[FLIP-217](https://cwiki.apache.org/confluence/display/FLINK/FLIP-217%3A+Support+watermark+alignment+of+source+splits)，并且使用了watermark对齐的功能，那么任务运行会抛出异常，用户可以设置`pipeline.watermark-alignment.allow-unaligned-source-splits`为`true`来禁用源分片的WaterMark对齐功能，此时，只有当分片数量等于源并行度的时候，watermark对齐功能才能正常工作。
 {{< /hint >}}
 
+##### IV. 处理空的 rowtime 字段
+
+在某些情况下，由于数据质量问题、Schema 演进或数据回填场景，源数据中的 rowtime 字段可能为 null。默认情况下，当在生成 watermark 时遇到 null rowtime 字段，Flink 会抛出 `RuntimeException`。你可以使用 `table.exec.source.rowtime-null-handling` 参数来配置如何处理空的 rowtime 字段：
+
+```sql
+-- 在 SQL 中设置
+SET 'table.exec.source.rowtime-null-handling' = 'DROP';
+```
+
+可选值：
+- `FAIL`（默认）：遇到空的 rowtime 字段时抛出运行时异常。
+- `DROP`：静默丢弃该记录。使用 `numNullRowtimeRecordsDropped` 指标监控丢弃的记录数。
+- `SKIP_WATERMARK`：转发该记录但不推进 watermark。使用 `numNullRowtimeRecordsSkipped` 指标监控跳过的记录数。
+
+{{< hint info >}}
+**Note:** 当使用 `DROP` 或 `SKIP_WATERMARK` 策略时，rowtime 字段为 null 的记录不会参与 watermark 的推进。如果所有记录的 rowtime 都为 null，watermark 将不会推进，这可能会导致下游的基于时间的操作（如窗口）不产生结果。
+{{< /hint >}}
+
 ### 在 DataStream 到 Table 转换时定义
 
 事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。 
