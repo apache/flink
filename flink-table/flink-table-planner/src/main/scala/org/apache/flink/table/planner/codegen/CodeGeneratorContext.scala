@@ -129,6 +129,9 @@ class CodeGeneratorContext(
   // string_constant -> reused_term
   private val reusableStringConstants: mutable.Map[String, String] = mutable.Map[String, String]()
 
+  // set of function instance term that will be added only once
+  private val reusableFunctionTerms: mutable.HashSet[String] = mutable.HashSet[String]()
+
   // map of type serializer that will be added only once
   // LogicalType -> reused_term
   private val reusableTypeSerializers: mutable.Map[LogicalType, String] =
@@ -837,6 +840,12 @@ class CodeGeneratorContext(
       contextArgs: Seq[String] = null): String = {
     val classQualifier = function.getClass.getName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
+    // check if function has been added before to avoid duplicate function instances
+    if (reusableFunctionTerms.contains(fieldTerm)) {
+      return fieldTerm
+    } else {
+      reusableFunctionTerms += fieldTerm
+    }
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)
 
