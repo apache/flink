@@ -497,6 +497,24 @@ string:
     description:
       Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme.
       If the input is NULL, or there is an issue with the encoding process, or the encoding scheme is not supported, will return NULL.
+  - sql: INET_ATON(string)
+    table: STRING.inetAton()
+    description: |
+      Converts an IPv4 address string to its numeric representation (BIGINT). Follows MySQL INET_ATON behavior.
+
+      Supports MySQL-compatible short-form addresses: a.b is interpreted as a.0.0.b, and a.b.c is interpreted as a.b.0.c.
+      Leading zeros in octets are parsed as decimal (not octal), consistent with MySQL.
+      Returns NULL if input is NULL or invalid.
+
+      E.g., INET_ATON('127.0.0.1') returns 2130706433; INET_ATON('127.1') returns 2130706433 (short-form).
+  - sql: INET_NTOA(integer)
+    table: INTEGER.inetNtoa()
+    description: |
+      Converts a numeric IPv4 address representation back to its string format. Follows MySQL INET_NTOA behavior.
+
+      The input must be in the valid IPv4 range [0, 4294967295]. Returns NULL if input is NULL or out of range.
+
+      E.g., INET_NTOA(2130706433) returns '127.0.0.1'; INET_NTOA(0) returns '0.0.0.0'.
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |

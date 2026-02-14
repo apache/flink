@@ -184,6 +184,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("STARTSWITH(a, b)", str(expr1.starts_with(expr2)))
         self.assertEqual("ENDSWITH(a, b)", str(expr1.ends_with(expr2)))
 
+        # ip address functions
+        self.assertEqual("INET_ATON(a)", str(expr1.inet_aton()))
+        self.assertEqual("INET_NTOA(a)", str(expr1.inet_ntoa()))
+
         # regexp functions
         self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
         self.assertEqual("REGEXP_COUNT(a, b)", str(expr1.regexp_count(expr2)))

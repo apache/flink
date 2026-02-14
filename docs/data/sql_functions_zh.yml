@@ -590,8 +590,26 @@ string:
   - sql: URL_ENCODE(string)
     table: STRING.urlEncode()
     description:
-      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式。
+      使用 UTF-8 编码方案将字符串转换为"application/x-www-form-urlencoded"格式。
       如果输入为 NULL，或者编码过程出现问题，或者不支持编码方案，则会返回 NULL。
+  - sql: INET_ATON(string)
+    table: STRING.inetAton()
+    description: |
+      将 IPv4 地址字符串转换为数值表示（BIGINT）。遵循 MySQL INET_ATON 函数行为。
+
+      支持 MySQL 兼容的短格式地址：a.b 被解释为 a.0.0.b，a.b.c 被解释为 a.b.0.c。
+      八位字节中的前导零按十进制解析（而非八进制），与 MySQL 保持一致。
+      如果输入为 NULL 或无效，则返回 NULL。
+
+      例如，INET_ATON('127.0.0.1') 返回 2130706433；INET_ATON('127.1') 返回 2130706433（短格式）。
+  - sql: INET_NTOA(integer)
+    table: INTEGER.inetNtoa()
+    description: |
+      将数值 IPv4 地址表示转换回字符串格式。遵循 MySQL INET_NTOA 函数行为。
+
+      输入必须在有效的 IPv4 范围内 [0, 4294967295]。如果输入为 NULL 或超出范围，则返回 NULL。
+
+      例如，INET_NTOA(2130706433) 返回 '127.0.0.1'；INET_NTOA(0) 返回 '0.0.0.0'。
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
