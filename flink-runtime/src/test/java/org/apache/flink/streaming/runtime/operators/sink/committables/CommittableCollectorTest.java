@@ -18,17 +18,25 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
-import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
-import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CommittableCollectorTest {
-    private static final SinkCommitterMetricGroup METRIC_GROUP =
-            MetricsGroupTestUtils.mockCommitterMetricGroup();
+    private static final TestCommitterMetricGroup METRIC_GROUP = new TestCommitterMetricGroup();
+
+    @BeforeEach
+    public void setUp() {
+        METRIC_GROUP.resetGaugeCallCount();
+    }
 
     @Test
     void testGetCheckpointCommittablesUpTo() {
@@ -41,5 +49,42 @@ class CommittableCollectorTest {
         committableCollector.addMessage(new CommittableSummary<>(1, 1, 3L, 1, 0));
 
         assertThat(committableCollector.getCheckpointCommittablesUpTo(2)).hasSize(2);
+    }
+
+    @Test
+    void testSetPendingGaugeNotCalledOnCopy() {
+        final CommittableCollector<Integer> committableCollector =
+                CommittableCollector.of(METRIC_GROUP);
+
+        assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
+
+        committableCollector.copy();
+
+        assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
+    }
+
+    private static class TestCommitterMetricGroup extends InternalSinkCommitterMetricGroup {
+
+        private final AtomicInteger gaugeCallCount = new AtomicInteger(0);
+
+        TestCommitterMetricGroup() {
+            super(
+                    new UnregisteredMetricsGroup(),
+                    UnregisteredMetricsGroup.createOperatorIOMetricGroup());
+        }
+
+        @Override
+        public void setCurrentPendingCommittablesGauge(Gauge<Integer> gauge) {
+            gaugeCallCount.incrementAndGet();
+            super.setCurrentPendingCommittablesGauge(gauge);
+        }
+
+        int getGaugeCallCount() {
+            return gaugeCallCount.get();
+        }
+
+        void resetGaugeCallCount() {
+            gaugeCallCount.set(0);
+        }
     }
 }

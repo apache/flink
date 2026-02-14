@@ -41,7 +41,7 @@ public class InternalSinkCommitterMetricGroup extends ProxyMetricGroup<MetricGro
     private final OperatorIOMetricGroup operatorIOMetricGroup;
 
     @VisibleForTesting
-    InternalSinkCommitterMetricGroup(
+    public InternalSinkCommitterMetricGroup(
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
         numCommittablesTotal = parentMetricGroup.counter(MetricNames.TOTAL_COMMITTABLES);
