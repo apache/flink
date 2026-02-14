@@ -99,11 +99,23 @@ class FlinkLogicalTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super
+    val writer = super
       .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
       .itemIf("eventTimeSnapshotRequired", "true", eventTimeSnapshotRequired)
+
+    // Add watermark information if present
+    val resolvedSchema = relOptTable.contextResolvedTable.getResolvedSchema
+    val watermarkSpecs = resolvedSchema.getWatermarkSpecs
+    if (!watermarkSpecs.isEmpty) {
+      val watermarkSpec = watermarkSpecs.get(0)
+      val watermarkStr = watermarkSpec.getRowtimeAttribute + " - " +
+        watermarkSpec.getWatermarkExpression.asSummaryString()
+      writer.item("watermark", watermarkStr)
+    } else {
+      writer
+    }
   }
 
 }
