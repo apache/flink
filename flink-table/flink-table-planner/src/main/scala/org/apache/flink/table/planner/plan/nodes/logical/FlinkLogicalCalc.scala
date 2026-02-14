@@ -19,18 +19,22 @@ package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.metadata.RelMdCollation
-import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexProgram}
+import org.apache.calcite.sql.SqlKind
 
 import java.util
 import java.util.function.Supplier
+
+import scala.collection.JavaConversions._
 
 /**
  * Sub-class of [[Calc]] that is a relational expression which computes project expressions and also
@@ -46,6 +50,113 @@ class FlinkLogicalCalc(
 
   override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
     new FlinkLogicalCalc(cluster, traitSet, child, program)
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
+    val localExprs = calcProgram.getExprList.toList
+
+    // Format the where condition with field names if present
+    val formattedWhere = if (calcProgram.getCondition != null) {
+      val condition = calcProgram.expandLocalRef(calcProgram.getCondition)
+      formatFilterCondition(condition, inputFieldNames)
+    } else {
+      null
+    }
+
+    pw.input("input", getInput)
+      .item(
+        "select",
+        projectionToString(
+          org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat(pw),
+          pw.getDetailLevel))
+      .itemIf("where", formattedWhere, formattedWhere != null)
+  }
+
+  /**
+   * Formats a filter condition into a readable string with field names. Converts expressions like
+   * ">($2, 100)" into "amount > 100"
+   */
+  private def formatFilterCondition(condition: RexNode, fieldNames: List[String]): String = {
+
+    condition match {
+      case call: RexCall if call.getKind == SqlKind.GREATER_THAN =>
+        // Handle greater than: field > value
+        formatBinaryCondition(call, fieldNames, " > ")
+
+      case call: RexCall if call.getKind == SqlKind.LESS_THAN =>
+        // Handle less than: field < value
+        formatBinaryCondition(call, fieldNames, " < ")
+
+      case call: RexCall if call.getKind == SqlKind.GREATER_THAN_OR_EQUAL =>
+        // Handle greater than or equal: field >= value
+        formatBinaryCondition(call, fieldNames, " >= ")
+
+      case call: RexCall if call.getKind == SqlKind.LESS_THAN_OR_EQUAL =>
+        // Handle less than or equal: field <= value
+        formatBinaryCondition(call, fieldNames, " <= ")
+
+      case call: RexCall if call.getKind == SqlKind.EQUALS =>
+        // Handle equals: field = value
+        formatBinaryCondition(call, fieldNames, " = ")
+
+      case call: RexCall if call.getKind == SqlKind.NOT_EQUALS =>
+        // Handle not equals: field <> value
+        formatBinaryCondition(call, fieldNames, " <> ")
+
+      case call: RexCall if call.getKind == SqlKind.AND =>
+        // Handle composite conditions: cond1 AND cond2
+        val operands = call.getOperands
+        val formattedOperands = operands.map {
+          operand => formatFilterCondition(operand, fieldNames)
+        }
+        formattedOperands.mkString(" AND ")
+
+      case call: RexCall if call.getKind == SqlKind.OR =>
+        // Handle OR conditions
+        val operands = call.getOperands
+        val formattedOperands = operands.map {
+          operand => formatFilterCondition(operand, fieldNames)
+        }
+        formattedOperands.mkString(" OR ")
+
+      case call: RexCall if call.getKind == SqlKind.NOT =>
+        // Handle NOT condition
+        val operand = call.getOperands.get(0)
+        s"NOT ${formatFilterCondition(operand, fieldNames)}"
+
+      case _ =>
+        // Fallback to default formatting for complex expressions
+        FlinkRexUtil.getExpressionString(condition, fieldNames)
+    }
+  }
+
+  /** Formats a binary condition (e.g., field > value) */
+  private def formatBinaryCondition(
+      call: RexCall,
+      fieldNames: List[String],
+      operator: String): String = {
+    val operands = call.getOperands
+    if (operands.size == 2) {
+      val left = formatOperand(operands.get(0), fieldNames)
+      val right = formatOperand(operands.get(1), fieldNames)
+      s"$left$operator$right"
+    } else {
+      FlinkRexUtil.getExpressionString(call, fieldNames)
+    }
+  }
+
+  /** Formats a single operand (field reference or literal) */
+  private def formatOperand(operand: RexNode, fieldNames: List[String]): String = {
+
+    operand match {
+      case inputRef: RexInputRef =>
+        val index = inputRef.getIndex
+        fieldNames(index)
+      case _ =>
+        // For literals and complex expressions, use default formatting
+        FlinkRexUtil.getExpressionString(operand, fieldNames)
+    }
   }
 
 }
