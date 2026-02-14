@@ -19,26 +19,29 @@
 package org.apache.flink.runtime.security;
 
 import java.util.List;
+import java.util.Set;
 
 /** Exception for not finding suitable security factories. */
 public class NoMatchSecurityFactoryException extends RuntimeException {
+
+    private Set<String> missingFactoryClasses;
 
     /**
      * Exception for not finding suitable security factories.
      *
      * @param message message that indicates the current matching step
-     * @param factoryClassCanonicalName required factory class
+     * @param factoryClassCanonicalNames required factory classes
      * @param matchingFactories all found factories
      * @param cause the cause
      */
     public NoMatchSecurityFactoryException(
             String message,
-            String factoryClassCanonicalName,
+            String factoryClassCanonicalNames,
             List<?> matchingFactories,
             Throwable cause) {
         super(
                 "Could not find a suitable security factory for '"
-                        + factoryClassCanonicalName
+                        + factoryClassCanonicalNames
                         + "' in the classpath. all matching factories: "
                         + matchingFactories
                         + ". Reason: "
@@ -50,11 +53,16 @@ public class NoMatchSecurityFactoryException extends RuntimeException {
      * Exception for not finding suitable security factories.
      *
      * @param message message that indicates the current matching step
-     * @param factoryClassCanonicalName required factory class
+     * @param factoryClassCanonicalNames required factory classes
      * @param matchingFactories all found factories
      */
     public NoMatchSecurityFactoryException(
-            String message, String factoryClassCanonicalName, List<?> matchingFactories) {
-        this(message, factoryClassCanonicalName, matchingFactories, null);
+            String message, Set<String> factoryClassCanonicalNames, List<?> matchingFactories) {
+        this(message, String.join(",", factoryClassCanonicalNames), matchingFactories, null);
+        this.missingFactoryClasses = factoryClassCanonicalNames;
+    }
+
+    public Set<String> getMissingFactoryClasses() {
+        return missingFactoryClasses;
     }
 }
