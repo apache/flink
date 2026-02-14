@@ -53,8 +53,8 @@ public class FileChannelManagerImpl implements FileChannelManager {
     /** The number of the next path to use. */
     private final AtomicLong nextPath = new AtomicLong(0);
 
-    /** Prefix of the temporary directories to create. */
-    private final String prefix;
+    /** The name of Component used to create temporary directories. */
+    private final String component;
 
     /**
      * Flag to signal that the file channel manager has been shutdown already. The flag should
@@ -65,27 +65,28 @@ public class FileChannelManagerImpl implements FileChannelManager {
     /** Shutdown hook to make sure that the directories are removed on exit. */
     private final Thread shutdownHook;
 
-    public FileChannelManagerImpl(String[] tempDirs, String prefix) {
+    public FileChannelManagerImpl(String[] tempDirs, String component) {
         checkNotNull(tempDirs, "The temporary directories must not be null.");
         checkArgument(tempDirs.length > 0, "The temporary directories must not be empty.");
 
         this.random = new Random();
-        this.prefix = prefix;
+        this.component = component;
 
         shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
-                        this, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
+                        this, String.format("%s-%s", getClass().getSimpleName(), component), LOG);
 
         // Creates directories after registering shutdown hook to ensure the directories can be
         // removed if required.
-        this.paths = createFiles(tempDirs, prefix);
+        this.paths = createFiles(tempDirs, component);
     }
 
-    private static File[] createFiles(String[] tempDirs, String prefix) {
+    private static File[] createFiles(String[] tempDirs, String component) {
         File[] files = new File[tempDirs.length];
         for (int i = 0; i < tempDirs.length; i++) {
             File baseDir = new File(tempDirs[i]);
-            String subfolder = String.format("flink-%s-%s", prefix, UUID.randomUUID().toString());
+            String subfolder =
+                    String.format("flink-%s-%s", component, UUID.randomUUID().toString());
             File storageDir = new File(baseDir, subfolder);
 
             if (!storageDir.exists() && !storageDir.mkdirs()) {
@@ -139,7 +140,7 @@ public class FileChannelManagerImpl implements FileChannelManager {
                         .collect(Collectors.toList()));
 
         ShutdownHookUtil.removeShutdownHook(
-                shutdownHook, String.format("%s-%s", getClass().getSimpleName(), prefix), LOG);
+                shutdownHook, String.format("%s-%s", getClass().getSimpleName(), component), LOG);
     }
 
     private static AutoCloseable getFileCloser(File path) {
