@@ -211,7 +211,7 @@ class FileChannelManagerImplTest {
             if (callerHasHook) {
                 // Verifies the case that both FileChannelManager and its upper component
                 // have registered shutdown hooks, like in IOManager.
-                ShutdownHookUtil.addShutdownHook(() -> manager.close(), "Caller", LOG);
+                ShutdownHookUtil.addShutdownHook(manager, "Caller", LOG);
             }
 
             LOG.info("The FileChannelManagerCleanupRunner is going to create the new file");
