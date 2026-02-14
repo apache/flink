@@ -18,9 +18,7 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.FlinkException;
@@ -68,7 +66,6 @@ public class DefaultCLI extends AbstractCustomCommandLine {
             resultingConfiguration.set(RestOptions.PATH, url.getPath());
             resultingConfiguration.set(SecurityOptions.SSL_REST_ENABLED, isHttpsProtocol(url));
         }
-        resultingConfiguration.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
         DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultingConfiguration);
 
