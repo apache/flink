@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-import { NgIf } from '@angular/common';
+import { NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { of, Subject } from 'rxjs';
 import { catchError, map, mergeMap, takeUntil } from 'rxjs/operators';
 
@@ -28,6 +29,7 @@ import {
 import { MetricsService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
@@ -43,7 +45,18 @@ interface WatermarkData {
   templateUrl: './job-overview-drawer-watermarks.component.html',
   styleUrls: ['./job-overview-drawer-watermarks.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzTooltipModule]
+  standalone: true,
+  imports: [
+    NgIf,
+    NgForOf,
+    FormsModule,
+    NzSelectModule,
+    NzTableModule,
+    NzIconModule,
+    NzTooltipModule,
+    HumanizeWatermarkPipe,
+    HumanizeWatermarkToDatetimePipe
+  ]
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   public readonly trackBySubtaskIndex = (_: number, node: { subTaskIndex: number; watermark: number }): number =>
@@ -54,6 +67,14 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   public virtualItemSize = 36;
   public readonly narrowLogData = typeDefinition<WatermarkData>();
 
+  // Timezone related properties
+  // Using browser's native Intl API to get all supported timezones
+  // This provides a complete timezone list and properly handles Daylight Saving Time (DST)
+  // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/supportedValuesOf
+  public timezoneOptions: Array<{ label: string; value: string }> = [];
+
+  public selectedTimezone: string = '';
+
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -62,7 +83,46 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     private readonly cdr: ChangeDetectorRef
   ) {}
 
+  private getBrowserTimezone(): string {
+    // Get browser's IANA timezone identifier
+    // This will properly handle DST changes
+    // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (error) {
+      console.error('[getBrowserTimezone] Error getting browser timezone, falling back to UTC:', error);
+      return 'UTC';
+    }
+  }
+
+  private initializeTimezoneOptions(): void {
+    // Use modern browser API to get all supported timezones
+    // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/supportedValuesOf
+    try {
+      if (typeof Intl.supportedValuesOf === 'function') {
+        const timezones = Intl.supportedValuesOf('timeZone');
+        this.timezoneOptions = timezones.map(tz => ({ label: tz, value: tz })).sort((a, b) => a.label.localeCompare(b.label));
+      } else {
+        // Fallback for browsers that don't support Intl.supportedValuesOf
+        console.warn('[initializeTimezoneOptions] Intl.supportedValuesOf not supported, falling back to browser local timezone');
+        const browserTz = this.getBrowserTimezone();
+        this.timezoneOptions = [{ label: browserTz, value: browserTz }];
+      }
+    } catch (error) {
+      console.error('[initializeTimezoneOptions] Error initializing timezone options:', error);
+      // Fallback to browser local timezone on error
+      const browserTz = this.getBrowserTimezone();
+      this.timezoneOptions = [{ label: browserTz, value: browserTz }];
+    }
+  }
+
   public ngOnInit(): void {
+    // Initialize timezone options
+    this.initializeTimezoneOptions();
+
+    // Set default timezone to browser's timezone
+    this.selectedTimezone = this.getBrowserTimezone();
+
     this.jobLocalService
       .jobWithVertexChanges()
       .pipe(
@@ -78,9 +138,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
               }
               return list;
             }),
-            catchError(() => {
-              return of([] as WatermarkData[]);
-            })
+            catchError(() => of([] as WatermarkData[]))
           )
         ),
         takeUntil(this.destroy$)
