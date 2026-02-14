@@ -176,14 +176,15 @@ public class TaskExecutorResourceUtils {
                 .getBytes();
     }
 
-    public static long calculateTotalProcessMemoryFromComponents(Configuration config) {
+    public static long calculateTotalProcessMemoryFromComponents(
+            Configuration config, long totalFlinkMemory) {
         Preconditions.checkArgument(config.contains(TaskManagerOptions.JVM_METASPACE));
         Preconditions.checkArgument(config.contains(TaskManagerOptions.JVM_OVERHEAD_MAX));
         Preconditions.checkArgument(config.contains(TaskManagerOptions.JVM_OVERHEAD_MIN));
         Preconditions.checkArgument(
                 config.get(TaskManagerOptions.JVM_OVERHEAD_MAX)
                         .equals(config.get(TaskManagerOptions.JVM_OVERHEAD_MIN)));
-        return calculateTotalFlinkMemoryFromComponents(config)
+        return totalFlinkMemory
                 + config.get(TaskManagerOptions.JVM_METASPACE)
                         .add(config.get(TaskManagerOptions.JVM_OVERHEAD_MAX))
                         .getBytes();
