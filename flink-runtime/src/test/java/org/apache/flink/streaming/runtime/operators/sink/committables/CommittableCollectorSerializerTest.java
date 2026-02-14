@@ -85,7 +85,7 @@ class CommittableCollectorSerializerTest {
                         COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks, METRIC_GROUP);
 
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP, true);
+                new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 0));
         committableCollector.addMessage(
@@ -124,7 +124,7 @@ class CommittableCollectorSerializerTest {
                         COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks, METRIC_GROUP);
 
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP, true);
+                new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 1, 0));
         committableCollector.addMessage(
@@ -154,7 +154,7 @@ class CommittableCollectorSerializerTest {
         // WriterInitContext#INITIAL_CHECKPOINT_ID
         long checkpointId = WriterInitContext.INITIAL_CHECKPOINT_ID + 1;
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP, true);
+                new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, checkpointId, 1, 1, 0));
         committableCollector.addMessage(new CommittableWithLineage<>(1, checkpointId, SUBTASK_ID));
