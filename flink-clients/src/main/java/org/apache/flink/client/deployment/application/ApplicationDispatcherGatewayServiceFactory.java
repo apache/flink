@@ -20,7 +20,8 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ApplicationID;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.Configuration;
@@ -92,7 +93,9 @@ public class ApplicationDispatcherGatewayServiceFactory
             ExecutionPlanWriter executionPlanWriter,
             JobResultStore jobResultStore) {
 
-        final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
+        final List<JobInfo> recoveredJobInfos = getRecoveredJobInfos(recoveredJobs);
+        final List<JobInfo> recoveredTerminalJobInfos =
+                getRecoveredTerminalJobInfos(recoveredDirtyJobResults);
 
         final boolean allowExecuteMultipleJobs =
                 ApplicationJobUtils.allowExecuteMultipleJobs(configuration);
@@ -107,7 +110,8 @@ public class ApplicationDispatcherGatewayServiceFactory
                 new PackagedProgramApplication(
                         applicationId,
                         program,
-                        recoveredJobIds,
+                        recoveredJobInfos,
+                        recoveredTerminalJobInfos,
                         configuration,
                         true,
                         !allowExecuteMultipleJobs,
@@ -137,7 +141,18 @@ public class ApplicationDispatcherGatewayServiceFactory
         return DefaultDispatcherGatewayService.from(dispatcher);
     }
 
-    private List<JobID> getRecoveredJobIds(final Collection<ExecutionPlan> recoveredJobs) {
-        return recoveredJobs.stream().map(ExecutionPlan::getJobID).collect(Collectors.toList());
+    private List<JobInfo> getRecoveredJobInfos(final Collection<ExecutionPlan> recoveredJobs) {
+        return recoveredJobs.stream()
+                .map(
+                        executionPlan ->
+                                new JobInfoImpl(executionPlan.getJobID(), executionPlan.getName()))
+                .collect(Collectors.toList());
+    }
+
+    private List<JobInfo> getRecoveredTerminalJobInfos(
+            final Collection<JobResult> recoveredDirtyJobResults) {
+        return recoveredDirtyJobResults.stream()
+                .map(jobResult -> new JobInfoImpl(jobResult.getJobId(), jobResult.getJobName()))
+                .collect(Collectors.toList());
     }
 }

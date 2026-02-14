@@ -284,8 +284,7 @@ public class StreamGraphGenerator {
                                 .map(DistributedCache::parseCachedFilesFromString)
                                 .orElse(new ArrayList<>())
                                 .stream()
-                                .collect(Collectors.toMap(e -> e.f0, e -> e.f1)),
-                        streamGraph.getJobID());
+                                .collect(Collectors.toMap(e -> e.f0, e -> e.f1)));
 
         for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
                 distributedCacheEntries.entrySet()) {

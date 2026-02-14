@@ -85,7 +85,8 @@ public class ScriptExecutorITCase extends AbstractSqlGatewayStatementITCaseBase 
                     ScriptExecutor.class.getClassLoader(),
                     false,
                     false,
-                    null);
+                    null,
+                    Collections.emptyList());
 
             executor =
                     new TestScriptExecutor(
