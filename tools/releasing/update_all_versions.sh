@@ -79,7 +79,8 @@ cmd_add_flink_version() {
   fi
 
   # Find the last version entry line number
-  local last_version_line=`grep -n 'v[0-9]*_[0-9]*("' "$version_file" | tail -1 | cut -d: -f1`
+  local last_version_line
+  last_version_line=`grep -n 'v[0-9]*_[0-9]*("' "$version_file" | tail -1 | cut -d: -f1`
 
   if [ -z "$last_version_line" ]; then
     echo "ERROR: Could not find existing version entries in FlinkVersion.java"
@@ -87,14 +88,16 @@ cmd_add_flink_version() {
   fi
 
   # Get indent from existing line
-  local last_line_content=`sed -n "${last_version_line}p" "$version_file"`
+  local last_line_content
+  last_line_content=`sed -n "${last_version_line}p" "$version_file"`
+  local indent
+  indent=`echo "$last_line_content" | sed 's/[^ ].*//'`
 
   # Replace trailing semicolon with comma on last entry using perl (macOS-safe)
   perl -pi -e "s/;$/,/ if \$. == ${last_version_line}" "$version_file"
 
-  # Insert new version after last entry using perl
-  local indent=`echo "$last_line_content" | sed 's/[^ ].*//'`
-  perl -pi -e "print \"${indent}${version_enum}(\\\"${version_string}\\\");\n\" if \$. == ${last_version_line}" "$version_file"
+  # Insert new version AFTER last entry by appending to the line's output
+  perl -pi -e "\$_ .= \"${indent}${version_enum}(\\\"${version_string}\\\");\n\" if \$. == ${last_version_line}" "$version_file"
 
   echo "Added ${version_enum}(\"${version_string}\") to FlinkVersion.java"
 }

@@ -76,7 +76,9 @@ cmd_stage() {
     exit 1
   fi
 
-  local work_dir=`mktemp -d`
+  local work_dir
+  work_dir=`mktemp -d`
+  trap "rm -rf '$work_dir'" EXIT
 
   echo "Checking out dist dev repo (shallow)..."
   run_cmd svn checkout "${DIST_DEV_URL}" --depth=immediates "$work_dir/flink"
@@ -102,6 +104,7 @@ cmd_stage() {
   echo "Staged at: ${DIST_DEV_URL}/flink-${RELEASE_VERSION}-rc${RC_NUM}"
   echo "Verify at: https://dist.apache.org/repos/dist/dev/flink/"
 
+  trap - EXIT
   rm -rf "$work_dir"
 }
 
@@ -117,10 +120,12 @@ cmd_promote() {
   echo "Target: ${DIST_RELEASE_URL}/flink-${RELEASE_VERSION}"
   echo ""
   echo "WARNING: This makes the release publicly available."
-  read -r -p "Are you sure? [y/N] " confirm
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-    echo "Aborted."
-    exit 0
+  if [ "$DRY_RUN" != "true" ]; then
+    read -r -p "Are you sure? [y/N] " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      echo "Aborted."
+      exit 0
+    fi
   fi
 
   run_cmd svn move -m "Release Flink ${RELEASE_VERSION}" \
@@ -136,7 +141,9 @@ cmd_cleanup_rcs() {
   echo "=== Cleaning up old RCs for ${RELEASE_VERSION} ==="
   echo ""
 
-  local work_dir=`mktemp -d`
+  local work_dir
+  work_dir=`mktemp -d`
+  trap "rm -rf '$work_dir'" EXIT
 
   run_cmd svn checkout "${DIST_DEV_URL}" --depth=immediates "$work_dir/flink"
 
@@ -156,6 +163,7 @@ cmd_cleanup_rcs() {
     echo "Removed $found RC(s)."
   fi
 
+  trap - EXIT
   rm -rf "$work_dir"
 }
 
@@ -167,12 +175,23 @@ cmd_cleanup_old() {
   echo "Current release: ${RELEASE_VERSION}"
   echo ""
 
-  local versions=`svn list "${DIST_RELEASE_URL}" 2>/dev/null | grep "^flink-" | sed 's/flink-//;s/\///'`
+  local svn_output
+  svn_output=`svn list "${DIST_RELEASE_URL}" 2>&1` || {
+    echo "ERROR: Failed to list ${DIST_RELEASE_URL}"
+    echo "$svn_output"
+    exit 1
+  }
+  local versions
+  versions=`echo "$svn_output" | grep "^flink-" | sed 's/flink-//;s/\///'`
 
   echo "Versions in release repo:"
-  echo "$versions" | while read -r v; do
-    echo "  $v"
-  done
+  if [ -n "$versions" ]; then
+    echo "$versions" | while read -r v; do
+      echo "  $v"
+    done
+  else
+    echo "  (none found)"
+  fi
   echo ""
 
   echo "You should remove versions per ASF policy:"

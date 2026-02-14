@@ -50,37 +50,51 @@ NEXUS_BASE_URL="https://repository.apache.org/service/local"
 COMMAND=${1:-help}
 
 # Try to read credentials from ~/.m2/settings.xml if not provided
+# Disable xtrace to avoid printing credentials to terminal/logs
+{ set +x; } 2>/dev/null
 if [ -z "${NEXUS_USER:-}" ] || [ -z "${NEXUS_TOKEN:-}" ]; then
   settings_xml="${HOME}/.m2/settings.xml"
   if [ -f "$settings_xml" ]; then
     NEXUS_USER=${NEXUS_USER:-`python3 -c "
-import xml.etree.ElementTree as ET
-tree = ET.parse('$settings_xml')
+import sys, xml.etree.ElementTree as ET
+tree = ET.parse(sys.argv[1])
 for server in tree.findall('.//server'):
     sid = server.find('id')
     if sid is not None and sid.text == 'apache.releases.https':
         u = server.find('username')
         if u is not None: print(u.text)
         break
-" 2>/dev/null || echo ""`}
+" "$settings_xml" 2>/dev/null || echo ""`}
     NEXUS_TOKEN=${NEXUS_TOKEN:-`python3 -c "
-import xml.etree.ElementTree as ET
-tree = ET.parse('$settings_xml')
+import sys, xml.etree.ElementTree as ET
+tree = ET.parse(sys.argv[1])
 for server in tree.findall('.//server'):
     sid = server.find('id')
     if sid is not None and sid.text == 'apache.releases.https':
         p = server.find('password')
         if p is not None: print(p.text)
         break
-" 2>/dev/null || echo ""`}
+" "$settings_xml" 2>/dev/null || echo ""`}
   fi
 fi
+if [ "$COMMAND" != "help" ] && [ "$COMMAND" != "--help" ] && [ "$COMMAND" != "-h" ]; then
+  if [ -z "${NEXUS_USER:-}" ] || [ -z "${NEXUS_TOKEN:-}" ]; then
+    echo "ERROR: Nexus credentials not found."
+    echo "Set NEXUS_USER/NEXUS_TOKEN or configure apache.releases.https in ~/.m2/settings.xml"
+    exit 1
+  fi
+fi
+set -o xtrace
 
 nexus_get() {
   local path=$1
+  { set +x; } 2>/dev/null
   curl -s -f -H "Accept: application/json" \
     -u "${NEXUS_USER}:${NEXUS_TOKEN}" \
     "${NEXUS_BASE_URL}${path}"
+  local rc=$?
+  set -o xtrace
+  return $rc
 }
 
 nexus_post_xml() {
@@ -91,11 +105,15 @@ nexus_post_xml() {
     echo "[dry-run] Data: $data"
     return 0
   fi
+  { set +x; } 2>/dev/null
   curl -s -f -X POST \
     -H "Content-Type: application/xml" \
     -u "${NEXUS_USER}:${NEXUS_TOKEN}" \
     -d "$data" \
     "${NEXUS_BASE_URL}${path}"
+  local rc=$?
+  set -o xtrace
+  return $rc
 }
 
 # Discover the staging profile ID for org.apache.flink
@@ -168,10 +186,12 @@ cmd_release() {
   echo "Releasing staging repository to Maven Central: $repo_id"
   echo ""
   echo "WARNING: This action is irreversible. Artifacts will be published to Maven Central."
-  read -r -p "Are you sure? [y/N] " confirm
-  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-    echo "Aborted."
-    exit 0
+  if [ "$DRY_RUN" != "true" ]; then
+    read -r -p "Are you sure? [y/N] " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+      echo "Aborted."
+      exit 0
+    fi
   fi
 
   local profile_id=`get_staging_profile_id`

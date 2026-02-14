@@ -60,7 +60,11 @@ fi
 
 jira_get() {
   local path=$1
+  { set +x; } 2>/dev/null
   curl -s -f -u "${JIRA_USER}:${JIRA_TOKEN}" "${JIRA_BASE_URL}${path}"
+  local rc=$?
+  set -o xtrace
+  return $rc
 }
 
 jira_post() {
@@ -71,11 +75,15 @@ jira_post() {
     echo "[dry-run] Data: $data"
     return 0
   fi
+  { set +x; } 2>/dev/null
   curl -s -f -X POST \
     -H "Content-Type: application/json" \
     -u "${JIRA_USER}:${JIRA_TOKEN}" \
     -d "$data" \
     "${JIRA_BASE_URL}${path}"
+  local rc=$?
+  set -o xtrace
+  return $rc
 }
 
 jira_put() {
@@ -86,11 +94,15 @@ jira_put() {
     echo "[dry-run] Data: $data"
     return 0
   fi
+  { set +x; } 2>/dev/null
   curl -s -f -X PUT \
     -H "Content-Type: application/json" \
     -u "${JIRA_USER}:${JIRA_TOKEN}" \
     -d "$data" \
     "${JIRA_BASE_URL}${path}"
+  local rc=$?
+  set -o xtrace
+  return $rc
 }
 
 url_encode() {
@@ -108,11 +120,14 @@ cmd_blockers() {
   echo ""
 
   local jql="project = ${PROJECT} AND fixVersion = ${version} AND resolution = Unresolved ORDER BY priority DESC"
-  local encoded_jql=`echo "$jql" | url_encode`
+  local encoded_jql
+  encoded_jql=`echo "$jql" | url_encode`
 
-  local result=`jira_get "/search?jql=${encoded_jql}&maxResults=200&fields=key,summary,priority,status,assignee,issuetype"`
+  local result
+  result=`jira_get "/search?jql=${encoded_jql}&maxResults=200&fields=key,summary,priority,status,assignee,issuetype"`
 
-  local total=`echo "$result" | jq '.total'`
+  local total
+  total=`echo "$result" | jq '.total'`
   echo "Found $total unresolved issue(s):"
   echo ""
 
@@ -131,11 +146,14 @@ cmd_release_notes() {
   echo ""
 
   local jql="project = ${PROJECT} AND Release Note is not EMPTY AND fixVersion = ${version}"
-  local encoded_jql=`echo "$jql" | url_encode`
+  local encoded_jql
+  encoded_jql=`echo "$jql" | url_encode`
 
-  local result=`jira_get "/search?jql=${encoded_jql}&maxResults=200&fields=key,summary,issuetype,customfield_12310192"`
+  local result
+  result=`jira_get "/search?jql=${encoded_jql}&maxResults=200&fields=key,summary,issuetype,customfield_12310192"`
 
-  local total=`echo "$result" | jq '.total'`
+  local total
+  total=`echo "$result" | jq '.total'`
   echo "Found $total issue(s) with release notes:"
   echo ""
 
@@ -158,8 +176,10 @@ cmd_create_version() {
 
   echo "Creating JIRA version: ${version}"
 
-  local today=`date +%Y-%m-%d`
-  local data=`jq -n \
+  local today
+  today=`date +%Y-%m-%d`
+  local data
+  data=`jq -n \
     --arg name "$version" \
     --arg project "$PROJECT" \
     --arg startDate "$today" \
@@ -178,15 +198,18 @@ cmd_release_version() {
 
   echo "Marking JIRA version as released: ${version}"
 
-  local version_id=`jira_get "/project/${PROJECT}/versions" | \
+  local version_id
+  version_id=`jira_get "/project/${PROJECT}/versions" | \
     jq -r ".[] | select(.name == \"$version\") | .id"`
   if [ -z "$version_id" ]; then
     echo "ERROR: Version ${version} not found in JIRA."
     exit 1
   fi
 
-  local today=`date +%Y-%m-%d`
-  local data=`jq -n \
+  local today
+  today=`date +%Y-%m-%d`
+  local data
+  data=`jq -n \
     --arg releaseDate "$today" \
     '{released: true, releaseDate: $releaseDate}'`
 

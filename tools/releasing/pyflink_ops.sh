@@ -112,7 +112,9 @@ cmd_download() {
 
   echo "Downloading wheel artifacts from run ${run_id}..."
 
-  local download_dir=`mktemp -d`
+  local download_dir
+  download_dir=`mktemp -d`
+  trap "rm -rf '$download_dir'" EXIT
 
   gh run download "$run_id" --repo "$repo" --dir "$download_dir"
 
@@ -124,12 +126,14 @@ cmd_download() {
   # Move wheel files to flink-python/dist/
   echo "Organizing wheel files into ${PYFLINK_DIST}..."
   find "$download_dir" -name "*.whl" -exec mv {} "$PYFLINK_DIST/" \;
-  local count=`find "$PYFLINK_DIST" -name "*.whl" | wc -l | tr -d ' '`
+  local count
+  count=`find "$PYFLINK_DIST" -name "*.whl" | wc -l | tr -d ' '`
 
   echo ""
   echo "Done. ${count} wheel file(s) in ${PYFLINK_DIST}:"
   ls -la "$PYFLINK_DIST/"*.whl 2>/dev/null || echo "  (none found)"
 
+  trap - EXIT
   rm -rf "$download_dir"
 }
 

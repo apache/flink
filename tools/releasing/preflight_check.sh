@@ -22,7 +22,8 @@
 ## Verifies that all tools, credentials, and configurations are in place
 ## before starting the release process.
 ##
-## Usage: tools $ releasing/preflight_check.sh [--java-version 11|8]
+## Usage: tools $ releasing/preflight_check.sh [java_major_version]
+## Example: tools $ releasing/preflight_check.sh 11
 ##
 
 # Note: xtrace intentionally omitted for this script — output is a
@@ -53,15 +54,19 @@ echo ""
 # 1. GPG key
 echo "GPG Configuration:"
 if gpg_keys=`gpg --list-secret-keys --keyid-format SHORT 2>/dev/null` && [ -n "$gpg_keys" ]; then
-  key_id=`echo "$gpg_keys" | grep -m1 'sec' | sed 's/.*\/\([A-F0-9]*\).*/\1/'`
-  pass "GPG secret key found: $key_id"
-
-  # Check if key is in dist.apache.org KEYS file
-  keys_content=`curl -s https://dist.apache.org/repos/dist/release/flink/KEYS 2>/dev/null || echo ""`
-  if [ -n "$keys_content" ] && echo "$keys_content" | grep -qi "$key_id"; then
-    pass "GPG key $key_id found in dist.apache.org KEYS file"
+  key_id=`echo "$gpg_keys" | grep -m1 'sec' | sed 's/.*\/\([A-Fa-f0-9]\{8,\}\).*/\1/'`
+  if [ -z "$key_id" ]; then
+    warn "GPG secret key exists but could not extract key ID from output"
   else
-    fail "GPG key $key_id NOT found in dist.apache.org KEYS file — publish it before releasing"
+    pass "GPG secret key found: $key_id"
+
+    # Check if key is in dist.apache.org KEYS file
+    keys_content=`curl -s https://dist.apache.org/repos/dist/release/flink/KEYS 2>/dev/null || echo ""`
+    if [ -n "$keys_content" ] && echo "$keys_content" | grep -qi "$key_id"; then
+      pass "GPG key $key_id found in dist.apache.org KEYS file"
+    else
+      fail "GPG key $key_id NOT found in dist.apache.org KEYS file — publish it before releasing"
+    fi
   fi
 else
   fail "No GPG secret key found — run 'gpg --gen-key' to create one"
@@ -131,7 +136,7 @@ echo ""
 echo "CLI Tools:"
 
 # 7. Required CLIs
-for tool in svn jq curl; do
+for tool in svn jq curl python3; do
   if command -v "$tool" &> /dev/null; then
     pass "$tool available"
   else
