@@ -87,4 +87,88 @@ class DescriptiveStatisticsHistogramTest extends AbstractHistogramTest {
         assertThat(statistics.getStandardDeviation()).isCloseTo(2.7, Offset.offset(0.5));
         assertThat(statistics.getValues()).containsExactly(DATA);
     }
+
+    /**
+     * Tests that empty data array does not cause NullArgumentException when calculating
+     * percentiles. This is a regression test for the fix that added data.length > 0 check in
+     * maybeInitPercentile method.
+     */
+    @Test
+    void testEmptyDataDoesNotThrowException() {
+        DescriptiveStatisticsHistogramStatistics.CommonMetricsSnapshot statistics =
+                new DescriptiveStatisticsHistogramStatistics.CommonMetricsSnapshot();
+        statistics.evaluate(new double[0]);
+
+        // Verify no exception is thrown and count is zero
+        assertThat(statistics.getCount()).isZero();
+
+        // Verify getPercentile returns 0.0 for empty data (uses fallback data)
+        // Note: Percentile value must be in (0, 100] range
+        assertThat(statistics.getPercentile(50)).isZero();
+        assertThat(statistics.getPercentile(1)).isZero();
+        assertThat(statistics.getPercentile(100)).isZero();
+
+        // Verify getValues returns fallback data [0.0]
+        assertThat(statistics.getValues()).containsExactly(0.0);
+
+        // Verify other statistics return NaN for empty data
+        assertThat(statistics.getMin()).isNaN();
+        assertThat(statistics.getMax()).isNaN();
+        assertThat(statistics.getMean()).isNaN();
+        assertThat(statistics.getStandardDeviation()).isNaN();
+    }
+
+    /** Tests that DescriptiveStatisticsHistogramStatistics handles empty data correctly. */
+    @Test
+    void testDescriptiveStatisticsHistogramStatisticsWithEmptyData() {
+        DescriptiveStatisticsHistogramStatistics histogramStatistics =
+                new DescriptiveStatisticsHistogramStatistics(new double[0]);
+
+        // Verify size is zero
+        assertThat(histogramStatistics.size()).isZero();
+
+        // Verify quantile returns 0.0 for empty data
+        // Note: Quantile value must be in (0, 1] range
+        assertThat(histogramStatistics.getQuantile(0.5)).isZero();
+        assertThat(histogramStatistics.getQuantile(0.01)).isZero();
+        assertThat(histogramStatistics.getQuantile(1.0)).isZero();
+
+        // Verify values returns fallback data [0] (as long)
+        assertThat(histogramStatistics.getValues()).containsExactly(0L);
+    }
+
+    /**
+     * Tests that calling getPercentile and getValues multiple times on empty data does not cause
+     * issues. This tests the idempotent behavior of maybeInitPercentile.
+     */
+    @Test
+    void testEmptyDataMultipleCalls() {
+        DescriptiveStatisticsHistogramStatistics.CommonMetricsSnapshot statistics =
+                new DescriptiveStatisticsHistogramStatistics.CommonMetricsSnapshot();
+        statistics.evaluate(new double[0]);
+
+        // Call getPercentile multiple times
+        for (int i = 0; i < 3; i++) {
+            assertThat(statistics.getPercentile(50)).isZero();
+            assertThat(statistics.getValues()).containsExactly(0.0);
+        }
+    }
+
+    /**
+     * Tests that a histogram with no updates returns correct statistics without throwing
+     * exceptions.
+     */
+    @Test
+    void testHistogramWithNoUpdates() {
+        DescriptiveStatisticsHistogram histogram = new DescriptiveStatisticsHistogram(10);
+
+        // Get statistics without any updates
+        DescriptiveStatisticsHistogramStatistics statistics =
+                (DescriptiveStatisticsHistogramStatistics) histogram.getStatistics();
+
+        // Verify no exception is thrown and statistics return expected values
+        assertThat(statistics.size()).isZero();
+        assertThat(statistics.getQuantile(0.5)).isZero();
+        assertThat(statistics.getValues()).containsExactly(0L);
+    }
 }
