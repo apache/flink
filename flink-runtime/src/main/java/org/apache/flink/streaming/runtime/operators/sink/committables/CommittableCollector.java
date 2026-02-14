@@ -54,22 +54,16 @@ public class CommittableCollector<CommT> {
 
     private final SinkCommitterMetricGroup metricGroup;
 
-    public CommittableCollector(
-            SinkCommitterMetricGroup metricGroup, boolean shouldSetPendingCommittablesGauge) {
-        this(new TreeMap<>(), metricGroup, shouldSetPendingCommittablesGauge);
+    public CommittableCollector(SinkCommitterMetricGroup metricGroup) {
+        this(new TreeMap<>(), metricGroup);
     }
 
     /** For deep-copy. */
     CommittableCollector(
             Map<Long, CheckpointCommittableManagerImpl<CommT>> checkpointCommittables,
-            SinkCommitterMetricGroup metricGroup,
-            boolean shouldSetPendingCommittablesGauge) {
+            SinkCommitterMetricGroup metricGroup) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
         this.metricGroup = metricGroup;
-
-        if (shouldSetPendingCommittablesGauge) {
-            this.metricGroup.setCurrentPendingCommittablesGauge(this::getNumPending);
-        }
     }
 
     private int getNumPending() {
@@ -87,7 +81,9 @@ public class CommittableCollector<CommT> {
      * @return {@link CommittableCollector}
      */
     public static <CommT> CommittableCollector<CommT> of(SinkCommitterMetricGroup metricGroup) {
-        return new CommittableCollector<>(metricGroup, true);
+        CommittableCollector<CommT> collector = new CommittableCollector<>(metricGroup);
+        metricGroup.setCurrentPendingCommittablesGauge(collector::getNumPending);
+        return collector;
     }
 
     /**
@@ -101,8 +97,7 @@ public class CommittableCollector<CommT> {
      */
     static <CommT> CommittableCollector<CommT> ofLegacy(
             List<CommT> committables, SinkCommitterMetricGroup metricGroup) {
-        CommittableCollector<CommT> committableCollector =
-                new CommittableCollector<>(metricGroup, false);
+        CommittableCollector<CommT> committableCollector = new CommittableCollector<>(metricGroup);
         // add a checkpoint with the lowest checkpoint id, this will be merged into the next
         // checkpoint data, subtask id is arbitrary
         CommittableSummary<CommT> summary =
@@ -185,8 +180,7 @@ public class CommittableCollector<CommT> {
                 checkpointCommittables.entrySet().stream()
                         .map(e -> Tuple2.of(e.getKey(), e.getValue().copy()))
                         .collect(Collectors.toMap((t) -> t.f0, (t) -> t.f1)),
-                metricGroup,
-                false);
+                metricGroup);
     }
 
     Collection<CheckpointCommittableManagerImpl<CommT>> getCheckpointCommittables() {

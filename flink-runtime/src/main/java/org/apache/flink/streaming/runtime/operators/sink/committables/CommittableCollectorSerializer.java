@@ -121,8 +121,7 @@ public final class CommittableCollectorSerializer<CommT>
                         .collect(
                                 Collectors.toMap(
                                         CheckpointCommittableManagerImpl::getCheckpointId, e -> e)),
-                metricGroup,
-                false);
+                metricGroup);
     }
 
     private static void validateMagicNumber(DataInputView in) throws IOException {

@@ -105,7 +105,7 @@ class GlobalCommitterSerializer<CommT, GlobalCommT>
                 SinkV1CommittableDeserializer.readVersionAndDeserializeList(
                         globalCommittableSerializer, in);
         return new GlobalCommittableWrapper<>(
-                new CommittableCollector<>(metricGroup, false), globalCommittables);
+                new CommittableCollector<>(metricGroup), globalCommittables);
     }
 
     private GlobalCommittableWrapper<CommT, GlobalCommT> deserializeV2(DataInputView in)

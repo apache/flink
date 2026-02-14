@@ -41,7 +41,7 @@ class CommittableCollectorTest {
     @Test
     void testGetCheckpointCommittablesUpTo() {
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP, true);
+                new CommittableCollector<>(METRIC_GROUP);
         CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0);
         committableCollector.addMessage(first);
         CommittableSummary<Integer> second = new CommittableSummary<>(1, 1, 2L, 1, 0);
@@ -54,7 +54,7 @@ class CommittableCollectorTest {
     @Test
     void testSetPendingGaugeNotCalledOnCopy() {
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(METRIC_GROUP, true);
+                CommittableCollector.of(METRIC_GROUP);
 
         assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
 
@@ -63,13 +63,14 @@ class CommittableCollectorTest {
         assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
     }
 
-
     private static class TestCommitterMetricGroup extends InternalSinkCommitterMetricGroup {
 
         private final AtomicInteger gaugeCallCount = new AtomicInteger(0);
 
         TestCommitterMetricGroup() {
-            super(new UnregisteredMetricsGroup(), UnregisteredMetricsGroup.createOperatorIOMetricGroup());
+            super(
+                    new UnregisteredMetricsGroup(),
+                    UnregisteredMetricsGroup.createOperatorIOMetricGroup());
         }
 
         @Override
@@ -87,6 +88,3 @@ class CommittableCollectorTest {
         }
     }
 }
-
-
-

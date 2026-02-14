@@ -62,8 +62,7 @@ class GlobalCommitterSerializerTest {
                         COMMITTABLE_COLLECTOR_SERIALIZER,
                         withSinkV1State ? new StringSerializer() : null,
                         METRIC_GROUP);
-        final CommittableCollector<Integer> collector =
-                new CommittableCollector<>(METRIC_GROUP, true);
+        final CommittableCollector<Integer> collector = new CommittableCollector<>(METRIC_GROUP);
         collector.addMessage(new CommittableSummary<>(2, 3, 1L, 1, 1, 0));
         collector.addMessage(new CommittableWithLineage<>(1, 1L, 2));
         final List<String> v1State =
