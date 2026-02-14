@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -280,6 +281,23 @@ public interface Catalog {
         throw new UnsupportedOperationException(
                 String.format(
                         "getTable(ObjectPath, long) is not implemented for %s.", this.getClass()));
+    }
+
+    /**
+     * Returns a {@link CatalogTable} or {@link CatalogView} with specific write privileges
+     * identified by the given {@link ObjectPath}. The framework will resolve the metadata objects
+     * when necessary.
+     *
+     * @param tablePath Path of the table or view
+     * @param writePrivileges specific write privileges for the table
+     * @return The requested table or view
+     * @throws TableNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogBaseTable getTable(
+            ObjectPath tablePath, Set<TableWritePrivilege> writePrivileges)
+            throws TableNotExistException, CatalogException {
+        return getTable(tablePath);
     }
 
     /**
