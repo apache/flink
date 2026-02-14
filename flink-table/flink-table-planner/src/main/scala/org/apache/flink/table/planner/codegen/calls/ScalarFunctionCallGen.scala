@@ -136,15 +136,21 @@ object ScalarFunctionCallGen {
       parameterTypes: Array[TypeInformation[_]]): Array[GeneratedExpression] = {
 
     val signatureTypes = parameterTypes.zipWithIndex.map {
-      case (t: GenericTypeInfo[_], i) =>
-        // we don't trust GenericType, like Row and RowData and LocalTime
-        val returnType = fromLogicalTypeToDataType(operands(i).resultType)
-        if (operands(i).resultType.supportsOutputConversion(t.getTypeClass)) {
-          returnType.bridgedTo(t.getTypeClass)
+      case (t, i) =>
+        // Use the operand's logical type as the source of truth for the data type structure,
+        // then bridge to the expected conversion class. This handles complex types like
+        // Array<RowData> correctly where the element type should be ROW, not RAW
+        val operandLogicalType = operands(i).resultType
+        val dataTypeFromOperand = fromLogicalTypeToDataType(operandLogicalType)
+        val targetClass = t.getTypeClass
+
+        if (operandLogicalType.supportsOutputConversion(targetClass)) {
+          dataTypeFromOperand.bridgedTo(targetClass)
         } else {
-          returnType
+          // Fall back to legacy conversion if the operand type doesn't support
+          // the target conversion class
+          fromLegacyInfoToDataType(t)
         }
-      case (t, _) => fromLegacyInfoToDataType(t)
     }
 
     parameterClasses.zipWithIndex.zip(operands).map {
