@@ -239,9 +239,21 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     }
 
     public void addAll(Configuration other) {
-        synchronized (this.confData) {
-            synchronized (other.confData) {
-                this.confData.putAll(other.confData);
+        Object thisLock = this.confData;
+        Object otherLock = other.confData;
+
+        // Ensure consistent lock sequence
+        if (System.identityHashCode(thisLock) < System.identityHashCode(otherLock)) {
+            synchronized (thisLock) {
+                synchronized (otherLock) {
+                    this.confData.putAll(other.confData);
+                }
+            }
+        } else {
+            synchronized (otherLock) {
+                synchronized (thisLock) {
+                    this.confData.putAll(other.confData);
+                }
             }
         }
     }
@@ -258,12 +270,28 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         bld.append(prefix);
         final int pl = bld.length();
 
-        synchronized (this.confData) {
-            synchronized (other.confData) {
-                for (Map.Entry<String, Object> entry : other.confData.entrySet()) {
-                    bld.setLength(pl);
-                    bld.append(entry.getKey());
-                    this.confData.put(bld.toString(), entry.getValue());
+        Object thisLock = this.confData;
+        Object otherLock = other.confData;
+
+        // Ensure consistent lock sequence
+        if (System.identityHashCode(thisLock) < System.identityHashCode(otherLock)) {
+            synchronized (thisLock) {
+                synchronized (otherLock) {
+                    for (Map.Entry<String, Object> entry : other.confData.entrySet()) {
+                        bld.setLength(pl);
+                        bld.append(entry.getKey());
+                        this.confData.put(bld.toString(), entry.getValue());
+                    }
+                }
+            }
+        } else {
+            synchronized (otherLock) {
+                synchronized (thisLock) {
+                    for (Map.Entry<String, Object> entry : other.confData.entrySet()) {
+                        bld.setLength(pl);
+                        bld.append(entry.getKey());
+                        this.confData.put(bld.toString(), entry.getValue());
+                    }
                 }
             }
         }
