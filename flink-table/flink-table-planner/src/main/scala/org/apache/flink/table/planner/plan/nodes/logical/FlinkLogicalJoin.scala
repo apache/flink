@@ -83,15 +83,15 @@ class FlinkLogicalJoin(
     val rightFieldCount = getRight.getRowType.getFieldCount
     val leftFieldNames = getLeft.getRowType.getFieldNames.toList
     val rightFieldNames = getRight.getRowType.getFieldNames.toList
-    
+
     // Format join condition with field names
     val conditionStr = formatJoinCondition(
-      getCondition, 
-      leftFieldNames, 
-      rightFieldNames, 
+      getCondition,
+      leftFieldNames,
+      rightFieldNames,
       leftFieldCount
     )
-    
+
     pw.input("left", getLeft)
       .input("right", getRight)
       .item("Type", joinType.toString)
@@ -99,58 +99,57 @@ class FlinkLogicalJoin(
   }
 
   /**
-   * Formats a join condition into a readable string with field names.
-   * Converts expressions like "=($0, $3)" into "orders.user_id = users.id"
+   * Formats a join condition into a readable string with field names. Converts expressions like
+   * "=($0, $3)" into "orders.user_id = users.id"
    */
   private def formatJoinCondition(
       condition: RexNode,
       leftFieldNames: List[String],
       rightFieldNames: List[String],
       leftFieldCount: Int): String = {
-    
+
     condition match {
       case call: RexCall if call.getKind == SqlKind.EQUALS =>
         // Handle simple equality: field1 = field2
         val operands = call.getOperands
         if (operands.size == 2) {
           val left = formatOperand(operands.get(0), leftFieldNames, rightFieldNames, leftFieldCount)
-          val right = formatOperand(operands.get(1), leftFieldNames, rightFieldNames, leftFieldCount)
+          val right =
+            formatOperand(operands.get(1), leftFieldNames, rightFieldNames, leftFieldCount)
           s"$left = $right"
         } else {
           FlinkRexUtil.getExpressionString(condition, leftFieldNames ++ rightFieldNames)
         }
-      
+
       case call: RexCall if call.getKind == SqlKind.AND =>
         // Handle composite conditions: cond1 AND cond2
         val operands = call.getOperands
-        val formattedOperands = operands.map { operand =>
-          formatJoinCondition(operand, leftFieldNames, rightFieldNames, leftFieldCount)
+        val formattedOperands = operands.map {
+          operand => formatJoinCondition(operand, leftFieldNames, rightFieldNames, leftFieldCount)
         }
         formattedOperands.mkString(" AND ")
-      
+
       case call: RexCall if call.getKind == SqlKind.OR =>
         // Handle OR conditions
         val operands = call.getOperands
-        val formattedOperands = operands.map { operand =>
-          formatJoinCondition(operand, leftFieldNames, rightFieldNames, leftFieldCount)
+        val formattedOperands = operands.map {
+          operand => formatJoinCondition(operand, leftFieldNames, rightFieldNames, leftFieldCount)
         }
         formattedOperands.mkString(" OR ")
-      
+
       case _ =>
         // Fallback to default formatting for complex expressions
         FlinkRexUtil.getExpressionString(condition, leftFieldNames ++ rightFieldNames)
     }
   }
 
-  /**
-   * Formats a single operand (field reference) with table context.
-   */
+  /** Formats a single operand (field reference) with table context. */
   private def formatOperand(
       operand: RexNode,
       leftFieldNames: List[String],
       rightFieldNames: List[String],
       leftFieldCount: Int): String = {
-    
+
     operand match {
       case inputRef: RexInputRef =>
         val index = inputRef.getIndex
