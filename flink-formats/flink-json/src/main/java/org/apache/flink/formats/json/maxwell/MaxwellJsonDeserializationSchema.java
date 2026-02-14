@@ -34,6 +34,9 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,6 +59,9 @@ import static java.lang.String.format;
  */
 public class MaxwellJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 2L;
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(MaxwellJsonDeserializationSchema.class);
 
     private static final String FIELD_OLD = "old";
     private static final String OP_INSERT = "insert";
@@ -171,12 +177,21 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                                     "Unknown \"type\" value \"%s\". The Maxwell JSON message is '%s'",
                                     type, new String(message)));
                 }
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Unknown \"type\" value '{}'. The Maxwell JSON message is '{}'.",
+                            type,
+                            new String(message));
+                }
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
             if (!ignoreParseErrors) {
                 throw new IOException(
                         format("Corrupt Maxwell JSON message '%s'.", new String(message)), t);
+            }
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Corrupt Maxwell JSON message '{}'.", new String(message), t);
             }
         }
         for (GenericRowData genericRowData : genericRowDataList) {

@@ -27,9 +27,11 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,11 +54,16 @@ import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.slf4j.event.Level.DEBUG;
 
 /**
  * Tests for {@link MaxwellJsonSerializationSchema} and {@link MaxwellJsonDeserializationSchema}.
  */
 class MaxwellJsonSerDerTest {
+
+    @RegisterExtension
+    public final LoggerAuditingExtension loggerExtension =
+            new LoggerAuditingExtension(MaxwellJsonDeserializationSchema.class, DEBUG);
 
     private static final DataType PHYSICAL_DATA_TYPE =
             ROW(
@@ -128,6 +135,33 @@ class MaxwellJsonSerDerTest {
                         anyCauseMatches(
                                 RuntimeException.class,
                                 "An error occurred while collecting data."));
+    }
+
+    @Test
+    void testIgnoreParseErrorsLogsDebugMessage() throws Exception {
+        String corruptMessage = "{\"data\":null,\"old\":null,\"type\":\"UNKNOWN_TYPE\"}";
+        MaxwellJsonDeserializationSchema deserializationSchema =
+                new MaxwellJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        true, // ignoreParseErrors
+                        TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        SimpleCollector collector = new SimpleCollector();
+        deserializationSchema.deserialize(
+                corruptMessage.getBytes(StandardCharsets.UTF_8), collector);
+
+        // Verify no records were collected
+        assertThat(collector.list).isEmpty();
+
+        // Verify the error was logged at DEBUG level
+        assertThat(loggerExtension.getMessages())
+                .anyMatch(
+                        msg ->
+                                msg.contains("Unknown \"type\" value")
+                                        || msg.contains("Corrupt Maxwell JSON"));
     }
 
     @Test

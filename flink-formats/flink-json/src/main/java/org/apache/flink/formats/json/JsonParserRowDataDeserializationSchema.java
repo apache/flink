@@ -100,6 +100,7 @@ public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserial
                 throw new IOException(
                         format("Failed to deserialize JSON '%s'.", new String(message)), t);
             }
+            logParseErrorIfDebugEnabled(message, t);
         }
     }
 

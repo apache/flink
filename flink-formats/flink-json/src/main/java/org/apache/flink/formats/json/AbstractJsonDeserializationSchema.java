@@ -34,6 +34,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.json.JsonRead
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -52,6 +55,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractJsonDeserializationSchema implements DeserializationSchema<RowData> {
 
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractJsonDeserializationSchema.class);
 
     /** Flag indicating whether to fail if a field is missing. */
     protected final boolean failOnMissingField;
@@ -154,5 +160,17 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
     @Override
     public int hashCode() {
         return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo, timestampFormat);
+    }
+
+    /**
+     * Logs a debug message for parsing errors only when debug logs are enabled.
+     *
+     * @param message the original JSON message that failed to parse
+     * @param t the throwable that was caught
+     */
+    protected void logParseErrorIfDebugEnabled(byte[] message, Throwable t) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Failed to deserialize JSON '{}'.", new String(message), t);
+        }
     }
 }
