@@ -99,7 +99,7 @@ class RelTreeWriterImpl(
     val printValues = new util.ArrayList[Pair[String, AnyRef]]()
     if (explainLevel != SqlExplainLevel.NO_ATTRIBUTES) {
       // Enhanced handling for Project nodes to show readable field names
-      rel match {
+      val isProjectNode = rel match {
         case project: Project =>
           val projectList = project.getProjects
           val inputFieldNames = project.getInput.getRowType.getFieldNames
@@ -107,7 +107,9 @@ class RelTreeWriterImpl(
           val projectStr =
             RelExplainUtil.projectFieldsToString(projectList, inputFieldNames, outputFieldNames)
           printValues.add(Pair.of("select", projectStr))
-        case _ => // Use default handling for other node types
+          true
+        case _ =>
+          false
       }
 
       if (withAdvice) {
@@ -125,7 +127,11 @@ class RelTreeWriterImpl(
           printValues.add(Pair.of("advice", adviceIds.mkString(", ")))
         }
       }
-      printValues.addAll(values)
+      // For Project nodes, don't add default values to avoid duplication
+      // Our custom select=[...] format replaces the default field definitions
+      if (!isProjectNode) {
+        printValues.addAll(values)
+      }
     }
 
     if (withChangelogTraits) rel match {
