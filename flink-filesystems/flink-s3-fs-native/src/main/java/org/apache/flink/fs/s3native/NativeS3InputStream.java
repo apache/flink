@@ -195,10 +195,13 @@ public class NativeS3InputStream extends FSDataInputStream {
             throw new IOException("Stream is closed");
         }
         if (b == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("Read buffer must not be null");
         }
         if (off < 0 || len < 0 || len > b.length - off) {
-            throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException(
+                    String.format(
+                            "Range [off=%d, len=%d] out of bounds for buffer of length %d",
+                            off, len, b.length));
         }
         if (len == 0) {
             return 0;

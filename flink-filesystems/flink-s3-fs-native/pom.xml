@@ -51,43 +51,43 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-	<dependency>
-		<groupId>software.amazon.awssdk</groupId>
-		<artifactId>s3</artifactId>
-		<version>${fs.s3.aws.sdk.version}</version>
-		<optional>${flink.markBundledAsOptional}</optional>
-	</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${fs.s3.aws.sdk.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 
-	<!-- S3 Transfer Manager for async/high-throughput transfers -->
-	<dependency>
-		<groupId>software.amazon.awssdk</groupId>
-		<artifactId>s3-transfer-manager</artifactId>
-		<version>${fs.s3.aws.sdk.version}</version>
-		<optional>${flink.markBundledAsOptional}</optional>
-	</dependency>
+		<!-- S3 Transfer Manager for async/high-throughput transfers -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3-transfer-manager</artifactId>
+			<version>${fs.s3.aws.sdk.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 
-	<dependency>
-		<groupId>software.amazon.awssdk</groupId>
-		<artifactId>sts</artifactId>
-		<version>${fs.s3.aws.sdk.version}</version>
-		<optional>${flink.markBundledAsOptional}</optional>
-	</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${fs.s3.aws.sdk.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 
-	<!-- Netty async HTTP client (required for Transfer Manager) -->
-	<dependency>
-		<groupId>software.amazon.awssdk</groupId>
-		<artifactId>netty-nio-client</artifactId>
-		<version>${fs.s3.aws.sdk.version}</version>
-		<optional>${flink.markBundledAsOptional}</optional>
-	</dependency>
+		<!-- Netty async HTTP client (required for Transfer Manager) -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>netty-nio-client</artifactId>
+			<version>${fs.s3.aws.sdk.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 
-	<!-- Apache HTTP client for sync operations -->
-	<dependency>
-		<groupId>software.amazon.awssdk</groupId>
-		<artifactId>apache-client</artifactId>
-		<version>${fs.s3.aws.sdk.version}</version>
-		<optional>${flink.markBundledAsOptional}</optional>
-	</dependency>
+		<!-- Apache HTTP client for sync operations -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>apache-client</artifactId>
+			<version>${fs.s3.aws.sdk.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

@@ -32,7 +32,17 @@ public class S3FileStatus implements FileStatus {
     private final boolean isDir;
     private final Path path;
 
-    public S3FileStatus(
+    /** Creates a FileStatus for an S3 file with the given size and modification time. */
+    public static S3FileStatus withFile(long size, long modificationTime, Path path) {
+        return new S3FileStatus(size, size, modificationTime, 0, false, path);
+    }
+
+    /** Creates a FileStatus for an S3 directory (prefix). */
+    public static S3FileStatus withDirectory(Path path) {
+        return new S3FileStatus(0, 0, 0, 0, true, path);
+    }
+
+    S3FileStatus(
             long length,
             long blockSize,
             long modificationTime,
