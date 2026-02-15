@@ -45,12 +45,11 @@ public class NativeS3DelegationTokenProvider implements DelegationTokenProvider 
             LoggerFactory.getLogger(NativeS3DelegationTokenProvider.class);
 
     /**
-     * Pattern for validating AWS region format. Regions follow the pattern: {area}-{sub-area}-{N}
-     * Examples: us-east-1, eu-west-2, ap-southeast-1. Also allows special regions like us-gov-*,
-     * cn-*, and local/fips variants.
+     * Pattern for basic validation of AWS region values. Uses a permissive pattern (alphanumeric +
+     * hyphens).
      */
     private static final java.util.regex.Pattern REGION_PATTERN =
-            java.util.regex.Pattern.compile("^[a-z]{2}(-gov)?-[a-z]+-\\d+(-fips)?$|^local$");
+            java.util.regex.Pattern.compile("^[a-z0-9]([a-z0-9\\-]*[a-z0-9])?$");
 
     private volatile String region;
     private volatile String accessKey;
@@ -75,8 +74,8 @@ public class NativeS3DelegationTokenProvider implements DelegationTokenProvider 
         if (!StringUtils.isNullOrWhitespaceOnly(region)) {
             if (!REGION_PATTERN.matcher(region).matches()) {
                 LOG.warn(
-                        "Region '{}' does not match expected AWS region format. "
-                                + "Expected format: {area}-{sub-area}-{N} (e.g., us-east-1, eu-west-2)",
+                        "Region '{}' contains invalid characters. "
+                                + "Expected only lowercase alphanumeric characters and hyphens (e.g., us-east-1, cn-north-1)",
                         region);
             }
             LOG.debug("Region: {}", region);

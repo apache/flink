@@ -68,10 +68,10 @@ public final class NativeS3Recoverable
      */
     @Nullable private final String lastPartObject;
 
-    private long numBytesInParts;
+    private final long numBytesInParts;
 
     /** The length of data in {@link #lastPartObject}. Must be > 0 if lastPartObject is not null. */
-    private long lastPartObjectLength;
+    private final long lastPartObjectLength;
 
     public NativeS3Recoverable(
             String objectName, String uploadId, List<PartETag> parts, long numBytesInParts) {

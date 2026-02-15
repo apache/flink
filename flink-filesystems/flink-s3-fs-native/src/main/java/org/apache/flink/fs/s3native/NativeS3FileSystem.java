@@ -162,39 +162,29 @@ public class NativeS3FileSystem extends FileSystem
     @Override
     public FileStatus getFileStatus(Path path) throws IOException {
         checkNotClosed();
-        String key = NativeS3AccessHelper.extractKey(path);
-        S3Client s3Client = clientProvider.getS3Client();
+        final String key = NativeS3AccessHelper.extractKey(path);
+        final S3Client s3Client = clientProvider.getS3Client();
 
         LOG.debug("Getting file status for s3://{}/{}", bucketName, key);
 
         try {
-            HeadObjectRequest request =
+            final HeadObjectRequest request =
                     HeadObjectRequest.builder().bucket(bucketName).key(key).build();
 
-            HeadObjectResponse response = s3Client.headObject(request);
-            Long contentLength = response.contentLength();
+            final HeadObjectResponse response = s3Client.headObject(request);
+            final Long contentLength = response.contentLength();
 
-            // In S3, a successful HeadObject with null contentLength means
+            // In S3, a successful HeadObject with null/zero contentLength means
             // this is a directory marker (prefix), not an actual file
             if (contentLength == null || contentLength == 0) {
                 LOG.debug(
                         "HeadObject returned null/zero content length, verifying if directory: {}",
                         key);
-                ListObjectsV2Request listRequest =
-                        ListObjectsV2Request.builder()
-                                .bucket(bucketName)
-                                .prefix(key.endsWith("/") ? key : key + "/")
-                                .maxKeys(1)
-                                .build();
-                ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
-                if (listResponse.contents().isEmpty() && !listResponse.hasCommonPrefixes()) {
-                    throw new FileNotFoundException("File not found: " + path);
-                }
-                return new S3FileStatus(0, 0, 0, 0, true, path);
+                return getDirectoryStatus(s3Client, key, path);
             }
 
-            long size = contentLength;
-            long modificationTime =
+            final long size = contentLength;
+            final long modificationTime =
                     (response.lastModified() != null)
                             ? response.lastModified().toEpochMilli()
                             : System.currentTimeMillis();
@@ -205,28 +195,14 @@ public class NativeS3FileSystem extends FileSystem
                     size,
                     response.lastModified());
 
-            return new S3FileStatus(size, size, modificationTime, 0, false, path);
+            return S3FileStatus.withFile(size, modificationTime, path);
         } catch (NoSuchKeyException e) {
             LOG.debug("Object not found, checking if directory: {}", key);
-            ListObjectsV2Request listRequest =
-                    ListObjectsV2Request.builder()
-                            .bucket(bucketName)
-                            .prefix(key.endsWith("/") ? key : key + "/")
-                            .maxKeys(1)
-                            .build();
-
-            ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
-
-            if (listResponse.contents().isEmpty() && !listResponse.hasCommonPrefixes()) {
-                throw new FileNotFoundException("File not found: " + path);
-            }
-
-            LOG.debug("Path is a directory: {}", key);
-            return new S3FileStatus(0, 0, 0, 0, true, path);
+            return getDirectoryStatus(s3Client, key, path);
         } catch (S3Exception e) {
-            String errorCode =
+            final String errorCode =
                     (e.awsErrorDetails() != null) ? e.awsErrorDetails().errorCode() : "Unknown";
-            String errorMsg =
+            final String errorMsg =
                     (e.awsErrorDetails() != null)
                             ? e.awsErrorDetails().errorMessage()
                             : e.getMessage();
@@ -239,8 +215,18 @@ public class NativeS3FileSystem extends FileSystem
                     errorCode,
                     errorMsg);
             if (e.statusCode() == 403) {
+                // Note: S3 returns 403 (not 404) for non-existent objects when the
+                // caller lacks s3:ListBucket permission, to prevent key enumeration.
+                // This 403 is therefore ambiguous: it may indicate a genuine access
+                // denial OR that the object simply does not exist.
+                // See: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
+                // See:
+                // https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html
                 LOG.error(
-                        "Access denied (403). Check credentials, bucket policy, and bucket existence for s3://{}/{}",
+                        "Access denied (403) for s3://{}/{}. This may indicate invalid"
+                                + " credentials/bucket policy, OR the object may not exist and"
+                                + " s3:ListBucket permission is not granted (S3 returns 403"
+                                + " instead of 404 to prevent key enumeration).",
                         bucketName,
                         key);
             } else if (e.statusCode() == 404) {
@@ -253,6 +239,26 @@ public class NativeS3FileSystem extends FileSystem
                             bucketName, key, errorMsg),
                     e);
         }
+    }
+
+    /**
+     * Checks if the given key represents a directory by listing objects with that prefix. Returns a
+     * directory {@link FileStatus} if objects exist under the prefix, otherwise throws {@link
+     * FileNotFoundException}.
+     */
+    private FileStatus getDirectoryStatus(S3Client s3Client, String key, Path path)
+            throws FileNotFoundException {
+        final String prefix = key.endsWith("/") ? key : key + "/";
+        final ListObjectsV2Request listRequest =
+                ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).maxKeys(1).build();
+        final ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
+
+        if (listResponse.contents().isEmpty() && !listResponse.hasCommonPrefixes()) {
+            throw new FileNotFoundException("File not found: " + path);
+        }
+
+        LOG.debug("Path is a directory: {}", key);
+        return S3FileStatus.withDirectory(path);
     }
 
     @Override
@@ -270,9 +276,9 @@ public class NativeS3FileSystem extends FileSystem
     @Override
     public FSDataInputStream open(Path path) throws IOException {
         checkNotClosed();
-        String key = NativeS3AccessHelper.extractKey(path);
-        S3Client s3Client = clientProvider.getS3Client();
-        long fileSize = getFileStatus(path).getLen();
+        final String key = NativeS3AccessHelper.extractKey(path);
+        final S3Client s3Client = clientProvider.getS3Client();
+        final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, readBufferSize);
     }
 
@@ -299,8 +305,8 @@ public class NativeS3FileSystem extends FileSystem
             key = key + "/";
         }
 
-        S3Client s3Client = clientProvider.getS3Client();
-        List<FileStatus> results = new ArrayList<>();
+        final S3Client s3Client = clientProvider.getS3Client();
+        final List<FileStatus> results = new ArrayList<>();
         String continuationToken = null;
 
         do {
@@ -311,27 +317,25 @@ public class NativeS3FileSystem extends FileSystem
                 requestBuilder.continuationToken(continuationToken);
             }
 
-            ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
+            final ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
 
             for (S3Object s3Object : response.contents()) {
                 if (!s3Object.key().equals(key)) {
-                    Path objectPath =
+                    final Path objectPath =
                             new Path(uri.getScheme(), uri.getHost(), "/" + s3Object.key());
                     results.add(
-                            new S3FileStatus(
-                                    s3Object.size(),
+                            S3FileStatus.withFile(
                                     s3Object.size(),
                                     s3Object.lastModified().toEpochMilli(),
-                                    0,
-                                    false,
                                     objectPath));
                 }
             }
 
             for (software.amazon.awssdk.services.s3.model.CommonPrefix prefix :
                     response.commonPrefixes()) {
-                Path prefixPath = new Path(uri.getScheme(), uri.getHost(), "/" + prefix.prefix());
-                results.add(new S3FileStatus(0, 0, 0, 0, true, prefixPath));
+                final Path prefixPath =
+                        new Path(uri.getScheme(), uri.getHost(), "/" + prefix.prefix());
+                results.add(S3FileStatus.withDirectory(prefixPath));
             }
 
             continuationToken = response.nextContinuationToken();
@@ -343,14 +347,14 @@ public class NativeS3FileSystem extends FileSystem
     @Override
     public boolean delete(Path path, boolean recursive) throws IOException {
         checkNotClosed();
-        String key = NativeS3AccessHelper.extractKey(path);
-        S3Client s3Client = clientProvider.getS3Client();
+        final String key = NativeS3AccessHelper.extractKey(path);
+        final S3Client s3Client = clientProvider.getS3Client();
 
         try {
-            FileStatus status = getFileStatus(path);
+            final FileStatus status = getFileStatus(path);
 
             if (!status.isDir()) {
-                DeleteObjectRequest request =
+                final DeleteObjectRequest request =
                         DeleteObjectRequest.builder().bucket(bucketName).key(key).build();
 
                 s3Client.deleteObject(request);
@@ -360,7 +364,7 @@ public class NativeS3FileSystem extends FileSystem
                     throw new IOException("Directory not empty and recursive = false");
                 }
 
-                FileStatus[] contents = listStatus(path);
+                final FileStatus[] contents = listStatus(path);
                 for (FileStatus file : contents) {
                     delete(file.getPath(), true);
                 }
@@ -414,7 +418,7 @@ public class NativeS3FileSystem extends FileSystem
             }
         }
 
-        String key = NativeS3AccessHelper.extractKey(path);
+        final String key = NativeS3AccessHelper.extractKey(path);
         return new NativeS3OutputStream(
                 clientProvider.getS3Client(),
                 bucketName,
@@ -426,11 +430,11 @@ public class NativeS3FileSystem extends FileSystem
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
         checkNotClosed();
-        String srcKey = NativeS3AccessHelper.extractKey(src);
-        String dstKey = NativeS3AccessHelper.extractKey(dst);
-        S3Client s3Client = clientProvider.getS3Client();
+        final String srcKey = NativeS3AccessHelper.extractKey(src);
+        final String dstKey = NativeS3AccessHelper.extractKey(dst);
+        final S3Client s3Client = clientProvider.getS3Client();
         try {
-            CopyObjectRequest copyRequest =
+            final CopyObjectRequest copyRequest =
                     CopyObjectRequest.builder()
                             .sourceBucket(bucketName)
                             .sourceKey(srcKey)
@@ -438,7 +442,7 @@ public class NativeS3FileSystem extends FileSystem
                             .destinationKey(dstKey)
                             .build();
             s3Client.copyObject(copyRequest);
-            DeleteObjectRequest deleteRequest =
+            final DeleteObjectRequest deleteRequest =
                     DeleteObjectRequest.builder().bucket(bucketName).key(srcKey).build();
             s3Client.deleteObject(deleteRequest);
             return true;

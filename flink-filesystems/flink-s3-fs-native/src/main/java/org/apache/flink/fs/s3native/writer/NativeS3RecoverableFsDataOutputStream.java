@@ -22,17 +22,35 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * A recoverable output stream writes data to S3 using multipart uploads.
+ *
+ * <p>This class is NOT thread-safe. All write operations ({@link #write}, {@link #flush}, {@link
+ * #persist}, {@link #closeForCommit}) must be called from a single thread (the Flink operator
+ * thread). This is consistent with Flink's {@link RecoverableFsDataOutputStream} contract where
+ * output streams are confined to a single task thread.
+ *
+ * <p>The {@link #close()} method may be called concurrently (e.g., during task cancellation). A
+ * {@link ReentrantLock} guards the critical sections in {@link #close()}, {@link
+ * #closeForCommit()}, and {@link #persist()} to ensure safe cleanup of local resources without
+ * corrupting S3 state.
+ */
+@NotThreadSafe
 public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+
+    /** Lock to guard close/persist/commit paths against concurrent close() during cancellation. */
+    private final ReentrantLock lock = new ReentrantLock();
 
     private final NativeS3AccessHelper s3AccessHelper;
     private final String key;
@@ -46,7 +64,7 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
     private File currentTempFile;
     private FileOutputStream currentOutputStream;
     private long currentPartSize;
-    private final AtomicInteger nextPartNumber;
+    private int nextPartNumber;
 
     private volatile boolean closed;
 
@@ -74,9 +92,9 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
         this.uploadId = uploadId;
         this.localTmpDir = localTmpDir;
         this.minPartSize = minPartSize;
-        this.completedParts = Collections.synchronizedList(new ArrayList<>(existingParts));
+        this.completedParts = new ArrayList<>(existingParts);
         this.numBytesInParts = numBytesInParts;
-        this.nextPartNumber = new AtomicInteger(existingParts.size() + 1);
+        this.nextPartNumber = existingParts.size() + 1;
         this.currentPartSize = 0;
         this.closed = false;
 
@@ -148,7 +166,7 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
     private void uploadCurrentPart() throws IOException {
         currentOutputStream.close();
 
-        int partNumber = nextPartNumber.getAndIncrement();
+        int partNumber = nextPartNumber++;
         NativeS3AccessHelper.UploadPartResult result =
                 s3AccessHelper.uploadPart(
                         key, uploadId, partNumber, currentTempFile, currentPartSize);
@@ -163,64 +181,93 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
     @Override
     public Committer closeForCommit() throws IOException {
-        if (closed) {
-            throw new IOException("Stream is already closed");
+        lock();
+        try {
+            if (closed) {
+                throw new IOException("Stream is already closed");
+            }
+
+            closed = true;
+            currentOutputStream.close();
+
+            if (currentPartSize > 0) {
+                uploadCurrentPart();
+            } else {
+                Files.delete(currentTempFile.toPath());
+            }
+
+            NativeS3Recoverable recoverable =
+                    new NativeS3Recoverable(
+                            key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
+
+            return new NativeS3Committer(s3AccessHelper, recoverable);
+        } finally {
+            unlock();
         }
-
-        closed = true;
-        currentOutputStream.close();
-
-        if (currentPartSize > 0) {
-            uploadCurrentPart();
-        } else {
-            Files.delete(currentTempFile.toPath());
-        }
-
-        NativeS3Recoverable recoverable =
-                new NativeS3Recoverable(
-                        key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
-
-        return new NativeS3Committer(s3AccessHelper, recoverable);
     }
 
     @Override
     public RecoverableWriter.ResumeRecoverable persist() throws IOException {
-        flush();
+        lock();
+        try {
+            flush();
 
-        String incompletePartKey = null;
-        long incompletePartLength = 0;
+            String incompletePartKey = null;
+            long incompletePartLength = 0;
 
-        if (currentPartSize > 0) {
-            currentOutputStream.flush();
-            incompletePartKey = key + "/.incomplete/" + uploadId + "/" + UUID.randomUUID();
-            s3AccessHelper.putObject(incompletePartKey, currentTempFile);
-            incompletePartLength = currentPartSize;
+            if (currentPartSize > 0) {
+                currentOutputStream.flush();
+                incompletePartKey = key + "/.incomplete/" + uploadId + "/" + UUID.randomUUID();
+                s3AccessHelper.putObject(incompletePartKey, currentTempFile);
+                incompletePartLength = currentPartSize;
+            }
+
+            return new NativeS3Recoverable(
+                    key,
+                    uploadId,
+                    new ArrayList<>(completedParts),
+                    numBytesInParts,
+                    incompletePartKey,
+                    incompletePartLength);
+        } finally {
+            unlock();
         }
-
-        return new NativeS3Recoverable(
-                key,
-                uploadId,
-                new ArrayList<>(completedParts),
-                numBytesInParts,
-                incompletePartKey,
-                incompletePartLength);
     }
 
     @Override
     public void close() throws IOException {
-        if (!closed) {
-            closed = true;
-            if (currentOutputStream != null) {
-                currentOutputStream.close();
-            }
-            if (currentTempFile != null && currentTempFile.exists()) {
-                Files.delete(currentTempFile.toPath());
-            }
+        lock();
+        try {
+            if (!closed) {
+                closed = true;
+                if (currentOutputStream != null) {
+                    currentOutputStream.close();
+                }
+                if (currentTempFile != null && currentTempFile.exists()) {
+                    Files.delete(currentTempFile.toPath());
+                }
 
-            try {
-                s3AccessHelper.abortMultiPartUpload(key, uploadId);
-            } catch (IOException e) {
+                try {
+                    s3AccessHelper.abortMultiPartUpload(key, uploadId);
+                } catch (IOException e) {
+                    // best-effort cleanup
+                }
             }
+        } finally {
+            unlock();
         }
+    }
+
+    private void lock() throws IOException {
+        try {
+            lock.lockInterruptibly();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted while acquiring lock", e);
+        }
+    }
+
+    private void unlock() {
+        lock.unlock();
     }
 }
