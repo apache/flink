@@ -61,7 +61,7 @@ public class StandaloneHaServices extends AbstractNonHaServices {
                 checkNotNull(resourceManagerAddress, "resourceManagerAddress");
         this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
         this.clusterRestEndpointAddress =
-                checkNotNull(clusterRestEndpointAddress, clusterRestEndpointAddress);
+                checkNotNull(clusterRestEndpointAddress, "clusterRestEndpointAddress");
     }
 
     // ------------------------------------------------------------------------
