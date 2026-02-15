@@ -24,9 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, TableScan}
+import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, Project, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.rel.hint.Hintable
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
@@ -97,6 +98,20 @@ class RelTreeWriterImpl(
 
     val printValues = new util.ArrayList[Pair[String, AnyRef]]()
     if (explainLevel != SqlExplainLevel.NO_ATTRIBUTES) {
+      // Enhanced handling for Project nodes to show readable field names
+      val isProjectNode = rel match {
+        case project: Project =>
+          val projectList = project.getProjects
+          val inputFieldNames = project.getInput.getRowType.getFieldNames
+          val outputFieldNames = project.getRowType.getFieldNames
+          val projectStr =
+            RelExplainUtil.projectFieldsToString(projectList, inputFieldNames, outputFieldNames)
+          printValues.add(Pair.of("select", projectStr))
+          true
+        case _ =>
+          false
+      }
+
       if (withAdvice) {
         if (depth == 0) {
           applyAdvice(rel)
@@ -112,7 +127,11 @@ class RelTreeWriterImpl(
           printValues.add(Pair.of("advice", adviceIds.mkString(", ")))
         }
       }
-      printValues.addAll(values)
+      // For Project nodes, don't add default values to avoid duplication
+      // Our custom select=[...] format replaces the default field definitions
+      if (!isProjectNode) {
+        printValues.addAll(values)
+      }
     }
 
     if (withChangelogTraits) rel match {
