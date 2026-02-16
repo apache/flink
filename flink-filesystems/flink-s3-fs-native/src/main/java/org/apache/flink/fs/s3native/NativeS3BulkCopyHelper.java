@@ -190,10 +190,4 @@ public class NativeS3BulkCopyHelper {
         }
         return uri.substring(keyStart + 1);
     }
-
-    public void close() {
-        if (transferManager != null) {
-            transferManager.close();
-        }
-    }
 }

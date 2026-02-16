@@ -128,6 +128,7 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
         if (currentPartSize >= minPartSize) {
             uploadCurrentPart();
+            createNewTempFile();
         }
     }
 
@@ -148,6 +149,7 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
         if (currentPartSize >= minPartSize) {
             uploadCurrentPart();
+            createNewTempFile();
         }
     }
 
@@ -175,8 +177,6 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
         numBytesInParts += currentPartSize;
 
         Files.delete(currentTempFile.toPath());
-
-        createNewTempFile();
     }
 
     @Override

@@ -233,7 +233,7 @@ public class NativeS3AccessHelper {
 
     public PutObjectResult putObject(String key, File inputFile) throws IOException {
         if (useAsyncOperations && transferManager != null) {
-            return putObjectAsync(key, inputFile);
+            return putObjectViaTransferManager(key, inputFile);
         }
 
         try {
@@ -250,11 +250,9 @@ public class NativeS3AccessHelper {
     }
 
     /**
-     * Uploads an object asynchronously using the S3TransferManager.
+     * Uploads an object using the S3TransferManager for better throughput.
      *
-     * <p>Note: This method uses async internally for better throughput (leveraging the transfer
-     * manager's optimizations like automatic multipart uploads for large files) but blocks until
-     * completion via {@code join()}. The async nature provides benefits through:
+     * <p>The transfer manager provides optimizations over the basic S3 client:
      *
      * <ul>
      *   <li>Automatic multipart upload handling for large files
@@ -262,9 +260,10 @@ public class NativeS3AccessHelper {
      *   <li>Better memory management through streaming
      * </ul>
      *
-     * <p>A fully async API (returning CompletableFuture) could be added in the future if needed.
+     * <p>This method blocks until the upload completes.
      */
-    private PutObjectResult putObjectAsync(String key, File inputFile) throws IOException {
+    private PutObjectResult putObjectViaTransferManager(String key, File inputFile)
+            throws IOException {
         try {
             UploadFileRequest uploadRequest =
                     UploadFileRequest.builder()
