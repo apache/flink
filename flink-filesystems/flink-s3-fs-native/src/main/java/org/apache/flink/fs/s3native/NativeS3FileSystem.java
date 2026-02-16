@@ -270,7 +270,11 @@ public class NativeS3FileSystem extends FileSystem
 
     @Override
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
-        return open(path);
+        checkNotClosed();
+        final String key = NativeS3AccessHelper.extractKey(path);
+        final S3Client s3Client = clientProvider.getS3Client();
+        final long fileSize = getFileStatus(path).getLen();
+        return new NativeS3InputStream(s3Client, bucketName, key, fileSize, bufferSize);
     }
 
     @Override
@@ -504,18 +508,7 @@ public class NativeS3FileSystem extends FileSystem
 
         LOG.info("Starting async close of Native S3 FileSystem for bucket: {}", bucketName);
         return CompletableFuture.runAsync(
-                        () -> {
-                            if (bulkCopyHelper != null) {
-                                try {
-                                    bulkCopyHelper.close();
-                                    LOG.debug("Bulk copy helper closed");
-                                } catch (Exception e) {
-                                    LOG.warn("Error closing bulk copy helper", e);
-                                }
-                            }
-
-                            LOG.info("Native S3 FileSystem closed for bucket: {}", bucketName);
-                        })
+                        () -> LOG.info("Native S3 FileSystem closed for bucket: {}", bucketName))
                 .thenCompose(
                         ignored -> {
                             if (clientProvider != null) {

@@ -29,7 +29,6 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 import java.io.IOException;
 import java.net.URI;
@@ -295,11 +294,10 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
 
         NativeS3BulkCopyHelper bulkCopyHelper = null;
         if (config.get(BULK_COPY_ENABLED)) {
-            S3TransferManager transferManager =
-                    S3TransferManager.builder().s3Client(clientProvider.getAsyncClient()).build();
             bulkCopyHelper =
                     new NativeS3BulkCopyHelper(
-                            transferManager, config.get(BULK_COPY_MAX_CONCURRENT));
+                            clientProvider.getTransferManager(),
+                            config.get(BULK_COPY_MAX_CONCURRENT));
         }
 
         return new NativeS3FileSystem(

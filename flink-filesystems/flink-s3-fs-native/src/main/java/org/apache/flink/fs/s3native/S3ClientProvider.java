@@ -46,6 +46,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.services.sts.model.Credentials;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import javax.annotation.Nullable;
 
@@ -71,18 +72,21 @@ public class S3ClientProvider implements AutoCloseableAsync {
     private final S3AsyncClient s3AsyncClient;
     private final S3TransferManager transferManager;
     private final S3EncryptionConfig encryptionConfig;
+    @Nullable private final AwsCredentialsProvider credentialsProvider;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private S3ClientProvider(
             S3Client s3Client,
             S3AsyncClient s3AsyncClient,
             S3TransferManager transferManager,
-            S3EncryptionConfig encryptionConfig) {
+            S3EncryptionConfig encryptionConfig,
+            @Nullable AwsCredentialsProvider credentialsProvider) {
         this.s3Client = s3Client;
         this.s3AsyncClient = s3AsyncClient;
         this.transferManager = transferManager;
         this.encryptionConfig =
                 encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
+        this.credentialsProvider = credentialsProvider;
     }
 
     public S3Client getS3Client() {
@@ -131,6 +135,13 @@ public class S3ClientProvider implements AutoCloseableAsync {
                                     s3Client.close();
                                 } catch (Exception e) {
                                     LOG.warn("Error closing S3 sync client", e);
+                                }
+                            }
+                            if (credentialsProvider instanceof SdkAutoCloseable) {
+                                try {
+                                    ((SdkAutoCloseable) credentialsProvider).close();
+                                } catch (Exception e) {
+                                    LOG.warn("Error closing credentials provider", e);
                                 }
                             }
                         })
@@ -328,7 +339,12 @@ public class S3ClientProvider implements AutoCloseableAsync {
             S3TransferManager transferManager =
                     S3TransferManager.builder().s3Client(s3AsyncClient).build();
 
-            return new S3ClientProvider(s3Client, s3AsyncClient, transferManager, encryptionConfig);
+            return new S3ClientProvider(
+                    s3Client,
+                    s3AsyncClient,
+                    transferManager,
+                    encryptionConfig,
+                    credentialsProvider);
         }
 
         private AwsCredentialsProvider buildCredentialsProvider(Region awsRegion) {
