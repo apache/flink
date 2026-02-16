@@ -53,7 +53,7 @@ public class NativeS3InputStream extends FSDataInputStream {
     private ResponseInputStream<GetObjectResponse> currentStream;
     private BufferedInputStream bufferedStream;
     private long position;
-    private boolean closed;
+    private volatile boolean closed;
 
     public NativeS3InputStream(
             S3Client s3Client, String bucketName, String key, long contentLength) {
