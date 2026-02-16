@@ -286,10 +286,11 @@ class LogicalTypeCastsTest {
      */
     private static Stream<Arguments> injectiveCastTestData() {
         return Stream.of(
-                // Implicit casts are always injective (type widening preserves uniqueness)
+                // Integer widenings are injective
                 Arguments.of(new SmallIntType(), new BigIntType(), true),
                 Arguments.of(new IntType(), new BigIntType(), true),
                 Arguments.of(new TinyIntType(), new IntType(), true),
+                Arguments.of(new TinyIntType(), new SmallIntType(), true),
 
                 // Explicit casts to STRING from integer types are injective
                 Arguments.of(new TinyIntType(), VarCharType.STRING_TYPE, true),
@@ -297,7 +298,7 @@ class LogicalTypeCastsTest {
                 Arguments.of(new IntType(), VarCharType.STRING_TYPE, true),
                 Arguments.of(new BigIntType(), VarCharType.STRING_TYPE, true),
 
-                // Explicit casts to STRING from floating point types are injective
+                // FLOAT/DOUBLE to STRING are injective
                 Arguments.of(new FloatType(), VarCharType.STRING_TYPE, true),
                 Arguments.of(new DoubleType(), VarCharType.STRING_TYPE, true),
 
@@ -315,16 +316,34 @@ class LogicalTypeCastsTest {
                 Arguments.of(new IntType(), new CharType(100), true),
                 Arguments.of(new BigIntType(), new CharType(100), true),
 
+                // CHAR → VARCHAR widening is injective
+                Arguments.of(new CharType(10), VarCharType.STRING_TYPE, true),
+
+                // BINARY → VARBINARY widening is injective
+                Arguments.of(new BinaryType(10), new VarBinaryType(100), true),
+
+                // Integer → DECIMAL is injective (exact representation)
+                Arguments.of(new TinyIntType(), new DecimalType(10, 0), true),
+                Arguments.of(new SmallIntType(), new DecimalType(10, 0), true),
+                Arguments.of(new IntType(), new DecimalType(10, 0), true),
+                Arguments.of(new BigIntType(), new DecimalType(20, 0), true),
+
+                // DECIMAL → DECIMAL identity is injective
+                Arguments.of(new DecimalType(10, 2), new DecimalType(10, 2), true),
+
+                // FLOAT → DOUBLE widening is injective
+                Arguments.of(new FloatType(), new DoubleType(), true),
+
                 // Narrowing casts are NOT injective (lossy)
                 Arguments.of(VarCharType.STRING_TYPE, new IntType(), false),
                 Arguments.of(new BigIntType(), new IntType(), false),
                 Arguments.of(new DoubleType(), new FloatType(), false),
-                // Note: TIMESTAMP->DATE is an implicit cast in Flink, so it returns true
-                // even though time-of-day is lost. This is consistent with existing isFidelityCast.
-                Arguments.of(new TimestampType(3), new DateType(), true),
+
+                // TIMESTAMP → DATE is NOT injective (loses time-of-day information)
+                // even though it is an implicit cast
+                Arguments.of(new TimestampType(3), new DateType(), false),
 
                 // DECIMAL to STRING is NOT considered injective
-                // (different precision representations could be ambiguous)
                 Arguments.of(new DecimalType(10, 2), VarCharType.STRING_TYPE, false),
 
                 // BYTES to STRING is NOT injective (invalid UTF-8 sequences collapse)
@@ -334,15 +353,56 @@ class LogicalTypeCastsTest {
                 // TIME to STRING is NOT injective (not in the whitelist)
                 Arguments.of(new TimeType(3), VarCharType.STRING_TYPE, false),
 
-                // Casts to non-string types are generally not injective (unless implicit)
-                // Note: INT->FLOAT is an implicit cast, so it returns true
-                Arguments.of(new IntType(), new FloatType(), true),
-                // STRING->BOOLEAN is explicit only, so not injective
+                // INT → FLOAT/DOUBLE are NOT injective (even though implicit)
+                // because floating point is not in the injective rules
+                Arguments.of(new IntType(), new FloatType(), false),
+                Arguments.of(new IntType(), new DoubleType(), false),
+
+                // STRING → BOOLEAN is NOT injective
                 Arguments.of(VarCharType.STRING_TYPE, new BooleanType(), false),
-                // INT->DOUBLE is implicit, so injective
-                Arguments.of(new IntType(), new DoubleType(), true),
-                // DOUBLE->INT is explicit narrowing, not injective
-                Arguments.of(new DoubleType(), new IntType(), false));
+
+                // DOUBLE → INT is NOT injective
+                Arguments.of(new DoubleType(), new IntType(), false),
+
+                // Timestamp conversions between variants are injective
+                Arguments.of(new TimestampType(3), new LocalZonedTimestampType(3), true),
+                Arguments.of(new LocalZonedTimestampType(3), new TimestampType(3), true),
+
+                // ROW types with injective field casts
+                Arguments.of(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("name", VarCharType.STRING_TYPE))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new BigIntType()),
+                                        new RowField("name", VarCharType.STRING_TYPE))),
+                        true),
+
+                // ROW types with non-injective field cast (TIMESTAMP → DATE)
+                Arguments.of(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("ts", new TimestampType(3)))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("ts", new DateType()))),
+                        false),
+
+                // ROW types with mixed casts (one injective, one not)
+                Arguments.of(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("val", new DoubleType()))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", VarCharType.STRING_TYPE),
+                                        new RowField("val", new IntType()))),
+                        false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Injective: {2}]")

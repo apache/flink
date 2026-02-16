@@ -89,12 +89,14 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     val exprs = List(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
+      // INT -> BIGINT is an injective cast, so position 2 is now also an upsert key
       rexBuilder.makeCast(longType, relBuilder.field(0)),
       rexBuilder.makeCast(intType, relBuilder.field(0)),
       relBuilder.field(1)
     )
     val project1 = relBuilder.project(exprs).build()
-    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(project1).toSet)
+
+    assertEquals(toBitSet(Array(1), Array(2)), mq.getUpsertKeys(project1).toSet)
   }
 
   @Test
@@ -201,7 +203,8 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     )
     val rowType = relBuilder.project(exprs).build().getRowType
     val calc2 = createLogicalCalc(studentLogicalScan, rowType, exprs, List(expr))
-    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(calc2).toSet)
+    // INT -> BIGINT is an injective cast, so position 2 is now also an upsert key
+    assertEquals(toBitSet(Array(1), Array(2)), mq.getUpsertKeys(calc2).toSet)
   }
 
   @Test

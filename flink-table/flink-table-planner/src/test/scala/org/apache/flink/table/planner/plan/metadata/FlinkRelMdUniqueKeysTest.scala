@@ -93,7 +93,8 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
       relBuilder.field(1)
     )
     val project1 = relBuilder.project(exprs).build()
-    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(project1).toSet)
+    // INT -> BIGINT is an injective cast, so position 2 is also a unique key
+    assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(project1).toSet)
     assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(project1, true).toSet)
   }
 
@@ -224,7 +225,8 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     )
     val rowType = relBuilder.project(exprs).build().getRowType
     val calc2 = createLogicalCalc(studentLogicalScan, rowType, exprs, List(expr))
-    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(calc2).toSet)
+    // INT -> BIGINT is an injective cast, so position 2 is also a unique key
+    assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(calc2).toSet)
     assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(calc2, true).toSet)
   }
 
