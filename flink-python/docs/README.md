@@ -27,14 +27,25 @@ The built documentation is published at:
 
 ## Prerequisites
 
-Install the Sphinx dependencies from the project's `pyproject.toml`:
+The docs directory has its own `pyproject.toml` with all Sphinx dependencies. You can install them with either [uv](https://docs.astral.sh/uv/) (recommended) or pip.
+
+### Using uv (recommended)
 
 ```bash
-cd flink-python
-pip install -e ".[sphinx]"
+cd flink-python/docs
+uv sync
 ```
 
-This installs Sphinx, the pydata theme, sphinx-intl, and other required packages.
+That's it. The Makefile auto-detects uv and will use `uv run` to invoke Sphinx.
+
+### Using pip
+
+```bash
+cd flink-python/docs
+pip install -r <(uv pip compile pyproject.toml)
+```
+
+Or install the packages listed in `docs/pyproject.toml` manually into your environment.
 
 ## Building the Documentation
 

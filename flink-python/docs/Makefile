@@ -16,27 +16,30 @@
 # limitations under the License.
 ################################################################################
 
+# Determine how to run sphinx-build:
+#   1. If SPHINXBUILD is set explicitly, use it as-is.
+#   2. If SPHINXPYTHON is set explicitly, use '$(SPHINXPYTHON) -m sphinx'.
+#   3. If uv is on PATH, use 'uv run sphinx-build' (deps from pyproject.toml).
+#   4. Otherwise, fall back to bare 'sphinx-build'.
 ifndef SPHINXBUILD
 ifndef SPHINXPYTHON
+ifneq ($(shell command -v uv 2>/dev/null),)
+SPHINXBUILD   = uv run sphinx-build
+SPHINXINTL    = uv run sphinx-intl
+PYTHON        = uv run python
+else
 SPHINXBUILD   = sphinx-build
-SPHINXPYTHON  = python
-endif
-endif
-
-# You can set SPHINXBUILD to specify the sphinx-build or SPHINXPYTHON to specify the python env to call the sphinx module
-# If SPHINXBUILD is set, the command is 'sphinx-build'.
-# Elseif SPHINXPYTHON is set, the command is 'python -m sphinx'.
-ifdef SPHINXBUILD
-# Check whether sphinx-build is installed
-ifeq ($(shell hash $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)
-$(error The command '$(SPHINXBUILD)' was not found.If you don't have Sphinx installed, grab it from http://sphinx-doc.org/)
+SPHINXINTL    = sphinx-intl
+PYTHON        = python
 endif
 else
-ifeq ($(shell $(SPHINXPYTHON) -c 'import sphinx' >/dev/null 2>&1; echo $$?), 1)
-# Check whether sphinx module is installed in $(SPHINXPYTHON)
-$(error '$(SPHINXPYTHON)' doesn't install sphinx module.You can use specified pip of $(SPHINXPYTHON) to install sphinx)
+SPHINXBUILD   = $(SPHINXPYTHON) -m sphinx
+SPHINXINTL    = $(SPHINXPYTHON) -m sphinx_intl
+PYTHON        = $(SPHINXPYTHON)
 endif
-SPHINXBUILD = $(SPHINXPYTHON) -m sphinx
+else
+SPHINXINTL   ?= sphinx-intl
+PYTHON       ?= python
 endif
 
 # The project depends on py4j, so py4j-*-src.zip should be set in PYTHONPATH.
@@ -81,7 +84,7 @@ html:
 html-zh: html zh
 
 zh: gettext
-	sphinx-intl update -p _build/gettext -l zh
+	$(SPHINXINTL) update -p _build/gettext -l zh
 	$(SPHINXBUILD) -b html -D language=zh -d _build/doctrees-zh $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) . _build/html/zh
 	@echo
 	@echo "Build finished. The Chinese HTML pages are in _build/html/zh."
@@ -152,4 +155,4 @@ pdf-html: pdf html
 
 serve:
 	@echo "Serving docs at http://localhost:8080"
-	python -m http.server -d _build/html 8080
+	$(PYTHON) -m http.server -d _build/html 8080
