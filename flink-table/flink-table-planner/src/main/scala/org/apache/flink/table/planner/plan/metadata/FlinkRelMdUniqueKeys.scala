@@ -215,11 +215,10 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   /**
-   * Whether the [[RexCall]] is a cast that preserves key uniqueness.
+   * Whether the [[RexCall]] is a cast that preserves key uniqueness (injective cast).
    *
-   * A key-preserving cast is either:
-   *   - A fidelity cast (implicit widening that never loses information)
-   *   - An injective cast (explicit cast where each distinct input maps to a distinct output)
+   * An injective cast is one where each distinct input maps to a distinct output, ensuring that
+   * unique keys remain unique after the cast.
    */
   private def isKeyPreservingCast(call: RexCall): Boolean = {
     if (call.getKind != SqlKind.CAST) {

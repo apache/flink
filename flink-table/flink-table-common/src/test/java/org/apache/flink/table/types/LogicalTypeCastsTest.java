@@ -355,6 +355,17 @@ class LogicalTypeCastsTest {
                 // DOUBLE → INT is NOT injective
                 Arguments.of(new DoubleType(), new IntType(), false),
 
+                // DECIMAL → DECIMAL: injective when target can represent all source values
+                Arguments.of(new DecimalType(10, 2), new DecimalType(10, 2), true), // identity
+                Arguments.of(new DecimalType(10, 2), new DecimalType(20, 4), true), // widening
+                Arguments.of(
+                        new DecimalType(10, 2), new DecimalType(15, 2), true), // precision widening
+                Arguments.of(
+                        new DecimalType(10, 2), new DecimalType(10, 4), true), // scale widening
+                Arguments.of(new DecimalType(20, 4), new DecimalType(10, 2), false), // narrowing
+                Arguments.of(
+                        new DecimalType(10, 4), new DecimalType(10, 2), false), // scale narrowing
+
                 // Timestamp conversions between variants are injective
                 Arguments.of(new TimestampType(3), new LocalZonedTimestampType(3), true),
                 Arguments.of(new LocalZonedTimestampType(3), new TimestampType(3), true),

@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -394,6 +395,15 @@ public final class LogicalTypeCasts {
         final boolean isTargetConstructed = targetRoot == ROW || targetRoot == STRUCTURED_TYPE;
         if (isSourceConstructed && isTargetConstructed) {
             return supportsInjectiveConstructedCast(sourceType, targetType);
+        }
+
+        // Handle DECIMAL → DECIMAL: injective only if target can represent all source values
+        if (sourceRoot == DECIMAL && targetRoot == DECIMAL) {
+            final DecimalType sourceDecimal = (DecimalType) sourceType;
+            final DecimalType targetDecimal = (DecimalType) targetType;
+            // Injective when target has at least as much precision and scale (identity or widening)
+            return targetDecimal.getPrecision() >= sourceDecimal.getPrecision()
+                    && targetDecimal.getScale() >= sourceDecimal.getScale();
         }
 
         // Check injective casting rules
