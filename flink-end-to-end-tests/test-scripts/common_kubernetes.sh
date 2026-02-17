@@ -177,7 +177,7 @@ function stop_kubernetes {
         kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
-        stop_command="minikube stop"
+        stop_command="sudo -E minikube stop"
         if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} "${stop_command}"; then
             echo "Could not stop minikube. Aborting..."
             exit 1
