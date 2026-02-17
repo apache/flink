@@ -316,8 +316,16 @@ public abstract class AbstractStreamTaskNetworkInput<
     @Override
     public void close() throws IOException {
         // release the deserializers . this part should not ever fail
+        Exception err = null;
         for (InputChannelInfo channelInfo : new ArrayList<>(recordDeserializers.keySet())) {
-            releaseDeserializer(channelInfo);
+            try {
+                releaseDeserializer(channelInfo);
+            } catch (Exception e) {
+                err = e;
+            }
+        }
+        if (err != null) {
+            ExceptionUtils.rethrowIOException(err);
         }
     }
 
