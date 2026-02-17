@@ -312,9 +312,15 @@ class LogicalTypeCastsTest {
                 Arguments.of(new TimestampType(9), VarCharType.STRING_TYPE, true),
                 Arguments.of(new LocalZonedTimestampType(3), VarCharType.STRING_TYPE, true),
 
-                // Explicit casts to CHAR are also injective for the same source types
+                // Casts to CHAR are injective if the target length is sufficient
                 Arguments.of(new IntType(), new CharType(100), true),
                 Arguments.of(new BigIntType(), new CharType(100), true),
+                Arguments.of(new IntType(), new CharType(11), true), // exact minimum
+                Arguments.of(new IntType(), new CharType(3), false), // too short for "-2147483648"
+                Arguments.of(new BigIntType(), new CharType(20), true), // exact minimum
+                Arguments.of(new BigIntType(), new CharType(19), false), // too short
+                Arguments.of(new BooleanType(), new CharType(5), true), // exact minimum for "false"
+                Arguments.of(new BooleanType(), new CharType(4), false), // too short
 
                 // CHAR → VARCHAR widening is injective
                 Arguments.of(new CharType(10), VarCharType.STRING_TYPE, true),
@@ -355,13 +361,13 @@ class LogicalTypeCastsTest {
                 // DOUBLE → INT is NOT injective
                 Arguments.of(new DoubleType(), new IntType(), false),
 
-                // DECIMAL → DECIMAL: injective when target can represent all source values
+                // DECIMAL → DECIMAL: only identity casts are injective
+                // (changing precision/scale can lose data in various ways)
                 Arguments.of(new DecimalType(10, 2), new DecimalType(10, 2), true), // identity
-                Arguments.of(new DecimalType(10, 2), new DecimalType(20, 4), true), // widening
+                Arguments.of(new DecimalType(10, 2), new DecimalType(20, 4), false), // not identity
                 Arguments.of(
-                        new DecimalType(10, 2), new DecimalType(15, 2), true), // precision widening
-                Arguments.of(
-                        new DecimalType(10, 2), new DecimalType(10, 4), true), // scale widening
+                        new DecimalType(10, 2), new DecimalType(15, 2), false), // precision change
+                Arguments.of(new DecimalType(10, 2), new DecimalType(10, 4), false), // scale change
                 Arguments.of(new DecimalType(20, 4), new DecimalType(10, 2), false), // narrowing
                 Arguments.of(
                         new DecimalType(10, 4), new DecimalType(10, 2), false), // scale narrowing
@@ -404,7 +410,76 @@ class LogicalTypeCastsTest {
                                 Arrays.asList(
                                         new RowField("id", VarCharType.STRING_TYPE),
                                         new RowField("val", new IntType()))),
-                        false));
+                        false),
+
+                // ---- Parameter-aware injective cast checks ----
+
+                // CHAR length checks
+                Arguments.of(new CharType(10), new CharType(10), true), // identity
+                Arguments.of(new CharType(10), new CharType(20), true), // widening
+                Arguments.of(new CharType(20), new CharType(10), false), // truncation
+
+                // VARCHAR length checks
+                Arguments.of(new VarCharType(10), new VarCharType(100), true), // widening
+                Arguments.of(new VarCharType(100), new VarCharType(10), false), // truncation
+
+                // CHAR → VARCHAR length checks
+                Arguments.of(new CharType(10), new VarCharType(20), true), // widening
+                Arguments.of(new CharType(20), new VarCharType(10), false), // truncation
+
+                // BINARY length checks
+                Arguments.of(new BinaryType(10), new BinaryType(10), true), // identity
+                Arguments.of(new BinaryType(10), new BinaryType(20), true), // widening
+                Arguments.of(new BinaryType(20), new BinaryType(10), false), // truncation
+
+                // VARBINARY length checks
+                Arguments.of(new VarBinaryType(10), new VarBinaryType(100), true), // widening
+                Arguments.of(new VarBinaryType(100), new VarBinaryType(10), false), // truncation
+
+                // BINARY → VARBINARY length checks
+                Arguments.of(new BinaryType(10), new VarBinaryType(20), true), // widening
+                Arguments.of(new BinaryType(20), new VarBinaryType(10), false), // truncation
+
+                // TIMESTAMP precision checks (identity only)
+                Arguments.of(new TimestampType(3), new TimestampType(3), true), // identity
+                Arguments.of(
+                        new TimestampType(3), new TimestampType(6), false), // widening rejected
+                Arguments.of(
+                        new TimestampType(6), new TimestampType(3), false), // narrowing rejected
+
+                // TIMESTAMP ↔ TIMESTAMP_LTZ precision checks (identity only)
+                Arguments.of(
+                        new TimestampType(3), new LocalZonedTimestampType(6), false), // rejected
+                Arguments.of(
+                        new LocalZonedTimestampType(6), new TimestampType(3), false), // rejected
+
+                // TIMESTAMP_LTZ precision checks (identity only)
+                Arguments.of(
+                        new LocalZonedTimestampType(3),
+                        new LocalZonedTimestampType(3),
+                        true), // identity
+                Arguments.of(
+                        new LocalZonedTimestampType(3),
+                        new LocalZonedTimestampType(6),
+                        false), // rejected
+
+                // TIMESTAMP_TZ precision checks (identity only)
+                Arguments.of(
+                        new ZonedTimestampType(3), new ZonedTimestampType(3), true), // identity
+                Arguments.of(
+                        new ZonedTimestampType(3), new ZonedTimestampType(6), false), // rejected
+
+                // TIME precision checks (identity only)
+                Arguments.of(new TimeType(0), new TimeType(0), true), // identity
+                Arguments.of(new TimeType(0), new TimeType(3), false), // widening rejected
+                Arguments.of(new TimeType(3), new TimeType(0), false), // narrowing rejected
+
+                // Cross-family casts to VARCHAR with insufficient length
+                Arguments.of(new IntType(), new VarCharType(3), false), // too short
+                Arguments.of(new TimestampType(3), new VarCharType(5), false), // too short
+
+                // DOUBLE identity
+                Arguments.of(new DoubleType(), new DoubleType(), true));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Injective: {2}]")
