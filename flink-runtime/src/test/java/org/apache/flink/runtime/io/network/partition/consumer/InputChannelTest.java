@@ -101,6 +101,16 @@ class InputChannelTest {
         assertThat(ch.getCurrentBackoff()).isZero();
     }
 
+    @Test
+    void testHasError() {
+        InputChannel ch = createInputChannel(0, 0);
+
+        assertThat(ch.hasError()).isFalse();
+
+        ch.setError(new RuntimeException("test error"));
+        assertThat(ch.hasError()).isTrue();
+    }
+
     private InputChannel createInputChannel(int initialBackoff, int maxBackoff) {
         return new MockInputChannel(
                 mock(SingleInputGate.class),
