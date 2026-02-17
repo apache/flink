@@ -24,9 +24,10 @@ CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 RETRY_COUNT=3
 RETRY_BACKOFF_TIME=5
 RESULT_HASH="d41d8cd98f00b204e9800998ecf8427e"
-MINIKUBE_VERSION="v1.28.0"
-CRICTL_VERSION="v1.24.2"
-CRI_DOCKERD_VERSION="0.2.3"
+MINIKUBE_VERSION="v1.38.0"
+CRICTL_VERSION="v1.35.0"
+CRI_DOCKERD_VERSION="0.3.24"
+CNI_PLUGINS_VERSION="v1.6.2"
 
 NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
@@ -60,6 +61,12 @@ function setup_kubernetes_for_linux {
 
     # conntrack is required for minikube 1.9 and later
     sudo apt-get install conntrack
+    # CNI plugins are required for minikube with the none driver and Kubernetes v1.24+
+    local cni_archive="cni-plugins-linux-${arch}-${CNI_PLUGINS_VERSION}.tgz"
+    retry_download "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/${cni_archive}"
+    sudo mkdir -p /opt/cni/bin
+    sudo tar zxvf ${cni_archive} -C /opt/cni/bin
+    rm -f ${cni_archive}
     # crictl is required for cri-dockerd
     local crictl_archive
     crictl_archive="crictl-$CRICTL_VERSION-linux-${arch}.tar.gz"
@@ -170,7 +177,7 @@ function stop_kubernetes {
         kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
-        stop_command="minikube stop"
+        stop_command="sudo -E minikube stop"
         if ! retry_times ${RETRY_COUNT} ${RETRY_BACKOFF_TIME} "${stop_command}"; then
             echo "Could not stop minikube. Aborting..."
             exit 1
