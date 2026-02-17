@@ -346,6 +346,11 @@ public abstract class InputChannel {
      */
     public void notifyRequiredSegmentId(int subpartitionId, int segmentId) throws IOException {}
 
+    /** Whether this input channel has encountered error. */
+    public boolean hasError() {
+        return cause.get() != null;
+    }
+
     // ------------------------------------------------------------------------
 
     /**

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -38,6 +39,9 @@ import org.apache.flink.streaming.runtime.watermark.WatermarkCombiner;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.ExceptionUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,6 +63,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class AbstractStreamTaskNetworkInput<
                 T, R extends RecordDeserializer<DeserializationDelegate<StreamElement>>>
         implements StreamTaskInput<T> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractStreamTaskNetworkInput.class);
+
     protected final CheckpointedInputGate checkpointedInputGate;
     protected final DeserializationDelegate<StreamElement> deserializationDelegate;
     protected final TypeSerializer<T> inputSerializer;
@@ -315,13 +322,25 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     @Override
     public void close() throws IOException {
-        // release the deserializers . this part should not ever fail
+        // WARNING: throwing an exception from this method might fail Task closing procedure and
+        // terminate the TM
         Exception err = null;
         for (InputChannelInfo channelInfo : new ArrayList<>(recordDeserializers.keySet())) {
+            final boolean hadError =
+                    checkpointedInputGate.getChannel(channelInfo.getInputChannelIdx()).hasError();
             try {
                 releaseDeserializer(channelInfo);
             } catch (Exception e) {
-                err = e;
+                if (hadError
+                        && ExceptionUtils.findThrowable(e, RemoteTransportException.class)
+                                .isPresent()) {
+                    LOG.warn(
+                            "Ignoring deserializer release failure - the channel {} has encountered a transport error before: {}",
+                            channelInfo,
+                            e.getMessage());
+                } else {
+                    err = ExceptionUtils.firstOrSuppressed(e, err);
+                }
             }
         }
         if (err != null) {
