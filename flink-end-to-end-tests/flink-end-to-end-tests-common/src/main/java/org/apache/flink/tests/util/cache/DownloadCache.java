@@ -18,8 +18,8 @@
 
 package org.apache.flink.tests.util.cache;
 
+import org.apache.flink.tests.util.ExternalResource;
 import org.apache.flink.tests.util.util.FactoryUtils;
-import org.apache.flink.util.ExternalResource;
 
 import java.io.IOException;
 import java.nio.file.Path;

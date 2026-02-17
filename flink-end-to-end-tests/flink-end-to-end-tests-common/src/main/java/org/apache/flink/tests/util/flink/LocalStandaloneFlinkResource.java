@@ -29,10 +29,10 @@ import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -40,6 +40,7 @@ import org.slf4j.event.Level;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
@@ -58,12 +59,12 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResource.class);
 
-    private final TemporaryFolder temporaryFolder = new TemporaryFolder();
     private final Path distributionDirectory;
     @Nullable private final Path logBackupDirectory;
     private final FlinkResourceSetup setup;
 
     private FlinkDistribution distribution;
+    private Path tempDirectory;
 
     LocalStandaloneFlinkResource(
             Path distributionDirectory,
@@ -77,8 +78,8 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
     @Override
     public void before() throws Exception {
-        temporaryFolder.create();
-        Path tmp = temporaryFolder.newFolder().toPath();
+        tempDirectory = Files.createTempDirectory("flink-local-standalone-");
+        Path tmp = Files.createDirectory(tempDirectory.resolve("dist"));
         LOG.info("Copying distribution to {}.", tmp);
         TestUtils.copyDirectory(distributionDirectory, tmp);
 
@@ -98,7 +99,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     @Override
     public void afterTestSuccess() {
         shutdownCluster();
-        temporaryFolder.delete();
+        cleanupTempDirectory();
     }
 
     @Override
@@ -107,7 +108,17 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
             shutdownCluster();
             backupLogs();
         }
-        temporaryFolder.delete();
+        cleanupTempDirectory();
+    }
+
+    private void cleanupTempDirectory() {
+        if (tempDirectory != null) {
+            try {
+                FileUtils.deleteDirectory(tempDirectory.toFile());
+            } catch (IOException e) {
+                LOG.warn("Failed to delete temporary directory: {}", tempDirectory, e);
+            }
+        }
     }
 
     private void shutdownCluster() {
