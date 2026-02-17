@@ -122,8 +122,8 @@ public final class LogicalTypeCasts {
         DOUBLE,
         BOOLEAN,
         DATE,
+        TIME_WITHOUT_TIME_ZONE,
         TIMESTAMP_WITHOUT_TIME_ZONE,
-        TIMESTAMP_WITH_TIME_ZONE,
         TIMESTAMP_WITH_LOCAL_TIME_ZONE
     };
 
@@ -211,7 +211,6 @@ public final class LogicalTypeCasts {
                 .implicitFromFamily(NUMERIC)
                 .explicitFromFamily(CHARACTER_STRING, INTERVAL)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(TINYINT, SMALLINT, INTEGER, BIGINT, DECIMAL)
                 .build();
 
         // -----------------------------------------------------------------------------------------
@@ -229,7 +228,6 @@ public final class LogicalTypeCasts {
                 .implicitFromFamily(NUMERIC)
                 .explicitFromFamily(CHARACTER_STRING)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(FLOAT, DOUBLE)
                 .build();
 
         // -----------------------------------------------------------------------------------------

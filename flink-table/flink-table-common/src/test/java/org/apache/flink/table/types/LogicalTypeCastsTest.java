@@ -307,10 +307,10 @@ class LogicalTypeCastsTest {
 
                 // Explicit casts to STRING from date/time types are injective
                 Arguments.of(new DateType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new TimeType(3), VarCharType.STRING_TYPE, true),
                 Arguments.of(new TimestampType(3), VarCharType.STRING_TYPE, true),
                 Arguments.of(new TimestampType(9), VarCharType.STRING_TYPE, true),
                 Arguments.of(new LocalZonedTimestampType(3), VarCharType.STRING_TYPE, true),
-                Arguments.of(new ZonedTimestampType(3), VarCharType.STRING_TYPE, true),
 
                 // Explicit casts to CHAR are also injective for the same source types
                 Arguments.of(new IntType(), new CharType(100), true),
@@ -321,18 +321,6 @@ class LogicalTypeCastsTest {
 
                 // BINARY → VARBINARY widening is injective
                 Arguments.of(new BinaryType(10), new VarBinaryType(100), true),
-
-                // Integer → DECIMAL is injective (exact representation)
-                Arguments.of(new TinyIntType(), new DecimalType(10, 0), true),
-                Arguments.of(new SmallIntType(), new DecimalType(10, 0), true),
-                Arguments.of(new IntType(), new DecimalType(10, 0), true),
-                Arguments.of(new BigIntType(), new DecimalType(20, 0), true),
-
-                // DECIMAL → DECIMAL identity is injective
-                Arguments.of(new DecimalType(10, 2), new DecimalType(10, 2), true),
-
-                // FLOAT → DOUBLE widening is injective
-                Arguments.of(new FloatType(), new DoubleType(), true),
 
                 // Narrowing casts are NOT injective (lossy)
                 Arguments.of(VarCharType.STRING_TYPE, new IntType(), false),
@@ -350,11 +338,14 @@ class LogicalTypeCastsTest {
                 Arguments.of(new VarBinaryType(100), VarCharType.STRING_TYPE, false),
                 Arguments.of(new BinaryType(100), VarCharType.STRING_TYPE, false),
 
-                // TIME to STRING is NOT injective (not in the whitelist)
-                Arguments.of(new TimeType(3), VarCharType.STRING_TYPE, false),
+                // TIMESTAMP_WITH_TIME_ZONE to STRING is NOT injective
+                // (theory: two timestamps with different zones could produce same string
+                // depending on the implementation)
+                Arguments.of(new ZonedTimestampType(3), VarCharType.STRING_TYPE, false),
 
-                // INT → FLOAT/DOUBLE are NOT injective (even though implicit)
-                // because floating point is not in the injective rules
+                // INT → FLOAT/DOUBLE are theoretically injective
+                // However, we decided not to support decimal, float and double
+                // injective conversions at first since it's not a practical use case
                 Arguments.of(new IntType(), new FloatType(), false),
                 Arguments.of(new IntType(), new DoubleType(), false),
 
