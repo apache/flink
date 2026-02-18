@@ -21,6 +21,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -171,16 +172,10 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
     }
 
     private static JobClient createMultiOutputDAG(StreamExecutionEnvironment env) throws Exception {
-        DataGeneratorSource<Long> source =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
 
         int sourceParallelism = getRandomParallelism();
         DataStream<Long> sourceStream =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "Data Generator")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Data Generator")
                         .setParallelism(sourceParallelism);
 
         sourceStream
@@ -208,25 +203,13 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
 
     private static JobClient createMultiInputDAG(StreamExecutionEnvironment env) throws Exception {
         int source1Parallelism = getRandomParallelism();
-        DataGeneratorSource<Long> source1 =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
         DataStream<Long> sourceStream1 =
-                env.fromSource(source1, WatermarkStrategy.noWatermarks(), "Source 1")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Source 1")
                         .setParallelism(source1Parallelism);
 
         int source2Parallelism = getRandomParallelism();
-        DataGeneratorSource<Long> source2 =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
         DataStream<Long> sourceStream2 =
-                env.fromSource(source2, WatermarkStrategy.noWatermarks(), "Source 2")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Source 2")
                         .setParallelism(source2Parallelism);
 
         // Keep the same parallelism to ensure the ForwardPartitioner will be used.
@@ -245,16 +228,10 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
 
     private static JobClient createRescalePartitionerDAG(StreamExecutionEnvironment env)
             throws Exception {
-        DataGeneratorSource<Long> source =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
 
         int sourceParallelism = getRandomParallelism();
         DataStream<Long> sourceStream =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "Data Generator")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Data Generator")
                         .setParallelism(sourceParallelism);
 
         sourceStream
@@ -284,25 +261,13 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
             throws Exception {
         // Multi-input part
         int source1Parallelism = getRandomParallelism();
-        DataGeneratorSource<Long> source1 =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
         DataStream<Long> sourceStream1 =
-                env.fromSource(source1, WatermarkStrategy.noWatermarks(), "Source 1")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Source 1")
                         .setParallelism(source1Parallelism);
 
         int source2Parallelism = getRandomParallelism();
-        DataGeneratorSource<Long> source2 =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
         DataStream<Long> sourceStream2 =
-                env.fromSource(source2, WatermarkStrategy.noWatermarks(), "Source 2")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Source 2")
                         .setParallelism(source2Parallelism);
 
         // Keep the same parallelism to ensure the ForwardPartitioner will be used.
@@ -349,27 +314,15 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
     private static JobClient createPartEmptyHashExchangeDAG(StreamExecutionEnvironment env)
             throws Exception {
         int source1Parallelism = getRandomParallelism();
-        DataGeneratorSource<Long> source1 =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
         DataStream<Long> sourceStream1 =
-                env.fromSource(source1, WatermarkStrategy.noWatermarks(), "Source 1")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Source 1")
                         .setParallelism(source1Parallelism);
 
         int source2Parallelism = getRandomParallelism();
-        DataGeneratorSource<Long> source2 =
-                new DataGeneratorSource<>(
-                        index -> index,
-                        Long.MAX_VALUE,
-                        RateLimiterStrategy.perSecond(5000),
-                        Types.LONG);
 
         // Filter all records to simulate empty state exchange
         DataStream<Long> sourceStream2 =
-                env.fromSource(source2, WatermarkStrategy.noWatermarks(), "Source 2")
+                env.fromSource(createSource(), WatermarkStrategy.noWatermarks(), "Source 2")
                         .setParallelism(source2Parallelism)
                         .filter(value -> false)
                         .setParallelism(source2Parallelism);
@@ -390,6 +343,20 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
 
     private static int getRandomParallelism() {
         return RANDOM.nextInt(MAX_SLOTS) + 1;
+    }
+
+    private static DataGeneratorSource<Long> createSource() {
+        return new DataGeneratorSource<>(
+                index -> index,
+                new NumberSequenceSource(0, Long.MAX_VALUE - 1) {
+                    @Override
+                    protected List<NumberSequenceSplit> splitNumberRange(
+                            long from, long to, int numSplitsIgnored) {
+                        return super.splitNumberRange(from, to, MAX_SLOTS);
+                    }
+                },
+                RateLimiterStrategy.perSecond(5000),
+                Types.LONG) {};
     }
 
     /** A simple CoMapFunction that sleeps for 1ms for each element. */
