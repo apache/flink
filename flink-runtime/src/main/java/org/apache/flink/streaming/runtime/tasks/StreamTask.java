@@ -910,8 +910,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                             "Input gate request partitions"));
         }
 
-        return CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]))
-                .thenRun(mailboxProcessor::suspend);
+        // Return allOf result instead of thenRun result.
+        // thenRun returns a NEW future that completes after the callback finishes.
+        // Since suspend() runs on the async thread and just sends a poison mail,
+        // the mailbox loop can exit before suspend() returns, causing isDone() to be false.
+        CompletableFuture<Void> allRecoveredFuture =
+                CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]));
+        allRecoveredFuture.thenRun(mailboxProcessor::suspend);
+        return allRecoveredFuture;
     }
 
     private void ensureNotCanceled() {
