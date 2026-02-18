@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
@@ -54,8 +55,14 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
         List<TableChange> tableChanges =
                 validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
 
+        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
         return new AlterMaterializedTableChangeOperation(
-                resolveIdentifier(alterTableSchema, context), tableChanges, oldTable);
+                resolveIdentifier(alterTableSchema, context),
+                tableChanges,
+                oldTable,
+                result.getNewMaterializedTable(),
+                result.getValidationErrors());
     }
 
     protected abstract List<TableChange> validateAndGatherDropChanges(

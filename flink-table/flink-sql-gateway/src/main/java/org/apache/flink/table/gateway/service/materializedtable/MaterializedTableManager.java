@@ -62,6 +62,7 @@ import org.apache.flink.table.operations.materializedtable.AlterMaterializedTabl
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperation;
 import org.apache.flink.table.refresh.ContinuousRefreshHandler;
 import org.apache.flink.table.refresh.ContinuousRefreshHandlerSerializer;
@@ -827,11 +828,16 @@ public class MaterializedTableManager {
                             operationExecutor, handle, tableIdentifier, oldMaterializedTable);
 
             // 2. alter materialized table schema & query definition
+            final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                    MaterializedTableChangeHandler.buildNewMaterializedTable(
+                            suspendMaterializedTable, op.getTableChanges());
             AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation =
                     new AlterMaterializedTableChangeOperation(
                             op.getTableIdentifier(),
                             op.getTableChanges(),
-                            suspendMaterializedTable);
+                            suspendMaterializedTable,
+                            result.getNewMaterializedTable(),
+                            result.getValidationErrors());
             operationExecutor.callExecutableOperation(
                     handle, alterMaterializedTableChangeOperation);
 
@@ -840,8 +846,7 @@ public class MaterializedTableManager {
                 executeContinuousRefreshJob(
                         operationExecutor,
                         handle,
-                        alterMaterializedTableChangeOperation
-                                .getMaterializedTableWithAppliedChanges(),
+                        alterMaterializedTableChangeOperation.getNewTable(),
                         tableIdentifier,
                         Collections.emptyMap(),
                         Optional.empty());
@@ -851,7 +856,7 @@ public class MaterializedTableManager {
                 LOG.warn(
                         "Failed to start the continuous refresh job for materialized table {} using new query {}, rollback to origin query {}.",
                         tableIdentifier,
-                        op.getMaterializedTableWithAppliedChanges().getExpandedQuery(),
+                        op.getNewTable().getExpandedQuery(),
                         suspendMaterializedTable.getExpandedQuery(),
                         e);
 
@@ -874,8 +879,7 @@ public class MaterializedTableManager {
                 throw new SqlExecutionException(
                         String.format(
                                 "Failed to start the continuous refresh job using new query %s when altering materialized table %s select query.",
-                                op.getMaterializedTableWithAppliedChanges().getExpandedQuery(),
-                                tableIdentifier),
+                                op.getNewTable().getExpandedQuery(), tableIdentifier),
                         e);
             }
         } else if (RefreshStatus.SUSPENDED == oldMaterializedTable.getRefreshStatus()) {
@@ -887,9 +891,16 @@ public class MaterializedTableManager {
                             oldMaterializedTable.getSerializedRefreshHandler());
             tableChanges.add(modifyRefreshHandler);
 
+            final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                    MaterializedTableChangeHandler.buildNewMaterializedTable(
+                            oldMaterializedTable, tableChanges);
             AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation =
                     new AlterMaterializedTableChangeOperation(
-                            tableIdentifier, tableChanges, oldMaterializedTable);
+                            tableIdentifier,
+                            tableChanges,
+                            oldMaterializedTable,
+                            result.getNewMaterializedTable(),
+                            result.getValidationErrors());
 
             operationExecutor.callExecutableOperation(
                     handle, alterMaterializedTableChangeOperation);
@@ -908,7 +919,11 @@ public class MaterializedTableManager {
             AlterMaterializedTableChangeOperation op) {
 
         return new AlterMaterializedTableChangeOperation(
-                op.getTableIdentifier(), List.of(), oldMaterializedTable);
+                op.getTableIdentifier(),
+                List.of(),
+                oldMaterializedTable,
+                oldMaterializedTable,
+                List.of());
     }
 
     private TableChange.ModifyRefreshHandler generateResetSavepointTableChange(
@@ -1170,14 +1185,21 @@ public class MaterializedTableManager {
         tableChanges.add(TableChange.modifyRefreshStatus(refreshStatus));
         tableChanges.add(
                 TableChange.modifyRefreshHandler(refreshHandlerSummary, serializedRefreshHandler));
+        MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                MaterializedTableChangeHandler.buildNewMaterializedTable(
+                        catalogMaterializedTable, tableChanges);
         AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation =
                 new AlterMaterializedTableChangeOperation(
-                        materializedTableIdentifier, tableChanges, catalogMaterializedTable);
+                        materializedTableIdentifier,
+                        tableChanges,
+                        catalogMaterializedTable,
+                        result.getNewMaterializedTable(),
+                        result.getValidationErrors());
         // update RefreshHandler to Catalog
         operationExecutor.callExecutableOperation(
                 operationHandle, alterMaterializedTableChangeOperation);
 
-        return alterMaterializedTableChangeOperation.getMaterializedTableWithAppliedChanges();
+        return alterMaterializedTableChangeOperation.getNewTable();
     }
 
     /** Generate insert statement for materialized table. */

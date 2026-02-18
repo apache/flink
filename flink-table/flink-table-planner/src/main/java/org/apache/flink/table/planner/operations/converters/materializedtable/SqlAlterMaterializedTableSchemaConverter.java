@@ -34,8 +34,10 @@ import org.apache.flink.table.catalog.Column.PhysicalColumn;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.operations.converters.SchemaAddConverter;
 import org.apache.flink.table.planner.operations.converters.SchemaConverter;
 import org.apache.flink.table.planner.operations.converters.SchemaModifyConverter;
@@ -69,10 +71,15 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
 
         validateChanges(oldTable.getResolvedSchema(), schema, context);
 
+        final List<TableChange> tableChanges = converter.getChangesCollector();
+        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(alterTableSchema, context),
-                converter.getChangesCollector(),
-                oldTable);
+                tableChanges,
+                oldTable,
+                result.getNewMaterializedTable(),
+                result.getValidationErrors());
     }
 
     protected abstract SchemaConverter createSchemaConverter(

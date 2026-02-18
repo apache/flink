@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.operations.converters.MergeTableAsUtil;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
@@ -102,8 +103,14 @@ public class SqlCreateOrAlterMaterializedTableConverter
         final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
 
         final List<TableChange> tableChanges = buildTableChanges(oldTable, mergeContext);
-
-        return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, oldTable);
+        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
+        return new AlterMaterializedTableAsQueryOperation(
+                identifier,
+                tableChanges,
+                oldTable,
+                result.getNewMaterializedTable(),
+                result.getValidationErrors());
     }
 
     private Operation handleCreate(

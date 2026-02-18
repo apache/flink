@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
+import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
@@ -58,6 +59,13 @@ public class SqlAlterMaterializedTableAsQueryConverter
                 MaterializedTableUtils.buildSchemaTableChanges(oldSchema, newSchema);
         tableChanges.add(TableChange.modifyDefinitionQuery(originalQuery, definitionQuery));
 
-        return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, oldTable);
+        MaterializedTableChangeHandler.MaterializedTableChangeResult result =
+                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
+        return new AlterMaterializedTableAsQueryOperation(
+                identifier,
+                tableChanges,
+                oldTable,
+                result.getNewMaterializedTable(),
+                result.getValidationErrors());
     }
 }

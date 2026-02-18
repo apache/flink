@@ -402,7 +402,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         () -> {
                             AlterMaterializedTableChangeOperation operation =
                                     (AlterMaterializedTableChangeOperation) parse(spec.sql);
-                            operation.getMaterializedTableWithAppliedChanges();
+                            operation.getNewTable();
                         })
                 .as(spec.sql)
                 .isInstanceOf(spec.expectedException)
@@ -421,8 +421,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
     void createAlterTableSuccessCase(TestSpec testSpec) {
         AlterMaterializedTableChangeOperation operation =
                 (AlterMaterializedTableChangeOperation) parse(testSpec.sql);
-        CatalogMaterializedTable catalogMaterializedTable =
-                operation.getMaterializedTableWithAppliedChanges();
+        CatalogMaterializedTable catalogMaterializedTable = operation.getNewTable();
         assertThat(catalogMaterializedTable.getUnresolvedSchema())
                 .hasToString(testSpec.expectedSchema);
     }
@@ -551,7 +550,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getMaterializedTableWithAppliedChanges();
+        CatalogMaterializedTable newTable = op.getNewTable();
 
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
         assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
@@ -689,7 +688,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getMaterializedTableWithAppliedChanges();
+        CatalogMaterializedTable newTable = op.getNewTable();
 
         assertThat(newTable.getOptions()).containsExactly(Map.entry("format", "json2"));
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
