@@ -714,6 +714,43 @@ class LocalInputChannelTest {
     }
 
     @Test
+    void testGetNextBufferWithMigratedRecoveredBuffers() throws Exception {
+        // given: LocalInputChannel with recovered buffers migrated from RecoveredInputChannel
+        SingleInputGate inputGate = createSingleInputGate(1);
+
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        ChannelStateWriter.NO_OP,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+
+        // then: Can read recovered buffers even before requestSubpartitions()
+        Optional<InputChannel.BufferAndAvailability> first = channel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().buffer().getSize()).isEqualTo(10);
+        assertThat(first.get().moreAvailable()).isTrue();
+
+        Optional<InputChannel.BufferAndAvailability> second = channel.getNextBuffer();
+        assertThat(second).isPresent();
+        assertThat(second.get().buffer().getSize()).isEqualTo(20);
+    }
+
+    @Test
     void testCheckpointStartedPersistsRecoveredBuffers() throws Exception {
         // given: Local input channel with recovered buffers
         SingleInputGate inputGate = new SingleInputGateBuilder().build();

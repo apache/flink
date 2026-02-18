@@ -375,6 +375,10 @@ public class SingleInputGate extends IndexedInputGate {
         }
     }
 
+    /**
+     * Converts all {@link RecoveredInputChannel}s to their real channel types ({@link
+     * LocalInputChannel} or {@link RemoteInputChannel}).
+     */
     @VisibleForTesting
     public void convertRecoveredInputChannels() {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
@@ -384,19 +388,40 @@ public class SingleInputGate extends IndexedInputGate {
                     new HashSet<>(inputChannelsForCurrentPartition.keySet());
             for (InputChannelInfo inputChannelInfo : oldInputChannelInfos) {
                 InputChannel inputChannel = inputChannelsForCurrentPartition.get(inputChannelInfo);
-                if (inputChannel instanceof RecoveredInputChannel) {
-                    try {
-                        InputChannel realInputChannel =
-                                ((RecoveredInputChannel) inputChannel).toInputChannel();
-                        inputChannel.releaseAllResources();
+                if (!(inputChannel instanceof RecoveredInputChannel)) {
+                    continue;
+                }
+                try {
+                    // Phase 1: Convert channel and release resources outside the lock.
+                    // These calls may acquire the receivedBuffers lock internally, so they
+                    // run outside inputChannelsWithData lock to maintain a consistent lock
+                    // order with onRecoveredStateBuffer() which acquires receivedBuffers
+                    // first and then inputChannelsWithData.
+                    InputChannel realInputChannel =
+                            ((RecoveredInputChannel) inputChannel).toInputChannel();
+                    inputChannel.releaseAllResources();
+                    int buffersInUseCount = realInputChannel.getBuffersInUseCount();
+
+                    // Phase 2: Atomically update data structures under the lock.
+                    synchronized (inputChannelsWithData) {
+                        if (inputChannelsWithData.contains(inputChannel)) {
+                            inputChannelsWithData.getAndRemove(ch -> ch == inputChannel);
+                        }
+                        enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+
                         inputChannelsForCurrentPartition.remove(inputChannelInfo);
                         inputChannelsForCurrentPartition.put(
                                 realInputChannel.getChannelInfo(), realInputChannel);
                         channels[inputChannel.getChannelIndex()] = realInputChannel;
-                    } catch (Throwable t) {
-                        inputChannel.setError(t);
-                        return;
+
+                        if (buffersInUseCount > 0) {
+                            inputChannelsWithData.add(realInputChannel);
+                            enqueuedInputChannelsWithData.set(realInputChannel.getChannelIndex());
+                        }
                     }
+                } catch (Throwable t) {
+                    inputChannel.setError(t);
+                    return;
                 }
             }
         }

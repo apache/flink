@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayDeque;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
@@ -164,7 +165,8 @@ public class InputChannelBuilder {
                 maxBackoff,
                 metrics.getNumBytesInLocalCounter(),
                 metrics.getNumBuffersInLocalCounter(),
-                stateWriter);
+                stateWriter,
+                new ArrayDeque<>());
     }
 
     public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {
@@ -181,7 +183,8 @@ public class InputChannelBuilder {
                 networkBuffersPerChannel,
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
-                stateWriter);
+                stateWriter,
+                new ArrayDeque<>());
     }
 
     public LocalRecoveredInputChannel buildLocalRecoveredChannel(SingleInputGate inputGate) {

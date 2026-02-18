@@ -138,7 +138,8 @@ public class RemoteInputChannel extends InputChannel {
             int networkBuffersPerChannel,
             Counter numBytesIn,
             Counter numBuffersIn,
-            ChannelStateWriter stateWriter) {
+            ChannelStateWriter stateWriter,
+            ArrayDeque<Buffer> initialRecoveredBuffers) {
 
         super(
                 inputGate,
@@ -157,6 +158,29 @@ public class RemoteInputChannel extends InputChannel {
         this.connectionManager = checkNotNull(connectionManager);
         this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
+
+        // Migrate recovered buffers from RecoveredInputChannel if provided.
+        // These buffers have been filtered but not yet consumed by the Task.
+        if (!initialRecoveredBuffers.isEmpty()) {
+            final int expectedCount = initialRecoveredBuffers.size();
+            // Sequence number starts at Integer.MIN_VALUE, consistent with RecoveredInputChannel.
+            int seqNum = Integer.MIN_VALUE;
+            for (Buffer buffer : initialRecoveredBuffers) {
+                // subpartitionId is set to 0 for recovered buffers. This is correct because:
+                // 1) For single-subpartition channels, the only valid subpartition is 0.
+                // 2) For multi-subpartition channels (consumedSubpartitionIndexSet.size() > 1),
+                //    RecoveryMetadata events embedded in the recovered buffer sequence track
+                //    the actual subpartition context for proper routing.
+                SequenceBuffer sequenceBuffer = new SequenceBuffer(buffer, seqNum++, 0);
+                receivedBuffers.add(sequenceBuffer);
+                totalQueueSizeInBytes += buffer.getSize();
+            }
+            checkState(
+                    receivedBuffers.size() == expectedCount,
+                    "Buffer migration failed: expected %s buffers but got %s",
+                    expectedCount,
+                    receivedBuffers.size());
+        }
     }
 
     @VisibleForTesting
@@ -239,9 +263,9 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     protected int peekNextBufferSubpartitionIdInternal() throws IOException {
-        checkPartitionRequestQueueInitialized();
-
         synchronized (receivedBuffers) {
+            checkReadability();
+
             final SequenceBuffer next = receivedBuffers.peek();
 
             if (next != null) {
@@ -254,12 +278,12 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
-        checkPartitionRequestQueueInitialized();
-
         final SequenceBuffer next;
         final DataType nextDataType;
 
         synchronized (receivedBuffers) {
+            checkReadability();
+
             next = receivedBuffers.poll();
 
             if (next != null) {
@@ -877,6 +901,20 @@ public class RemoteInputChannel extends InputChannel {
 
     public void onError(Throwable cause) {
         setError(cause);
+    }
+
+    /**
+     * When receivedBuffers contains migrated buffers from RecoveredInputChannel, they can be read
+     * before requestSubpartitions(). In that case only check for errors. Once migrated buffers are
+     * drained, require full client initialization check.
+     */
+    private void checkReadability() throws IOException {
+        assert Thread.holdsLock(receivedBuffers);
+        if (receivedBuffers.isEmpty()) {
+            checkPartitionRequestQueueInitialized();
+        } else {
+            checkError();
+        }
     }
 
     private void checkPartitionRequestQueueInitialized() throws IOException {
