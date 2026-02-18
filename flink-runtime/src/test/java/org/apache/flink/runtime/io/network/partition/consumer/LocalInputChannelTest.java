@@ -713,6 +713,49 @@ class LocalInputChannelTest {
         assertThat(localChannel.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(5);
     }
 
+    @Test
+    void testCheckpointStartedPersistsRecoveredBuffers() throws Exception {
+        // given: Local input channel with recovered buffers
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(30));
+
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        stateWriter,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+
+        // when: Checkpoint is started
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, options);
+        channel.checkpointStarted(barrier);
+
+        // then: All 3 recovered buffers should be persisted as inflight data
+        List<Buffer> persistedBuffers = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        assertThat(persistedBuffers).isNotNull().hasSize(3);
+        assertThat(persistedBuffers.stream().mapToInt(Buffer::getSize).toArray())
+                .containsExactly(10, 20, 30);
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     /** Returns the configured number of buffers for each channel in a random order. */
