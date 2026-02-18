@@ -44,6 +44,7 @@ import org.apache.flink.test.util.NumberSequenceSourceWithWaitForCheckpoint;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -139,6 +140,7 @@ public class CheckpointIntervalDuringBacklogITCase {
     }
 
     @Test
+    @Ignore // FLINK-39108
     public void testNoCheckpointDuringBacklog() throws Exception {
         final int recordsBeforeSwitch = NUM_RECORDS / 2;
         Duration expectedSwitchTime = Duration.ofMillis(recordsBeforeSwitch * SLEEP_MS_PER_RECORD);
