@@ -106,7 +106,22 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     public final InputChannel toInputChannel() throws IOException {
         Preconditions.checkState(
                 stateConsumedFuture.isDone(), "recovered state is not fully consumed");
-        final InputChannel inputChannel = toInputChannelInternal();
+
+        // Extract remaining buffers before conversion.
+        // These buffers have been filtered but not yet consumed by the Task.
+        final ArrayDeque<Buffer> remainingBuffers;
+        synchronized (receivedBuffers) {
+            remainingBuffers = new ArrayDeque<>(receivedBuffers);
+            receivedBuffers.clear();
+        }
+
+        final InputChannel inputChannel = toInputChannelInternal(remainingBuffers);
+
+        // Post-condition: verify receivedBuffers is empty
+        Preconditions.checkState(
+                receivedBuffers.isEmpty(),
+                "receivedBuffers should be empty after buffer migration");
+
         inputChannel.checkpointStopped(lastStoppedCheckpointId);
         return inputChannel;
     }
@@ -116,7 +131,15 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         this.lastStoppedCheckpointId = checkpointId;
     }
 
-    protected abstract InputChannel toInputChannelInternal() throws IOException;
+    /**
+     * Creates the physical InputChannel from this recovered channel.
+     *
+     * @param remainingBuffers buffers that have been filtered but not yet consumed by the Task.
+     *     These buffers will be migrated to the new physical channel.
+     * @return the physical InputChannel (LocalInputChannel or RemoteInputChannel)
+     */
+    protected abstract InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers)
+            throws IOException;
 
     CompletableFuture<?> getStateConsumedFuture() {
         return stateConsumedFuture;
