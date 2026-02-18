@@ -142,4 +142,7 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
     @Override
     public void triggerDebloating() {}
+
+    @Override
+    public void setUnalignedDuringRecoveryEnabled(boolean enabled) {}
 }
