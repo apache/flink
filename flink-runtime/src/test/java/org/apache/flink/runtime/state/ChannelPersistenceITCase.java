@@ -49,6 +49,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
@@ -119,7 +120,7 @@ class ChannelPersistenceITCase {
         try {
             int numChannels = 1;
             InputGate gate = buildGate(networkBufferPool, numChannels);
-            reader.readInputData(new InputGate[] {gate});
+            reader.readInputData(new InputGate[] {gate}, RecordFilterContext.disabled());
             assertThat(collectBytes(gate::pollNext, BufferOrEvent::getBuffer))
                     .isEqualTo(inputChannelInfoData);
 

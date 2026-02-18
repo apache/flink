@@ -77,7 +77,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                     InflightDataRescalingDescriptor
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
-                        }));
+                        }),
+                null);
     }
 
     private InputChannelRecoveredStateHandler buildMultiChannelHandler() {
@@ -103,7 +104,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                     InflightDataRescalingDescriptor
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.RESCALING)
-                        }));
+                        }),
+                null);
     }
 
     @Test
