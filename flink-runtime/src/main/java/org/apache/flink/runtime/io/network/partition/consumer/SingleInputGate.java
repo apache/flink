@@ -243,6 +243,13 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final int[] endOfPartitions;
 
+    /**
+     * Flag indicating whether unaligned checkpoint during recovery is enabled. When enabled,
+     * RecoveredInputChannel will use bufferFilteringCompleteFuture instead of stateConsumedFuture
+     * for RUNNING state transition.
+     */
+    private volatile boolean isUnalignedDuringRecoveryEnabled = false;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -323,6 +330,21 @@ public class SingleInputGate extends IndexedInputGate {
             for (InputChannel inputChannel : inputChannels()) {
                 if (inputChannel instanceof RecoveredInputChannel) {
                     futures.add(((RecoveredInputChannel) inputChannel).getStateConsumedFuture());
+                }
+            }
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        synchronized (requestLock) {
+            List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
+            for (InputChannel inputChannel : inputChannels()) {
+                if (inputChannel instanceof RecoveredInputChannel) {
+                    futures.add(
+                            ((RecoveredInputChannel) inputChannel)
+                                    .getBufferFilteringCompleteFuture());
                 }
             }
             return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
@@ -643,6 +665,26 @@ public class SingleInputGate extends IndexedInputGate {
             setupTieredStorageNettyService(nettyService, tieredStorageConsumerSpecs);
             client.registerAvailabilityNotifier(availabilityNotifier);
         }
+    }
+
+    /**
+     * Sets whether unaligned checkpoint during recovery is enabled. When enabled,
+     * RecoveredInputChannel will use bufferFilteringCompleteFuture instead of stateConsumedFuture
+     * for RUNNING state transition.
+     *
+     * @param enabled true to enable unaligned checkpoint during recovery
+     */
+    public void setUnalignedDuringRecoveryEnabled(boolean enabled) {
+        this.isUnalignedDuringRecoveryEnabled = enabled;
+    }
+
+    /**
+     * Returns whether unaligned checkpoint during recovery is enabled.
+     *
+     * @return true if unaligned checkpoint during recovery is enabled
+     */
+    public boolean isUnalignedDuringRecoveryEnabled() {
+        return isUnalignedDuringRecoveryEnabled;
     }
 
     public void updateInputChannel(

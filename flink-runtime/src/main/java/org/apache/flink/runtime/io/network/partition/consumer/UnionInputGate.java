@@ -351,6 +351,15 @@ public class UnionInputGate extends InputGate {
     }
 
     @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        return CompletableFuture.allOf(
+                inputGatesByGateIndex.values().stream()
+                        .map(InputGate::getBufferFilteringCompleteFuture)
+                        .collect(Collectors.toList())
+                        .toArray(new CompletableFuture[] {}));
+    }
+
+    @Override
     public void requestPartitions() throws IOException {
         for (InputGate inputGate : inputGatesByGateIndex.values()) {
             inputGate.requestPartitions();
