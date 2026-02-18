@@ -756,6 +756,69 @@ class LocalInputChannelTest {
                 .containsExactly(10, 20, 30);
     }
 
+    @Test
+    void testPriorityEventConsumedBeforeRecoveredBuffers() throws Exception {
+        // given: Local input channel with recovered buffers AND a subpartition with a barrier
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        PipelinedResultPartition parent =
+                (PipelinedResultPartition)
+                        PartitionTestUtils.createPartition(
+                                ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
+        ResultSubpartition subpartition = parent.getAllPartitions()[0];
+        ResultSubpartitionView subpartitionView =
+                subpartition.createReadView((ResultSubpartitionView view) -> {});
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+
+        // Create recovered buffers
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        parent.getPartitionId(),
+                        new ResultSubpartitionIndexSet(0),
+                        partitionManager,
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        stateWriter,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+        channel.requestSubpartitions();
+
+        // when: A priority event (barrier) arrives while recovered buffers are still pending
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, options);
+        subpartition.add(EventSerializer.toBufferConsumer(barrier, true));
+
+        // Notify that priority event is available
+        channel.notifyPriorityEvent(0);
+
+        // then: The first buffer returned should be the priority event (barrier), not recovered
+        // data
+        Optional<InputChannel.BufferAndAvailability> firstResult = channel.getNextBuffer();
+        assertThat(firstResult).isPresent();
+        assertThat(firstResult.get().buffer().getDataType().hasPriority()).isTrue();
+
+        // And the next buffers should be the recovered data
+        Optional<InputChannel.BufferAndAvailability> secondResult = channel.getNextBuffer();
+        assertThat(secondResult).isPresent();
+        assertThat(secondResult.get().buffer().isBuffer()).isTrue();
+        assertThat(secondResult.get().buffer().getSize()).isEqualTo(10);
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     /** Returns the configured number of buffers for each channel in a random order. */
