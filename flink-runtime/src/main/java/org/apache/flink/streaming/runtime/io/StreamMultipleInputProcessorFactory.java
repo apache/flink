@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
@@ -103,6 +104,10 @@ public class StreamMultipleInputProcessorFactory {
                 "Number of configured inputs in StreamConfig [%s] doesn't match the main operator's number of inputs [%s]",
                 configuredInputs.length,
                 inputsCount);
+
+        boolean unalignedDuringRecoveryEnabled =
+                CheckpointingOptions.isUnalignedDuringRecoveryEnabled(jobConfig);
+
         StreamTaskInput[] inputs = new StreamTaskInput[inputsCount];
         for (int i = 0; i < inputsCount; i++) {
             StreamConfig.InputConfig configuredInput = configuredInputs[i];
@@ -121,7 +126,8 @@ public class StreamMultipleInputProcessorFactory {
                                 gatePartitioners,
                                 taskInfo,
                                 canEmitBatchOfRecords,
-                                streamConfig.getWatermarkDeclarations(userClassloader));
+                                streamConfig.getWatermarkDeclarations(userClassloader),
+                                unalignedDuringRecoveryEnabled);
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
