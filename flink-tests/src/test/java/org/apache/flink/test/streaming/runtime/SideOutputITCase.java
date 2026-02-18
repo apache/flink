@@ -1147,6 +1147,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
             @Override
             public SourceReader<Integer, TestSplit> createReader(SourceReaderContext ctx) {
                 return new TestSourceReader<Integer>(ctx) {
+                    private boolean noMoreSplits = false;
                     private boolean emitted = false;
 
                     @Override
@@ -1162,9 +1163,22 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                             out.collect(3, 3);
                             out.collect(4, 4);
                             emitted = true;
-                            return InputStatus.END_OF_INPUT;
                         }
-                        return InputStatus.END_OF_INPUT;
+
+                        // We're using SingleSplitEnumerator below which DOES send operator events
+                        // to the source tasks. Therefore, if we finish this task prematurely (by
+                        // returning END_OF_INPUT) such event delivery might fail, causing job and
+                        // test failure. Usually, this doesn't happen because the task
+                        // finishes before the RPC starts.
+                        // To avoid flakiness, we intentinoally wait for NO_MORE_SPLITS event on TM.
+                        return noMoreSplits
+                                ? InputStatus.END_OF_INPUT
+                                : InputStatus.NOTHING_AVAILABLE;
+                    }
+
+                    @Override
+                    public void notifyNoMoreSplits() {
+                        this.noMoreSplits = true;
                     }
                 };
             }
