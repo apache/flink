@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
@@ -59,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -662,6 +665,52 @@ class LocalInputChannelTest {
 
         // then: Buffers in use should show correct value.
         assertThat(localChannel.getBuffersInUseCount()).isEqualTo(3);
+    }
+
+    @Test
+    void testGetBuffersInUseCountIncludesToBeConsumedBuffers() throws Exception {
+        // given: Local input channel with recovered buffers in toBeConsumedBuffers
+        ResultSubpartitionView subpartitionView =
+                InputChannelTestUtils.createResultSubpartitionView(
+                        createFilledFinishedBufferConsumer(4096),
+                        createFilledFinishedBufferConsumer(4096));
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+        final SingleInputGate inputGate = createSingleInputGate(1);
+
+        // Create 3 recovered buffers
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
+
+        final LocalInputChannel localChannel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        partitionManager,
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        ChannelStateWriter.NO_OP,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(localChannel);
+
+        // then: Before requesting subpartitions, buffers in use should include recovered buffers
+        assertThat(localChannel.getBuffersInUseCount()).isEqualTo(3);
+        assertThat(localChannel.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(3);
+
+        // when: The subpartition view is initialized (adds 2 more buffers from the view)
+        localChannel.requestSubpartitions();
+
+        // then: Buffers in use should include both recovered and subpartition view buffers
+        assertThat(localChannel.getBuffersInUseCount()).isEqualTo(5);
+        assertThat(localChannel.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(5);
     }
 
     // ---------------------------------------------------------------------------------------------
