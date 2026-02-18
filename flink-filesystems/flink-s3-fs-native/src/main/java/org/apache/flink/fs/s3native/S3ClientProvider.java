@@ -73,6 +73,7 @@ public class S3ClientProvider implements AutoCloseableAsync {
     private final S3TransferManager transferManager;
     private final S3EncryptionConfig encryptionConfig;
     @Nullable private final AwsCredentialsProvider credentialsProvider;
+    @Nullable private final StsClient stsClient;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private S3ClientProvider(
@@ -80,13 +81,15 @@ public class S3ClientProvider implements AutoCloseableAsync {
             S3AsyncClient s3AsyncClient,
             S3TransferManager transferManager,
             S3EncryptionConfig encryptionConfig,
-            @Nullable AwsCredentialsProvider credentialsProvider) {
+            @Nullable AwsCredentialsProvider credentialsProvider,
+            @Nullable StsClient stsClient) {
         this.s3Client = s3Client;
         this.s3AsyncClient = s3AsyncClient;
         this.transferManager = transferManager;
         this.encryptionConfig =
                 encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
         this.credentialsProvider = credentialsProvider;
+        this.stsClient = stsClient;
     }
 
     public S3Client getS3Client() {
@@ -142,6 +145,13 @@ public class S3ClientProvider implements AutoCloseableAsync {
                                     ((SdkAutoCloseable) credentialsProvider).close();
                                 } catch (Exception e) {
                                     LOG.warn("Error closing credentials provider", e);
+                                }
+                            }
+                            if (stsClient != null) {
+                                try {
+                                    stsClient.close();
+                                } catch (Exception e) {
+                                    LOG.warn("Error closing STS client", e);
                                 }
                             }
                         })
@@ -284,7 +294,16 @@ public class S3ClientProvider implements AutoCloseableAsync {
             }
 
             Region awsRegion = resolveRegion(region);
-            AwsCredentialsProvider credentialsProvider = buildCredentialsProvider(awsRegion);
+            StsClient stsClient = null;
+            AwsCredentialsProvider credentialsProvider;
+
+            AwsCredentialsProvider baseProvider = buildBaseCredentialsProvider();
+            if (assumeRoleArn != null && !assumeRoleArn.isEmpty()) {
+                stsClient = buildStsClient(baseProvider, awsRegion);
+                credentialsProvider = buildAssumeRoleProvider(stsClient);
+            } else {
+                credentialsProvider = baseProvider;
+            }
 
             S3Configuration.Builder s3ConfigBuilder =
                     S3Configuration.builder().pathStyleAccessEnabled(pathStyleAccess);
@@ -344,36 +363,29 @@ public class S3ClientProvider implements AutoCloseableAsync {
                     s3AsyncClient,
                     transferManager,
                     encryptionConfig,
-                    credentialsProvider);
+                    credentialsProvider,
+                    stsClient);
         }
 
-        private AwsCredentialsProvider buildCredentialsProvider(Region awsRegion) {
+        private AwsCredentialsProvider buildBaseCredentialsProvider() {
             Credentials delegationTokenCredentials =
                     NativeS3DelegationTokenReceiver.getCredentials();
 
-            AwsCredentialsProvider baseProvider;
             if (delegationTokenCredentials != null) {
-                baseProvider =
-                        AwsCredentialsProviderChain.builder()
-                                .credentialsProviders(
-                                        new DynamicTemporaryAWSCredentialsProvider(),
-                                        buildFallbackProvider())
-                                .build();
-            } else {
-                baseProvider = buildFallbackProvider();
+                return AwsCredentialsProviderChain.builder()
+                        .credentialsProviders(
+                                new DynamicTemporaryAWSCredentialsProvider(),
+                                buildFallbackProvider())
+                        .build();
             }
-
-            if (assumeRoleArn != null && !assumeRoleArn.isEmpty()) {
-                return buildAssumeRoleProvider(baseProvider, awsRegion);
-            }
-            return baseProvider;
+            return buildFallbackProvider();
         }
 
-        private AwsCredentialsProvider buildAssumeRoleProvider(
-                AwsCredentialsProvider baseProvider, Region awsRegion) {
-            StsClient stsClient =
-                    StsClient.builder().region(awsRegion).credentialsProvider(baseProvider).build();
+        private StsClient buildStsClient(AwsCredentialsProvider baseProvider, Region awsRegion) {
+            return StsClient.builder().region(awsRegion).credentialsProvider(baseProvider).build();
+        }
 
+        private AwsCredentialsProvider buildAssumeRoleProvider(StsClient stsClient) {
             AssumeRoleRequest.Builder requestBuilder =
                     AssumeRoleRequest.builder()
                             .roleArn(assumeRoleArn)

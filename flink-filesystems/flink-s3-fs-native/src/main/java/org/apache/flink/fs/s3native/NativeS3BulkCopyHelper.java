@@ -99,8 +99,7 @@ public class NativeS3BulkCopyHelper {
             PathsCopyingFileSystem.CopyRequest request = requests.get(i);
             String sourceUri = request.getSource().toUri().toString();
             if (sourceUri.startsWith("s3://") || sourceUri.startsWith("s3a://")) {
-                CompletableFuture<CompletedCopy> future = copyS3ToLocal(request);
-                copyFutures.add(future);
+                copyFutures.add(copyS3ToLocal(request));
             } else {
                 throw new UnsupportedOperationException(
                         "Only S3 to local copies are currently supported: " + sourceUri);
