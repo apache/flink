@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -143,7 +144,7 @@ public class SequentialChannelStateReaderImplTest {
 
         withInputGates(
                 gates -> {
-                    reader.readInputData(gates);
+                    reader.readInputData(gates, RecordFilterContext.disabled());
                     assertBuffersEquals(inputChannelsData, collectBuffers(gates));
                     assertConsumed(gates);
                 });

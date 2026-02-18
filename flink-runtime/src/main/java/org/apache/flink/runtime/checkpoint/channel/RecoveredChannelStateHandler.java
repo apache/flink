@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -63,7 +64,7 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
      * case of an error.
      */
     void recover(Info info, int oldSubtaskIndex, BufferWithContext<Context> bufferWithContext)
-            throws IOException;
+            throws IOException, InterruptedException;
 }
 
 class InputChannelRecoveredStateHandler
@@ -75,10 +76,19 @@ class InputChannelRecoveredStateHandler
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
+    /**
+     * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
+     * performed during recovery in the channel-state-unspilling thread.
+     */
+    @Nullable private final ChannelStateFilteringHandler filteringHandler;
+
     InputChannelRecoveredStateHandler(
-            InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            @Nullable ChannelStateFilteringHandler filteringHandler) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
+        this.filteringHandler = filteringHandler;
     }
 
     @Override
@@ -95,20 +105,54 @@ class InputChannelRecoveredStateHandler
             InputChannelInfo channelInfo,
             int oldSubtaskIndex,
             BufferWithContext<Buffer> bufferWithContext)
-            throws IOException {
+            throws IOException, InterruptedException {
         Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
                 RecoveredInputChannel channel = getMappedChannels(channelInfo);
-                channel.onRecoveredStateBuffer(
-                        EventSerializer.toBuffer(
-                                new SubtaskConnectionDescriptor(
-                                        oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                false));
-                channel.onRecoveredStateBuffer(buffer.retainBuffer());
+
+                if (filteringHandler != null) {
+                    recoverWithFiltering(
+                            channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
+                } else {
+                    channel.onRecoveredStateBuffer(
+                            EventSerializer.toBuffer(
+                                    new SubtaskConnectionDescriptor(
+                                            oldSubtaskIndex, channelInfo.getInputChannelIdx()),
+                                    false));
+                    channel.onRecoveredStateBuffer(buffer.retainBuffer());
+                }
             }
         } finally {
             buffer.recycleBuffer();
+        }
+    }
+
+    private void recoverWithFiltering(
+            RecoveredInputChannel channel,
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            Buffer retainedBuffer)
+            throws IOException, InterruptedException {
+        checkState(filteringHandler != null, "filtering handler not set.");
+        List<Buffer> filteredBuffers =
+                filteringHandler.filterAndRewrite(
+                        channelInfo.getGateIdx(),
+                        oldSubtaskIndex,
+                        channelInfo.getInputChannelIdx(),
+                        retainedBuffer,
+                        channel::requestBufferBlocking);
+
+        int i = 0;
+        try {
+            for (; i < filteredBuffers.size(); i++) {
+                channel.onRecoveredStateBuffer(filteredBuffers.get(i));
+            }
+        } catch (Throwable t) {
+            for (int j = i; j < filteredBuffers.size(); j++) {
+                filteredBuffers.get(j).recycleBuffer();
+            }
+            throw t;
         }
     }
 
@@ -191,7 +235,7 @@ class ResultSubpartitionRecoveredStateHandler
             ResultSubpartitionInfo subpartitionInfo,
             int oldSubtaskIndex,
             BufferWithContext<BufferBuilder> bufferWithContext)
-            throws IOException {
+            throws IOException, InterruptedException {
         try (BufferBuilder bufferBuilder = bufferWithContext.context;
                 BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning()) {
             bufferBuilder.finish();
