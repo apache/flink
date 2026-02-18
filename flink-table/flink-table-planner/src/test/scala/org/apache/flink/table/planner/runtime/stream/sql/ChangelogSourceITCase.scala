@@ -201,6 +201,7 @@ class ChangelogSourceITCase(
          |SELECT balance2, count(*), max(email)
          |FROM users
          |GROUP BY balance2
+         |ON CONFLICT DO DEDUPLICATE
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()

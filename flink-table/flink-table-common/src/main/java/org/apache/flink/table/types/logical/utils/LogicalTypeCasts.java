@@ -133,9 +133,6 @@ public final class LogicalTypeCasts {
 
     // ----- Injective cast conditions -----
 
-    /** Unconditionally injective (no additional type-parameter checks needed). */
-    private static final BiPredicate<LogicalType, LogicalType> ALWAYS = (s, t) -> true;
-
     /** Injective when the target length can hold any value of the source length. */
     private static final BiPredicate<LogicalType, LogicalType> WHEN_LENGTH_FITS =
             (source, target) -> getLength(target) >= getLength(source);
@@ -211,28 +208,28 @@ public final class LogicalTypeCasts {
                 .implicitFrom(TINYINT)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(ALWAYS, TINYINT)
+                .injectiveFrom(TINYINT)
                 .build();
 
         castTo(SMALLINT)
                 .implicitFrom(TINYINT, SMALLINT)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(ALWAYS, TINYINT, SMALLINT)
+                .injectiveFrom(TINYINT, SMALLINT)
                 .build();
 
         castTo(INTEGER)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(ALWAYS, TINYINT, SMALLINT, INTEGER)
+                .injectiveFrom(TINYINT, SMALLINT, INTEGER)
                 .build();
 
         castTo(BIGINT)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(ALWAYS, TINYINT, SMALLINT, INTEGER, BIGINT)
+                .injectiveFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
                 .build();
 
         castTo(DECIMAL)
@@ -250,14 +247,14 @@ public final class LogicalTypeCasts {
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DECIMAL)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(ALWAYS, FLOAT)
+                .injectiveFrom(FLOAT)
                 .build();
 
         castTo(DOUBLE)
                 .implicitFromFamily(NUMERIC)
                 .explicitFromFamily(CHARACTER_STRING)
                 .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-                .injectiveFrom(ALWAYS, DOUBLE)
+                .injectiveFrom(DOUBLE)
                 .build();
 
         // -----------------------------------------------------------------------------------------
@@ -267,7 +264,7 @@ public final class LogicalTypeCasts {
         castTo(BOOLEAN)
                 .implicitFrom(BOOLEAN)
                 .explicitFromFamily(CHARACTER_STRING, INTEGER_NUMERIC)
-                .injectiveFrom(ALWAYS, BOOLEAN)
+                .injectiveFrom(BOOLEAN)
                 .build();
 
         // -----------------------------------------------------------------------------------------
@@ -277,7 +274,7 @@ public final class LogicalTypeCasts {
         castTo(DATE)
                 .implicitFrom(DATE, TIMESTAMP_WITHOUT_TIME_ZONE)
                 .explicitFromFamily(TIMESTAMP, CHARACTER_STRING)
-                .injectiveFrom(ALWAYS, DATE)
+                .injectiveFrom(DATE)
                 .build();
 
         castTo(TIME_WITHOUT_TIME_ZONE)
@@ -317,13 +314,11 @@ public final class LogicalTypeCasts {
         castTo(INTERVAL_YEAR_MONTH)
                 .implicitFrom(INTERVAL_YEAR_MONTH)
                 .explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
-                .injectiveFrom(ALWAYS, INTERVAL_YEAR_MONTH)
                 .build();
 
         castTo(INTERVAL_DAY_TIME)
                 .implicitFrom(INTERVAL_DAY_TIME)
                 .explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
-                .injectiveFrom(ALWAYS, INTERVAL_DAY_TIME)
                 .build();
     }
 
@@ -751,6 +746,10 @@ public final class LogicalTypeCasts {
                 }
             }
             return this;
+        }
+
+        CastingRuleBuilder injectiveFrom(LogicalTypeRoot... sourceTypes) {
+            return injectiveFrom((s, t) -> true, sourceTypes);
         }
 
         CastingRuleBuilder injectiveFrom(
