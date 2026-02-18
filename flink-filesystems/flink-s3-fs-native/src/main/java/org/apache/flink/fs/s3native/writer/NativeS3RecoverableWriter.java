@@ -62,6 +62,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
 
     @Override
     public RecoverableFsDataOutputStream open(Path path) throws IOException {
+        checkNotClosed();
         String key = NativeS3AccessHelper.extractKey(path);
         LOG.debug("Opening recoverable stream for key: {}", key);
 
@@ -75,12 +76,14 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
     @Override
     public RecoverableFsDataOutputStream.Committer recoverForCommit(CommitRecoverable recoverable)
             throws IOException {
+        checkNotClosed();
         NativeS3Recoverable s3recoverable = castToNativeS3Recoverable(recoverable);
         return new NativeS3Committer(s3AccessHelper, s3recoverable);
     }
 
     @Override
     public RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
+        checkNotClosed();
         NativeS3Recoverable s3recoverable = castToNativeS3Recoverable(recoverable);
         return new NativeS3RecoverableFsDataOutputStream(
                 s3AccessHelper,
@@ -99,6 +102,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
 
     @Override
     public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+        checkNotClosed();
         NativeS3Recoverable s3recoverable = castToNativeS3Recoverable(resumable);
         String smallPartObjectToDelete = s3recoverable.incompleteObjectName();
         return smallPartObjectToDelete != null
@@ -148,9 +152,9 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
         LOG.debug("Closing S3 recoverable writer");
     }
 
-    private void checkNotClosed() throws IOException {
+    private void checkNotClosed() {
         if (closed.get()) {
-            throw new IOException("RecoverableWriter has been closed");
+            throw new IllegalStateException("RecoverableWriter has been closed");
         }
     }
 

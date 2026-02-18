@@ -60,10 +60,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Native S3 FileSystem implementation using AWS SDK v2.
  *
+ * <p>This file system uses an {@link AtomicBoolean} guard ({@code closed}) checked at the start of
+ * every public operation via {@link #checkNotClosed()}. The close lifecycle works as follows:
+ *
  * <ul>
- *   <li>Operations in progress will be allowed to complete
- *   <li>New operations started after close will throw {@link IllegalStateException}
+ *   <li>New operations started after {@link #closeAsync()} will throw {@link
+ *       IllegalStateException}.
+ *   <li>Operations already past the {@code checkNotClosed()} barrier are allowed to complete
+ *       naturally. There is a small race window where an operation may pass the check just before
+ *       {@code closeAsync()} sets the flag. In this case, the operation either completes normally
+ *       (the underlying clients have not been torn down yet) or fails with an {@link IOException}
+ *       from the AWS SDK, which callers are already expected to handle.
+ *   <li>The {@link #closeAsync()} teardown sequence (bulkCopyHelper, transferManager, asyncClient,
+ *       syncClient) provides a natural grace period bounded by {@link #CLOSE_TIMEOUT_SECONDS}.
  * </ul>
+ *
+ * <p>A thread-pool-routed approach would provide stricter guarantees but introduces latency
+ * overhead on every call and risks deadlocks from nested filesystem calls (e.g., {@code create()}
+ * calling {@code exists()} calling {@code getFileStatus()}).
  *
  * <p><b>Permission Considerations:</b> Some operations require specific IAM permissions:
  *
@@ -200,20 +214,13 @@ public class NativeS3FileSystem extends FileSystem
             LOG.debug("Object not found, checking if directory: {}", key);
             return getDirectoryStatus(s3Client, key, path);
         } catch (S3Exception e) {
-            final String errorCode =
-                    (e.awsErrorDetails() != null) ? e.awsErrorDetails().errorCode() : "Unknown";
-            final String errorMsg =
-                    (e.awsErrorDetails() != null)
-                            ? e.awsErrorDetails().errorMessage()
-                            : e.getMessage();
-
             LOG.error(
                     "S3 error getting file status for s3://{}/{} - StatusCode: {}, ErrorCode: {}, Message: {}",
                     bucketName,
                     key,
                     e.statusCode(),
-                    errorCode,
-                    errorMsg);
+                    S3ExceptionUtils.errorCode(e),
+                    S3ExceptionUtils.errorMessage(e));
             if (e.statusCode() == 403) {
                 // Note: S3 returns 403 (not 404) for non-existent objects when the
                 // caller lacks s3:ListBucket permission, to prevent key enumeration.
@@ -233,11 +240,8 @@ public class NativeS3FileSystem extends FileSystem
                 LOG.debug("Object not found (404) for s3://{}/{}", bucketName, key);
             }
 
-            throw new IOException(
-                    String.format(
-                            "Failed to get file status for s3://%s/%s: %s",
-                            bucketName, key, errorMsg),
-                    e);
+            throw S3ExceptionUtils.toIOException(
+                    String.format("Failed to get file status for s3://%s/%s", bucketName, key), e);
         }
     }
 

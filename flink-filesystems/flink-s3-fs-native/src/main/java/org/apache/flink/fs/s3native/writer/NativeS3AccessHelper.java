@@ -21,6 +21,7 @@ package org.apache.flink.fs.s3native.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3native.S3EncryptionConfig;
+import org.apache.flink.fs.s3native.S3ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -413,11 +414,7 @@ public class NativeS3AccessHelper {
                 LOG.debug("Object not found during delete for key: {}", key);
                 return false;
             }
-            throw new IOException(
-                    String.format(
-                            "Failed to delete object for key: %s (HTTP %d: %s)",
-                            key, e.statusCode(), e.awsErrorDetails().errorMessage()),
-                    e);
+            throw S3ExceptionUtils.toIOException("Failed to delete object for key: " + key, e);
         }
     }
 
