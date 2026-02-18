@@ -172,4 +172,9 @@ public class InputGateWithMetrics extends IndexedInputGate {
 
         return bufferOrEvent;
     }
+
+    @Override
+    public void setUnalignedDuringRecoveryEnabled(boolean enabled) {
+        inputGate.setUnalignedDuringRecoveryEnabled(enabled);
+    }
 }
