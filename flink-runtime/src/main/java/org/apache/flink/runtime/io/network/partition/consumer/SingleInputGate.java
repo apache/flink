@@ -342,6 +342,21 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        synchronized (requestLock) {
+            List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
+            for (InputChannel inputChannel : inputChannels()) {
+                if (inputChannel instanceof RecoveredInputChannel) {
+                    futures.add(
+                            ((RecoveredInputChannel) inputChannel)
+                                    .getBufferFilteringCompleteFuture());
+                }
+            }
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        }
+    }
+
+    @Override
     public void requestPartitions() {
         synchronized (requestLock) {
             if (!requestedPartitionsFlag) {

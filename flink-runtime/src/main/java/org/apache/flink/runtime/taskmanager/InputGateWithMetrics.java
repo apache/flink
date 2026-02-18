@@ -121,6 +121,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        return inputGate.getBufferFilteringCompleteFuture();
+    }
+
+    @Override
     public void requestPartitions() throws IOException {
         inputGate.requestPartitions();
     }

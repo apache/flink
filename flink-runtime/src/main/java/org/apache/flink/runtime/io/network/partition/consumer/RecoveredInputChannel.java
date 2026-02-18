@@ -62,6 +62,13 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     private final CompletableFuture<?> stateConsumedFuture = new CompletableFuture<>();
     protected final BufferManager bufferManager;
 
+    /**
+     * Future that completes when recovered buffers have been filtered for this channel. This
+     * completes before stateConsumedFuture, enabling earlier RUNNING state transition when
+     * unaligned checkpoint during recovery is enabled.
+     */
+    private final CompletableFuture<Void> bufferFilteringCompleteFuture = new CompletableFuture<>();
+
     @GuardedBy("receivedBuffers")
     private boolean isReleased;
 
@@ -110,7 +117,11 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     public final InputChannel toInputChannel() throws IOException {
         Preconditions.checkState(
-                stateConsumedFuture.isDone(), "recovered state is not fully consumed");
+                bufferFilteringCompleteFuture.isDone(), "buffer filtering is not complete");
+        if (!inputGate.isCheckpointingDuringRecoveryEnabled()) {
+            Preconditions.checkState(
+                    stateConsumedFuture.isDone(), "recovered state is not fully consumed");
+        }
 
         // Extract remaining buffers before conversion.
         // These buffers have been filtered but not yet consumed by the Task.
@@ -139,6 +150,14 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
      */
     protected abstract InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers)
             throws IOException;
+
+    /**
+     * Returns the future that completes when buffer filtering is complete. This future completes
+     * before stateConsumedFuture, at the point when finishReadRecoveredState() is called.
+     */
+    CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        return bufferFilteringCompleteFuture;
+    }
 
     CompletableFuture<?> getStateConsumedFuture() {
         return stateConsumedFuture;
@@ -176,8 +195,22 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public void finishReadRecoveredState() throws IOException {
-        onRecoveredStateBuffer(
-                EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
+        // Adding the event and completing the future must be atomic under receivedBuffers lock.
+        // Without this, either ordering has a race:
+        // - event first: task thread consumes EndOfInputChannelStateEvent, which completes
+        //   stateConsumedFuture. When checkpointing during recovery is disabled,
+        //   stateConsumedFuture triggers requestPartitions -> toInputChannel(), which
+        //   fails because bufferFilteringCompleteFuture is not yet done.
+        // - future first: toInputChannel() extracts buffers before the event is added,
+        //   losing the EndOfInputChannelStateEvent.
+        // Both toInputChannel() and getNextRecoveredStateBuffer() synchronize on
+        // receivedBuffers, so holding the same lock here guarantees
+        // bufferFilteringCompleteFuture is always done before stateConsumedFuture.
+        synchronized (receivedBuffers) {
+            onRecoveredStateBuffer(
+                    EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
+            bufferFilteringCompleteFuture.complete(null);
+        }
         bufferManager.releaseFloatingBuffers();
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
     }
@@ -196,6 +229,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         if (next == null) {
             return null;
         } else if (isEndOfInputChannelStateEvent(next)) {
+            Preconditions.checkState(
+                    bufferFilteringCompleteFuture.isDone(), "buffer filtering is not complete");
             stateConsumedFuture.complete(null);
             return null;
         } else {
