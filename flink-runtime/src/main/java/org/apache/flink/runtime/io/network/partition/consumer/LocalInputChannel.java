@@ -402,6 +402,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 view.releaseAllResources();
                 subpartitionView = null;
             }
+
+            // Release any remaining buffers in toBeConsumedBuffers to avoid memory leak.
+            // These may be recovered buffers or partial buffers from FullyFilledBuffer.
+            for (BufferAndBacklog bufferAndBacklog : toBeConsumedBuffers) {
+                bufferAndBacklog.buffer().recycleBuffer();
+            }
+            toBeConsumedBuffers.clear();
         }
     }
 
@@ -418,18 +425,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     @Override
     int getBuffersInUseCount() {
         ResultSubpartitionView view = this.subpartitionView;
-        return view == null ? 0 : view.getNumberOfQueuedBuffers();
+        return toBeConsumedBuffers.size() + (view == null ? 0 : view.getNumberOfQueuedBuffers());
     }
 
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         ResultSubpartitionView view = subpartitionView;
 
+        int count = toBeConsumedBuffers.size();
         if (view != null) {
-            return view.unsynchronizedGetNumberOfQueuedBuffers();
+            count += view.unsynchronizedGetNumberOfQueuedBuffers();
         }
 
-        return 0;
+        return count;
     }
 
     @Override
