@@ -913,8 +913,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                             "Input gate request partitions"));
         }
 
-        return CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]))
-                .thenRun(mailboxProcessor::suspend);
+        // Return allOf future instead of thenRun future. thenRun() returns a NEW future that
+        // completes only after the callback finishes. CompletableFuture executes thenRun callbacks
+        // synchronously on the thread that calls complete(). When recoveredFutures contains
+        // bufferFilteringCompleteFuture (checkpointingDuringRecovery enabled), complete() is called
+        // on channelIOExecutor (in finishReadRecoveredState), so thenRun(suspend) also runs on
+        // channelIOExecutor. suspend() sends a poison mail, and the mailbox thread can pick it up
+        // and exit runMailboxLoop() before the thenRun future completes — causing
+        // checkState(isDone) to fail. With stateConsumedFuture (the default), complete() runs on
+        // the mailbox thread itself, so thenRun(suspend) blocks the loop from processing the poison
+        // mail until the future completes — no race. Returning allOf future avoids the issue
+        // entirely.
+        CompletableFuture<Void> allRecoveredFuture =
+                CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]));
+        allRecoveredFuture.thenRun(mailboxProcessor::suspend);
+        return allRecoveredFuture;
     }
 
     private void ensureNotCanceled() {
