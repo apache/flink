@@ -286,5 +286,8 @@ class AlignedCheckpointsMassiveRandomTest {
         public List<InputChannelInfo> getUnfinishedChannels() {
             return Collections.emptyList();
         }
+
+        @Override
+        public void setUnalignedDuringRecoveryEnabled(boolean enabled) {}
     }
 }

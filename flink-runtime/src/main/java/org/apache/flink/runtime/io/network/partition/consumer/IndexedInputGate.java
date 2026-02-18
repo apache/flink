@@ -74,4 +74,13 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
     public abstract ResultPartitionType getConsumedPartitionType();
 
     public abstract void triggerDebloating();
+
+    /**
+     * Sets whether unaligned checkpoint during recovery is enabled. When enabled,
+     * RecoveredInputChannel will use bufferFilteringCompleteFuture instead of stateConsumedFuture
+     * for RUNNING state transition.
+     *
+     * @param enabled true to enable unaligned checkpoint during recovery
+     */
+    public abstract void setUnalignedDuringRecoveryEnabled(boolean enabled);
 }
