@@ -330,7 +330,7 @@ class CheckpointingOptionsTest {
     }
 
     @Test
-    void testIsUnalignedDuringRecoveryEnabled() {
+    void testIsCheckpointingDuringRecoveryEnabled() {
         // Test when both options are disabled (default) - should return false
         Configuration defaultConfig = new Configuration();
         assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(defaultConfig))

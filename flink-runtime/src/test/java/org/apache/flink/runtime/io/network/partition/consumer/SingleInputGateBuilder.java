@@ -83,6 +83,8 @@ public class SingleInputGateBuilder {
 
     private TieredStorageConsumerClient tieredStorageConsumerClient = null;
 
+    private boolean isCheckpointingDuringRecoveryEnabled = false;
+
     public SingleInputGateBuilder setPartitionProducerStateProvider(
             PartitionProducerStateProvider partitionProducerStateProvider) {
 
@@ -167,6 +169,11 @@ public class SingleInputGateBuilder {
         return this;
     }
 
+    public SingleInputGateBuilder setCheckpointingDuringRecoveryEnabled(boolean enabled) {
+        this.isCheckpointingDuringRecoveryEnabled = enabled;
+        return this;
+    }
+
     public SingleInputGate build() {
         SingleInputGate gate =
                 new SingleInputGate(
@@ -195,6 +202,7 @@ public class SingleInputGateBuilder {
                             .toArray(InputChannel[]::new));
         }
         gate.setTieredStorageService(null, tieredStorageConsumerClient, null);
+        gate.setCheckpointingDuringRecoveryEnabled(isCheckpointingDuringRecoveryEnabled);
         return gate;
     }
 

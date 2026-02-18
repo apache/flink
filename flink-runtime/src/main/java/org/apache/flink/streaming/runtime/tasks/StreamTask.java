@@ -883,6 +883,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         boolean checkpointingDuringRecoveryEnabled =
                 CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
+
+        // Must set the flag on input gates BEFORE starting the async read task, because
+        // finishReadRecoveredState() checks this flag to complete bufferFilteringCompleteFuture.
         for (IndexedInputGate inputGate : inputGates) {
             inputGate.setCheckpointingDuringRecoveryEnabled(checkpointingDuringRecoveryEnabled);
         }
@@ -899,18 +902,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         // We wait for all input channel state to recover before we go into RUNNING state, and thus
         // start checkpointing. If we implement incremental checkpointing of input channel state
-        // we must make sure it supports CheckpointType#FULL_CHECKPOINT
+        // we must make sure it supports CheckpointType#FULL_CHECKPOINT.
         List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
         for (InputGate inputGate : inputGates) {
-            recoveredFutures.add(inputGate.getStateConsumedFuture());
+            CompletableFuture<?> requestPartitionsTrigger =
+                    checkpointingDuringRecoveryEnabled
+                            ? inputGate.getBufferFilteringCompleteFuture()
+                            : inputGate.getStateConsumedFuture();
 
-            inputGate
-                    .getStateConsumedFuture()
-                    .thenRun(
-                            () ->
-                                    mainMailboxExecutor.execute(
-                                            inputGate::requestPartitions,
-                                            "Input gate request partitions"));
+            recoveredFutures.add(requestPartitionsTrigger);
+
+            requestPartitionsTrigger.thenRun(
+                    () ->
+                            mainMailboxExecutor.execute(
+                                    inputGate::requestPartitions, "Input gate request partitions"));
         }
 
         // Return allOf future instead of thenRun future. thenRun() returns a NEW future that
