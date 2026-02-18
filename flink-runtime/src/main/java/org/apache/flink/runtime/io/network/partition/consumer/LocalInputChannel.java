@@ -80,6 +80,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
     private final Deque<BufferAndBacklog> toBeConsumedBuffers = new ArrayDeque<>();
 
+    /**
+     * Flag indicating whether there is a pending priority event (e.g., checkpoint barrier) in the
+     * subpartitionView that should be consumed before toBeConsumedBuffers. This is set by {@link
+     * #notifyPriorityEvent} and checked in {@link #getNextBuffer()}.
+     */
+    private volatile boolean hasPendingPriorityEvent = false;
+
     public LocalInputChannel(
             SingleInputGate inputGate,
             int channelIndex,
@@ -130,8 +137,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
     @Override
     protected void requestSubpartitions() throws IOException {
-        checkState(toBeConsumedBuffers.isEmpty());
-
         boolean retriggerRequest = false;
         boolean notifyDataAvailable = false;
 
@@ -242,7 +247,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         checkError();
 
         if (!toBeConsumedBuffers.isEmpty()) {
-            return getBufferAndAvailability(toBeConsumedBuffers.removeFirst());
+            return getNextRecoveredBuffer();
         }
 
         ResultSubpartitionView subpartitionView = this.subpartitionView;
@@ -304,6 +309,68 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         return getBufferAndAvailability(next);
     }
 
+    /**
+     * Consumes the next buffer from toBeConsumedBuffers (recovered buffers), handling pending
+     * priority events and dynamic availability detection for the last recovered buffer.
+     */
+    private Optional<BufferAndAvailability> getNextRecoveredBuffer() throws IOException {
+        // If there is a pending priority event (e.g., unaligned checkpoint barrier), fetch it
+        // from subpartitionView first, skipping toBeConsumedBuffers. This ensures priority
+        // events are processed immediately even when there are pending recovered buffers.
+        if (hasPendingPriorityEvent) {
+            checkState(subpartitionView != null, "No subpartition view available");
+            BufferAndBacklog next = subpartitionView.getNextBuffer();
+            checkState(
+                    next != null && next.buffer().getDataType().hasPriority(),
+                    "Expected priority event, but got %s",
+                    next == null ? "null" : next.buffer().getDataType());
+
+            // Check for barrier to update channel state persister.
+            // Note: maybePersist is not needed for barriers as they are not regular data buffers.
+            channelStatePersister.checkForBarrier(next.buffer());
+
+            Buffer.DataType expectedNextDataType = next.getNextDataType();
+            if (!expectedNextDataType.hasPriority()) {
+                // Reset hasPendingPriorityEvent to false if no more priority event
+                hasPendingPriorityEvent = false;
+                if (!toBeConsumedBuffers.isEmpty()) {
+                    // Correct nextDataType: if toBeConsumedBuffers is not empty, the actual next
+                    // element to consume is from toBeConsumedBuffers, not from subpartitionView
+                    expectedNextDataType = toBeConsumedBuffers.peek().buffer().getDataType();
+                }
+            }
+
+            return getBufferAndAvailability(
+                    new BufferAndBacklog(
+                            next.buffer(),
+                            next.buffersInBacklog(),
+                            expectedNextDataType,
+                            next.getSequenceNumber()));
+        }
+
+        BufferAndBacklog next = toBeConsumedBuffers.removeFirst();
+
+        // If this is the last recovered buffer and nextDataType is NONE,
+        // dynamically check if subpartitionView has data available.
+        // The last buffer's nextDataType was preset to NONE during construction,
+        // but subpartitionView may already have data available.
+        if (toBeConsumedBuffers.isEmpty()
+                && next.getNextDataType() == Buffer.DataType.NONE
+                && subpartitionView != null) {
+            ResultSubpartitionView.AvailabilityWithBacklog availability =
+                    subpartitionView.getAvailabilityAndBacklog(true);
+            if (availability.isAvailable()) {
+                next =
+                        new BufferAndBacklog(
+                                next.buffer(),
+                                availability.getBacklog(),
+                                Buffer.DataType.DATA_BUFFER,
+                                next.getSequenceNumber());
+            }
+        }
+        return getBufferAndAvailability(next);
+    }
+
     private Optional<BufferAndAvailability> getBufferAndAvailability(BufferAndBacklog next)
             throws IOException {
         Buffer buffer = next.buffer();
@@ -337,6 +404,14 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     @Override
     public void notifyDataAvailable(ResultSubpartitionView view) {
         notifyChannelNonEmpty();
+    }
+
+    @Override
+    public void notifyPriorityEvent(int prioritySequenceNumber) {
+        // Set flag so that getNextBuffer() knows to fetch priority event from subpartitionView
+        // before consuming toBeConsumedBuffers.
+        hasPendingPriorityEvent = true;
+        super.notifyPriorityEvent(prioritySequenceNumber);
     }
 
     private ResultSubpartitionView checkAndWaitForSubpartitionView() {

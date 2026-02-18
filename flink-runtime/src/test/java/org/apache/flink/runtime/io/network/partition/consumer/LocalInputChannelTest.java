@@ -756,6 +756,211 @@ class LocalInputChannelTest {
                 .containsExactly(10, 20, 30);
     }
 
+    @Test
+    void testPriorityEventConsumedBeforeRecoveredBuffers() throws Exception {
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        ChannelAndSubpartition ctx = createChannelWithRecoveredBuffers(stateWriter, 10, 20);
+
+        // when: A priority event (barrier) arrives while recovered buffers are still pending
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, options);
+        ctx.subpartition.add(EventSerializer.toBufferConsumer(barrier, true));
+
+        ctx.channel.notifyPriorityEvent(0);
+
+        // then: The first buffer returned should be the priority event (barrier), not recovered
+        // data
+        Optional<InputChannel.BufferAndAvailability> firstResult = ctx.channel.getNextBuffer();
+        assertThat(firstResult).isPresent();
+        assertThat(firstResult.get().buffer().getDataType().hasPriority()).isTrue();
+
+        // And the next buffers should be the recovered data
+        Optional<InputChannel.BufferAndAvailability> secondResult = ctx.channel.getNextBuffer();
+        assertThat(secondResult).isPresent();
+        assertThat(secondResult.get().buffer().isBuffer()).isTrue();
+        assertThat(secondResult.get().buffer().getSize()).isEqualTo(10);
+    }
+
+    @Test
+    void testPriorityEventFailsFastWhenSubpartitionViewIsNull() throws Exception {
+        // given: Local input channel with recovered buffers but NO subpartition view initialized
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        ChannelStateWriter.NO_OP,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+        // Do NOT call channel.requestSubpartitions() — subpartitionView stays null
+
+        channel.notifyPriorityEvent(0);
+
+        assertThatThrownBy(channel::getNextBuffer)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No subpartition view available");
+    }
+
+    @Test
+    void testPriorityEventFailsFastWhenNonPriorityBufferReturned() throws Exception {
+        ChannelAndSubpartition ctx =
+                createChannelWithRecoveredBuffers(ChannelStateWriter.NO_OP, 10);
+
+        // Add a non-priority data buffer to the subpartition
+        ctx.subpartition.add(createFilledFinishedBufferConsumer(32));
+        ctx.channel.notifyPriorityEvent(0);
+
+        assertThatThrownBy(ctx.channel::getNextBuffer)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Expected priority event");
+    }
+
+    @Test
+    void testPriorityEventFailsFastWhenSubpartitionViewReturnsNull() throws Exception {
+        ChannelAndSubpartition ctx =
+                createChannelWithRecoveredBuffers(ChannelStateWriter.NO_OP, 10);
+
+        // Do NOT add any buffer to the subpartition — getNextBuffer() returns null
+        ctx.channel.notifyPriorityEvent(0);
+
+        assertThatThrownBy(ctx.channel::getNextBuffer)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Expected priority event, but got null");
+    }
+
+    @Test
+    void testMultipleConsecutivePriorityEvents() throws Exception {
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        ChannelAndSubpartition ctx = createChannelWithRecoveredBuffers(stateWriter, 10);
+
+        // Add two priority events (barriers) to the subpartition
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        ctx.subpartition.add(
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(1L, 0L, options), true));
+        ctx.subpartition.add(
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(2L, 0L, options), true));
+
+        ctx.channel.notifyPriorityEvent(0);
+
+        // First getNextBuffer() should return the first barrier
+        Optional<InputChannel.BufferAndAvailability> first = ctx.channel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().buffer().getDataType().hasPriority()).isTrue();
+        assertThat(first.get().morePriorityEvents()).isTrue();
+
+        // Second getNextBuffer() should return the second barrier
+        Optional<InputChannel.BufferAndAvailability> second = ctx.channel.getNextBuffer();
+        assertThat(second).isPresent();
+        assertThat(second.get().buffer().getDataType().hasPriority()).isTrue();
+
+        // Third getNextBuffer() should return the recovered data buffer
+        Optional<InputChannel.BufferAndAvailability> third = ctx.channel.getNextBuffer();
+        assertThat(third).isPresent();
+        assertThat(third.get().buffer().isBuffer()).isTrue();
+        assertThat(third.get().buffer().getSize()).isEqualTo(10);
+    }
+
+    @Test
+    void testNextDataTypeCorrectedToRecoveredBufferType() throws Exception {
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+        ChannelAndSubpartition ctx = createChannelWithRecoveredBuffers(stateWriter, 10);
+
+        // Add a priority event followed by a data buffer in the subpartition
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        ctx.subpartition.add(
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(1L, 0L, options), true));
+        ctx.subpartition.add(createFilledFinishedBufferConsumer(32));
+
+        ctx.channel.notifyPriorityEvent(0);
+
+        // getNextBuffer() returns the barrier
+        Optional<InputChannel.BufferAndAvailability> result = ctx.channel.getNextBuffer();
+        assertThat(result).isPresent();
+        assertThat(result.get().buffer().getDataType().hasPriority()).isTrue();
+
+        // The nextDataType should be corrected to DATA_BUFFER (from toBeConsumedBuffers),
+        // not whatever the subpartitionView reports.
+        assertThat(result.get().morePriorityEvents()).isFalse();
+        assertThat(result.get().moreAvailable()).isTrue();
+
+        // The next buffer should be the recovered data (not the subpartition data)
+        Optional<InputChannel.BufferAndAvailability> next = ctx.channel.getNextBuffer();
+        assertThat(next).isPresent();
+        assertThat(next.get().buffer().isBuffer()).isTrue();
+        assertThat(next.get().buffer().getSize()).isEqualTo(10);
+    }
+
+    /**
+     * Creates a LocalInputChannel with recovered buffers and a live subpartition, ready for
+     * priority event tests. The channel has already called requestSubpartitions().
+     */
+    private static ChannelAndSubpartition createChannelWithRecoveredBuffers(
+            ChannelStateWriter stateWriter, int... recoveredBufferSizes) throws Exception {
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        PipelinedResultPartition parent =
+                (PipelinedResultPartition)
+                        PartitionTestUtils.createPartition(
+                                ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
+        ResultSubpartition subpartition = parent.getAllPartitions()[0];
+        ResultSubpartitionView subpartitionView =
+                subpartition.createReadView((ResultSubpartitionView view) -> {});
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        for (int size : recoveredBufferSizes) {
+            recoveredBuffers.add(TestBufferFactory.createBuffer(size));
+        }
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        parent.getPartitionId(),
+                        new ResultSubpartitionIndexSet(0),
+                        partitionManager,
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        stateWriter,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+        channel.requestSubpartitions();
+
+        return new ChannelAndSubpartition(channel, subpartition);
+    }
+
+    private static class ChannelAndSubpartition {
+        final LocalInputChannel channel;
+        final ResultSubpartition subpartition;
+
+        ChannelAndSubpartition(LocalInputChannel channel, ResultSubpartition subpartition) {
+            this.channel = channel;
+            this.subpartition = subpartition;
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
 
     /** Returns the configured number of buffers for each channel in a random order. */
