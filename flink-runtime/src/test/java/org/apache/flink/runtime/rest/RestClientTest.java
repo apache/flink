@@ -36,7 +36,6 @@ import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
-import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategy;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
@@ -51,6 +50,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -107,9 +107,13 @@ class RestClientTest {
                             EmptyMessageParameters.getInstance(),
                             EmptyRequestBody.getInstance());
 
+            // Depending on the environment, connecting to a non-routable address may fail with
+            // either a ConnectTimeoutException (timeout fires before the OS responds) or a
+            // SocketException such as "Network is unreachable" (OS rejects immediately).
+            // Both are SocketException subtypes.
             FlinkAssertions.assertThatFuture(future)
                     .eventuallyFailsWith(ExecutionException.class)
-                    .withCauseInstanceOf(ConnectTimeoutException.class)
+                    .withCauseInstanceOf(SocketException.class)
                     .extracting(Throwable::getCause, as(InstanceOfAssertFactories.THROWABLE))
                     .hasMessageContaining(unroutableIp);
         }
