@@ -48,6 +48,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     private static final long SPLIT_NOT_STARTED = -1L;
     private long splitStartTime = SPLIT_NOT_STARTED;
     private final MetricGroup splitWatermarkMetricGroup;
+    private final String splitId;
 
     private InternalSourceSplitMetricGroup(
             MetricGroup parentMetricGroup,
@@ -56,6 +57,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
             Gauge<Long> currentWatermark) {
         super(parentMetricGroup);
         this.clock = clock;
+        this.splitId = splitId;
         splitWatermarkMetricGroup = parentMetricGroup.addGroup(SPLIT, splitId).addGroup(WATERMARK);
         pausedTimePerSecond =
                 splitWatermarkMetricGroup.gauge(
@@ -118,7 +120,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
             // If a split got paused it means it emitted records,
             // hence it shouldn't be considered idle anymore
             markNotIdle();
-            LOG.warn("Split marked paused while still idle");
+            LOG.warn("[{}] Split marked paused while still idle", splitId);
         }
         this.pausedTimePerSecond.markStart();
     }
@@ -129,7 +131,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
             // If a split is marked idle, it has no records to emit.
             // hence it shouldn't be considered paused anymore
             markNotPaused();
-            LOG.warn("Split marked idle while still paused");
+            LOG.warn("[{}] Split marked idle while still paused", splitId);
         }
         this.idleTimePerSecond.markStart();
     }
