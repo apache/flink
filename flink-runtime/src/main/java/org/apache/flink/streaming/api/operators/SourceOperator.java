@@ -178,6 +178,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private final List<SplitT> splitsToInitializeOutput = new ArrayList<>();
 
     private final Set<String> currentlyPausedSplits = new HashSet<>();
+    private final Set<String> currentlyIdleSplits = new HashSet<>();
 
     private boolean waitingForCheckpoint;
 
@@ -781,6 +782,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     public void updateCurrentSplitWatermark(String splitId, long watermark) {
         WatermarkSampler splitWatermarkSampler = checkNotNull(sampledSplitWatermarks.get(splitId));
         splitWatermarkSampler.addLatest(watermark);
+        if (!currentlyIdleSplits.contains(splitId)) {
+            maybePauseSplit(splitId);
+        }
+    }
+
+    private void maybePauseSplit(String splitId) {
+        WatermarkSampler splitWatermarkSampler = checkNotNull(sampledSplitWatermarks.get(splitId));
         long oldestSampledWatermark = splitWatermarkSampler.getOldestSample();
         // oldestSampledWatermark can be only updated after adding new latest if sampling capacity
         // is 0, but we still need to handle that
@@ -793,10 +801,22 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void updateCurrentSplitIdle(String splitId, boolean idle) {
+        final InternalSourceSplitMetricGroup splitMetricGroup =
+                this.getOrCreateSplitMetricGroup(splitId);
+        if (idle == currentlyIdleSplits.contains(splitId)) {
+            return;
+        }
         if (idle) {
-            this.getOrCreateSplitMetricGroup(splitId).markIdle();
+            LOG.info("[{}] Marking split idle", splitId);
+            currentlyIdleSplits.add(splitId);
+            splitMetricGroup.markIdle();
         } else {
-            this.getOrCreateSplitMetricGroup(splitId).markNotIdle();
+            LOG.info("[{}] Marking split not idle", splitId);
+            currentlyIdleSplits.remove(splitId);
+            splitMetricGroup.markNotIdle();
+            // Since we skipped alignment check
+            // for this split while it was idle:
+            maybePauseSplit(splitId);
         }
     }
 
@@ -805,6 +825,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         getOrCreateSplitMetricGroup(splitId).onSplitFinished();
         this.splitMetricGroups.remove(splitId);
         sampledSplitWatermarks.remove(splitId);
+        currentlyIdleSplits.remove(splitId);
     }
 
     /**
@@ -818,6 +839,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         Collection<String> splitsToResume = new ArrayList<>();
         sampledSplitWatermarks.forEach(
                 (splitId, splitWatermarks) -> {
+                    if (currentlyIdleSplits.contains(splitId)) {
+                        return;
+                    }
                     if (splitWatermarks.getOldestSample() > currentMaxDesiredWatermark) {
                         splitsToPause.add(splitId);
                     } else if (currentlyPausedSplits.contains(splitId)) {
@@ -836,10 +860,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Collection<String> splitsToPause, Collection<String> splitsToResume) {
         try {
             LOG.info(
-                    "pauseOrResumeSplits [splitsToPause={}][splitsToResume={}]"
+                    "pauseOrResumeSplits [splitsToPause={}][splitsToResume={}][idleSplits={}]"
                             + "[currentMaxDesiredWatermark={}][latestWatermark={}][oldestWatermark={}]",
                     splitsToPause,
                     splitsToResume,
+                    currentlyIdleSplits,
                     currentMaxDesiredWatermark,
                     sampledLatestWatermark.getLatest(),
                     sampledLatestWatermark.getOldestSample());
