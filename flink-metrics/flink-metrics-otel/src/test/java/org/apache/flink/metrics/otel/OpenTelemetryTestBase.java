@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.output.BaseConsumer;
@@ -42,6 +43,7 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,12 +56,14 @@ public class OpenTelemetryTestBase {
 
     private static final Duration TIME_OUT = Duration.ofMinutes(2);
 
+    @TempDir static Path outputDir;
+
     @RegisterExtension
     @Order(1)
     private static final AllCallbackWrapper<TestContainerExtension<OtelTestContainer>>
             OTEL_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(() -> new OtelTestContainer()));
+                            new TestContainerExtension<>(() -> new OtelTestContainer(outputDir)));
 
     @BeforeEach
     public void setup() {
