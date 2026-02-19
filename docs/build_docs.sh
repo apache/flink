@@ -42,8 +42,6 @@ if [ "`command -v bundle`" == "" ]; then
 fi
 
 # Install Ruby dependencies locally
-# Fix jekyll-gist dependency metadata issue
-bundle update jekyll-gist
 bundle install --path .rubydeps
 
 DOCS_SRC=${DIR}
