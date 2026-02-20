@@ -22,7 +22,14 @@ import org.apache.flink.annotation.Public;
 
 import java.util.Properties;
 
-/** A properties class with added utility method to extract primitives. */
+/**
+ * A properties class with added utility methods to extract primitives.
+ *
+ * <p>Values may be stored as strings via {@link #setProperty(String, String)} or as native Java
+ * types via {@link #put(Object, Object)} (e.g., when Flink's YAML configuration parser stores
+ * Integer, Long, or Boolean values directly). The getter methods handle both representations
+ * transparently.
+ */
 @Public
 public class MetricConfig extends Properties {
 
@@ -31,72 +38,108 @@ public class MetricConfig extends Properties {
     }
 
     /**
-     * Searches for the property with the specified key in this property list. If the key is not
-     * found in this property list, the default property list, and its defaults, recursively, are
-     * then checked. The method returns the default value argument if the property is not found.
+     * Returns the value associated with the given key as an {@code int}.
+     *
+     * <p>If the value is a {@link Number}, its {@code intValue()} is returned directly. Otherwise,
+     * the value's string representation is parsed via {@link Integer#parseInt(String)}.
      *
      * @param key the hashtable key.
      * @param defaultValue a default value.
-     * @return the value in this property list with the specified key value parsed as an int.
+     * @return the value in this property list with the specified key value as an int.
      */
     public int getInteger(String key, int defaultValue) {
-        String argument = getProperty(key, null);
-        return argument == null ? defaultValue : Integer.parseInt(argument);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return Integer.parseInt(value.toString());
     }
 
     /**
-     * Searches for the property with the specified key in this property list. If the key is not
-     * found in this property list, the default property list, and its defaults, recursively, are
-     * then checked. The method returns the default value argument if the property is not found.
+     * Returns the value associated with the given key as a {@code long}.
+     *
+     * <p>If the value is a {@link Number}, its {@code longValue()} is returned directly. Otherwise,
+     * the value's string representation is parsed via {@link Long#parseLong(String)}.
      *
      * @param key the hashtable key.
      * @param defaultValue a default value.
-     * @return the value in this property list with the specified key value parsed as a long.
+     * @return the value in this property list with the specified key value as a long.
      */
     public long getLong(String key, long defaultValue) {
-        String argument = getProperty(key, null);
-        return argument == null ? defaultValue : Long.parseLong(argument);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return Long.parseLong(value.toString());
     }
 
     /**
-     * Searches for the property with the specified key in this property list. If the key is not
-     * found in this property list, the default property list, and its defaults, recursively, are
-     * then checked. The method returns the default value argument if the property is not found.
+     * Returns the value associated with the given key as a {@code float}.
+     *
+     * <p>If the value is a {@link Number}, its {@code floatValue()} is returned directly.
+     * Otherwise, the value's string representation is parsed via {@link Float#parseFloat(String)}.
      *
      * @param key the hashtable key.
      * @param defaultValue a default value.
-     * @return the value in this property list with the specified key value parsed as a float.
+     * @return the value in this property list with the specified key value as a float.
      */
     public float getFloat(String key, float defaultValue) {
-        String argument = getProperty(key, null);
-        return argument == null ? defaultValue : Float.parseFloat(argument);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).floatValue();
+        }
+        return Float.parseFloat(value.toString());
     }
 
     /**
-     * Searches for the property with the specified key in this property list. If the key is not
-     * found in this property list, the default property list, and its defaults, recursively, are
-     * then checked. The method returns the default value argument if the property is not found.
+     * Returns the value associated with the given key as a {@code double}.
+     *
+     * <p>If the value is a {@link Number}, its {@code doubleValue()} is returned directly.
+     * Otherwise, the value's string representation is parsed via {@link
+     * Double#parseDouble(String)}.
      *
      * @param key the hashtable key.
      * @param defaultValue a default value.
-     * @return the value in this property list with the specified key value parsed as a double.
+     * @return the value in this property list with the specified key value as a double.
      */
     public double getDouble(String key, double defaultValue) {
-        String argument = getProperty(key, null);
-        return argument == null ? defaultValue : Double.parseDouble(argument);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return Double.parseDouble(value.toString());
     }
 
     /**
-     * Searches for the property with the specified key in this property list. If the key is not
-     * found in this property list, the default property list, and its defaults, recursively, are
-     * then checked. The method returns the default value argument if the property is not found.
+     * Returns the value associated with the given key as a {@code boolean}.
+     *
+     * <p>If the value is a {@link Boolean}, it is returned directly. Otherwise, the value's string
+     * representation is parsed via {@link Boolean#parseBoolean(String)}.
      *
      * @param key the hashtable key.
      * @param defaultValue a default value.
-     * @return the value in this property list with the specified key value parsed as a boolean.
+     * @return the value in this property list with the specified key value as a boolean.
      */
     public boolean getBoolean(String key, boolean defaultValue) {
-        String argument = getProperty(key, null);
-        return argument == null ? defaultValue : Boolean.parseBoolean(argument);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return Boolean.parseBoolean(value.toString());
     }
 }
