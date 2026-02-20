@@ -109,4 +109,7 @@ public interface JoinKeyExtractor extends Serializable {
      *     common join key.
      */
     int[] getCommonJoinKeyIndices(int inputId);
+
+    /** Enables copying of row data. */
+    void requiresKeyDeepCopy();
 }
