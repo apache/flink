@@ -158,9 +158,8 @@ public class EnvironmentSettings {
     }
 
     @Internal
-    @Nullable
-    public SecretStore getSecretStore() {
-        return secretStore;
+    public Optional<SecretStore> getSecretStore() {
+        return Optional.ofNullable(secretStore);
     }
 
     /** A builder for {@link EnvironmentSettings}. */
