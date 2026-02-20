@@ -479,7 +479,35 @@ class LogicalTypeCastsTest {
                 Arguments.of(new TimestampType(3), new VarCharType(5), false), // too short
 
                 // DOUBLE identity
-                Arguments.of(new DoubleType(), new DoubleType(), true));
+                Arguments.of(new DoubleType(), new DoubleType(), true),
+
+                // ---- String to binary injective casts (UTF-8: up to 4 bytes per char) ----
+
+                // VARCHAR(MAX) → VARBINARY(MAX): both unbounded
+                Arguments.of(
+                        VarCharType.STRING_TYPE, new VarBinaryType(VarBinaryType.MAX_LENGTH), true),
+                // CHAR(MAX) → VARBINARY(MAX): both unbounded
+                Arguments.of(
+                        new CharType(CharType.MAX_LENGTH),
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH),
+                        true),
+                // VARCHAR(10) → VARBINARY(40): exact fit (10 * 4 = 40)
+                Arguments.of(new VarCharType(10), new VarBinaryType(40), true),
+                // VARCHAR(10) → VARBINARY(39): one byte short
+                Arguments.of(new VarCharType(10), new VarBinaryType(39), false),
+                // VARCHAR(10) → VARBINARY(MAX): target unbounded
+                Arguments.of(
+                        new VarCharType(10), new VarBinaryType(VarBinaryType.MAX_LENGTH), true),
+                // VARCHAR(MAX) → VARBINARY(100): source unbounded, target bounded
+                Arguments.of(VarCharType.STRING_TYPE, new VarBinaryType(100), false),
+                // CHAR(5) → BINARY(20): exact fit (5 * 4 = 20)
+                Arguments.of(new CharType(5), new BinaryType(20), true),
+                // CHAR(5) → BINARY(19): one byte short
+                Arguments.of(new CharType(5), new BinaryType(19), false),
+                // CHAR(10) → VARBINARY(40): fixed char to var binary
+                Arguments.of(new CharType(10), new VarBinaryType(40), true),
+                // VARCHAR(10) → BINARY(40): var char to fixed binary
+                Arguments.of(new VarCharType(10), new BinaryType(40), true));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Injective: {2}]")

@@ -84,6 +84,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLe
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getYearPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasMaxLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isSingleFieldInterval;
 
 /**
@@ -151,6 +152,20 @@ public final class LogicalTypeCasts {
                     getPrecision(source) == getPrecision(target)
                             && getScale(source) == getScale(target);
 
+    /**
+     * Injective when the target binary length can hold worst-case UTF-8 encoding (4 bytes/char).
+     */
+    private static final BiPredicate<LogicalType, LogicalType> WHEN_BINARY_LENGTH_FITS_UTF8 =
+            (source, target) -> {
+                if (hasMaxLength(target)) {
+                    return true;
+                }
+                if (hasMaxLength(source)) {
+                    return false;
+                }
+                return (long) getLength(target) >= (long) getLength(source) * 4;
+            };
+
     static {
         implicitCastingRules = new HashMap<>();
         explicitCastingRules = new HashMap<>();
@@ -191,6 +206,7 @@ public final class LogicalTypeCasts {
                 .explicitFromFamily(CHARACTER_STRING)
                 .explicitFrom(VARBINARY, RAW)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY)
+                .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
 
         castTo(VARBINARY)
@@ -198,6 +214,7 @@ public final class LogicalTypeCasts {
                 .explicitFromFamily(CHARACTER_STRING)
                 .explicitFrom(BINARY, RAW)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY, VARBINARY)
+                .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
 
         // -----------------------------------------------------------------------------------------
