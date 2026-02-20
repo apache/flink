@@ -188,10 +188,14 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     /** Convert {@link RowData} into {@link BinaryRowData}. TODO modify it to code gen. */
     @Override
     public BinaryRowData toBinaryRow(RowData row) {
+        return toBinaryRow(row, false);
+    }
+
+    public BinaryRowData toBinaryRow(RowData row, boolean requiresDeepCopy) {
         if (row instanceof BinaryRowData) {
             return (BinaryRowData) row;
         }
-        if (reuseRow == null) {
+        if (reuseRow == null || requiresDeepCopy) {
             reuseRow = new BinaryRowData(types.length);
             reuseWriter = new BinaryRowWriter(reuseRow);
         }
