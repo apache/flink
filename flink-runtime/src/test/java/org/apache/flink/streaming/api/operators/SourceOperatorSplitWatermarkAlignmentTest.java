@@ -73,6 +73,8 @@ import java.util.stream.Collectors;
 import static org.apache.flink.configuration.PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /** Unit test for split alignment in {@link SourceOperator}. */
 class SourceOperatorSplitWatermarkAlignmentTest {
@@ -507,6 +509,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         final MockSourceReader sourceReader =
                 new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, true, true);
         final TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        // Split states math assumes non-negative time
+        processingTimeService.setCurrentTime(0);
         final SourceOperator<Integer, MockSourceSplit> operator =
                 createAndOpenSourceOperatorWithIdleness(
                         sourceReader, processingTimeService, idleTimeout);
@@ -544,12 +548,25 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         // The split is still idle:
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isTrue();
 
+        // updating timers values manually (in reality this is done by ViewUpdater)
+        operator.getSplitMetricGroup(split0.splitId()).updateTimers();
+        // Ensure the idle timer ticked, but not pause timer
+        assertNotEquals(
+                0L, operator.getSplitMetricGroup(split0.splitId()).getAccumulatedIdleTime());
+        assertEquals(0L, operator.getSplitMetricGroup(split0.splitId()).getAccumulatedPausedTime());
+
         // The split emits a record to break out of idleness
         operator.emitNext(actualOutput);
         sampleAllWatermarks(processingTimeService);
 
         // The split is marked not idle, then immediately paused by the deferred alignment check
         assertThat(operator.getSplitMetricGroup(split0.splitId()).isPaused()).isTrue();
+
+        // Make pause timer tick
+        processingTimeService.advance(10);
+        operator.getSplitMetricGroup(split0.splitId()).updateTimers();
+        assertNotEquals(
+                0L, operator.getSplitMetricGroup(split0.splitId()).getAccumulatedPausedTime());
     }
 
     private void sampleAllWatermarks(TestProcessingTimeService timeService) throws Exception {

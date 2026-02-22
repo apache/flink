@@ -77,12 +77,6 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
                         MetricNames.SPLIT_CURRENT_WATERMARK, currentWatermark);
     }
 
-    public static InternalSourceSplitMetricGroup wrap(
-            OperatorMetricGroup operatorMetricGroup, String splitId, Gauge<Long> currentWatermark) {
-        return new InternalSourceSplitMetricGroup(
-                operatorMetricGroup, SystemClock.getInstance(), splitId, currentWatermark);
-    }
-
     @VisibleForTesting
     public static InternalSourceSplitMetricGroup mock(
             MetricGroup metricGroup, String splitId, Gauge<Long> currentWatermark) {
@@ -90,7 +84,6 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
                 metricGroup, SystemClock.getInstance(), splitId, currentWatermark);
     }
 
-    @VisibleForTesting
     public static InternalSourceSplitMetricGroup wrap(
             OperatorMetricGroup operatorMetricGroup,
             Clock clock,
@@ -209,5 +202,11 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     @VisibleForTesting
     public MetricGroup getSplitWatermarkMetricGroup() {
         return splitWatermarkMetricGroup;
+    }
+
+    @VisibleForTesting
+    public void updateTimers() {
+        this.idleTimePerSecond.update();
+        this.pausedTimePerSecond.update();
     }
 }
