@@ -21,13 +21,22 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
+
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -230,6 +239,61 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY(5)) AS VARCHAR)",
                                 "hello",
                                 STRING().notNull()),
+
+                // ---------------------------------------------------------------
+                // BYTES → STRING non-injectivity: distinct byte arrays with
+                // invalid UTF-8 sequences produce identical strings because Java's
+                // new String(bytes, UTF_8) replaces each invalid byte with U+FFFD.
+                // This proves the cast is unsafe for upsert key preservation.
+                // ---------------------------------------------------------------
+
+                // Scenario 1: lone continuation bytes in a text-like payload.
+                // 0x80 and 0x81 are both invalid as leading UTF-8 bytes.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "BYTES\u2192STRING non-injective: byte 0x80 in context")
+                        .onFieldsWithData("unused")
+                        .testSqlResult(
+                                "CAST(x'4865806F' AS STRING)", "He\uFFFDo", STRING().notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "BYTES\u2192STRING non-injective: byte 0x81 in same context gives same string")
+                        .onFieldsWithData("unused")
+                        .testSqlResult(
+                                "CAST(x'4865816F' AS STRING)", "He\uFFFDo", STRING().notNull()),
+
+                // Scenario 2: truncated multibyte start bytes.
+                // 0xC2 starts a 2-byte sequence, 0xE0 starts a 3-byte sequence;
+                // without continuation bytes both collapse to a single U+FFFD.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "BYTES\u2192STRING non-injective: truncated 2-byte start 0xC2")
+                        .onFieldsWithData("unused")
+                        .testSqlResult("CAST(x'C2' AS STRING)", "\uFFFD", STRING().notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "BYTES\u2192STRING non-injective: truncated 3-byte start 0xE0 gives same string")
+                        .onFieldsWithData("unused")
+                        .testSqlResult("CAST(x'E0' AS STRING)", "\uFFFD", STRING().notNull()),
+
+                // Scenario 3: 8-byte binary keys (e.g. encrypted IDs) that differ
+                // only in one invalid byte — 0xFE vs 0xFF.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "BYTES\u2192STRING non-injective: 8-byte key with 0xFE")
+                        .onFieldsWithData("unused")
+                        .testSqlResult(
+                                "CAST(x'01020304FE060708' AS STRING)",
+                                "\u0001\u0002\u0003\u0004\uFFFD\u0006\u0007\u0008",
+                                STRING().notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "BYTES\u2192STRING non-injective: 8-byte key with 0xFF gives same string")
+                        .onFieldsWithData("unused")
+                        .testSqlResult(
+                                "CAST(x'01020304FF060708' AS STRING)",
+                                "\u0001\u0002\u0003\u0004\uFFFD\u0006\u0007\u0008",
+                                STRING().notNull()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "cast STRUCTURED to STRING")
                         .onFieldsWithData(123456, "Flink")
@@ -334,6 +398,63 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "TRY_CAST(f1 AS MAP<INT, ARRAY<INT>>)",
                                 null,
                                 MAP(INT(), ARRAY(INT())).nullable()));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // End-to-end test: read VARBINARY from a table, CAST to STRING, observe collision
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Simulates a real pipeline: a source table holds two rows with distinct VARBINARY payloads
+     * that differ in a single byte which is invalid UTF-8. Reading them back with {@code
+     * CAST(payload AS STRING)} produces the same string for both rows, proving the cast is
+     * non-injective through the full Flink SQL stack (source scan → code-gen cast → result).
+     */
+    @Test
+    void testBinaryToStringCastCollisionFromTable() throws Exception {
+        final TableEnvironment tableEnv =
+                TableEnvironment.create(EnvironmentSettings.newInstance().build());
+
+        final String dataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(
+                                Row.of(1, new byte[] {0x48, 0x65, (byte) 0x80, 0x6F}),
+                                Row.of(2, new byte[] {0x48, 0x65, (byte) 0x81, 0x6F})));
+        try {
+            tableEnv.executeSql(
+                    String.format(
+                            "CREATE TABLE binary_src ("
+                                    + "  id INT,"
+                                    + "  payload VARBINARY(4)"
+                                    + ") WITH ("
+                                    + "  'connector' = 'values',"
+                                    + "  'data-id' = '%s',"
+                                    + "  'bounded' = 'true'"
+                                    + ")",
+                            dataId));
+
+            final List<Row> results = new ArrayList<>();
+            try (final CloseableIterator<Row> it =
+                    tableEnv.executeSql(
+                                    "SELECT id, CAST(payload AS STRING) AS payload_str "
+                                            + "FROM binary_src")
+                            .collect()) {
+                it.forEachRemaining(results::add);
+            }
+
+            assertThat(results).hasSize(2);
+
+            final String str1 = results.get(0).getFieldAs("payload_str");
+            final String str2 = results.get(1).getFieldAs("payload_str");
+
+            assertThat(str1)
+                    .as(
+                            "Two rows with distinct VARBINARY payloads (0x80 vs 0x81) "
+                                    + "produce the same string after CAST — non-injective")
+                    .isEqualTo(str2);
+        } finally {
+            TestValuesTableFactory.clearAllData();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
