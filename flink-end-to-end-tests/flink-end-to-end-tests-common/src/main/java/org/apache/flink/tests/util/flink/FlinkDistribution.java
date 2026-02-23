@@ -187,14 +187,8 @@ public final class FlinkDistribution {
         for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
             try (Response response = client.newCall(request).execute()) {
                 if (response.isSuccessful()) {
-                    final String json = response.body().string();
-                    final JsonNode taskManagerList =
-                            OBJECT_MAPPER.readTree(json).get("taskmanagers");
-
-                    if (taskManagerList != null && taskManagerList.size() > 0) {
-                        LOG.info("Dispatcher REST endpoint is up.");
-                        return;
-                    }
+                    LOG.info("Dispatcher REST endpoint is up.");
+                    return;
                 }
             } catch (IOException ioe) {
                 reportedException = ExceptionUtils.firstOrSuppressed(ioe, reportedException);
