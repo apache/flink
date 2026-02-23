@@ -153,5 +153,4 @@ public class ReloadableSslContext extends SslContext implements LocalFSWatchServ
 
         sslContext = sslContextBuilder.sslProvider(provider).build();
     }
-
 }

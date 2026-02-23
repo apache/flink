@@ -70,7 +70,6 @@ public class ReloadableJdkSslContext extends ReloadableSslContext {
         final SslContextBuilder sslContextBuilder;
         if (clientMode) {
             sslContextBuilder = SslContextBuilder.forClient().keyManager(kmf);
-            setHostnameVerification(sslContextBuilder, config);
         } else {
             sslContextBuilder = SslContextBuilder.forServer(kmf);
         }
