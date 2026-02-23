@@ -121,6 +121,9 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
         if (sslEnabled) {
             config.set(SecurityOptions.SSL_PROVIDER, "JDK");
             config.set(SecurityOptions.SSL_RELOAD, sslReloadEnabled);
+            config.set(
+                    SecurityOptions.SSL_ALGORITHMS,
+                    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
             Path internalSslDir = sslDir.resolve("ssl").resolve("internal");
             config.set(
