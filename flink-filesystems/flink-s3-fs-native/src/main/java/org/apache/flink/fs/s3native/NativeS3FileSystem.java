@@ -31,6 +31,7 @@ import org.apache.flink.fs.s3native.writer.NativeS3AccessHelper;
 import org.apache.flink.fs.s3native.writer.NativeS3RecoverableWriter;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -511,36 +512,44 @@ public class NativeS3FileSystem extends FileSystem
         }
 
         LOG.info("Starting async close of Native S3 FileSystem for bucket: {}", bucketName);
-        return CompletableFuture.runAsync(
-                        () -> LOG.info("Native S3 FileSystem closed for bucket: {}", bucketName))
-                .thenCompose(
-                        ignored -> {
-                            if (clientProvider != null) {
-                                return clientProvider
-                                        .closeAsync()
-                                        .whenComplete(
-                                                (result, error) -> {
-                                                    if (error != null) {
-                                                        LOG.warn(
-                                                                "Error closing S3 client provider",
-                                                                error);
-                                                    } else {
-                                                        LOG.debug("S3 client provider closed");
-                                                    }
-                                                });
-                            }
-                            return CompletableFuture.completedFuture(null);
-                        })
-                .orTimeout(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .exceptionally(
-                        ex -> {
-                            LOG.error(
-                                    "FileSystem close timed out after {} seconds for bucket: {}",
-                                    CLOSE_TIMEOUT_SECONDS,
-                                    bucketName,
-                                    ex);
-                            return null;
-                        });
+        CompletableFuture<Void> closeFuture =
+                CompletableFuture.runAsync(
+                                () ->
+                                        LOG.info(
+                                                "Native S3 FileSystem closed for bucket: {}",
+                                                bucketName))
+                        .thenCompose(
+                                ignored -> {
+                                    if (clientProvider != null) {
+                                        return clientProvider
+                                                .closeAsync()
+                                                .whenComplete(
+                                                        (result, error) -> {
+                                                            if (error != null) {
+                                                                LOG.warn(
+                                                                        "Error closing S3 client provider",
+                                                                        error);
+                                                            } else {
+                                                                LOG.debug(
+                                                                        "S3 client provider closed");
+                                                            }
+                                                        });
+                                    }
+                                    return CompletableFuture.completedFuture(null);
+                                })
+                        .orTimeout(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .whenComplete(
+                                (result, error) -> {
+                                    if (error != null) {
+                                        LOG.error(
+                                                "FileSystem close timed out after {} seconds for bucket: {}",
+                                                CLOSE_TIMEOUT_SECONDS,
+                                                bucketName,
+                                                error);
+                                    }
+                                });
+        FutureUtils.assertNoException(closeFuture);
+        return closeFuture;
     }
 
     /**
