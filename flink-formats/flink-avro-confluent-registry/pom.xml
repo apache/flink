@@ -61,6 +61,10 @@ under the License.
 					<artifactId>lz4-java</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>at.yawk.lz4</groupId>
+					<artifactId>lz4-java</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>io.swagger</groupId>
 					<artifactId>swagger-core</artifactId>
 				</exclusion>

@@ -238,7 +238,7 @@ under the License.
 
 		<!-- Lz4 compression library -->
 		<dependency>
-			<groupId>org.lz4</groupId>
+			<groupId>at.yawk.lz4</groupId>
 			<artifactId>lz4-java</artifactId>
 		</dependency>
 
