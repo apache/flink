@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -44,12 +43,10 @@ public class NativeS3Committer implements RecoverableFsDataOutputStream.Committe
 
     private final NativeS3AccessHelper s3AccessHelper;
     private final NativeS3Recoverable recoverable;
-    private final AtomicInteger errorCount;
 
     public NativeS3Committer(NativeS3AccessHelper s3AccessHelper, NativeS3Recoverable recoverable) {
         this.s3AccessHelper = s3AccessHelper;
         this.recoverable = recoverable;
-        this.errorCount = new AtomicInteger(0);
     }
 
     /**
@@ -81,8 +78,7 @@ public class NativeS3Committer implements RecoverableFsDataOutputStream.Committe
                                         new NativeS3AccessHelper.UploadPartResult(
                                                 part.getPartNumber(), part.getETag()))
                         .collect(Collectors.toList()),
-                recoverable.numBytesInParts(),
-                errorCount);
+                recoverable.numBytesInParts());
     }
 
     @Override

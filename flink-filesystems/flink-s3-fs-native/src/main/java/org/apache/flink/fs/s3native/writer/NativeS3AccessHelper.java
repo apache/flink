@@ -56,7 +56,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -317,11 +316,7 @@ public class NativeS3AccessHelper {
      * consistency for read-after-write operations.
      */
     public CompleteMultipartUploadResult commitMultiPartUpload(
-            String key,
-            String uploadId,
-            List<UploadPartResult> partResults,
-            long length,
-            AtomicInteger errorCount)
+            String key, String uploadId, List<UploadPartResult> partResults, long length)
             throws IOException {
         try {
             List<CompletedPart> completedParts =
@@ -353,11 +348,9 @@ public class NativeS3AccessHelper {
                 ObjectMetadata metadata = getObjectMetadata(key);
                 return new CompleteMultipartUploadResult(bucketName, key, metadata.getETag(), null);
             } catch (IOException checkEx) {
-                errorCount.incrementAndGet();
                 throw new IOException("Failed to complete multipart upload for key: " + key, e);
             }
         } catch (S3Exception e) {
-            errorCount.incrementAndGet();
             throw new IOException("Failed to complete multipart upload for key: " + key, e);
         }
     }
