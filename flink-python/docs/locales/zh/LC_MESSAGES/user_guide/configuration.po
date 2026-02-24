@@ -1,0 +1,457 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/configuration.rst:20
+#, fuzzy
+msgid "PyFlink Configuration"
+msgstr "配置"
+
+#: ../../user_guide/configuration.rst:22
+msgid "PyFlink provides various configuration options:"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:24
+msgid "**Python Configuration**: Python-specific settings"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:25
+msgid "**Execution Configuration**: Job execution settings"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:26
+msgid "**State Backend Configuration**: State storage settings"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:27
+msgid "**Checkpointing Configuration**: Fault tolerance settings"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:28
+msgid "**Network Configuration**: Network buffer settings"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:31
+msgid ""
+"Depending on the requirements of a Python API program, it might be "
+"necessary to adjust certain parameters"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:31
+msgid "for optimization."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:33
+msgid ""
+"For Python DataStream API program, the config options could be set as "
+"following:"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:44
+msgid ""
+"For Python Table API programs, all the config options available for "
+"Java/Scala Table API program could also be used in the Python Table API "
+"program. You could refer to the `Table API Configuration "
+"<https://nightlies.apache.org/flink/flink-docs-"
+"stable/docs/dev/table/config/>`_ for more details on all the available "
+"config options for Table API programs. The config options could be set as"
+" following in a Table API program:"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:58
+msgid "The config options could also be set when creating EnvironmentSettings:"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:79
+msgid "Python Options"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:81
+#, fuzzy
+msgid "Python Configuration Options"
+msgstr "配置"
+
+#: ../../user_guide/configuration.rst:85
+msgid "Key"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:86
+msgid "Default"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:87
+msgid "Type"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:88
+msgid "Description"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:89
+msgid "python.archives"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:90 ../../user_guide/configuration.rst:110
+#: ../../user_guide/configuration.rst:154
+#: ../../user_guide/configuration.rst:158
+msgid "(none)"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:91 ../../user_guide/configuration.rst:95
+#: ../../user_guide/configuration.rst:103
+#: ../../user_guide/configuration.rst:107
+#: ../../user_guide/configuration.rst:111
+#: ../../user_guide/configuration.rst:155
+#: ../../user_guide/configuration.rst:159
+msgid "String"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:92
+msgid ""
+"Add python archive files for job. The archive files will be extracted to "
+"the working directory of python UDF worker. For each archive file, a "
+"target directory is specified. If the target directory name is specified,"
+" the archive file will be extracted to a directory with the specified "
+"name. Otherwise, the archive file will be extracted to a directory with "
+"the same name of the archive file. The files uploaded via this option are"
+" accessible via relative path. '#' could be used as the separator of the "
+"archive file path and the target directory name. Comma (',') could be "
+"used as the separator to specify multiple archive files. This option can "
+"be used to upload the virtual environment, the data files used in Python "
+"UDF. The data files could be accessed in Python UDF, e.g.: f = "
+"open('data/data.txt', 'r'). The option is equivalent to the command line "
+"option \"-pyarch\"."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:93
+msgid "python.client.executable"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:94 ../../user_guide/configuration.rst:102
+msgid "\"python\""
+msgstr ""
+
+#: ../../user_guide/configuration.rst:96
+msgid ""
+"The path of the Python interpreter used to launch the Python process when"
+" submitting the Python jobs via \"flink run\" or compiling the Java/Scala"
+" jobs containing Python UDFs. Equivalent to the command line option "
+"\"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
+"The priority is as following: - the configuration "
+"'python.client.executable' defined in the source code(Only used in Flink "
+"Java SQL/Table API job call Python UDF); - the command line option "
+"\"-pyclientexec\"; - the configuration 'python.client.executable' defined"
+" in config.yaml - the environment variable PYFLINK_CLIENT_EXECUTABLE;"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:101
+msgid "python.executable"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:104
+msgid ""
+"Specify the path of the python interpreter used to execute the python UDF"
+" worker. The python UDF worker depends on Python 3.8+, Apache Beam "
+"(version >= 2.54.0, <= 2.61.0), Pip (version >= 20.3) and SetupTools "
+"(version >= 37.0.0). Please ensure that the specified environment meets "
+"the above requirements. The option is equivalent to the command line "
+"option \"-pyexec\"."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:105
+msgid "python.execution-mode"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:106
+msgid "\"process\""
+msgstr ""
+
+#: ../../user_guide/configuration.rst:108
+msgid ""
+"Specify the python runtime execution mode. The optional values are "
+"``process`` and ``thread``. The ``process`` mode means that the Python "
+"user-defined functions will be executed in separate Python process. The "
+"``thread`` mode means that the Python user-defined functions will be "
+"executed in the same process of the Java operator. Note that currently it"
+" still doesn't support to execute Python user-defined functions in "
+"``thread`` mode in all places. It will fall back to ``process`` mode in "
+"these cases."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:109
+msgid "python.files"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:112
+msgid ""
+"Attach custom files for job. The standard resource file suffixes such as "
+".py/.egg/.zip/.whl or directory are all supported. These files will be "
+"added to the PYTHONPATH of both the local client and the remote python "
+"UDF worker. Files suffixed with .zip will be extracted and added to "
+"PYTHONPATH. Comma (',') could be used as the separator to specify "
+"multiple files. The option is equivalent to the command line option "
+"\"-pyfs\"."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:113
+msgid "python.fn-execution.arrow.batch.size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:114
+#: ../../user_guide/configuration.rst:118
+#: ../../user_guide/configuration.rst:122
+#: ../../user_guide/configuration.rst:130
+#: ../../user_guide/configuration.rst:134
+#: ../../user_guide/configuration.rst:138
+#: ../../user_guide/configuration.rst:162
+msgid "1000"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:115
+#: ../../user_guide/configuration.rst:119
+#: ../../user_guide/configuration.rst:131
+#: ../../user_guide/configuration.rst:135
+#: ../../user_guide/configuration.rst:139
+#: ../../user_guide/configuration.rst:163
+msgid "Integer"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:116
+msgid ""
+"The maximum number of elements to include in an arrow batch for Python "
+"user-defined function execution. The arrow batch size should not exceed "
+"the bundle size. Otherwise, the bundle size will be used as the arrow "
+"batch size."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:117
+msgid "python.fn-execution.bundle.size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:120
+msgid ""
+"The maximum number of elements to include in a bundle for Python user-"
+"defined function execution. The elements are processed asynchronously. "
+"One bundle of elements are processed before processing the next bundle of"
+" elements. A larger value can improve the throughput, but at the cost of "
+"more memory usage and higher latency."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:121
+msgid "python.fn-execution.bundle.time"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:123
+msgid "Long"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:124
+msgid ""
+"Sets the waiting timeout(in milliseconds) before processing a bundle for "
+"Python user-defined function execution. The timeout defines how long the "
+"elements of a bundle will be buffered before being processed. Lower "
+"timeouts lead to lower tail latencies, but may affect throughput."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:125
+msgid "python.fn-execution.memory.managed"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:126
+#: ../../user_guide/configuration.rst:142
+#: ../../user_guide/configuration.rst:146
+#: ../../user_guide/configuration.rst:166
+msgid "true"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:127
+#: ../../user_guide/configuration.rst:143
+#: ../../user_guide/configuration.rst:147
+#: ../../user_guide/configuration.rst:151
+#: ../../user_guide/configuration.rst:167
+msgid "Boolean"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:128
+msgid ""
+"If set, the Python worker will configure itself to use the managed memory"
+" budget of the task slot. Otherwise, it will use the Off-Heap Memory of "
+"the task slot. In this case, users should set the Task Off-Heap Memory "
+"using the configuration key taskmanager.memory.task.off-heap.size."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:129
+msgid "python.map-state.iterate-response-batch-size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:132
+msgid ""
+"The maximum number of the MapState keys/entries sent to Python UDF worker"
+" in each batch when iterating a Python MapState. Note that this is an "
+"experimental flag and might not be available in future releases."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:133
+msgid "python.map-state.read-cache-size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:136
+msgid ""
+"The maximum number of cached entries for a single Python MapState. Note "
+"that this is an experimental flag and might not be available in future "
+"releases."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:137
+msgid "python.map-state.write-cache-size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:140
+msgid ""
+"The maximum number of cached write requests for a single Python MapState."
+" The write requests will be flushed to the state backend (managed in the "
+"Java operator) when the number of cached write requests exceed this "
+"limit. Note that this is an experimental flag and might not be available "
+"in future releases."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:141
+msgid "python.metric.enabled"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:144
+msgid ""
+"When it is false, metric for Python will be disabled. You can disable the"
+" metric to achieve better performance at some circumstance."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:145
+msgid "python.operator-chaining.enabled"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:148
+msgid ""
+"Python operator chaining allows non-shuffle operations to be co-located "
+"in the same thread fully avoiding serialization and de-serialization."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:149
+msgid "python.profile.enabled"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:150
+msgid "false"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:152
+msgid ""
+"Specifies whether to enable Python worker profiling. The profile result "
+"will be displayed in the log file of the TaskManager periodically. The "
+"interval between each profiling is determined by the config options "
+"python.fn-execution.bundle.size and python.fn-execution.bundle.time."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:153
+msgid "python.pythonpath"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:156
+msgid ""
+"Specify the path on the Worker Node where the Flink Python Dependencies "
+"are installed, which gets added into the PYTHONPATH of the Python Worker."
+" The option is equivalent to the command line option \"-pypath\"."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:157
+msgid "python.requirements"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:160
+msgid ""
+"Specify a requirements.txt file which defines the third-party "
+"dependencies. These dependencies will be installed and added to the "
+"PYTHONPATH of the python UDF worker. A directory which contains the "
+"installation packages of these dependencies could be specified "
+"optionally. Use '#' as the separator if the optional parameter exists. "
+"The option is equivalent to the command line option \"-pyreq\"."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:161
+msgid "python.state.cache-size"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:164
+msgid ""
+"The maximum number of states cached in a Python UDF worker. Note that "
+"this is an experimental flag and might not be available in future "
+"releases."
+msgstr ""
+
+#: ../../user_guide/configuration.rst:165
+msgid "python.systemenv.enabled"
+msgstr ""
+
+#: ../../user_guide/configuration.rst:168
+msgid "Specify whether to load System Environment when starting Python worker."
+msgstr ""
+
+#~ msgid ""
+#~ "Depending on the requirements of a "
+#~ "Python API program, it might be "
+#~ "necessary to adjust certain parameters "
+#~ "for optimization."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "For Python Table API program, all "
+#~ "the config options available for "
+#~ "Java/Scala Table API program could also"
+#~ " be used in the Python Table "
+#~ "API program. You could refer to "
+#~ "the :flinkdoc:`Table API Configuration "
+#~ "<docs/dev/table/config/>` for more details on"
+#~ " all the available config options for"
+#~ " Table API programs. The config "
+#~ "options could be set as following "
+#~ "in a Table API program:"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "For a complete list of Python "
+#~ "configuration options, please refer to "
+#~ "the :flinkdoc:`Python Configuration Documentation"
+#~ " <docs/dev/python/python_config/>` in the main"
+#~ " Flink documentation."
+#~ msgstr ""
+

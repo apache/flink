@@ -162,6 +162,7 @@ public class RestServerEndpointITCase {
         sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
         sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
         sslConfig.set(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_VERIFY_HOSTNAME, true);
 
         final Configuration sslRestAuthConfig = new Configuration(sslConfig);
         sslRestAuthConfig.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
@@ -247,9 +248,15 @@ public class RestServerEndpointITCase {
                                 staticFileServerHandler)
                         .withHandler(new TestUnavailableHandler(mockGatewayRetriever))
                         .buildAndStart();
-        restClient = new RestClient(config, EXECUTOR_EXTENSION.getExecutor());
-
         serverAddress = serverEndpoint.getServerAddress();
+
+        restClient =
+                new RestClient(
+                        config,
+                        EXECUTOR_EXTENSION.getExecutor(),
+                        serverAddress.getHostName(),
+                        serverEndpoint.getRestPort(),
+                        null);
     }
 
     @AfterEach

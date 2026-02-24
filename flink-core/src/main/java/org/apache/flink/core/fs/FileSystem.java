@@ -35,6 +35,8 @@ import org.apache.flink.core.fs.local.LocalFileSystemFactory;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.WrappingProxy;
+import org.apache.flink.util.WrappingProxyUtil;
 
 import org.apache.flink.shaded.guava33.com.google.common.base.Splitter;
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMultimap;
@@ -298,6 +300,21 @@ public abstract class FileSystem implements IFileSystem {
     }
 
     /**
+     * Returns a list of registered {@link FileSystemFactory FS factories}.
+     *
+     * @return a snapshot of the currently registered file system factories
+     */
+    @Internal
+    public static List<FileSystemFactory> getRegisteredFileSystemFactories() {
+        LOCK.lock();
+        try {
+            return new ArrayList<>(FS_FACTORIES.values());
+        } finally {
+            LOCK.unlock();
+        }
+    }
+
+    /**
      * Initializes the shared file system settings.
      *
      * <p>The given configuration is passed to each file system factory to initialize the respective
@@ -338,14 +355,48 @@ public abstract class FileSystem implements IFileSystem {
             final List<FileSystemFactory> fileSystemFactories =
                     loadFileSystemFactories(factorySuppliers);
 
+            // Track registered priorities for factory selection
+            final Map<String, Integer> registeredPriorities = new HashMap<>();
+
             // configure all file system factories
             for (FileSystemFactory factory : fileSystemFactories) {
                 factory.configure(config);
-                String scheme = factory.getScheme();
+                final String scheme = factory.getScheme();
 
                 FileSystemFactory fsf =
                         ConnectionLimitingFactory.decorateIfLimited(factory, scheme, config);
-                FS_FACTORIES.put(scheme, fsf);
+
+                final String className = resolveFactoryClassName(factory);
+                final int registeredPriority =
+                        registeredPriorities.getOrDefault(scheme, Integer.MIN_VALUE);
+                final int newPriority =
+                        config.getOptional(CoreOptions.fileSystemFactoryPriority(scheme, className))
+                                .orElse(factory.getPriority());
+
+                LOG.info(
+                        "{} filesystem factory {} for scheme '{}' "
+                                + "with priority {} (highest registered priority: {})",
+                        newPriority >= registeredPriority ? "Registering" : "Skipping",
+                        className,
+                        scheme,
+                        newPriority,
+                        registeredPriority);
+                if (newPriority >= registeredPriority) {
+                    FS_FACTORIES.put(scheme, fsf);
+                    registeredPriorities.put(scheme, newPriority);
+                    if (newPriority == registeredPriority) {
+                        LOG.warn(
+                                "Filesystem factory {} overrides a previously registered factory "
+                                        + "for scheme '{}' at the same priority {}. "
+                                        + "The winner depends on classloading order. "
+                                        + "Set fs.{}.priority.<factoryClassName> to assign "
+                                        + "explicit priorities.",
+                                className,
+                                scheme,
+                                newPriority,
+                                scheme);
+                    }
+                }
             }
 
             // configure the default (fallback) factory
@@ -944,6 +995,20 @@ public abstract class FileSystem implements IFileSystem {
                 LOG.error("Failed to load a file system via services", t);
             }
         }
+    }
+
+    /**
+     * Resolves the real class name of a {@link FileSystemFactory}, unwrapping {@link
+     * PluginFileSystemFactory}.
+     */
+    private static String resolveFactoryClassName(FileSystemFactory factory) {
+        if (factory instanceof WrappingProxy) {
+            @SuppressWarnings("unchecked")
+            FileSystemFactory unwrapped =
+                    WrappingProxyUtil.stripProxy((WrappingProxy<FileSystemFactory>) factory);
+            return unwrapped.getClass().getName();
+        }
+        return factory.getClass().getName();
     }
 
     /**

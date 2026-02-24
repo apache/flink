@@ -66,7 +66,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
     @Test
     void testStateSizeIsConsideredForLocalRecoveryOnRestart() throws Exception {
-        final JobGraph jobGraph = createJobGraphWithCheckpointing(JOB_VERTEX);
+        final JobGraph jobGraph =
+                createJobGraphWithCheckpointing(
+                        // disable automatic checkpointing to avoid races with manual checkpoints
+                        Long.MAX_VALUE, JOB_VERTEX);
         final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(PARALLELISM);
         final List<JobAllocationsInformation> capturedAllocations = new ArrayList<>();
         final boolean localRecoveryEnabled = true;

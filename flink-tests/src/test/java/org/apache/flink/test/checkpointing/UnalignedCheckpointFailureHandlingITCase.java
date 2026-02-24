@@ -127,7 +127,8 @@ public class UnalignedCheckpointFailureHandlingITCase {
 
     private void configure(StreamExecutionEnvironment env, String storageFactory) {
         // enable checkpointing but only via API
-        env.enableCheckpointing(Long.MAX_VALUE, CheckpointingMode.EXACTLY_ONCE);
+        // use big enough interval so a manual checkpoint can be performed
+        env.enableCheckpointing(100000, CheckpointingMode.EXACTLY_ONCE);
 
         CheckpointStorageUtils.configureCheckpointStorageWithFactory(env, storageFactory);
 

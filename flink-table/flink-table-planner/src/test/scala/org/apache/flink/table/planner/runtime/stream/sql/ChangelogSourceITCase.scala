@@ -46,8 +46,8 @@ import scala.collection.JavaConversions._
 class ChangelogSourceITCase(
     sourceMode: SourceMode,
     miniBatch: MiniBatchMode,
-    state: StateBackendMode)
-  extends StreamingWithMiniBatchTestBase(miniBatch, state) {
+    state: StateBackendMode
+) extends StreamingWithMiniBatchTestBase(miniBatch, state) {
 
   @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
     new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
@@ -192,12 +192,16 @@ class ChangelogSourceITCase(
          | 'sink-insert-only' = 'false'
          |)
          |""".stripMargin
+    // Note: balance2 is computed as balance*2 which results in a higher precision DECIMAL type.
+    // Since the sink's balance column has fixed precision, this requires ON CONFLICT handling
+    // because narrowing DECIMAL casts (e.g., DECIMAL(28,2) -> DECIMAL(18,2)) are not injective.
     val dml =
       s"""
          |INSERT INTO user_sink
          |SELECT balance2, count(*), max(email)
          |FROM users
          |GROUP BY balance2
+         |ON CONFLICT DO DEDUPLICATE
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()

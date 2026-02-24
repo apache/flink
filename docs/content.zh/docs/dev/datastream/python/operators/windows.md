@@ -2,6 +2,7 @@
 title: "Windows"
 weight: 2
 type: docs
+bookHidden: true
 aliases:
 - /zh/docs/dev/datastream/python/operators/windows.html
 ---

@@ -173,9 +173,9 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
                 }
               case _ => // ignore
             }
-          // rename or cast
+          // rename or key-preserving cast (fidelity or injective)
           case a: RexCall
-              if (a.getKind.equals(SqlKind.AS) || isFidelityCast(a)) &&
+              if (a.getKind.equals(SqlKind.AS) || isKeyPreservingCast(a)) &&
                 a.getOperands.get(0).isInstanceOf[RexInputRef] =>
             appendMapInToOutPos(a.getOperands.get(0).asInstanceOf[RexInputRef].getIndex, i)
           case _ => // ignore
@@ -214,14 +214,19 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     projUniqueKeySet
   }
 
-  /** Whether the [[RexCall]] is a cast that doesn't lose any information. */
-  private def isFidelityCast(call: RexCall): Boolean = {
+  /**
+   * Whether the [[RexCall]] is a cast that preserves key uniqueness (injective cast).
+   *
+   * An injective cast is one where each distinct input maps to a distinct output, ensuring that
+   * unique keys remain unique after the cast.
+   */
+  private def isKeyPreservingCast(call: RexCall): Boolean = {
     if (call.getKind != SqlKind.CAST) {
       return false
     }
     val originalType = FlinkTypeFactory.toLogicalType(call.getOperands.get(0).getType)
     val newType = FlinkTypeFactory.toLogicalType(call.getType)
-    LogicalTypeCasts.supportsImplicitCast(originalType, newType)
+    LogicalTypeCasts.supportsInjectiveCast(originalType, newType)
   }
 
   def getUniqueKeys(

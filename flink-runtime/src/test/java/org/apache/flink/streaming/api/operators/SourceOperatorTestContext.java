@@ -25,9 +25,11 @@ import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -50,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -60,30 +63,94 @@ public class SourceOperatorTestContext implements AutoCloseable {
     public static final int SUBTASK_INDEX = 1;
     public static final MockSourceSplit MOCK_SPLIT = new MockSourceSplit(1234, 10);
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /** Builder to construct {@link SourceOperatorTestContext}. */
+    public static class Builder {
+        private boolean idle = false;
+        private boolean usePerSplitOutputs = false;
+        private WatermarkStrategy<Integer> watermarkStrategy = WatermarkStrategy.noWatermarks();
+        private Output<StreamRecord<Integer>> output = new MockOutput<>(new ArrayList<>());
+        private boolean supportsSplitReassignmentOnRecovery = false;
+        private boolean pauseSourcesUntilFirstCheckpoint = false;
+        private BiConsumer<TestTaskStateManager, OperatorID> preInit = (ign0, ign1) -> {};
+        private int watermarkBufferSize =
+                PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE.defaultValue();
+
+        public Builder setIdle(boolean idle) {
+            this.idle = idle;
+            return this;
+        }
+
+        public Builder setUsePerSplitOutputs(boolean usePerSplitOutputs) {
+            this.usePerSplitOutputs = usePerSplitOutputs;
+            return this;
+        }
+
+        public Builder setWatermarkStrategy(WatermarkStrategy<Integer> watermarkStrategy) {
+            this.watermarkStrategy = watermarkStrategy;
+            return this;
+        }
+
+        public Builder setOutput(Output<StreamRecord<Integer>> output) {
+            this.output = output;
+            return this;
+        }
+
+        public Builder setSupportsSplitReassignmentOnRecovery(
+                boolean supportsSplitReassignmentOnRecovery) {
+            this.supportsSplitReassignmentOnRecovery = supportsSplitReassignmentOnRecovery;
+            return this;
+        }
+
+        public Builder setPauseSourcesUntilFirstCheckpoint(
+                boolean pauseSourcesUntilFirstCheckpoint) {
+            this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
+            return this;
+        }
+
+        public Builder setPreInit(BiConsumer<TestTaskStateManager, OperatorID> preInit) {
+            this.preInit = preInit;
+            return this;
+        }
+
+        public Builder setWatermarkBufferSize(int watermarkBufferSize) {
+            this.watermarkBufferSize = watermarkBufferSize;
+            return this;
+        }
+
+        public SourceOperatorTestContext build() throws Exception {
+            Configuration configuration = new Configuration();
+            configuration.set(PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE, watermarkBufferSize);
+            return new SourceOperatorTestContext(
+                    idle,
+                    usePerSplitOutputs,
+                    watermarkStrategy,
+                    output,
+                    supportsSplitReassignmentOnRecovery,
+                    pauseSourcesUntilFirstCheckpoint,
+                    preInit,
+                    configuration);
+        }
+    }
+
     private MockSourceReader mockSourceReader;
     private MockOperatorEventGateway mockGateway;
     private TestProcessingTimeService timeService;
     private SourceOperator<Integer, MockSourceSplit> operator;
-
-    public SourceOperatorTestContext() throws Exception {
-        this(false);
-    }
-
-    public SourceOperatorTestContext(boolean idle) throws Exception {
-        this(idle, WatermarkStrategy.noWatermarks());
-    }
-
-    public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
-            throws Exception {
-        this(idle, false, watermarkStrategy, new MockOutput<>(new ArrayList<>()), false);
-    }
+    public Output<StreamRecord<Integer>> output;
 
     public SourceOperatorTestContext(
             boolean idle,
             boolean usePerSplitOutputs,
             WatermarkStrategy<Integer> watermarkStrategy,
             Output<StreamRecord<Integer>> output,
-            boolean supportsSplitReassignmentOnRecovery)
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint,
+            BiConsumer<TestTaskStateManager, OperatorID> preInit,
+            Configuration configuration)
             throws Exception {
         mockSourceReader =
                 new MockSourceReader(
@@ -94,6 +161,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
+        this.output = output;
         Environment env = getTestingEnvironment();
         operator =
                 new TestingSourceOperator<>(
@@ -107,11 +175,14 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         mockSourceReader,
                         watermarkStrategy,
                         timeService,
+                        configuration,
                         mockGateway,
                         SUBTASK_INDEX,
                         5,
                         true,
-                        supportsSplitReassignmentOnRecovery);
+                        supportsSplitReassignmentOnRecovery,
+                        pauseSourcesUntilFirstCheckpoint);
+        preInit.accept((TestTaskStateManager) env.getTaskStateManager(), operator.getOperatorID());
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
     }

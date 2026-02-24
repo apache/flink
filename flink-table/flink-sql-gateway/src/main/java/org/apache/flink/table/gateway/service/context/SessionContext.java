@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogStoreHolder;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -390,9 +391,9 @@ public class SessionContext {
             SessionEnvironment environment) {
 
         CatalogStoreFactory catalogStoreFactory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(configuration, userClassLoader);
+                ApiFactoryUtil.findAndCreateCatalogStoreFactory(configuration, userClassLoader);
         CatalogStoreFactory.Context catalogStoreFactoryContext =
-                TableFactoryUtil.buildCatalogStoreFactoryContext(configuration, userClassLoader);
+                ApiFactoryUtil.buildCatalogStoreFactoryContext(configuration, userClassLoader);
         catalogStoreFactory.open(catalogStoreFactoryContext);
         CatalogStoreHolder catalogStore =
                 CatalogStoreHolder.newBuilder()

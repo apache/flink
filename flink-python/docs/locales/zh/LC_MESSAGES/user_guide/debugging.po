@@ -1,0 +1,172 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/debugging.rst:21
+msgid "Debugging"
+msgstr "调试"
+
+#: ../../user_guide/debugging.rst:23
+msgid "This page describes how to debug in PyFlink."
+msgstr "本页介绍如何在PyFlink进行调试"
+
+#: ../../user_guide/debugging.rst:26
+msgid "Logging Infos"
+msgstr "打印日志信息"
+
+#: ../../user_guide/debugging.rst:29
+msgid "Client Side Logging"
+msgstr "客户端日志"
+
+#: ../../user_guide/debugging.rst:31
+msgid ""
+"You can log contextual and debug information via ``print`` or standard "
+"Python logging modules in PyFlink jobs in places outside Python UDFs. The"
+" logging messages will be printed in the log files of the client during "
+"job submission."
+msgstr ""
+"你可以通过 ``print`` 或者标准的 Python logging 模块，在 PyFlink 作业中，"
+"Python UDF 之外的地方打印上下文和调试信息。在提交作业时，日志信息会打印在"
+"客户端的日志文件中。"
+
+#: ../../user_guide/debugging.rst:52
+msgid ""
+"**Note:** The default logging level at client side is ``WARNING`` and so "
+"only messages with logging level ``WARNING`` or above will appear in the "
+"log files of the client."
+msgstr ""
+"**注意:** 客户端缺省的日志级别是 ``WARNING``，因此，只有日志级别在 "
+"``WARNING`` 及以上的日志信息才会打印在客户端的日志文件中。"
+
+#: ../../user_guide/debugging.rst:56
+msgid "Server Side Logging"
+msgstr "服务器端日志"
+
+#: ../../user_guide/debugging.rst:58
+msgid ""
+"You can log contextual and debug information via ``print`` or standard "
+"Python logging modules in Python UDFs. The logging messages will be "
+"printed in the log files of the ``TaskManagers`` during job execution."
+msgstr ""
+"你可以通过 ``print`` 或者标准的 Python logging 模块，在 Python UDF 中"
+"打印上下文和调试信息。在作业运行的过程中，日志信息会打印在 ``TaskManagers``"
+" 的日志文件中。"
+
+#: ../../user_guide/debugging.rst:76
+msgid ""
+"**Note:** The default logging level at server side is ``INFO`` and so "
+"only messages with logging level ``INFO`` or above will appear in the log"
+" files of the ``TaskManagers``."
+msgstr ""
+"**注意:** 服务器端缺省的日志级别是 ``INFO``，因此，只有日志级别在 "
+"``INFO`` 及以上的日志信息才会打印在 ``TaskManagers`` 的日志文件中。"
+
+#: ../../user_guide/debugging.rst:80
+msgid "Accessing Logs"
+msgstr "查看日志"
+
+#: ../../user_guide/debugging.rst:82
+msgid ""
+"If environment variable ``FLINK_HOME`` is set, logs will be written in "
+"the log directory under ``FLINK_HOME``. Otherwise, logs will be placed in"
+" the directory of the PyFlink module. You can execute the following "
+"command to find the log directory of the PyFlink module:"
+msgstr ""
+"如果设置了环境变量 ``FLINK_HOME``，日志将会放置在 ``FLINK_HOME`` 指向目录"
+"的log目录之下。否则，日志将会放在安装的PyFlink模块的log目录下。你可以通过"
+"执行下面的命令来查找PyFlink模块的log目录的路径："
+
+#: ../../user_guide/debugging.rst:91
+msgid "Debugging Python UDFs"
+msgstr "调试Python UDFs"
+
+#: ../../user_guide/debugging.rst:94
+msgid "Local Debug"
+msgstr "本地调试"
+
+#: ../../user_guide/debugging.rst:96
+msgid "You can debug your python functions directly in IDEs such as PyCharm."
+msgstr "你可以直接在 PyCharm 等 IDE 调试你的 Python 函数。"
+
+#: ../../user_guide/debugging.rst:99
+msgid "Remote Debug"
+msgstr "远程调试"
+
+#: ../../user_guide/debugging.rst:101
+msgid ""
+"You can make use of the `pydevd_pycharm <https://pypi.org/project/pydevd-"
+"pycharm/>`_ tool of PyCharm to debug Python UDFs."
+msgstr ""
+"你可以利用PyCharm提供的 `pydevd_pycharm <https://pypi.org/project/pydevd-"
+"pycharm/>`_ 工具进行Python UDF的调试"
+
+#: ../../user_guide/debugging.rst:103
+msgid "Create a Python Remote Debug in PyCharm"
+msgstr "在PyCharm里创建一个Python Remote Debug"
+
+#: ../../user_guide/debugging.rst:105
+msgid "run -> Python Remote Debug -> + -> choose a port (e.g. 6789)"
+msgstr "run -> Python Remote Debug -> + -> 选择一个port (e.g. 6789)"
+
+#: ../../user_guide/debugging.rst:107
+msgid "Install the ``pydevd-pycharm`` tool"
+msgstr "安装 ``pydevd-pycharm`` 工具"
+
+#: ../../user_guide/debugging.rst:113
+msgid "Add the following command in your Python UDF"
+msgstr "在你的Python UDF里面添加如下的代码"
+
+#: ../../user_guide/debugging.rst:120
+msgid "Start the previously created Python Remote Debug Server"
+msgstr "启动刚刚创建的Python Remote Debug Server"
+
+#: ../../user_guide/debugging.rst:122
+msgid "Run your Python Code"
+msgstr "运行你的Python代码"
+
+#: ../../user_guide/debugging.rst:125
+msgid "Profiling Python UDFs"
+msgstr "Profiling Python UDFs"
+
+#: ../../user_guide/debugging.rst:127
+msgid "You can enable the profile to analyze performance bottlenecks."
+msgstr "你可以打开profile来分析性能瓶颈"
+
+#: ../../user_guide/debugging.rst:133
+msgid "Then you can see the profile result in the logs (see `Accessing Logs`_)."
+msgstr "你可以在日志（见 `Accessing Logs`_）里面查看profile的结果"
+

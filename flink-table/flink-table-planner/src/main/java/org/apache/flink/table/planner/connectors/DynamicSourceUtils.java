@@ -368,7 +368,7 @@ public final class DynamicSourceUtils {
                                         final MetadataColumn metadataColumn = (MetadataColumn) c;
                                         String columnName = metadataColumn.getName();
                                         return rexBuilder.makeAbstractCast(
-                                                relDataType, relBuilder.field(columnName));
+                                                relDataType, relBuilder.field(columnName), false);
                                     } else {
                                         return relBuilder.field(c.getName());
                                     }

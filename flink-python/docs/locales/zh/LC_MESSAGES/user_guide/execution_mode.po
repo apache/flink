@@ -1,0 +1,348 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/execution_mode.rst:21
+msgid "Execution Mode"
+msgstr "执行模式"
+
+#: ../../user_guide/execution_mode.rst:23
+msgid ""
+"The Python API supports different runtime execution modes from which you "
+"can choose depending on the requirements of your use case and the "
+"characteristics of your job. The Python runtime execution mode defines "
+"how the Python user-defined functions will be executed."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:27
+msgid ""
+"Prior to release-1.15, there is the only execution mode called "
+"``PROCESS`` execution mode. The ``PROCESS`` mode means that the Python "
+"user-defined functions will be executed in separate Python processes."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:30
+msgid ""
+"In release-1.15, it has introduced a new execution mode called ``THREAD``"
+" execution mode. The ``THREAD`` mode means that the Python user-defined "
+"functions will be executed in JVM."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:33
+msgid ""
+"**NOTE:** Multiple Python user-defined functions running in the same JVM "
+"are still affected by GIL."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:36
+msgid "When can/should I use THREAD execution mode?"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:38
+msgid ""
+"The purpose of the introduction of ``THREAD`` mode is to overcome the "
+"overhead of serialization/deserialization and network communication "
+"introduced of inter-process communication in the ``PROCESS`` mode. So if "
+"performance is not your concern, or the computing logic of your Python "
+"user-defined functions is the performance bottleneck of the job, "
+"``PROCESS`` mode will be the best choice as ``PROCESS`` mode provides the"
+" best isolation compared to ``THREAD`` mode."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:44
+msgid "Configuring Python execution mode"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:46
+msgid ""
+"The execution mode can be configured via the ``python.execution-mode`` "
+"setting. There are two possible values:"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:49
+msgid ""
+"``PROCESS``: The Python user-defined functions will be executed in "
+"separate Python process. (default)"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:50
+msgid "``THREAD``: The Python user-defined functions will be executed in JVM."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:52
+msgid ""
+"You could specify the execution mode in Python Table API or Python "
+"DataStream API jobs as following:"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:78
+msgid "Supported Cases"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:81
+msgid "Python Table API"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:83
+msgid ""
+"The following table shows where the ``THREAD`` execution mode is "
+"supported in Python Table API."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:88
+msgid "UDFs"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:89
+#: ../../user_guide/execution_mode.rst:113
+msgid "``PROCESS``"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:90
+#: ../../user_guide/execution_mode.rst:114
+msgid "``THREAD``"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:91
+msgid "Python UDF"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:92
+#: ../../user_guide/execution_mode.rst:93
+#: ../../user_guide/execution_mode.rst:95
+#: ../../user_guide/execution_mode.rst:96
+#: ../../user_guide/execution_mode.rst:98
+#: ../../user_guide/execution_mode.rst:101
+#: ../../user_guide/execution_mode.rst:116
+#: ../../user_guide/execution_mode.rst:117
+#: ../../user_guide/execution_mode.rst:119
+#: ../../user_guide/execution_mode.rst:120
+#: ../../user_guide/execution_mode.rst:122
+#: ../../user_guide/execution_mode.rst:123
+#: ../../user_guide/execution_mode.rst:125
+#: ../../user_guide/execution_mode.rst:126
+#: ../../user_guide/execution_mode.rst:128
+#: ../../user_guide/execution_mode.rst:129
+#: ../../user_guide/execution_mode.rst:131
+#: ../../user_guide/execution_mode.rst:132
+#: ../../user_guide/execution_mode.rst:134
+#: ../../user_guide/execution_mode.rst:135
+#: ../../user_guide/execution_mode.rst:137
+#: ../../user_guide/execution_mode.rst:138
+#: ../../user_guide/execution_mode.rst:140
+#: ../../user_guide/execution_mode.rst:141
+#: ../../user_guide/execution_mode.rst:143
+#: ../../user_guide/execution_mode.rst:144
+#: ../../user_guide/execution_mode.rst:146
+#: ../../user_guide/execution_mode.rst:147
+#: ../../user_guide/execution_mode.rst:149
+#: ../../user_guide/execution_mode.rst:150
+#: ../../user_guide/execution_mode.rst:152
+#: ../../user_guide/execution_mode.rst:153
+#: ../../user_guide/execution_mode.rst:155
+#: ../../user_guide/execution_mode.rst:156
+#: ../../user_guide/execution_mode.rst:158
+#: ../../user_guide/execution_mode.rst:159
+msgid "Yes"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:94
+msgid "Python UDTF"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:97
+msgid "Python UDAF"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:99
+#: ../../user_guide/execution_mode.rst:102
+#: ../../user_guide/execution_mode.rst:161
+#: ../../user_guide/execution_mode.rst:162
+#: ../../user_guide/execution_mode.rst:164
+#: ../../user_guide/execution_mode.rst:165
+#: ../../user_guide/execution_mode.rst:167
+#: ../../user_guide/execution_mode.rst:168
+#: ../../user_guide/execution_mode.rst:170
+#: ../../user_guide/execution_mode.rst:171
+#: ../../user_guide/execution_mode.rst:173
+#: ../../user_guide/execution_mode.rst:174
+msgid "No"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:100
+msgid "Pandas UDF & Pandas UDAF"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:105
+msgid "Python DataStream API"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:107
+msgid ""
+"The following table shows where the ``PROCESS`` execution mode and the "
+"``THREAD`` execution mode are supported in Python DataStream API."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:112
+msgid "Operators"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:115
+msgid "Map"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:118
+msgid "FlatMap"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:121
+msgid "Filter"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:124
+msgid "Reduce"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:127
+msgid "Union"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:130
+msgid "Connect"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:133
+msgid "CoMap"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:136
+msgid "CoFlatMap"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:139
+msgid "Process Function"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:142
+msgid "Window Apply"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:145
+msgid "Window Aggregate"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:148
+msgid "Window Reduce"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:151
+msgid "Window Process"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:154
+msgid "Side Output"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:157
+msgid "State"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:160
+msgid "Iterate"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:163
+msgid "Window CoGroup"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:166
+msgid "Window Join"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:169
+msgid "Interval Join"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:172
+msgid "Async I/O"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:177
+msgid ""
+"Currently, it still doesn't support to execute Python UDFs in ``THREAD`` "
+"execution mode in all places. It will fall back to ``PROCESS`` execution "
+"mode in these cases. So it may happen that you configure a job to execute"
+" in ``THREAD`` execution mode, however, it's actually executed in "
+"``PROCESS`` execution mode."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:182
+msgid "Execution Behavior"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:184
+msgid ""
+"This section provides an overview of the execution behavior of ``THREAD``"
+" execution mode and contrasts they with ``PROCESS`` execution mode. For "
+"more details, please refer to the FLIP that introduced this feature: "
+"`FLIP-206 "
+"<https://cwiki.apache.org/confluence/display/FLINK/FLIP-206%3A+Support+PyFlink+Runtime+Execution+in+Thread+Mode>`_."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:189
+msgid "PROCESS Execution Mode"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:191
+msgid ""
+"In ``PROCESS`` execution mode, the Python user-defined functions will be "
+"executed in separate Python Worker process. The Java operator process "
+"communicates with the Python worker process using various Grpc services."
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:195
+msgid "THREAD Execution Mode"
+msgstr ""
+
+#: ../../user_guide/execution_mode.rst:197
+msgid ""
+"In ``THREAD`` execution mode, the Python user-defined functions will be "
+"executed in the same process as Java operators. PyFlink takes use of "
+"third part library `PEMJA <https://github.com/alibaba/pemja>`_ to embed "
+"Python in Java Application."
+msgstr ""
+

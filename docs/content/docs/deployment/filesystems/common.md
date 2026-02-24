@@ -69,4 +69,24 @@ Limit enforcement on a per TaskManager/file system basis.
 Because file systems creation occurs per scheme and authority, different
 authorities have independent connection pools. For example `hdfs://myhdfs:50010/` and `hdfs://anotherhdfs:4399/` will have separate pools.
 
+## File System Factory Priority
+
+When multiple `FileSystemFactory` implementations are available for the same URI scheme (for example, during a migration between file system backends), Flink resolves the conflict using a priority mechanism. The factory with the highest priority is selected.
+
+Each factory declares a default priority via its `getPriority()` method (default `0`). You can override the priority for any factory through configuration:
+
+```yaml
+fs.<scheme>.priority.<factoryClassName>: <integer>
+```
+
+Higher values indicate higher priority. When the configuration key is not set, the factory's declared priority is used.
+
+If two factories end up with the same priority, the winner depends on classloading order, which is non-deterministic. Flink logs a warning in this case. Set explicit priorities to ensure deterministic behavior.
+
+**Example:** Suppose two S3 factory implementations are on the classpath. To select the Hadoop-based factory over the Presto-based one (default priority is zero):
+
+```yaml
+fs.s3.priority.org.apache.flink.fs.s3.hadoop.S3FileSystemFactory: 1
+```
+
 {{< top >}}

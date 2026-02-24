@@ -26,6 +26,7 @@ import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
@@ -88,12 +89,81 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     val exprs = List(
       relBuilder.call(EQUALS, relBuilder.field(0), relBuilder.literal(1)),
       relBuilder.field(0),
+      // INT -> BIGINT is an injective cast, so position 2 is now also an upsert key
       rexBuilder.makeCast(longType, relBuilder.field(0)),
       rexBuilder.makeCast(intType, relBuilder.field(0)),
       relBuilder.field(1)
     )
     val project1 = relBuilder.project(exprs).build()
-    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(project1).toSet)
+
+    assertEquals(toBitSet(Array(1), Array(2)), mq.getUpsertKeys(project1).toSet)
+  }
+
+  @Test
+  def testGetUpsertKeysOnProjectWithInjectiveCastToString(): Unit = {
+    // INT -> STRING is an injective cast (each distinct int maps to a distinct string).
+    // When an upsert key column is cast this way, the key property is preserved.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // Project: CAST(id AS STRING), name
+    val exprs = List(
+      rexBuilder.makeCast(stringType, relBuilder.field(0)), // CAST(id AS STRING)
+      relBuilder.field(1) // name
+    )
+    val project = relBuilder.project(exprs).build()
+
+    // The casted id at position 0 should still be recognized as upsert key
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(project).toSet)
+  }
+
+  @Test
+  def testGetUpsertKeysOnProjectWithMultipleKeyReferences(): Unit = {
+    // When the same upsert key column appears multiple times in a projection
+    // (either raw or via injective cast), all references are recognized as keys.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // Project: CAST(id AS STRING), id, name
+    val exprs = List(
+      rexBuilder.makeCast(stringType, relBuilder.field(0)), // CAST(id AS STRING) - injective
+      relBuilder.field(0), // id (raw reference)
+      relBuilder.field(1) // name
+    )
+    val project = relBuilder.project(exprs).build()
+
+    // Both position 0 (STRING cast of id) and position 1 (raw id) are upsert keys
+    assertEquals(toBitSet(Array(0), Array(1)), mq.getUpsertKeys(project).toSet)
+  }
+
+  @Test
+  def testGetUpsertKeysOnProjectNonInjectiveCastLosesKey(): Unit = {
+    // STRING -> INT is NOT an injective cast (e.g., "1" and "01" both become 1).
+    // When an upsert key is cast this way, the key property is lost.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // First, project id as STRING to simulate a STRING key column
+    val stringKeyExprs = List(
+      rexBuilder.makeCast(stringType, relBuilder.field(0)), // CAST(id AS STRING)
+      relBuilder.field(1) // name
+    )
+    val stringKeyProject = relBuilder.project(stringKeyExprs).build()
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(stringKeyProject).toSet)
+
+    // Now cast the STRING back to INT - this is a non-injective cast
+    relBuilder.push(stringKeyProject)
+    val narrowedExprs = List(
+      rexBuilder.makeCast(intType, relBuilder.field(0)), // CAST(string_id AS INT) - NOT injective
+      relBuilder.field(1) // name
+    )
+    val narrowedProject = relBuilder.project(narrowedExprs).build()
+
+    // The key is LOST because STRING->INT is not injective
+    assertEquals(toBitSet(), mq.getUpsertKeys(narrowedProject).toSet)
   }
 
   @Test
@@ -133,7 +203,8 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     )
     val rowType = relBuilder.project(exprs).build().getRowType
     val calc2 = createLogicalCalc(studentLogicalScan, rowType, exprs, List(expr))
-    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(calc2).toSet)
+    // INT -> BIGINT is an injective cast, so position 2 is now also an upsert key
+    assertEquals(toBitSet(Array(1), Array(2)), mq.getUpsertKeys(calc2).toSet)
   }
 
   @Test

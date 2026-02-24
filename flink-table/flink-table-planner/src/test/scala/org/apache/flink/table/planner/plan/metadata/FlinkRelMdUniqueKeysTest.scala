@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.utils.ExpandUtil
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.jupiter.api.Assertions._
@@ -92,8 +93,99 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
       relBuilder.field(1)
     )
     val project1 = relBuilder.project(exprs).build()
-    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(project1).toSet)
+    // INT -> BIGINT is an injective cast, so position 2 is also a unique key
+    assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(project1).toSet)
     assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(project1, true).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnProjectWithInjectiveCastToString(): Unit = {
+    // INT -> STRING is an injective cast (each distinct int maps to a distinct string).
+    // When a unique key column is cast this way, the uniqueness is preserved.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // Project: CAST(id AS STRING), name
+    // id (position 0 in source) is the unique key
+    val exprs = List(
+      rexBuilder.makeCast(stringType, relBuilder.field(0)), // CAST(id AS STRING)
+      relBuilder.field(1) // name
+    )
+    val project = relBuilder.project(exprs).build()
+
+    // The casted id at position 0 should still be recognized as unique
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(project).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnProjectWithMultipleKeyReferences(): Unit = {
+    // When the same unique key column appears multiple times in a projection
+    // (either raw or via injective cast), all references are recognized as keys.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // Project: CAST(id AS STRING), id, name
+    val exprs = List(
+      rexBuilder.makeCast(stringType, relBuilder.field(0)), // CAST(id AS STRING) - injective
+      relBuilder.field(0), // id (raw reference)
+      relBuilder.field(1) // name
+    )
+    val project = relBuilder.project(exprs).build()
+
+    // Both position 0 (STRING cast of id) and position 1 (raw id) are unique keys
+    assertEquals(uniqueKeys(Array(0), Array(1)), mq.getUniqueKeys(project).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnProjectInjectiveCastOnlyPreservesExistingKeys(): Unit = {
+    // Injective casts PRESERVE uniqueness but don't CREATE it.
+    // Casting a non-key column with an injective cast doesn't make it a key.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // Project: id, CAST(name AS STRING)
+    // id is the unique key; name is NOT a key (even after casting)
+    val exprs = List(
+      relBuilder.field(0), // id - the unique key
+      rexBuilder.makeCast(stringType, relBuilder.field(1)) // CAST(name AS STRING) - not a key
+    )
+    val project = relBuilder.project(exprs).build()
+
+    // Only position 0 (id) is a unique key
+    // Position 1 (cast of name) is NOT a key because name wasn't a key to begin with
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(project).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnProjectNonInjectiveCastLosesKey(): Unit = {
+    // STRING -> INT is NOT an injective cast (e.g., "1" and "01" both become 1).
+    // When a unique key is cast this way, the uniqueness cannot be guaranteed.
+    relBuilder.push(studentLogicalScan)
+
+    val stringType = typeFactory.createSqlType(VARCHAR, 100)
+
+    // First, project id as STRING to simulate a STRING key column
+    val stringKeyExprs = List(
+      rexBuilder.makeCast(stringType, relBuilder.field(0)), // CAST(id AS STRING)
+      relBuilder.field(1) // name
+    )
+    val stringKeyProject = relBuilder.project(stringKeyExprs).build()
+    // At this point, position 0 is a STRING that's still a unique key
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(stringKeyProject).toSet)
+
+    // Now cast the STRING back to INT - this is a non-injective (narrowing) cast
+    relBuilder.push(stringKeyProject)
+    val narrowedExprs = List(
+      rexBuilder.makeCast(intType, relBuilder.field(0)), // CAST(string_id AS INT) - NOT injective
+      relBuilder.field(1) // name
+    )
+    val narrowedProject = relBuilder.project(narrowedExprs).build()
+
+    // The key is LOST because STRING->INT is not injective
+    assertEquals(uniqueKeys(), mq.getUniqueKeys(narrowedProject).toSet)
   }
 
   @Test
@@ -133,7 +225,8 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     )
     val rowType = relBuilder.project(exprs).build().getRowType
     val calc2 = createLogicalCalc(studentLogicalScan, rowType, exprs, List(expr))
-    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(calc2).toSet)
+    // INT -> BIGINT is an injective cast, so position 2 is also a unique key
+    assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(calc2).toSet)
     assertEquals(uniqueKeys(Array(1), Array(2)), mq.getUniqueKeys(calc2, true).toSet)
   }
 

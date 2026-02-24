@@ -1,8 +1,8 @@
 ---
-title: PyFlink
-bookCollapseSection: true
-weight: 100
-type: docs
+title: "PyFlink"
+layout: redirect
+redirect_to: /api/python/user_guide/
+bookHidden: true
 aliases:
   - /zh/dev/python/
   - /zh/docs/dev/python/overview
@@ -25,11 +25,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-# PyFlink
-
-This section covers Python-specific configuration and reference material for using Flink with Python.
-
-For tutorials on getting started with PyFlink, see:
-- [Table API Tutorial]({{< ref "docs/getting-started/table_api" >}}) (select the Python tab)
-- [DataStream API Tutorial]({{< ref "docs/getting-started/datastream" >}}) (select the Python tab)

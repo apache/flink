@@ -2,6 +2,7 @@
 title: "State"
 weight: 31
 type: docs
+bookHidden: true
 aliases:
 - /zh/docs/dev/datastream/python/state.html
 ---

@@ -33,17 +33,22 @@ import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -53,20 +58,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link SourceOperator} watermark alignment. */
 @SuppressWarnings("serial")
+@ExtendWith(ParameterizedTestExtension.class)
 class SourceOperatorAlignmentTest {
+
+    private static final int updateIntervalMillis = 1;
 
     @Nullable private SourceOperatorTestContext context;
     @Nullable private SourceOperator<Integer, MockSourceSplit> operator;
 
+    @Parameter public int watermarkBufferSize;
+
+    @Parameters(name = "watermarkBufferSize: {0}")
+    public static Collection<Integer> parameters() {
+        return Arrays.asList(0, 1, 3);
+    }
+
     @BeforeEach
     void setup() throws Exception {
         context =
-                new SourceOperatorTestContext(
-                        false,
-                        WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
-                                .withTimestampAssigner((r, t) -> r)
-                                .withWatermarkAlignment(
-                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1)));
+                SourceOperatorTestContext.builder()
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
+                                        .withTimestampAssigner((r, t) -> r)
+                                        .withWatermarkAlignment(
+                                                "group1",
+                                                Duration.ofMillis(100),
+                                                Duration.ofMillis(updateIntervalMillis)))
+                        .setWatermarkBufferSize(watermarkBufferSize)
+                        .build();
         operator = context.getOperator();
     }
 
@@ -77,8 +96,14 @@ class SourceOperatorAlignmentTest {
         operator = null;
     }
 
-    @Test
+    @TestTemplate
     void testWatermarkAlignment() throws Exception {
+        // how many steps to advance before all watermark samples are overwritten
+        int sampleWatermarksStep1 = Math.max(watermarkBufferSize - 1, 0);
+        // advance one more step for the final sample to be overwritten (or don't advance if
+        // buffering is disabled)
+        int sampleWatermarksStep2 = Math.min(1, watermarkBufferSize);
+
         operator.initializeState(context.createStateContext());
         operator.open();
         MockSourceSplit newSplit = new MockSourceSplit(2);
@@ -98,9 +123,13 @@ class SourceOperatorAlignmentTest {
 
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         expectedOutput.add(record1);
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertLatestReportedWatermarkEvent(record1);
         assertOutput(actualOutput, expectedOutput);
+        assertThat(operator.isAvailable()).isTrue();
+
+        sampleWatermarks(context.getTimeService(), sampleWatermarksStep1 + sampleWatermarksStep2);
+        // WatermarkAlignmentEvent hasn't been yet sent, so the operator is still available
         assertThat(operator.isAvailable()).isTrue();
 
         operator.handleOperatorEvent(new WatermarkAlignmentEvent(record1 - 1));
@@ -115,32 +144,53 @@ class SourceOperatorAlignmentTest {
 
         assertThat(operator.isAvailable()).isTrue();
         operator.emitNext(actualOutput);
+
+        if (sampleWatermarksStep1 > 0) {
+            sampleWatermarks(context.getTimeService(), sampleWatermarksStep1);
+            assertThat(operator.isAvailable()).isTrue();
+        }
+
+        sampleWatermarks(context.getTimeService(), sampleWatermarksStep2);
+
         // Try to poll a record second time. Technically speaking previous emitNext call could have
         // already switch the operator status to unavailable, but that's an implementation detail.
         // However, this second call can not emit anything and should after that second call
         // operator must be unavailable.
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
         expectedOutput.add(record2);
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertLatestReportedWatermarkEvent(record2);
         assertOutput(actualOutput, expectedOutput);
         assertThat(operator.isAvailable()).isFalse();
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    @TestTemplate
+    void testWatermarkAlignmentWithIdleness() throws Exception {
+        testWatermarkAlignmentWithIdleness(false);
+    }
+
+    @TestTemplate
+    void testWatermarkAlignmentWithIdlenessAllSubtasksIdle() throws Exception {
+        testWatermarkAlignmentWithIdleness(true);
+    }
+
     void testWatermarkAlignmentWithIdleness(boolean allSubtasksIdle) throws Exception {
         // we use a separate context, because we need to enable idleness
         try (SourceOperatorTestContext context =
-                new SourceOperatorTestContext(
-                        true,
-                        WatermarkStrategy.forGenerator(
-                                        ctx ->
-                                                new PunctuatedGenerator(
-                                                        PunctuatedGenerator.GenerationMode.ODD))
-                                .withWatermarkAlignment(
-                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1))
-                                .withTimestampAssigner((r, t) -> r))) {
+                SourceOperatorTestContext.builder()
+                        .setIdle(true)
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.forGenerator(
+                                                ctx ->
+                                                        new PunctuatedGenerator(
+                                                                PunctuatedGenerator.GenerationMode
+                                                                        .ODD))
+                                        .withWatermarkAlignment(
+                                                "group1",
+                                                Duration.ofMillis(100),
+                                                Duration.ofMillis(1))
+                                        .withTimestampAssigner((r, t) -> r))
+                        .build()) {
             final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             operator.initializeState(context.createStateContext());
             operator.open();
@@ -157,7 +207,7 @@ class SourceOperatorAlignmentTest {
 
             assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
             expectedOutput.add(record1);
-            context.getTimeService().advance(1);
+            context.getTimeService().advance(updateIntervalMillis);
             assertLatestReportedWatermarkEvent(context, record1);
             // mock WatermarkAlignmentEvent from SourceCoordinator
             operator.handleOperatorEvent(new WatermarkAlignmentEvent(record1 + 100));
@@ -167,7 +217,7 @@ class SourceOperatorAlignmentTest {
             // source becomes idle, it should report Long.MAX_VALUE as the watermark
             assertThat(operator.emitNext(actualOutput))
                     .isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
-            context.getTimeService().advance(1);
+            context.getTimeService().advance(updateIntervalMillis);
             assertLatestReportedWatermarkEvent(context, Long.MAX_VALUE);
 
             if (allSubtasksIdle) {
@@ -193,7 +243,7 @@ class SourceOperatorAlignmentTest {
 
             assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
             expectedOutput.add(record2);
-            context.getTimeService().advance(1);
+            context.getTimeService().advance(updateIntervalMillis);
             // becomes active again, should go back to the previously emitted
             // watermark, as the record2 does not emit watermarks
             assertLatestReportedWatermarkEvent(context, record1);
@@ -203,7 +253,7 @@ class SourceOperatorAlignmentTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testWatermarkAlignmentWithoutSplit() throws Exception {
         operator.initializeState(context.createStateContext());
         operator.open();
@@ -212,10 +262,10 @@ class SourceOperatorAlignmentTest {
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
 
         // Don't report any ReportedWatermarkEvent
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertNoReportedWatermarkEvent(context);
 
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertNoReportedWatermarkEvent(context);
 
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
@@ -231,12 +281,12 @@ class SourceOperatorAlignmentTest {
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         expectedOutput.add(record);
 
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertLatestReportedWatermarkEvent(record);
         assertOutput(actualOutput, expectedOutput);
     }
 
-    @Test
+    @TestTemplate
     void testStopWhileWaitingForWatermarkAlignment() throws Exception {
         testWatermarkAlignment();
 
@@ -247,7 +297,7 @@ class SourceOperatorAlignmentTest {
         assertThat(operator.isAvailable()).isTrue();
     }
 
-    @Test
+    @TestTemplate
     void testReportedWatermarkDoNotDecrease() throws Exception {
         operator.initializeState(context.createStateContext());
         operator.open();
@@ -265,7 +315,7 @@ class SourceOperatorAlignmentTest {
         CollectingDataOutput<Integer> actualOutput = new CollectingDataOutput<>();
 
         operator.emitNext(actualOutput);
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertLatestReportedWatermarkEvent(record1);
 
         operator.handleOperatorEvent(
@@ -273,11 +323,11 @@ class SourceOperatorAlignmentTest {
                         Collections.singletonList(split2), new MockSourceSplitSerializer()));
 
         operator.emitNext(actualOutput);
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertLatestReportedWatermarkEvent(record1);
     }
 
-    @Test
+    @TestTemplate
     void testWatermarkAlignmentWhileSubtaskFinished() throws Exception {
         operator.initializeState(context.createStateContext());
         operator.getReaderState().clear();
@@ -303,8 +353,13 @@ class SourceOperatorAlignmentTest {
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.END_OF_DATA);
 
         assertThat(operator.emitNext(actualOutput)).isEqualTo(DataInputStatus.END_OF_INPUT);
-        context.getTimeService().advance(1);
+        context.getTimeService().advance(updateIntervalMillis);
         assertLatestReportedWatermarkEvent(Watermark.MAX_WATERMARK.getTimestamp());
+    }
+
+    private void sampleWatermarks(TestProcessingTimeService timeService, int times)
+            throws Exception {
+        timeService.advance(updateIntervalMillis * times);
     }
 
     private void assertOutput(

@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureCompression;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
 
@@ -72,6 +73,7 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
                 OtlpHttpSpanExporterBuilder httpBuilder = OtlpHttpSpanExporter.builder();
                 tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
                 tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
+                tryConfigureCompression(metricConfig, httpBuilder::setCompression);
                 spanExporter = httpBuilder.build();
                 break;
             default:
@@ -83,6 +85,7 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
                 OtlpGrpcSpanExporterBuilder grpcBuilder = OtlpGrpcSpanExporter.builder();
                 tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
                 tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
+                tryConfigureCompression(metricConfig, grpcBuilder::setCompression);
                 spanExporter = grpcBuilder.build();
                 break;
         }

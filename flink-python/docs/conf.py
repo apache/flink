@@ -65,6 +65,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks',
     'sphinx_mdinclude'
 ]
 
@@ -85,12 +86,14 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
+locale_dirs = ['locales/']
+gettext_compact = False
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.md', '.venv']
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
@@ -108,6 +111,16 @@ intersphinx_mapping = {
     "pandas": ("https://pandas.pydata.org/docs/", None),
 }
 
+# External links to main Flink documentation
+# The base URL is configurable via FLINK_DOCS_BASE_URL for versioned builds
+# (e.g. flink-docs-release-2.2, flink-docs-stable, flink-docs-master)
+_flink_docs_base = os.environ.get(
+    'FLINK_DOCS_BASE_URL',
+    'https://nightlies.apache.org/flink/flink-docs-master')
+extlinks = {
+    'flinkdoc': (_flink_docs_base + '/%s', '%s'),
+}
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -120,8 +133,10 @@ html_theme = 'pydata_sphinx_theme'
 # documentation.
 #
 html_theme_options = {
-    "collapse_navigation": True,
-    "navigation_depth": 0
+    "collapse_navigation": False,
+    "navigation_depth": 4,
+    "show_nav_level": 1,
+    "navbar_end": ["lang-switcher.html", "theme-switcher.html", "navbar-icon-links.html"]
 }
 
 # Base URL for canonical links, pointing to stable docs version

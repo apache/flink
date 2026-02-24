@@ -41,7 +41,7 @@ class SourceOperatorIdleTest {
 
     @BeforeEach
     void setup() throws Exception {
-        context = new SourceOperatorTestContext();
+        context = SourceOperatorTestContext.builder().build();
         operator = context.getOperator();
     }
 

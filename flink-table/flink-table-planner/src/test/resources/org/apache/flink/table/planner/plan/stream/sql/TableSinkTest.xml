@@ -488,6 +488,27 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInjectiveCastPreservesUpsertKey">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_agg_with_string_pk], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$1=[$1])
+   +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+      +- LogicalProject(a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_agg_with_string_pk], fields=[EXPR$0, EXPR$1], changelogMode=[NONE])
++- Calc(select=[CAST(a AS VARCHAR(2147483647)) AS EXPR$0, EXPR$1], changelogMode=[I,UA])
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$1], changelogMode=[I,UA])
+      +- Exchange(distribution=[hash[a]], changelogMode=[I])
+         +- Calc(select=[a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInsertOnConflictDoDeduplicate">
     <Resource name="ast">
       <![CDATA[
@@ -596,6 +617,33 @@ LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[meta
       <![CDATA[
 Sink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1, metadata_2, other, m_2])
 +- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[metadata_1, metadata_2, other], metadata=[metadata_2]]], fields=[metadata_1, metadata_2, other, m_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonInjectiveCastLosesUpsertKey">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink_agg_with_int_pk], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[CAST($0):INTEGER], EXPR$1=[$1])
+   +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+      +- LogicalProject(c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink_agg_with_int_pk], fields=[EXPR$0, EXPR$1], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
++- Calc(select=[CAST(c AS INTEGER) AS EXPR$0, EXPR$1], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[c]], changelogMode=[I])
+         +- Calc(select=[c], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink_agg_with_int_pk], fields=[EXPR$0, EXPR$1], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[CAST(c AS INTEGER) AS EXPR$0, EXPR$1])
+   +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS EXPR$1])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[c])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
