@@ -20,12 +20,11 @@ package org.apache.flink.ssl.tests;
 
 import org.apache.flink.tests.util.flink.ClusterController;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * End-to-end test for SSL with certificate reload enabled. This test verifies that SSL-enabled
@@ -51,9 +50,9 @@ public class SslWithReloadIT extends SslEndToEndITCaseBase {
 
             // Verify all certificates are accessible
             final CertificateDates initialCertDates = getAllCertificateDates(ports);
-            assertTrue(
-                    "All certificates should be accessible: " + initialCertDates,
-                    initialCertDates.isAllPresent());
+            assertThat(initialCertDates.isAllPresent())
+                    .as("All certificates should be accessible: " + initialCertDates)
+                    .isTrue();
 
             LOG.info("Generating new SSL certificates with {}-day validity", NEW_VALIDITY_DAYS);
             SslTestUtils.generateAndInstallCertificates(
@@ -63,26 +62,24 @@ public class SslWithReloadIT extends SslEndToEndITCaseBase {
             final CertificateDates newCertDates =
                     getAllNewCertificateDates(ports, initialCertDates);
 
-            assertTrue(
-                    "All certificates should be reloaded: "
-                            + newCertDates
-                            + ", intial certificate dates: "
-                            + initialCertDates,
-                    newCertDates.isAllPresent());
+            assertThat(newCertDates.isAllPresent())
+                    .as(
+                            "All certificates should be reloaded: "
+                                    + newCertDates
+                                    + ", intial certificate dates: "
+                                    + initialCertDates)
+                    .isTrue();
 
             // Verify certificate dates changed after reload
-            assertNotEquals(
-                    "BlobServer certificate notAfter date should change after reload",
-                    initialCertDates.getBlobServerCertDate(),
-                    newCertDates.getBlobServerCertDate());
-            assertNotEquals(
-                    "JobManager RPC certificate notAfter date should change after reload",
-                    initialCertDates.getJobManagerRpcCertDate(),
-                    newCertDates.getJobManagerRpcCertDate());
-            assertNotEquals(
-                    "Netty server certificate notAfter date should change after reload",
-                    initialCertDates.getNettyServerCertDate(),
-                    newCertDates.getNettyServerCertDate());
+            assertThat(newCertDates.getBlobServerCertDate())
+                    .as("BlobServer certificate notAfter date should change after reload")
+                    .isNotEqualTo(initialCertDates.getBlobServerCertDate());
+            assertThat(newCertDates.getJobManagerRpcCertDate())
+                    .as("JobManager RPC certificate notAfter date should change after reload")
+                    .isNotEqualTo(initialCertDates.getJobManagerRpcCertDate());
+            assertThat(newCertDates.getNettyServerCertDate())
+                    .as("Netty server certificate notAfter date should change after reload")
+                    .isNotEqualTo(initialCertDates.getNettyServerCertDate());
         }
     }
 }

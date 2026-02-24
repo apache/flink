@@ -20,12 +20,12 @@ package org.apache.flink.ssl.tests;
 
 import org.apache.flink.tests.util.flink.ClusterController;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.attribute.FileTime;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * End-to-end test for SSL enabled without certificate reload. This test verifies that when SSL
@@ -51,9 +51,9 @@ public class SslNoReloadIT extends SslEndToEndITCaseBase {
 
             // Verify all certificates are accessible
             final CertificateDates initialCertDates = getAllCertificateDates(ports);
-            assertTrue(
-                    "All certificates should be accessible: " + initialCertDates,
-                    initialCertDates.isAllPresent());
+            assertThat(initialCertDates.isAllPresent())
+                    .as("All certificates should be accessible: " + initialCertDates)
+                    .isTrue();
 
             LOG.info("Generating new SSL certificates with {}-day validity", NEW_VALIDITY_DAYS);
             SslTestUtils.generateAndInstallCertificates(

@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.security.watch;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
@@ -30,6 +32,7 @@ import java.util.Set;
  * <p>Implementations monitor directories for file modifications and invoke registered {@link
  * LocalFSWatchServiceListener} callbacks when changes occur.
  */
+@Internal
 public interface LocalFSDirectoryWatcher {
 
     /**

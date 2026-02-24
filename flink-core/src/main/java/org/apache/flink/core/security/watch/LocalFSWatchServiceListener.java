@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.security.watch;
 
+import org.apache.flink.annotation.Internal;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * }
  * }</pre>
  */
+@Internal
 public interface LocalFSWatchServiceListener {
 
     /**
