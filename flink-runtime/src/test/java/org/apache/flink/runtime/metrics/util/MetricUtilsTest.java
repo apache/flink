@@ -42,6 +42,8 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import javax.management.ObjectName;
 
@@ -178,6 +180,7 @@ class MetricUtilsTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
     void testFileDescriptorMetricsCompleteness() {
         final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
