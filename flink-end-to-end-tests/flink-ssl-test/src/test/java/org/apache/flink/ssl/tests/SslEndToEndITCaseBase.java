@@ -26,10 +26,12 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.BeforeClass;
-import org.junit.Rule;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,13 +42,14 @@ import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for SSL end-to-end tests. Contains shared fields and utility methods for SSL testing.
  * In part repeats the bash implementation of the `common_ssl.sh`
  */
-public abstract class SslEndToEndITCaseBase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public abstract class SslEndToEndITCaseBase {
     protected static final Logger LOG = LoggerFactory.getLogger(SslEndToEndITCaseBase.class);
 
     protected static final int INITIAL_VALIDITY_DAYS = 2;
@@ -62,7 +65,7 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
     protected static final int JOB_MANAGER_RPC_PORT = 6123;
     protected static final int NETTY_SERVER_PORT = 59874;
 
-    @Rule public final FlinkResource flinkResource;
+    protected final FlinkResource flinkResource;
 
     protected final Path tempDir;
     protected final Path internalSslDir;
@@ -71,8 +74,8 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
      * Ensures a clean test environment by stopping any stale Flink processes from previous test
      * runs. This prevents port conflicts and certificate confusion.
      */
-    @BeforeClass
-    public static void ensureCleanEnvironment() {
+    @BeforeAll
+    static void ensureCleanEnvironment() {
         LOG.info("Ensuring clean test environment - stopping any stale Flink processes");
         try {
             // Kill any running TaskManager or JobManager processes
@@ -106,6 +109,16 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
         final FlinkResourceSetup.FlinkResourceSetupBuilder builder = FlinkResourceSetup.builder();
         builder.addConfiguration(sslConfig);
         flinkResource = new LocalStandaloneFlinkResourceFactory().create(builder.build());
+    }
+
+    @BeforeEach
+    void setUpFlinkResource() throws Exception {
+        flinkResource.before();
+    }
+
+    @AfterEach
+    void tearDownFlinkResource() {
+        flinkResource.afterTestSuccess();
     }
 
     private Configuration createSslConfiguration(
@@ -307,14 +320,12 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
         FileTime truststoreAccessTimeAfter =
                 getFileAccessTime(internalSslDir.resolve(TRUSTSTORE_FILENAME));
 
-        assertEquals(
-                "Keystore should not be accessed when SSL is disabled",
-                keystoreAccessTimeBefore,
-                keystoreAccessTimeAfter);
-        assertEquals(
-                "Truststore should not be accessed when SSL is disabled",
-                truststoreAccessTimeBefore,
-                truststoreAccessTimeAfter);
+        assertThat(keystoreAccessTimeAfter)
+                .as("Keystore should not be accessed when SSL is disabled")
+                .isEqualTo(keystoreAccessTimeBefore);
+        assertThat(truststoreAccessTimeAfter)
+                .as("Truststore should not be accessed when SSL is disabled")
+                .isEqualTo(truststoreAccessTimeBefore);
 
         LOG.info("SSL end-to-end test completed successfully (SSL disabled verified)");
     }
