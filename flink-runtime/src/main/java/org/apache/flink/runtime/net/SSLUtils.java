@@ -386,8 +386,7 @@ public class SSLUtils {
             if (truststoreFilePath != null) {
                 certificatePaths.add(Path.of(truststoreFilePath).getParent());
             }
-            Path[] pathsToWatch = new Path[certificatePaths.size()];
-            certificatePaths.toArray(pathsToWatch);
+            Path[] pathsToWatch = certificatePaths.toArray(Path[]::new);
             LocalFSDirectoryWatcher localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
             localFSWatchSingleton.registerDirectory(pathsToWatch, reloadableJdkSslContext);
         }
@@ -455,8 +454,7 @@ public class SSLUtils {
                 certificatePaths.add(Path.of(truststoreFilePath).getParent());
             }
 
-            Path[] pathsToWatch = new Path[certificatePaths.size()];
-            certificatePaths.toArray(pathsToWatch);
+            Path[] pathsToWatch = certificatePaths.toArray(Path[]::new);
             LocalFSDirectoryWatcher localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
             localFSWatchSingleton.registerDirectory(pathsToWatch, reloadableSslContext);
         }
