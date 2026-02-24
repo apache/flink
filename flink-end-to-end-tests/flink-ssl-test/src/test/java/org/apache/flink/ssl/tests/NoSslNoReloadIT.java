@@ -20,13 +20,13 @@ package org.apache.flink.ssl.tests;
 
 import org.apache.flink.tests.util.flink.ClusterController;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.attribute.FileTime;
 import java.util.Optional;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * End-to-end test for SSL disabled scenario. This test verifies that when SSL is disabled,
@@ -53,10 +53,11 @@ public class NoSslNoReloadIT extends SslEndToEndITCaseBase {
             // Verify certificate on RPC port is NOT accessible
             final Optional<String> maybeCertDate =
                     getSslCertExpirationDate(ports.getJobManagerRpcPort());
-            assertTrue(
-                    "No certificates on rpc port should be accessible when SSL is disabled: "
-                            + maybeCertDate,
-                    maybeCertDate.isEmpty());
+            assertThat(maybeCertDate)
+                    .as(
+                            "No certificates on rpc port should be accessible when SSL is disabled: "
+                                    + maybeCertDate)
+                    .isEmpty();
 
             LOG.info("Generating new SSL certificates with {}-day validity", NEW_VALIDITY_DAYS);
             SslTestUtils.generateAndInstallCertificates(
