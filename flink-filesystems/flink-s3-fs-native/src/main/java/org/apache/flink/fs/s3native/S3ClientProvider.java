@@ -20,7 +20,6 @@ package org.apache.flink.fs.s3native;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.fs.s3native.token.DynamicTemporaryAWSCredentialsProvider;
-import org.apache.flink.fs.s3native.token.NativeS3DelegationTokenReceiver;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import org.slf4j.Logger;
@@ -44,7 +43,6 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
-import software.amazon.awssdk.services.sts.model.Credentials;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.utils.SdkAutoCloseable;
 
@@ -368,17 +366,12 @@ public class S3ClientProvider implements AutoCloseableAsync {
         }
 
         private AwsCredentialsProvider buildBaseCredentialsProvider() {
-            Credentials delegationTokenCredentials =
-                    NativeS3DelegationTokenReceiver.getCredentials();
-
-            if (delegationTokenCredentials != null) {
-                return AwsCredentialsProviderChain.builder()
-                        .credentialsProviders(
-                                new DynamicTemporaryAWSCredentialsProvider(),
-                                buildFallbackProvider())
-                        .build();
-            }
-            return buildFallbackProvider();
+            // The token provider returns null if credentials are not available,
+            // allowing the chain to proceed to the next provider (fallback).
+            return AwsCredentialsProviderChain.builder()
+                    .credentialsProviders(
+                            new DynamicTemporaryAWSCredentialsProvider(), buildFallbackProvider())
+                    .build();
         }
 
         private StsClient buildStsClient(AwsCredentialsProvider baseProvider, Region awsRegion) {

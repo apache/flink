@@ -196,6 +196,12 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         return "s3";
     }
 
+    // setting to least priority so that it is not used by default
+    @Override
+    public int getPriority() {
+        return -1;
+    }
+
     @Override
     public void configure(Configuration config) {
         this.flinkConfig = config;
