@@ -35,9 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Check that all data from the upstream reached the respective downstreams. */
 public class TestJobDataFlowValidator {
@@ -107,18 +105,20 @@ public class TestJobDataFlowValidator {
         if (withDrain) {
             upstreamFinishInfo.forEach(
                     (upstreamIndex, upstreamInfo) ->
-                            assertTrue(
-                                    String.format(
-                                            "No downstream received %s from %s[%d]; received: %s",
-                                            upstreamInfo.lastSent,
-                                            upstreamID,
-                                            upstreamIndex,
-                                            downstreamFinishInfo),
-                                    anySubtaskReceived(
-                                            upstreamID,
-                                            upstreamIndex,
-                                            upstreamInfo.lastSent,
-                                            downstreamFinishInfo.values())));
+                            assertThat(
+                                            anySubtaskReceived(
+                                                    upstreamID,
+                                                    upstreamIndex,
+                                                    upstreamInfo.lastSent,
+                                                    downstreamFinishInfo.values()))
+                                    .as(
+                                            String.format(
+                                                    "No downstream received %s from %s[%d]; received: %s",
+                                                    upstreamInfo.lastSent,
+                                                    upstreamID,
+                                                    upstreamIndex,
+                                                    downstreamFinishInfo))
+                                    .isTrue());
         }
     }
 
@@ -138,17 +138,19 @@ public class TestJobDataFlowValidator {
             boolean withDrain) {
         Map<Integer, OperatorFinishedEvent> events = finishEvents.get(operatorId);
         if (withDrain) {
-            assertNotNull(
-                    format(
-                            "Operator finish info wasn't collected with draining: %s (collected: %s)",
-                            operatorId, finishEvents),
-                    events);
+            assertThat(events)
+                    .as(
+                            format(
+                                    "Operator finish info wasn't collected with draining: %s (collected: %s)",
+                                    operatorId, finishEvents))
+                    .isNotNull();
         } else {
-            assertNull(
-                    format(
-                            "Operator finish info was collected without draining: %s (collected: %s)",
-                            operatorId, finishEvents),
-                    events);
+            assertThat(events)
+                    .as(
+                            format(
+                                    "Operator finish info was collected without draining: %s (collected: %s)",
+                                    operatorId, finishEvents))
+                    .isNull();
         }
         return events;
     }

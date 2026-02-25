@@ -25,18 +25,18 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * An integration test for the sources based on iterators.
@@ -44,17 +44,19 @@ import static org.junit.Assert.assertThat;
  * <p>This test uses the {@link NumberSequenceSource} as a concrete iterator source implementation,
  * but covers all runtime-related aspects for all the iterator-based sources together.
  */
-public class NumberSequenceSourceITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class NumberSequenceSourceITCase {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(PARALLELISM)
-                            .build());
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setNumberTaskManagers(1)
+                                    .setNumberSlotsPerTaskManager(PARALLELISM)
+                                    .build());
 
     // ------------------------------------------------------------------------
 
@@ -70,7 +72,9 @@ public class NumberSequenceSourceITCase extends TestLogger {
                         "iterator source");
 
         final List<Long> result = stream.executeAndCollect(10000);
-        assertThat(result, containsInAnyOrder(LongStream.rangeClosed(1, 1000).boxed().toArray()));
+        assertThat(result)
+                .containsExactlyInAnyOrderElementsOf(
+                        LongStream.rangeClosed(1, 1000).boxed().collect(Collectors.toList()));
     }
 
     @Test
@@ -89,7 +93,9 @@ public class NumberSequenceSourceITCase extends TestLogger {
                                     return x;
                                 });
         List<Long> result = stream.executeAndCollect(1000);
-        assertThat(result, contains(LongStream.rangeClosed(0, 100).boxed().toArray()));
+        assertThat(result)
+                .containsExactlyInAnyOrderElementsOf(
+                        LongStream.rangeClosed(0, 100).boxed().collect(Collectors.toList()));
     }
 
     @Test
@@ -99,6 +105,8 @@ public class NumberSequenceSourceITCase extends TestLogger {
         int n = PARALLELISM - 2;
         DataStream<Long> stream = env.fromSequence(0, n).map(l -> l);
         List<Long> result = stream.executeAndCollect(100);
-        assertThat(result, containsInAnyOrder(LongStream.rangeClosed(0, n).boxed().toArray()));
+        assertThat(result)
+                .containsExactlyInAnyOrderElementsOf(
+                        LongStream.rangeClosed(0, n).boxed().collect(Collectors.toList()));
     }
 }

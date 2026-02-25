@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Integration tests for interval joins. */
-public class IntervalJoinITCase {
+class IntervalJoinITCase {
 
     private static List<String> testResults;
 

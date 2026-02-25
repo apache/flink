@@ -30,11 +30,10 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFacto
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.List;
@@ -48,7 +47,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p><b>Important:</b> This test does not use a shared {@code MiniCluster} to validate collection
  * on bounded streams after the Flink session has completed.
  */
-public class DataStreamCollectTestITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class DataStreamCollectTestITCase {
 
     @Test
     public void testStreamingCollect() throws Exception {
@@ -59,10 +59,9 @@ public class DataStreamCollectTestITCase extends TestLogger {
 
         try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
             List<Integer> results = CollectionUtil.iteratorToList(iterator);
-            Assert.assertThat(
-                    "Failed to collect all data from the stream",
-                    results,
-                    Matchers.containsInAnyOrder(1, 2, 3));
+            assertThat(results)
+                    .as("Failed to collect all data from the stream")
+                    .containsExactlyInAnyOrder(1, 2, 3);
         }
     }
 
@@ -74,10 +73,9 @@ public class DataStreamCollectTestITCase extends TestLogger {
         DataStream<Integer> stream = env.fromData(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
-        Assert.assertEquals(
-                "Failed to collect the correct number of elements from the stream",
-                1,
-                results.size());
+        assertThat(results)
+                .as("Failed to collect the correct number of elements from the stream")
+                .hasSize(1);
     }
 
     @Test
@@ -93,10 +91,9 @@ public class DataStreamCollectTestITCase extends TestLogger {
 
         try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
             List<Integer> results = CollectionUtil.iteratorToList(iterator);
-            Assert.assertThat(
-                    "Failed to collect all data from the stream",
-                    results,
-                    Matchers.containsInAnyOrder(1, 2, 3));
+            assertThat(results)
+                    .as("Failed to collect all data from the stream")
+                    .containsExactlyInAnyOrder(1, 2, 3);
         }
     }
 
@@ -112,10 +109,9 @@ public class DataStreamCollectTestITCase extends TestLogger {
         DataStream<Integer> stream = env.fromData(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
-        Assert.assertEquals(
-                "Failed to collect the correct number of elements from the stream",
-                1,
-                results.size());
+        assertThat(results)
+                .as("Failed to collect the correct number of elements from the stream")
+                .hasSize(1);
     }
 
     @Test
@@ -130,7 +126,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         stream.collectAsync();
 
         List<Transformation<?>> transformations = env.getTransformations();
-        Assert.assertEquals(1, transformations.size());
+        assertThat(transformations).hasSize(1);
         LegacySinkTransformation<?> transformation =
                 (LegacySinkTransformation<?>) transformations.get(transformations.size() - 1);
         CollectSinkOperatorFactory<?> collectSinkOperatorFactory =
@@ -139,8 +135,8 @@ public class DataStreamCollectTestITCase extends TestLogger {
                 ((CollectSinkFunction<?>)
                         ((CollectSinkOperator<?>) collectSinkOperatorFactory.getOperator())
                                 .getUserFunction());
-        Assert.assertEquals(2, collectSinkOperatorFactory.getSocketTimeoutMillis());
-        Assert.assertEquals(3, collectSinkFunction.getMaxBytesPerBatch());
+        assertThat(collectSinkOperatorFactory.getSocketTimeoutMillis()).isEqualTo(2);
+        assertThat(collectSinkFunction.getMaxBytesPerBatch()).isEqualTo(3);
     }
 
     @Test

@@ -83,7 +83,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink2.Sink} run time implementation.
  */
-public class SinkV2ITCase extends AbstractTestBase {
+class SinkV2ITCase extends AbstractTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(SinkV2ITCase.class);
 
     static final List<Integer> SOURCE_DATA =

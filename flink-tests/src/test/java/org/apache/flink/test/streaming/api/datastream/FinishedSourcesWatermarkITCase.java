@@ -27,9 +27,10 @@ import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,7 +43,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * the watermark is not propagated/silently swallowed (as for example in FLINK-28357), the test is
  * expected to livelock.
  */
-public class FinishedSourcesWatermarkITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class FinishedSourcesWatermarkITCase {
 
     private static final AtomicLong CHECKPOINT_10_WATERMARK =
             new AtomicLong(Watermark.MAX_WATERMARK.getTimestamp());
