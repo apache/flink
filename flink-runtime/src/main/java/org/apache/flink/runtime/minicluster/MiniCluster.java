@@ -35,6 +35,7 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -1096,8 +1097,9 @@ public class MiniCluster implements AutoCloseableAsync {
                         .thenCombine(
                                 dispatcherGatewayFuture,
                                 (Void ack, DispatcherGateway dispatcherGateway) ->
-                                        dispatcherGateway.submitJob(
-                                                clonedExecutionPlan, rpcTimeout))
+                                        dispatcherGateway.submitApplication(
+                                                new SingleJobApplication(clonedExecutionPlan),
+                                                rpcTimeout))
                         .thenCompose(Function.identity());
         return acknowledgeCompletableFuture.thenApply(
                 (Acknowledge ignored) -> new JobSubmissionResult(clonedExecutionPlan.getJobID()));

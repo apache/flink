@@ -21,6 +21,8 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -55,6 +57,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -69,6 +74,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -1150,6 +1156,107 @@ public class PackagedProgramApplicationTest {
 
         // verify exception history is empty when job is canceled
         assertThat(application.getExceptionHistory()).isEmpty();
+    }
+
+    @Test
+    void testRecoveredTerminalJobsAreNotResubmitted() throws Exception {
+        final JobID recoveredTerminalJobId = new JobID();
+
+        final Configuration configuration = getConfiguration();
+        configuration.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID,
+                recoveredTerminalJobId.toHexString());
+
+        final List<JobID> submittedJobs = new ArrayList<>();
+        final List<JobID> recoveredJobs = new ArrayList<>();
+
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                finishedJobGatewayBuilder()
+                        .setSubmitFunction(
+                                jobGraph -> {
+                                    submittedJobs.add(jobGraph.getJobID());
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setRecoverJobFunction(
+                                jobId -> {
+                                    recoveredJobs.add(jobId);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
+
+        // create application with a recovered terminal job
+        final JobInfo recoveredTerminalJobInfo =
+                new JobInfoImpl(recoveredTerminalJobId, DEFAULT_STREAMING_JOB_NAME);
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        getProgram(1),
+                        Collections.emptyList(),
+                        Collections.singletonList(recoveredTerminalJobInfo),
+                        configuration,
+                        true,
+                        false,
+                        false,
+                        true);
+
+        executeApplication(
+                application, dispatcherBuilder.build(), scheduledExecutor, exception -> {});
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFinished(application);
+
+        // verify that the terminal job was not submitted or recovered
+        assertThat(submittedJobs).isEmpty();
+        assertThat(recoveredJobs).isEmpty();
+    }
+
+    @Test
+    void testRecoveredRunningJobsAreRecovered() throws Exception {
+        final JobID recoveredRunningJobId = new JobID();
+
+        final Configuration configuration = getConfiguration();
+        configuration.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, recoveredRunningJobId.toHexString());
+
+        final List<JobID> submittedJobs = new ArrayList<>();
+        final List<JobID> recoveredJobs = new ArrayList<>();
+
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                finishedJobGatewayBuilder()
+                        .setSubmitFunction(
+                                jobGraph -> {
+                                    submittedJobs.add(jobGraph.getJobID());
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setRecoverJobFunction(
+                                jobId -> {
+                                    recoveredJobs.add(jobId);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
+
+        // create application with a recovered running job
+        final JobInfo recoveredRunningJobInfo =
+                new JobInfoImpl(recoveredRunningJobId, DEFAULT_STREAMING_JOB_NAME);
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        getProgram(1),
+                        Collections.singletonList(recoveredRunningJobInfo),
+                        Collections.emptyList(),
+                        configuration,
+                        true,
+                        false,
+                        false,
+                        true);
+
+        executeApplication(
+                application, dispatcherBuilder.build(), scheduledExecutor, exception -> {});
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFinished(application);
+
+        // verify that the running job was recovered, not submitted
+        assertThat(submittedJobs).isEmpty();
+        assertThat(recoveredJobs).containsExactly(recoveredRunningJobId);
     }
 
     private TestingDispatcherGateway.Builder finishedJobGatewayBuilder() {

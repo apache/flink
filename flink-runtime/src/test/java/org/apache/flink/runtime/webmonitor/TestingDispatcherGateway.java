@@ -65,6 +65,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
 
     static final Function<ExecutionPlan, CompletableFuture<Acknowledge>> DEFAULT_SUBMIT_FUNCTION =
             jobGraph -> CompletableFuture.completedFuture(Acknowledge.get());
+    static final Function<JobID, CompletableFuture<Acknowledge>> DEFAULT_RECOVER_JOB_FUNCTION =
+            jobId -> CompletableFuture.completedFuture(Acknowledge.get());
     static final Function<AbstractApplication, CompletableFuture<Acknowledge>>
             DEFAULT_SUBMIT_APPLICATION_FUNCTION =
                     application -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -97,6 +99,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
     private final Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction;
+    private final Function<JobID, CompletableFuture<Acknowledge>> recoverJobFunction;
     private final Function<AbstractApplication, CompletableFuture<Acknowledge>>
             submitApplicationFunction;
     private final TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
@@ -120,6 +123,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     public TestingDispatcherGateway() {
         super();
         submitFunction = DEFAULT_SUBMIT_FUNCTION;
+        recoverJobFunction = DEFAULT_RECOVER_JOB_FUNCTION;
         submitApplicationFunction = DEFAULT_SUBMIT_APPLICATION_FUNCTION;
         submitFailedFunction = DEFAULT_SUBMIT_FAILED_FUNCTION;
         listFunction = DEFAULT_LIST_FUNCTION;
@@ -183,6 +187,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             BiFunction<JobID, CheckpointType, CompletableFuture<Long>>
                     triggerCheckpointAndGetCheckpointIdFunction,
             Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction,
+            Function<JobID, CompletableFuture<Acknowledge>> recoverJobFunction,
             Function<AbstractApplication, CompletableFuture<Acknowledge>> submitApplicationFunction,
             TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
                     submitFailedFunction,
@@ -224,6 +229,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 clusterShutdownSupplier,
                 deliverCoordinationRequestToCoordinatorFunction);
         this.submitFunction = submitFunction;
+        this.recoverJobFunction = recoverJobFunction;
         this.submitApplicationFunction = submitApplicationFunction;
         this.submitFailedFunction = submitFailedFunction;
         this.listFunction = listFunction;
@@ -245,6 +251,11 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     @Override
     public CompletableFuture<Acknowledge> submitJob(ExecutionPlan executionPlan, Duration timeout) {
         return submitFunction.apply(executionPlan);
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> recoverJob(JobID jobId, Duration timeout) {
+        return recoverJobFunction.apply(jobId);
     }
 
     @Override
@@ -323,6 +334,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
         private Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction;
+        private Function<JobID, CompletableFuture<Acknowledge>> recoverJobFunction;
         private Function<AbstractApplication, CompletableFuture<Acknowledge>>
                 submitApplicationFunction;
         private TriFunction<JobID, String, Throwable, CompletableFuture<Acknowledge>>
@@ -349,6 +361,12 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         public Builder setSubmitFunction(
                 Function<ExecutionPlan, CompletableFuture<Acknowledge>> submitFunction) {
             this.submitFunction = submitFunction;
+            return this;
+        }
+
+        public Builder setRecoverJobFunction(
+                Function<JobID, CompletableFuture<Acknowledge>> recoverJobFunction) {
+            this.recoverJobFunction = recoverJobFunction;
             return this;
         }
 
@@ -456,6 +474,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     getSavepointStatusFunction,
                     triggerCheckpointAndGetCheckpointIdFunction,
                     submitFunction,
+                    recoverJobFunction,
                     submitApplicationFunction,
                     submitFailedFunction,
                     listFunction,

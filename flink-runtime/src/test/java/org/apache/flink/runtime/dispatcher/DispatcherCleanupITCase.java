@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
@@ -179,7 +181,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 leaderElection.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        submitApplicationWithJob(dispatcherGateway, jobGraph);
 
         waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
 
@@ -288,7 +290,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 leaderElection.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+        submitApplicationWithJob(dispatcherGateway, jobGraph);
 
         waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
         firstCleanupTriggered.await();
@@ -387,5 +389,10 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 leaderInformation.getLeaderAddress(),
                                 JobMasterId.fromUuidOrNull(leaderInformation.getLeaderSessionID()),
                                 JobMasterGateway.class));
+    }
+
+    private void submitApplicationWithJob(
+            DispatcherGateway dispatcherGateway, ExecutionPlan executionPlan) throws Exception {
+        dispatcherGateway.submitApplication(new SingleJobApplication(executionPlan), TIMEOUT).get();
     }
 }

@@ -161,7 +161,7 @@ class HistoryServerTest {
             assertThat(getJobsOverview(baseUrl).getJobs()).isEmpty();
 
             for (int x = 0; x < numJobs; x++) {
-                runJob();
+                mockJobArchive(createExecutionGraphInfo(), null);
             }
             createLegacyArchive(jmDirectory.toPath(), versionLessThan14);
             waitForArchivesCreation(numJobs + numLegacyJobs);
@@ -338,7 +338,7 @@ class HistoryServerTest {
         int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
         int numJobs = 3;
         for (int x = 0; x < numJobs; x++) {
-            runJob();
+            mockJobArchive(createExecutionGraphInfo(), null);
         }
         waitForArchivesCreation(numJobs);
 

@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -570,8 +571,21 @@ public class PackagedProgramApplication extends AbstractApplication {
                                             .key())));
             return;
         }
-        final List<JobID> applicationJobIds =
+
+        // applicationJobIds should contain all jobs involved in the current application execution
+        // after ClientUtils.executeProgram completes, including:
+        // 1. newly submitted jobs,
+        // 2. jobs recovered from a previous execution,
+        // 3. jobs skipped because they were already in a terminal state in a previous execution.
+        // Note: This list may not include all jobs from suspendedJobIds or terminalJobIds,
+        // as the user program's execution path may differ from the previous run.
+        final List<JobID> applicationJobIds = new ArrayList<>();
+        final List<JobID> suspendedJobIds =
                 recoveredJobInfos.stream().map(JobInfo::getJobId).collect(Collectors.toList());
+        final List<JobID> terminalJobIds =
+                recoveredTerminalJobInfos.stream()
+                        .map(JobInfo::getJobId)
+                        .collect(Collectors.toList());
         try {
             if (program == null) {
                 LOG.info("Reconstructing program from descriptor {}", programDescriptor);
@@ -580,7 +594,11 @@ public class PackagedProgramApplication extends AbstractApplication {
 
             final PipelineExecutorServiceLoader executorServiceLoader =
                     new EmbeddedExecutorServiceLoader(
-                            applicationJobIds, dispatcherGateway, scheduledExecutor);
+                            applicationJobIds,
+                            suspendedJobIds,
+                            terminalJobIds,
+                            dispatcherGateway,
+                            scheduledExecutor);
 
             ClientUtils.executeProgram(
                     executorServiceLoader,

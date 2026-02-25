@@ -55,7 +55,15 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
     static final String FIELD_NAME_FAILURE_CAUSE = "failure-cause";
 
+    static final String FIELD_NAME_APPLICATION_ID = "application-id";
+
+    static final String FIELD_NAME_START_TIME = "start-time";
+
+    static final String FIELD_NAME_END_TIME = "end-time";
+
     private final JobIDSerializer jobIdSerializer = new JobIDSerializer();
+
+    private final ApplicationIDSerializer applicationIdSerializer = new ApplicationIDSerializer();
 
     private final SerializedValueSerializer serializedValueSerializer;
 
@@ -110,6 +118,14 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
             final SerializedThrowable serializedThrowable = result.getSerializedThrowable().get();
             serializedThrowableSerializer.serialize(serializedThrowable, gen, provider);
         }
+
+        if (result.getApplicationId().isPresent()) {
+            gen.writeFieldName(FIELD_NAME_APPLICATION_ID);
+            applicationIdSerializer.serialize(result.getApplicationId().get(), gen, provider);
+        }
+
+        gen.writeNumberField(FIELD_NAME_START_TIME, result.getStartTime());
+        gen.writeNumberField(FIELD_NAME_END_TIME, result.getEndTime());
 
         gen.writeEndObject();
     }

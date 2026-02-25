@@ -2690,6 +2690,11 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/SerializedValueOptionalFailureObject"
+        applicationId:
+          $ref: "#/components/schemas/ApplicationID"
+        endTime:
+          type: integer
+          format: int64
         jobId:
           $ref: "#/components/schemas/JobID"
         jobName:
@@ -2701,6 +2706,9 @@ components:
           format: int64
         serializedThrowable:
           $ref: "#/components/schemas/SerializedThrowable"
+        startTime:
+          type: integer
+          format: int64
         success:
           type: boolean
     JobStatus:
