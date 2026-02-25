@@ -33,7 +33,7 @@ public class ApplicationBootstrap implements DispatcherBootstrap {
 
     @Override
     public void stop() throws Exception {
-        application.cancel();
+        application.dispose();
     }
 
     public AbstractApplication getApplication() {

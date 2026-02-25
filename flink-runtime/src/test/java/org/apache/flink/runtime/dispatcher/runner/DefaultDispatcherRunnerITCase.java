@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
@@ -93,6 +94,8 @@ class DefaultDispatcherRunnerITCase {
 
     private JobGraph jobGraph;
 
+    private SingleJobApplication application;
+
     private TestingLeaderElection dispatcherLeaderElection;
 
     private TestingFatalErrorHandler fatalErrorHandler;
@@ -111,6 +114,7 @@ class DefaultDispatcherRunnerITCase {
                 DefaultDispatcherRunnerFactory.createSessionRunner(
                         SessionDispatcherFactory.INSTANCE);
         jobGraph = createJobGraph();
+        application = new SingleJobApplication(jobGraph);
         dispatcherLeaderElection = new TestingLeaderElection();
         fatalErrorHandler = new TestingFatalErrorHandler();
         executionPlanStore = TestingExecutionPlanStore.newBuilder().build();
@@ -139,7 +143,7 @@ class DefaultDispatcherRunnerITCase {
             final DispatcherGateway firstDispatcherGateway =
                     electLeaderAndRetrieveGateway(firstLeaderSessionId);
 
-            firstDispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+            firstDispatcherGateway.submitApplication(application, TIMEOUT).get();
 
             dispatcherLeaderElection.notLeader();
 

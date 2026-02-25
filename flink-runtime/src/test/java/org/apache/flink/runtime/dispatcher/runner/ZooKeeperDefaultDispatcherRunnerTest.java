@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -210,7 +211,9 @@ class ZooKeeperDefaultDispatcherRunnerTest {
 
                 final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
-                dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
+                dispatcherGateway
+                        .submitApplication(new SingleJobApplication(jobGraph), TESTING_TIMEOUT)
+                        .get();
 
                 dispatcherLeaderElection.notLeader();
 

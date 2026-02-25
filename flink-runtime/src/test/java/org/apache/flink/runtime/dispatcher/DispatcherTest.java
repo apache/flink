@@ -108,7 +108,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -145,7 +144,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -159,7 +157,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
 /** Test for the {@link Dispatcher} component. */
@@ -168,6 +165,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
     private JobGraph jobGraph;
 
     private JobID jobId;
+
+    private ApplicationID applicationId;
 
     private TestingLeaderElection jobMasterLeaderElection;
 
@@ -179,6 +178,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         super.setUp();
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
+        applicationId = ApplicationID.fromHexString(jobId.toHexString());
+        jobGraph.setApplicationId(applicationId);
         jobMasterLeaderElection = new TestingLeaderElection();
         haServices.setJobMasterLeaderElection(jobId, jobMasterLeaderElection);
     }
@@ -230,6 +231,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         new ExpectedJobIdJobManagerRunnerFactory(jobId));
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         jobMasterLeaderElection.getStartFuture().get();
@@ -266,6 +269,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         new TestingJobMasterServiceLeadershipRunnerFactory());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
 
         final int numThreads = 5;
         final CountDownLatch prepareLatch = new CountDownLatch(numThreads);
@@ -392,6 +397,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         blockingJobMaster.waitForBlockingInit();
@@ -419,6 +427,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 new JobManagerRunnerWithBlockingJobMasterFactory();
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
@@ -448,6 +458,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
 
         assertThatFuture(dispatcherGateway.submitJob(jobGraph, TIMEOUT)).eventuallySucceeds();
 
@@ -485,6 +497,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         JobID jobId = jobGraph.getJobID();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -495,6 +509,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .setJobID(jobId)
                                         .setState(JobStatus.CANCELED)
                                         .build())));
+
+        // mock application termination so that its jobs can be marked clean and terminate
+        mockApplicationStatusChange(ApplicationState.FINISHED);
 
         // wait for job to finish
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -519,6 +536,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         JobID jobId = jobGraph.getJobID();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -529,6 +548,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .setJobID(jobId)
                                         .setState(JobStatus.FINISHED)
                                         .build())));
+
+        // mock application termination so that its jobs can be marked clean and terminate
+        mockApplicationStatusChange(ApplicationState.FINISHED);
 
         // wait for job to finish
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -567,6 +589,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         JobID jobId = jobGraph.getJobID();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -603,10 +627,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .build())
                         .build(rpcService);
         dispatcher.start();
-        ApplicationID applicationId = mockApplicationStatusChange(ApplicationState.RUNNING);
+        submitApplicationAndMockApplicationStatusChange(ApplicationState.RUNNING);
         // verify that archive application is not called
         assertFalse(archiveApplicationFuture.isDone());
-        assertNull(dispatcher.getApplicationArchivingFuture(applicationId));
+        assertFalse(dispatcher.getApplicationTerminationFuture(applicationId).isDone());
     }
 
     @Test
@@ -625,11 +649,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .build())
                         .build(rpcService);
         dispatcher.start();
-        final ApplicationID applicationId = mockApplicationStatusChange(ApplicationState.FINISHED);
+        submitApplicationAndMockApplicationStatusChange(ApplicationState.FINISHED);
         // verify that archive application is called with the application id
         assertEquals(applicationId, archiveApplicationFuture.get());
         dispatcher
-                .getApplicationArchivingFuture(applicationId)
+                .getApplicationTerminationFuture(applicationId)
                 .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
@@ -637,10 +661,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
     public void testApplicationStatusChange_ThrowsIfDuplicateTerminalStatus() throws Exception {
         dispatcher = createTestingDispatcherBuilder().build(rpcService);
         dispatcher.start();
-        final ApplicationID applicationId = mockApplicationStatusChange(ApplicationState.FINISHED);
+        submitApplicationAndMockApplicationStatusChange(ApplicationState.FINISHED);
         // wait for archive to complete
         dispatcher
-                .getApplicationArchivingFuture(applicationId)
+                .getApplicationTerminationFuture(applicationId)
                 .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         assertThrows(
                 IllegalStateException.class,
@@ -649,15 +673,22 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                 applicationId, ApplicationState.FAILED));
     }
 
-    private ApplicationID mockApplicationStatusChange(ApplicationState targetState) {
-        final ApplicationID applicationId = new ApplicationID();
+    private void submitApplicationAndMockApplicationStatusChange(ApplicationState targetState)
+            throws Exception {
+        submitApplication();
+        mockApplicationStatusChange(targetState);
+    }
+
+    private void submitApplication() throws Exception {
         dispatcher
-                .getApplications()
-                .put(
-                        applicationId,
-                        TestingApplication.builder().setApplicationId(applicationId).build());
+                .submitApplication(
+                        TestingApplication.builder().setApplicationId(applicationId).build(),
+                        TIMEOUT)
+                .get();
+    }
+
+    private void mockApplicationStatusChange(ApplicationState targetState) throws Exception {
         dispatcher.notifyApplicationStatusChange(applicationId, targetState);
-        return applicationId;
     }
 
     @Test
@@ -671,8 +702,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         final JobGraph emptyJobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder().setJobId(jobId).build();
+        emptyJobGraph.setApplicationId(applicationId);
 
         dispatcherGateway.submitJob(emptyJobGraph, TIMEOUT).get();
 
@@ -692,6 +726,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         jobGraph.getCheckpointingSettings(),
                                         1L)),
                         testFailure));
+
+        // mock application termination so that its jobs can be marked clean and terminate
+        mockApplicationStatusChange(ApplicationState.FINISHED);
 
         // wait till job has failed
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -762,6 +799,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         new TestingJobMasterGatewayJobManagerRunnerFactory(
                                 testingJobMasterGateway));
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
@@ -936,7 +975,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                                 null,
                                                                 actualError,
                                                                 jobGraph.getCheckpointingSettings(),
-                                                                1L)),
+                                                                1L,
+                                                                1L,
+                                                                applicationId)),
                                         actualError)));
     }
 
@@ -957,7 +998,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher =
                 createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setRecoveredJobs(Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
                         .build(rpcService);
 
         dispatcher.start();
@@ -1007,6 +1048,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 .jobId(jobIdOfRecoveredDirtyJobs)
                                                 .jobStatus(JobStatus.FINISHED)
                                                 .netRuntime(1)
+                                                .applicationId(applicationId)
                                                 .build()))
                         .setDispatcherBootstrapFactory(
                                 (ignoredDispatcherGateway,
@@ -1035,7 +1077,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testApplicationBootstrap() throws Exception {
         final OneShotLatch bootstrapLatch = new OneShotLatch();
-        final ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder()
                         .setApplicationId(applicationId)
@@ -1065,13 +1106,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(dispatcher.getApplications().size()).isEqualTo(1);
         assertThat(dispatcher.getApplications().keySet()).contains(applicationId);
 
-        jobGraph.setApplicationId(applicationId);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         assertThat(application.getJobs().size()).isEqualTo(1);
-        assertThat(application.getJobs()).contains(jobGraph.getJobID());
+        assertThat(application.getJobs()).contains(jobId);
     }
 
     @Test
@@ -1081,7 +1121,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         final CompletableFuture<ApplicationID> submittedApplicationFuture =
                 new CompletableFuture<>();
-        final ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder()
                         .setApplicationId(applicationId)
@@ -1108,7 +1147,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder().setApplicationId(applicationId).build();
         // submit application
@@ -1128,7 +1166,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder().setApplicationId(applicationId).build();
 
@@ -1180,13 +1217,257 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
+    public void testRecoverJobSuccessfully() throws Exception {
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(
+                                                TestingApplication.builder()
+                                                        .setApplicationId(applicationId)
+                                                        .build()))
+                        .build(rpcService);
+
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        // verify that the recovered job is NOT recovered immediately
+        assertThat(jobManagerRunnerFactory.getQueueSize()).isZero();
+        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isTrue();
+        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
+                .isTrue();
+
+        // call recoverJob RPC
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcherGateway.recoverJob(jobId, TIMEOUT).get();
+
+        // verify that the job is now recovered
+        final TestingJobManagerRunner jobManagerRunner =
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+        assertThat(jobManagerRunner.getJobID()).isEqualTo(jobId);
+        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isFalse();
+        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
+                .isFalse();
+    }
+
+    @Test
+    public void testRecoverJobFailsWhenJobNotFound() throws Exception {
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(
+                                                TestingApplication.builder()
+                                                        .setApplicationId(applicationId)
+                                                        .build()))
+                        .build(rpcService);
+
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        // try to recover a job that doesn't exist
+        final JobID unknownJobId = new JobID();
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        final CompletableFuture<Acknowledge> recoverFuture =
+                dispatcherGateway.recoverJob(unknownJobId, TIMEOUT);
+
+        assertThatThrownBy(recoverFuture::get)
+                .hasCauseInstanceOf(JobSubmissionException.class)
+                .hasMessageContaining("Cannot find the recovered job");
+    }
+
+    @Test
+    public void testRemainingRecoveredJobsCleanedWhenApplicationReachesTerminalState()
+            throws Exception {
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
+
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setCleanupRunnerFactory(cleanupRunnerFactory)
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(
+                                                TestingApplication.builder()
+                                                        .setApplicationId(applicationId)
+                                                        .build()))
+                        .build(rpcService);
+
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        // verify that the recovered job exists
+        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isTrue();
+        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
+                .isTrue();
+
+        // complete the application - this should trigger cleanup of the remaining recovered job
+        dispatcher
+                .callAsyncInMainThread(
+                        () -> {
+                            dispatcher.notifyApplicationStatusChange(
+                                    applicationId, ApplicationState.FINISHED);
+                            return CompletableFuture.completedFuture(Acknowledge.get());
+                        })
+                .get();
+
+        // verify that no jobs are recovered
+        assertThat(jobManagerRunnerFactory.getQueueSize()).isZero();
+
+        // verify that the remaining recovered job is cleaned up
+        final TestingJobManagerRunner cleanupRunner =
+                cleanupRunnerFactory.takeCreatedJobManagerRunner();
+        assertThat(cleanupRunner.getJobID()).isEqualTo(jobId);
+        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isFalse();
+        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
+                .isFalse();
+    }
+
+    @Test
+    public void testJobResultNotMarkedCleanUntilApplicationTerminates() throws Exception {
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(
+                                                TestingApplication.builder()
+                                                        .setApplicationId(applicationId)
+                                                        .build()))
+                        .build(rpcService);
+
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        // submit a job
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        // complete the job
+        final TestingJobManagerRunner jobManagerRunner =
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+        final ExecutionGraphInfo completedExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(jobId)
+                                .setState(JobStatus.FINISHED)
+                                .setApplicationId(applicationId)
+                                .build());
+        jobManagerRunner.completeResultFuture(completedExecutionGraphInfo);
+
+        // job termination future should not be completed
+        assertThatThrownBy(
+                        () ->
+                                dispatcher
+                                        .getJobTerminationFuture(jobId, TIMEOUT)
+                                        .get(10L, TimeUnit.MILLISECONDS))
+                .isInstanceOf(TimeoutException.class);
+
+        // verify that the job result is NOT marked clean yet
+        assertThat(
+                        haServices.getJobResultStore().getDirtyResults().stream()
+                                .anyMatch(r -> r.getJobId().equals(jobId)))
+                .isTrue();
+
+        // complete the application
+        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+
+        // wait for application termination
+        dispatcher
+                .getApplicationTerminationFuture(applicationId)
+                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+
+        // wait for job termination
+        dispatcher
+                .getJobTerminationFuture(jobId, TIMEOUT)
+                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+
+        // verify that the job result is now marked clean
+        assertThat(
+                        haServices.getJobResultStore().getDirtyResults().stream()
+                                .noneMatch(r -> r.getJobId().equals(jobId)))
+                .isTrue();
+    }
+
+    @Test
+    public void testRecoveredDirtyJobResultsCleanedOnApplicationSubmission() throws Exception {
+        // create a dirty job result
+        final JobResult jobResult =
+                new JobResult.Builder()
+                        .jobId(jobId)
+                        .jobStatus(JobStatus.FINISHED)
+                        .netRuntime(1)
+                        .applicationId(applicationId)
+                        .build();
+
+        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
+
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setCleanupRunnerFactory(cleanupRunnerFactory)
+                        .setRecoveredDirtyJobs(Collections.singleton(jobResult))
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(
+                                                TestingApplication.builder()
+                                                        .setApplicationId(applicationId)
+                                                        .build()))
+                        .build(rpcService);
+
+        // verify that the dirty job result exists
+        assertThat(
+                        dispatcher
+                                .getRecoveredDirtyJobResultsByApplicationId()
+                                .containsKey(applicationId))
+                .isTrue();
+
+        // start application - this should trigger the cleanup of dirty job results
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        // verify that the dirty job result was cleaned up
+        final TestingJobManagerRunner cleanupRunner =
+                cleanupRunnerFactory.takeCreatedJobManagerRunner();
+        assertThat(cleanupRunner.getJobID()).isEqualTo(jobId);
+        assertThat(
+                        dispatcher
+                                .getRecoveredDirtyJobResultsByApplicationId()
+                                .containsKey(applicationId))
+                .isFalse();
+    }
+
+    @Test
     public void testApplicationCancellation() throws Exception {
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
         final CompletableFuture<Void> canceledApplicationFuture = new CompletableFuture<>();
-        ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder()
                         .setApplicationId(applicationId)
@@ -1217,7 +1498,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder()
                         .setApplicationId(applicationId)
@@ -1244,7 +1524,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
-        ApplicationID applicationId = new ApplicationID();
         final AbstractApplication application =
                 TestingApplication.builder()
                         .setApplicationId(applicationId)
@@ -1284,6 +1563,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         assertThat(dispatcher.getNumberJobs(TIMEOUT).get()).isOne();
@@ -1303,6 +1585,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         new ExpectedJobIdJobManagerRunnerFactory(jobId));
 
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
@@ -1327,8 +1611,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 createAndStartDispatcher(heartbeatServices, haServices, jobManagerRunnerFactory);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
+
         final JobGraph blockedJobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         blockedJobGraph.setJobID(blockingId);
+        blockedJobGraph.setApplicationId(applicationId);
 
         // Submit two jobs, one blocks forever
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -1408,7 +1696,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .build(rpcService);
         dispatcher.start();
 
-        mockApplicationStatusChange(ApplicationState.FINISHED);
+        submitApplicationAndMockApplicationStatusChange(ApplicationState.FINISHED);
 
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
@@ -1472,6 +1760,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         final long initializationTimestamp = initializationTimestampQueue.take();
@@ -1490,6 +1780,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
@@ -1507,6 +1799,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher = createAndStartDispatcher(heartbeatServices, haServices, blockingJobMaster);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        submitApplication();
 
         // run first job, which completes with SUSPENDED
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -1530,12 +1824,17 @@ public class DispatcherTest extends AbstractDispatcherTest {
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
+        submitApplication();
+
         // run first job, which completes with SUSPENDED
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         dispatcherGateway.requestJobResult(jobId, TIMEOUT).get();
 
         // run second job, which completes with FINISHED
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        // mock application termination so that its jobs can be marked clean and terminate
+        mockApplicationStatusChange(ApplicationState.FINISHED);
 
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
@@ -1549,6 +1848,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobID secondJobID = new JobID();
         JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
         secondJobGraph.setJobID(secondJobID);
+        secondJobGraph.setApplicationId(applicationId);
         final JobManagerRunnerFactory blockingJobMaster =
                 new QueuedJobManagerRunnerFactory(
                         runningJobManagerRunnerWithJobStatus(
@@ -1572,6 +1872,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobID secondJobID = new JobID();
         JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
         secondJobGraph.setJobID(secondJobID);
+        secondJobGraph.setApplicationId(applicationId);
         final JobManagerRunnerFactory blockingJobMaster =
                 new QueuedJobManagerRunnerFactory(
                         runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING, jobId, 10L),
@@ -1596,6 +1897,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
@@ -1614,6 +1917,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         JobVertex v3 = new JobVertex("v3");
         v3.setParallelism(3);
         jobGraph = new JobGraph(jobGraph.getJobID(), "job", v1, v2, v3);
+        jobGraph.setApplicationId(applicationId);
 
         configuration.set(
                 PipelineOptions.PARALLELISM_OVERRIDES,
@@ -1639,6 +1943,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         haServices,
                         new ExpectedJobIdJobManagerRunnerFactory(jobId));
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        submitApplication();
 
         assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 1);
         assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
@@ -1713,6 +2019,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 createAndStartDispatcher(heartbeatServices, haServices, jobManagerRunnerFactory);
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        submitApplication();
         for (JobGraph jobGraph : jobGraphs) {
             dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         }
@@ -1750,9 +2058,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final PermanentBlobKey blobKey1 = blobServer.putPermanent(jobId1, fileContent);
         final PermanentBlobKey blobKey2 = blobServer.putPermanent(jobId2, fileContent);
 
+        final JobGraph jobGraph1 = new JobGraph(jobId1, "foobar");
+        jobGraph1.setApplicationId(applicationId);
+
         dispatcher =
                 createTestingDispatcherBuilder()
-                        .setRecoveredJobs(Collections.singleton(new JobGraph(jobId1, "foobar")))
+                        .setRecoveredJobs(Collections.singleton(jobGraph1))
                         .build(rpcService);
 
         assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
@@ -1817,6 +2128,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         // We can try updating the JRR once the scheduler has been started.
@@ -1861,6 +2174,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
 
+        submitApplication();
+
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         // We can try updating the JRR once the scheduler has been started.
@@ -1899,6 +2214,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        submitApplication();
 
         assertThatFuture(
                         dispatcherGateway.updateJobResourceRequirements(
@@ -1945,12 +2262,16 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
 
+        submitApplication();
+
         // We intentionally perform the test on two jobs to make sure the
         // concurrent modification is only prevented on the per-job level.
         final JobGraph firstJobGraph = InstantiationUtil.clone(jobGraph);
         firstJobGraph.setJobID(JobID.generate());
+        firstJobGraph.setApplicationId(applicationId);
         final JobGraph secondJobGraph = InstantiationUtil.clone(jobGraph);
         secondJobGraph.setJobID(JobID.generate());
+        secondJobGraph.setApplicationId(applicationId);
 
         final CompletableFuture<?> firstPendingUpdateFuture =
                 testConcurrentModificationIsPrevented(
@@ -2012,6 +2333,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        submitApplication();
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         blockingJobMaster.waitForBlockingInit();
@@ -2474,124 +2797,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             .build();
             runner.getTerminationFuture().thenRun(onClose::run);
             return runner;
-        }
-    }
-
-    private static class TestingApplication extends AbstractApplication {
-
-        private final Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction;
-        private final Function<Void, Void> cancelFunction;
-        private final Function<Void, ApplicationState> getApplicationStatusFunction;
-
-        private TestingApplication(
-                ApplicationID applicationId,
-                Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction,
-                Function<Void, Void> cancelFunction,
-                Function<Void, ApplicationState> getApplicationStatusFunction) {
-            super(applicationId);
-            this.executeFunction = executeFunction;
-            this.cancelFunction = cancelFunction;
-            this.getApplicationStatusFunction = getApplicationStatusFunction;
-        }
-
-        @Override
-        public CompletableFuture<Acknowledge> execute(
-                DispatcherGateway dispatcherGateway,
-                ScheduledExecutor scheduledExecutor,
-                Executor mainThreadExecutor,
-                FatalErrorHandler errorHandler) {
-
-            ExecuteParams params =
-                    new ExecuteParams(
-                            dispatcherGateway, scheduledExecutor, mainThreadExecutor, errorHandler);
-            return executeFunction.apply(params);
-        }
-
-        @Override
-        public void cancel() {
-            cancelFunction.apply(null);
-        }
-
-        @Override
-        public void dispose() {}
-
-        @Override
-        public String getName() {
-            return "TestingApplication";
-        }
-
-        @Override
-        public ApplicationState getApplicationStatus() {
-            return getApplicationStatusFunction.apply(null);
-        }
-
-        public static class ExecuteParams {
-            public final DispatcherGateway dispatcherGateway;
-            public final ScheduledExecutor scheduledExecutor;
-            public final Executor mainThreadExecutor;
-            public final FatalErrorHandler errorHandler;
-
-            public ExecuteParams(
-                    DispatcherGateway dispatcherGateway,
-                    ScheduledExecutor scheduledExecutor,
-                    Executor mainThreadExecutor,
-                    FatalErrorHandler errorHandler) {
-                this.dispatcherGateway = dispatcherGateway;
-                this.scheduledExecutor = scheduledExecutor;
-                this.mainThreadExecutor = mainThreadExecutor;
-                this.errorHandler = errorHandler;
-            }
-        }
-
-        public static TestingApplication.Builder builder() {
-            return new TestingApplication.Builder();
-        }
-
-        public static class Builder {
-
-            static final Function<ExecuteParams, CompletableFuture<Acknowledge>>
-                    DEFAULT_EXECUTE_FUNCTION =
-                            params -> CompletableFuture.completedFuture(Acknowledge.get());
-            static final Function<Void, Void> DEFAULT_CANCEL_FUNCTION = ignored -> null;
-            static final Function<Void, ApplicationState> DEFAULT_GET_APPLICATION_STATUS_FUNCTION =
-                    ignored -> ApplicationState.RUNNING;
-
-            private ApplicationID applicationId = new ApplicationID();
-            private Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction =
-                    DEFAULT_EXECUTE_FUNCTION;
-            private Function<Void, Void> cancelFunction = DEFAULT_CANCEL_FUNCTION;
-            private Function<Void, ApplicationState> getApplicationStatusFunction =
-                    DEFAULT_GET_APPLICATION_STATUS_FUNCTION;
-
-            public Builder setApplicationId(ApplicationID applicationId) {
-                this.applicationId = applicationId;
-                return this;
-            }
-
-            public Builder setExecuteFunction(
-                    Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction) {
-                this.executeFunction = executeFunction;
-                return this;
-            }
-
-            public Builder setCancelFunction(Function<Void, Void> cancelFunction) {
-                this.cancelFunction = cancelFunction;
-                return this;
-            }
-
-            public Builder setGetApplicationStatusFunction(
-                    Function<Void, ApplicationState> getApplicationStatusFunction) {
-                this.getApplicationStatusFunction = getApplicationStatusFunction;
-                return this;
-            }
-
-            public TestingApplication build() {
-                return new TestingApplication(
-                        applicationId,
-                        executeFunction,
-                        cancelFunction,
-                        getApplicationStatusFunction);
-            }
         }
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
@@ -51,6 +52,7 @@ public class TestingJobResultStore implements JobResultStore {
     public static JobResult createJobResult(JobID jobId, @Nullable JobStatus jobStatus) {
         return new JobResult.Builder()
                 .jobId(jobId)
+                .applicationId(ApplicationID.fromHexString(jobId.toHexString()))
                 .jobName(DEFAULT_STREAMING_JOB_NAME)
                 .jobStatus(jobStatus)
                 .netRuntime(1)

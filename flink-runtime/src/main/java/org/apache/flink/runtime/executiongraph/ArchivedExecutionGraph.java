@@ -418,11 +418,35 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 jobName,
                 jobStatus,
                 jobType,
+                throwable,
+                checkpointingSettings,
+                initializationTimestamp,
+                -1,
+                null);
+    }
+
+    public static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
+            JobID jobId,
+            String jobName,
+            JobStatus jobStatus,
+            @Nullable JobType jobType,
+            @Nullable Throwable throwable,
+            @Nullable JobCheckpointingSettings checkpointingSettings,
+            long initializationTimestamp,
+            long endTimestamp,
+            @Nullable ApplicationID applicationId) {
+        return createSparseArchivedExecutionGraph(
+                jobId,
+                jobName,
+                jobStatus,
+                jobType,
                 Collections.emptyMap(),
                 Collections.emptyList(),
                 throwable,
                 checkpointingSettings,
-                initializationTimestamp);
+                initializationTimestamp,
+                endTimestamp,
+                applicationId);
     }
 
     public static ArchivedExecutionGraph createSparseArchivedExecutionGraphWithJobVertices(
@@ -464,7 +488,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 archivedVerticesInCreationOrder,
                 throwable,
                 checkpointingSettings,
-                initializationTimestamp);
+                initializationTimestamp,
+                -1,
+                null);
     }
 
     private static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
@@ -476,7 +502,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder,
             @Nullable Throwable throwable,
             @Nullable JobCheckpointingSettings checkpointingSettings,
-            long initializationTimestamp) {
+            long initializationTimestamp,
+            long endTimestamp,
+            @Nullable ApplicationID applicationId) {
         final Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators =
                 Collections.emptyMap();
         StringifiedAccumulatorResult[] archivedUserAccumulators =
@@ -491,9 +519,13 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         if (throwable != null) {
             Preconditions.checkState(
                     jobStatus == JobStatus.FAILED || jobStatus == JobStatus.SUSPENDED);
-            long failureTime = System.currentTimeMillis();
+            // we use the current time as the failure time if the endTimestamp is not valid
+            long failureTime = endTimestamp < 0 ? System.currentTimeMillis() : endTimestamp;
             failureInfo = new ErrorInfo(throwable, failureTime);
             timestamps[jobStatus.ordinal()] = failureTime;
+        } else if (jobStatus.isGloballyTerminalState() && endTimestamp >= 0) {
+            // use the valid endTimestamp as the timestamp for the terminal state
+            timestamps[jobStatus.ordinal()] = endTimestamp;
         }
 
         return new ArchivedExecutionGraph(
@@ -522,6 +554,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 checkpointingSettings == null ? null : "Unknown",
                 null,
                 0,
-                null);
+                applicationId);
     }
 }
