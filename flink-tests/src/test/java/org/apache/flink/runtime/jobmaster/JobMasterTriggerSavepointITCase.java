@@ -54,7 +54,6 @@ import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MdcUtils;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -80,6 +79,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER;
 import static org.apache.flink.util.JobIDLoggingUtil.assertKeyPresent;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -92,7 +92,7 @@ import static org.slf4j.event.Level.TRACE;
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
-public class JobMasterTriggerSavepointITCase {
+class JobMasterTriggerSavepointITCase {
 
     private static CountDownLatch invokeLatch;
 
@@ -181,7 +181,7 @@ public class JobMasterTriggerSavepointITCase {
                         .build();
 
         clusterClient.submitJob(jobGraph).get();
-        Assertions.assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
+        assertThat(invokeLatch.await(60, TimeUnit.SECONDS)).isTrue();
         waitForJob(clusterClient);
     }
 

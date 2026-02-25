@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for {@link StreamExecutionEnvironment}. */
-public class StreamExecutionEnvironmentITCase {
+class StreamExecutionEnvironmentITCase {
 
     @RegisterExtension
     public static final MiniClusterExtension MINI_CLUSTER =
