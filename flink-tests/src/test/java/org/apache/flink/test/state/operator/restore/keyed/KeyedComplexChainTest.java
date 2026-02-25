@@ -25,11 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
 /** Test state restoration for a keyed operator restore tests. */
-public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
-
-    public KeyedComplexChainTest(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
+class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
 
     @SnapshotsGenerator
     public void generateSnapshots(FlinkVersion targetVersion) throws Exception {
