@@ -25,16 +25,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 /** Base class for all keyed operator restore tests. */
-@RunWith(Parameterized.class)
-public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
-
-    public AbstractKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
+abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
     @Override
     public void createMigrationJob(StreamExecutionEnvironment env) {
