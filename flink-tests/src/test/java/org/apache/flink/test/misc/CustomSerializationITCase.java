@@ -29,34 +29,35 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Value;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for proper error messages in case user-defined serialization is broken and detected in the
  * network stack.
  */
-@SuppressWarnings("serial")
-public class CustomSerializationITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class CustomSerializationITCase {
 
-    private static final int PARLLELISM = 5;
+    private static final int PARALLELISM = 5;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(PARLLELISM)
+                            .setNumberSlotsPerTaskManager(PARALLELISM)
                             .build());
 
     public static Configuration getConfiguration() {
@@ -69,9 +70,9 @@ public class CustomSerializationITCase extends TestLogger {
     public void testIncorrectSerializer1() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARLLELISM);
+            env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARALLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooMuch>() {
                                 @Override
@@ -84,14 +85,14 @@ public class CustomSerializationITCase extends TestLogger {
 
             env.execute();
         } catch (JobExecutionException e) {
-            assertTrue(
-                    findThrowable(
+            assertThat(
+                            findThrowable(
                                     e,
                                     candidate ->
                                             candidate
                                                     .getMessage()
-                                                    .contains("broken serialization."))
-                            .isPresent());
+                                                    .contains("broken serialization.")))
+                    .isPresent();
         }
     }
 
@@ -99,9 +100,9 @@ public class CustomSerializationITCase extends TestLogger {
     public void testIncorrectSerializer2() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARLLELISM);
+            env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARALLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooMuchSpanning>() {
                                 @Override
@@ -114,14 +115,14 @@ public class CustomSerializationITCase extends TestLogger {
 
             env.execute();
         } catch (JobExecutionException e) {
-            assertTrue(
-                    findThrowable(
+            assertThat(
+                            findThrowable(
                                     e,
                                     candidate ->
                                             candidate
                                                     .getMessage()
-                                                    .contains("broken serialization."))
-                            .isPresent());
+                                                    .contains("broken serialization.")))
+                    .isPresent();
         }
     }
 
@@ -129,9 +130,9 @@ public class CustomSerializationITCase extends TestLogger {
     public void testIncorrectSerializer3() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARLLELISM);
+            env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARALLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooLittle>() {
                                 @Override
@@ -144,14 +145,14 @@ public class CustomSerializationITCase extends TestLogger {
 
             env.execute();
         } catch (JobExecutionException e) {
-            assertTrue(
-                    findThrowable(
+            assertThat(
+                            findThrowable(
                                     e,
                                     candidate ->
                                             candidate
                                                     .getMessage()
-                                                    .contains("broken serialization."))
-                            .isPresent());
+                                                    .contains("broken serialization.")))
+                    .isPresent();
         }
     }
 
@@ -159,9 +160,9 @@ public class CustomSerializationITCase extends TestLogger {
     public void testIncorrectSerializer4() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARLLELISM);
+            env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARLLELISM)
+            env.fromSequence(1, 10 * PARALLELISM)
                     .map(
                             new MapFunction<Long, ConsumesTooLittleSpanning>() {
                                 @Override
@@ -174,14 +175,14 @@ public class CustomSerializationITCase extends TestLogger {
 
             env.execute();
         } catch (ProgramInvocationException e) {
-            assertTrue(
-                    findThrowable(
+            assertThat(
+                            findThrowable(
                                     e,
                                     candidate ->
                                             candidate
                                                     .getMessage()
-                                                    .contains("broken serialization."))
-                            .isPresent());
+                                                    .contains("broken serialization.")))
+                    .isPresent();
         }
     }
 

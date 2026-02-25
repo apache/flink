@@ -38,11 +38,9 @@ import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunc
 import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,6 +48,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Test for the basic functionality of accumulators. We cannot test all different kinds of plans
@@ -59,7 +59,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
  * type. The conflict will occur in JobManager while merging.
  */
 @SuppressWarnings("serial")
-public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
+public class AccumulatorITCase extends JavaProgramTestBase {
 
     private static final String INPUT = "one\n" + "two two\n" + "three three three\n";
     private static final String EXPECTED = "one 1\ntwo 2\nthree 3\n";
@@ -84,28 +84,30 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
         JobExecutionResult res = this.result;
         System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
-        Assert.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
+        assertThat(res.<Integer>getAccumulatorResult("num-lines")).isEqualTo(Integer.valueOf(3));
 
-        Assert.assertEquals(
-                Double.valueOf(getParallelism()), res.getAccumulatorResult("open-close-counter"));
+        assertThat(res.<Double>getAccumulatorResult("open-close-counter"))
+                .isEqualTo(Double.valueOf(getParallelism()));
 
         // Test histogram (words per line distribution)
         Map<Integer, Integer> dist = new HashMap<>();
         dist.put(1, 1);
         dist.put(2, 1);
         dist.put(3, 1);
-        Assert.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
+        assertThat(res.<Map<Integer, Integer>>getAccumulatorResult("words-per-line"))
+                .isEqualTo(dist);
 
         // Test distinct words (custom accumulator)
         Set<StringValue> distinctWords = new HashSet<>();
         distinctWords.add(new StringValue("one"));
         distinctWords.add(new StringValue("two"));
         distinctWords.add(new StringValue("three"));
-        Assert.assertEquals(distinctWords, res.getAccumulatorResult("distinct-words"));
+        assertThat(res.<Set<StringValue>>getAccumulatorResult("distinct-words"))
+                .isEqualTo(distinctWords);
     }
 
     @Override
-    protected void testProgram() throws Exception {
+    protected JobExecutionResult testProgram() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStreamSource<String> input =
@@ -137,6 +139,7 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
                                 new TextOutputFormat<>(new Path(resultPath))));
 
         this.result = env.execute();
+        return this.result;
     }
 
     private static class TokenizeLine extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
@@ -167,11 +170,11 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
             // Create counter and test increment
             IntCounter simpleCounter = getRuntimeContext().getIntCounter("simple-counter");
             simpleCounter.add(1);
-            Assert.assertEquals(simpleCounter.getLocalValue().intValue(), 1);
+            assertThat(simpleCounter.getLocalValue().intValue()).isEqualTo(1);
 
             // Test if we get the same counter
             IntCounter simpleCounter2 = getRuntimeContext().getIntCounter("simple-counter");
-            Assert.assertEquals(simpleCounter.getLocalValue(), simpleCounter2.getLocalValue());
+            assertThat(simpleCounter2.getLocalValue()).isEqualTo(simpleCounter.getLocalValue());
 
             // Should fail if we request it with different type
             try {
@@ -181,8 +184,7 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
                 // DoubleSumAggregator longAggregator3 = (DoubleSumAggregator)
                 // getRuntimeContext().getAggregator("custom",
                 // DoubleSumAggregator.class);
-                Assert.fail(
-                        "Should not be able to obtain previously created counter with different type");
+                fail("Should not be able to obtain previously created counter with different type");
             } catch (UnsupportedOperationException ex) {
                 // expected!
             }
@@ -208,7 +210,7 @@ public class AccumulatorITCase extends JavaProgramTestBaseJUnit4 {
         public void close() throws Exception {
             // Test counter used in open and close only
             this.openCloseCounter.add(0.5);
-            Assert.assertEquals(1, this.openCloseCounter.getLocalValue().intValue());
+            assertThat(this.openCloseCounter.getLocalValue().intValue()).isEqualTo(1);
         }
     }
 

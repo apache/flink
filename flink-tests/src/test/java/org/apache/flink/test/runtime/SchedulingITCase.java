@@ -39,13 +39,13 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -53,11 +53,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for testing Flink's scheduling strategies. */
-public class SchedulingITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class SchedulingITCase {
 
     /** Tests that if local recovery is disabled we won't spread out tasks when recovering. */
     @Test
@@ -123,12 +123,12 @@ public class SchedulingITCase extends TestLogger {
 
             JobResult jobResult = resultFuture.get();
 
-            assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+            assertThat(jobResult.getSerializedThrowable().isPresent()).isFalse();
         }
     }
 
     @Nonnull
-    private JobGraph createJobGraph(long delay, int parallelism) throws IOException {
+    private JobGraph createJobGraph(long delay, int parallelism) {
         SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
         final JobVertex source = new JobVertex("source");

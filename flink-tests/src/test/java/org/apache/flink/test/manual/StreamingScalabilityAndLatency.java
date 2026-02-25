@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunc
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Manual test to evaluate impact of checkpointing on latency. */
 public class StreamingScalabilityAndLatency {
