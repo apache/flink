@@ -838,16 +838,13 @@ class CodeGeneratorContext(
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       contextArgs: Seq[String] = null): String = {
-    val classQualifier = function.getClass.getName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
     // check if function has been added before to avoid duplicate function instances
-    if (reusableFunctionTerms.contains(fieldTerm)) {
-      return fieldTerm
-    } else {
+    if (!reusableFunctionTerms.contains(fieldTerm)) {
       reusableFunctionTerms += fieldTerm
+      val classQualifier = function.getClass.getName
+      addReusableObjectInternal(function, fieldTerm, classQualifier)
     }
-
-    addReusableObjectInternal(function, fieldTerm, classQualifier)
 
     val openFunction = if (contextArgs != null) {
       s"""
