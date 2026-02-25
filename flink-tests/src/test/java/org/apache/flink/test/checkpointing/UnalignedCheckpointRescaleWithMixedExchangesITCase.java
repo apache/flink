@@ -39,19 +39,21 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
@@ -65,20 +67,27 @@ import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrat
  * Integration test for rescaling jobs with mixed (UC-supported and UC-unsupported) exchanges from
  * an unaligned checkpoint.
  */
-@RunWith(Parameterized.class)
-public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class UnalignedCheckpointRescaleWithMixedExchangesITCase {
 
     private static final int NUM_TASK_MANAGERS = 1;
     private static final int SLOTS_PER_TASK_MANAGER = 10;
     private static final int MAX_SLOTS = NUM_TASK_MANAGERS * SLOTS_PER_TASK_MANAGER;
     private static final Random RANDOM = new Random();
 
-    private static MiniClusterWithClientResource cluster;
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(NUM_TASK_MANAGERS)
+                            .setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
+                            .build());
 
-    @Parameterized.Parameter public ExecuteJobViaEnv executeJobViaEnv;
+    @TempDir private File temporaryFolder;
 
-    @Parameterized.Parameters(name = "Test case {index}")
+    @Parameter private ExecuteJobViaEnv executeJobViaEnv;
+
+    @Parameters
     public static Collection<ExecuteJobViaEnv> parameter() {
         return List.of(
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createMultiOutputDAG,
@@ -88,34 +97,13 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createPartEmptyHashExchangeDAG);
     }
 
-    @Before
-    public void setup() throws Exception {
-        cluster =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(new Configuration())
-                                .setNumberTaskManagers(NUM_TASK_MANAGERS)
-                                .setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
-                                .build());
-        cluster.before();
-    }
-
-    @After
-    public void shutDownExistingCluster() {
-        if (cluster != null) {
-            cluster.after();
-            cluster = null;
-        }
-    }
-
     /**
      * Tests rescaling from an unaligned checkpoint with different job structures that have mixed
      * (UC-supported and UC-unsupported) exchanges.
      */
-    @Test
-    public void testRescaleFromUnalignedCheckpoint() throws Exception {
-        final MiniCluster miniCluster = cluster.getMiniCluster();
-
+    @TestTemplate
+    public void testRescaleFromUnalignedCheckpoint(@InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
         // Step 1: Run the job with initial parallelism and take a checkpoint
         JobClient jobClient1 = executeJobViaEnv.executeJob(getUnalignedCheckpointEnv(null));
 
@@ -146,9 +134,7 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
         conf.set(
                 CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION,
                 ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
-        conf.set(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                temporaryFolder.newFolder().toURI().toString());
+        conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.toURI().toString());
         conf.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
         // Decrease the memory segment size to avoid the test is so slow for some reasons:
         // 1. When a flink job recovers from unaligned checkpoint, it has to consume all inflight

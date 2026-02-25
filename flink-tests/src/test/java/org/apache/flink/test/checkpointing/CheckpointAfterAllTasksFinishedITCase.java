@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests an immediate checkpoint should be triggered right after all tasks reached the end of data.
  */
-public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
+class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
     private static final int SMALL_SOURCE_NUM_RECORDS = 20;
     private static final int BIG_SOURCE_NUM_RECORDS = 100;
 

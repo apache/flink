@@ -60,19 +60,20 @@ import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -98,27 +99,28 @@ import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_E
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
 import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.get;
 import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /** Base class for tests related to period materialization of ChangelogStateBackend. */
-@RunWith(Parameterized.class)
-public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+abstract class ChangelogRecoveryITCaseBase {
 
     private static final int NUM_TASK_MANAGERS = 1;
     private static final int NUM_TASK_SLOTS = 4;
     protected static final int NUM_SLOTS = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
     protected static final int TOTAL_ELEMENTS = 10_000;
 
-    protected final AbstractStateBackend delegatedStateBackend;
+    @Parameter protected AbstractStateBackend delegatedStateBackend;
 
     protected MiniClusterWithClientResource cluster;
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir protected File temporaryFolder;
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    protected final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Parameterized.Parameters(name = "delegated state backend type = {0}")
+    @Parameters(name = "delegated state backend type = {0}")
     public static Collection<AbstractStateBackend> parameter() {
         return Arrays.asList(
                 new HashMapStateBackend(),
@@ -126,11 +128,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                 new EmbeddedRocksDBStateBackend(false));
     }
 
-    public ChangelogRecoveryITCaseBase(AbstractStateBackend delegatedStateBackend) {
-        this.delegatedStateBackend = delegatedStateBackend;
-    }
-
-    @Before
+    @BeforeEach
     public void setup() throws Exception {
         cluster =
                 new MiniClusterWithClientResource(
@@ -143,8 +141,8 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         cluster.getMiniCluster().overrideRestoreModeForChangelogStateBackend();
     }
 
-    @After
-    public void tearDown() throws IOException {
+    @AfterEach
+    public void tearDown() {
         cluster.after();
         // clear result in sink
         CollectionSink.clearExpectedResult();
@@ -225,7 +223,8 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
 
     protected void waitAndAssert(JobGraph jobGraph) throws Exception {
         waitUntilJobFinished(jobGraph);
-        assertEquals(CollectionSink.getActualResult(), ControlledSource.getExpectedResult());
+        assertThat(CollectionSink.getActualResult())
+                .isEqualTo(ControlledSource.getExpectedResult());
     }
 
     protected JobID generateJobID() {
@@ -292,7 +291,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     private Configuration configure() throws IOException {
         Configuration configuration = new Configuration();
         FsStateChangelogStorageFactory.configure(
-                configuration, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
+                configuration, temporaryFolder, Duration.ofMinutes(1), 10);
         return configuration;
     }
 

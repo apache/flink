@@ -31,7 +31,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -56,9 +55,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -87,26 +83,24 @@ import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,7 +119,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -141,42 +134,35 @@ import java.util.stream.Stream;
 import static java.util.concurrent.CompletableFuture.allOf;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
 import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.hamcrest.CoreMatchers.either;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Integration test for triggering and resuming from savepoints. */
-@SuppressWarnings("serial")
-public class SavepointITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class SavepointITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    @Rule public final TemporaryFolder folder = new TemporaryFolder();
+    @TempDir private File folder;
 
     private File checkpointDir;
 
     private File savepointDir;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
-        final File testRoot = folder.newFolder();
-
-        checkpointDir = new File(testRoot, "checkpoints");
-        savepointDir = new File(testRoot, "savepoints");
+        checkpointDir = new File(folder, "checkpoints");
+        savepointDir = new File(folder, "savepoints");
 
         if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
             fail("Test setup failed: failed to create temporary directories.");
@@ -228,9 +214,9 @@ public class SavepointITCase extends TestLogger {
             client.stopWithSavepoint(jobId, drain, null, SavepointFormatType.CANONICAL).get();
 
             if (drain) {
-                Assert.assertTrue(BoundedPassThroughOperator.inputEnded);
+                assertThat(BoundedPassThroughOperator.inputEnded).isTrue();
             } else {
-                Assert.assertFalse(BoundedPassThroughOperator.inputEnded);
+                assertThat(BoundedPassThroughOperator.inputEnded).isFalse();
             }
         } finally {
             cluster.after();
@@ -335,18 +321,13 @@ public class SavepointITCase extends TestLogger {
                             savepointDir.getAbsolutePath(),
                             SavepointFormatType.CANONICAL);
 
-            final Throwable savepointException =
-                    assertThrows(ExecutionException.class, savepointCompleted::get).getCause();
-            assertThrowable(
-                    savepointException,
-                    throwable ->
-                            throwable instanceof StopWithSavepointStoppingException
-                                    && throwable
-                                            .getMessage()
-                                            .startsWith("A savepoint has been created at: "));
-            assertThat(
-                    client.getJobStatus(jobGraph.getJobID()).get(),
-                    either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
+            assertThatThrownBy(savepointCompleted::get)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(StopWithSavepointStoppingException.class)
+                    .cause()
+                    .hasMessageStartingWith("A savepoint has been created at: ");
+            assertThat(client.getJobStatus(jobGraph.getJobID()).get())
+                    .isIn(JobStatus.FAILED, JobStatus.FAILING);
         } finally {
             cluster.after();
         }
@@ -420,9 +401,9 @@ public class SavepointITCase extends TestLogger {
                 cluster -> {
                     cluster.after();
 
-                    assertFalse(
-                            "Savepoint not properly cleaned up.",
-                            new File(new URI(savepointPath)).exists());
+                    assertThat(new File(new URI(savepointPath)))
+                            .as("Savepoint not properly cleaned up.")
+                            .doesNotExist();
                 });
     }
 
@@ -445,16 +426,17 @@ public class SavepointITCase extends TestLogger {
                 cluster -> {
                     cluster.after();
 
-                    assertTrue(
-                            "Savepoint unexpectedly cleaned up.",
-                            new File(new URI(savepointPath)).exists());
+                    assertThat(new File(new URI(savepointPath)))
+                            .as("Savepoint unexpectedly cleaned up.")
+                            .exists();
                 });
     }
 
-    @Rule public SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @Test
-    @Ignore("Disabling this test because it regularly fails on AZP. See FLINK-25427.")
+    @Disabled("Disabling this test because it regularly fails on AZP. See FLINK-25427.")
     public void testTriggerSavepointAndResumeWithNoClaim() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
@@ -466,7 +448,7 @@ public class SavepointITCase extends TestLogger {
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(
-                env, folder.newFolder().toURI());
+                env, TempDirUtils.newFolder(folder.toPath()).toURI());
         env.setParallelism(parallelism);
 
         final SharedReference<CountDownLatch> counter =
@@ -570,7 +552,8 @@ public class SavepointITCase extends TestLogger {
         final org.apache.flink.core.fs.Path oldPath =
                 new org.apache.flink.core.fs.Path(savepointPath);
         final org.apache.flink.core.fs.Path newPath =
-                new org.apache.flink.core.fs.Path(folder.newFolder().toURI().toString());
+                new org.apache.flink.core.fs.Path(
+                        TempDirUtils.newFolder(folder.toPath()).toURI().toString());
         (new org.apache.flink.core.fs.Path(savepointPath).getFileSystem()).rename(oldPath, newPath);
         verifySavepoint(parallelism, newPath.toUri().toString());
 
@@ -590,7 +573,7 @@ public class SavepointITCase extends TestLogger {
                         getCheckpointingWithEntropyConfig());
 
         final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
-        assertThat(savepointDir, hasEntropyInFileStateHandlePaths());
+        assertThat(savepointDir).is(hasEntropyInFileStateHandlePaths());
 
         restoreJobAndVerifyState(
                 clusterFactory,
@@ -598,9 +581,11 @@ public class SavepointITCase extends TestLogger {
                 SavepointRestoreSettings.forPath(savepointPath),
                 cluster -> {
                     final URI localURI = new URI(savepointPath.replace("test-entropy:/", "file:/"));
-                    assertTrue("Savepoint has not been created", new File(localURI).exists());
+                    assertThat(new File(localURI)).as("Savepoint has not been created").exists();
                     cluster.getClusterClient().disposeSavepoint(savepointPath).get();
-                    assertFalse("Savepoint not properly cleaned up.", new File(localURI).exists());
+                    assertThat(new File(localURI))
+                            .as("Savepoint not properly cleaned up.")
+                            .doesNotExist();
                 });
     }
 
@@ -642,9 +627,11 @@ public class SavepointITCase extends TestLogger {
             throws URISyntaxException {
         // Only one savepoint should exist
         File savepointDir = new File(new URI(savepointPath));
-        assertTrue("Savepoint directory does not exist.", savepointDir.exists());
-        assertTrue(
-                "Savepoint did not create self-contained directory.", savepointDir.isDirectory());
+        assertThat(savepointDir)
+                .as("Savepoint directory does not exist.")
+                .exists()
+                .as("Savepoint did not create self-contained directory.")
+                .isDirectory();
 
         File[] savepointFiles = savepointDir.listFiles();
 
@@ -654,7 +641,7 @@ public class SavepointITCase extends TestLogger {
             String errMsg =
                     "Did not write expected number of savepoint/checkpoint files to directory: "
                             + Arrays.toString(savepointFiles);
-            assertEquals(errMsg, 1 + parallelism, savepointFiles.length);
+            assertThat(savepointFiles).as(errMsg).hasSize(1 + parallelism);
         } else {
             fail(String.format("Returned savepoint path (%s) is not valid.", savepointPath));
         }
@@ -669,9 +656,9 @@ public class SavepointITCase extends TestLogger {
                 SavepointRestoreSettings.forPath(savepointPath, false),
                 cluster -> {
                     cluster.getClusterClient().disposeSavepoint(savepointPath).get();
-                    assertFalse(
-                            "Savepoint not properly cleaned up.",
-                            new File(new URI(savepointPath)).exists());
+                    assertThat(new File(new URI(savepointPath)))
+                            .as("Savepoint not properly cleaned up.")
+                            .doesNotExist();
                 });
     }
 
@@ -711,7 +698,7 @@ public class SavepointITCase extends TestLogger {
                     Duration.ofMillis(50),
                     Deadline.now().plus(Duration.ofSeconds(30)),
                     status -> status == JobStatus.CANCELED,
-                    new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()));
+                    new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor()));
 
             postCancelChecks.check(cluster);
         } finally {
@@ -828,11 +815,11 @@ public class SavepointITCase extends TestLogger {
                                     jobGraph.getJobID(), null, SavepointFormatType.CANONICAL)
                             .get();
 
-            assertNotNull(savepointPath);
+            assertThat(savepointPath).isNotNull();
 
             client.cancel(jobGraph.getJobID()).get();
             // checkpoint directory should not be initialized
-            assertEquals(0, Objects.requireNonNull(checkpointDir.listFiles()).length);
+            assertThat(checkpointDir.listFiles()).isNotNull().hasSize(0);
         } finally {
             if (null != savepointPath) {
                 client.disposeSavepoint(savepointPath);
@@ -934,9 +921,9 @@ public class SavepointITCase extends TestLogger {
 
                 client.stopWithSavepoint(jobId, false, null, SavepointFormatType.CANONICAL).get();
 
-                Assert.assertFalse(
-                        "input ended with chainingStrategy " + chainingStrategy,
-                        BoundedPassThroughOperator.inputEnded);
+                assertThat(BoundedPassThroughOperator.inputEnded)
+                        .as("input ended with chainingStrategy " + chainingStrategy)
+                        .isFalse();
             } finally {
                 cluster.after();
             }
@@ -974,9 +961,10 @@ public class SavepointITCase extends TestLogger {
 
             // Set non-existing savepoint path
             jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("unknown path"));
-            assertEquals("unknown path", jobGraph.getSavepointRestoreSettings().getRestorePath());
+            assertThat(jobGraph.getSavepointRestoreSettings().getRestorePath())
+                    .isEqualTo("unknown path");
 
-            LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
+            LOG.info("Submitting job {} in detached mode.", jobGraph.getJobID());
 
             try {
                 submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
@@ -999,7 +987,7 @@ public class SavepointITCase extends TestLogger {
     public void testStopWithSavepointFailingInSnapshotCreation() throws Exception {
         testStopWithFailingSourceInOnePipeline(
                 new SnapshotFailingInfiniteTestSource(),
-                folder.newFolder(),
+                TempDirUtils.newFolder(folder.toPath()),
                 // two restarts expected:
                 // 1. task failure restart
                 // 2. job failover triggered by the CheckpointFailureManager
@@ -1014,7 +1002,7 @@ public class SavepointITCase extends TestLogger {
         CancelFailingInfiniteTestSource.checkpointCompleteTriggered = false;
         testStopWithFailingSourceInOnePipeline(
                 new CancelFailingInfiniteTestSource(),
-                folder.newFolder(),
+                TempDirUtils.newFolder(folder.toPath()),
                 // two restarts expected:
                 // 1. task failure restart
                 // 2. job failover triggered by SchedulerBase.stopWithSavepoint
@@ -1179,26 +1167,6 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
-    public static void waitUntilAllTasksAreRunning(
-            RestClusterClient<?> restClusterClient, JobID jobId) throws Exception {
-        // access the REST endpoint of the cluster to determine the state of each
-        // ExecutionVertex
-
-        final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
-        final JobMessageParameters params = detailsHeaders.getUnresolvedMessageParameters();
-        params.jobPathParameter.resolve(jobId);
-
-        CommonTestUtils.waitUntilCondition(
-                () ->
-                        restClusterClient
-                                .sendRequest(detailsHeaders, params, EmptyRequestBody.getInstance())
-                                .thenApply(
-                                        detailsInfo ->
-                                                allVerticesRunning(
-                                                        detailsInfo.getJobVerticesPerState()))
-                                .get());
-    }
-
     private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {
         return states.entrySet().stream()
                 .allMatch(
@@ -1270,9 +1238,10 @@ public class SavepointITCase extends TestLogger {
 
             // wait for the Tasks to be ready
             waitForAllTaskRunning(cluster.getMiniCluster(), jobID, false);
-            assertTrue(
-                    StatefulCounter.getProgressLatch()
-                            .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+            assertThat(
+                            StatefulCounter.getProgressLatch()
+                                    .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                    .isTrue();
 
             savepointPath =
                     client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL).get();
@@ -1329,14 +1298,16 @@ public class SavepointITCase extends TestLogger {
             // Submit the job
             client.submitJob(modifiedJobGraph).get();
             // Await state is restored
-            assertTrue(
-                    StatefulCounter.getRestoreLatch()
-                            .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+            assertThat(
+                            StatefulCounter.getRestoreLatch()
+                                    .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                    .isTrue();
 
             // Await some progress after restore
-            assertTrue(
-                    StatefulCounter.getProgressLatch()
-                            .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+            assertThat(
+                            StatefulCounter.getProgressLatch()
+                                    .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                    .isTrue();
         } finally {
             cluster.after();
         }
@@ -1582,10 +1553,10 @@ public class SavepointITCase extends TestLogger {
             if (!state.isEmpty()) {
                 this.emittedCount = state.get(0);
             }
-            Assert.assertEquals(
-                    iterTestCheckpointVerify[
-                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()],
-                    emittedCount);
+            assertThat(emittedCount)
+                    .isEqualTo(
+                            iterTestCheckpointVerify[
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]);
             iterTestRestoreWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
                     .trigger();
         }
@@ -1656,14 +1627,12 @@ public class SavepointITCase extends TestLogger {
         return getFileBasedCheckpointsConfig(savepointDir.toURI().toString());
     }
 
-    private static Matcher<File> hasEntropyInFileStateHandlePaths() {
-        return new TypeSafeDiagnosingMatcher<File>() {
-
+    private static Condition<File> hasEntropyInFileStateHandlePaths() {
+        return new Condition<>("all savepoint files should have added entropy") {
             @Override
-            protected boolean matchesSafely(
-                    final File savepointDir, final Description mismatchDescription) {
+            public boolean matches(File savepointDir) {
                 if (savepointDir == null) {
-                    mismatchDescription.appendText("savepoint dir must not be null");
+                    describedAs("savepoint dir must not be null");
                     return false;
                 }
 
@@ -1679,23 +1648,16 @@ public class SavepointITCase extends TestLogger {
                 final List<Path> filesWithEntropy = listRecursively(savepointDirWithEntropy);
 
                 if (!filesWithoutEntropy.isEmpty()) {
-                    mismatchDescription.appendText(
-                            "there are savepoint files with unresolved entropy placeholders");
+                    describedAs("there are savepoint files with unresolved entropy placeholders");
                     return false;
                 }
 
                 if (!Files.exists(savepointDirWithEntropy) || filesWithEntropy.isEmpty()) {
-                    mismatchDescription.appendText(
-                            "there are no savepoint files with added entropy");
+                    describedAs("there are no savepoint files with added entropy");
                     return false;
                 }
 
                 return true;
-            }
-
-            @Override
-            public void describeTo(final Description description) {
-                description.appendText("all savepoint files should have added entropy");
             }
         };
     }
