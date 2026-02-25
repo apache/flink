@@ -38,32 +38,36 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.SingleSplitEnumerator;
 import org.apache.flink.test.util.source.TestSourceReader;
 import org.apache.flink.test.util.source.TestSplit;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -79,31 +83,30 @@ import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.TestC
 import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.TestCheckpointType.CANONICAL_SAVEPOINT;
 import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.TestCheckpointType.NATIVE_SAVEPOINT;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test check scenario when the upgraded job(different map order, different record type, new map)
  * restored on old savepoint/checkpoint.
  */
-@RunWith(Parameterized.class)
-public class RestoreUpgradedJobITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class RestoreUpgradedJobITCase {
     private static final int PARALLELISM = 4;
     private static final int TOTAL_RECORDS = 100;
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-    @Parameterized.Parameter public TestCheckpointType checkpointType;
+    @TempDir private static File temporaryFolder;
+    @Parameter public TestCheckpointType checkpointType;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource CLUSTER =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(new Configuration())
                             .setNumberTaskManagers(2)
                             .setNumberSlotsPerTaskManager(4)
                             .build());
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    public final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private SharedReference<OneShotLatch> allDataEmittedLatch;
     private SharedReference<AtomicLong> result;
@@ -113,7 +116,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         result = sharedObjects.add(new AtomicLong());
     }
 
-    @Parameterized.Parameters(name = "Savepoint type[{0}]")
+    @Parameters(name = "Savepoint type[{0}]")
     public static Object[][] parameters() {
         return new Object[][] {
             {ALIGNED_CHECKPOINT}, {CANONICAL_SAVEPOINT}, {NATIVE_SAVEPOINT},
@@ -139,22 +142,23 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         }
     }
 
-    @Test
-    public void testRestoreUpgradedJob() throws Exception {
+    @TestTemplate
+    public void testRestoreUpgradedJob(@InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
         setupSharedObjects();
 
         // when: Run original job.
-        String snapshotPath = runOriginalJob();
+        String snapshotPath = runOriginalJob(miniCluster);
 
         // then: Check the result before the checkpoint.
-        assertThat(result.get().longValue(), is(calculateExpectedResultBeforeSavepoint()));
+        assertThat(result.get().longValue()).isEqualTo(calculateExpectedResultBeforeSavepoint());
         result.get().set(0);
 
         // when: Executing the new job with different order of maps.
-        runUpgradedJob(snapshotPath);
+        runUpgradedJob(snapshotPath, miniCluster);
 
         // then: The final result should ignore state from new maps(because it is empty).
-        assertThat(result.get().longValue(), is(calculateExpectedResultBeforeSavepoint()));
+        assertThat(result.get().longValue()).isEqualTo(calculateExpectedResultBeforeSavepoint());
     }
 
     private long calculateExpectedResultAfterSavepoint() {
@@ -180,7 +184,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
     }
 
     @Nonnull
-    private String runOriginalJob() throws Exception {
+    private String runOriginalJob(MiniCluster miniCluster) throws Exception {
         Configuration conf = new Configuration();
         // TODO: remove this after FLINK-32081
         conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
@@ -189,8 +193,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
                 .setExternalizedCheckpointRetention(
                         ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.getCheckpointConfig().enableUnalignedCheckpoints(false);
-        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
-                env, "file://" + temporaryFolder.getRoot().getAbsolutePath());
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, temporaryFolder.toURI());
         env.setParallelism(PARALLELISM);
         // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
         env.enableCheckpointing(Integer.MAX_VALUE);
@@ -225,15 +228,15 @@ public class RestoreUpgradedJobITCase extends TestLogger {
 
         // when: Job is executed.
         JobClient jobClient = env.executeAsync("Total sum");
-        waitForAllTaskRunning(CLUSTER.getMiniCluster(), jobClient.getJobID(), false);
+        waitForAllTaskRunning(miniCluster, jobClient.getJobID(), false);
 
         allDataEmittedLatch.get().await();
         allDataEmittedLatch.get().reset();
 
-        return stopWithSnapshot(jobClient);
+        return stopWithSnapshot(jobClient, miniCluster);
     }
 
-    private void runUpgradedJob(String snapshotPath) throws Exception {
+    private void runUpgradedJob(String snapshotPath, MiniCluster miniCluster) throws Exception {
         StreamExecutionEnvironment env;
         Configuration conf = new Configuration();
         conf.set(StateRecoveryOptions.SAVEPOINT_PATH, snapshotPath);
@@ -273,31 +276,29 @@ public class RestoreUpgradedJobITCase extends TestLogger {
 
         JobClient jobClient = env.executeAsync("Total sum");
 
-        waitForAllTaskRunning(CLUSTER.getMiniCluster(), jobClient.getJobID(), false);
+        waitForAllTaskRunning(miniCluster, jobClient.getJobID(), false);
 
         allDataEmittedLatch.get().await();
 
         // Using stopWithSavepoint to be sure that all values reached the sink.
         jobClient
                 .stopWithSavepoint(
-                        true,
-                        temporaryFolder.getRoot().getAbsolutePath(),
-                        SavepointFormatType.CANONICAL)
+                        true, temporaryFolder.getAbsolutePath(), SavepointFormatType.CANONICAL)
                 .get();
     }
 
-    private String stopWithSnapshot(JobClient jobClient)
+    private String stopWithSnapshot(JobClient jobClient, MiniCluster miniCluster)
             throws InterruptedException, ExecutionException {
         String snapshotPath;
         if (checkpointType == ALIGNED_CHECKPOINT) {
-            snapshotPath = CLUSTER.getMiniCluster().triggerCheckpoint(jobClient.getJobID()).get();
+            snapshotPath = miniCluster.triggerCheckpoint(jobClient.getJobID()).get();
             jobClient.cancel().get();
         } else if (checkpointType == CANONICAL_SAVEPOINT) {
             snapshotPath =
                     jobClient
                             .stopWithSavepoint(
                                     true,
-                                    temporaryFolder.getRoot().getAbsolutePath(),
+                                    temporaryFolder.getAbsolutePath(),
                                     SavepointFormatType.CANONICAL)
                             .get();
         } else if (checkpointType == NATIVE_SAVEPOINT) {
@@ -305,7 +306,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
                     jobClient
                             .stopWithSavepoint(
                                     true,
-                                    temporaryFolder.getRoot().getAbsolutePath(),
+                                    temporaryFolder.getAbsolutePath(),
                                     SavepointFormatType.NATIVE)
                             .get();
         } else {

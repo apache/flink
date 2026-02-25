@@ -36,31 +36,31 @@ import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This verifies that checkpointing works correctly with event time windows.
  *
  * <p>This is a version of {@link EventTimeWindowCheckpointingITCase} for All-Windows.
  */
-@SuppressWarnings("serial")
-public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class EventTimeAllWindowCheckpointingITCase {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(2)
@@ -105,11 +105,11 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        1,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(1);
                                 open = true;
                             }
 
@@ -120,7 +120,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 int sum = 0;
                                 long key = -1;
@@ -179,11 +179,11 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        1,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(1);
                                 open = true;
                             }
 
@@ -194,7 +194,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 int sum = 0;
                                 long key = -1;
@@ -259,11 +259,11 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        1,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(1);
                                 open = true;
                             }
 
@@ -274,7 +274,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 for (Tuple2<Long, IntType> in : input) {
                                     out.collect(
@@ -337,11 +337,11 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        1,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(1);
                                 open = true;
                             }
 
@@ -352,7 +352,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 for (Tuple2<Long, IntType> in : input) {
                                     out.collect(
