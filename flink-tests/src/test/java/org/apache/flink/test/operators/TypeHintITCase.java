@@ -35,18 +35,18 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.operators.util.CollectionDataStreams;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 
 /** Integration tests for {@link org.apache.flink.api.common.typeinfo.TypeHint}. */
-public class TypeHintITCase extends AbstractTestBaseJUnit4 {
+class TypeHintITCase extends AbstractTestBase {
 
     @Test
     public void testIdentityMapWithMissingTypesAndStringTypeHint() throws Exception {
