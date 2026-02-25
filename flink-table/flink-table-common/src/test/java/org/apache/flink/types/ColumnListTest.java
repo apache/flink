@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,9 +35,9 @@ class ColumnListTest {
 
     @Test
     void testWithNamesAndDataTypes() {
-        final List<String> names = Arrays.asList("a", "b", "c");
+        final List<String> names = List.of("a", "b", "c");
         final List<DataType> dataTypes =
-                Arrays.asList(DataTypes.INT(), DataTypes.STRING(), DataTypes.BOOLEAN());
+                List.of(DataTypes.INT(), DataTypes.STRING(), DataTypes.BOOLEAN());
 
         final ColumnList columnList = ColumnList.of(names, dataTypes);
 
@@ -48,7 +47,7 @@ class ColumnListTest {
 
     @Test
     void testWithNamesOnly() {
-        final List<String> names = Arrays.asList("a", "b", "c");
+        final List<String> names = List.of("a", "b", "c");
 
         final ColumnList columnList = ColumnList.of(names);
 
@@ -58,8 +57,7 @@ class ColumnListTest {
 
     @Test
     void testWithEmptyLists() {
-        final ColumnList columnList =
-                ColumnList.of(Collections.emptyList(), Collections.emptyList());
+        final ColumnList columnList = ColumnList.of(List.of(), List.of());
 
         assertThat(columnList.getNames()).isEmpty();
         assertThat(columnList.getDataTypes()).isEmpty();
@@ -74,9 +72,9 @@ class ColumnListTest {
 
     @Test
     void testToStringWithNamesAndDataTypes() {
-        final List<String> names = Arrays.asList("a", "b", "c");
+        final List<String> names = List.of("a", "b", "c");
         final List<DataType> dataTypes =
-                Arrays.asList(DataTypes.INT(), DataTypes.STRING(), DataTypes.BOOLEAN());
+                List.of(DataTypes.INT(), DataTypes.STRING(), DataTypes.BOOLEAN());
 
         final ColumnList columnList = ColumnList.of(names, dataTypes);
 
@@ -85,12 +83,12 @@ class ColumnListTest {
 
     @Test
     void testEqualsAndHashCode() {
-        final List<String> names = Arrays.asList("a", "b");
-        final List<DataType> dataTypes = Arrays.asList(DataTypes.INT(), DataTypes.STRING());
+        final List<String> names = List.of("a", "b");
+        final List<DataType> dataTypes = List.of(DataTypes.INT(), DataTypes.STRING());
 
         final ColumnList columnList1 = ColumnList.of(names, dataTypes);
         final ColumnList columnList2 = ColumnList.of(names, dataTypes);
-        final ColumnList columnList3 = ColumnList.of(Arrays.asList("a", "b"));
+        final ColumnList columnList3 = ColumnList.of(List.of("a", "b"));
 
         assertThat(columnList1).isEqualTo(columnList2);
         assertThat(columnList1.hashCode()).isEqualTo(columnList2.hashCode());
@@ -99,22 +97,22 @@ class ColumnListTest {
 
     @Test
     void testNullNamesThrowsException() {
-        assertThatThrownBy(() -> ColumnList.of(null, Collections.emptyList()))
+        assertThatThrownBy(() -> ColumnList.of(null, List.of()))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("Names must not be null");
     }
 
     @Test
     void testNullDataTypesThrowsException() {
-        assertThatThrownBy(() -> ColumnList.of(Arrays.asList("a"), null))
+        assertThatThrownBy(() -> ColumnList.of(List.of("a"), null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("Data types must not be null");
     }
 
     @Test
     void testMismatchedDataTypesAndNamesThrowsException() {
-        final List<String> names = Arrays.asList("a", "b", "c");
-        final List<DataType> dataTypes = Arrays.asList(DataTypes.INT(), DataTypes.STRING());
+        final List<String> names = List.of("a", "b", "c");
+        final List<DataType> dataTypes = List.of(DataTypes.INT(), DataTypes.STRING());
 
         assertThatThrownBy(() -> ColumnList.of(names, dataTypes))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -132,7 +130,7 @@ class ColumnListTest {
 
     @Test
     void testNullElementInDataTypesThrowsException() {
-        final List<String> names = Arrays.asList("a", "b", "c");
+        final List<String> names = List.of("a", "b", "c");
         final List<DataType> dataTypes = Arrays.asList(DataTypes.INT(), null, DataTypes.BOOLEAN());
 
         assertThatThrownBy(() -> ColumnList.of(names, dataTypes))
@@ -142,7 +140,7 @@ class ColumnListTest {
 
     @Test
     void testImmutabilityOfNames() {
-        final List<String> names = new ArrayList<>(Arrays.asList("a", "b"));
+        final List<String> names = new ArrayList<>(List.of("a", "b"));
         final ColumnList columnList = ColumnList.of(names);
 
         names.add("c");
@@ -152,9 +150,9 @@ class ColumnListTest {
 
     @Test
     void testImmutabilityOfDataTypes() {
-        final List<String> names = new ArrayList<>(Arrays.asList("a", "b"));
+        final List<String> names = new ArrayList<>(List.of("a", "b"));
         final List<DataType> dataTypes =
-                new ArrayList<>(Arrays.asList(DataTypes.INT(), DataTypes.STRING()));
+                new ArrayList<>(List.of(DataTypes.INT(), DataTypes.STRING()));
         final ColumnList columnList = ColumnList.of(names, dataTypes);
 
         dataTypes.add(DataTypes.BOOLEAN());
