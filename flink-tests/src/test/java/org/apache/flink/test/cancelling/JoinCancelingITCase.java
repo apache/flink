@@ -29,12 +29,12 @@ import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 /** Test job cancellation from within a JoinFunction. */
-@Ignore("Takes too long.")
-public class JoinCancelingITCase extends CancelingTestBase {
+@Disabled("Takes too long.")
+class JoinCancelingITCase extends CancelingTestBase {
 
     // --------------- Test Sort Matches that are canceled while still reading / sorting
     // -----------------
