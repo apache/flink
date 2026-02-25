@@ -639,6 +639,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         externalAddress,
                         resourceID,
                         taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
+        rpcService.setRpcResponseFrameSizeObserver(
+                MetricUtils.instantiateRpcResponseFrameSizeMetrics(taskManagerMetricGroup.f1));
 
         final ExecutorService ioExecutor =
                 Executors.newFixedThreadPool(
