@@ -71,7 +71,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** This test ensures the TaskManager disconnects from the ResourceManager on shutdown. */
 @ExtendWith(TestLoggerExtension.class)
-public class TaskManagerDisconnectOnShutdownITCase {
+class TaskManagerDisconnectOnShutdownITCase {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(TaskManagerDisconnectOnShutdownITCase.class);

@@ -32,13 +32,13 @@ import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunc
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.time.Duration;
 import java.util.Random;
 
@@ -53,10 +53,10 @@ import java.util.Random;
  * <p>When a test is executed it will output how many elements of key {@code "Tuple 0"} have been
  * processed in each window. This gives an estimate of the throughput.
  */
-@Ignore
-public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
+@Disabled
+public class ManualWindowSpeedITCase extends AbstractTestBase {
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private File tempFolder;
 
     @Test
     public void testTumblingIngestionTimeWindowsWithFsBackend() throws Exception {
@@ -64,7 +64,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.setParallelism(1);
 
-        String checkpoints = tempFolder.newFolder().toURI().toString();
+        String checkpoints = tempFolder.toURI().toString();
         StateBackendUtils.configureHashMapStateBackend(env);
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpoints);
 
@@ -103,7 +103,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.setParallelism(1);
 
-        String checkpoints = tempFolder.newFolder().toURI().toString();
+        String checkpoints = tempFolder.toURI().toString();
 
         StateBackendUtils.configureHashMapStateBackend(env);
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpoints);
