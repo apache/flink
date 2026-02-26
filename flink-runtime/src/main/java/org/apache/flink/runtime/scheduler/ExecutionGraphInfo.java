@@ -24,6 +24,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleConfigInfo;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesStatsSnapshot;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
 import javax.annotation.Nullable;
@@ -50,6 +51,13 @@ public class ExecutionGraphInfo implements Serializable {
      */
     @Nullable private final JobRescaleConfigInfo jobRescaleConfigInfo;
 
+    /**
+     * The field is non-null when the {@link
+     * org.apache.flink.configuration.WebOptions#MAX_ADAPTIVE_SCHEDULER_RESCALE_HISTORY_SIZE} is
+     * enabled.
+     */
+    @Nullable private final RescalesStatsSnapshot rescalesStatsSnapshot;
+
     public ExecutionGraphInfo(ArchivedExecutionGraph executionGraph) {
         this(
                 executionGraph,
@@ -57,24 +65,30 @@ public class ExecutionGraphInfo implements Serializable {
                         ? Collections.singleton(
                                 RootExceptionHistoryEntry.fromGlobalFailure(
                                         executionGraph.getFailureInfo()))
-                        : Collections.emptyList());
+                        : Collections.emptyList(),
+                null,
+                null,
+                null);
     }
 
     public ExecutionGraphInfo(
             ArchivedExecutionGraph executionGraph,
-            Iterable<RootExceptionHistoryEntry> exceptionHistory) {
-        this(executionGraph, exceptionHistory, null, null);
+            Iterable<RootExceptionHistoryEntry> exceptionHistory,
+            @Nullable JobManagerOptions.SchedulerType schedulerType) {
+        this(executionGraph, exceptionHistory, schedulerType, null, null);
     }
 
     public ExecutionGraphInfo(
             ArchivedExecutionGraph executionGraph,
             Iterable<RootExceptionHistoryEntry> exceptionHistory,
             @Nullable JobManagerOptions.SchedulerType schedulerType,
-            @Nullable JobRescaleConfigInfo jobRescaleConfigInfo) {
+            @Nullable JobRescaleConfigInfo jobRescaleConfigInfo,
+            @Nullable RescalesStatsSnapshot rescalesStatsSnapshot) {
         this.executionGraph = executionGraph;
         this.exceptionHistory = exceptionHistory;
         this.schedulerType = schedulerType;
         this.jobRescaleConfigInfo = jobRescaleConfigInfo;
+        this.rescalesStatsSnapshot = rescalesStatsSnapshot;
     }
 
     public JobID getJobId() {
@@ -107,5 +121,10 @@ public class ExecutionGraphInfo implements Serializable {
     @Nullable
     public JobManagerOptions.SchedulerType getSchedulerType() {
         return schedulerType;
+    }
+
+    @Nullable
+    public RescalesStatsSnapshot getRescalesStatsSnapshot() {
+        return rescalesStatsSnapshot;
     }
 }

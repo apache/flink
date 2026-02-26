@@ -67,6 +67,9 @@ public interface RescaleTimeline {
      */
     boolean updateRescale(RescaleUpdater rescaleUpdater);
 
+    /** Create the snapshot of max history of rescales. */
+    RescalesStatsSnapshot createSnapshot();
+
     /** Rescale operation interface. */
     interface RescaleUpdater {
         void update(Rescale rescaleToUpdate);
@@ -96,6 +99,11 @@ public interface RescaleTimeline {
         @Override
         public JobInformation getJobInformation() {
             return null;
+        }
+
+        @Override
+        public RescalesStatsSnapshot createSnapshot() {
+            return RescalesStatsSnapshot.emptySnapshot();
         }
 
         @Override

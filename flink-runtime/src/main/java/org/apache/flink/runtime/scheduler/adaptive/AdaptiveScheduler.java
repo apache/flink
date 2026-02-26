@@ -313,8 +313,7 @@ public class AdaptiveScheduler
                             SCHEDULER_RESCALE_TRIGGER_MAX_DELAY,
                             maximumDelayForRescaleTriggerDefault),
                     rescaleOnFailedCheckpointsCount,
-                    // TODO: The parameter passing link will be implemented after FLIP-495.
-                    -1);
+                    configuration.get(WebOptions.MAX_ADAPTIVE_SCHEDULER_RESCALE_HISTORY_SIZE));
         }
 
         private final SchedulerExecutionMode executionMode;
@@ -896,7 +895,8 @@ public class AdaptiveScheduler
                 state.getJob(),
                 exceptionHistory.toArrayList(),
                 getSchedulerType(),
-                settings.toJobRescaleConfigInfo());
+                settings.toJobRescaleConfigInfo(),
+                rescaleTimeline.createSnapshot());
     }
 
     @Override
