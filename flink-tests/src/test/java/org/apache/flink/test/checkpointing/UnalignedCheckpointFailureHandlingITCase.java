@@ -130,6 +130,10 @@ public class UnalignedCheckpointFailureHandlingITCase {
         // use big enough interval so a manual checkpoint can be performed
         env.enableCheckpointing(100000, CheckpointingMode.EXACTLY_ONCE);
 
+        // always delay the first checkpoint (even after restart)
+        // to prioritize manual checkpoint so that its failure can be checked
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(100000);
+
         CheckpointStorageUtils.configureCheckpointStorageWithFactory(env, storageFactory);
 
         env.getCheckpointConfig().enableUnalignedCheckpoints();
