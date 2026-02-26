@@ -109,6 +109,29 @@ public final class OpenTelemetryReporterOptions {
                                     .text("service.version passed to OpenTelemetry Reporters.")
                                     .build());
 
+    @PublicEvolving
+    public static final ConfigOption<Integer> BATCH_SIZE =
+            ConfigOptions.key("batch.size")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Number of metrics per export batch. "
+                                                    + "Values <= 0 disable batching and all metrics are exported in a single request.")
+                                    .build());
+
+    @PublicEvolving
+    public static final ConfigOption<Long> EXPORT_COMPLETION_TIMEOUT_MILLIS =
+            ConfigOptions.key("export-completion-timeout-millis")
+                    .longType()
+                    .defaultValue(300_000L)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Timeout in milliseconds for waiting on async export completion.")
+                                    .build());
+
     @Internal
     public static void tryConfigureTimeout(MetricConfig metricConfig, Consumer<Duration> builder) {
         final String timeoutConfKey = EXPORTER_TIMEOUT.key();
