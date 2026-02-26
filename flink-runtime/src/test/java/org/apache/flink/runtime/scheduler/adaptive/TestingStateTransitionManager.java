@@ -42,6 +42,9 @@ public class TestingStateTransitionManager implements StateTransitionManager {
     }
 
     @Override
+    public void onChange(boolean newResourceDriven) {}
+
+    @Override
     public void onChange() {
         this.onChangeRunnable.run();
     }
