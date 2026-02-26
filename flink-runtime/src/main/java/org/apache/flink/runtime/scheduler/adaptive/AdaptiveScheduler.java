@@ -896,7 +896,8 @@ public class AdaptiveScheduler
                 state.getJob(),
                 exceptionHistory.toArrayList(),
                 getSchedulerType(),
-                settings.toJobRescaleConfigInfo());
+                settings.toJobRescaleConfigInfo(),
+                rescaleTimeline.createSnapshot());
     }
 
     @Override

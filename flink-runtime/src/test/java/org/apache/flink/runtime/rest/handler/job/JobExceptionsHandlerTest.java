@@ -480,7 +480,8 @@ class JobExceptionsHandlerTest {
                         .setFailureCause(new ErrorInfo(failureCause, failureTimestamp))
                         .setTasks(tasks)
                         .build(),
-                exceptionHistory);
+                exceptionHistory,
+                null);
     }
 
     private static ArchivedExecutionJobVertex createArchivedExecutionJobVertex(
@@ -555,7 +556,7 @@ class JobExceptionsHandlerTest {
         // we have to reverse it to simulate how the Scheduler collects it
         Collections.reverse(historyEntryCollection);
 
-        return new ExecutionGraphInfo(executionGraphBuilder.build(), historyEntryCollection);
+        return new ExecutionGraphInfo(executionGraphBuilder.build(), historyEntryCollection, null);
     }
 
     private static HandlerRequest<EmptyRequestBody> createRequest(JobID jobId, int size)

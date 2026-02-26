@@ -133,4 +133,14 @@ public class RescalesSummary implements Serializable {
     public StatsSummary getFailedRescalesSummary() {
         return failedRescalesSummary;
     }
+
+    public RescalesSummarySnapshot createSnapshot() {
+        return new RescalesSummarySnapshot(
+                allTerminatedSummary.createSnapshot(),
+                completedRescalesSummary.createSnapshot(),
+                ignoredRescalesSummary.createSnapshot(),
+                failedRescalesSummary.createSnapshot(),
+                totalRescalesCount,
+                inProgressRescalesCount);
+    }
 }

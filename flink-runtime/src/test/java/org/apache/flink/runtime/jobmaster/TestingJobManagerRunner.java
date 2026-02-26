@@ -78,6 +78,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
                                 null,
                                 null,
                                 0L),
+                        null,
                         null);
         terminationFuture.whenComplete(
                 (ignored, ignoredThrowable) ->
