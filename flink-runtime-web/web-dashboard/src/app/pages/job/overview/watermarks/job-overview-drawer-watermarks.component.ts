@@ -105,10 +105,14 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     try {
       if (typeof Intl.supportedValuesOf === 'function') {
         const timezones = Intl.supportedValuesOf('timeZone');
-        this.timezoneOptions = timezones.map(tz => ({ label: tz, value: tz })).sort((a, b) => a.label.localeCompare(b.label));
+        this.timezoneOptions = timezones
+          .map(tz => ({ label: tz, value: tz }))
+          .sort((a, b) => a.label.localeCompare(b.label));
       } else {
         // Fallback for browsers that don't support Intl.supportedValuesOf
-        console.warn('[initializeTimezoneOptions] Intl.supportedValuesOf not supported, falling back to browser local timezone');
+        console.warn(
+          '[initializeTimezoneOptions] Intl.supportedValuesOf not supported, falling back to browser local timezone'
+        );
         const browserTz = this.getBrowserTimezone();
         this.timezoneOptions = [{ label: browserTz, value: browserTz }];
       }
