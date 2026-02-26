@@ -49,6 +49,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -67,6 +69,9 @@ import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrat
  */
 @RunWith(Parameterized.class)
 public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogger {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(UnalignedCheckpointRescaleWithMixedExchangesITCase.class);
 
     private static final int NUM_TASK_MANAGERS = 1;
     private static final int SLOTS_PER_TASK_MANAGER = 10;
@@ -121,19 +126,34 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
 
         CommonTestUtils.waitForJobStatus(jobClient1, Collections.singletonList(JobStatus.RUNNING));
         CommonTestUtils.waitForAllTaskRunning(miniCluster, jobClient1.getJobID(), false);
-        String checkpointPath =
+        String checkpointPath1 =
                 CommonTestUtils.waitForCheckpointWithInflightBuffers(
                         jobClient1.getJobID(), miniCluster);
         jobClient1.cancel().get();
+        LOG.info("First checkpoint path: {}", checkpointPath1);
 
         // Step 2: Restore the job with a different parallelism
         JobClient jobClient2 =
-                executeJobViaEnv.executeJob(getUnalignedCheckpointEnv(checkpointPath));
+                executeJobViaEnv.executeJob(getUnalignedCheckpointEnv(checkpointPath1));
 
         CommonTestUtils.waitForJobStatus(jobClient2, Collections.singletonList(JobStatus.RUNNING));
         CommonTestUtils.waitForAllTaskRunning(miniCluster, jobClient2.getJobID(), false);
-        CommonTestUtils.waitForCheckpointWithInflightBuffers(jobClient2.getJobID(), miniCluster);
+        String checkpointPath2 =
+                CommonTestUtils.waitForCheckpointWithInflightBuffers(
+                        jobClient2.getJobID(), miniCluster);
         jobClient2.cancel().get();
+        LOG.info("Second checkpoint path: {}", checkpointPath2);
+
+        // Step 3: Restore from Step 2's checkpoint with random parallelism. This validates
+        // that a checkpoint produced after recovery can be used for another recovery.
+        JobClient jobClient3 =
+                executeJobViaEnv.executeJob(getUnalignedCheckpointEnv(checkpointPath2));
+
+        CommonTestUtils.waitForJobStatus(jobClient3, Collections.singletonList(JobStatus.RUNNING));
+        CommonTestUtils.waitForAllTaskRunning(miniCluster, jobClient3.getJobID(), false);
+        // Wait for at least one checkpoint to verify the recovery was successful
+        CommonTestUtils.waitForCheckpointWithInflightBuffers(jobClient3.getJobID(), miniCluster);
+        jobClient3.cancel().get();
     }
 
     private StreamExecutionEnvironment getUnalignedCheckpointEnv(@Nullable String recoveryPath)

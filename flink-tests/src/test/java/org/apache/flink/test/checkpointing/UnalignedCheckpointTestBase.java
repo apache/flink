@@ -53,6 +53,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.shuffle.ShuffleServiceOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -98,6 +99,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -178,49 +180,62 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                                 .setNumberSlotsPerTaskManager(slotsPerTM)
                                 .build());
         miniCluster.before();
-        final StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(conf);
-        settings.configure(env);
+
+        final CheckpointGenerationMode mode = settings.checkpointGenerationMode;
         JobID jobID = null;
         try {
-            // print the test parameters to help debugging when the case is stuck
             System.out.println(
                     "Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+
             final CompletableFuture<JobSubmissionResult> result =
                     miniCluster.getMiniCluster().submitJob(streamGraph.getJobGraph());
-
             jobID = result.get().getJobID();
-            checkCounters(
-                    miniCluster
-                            .getMiniCluster()
-                            .requestJobResult(jobID)
-                            .get()
-                            .toJobExecutionResult(getClass().getClassLoader()));
-            if (settings.expectedFinalJobStatus != null) {
-                assertThat(miniCluster.getMiniCluster().getJobStatus(jobID))
-                        .succeedsWithin(Duration.ofMinutes(1))
-                        .isEqualTo(settings.expectedFinalJobStatus);
+
+            if (mode == CheckpointGenerationMode.WAIT_FOR_CHECKPOINT_AND_CANCEL) {
+                CommonTestUtils.waitForAllTaskRunning(miniCluster.getMiniCluster(), jobID, false);
+                CommonTestUtils.waitForNewCheckpoint(jobID, miniCluster.getMiniCluster());
+                miniCluster.getMiniCluster().cancelJob(jobID).get();
+                final JobID cancelledJobID = jobID;
+                CommonTestUtils.waitUntilCondition(
+                        () ->
+                                miniCluster.getMiniCluster().getJobStatus(cancelledJobID).get()
+                                        == JobStatus.CANCELED);
+            } else {
+                checkCounters(
+                        miniCluster
+                                .getMiniCluster()
+                                .requestJobResult(jobID)
+                                .get()
+                                .toJobExecutionResult(getClass().getClassLoader()));
+                if (settings.expectedFinalJobStatus != null) {
+                    assertThat(miniCluster.getMiniCluster().getJobStatus(jobID))
+                            .succeedsWithin(Duration.ofMinutes(1))
+                            .isEqualTo(settings.expectedFinalJobStatus);
+                }
             }
+
             System.out.println(
                     "Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
-            if (settings.generateCheckpoint) {
-                return CommonTestUtils.getLatestCompletedCheckpointPath(
-                                jobID, miniCluster.getMiniCluster())
-                        .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
-            }
+            return retrieveCheckpointIfNeeded(jobID, miniCluster, mode);
         } catch (Exception e) {
             if (ExceptionUtils.findThrowable(e, TestException.class).isEmpty()) {
                 throw e;
             }
-            if (settings.generateCheckpoint) {
-                return CommonTestUtils.getLatestCompletedCheckpointPath(
-                                jobID, miniCluster.getMiniCluster())
-                        .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
-            }
+            return retrieveCheckpointIfNeeded(jobID, miniCluster, mode);
         } finally {
             miniCluster.after();
         }
-        return null;
+    }
+
+    @Nullable
+    private String retrieveCheckpointIfNeeded(
+            JobID jobID, MiniClusterWithClientResource miniCluster, CheckpointGenerationMode mode)
+            throws ExecutionException, InterruptedException, FlinkJobNotFoundException {
+        if (mode == CheckpointGenerationMode.NONE) {
+            return null;
+        }
+        return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, miniCluster.getMiniCluster())
+                .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
     }
 
     private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
@@ -688,12 +703,29 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         }
     }
 
+    /**
+     * Defines how the test generates and retrieves a checkpoint.
+     *
+     * <ul>
+     *   <li>{@link #NONE} - No checkpoint generation; job runs normally.
+     *   <li>{@link #WAIT_FOR_JOB_RESULT} - Job runs to completion (or expected failure), then
+     *       retrieves the latest checkpoint path.
+     *   <li>{@link #WAIT_FOR_CHECKPOINT_AND_CANCEL} - Waits for the first checkpoint to complete,
+     *       then cancels the job and returns the checkpoint path.
+     * </ul>
+     */
+    protected enum CheckpointGenerationMode {
+        NONE,
+        WAIT_FOR_JOB_RESULT,
+        WAIT_FOR_CHECKPOINT_AND_CANCEL
+    }
+
     /** Builder-like interface for all relevant unaligned settings. */
     protected static class UnalignedSettings {
         private int parallelism;
         private final int minCheckpoints = 10;
         @Nullable private String restoreCheckpoint;
-        private boolean generateCheckpoint = false;
+        private CheckpointGenerationMode checkpointGenerationMode = CheckpointGenerationMode.NONE;
         int expectedFailures = 0;
         int tolerableCheckpointFailures = 0;
         private final DagCreator dagCreator;
@@ -719,8 +751,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
-        public UnalignedSettings setGenerateCheckpoint(boolean generateCheckpoint) {
-            this.generateCheckpoint = generateCheckpoint;
+        public UnalignedSettings setCheckpointGenerationMode(
+                CheckpointGenerationMode checkpointGenerationMode) {
+            this.checkpointGenerationMode = checkpointGenerationMode;
             return this;
         }
 
@@ -773,11 +806,15 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);
             env.setParallelism(parallelism);
             RestartStrategyUtils.configureFixedDelayRestartStrategy(
-                    env, generateCheckpoint ? expectedFailures / 2 : expectedFailures, 100L);
+                    env,
+                    checkpointGenerationMode == CheckpointGenerationMode.WAIT_FOR_JOB_RESULT
+                            ? expectedFailures / 2
+                            : expectedFailures,
+                    100L);
             env.getCheckpointConfig().enableUnalignedCheckpoints(true);
             // for custom partitioner
             env.getCheckpointConfig().setForceUnalignedCheckpoints(true);
-            if (generateCheckpoint) {
+            if (checkpointGenerationMode != CheckpointGenerationMode.NONE) {
                 env.getCheckpointConfig()
                         .setExternalizedCheckpointRetention(
                                 ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
@@ -818,8 +855,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                     + minCheckpoints
                     + ", restoreCheckpoint="
                     + restoreCheckpoint
-                    + ", generateCheckpoint="
-                    + generateCheckpoint
+                    + ", checkpointGenerationMode="
+                    + checkpointGenerationMode
                     + ", expectedFailures="
                     + expectedFailures
                     + ", dagCreator="
