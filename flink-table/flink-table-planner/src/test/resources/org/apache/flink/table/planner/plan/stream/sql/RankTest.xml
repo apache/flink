@@ -33,13 +33,13 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(a=[$0])
+   :  +- LogicalProject(select=[a])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(b=[$1], c=[$2])
+      +- LogicalProject(select=[b, c])
          +- LogicalFilter(condition=[=($0, $cor0.a)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -71,13 +71,13 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
    :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalProject(select=[a, b])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(c=[$2], d=[$3])
+      +- LogicalProject(select=[c, d])
          +- LogicalFilter(condition=[AND(=($0, $cor0.a), =($1, $cor0.b))])
             +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -100,9 +100,9 @@ from view2 where row_num <= 3]]>
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
++- LogicalProject(select=[name, eat, cnt])
    +- LogicalFilter(condition=[<=($3, 3)])
-      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[name, eat, cnt]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
             +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
 ]]>
@@ -145,16 +145,16 @@ WHERE rank_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
+LogicalProject(select=[a, b, count_c, rank_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[ROW_NUMBER() OVER (ORDER BY $2 DESC NULLS LAST)])
-      +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
+   +- LogicalProject(select=[a, b, count_c]) OVER (ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, count_c, row_num])
          +- LogicalFilter(condition=[<=($3, 10)])
-            +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-               +- LogicalProject(a=[$0], b=[$1], count_c=[$3])
+            +- LogicalProject(select=[a, b, count_c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[a, b, count_c])
                   +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
-                     +- LogicalProject(a=[$0], b=[$1], cn=[$5])
-                        +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], cn=[_UTF-16LE'cn'])
+                     +- LogicalProject(select=[a, b, cn])
+                        +- LogicalProject(select=[a, b, c, proctime, rowtime])
                            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -185,9 +185,9 @@ WHERE row_num <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, c, row_num])
 +- LogicalFilter(condition=[<=($3, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -211,9 +211,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
+LogicalProject(select=[a, rk, b, c])
 +- LogicalFilter(condition=[<($1, 10)])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -231,9 +231,9 @@ Calc(select=[a, rk, b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, c, rn])
-+- LogicalProject(a=[$0], c=[$2], rn=[$5])
++- LogicalProject(select=[a, c, rn])
    +- LogicalFilter(condition=[<=($5, 100)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -258,9 +258,9 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, c, w0$o0], upsert
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<=($5, 100)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -283,9 +283,9 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c], upsertMate
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<=($5, 100)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -322,9 +322,9 @@ WHERE rnb <= 200
       <![CDATA[
 LogicalProject(rn1=[CAST($5):INTEGER NOT NULL], rn2=[CAST($6):INTEGER NOT NULL])
 +- LogicalFilter(condition=[<=($6, 200)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rna=[$5], rnb=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, proctime, rowtime, rna]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalFilter(condition=[<=($5, 100)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rna=[ROW_NUMBER() OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -353,9 +353,9 @@ WHERE rk <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, c, proctime]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -382,9 +382,9 @@ WHERE rk <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, proctime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -447,11 +447,11 @@ FROM
     <Resource name="ast">
       <![CDATA[
 LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$3])
-+- LogicalProject(uri=[$0], reqcount=[$1], rownum_2=[$3], start_time=[$2])
++- LogicalProject(select=[uri, reqcount, rownum_2, start_time])
    +- LogicalFilter(condition=[<=($3, 100000)])
-      +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalProject(select=[uri, reqcount, start_time]) OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
          +- LogicalFilter(condition=[<=($3, 100000)])
-            +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[ROW_NUMBER() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalProject(select=[uri, reqcount, start_time]) OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -480,9 +480,9 @@ WHERE row_num <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, c, proctime]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -509,9 +509,9 @@ WHERE row_num <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, proctime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -538,9 +538,9 @@ WHERE row_num <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$4], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -567,9 +567,9 @@ WHERE row_num <= 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$4], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -596,9 +596,9 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -624,9 +624,9 @@ WHERE 10 >= row_num
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, c, row_num])
 +- LogicalFilter(condition=[>=(10, $3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -656,11 +656,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalProject(select=[a, b, c])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -695,12 +695,12 @@ WHERE row_num <= 10
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
-+- LogicalProject(a=[$0])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
++- LogicalProject(select=[a])
+   +- LogicalProject(select=[a, b, count_c, row_num])
       +- LogicalFilter(condition=[<=($3, 10)])
-         +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalProject(select=[a, b, count_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
             +- LogicalAggregate(group=[{0, 1}], count_c=[COUNT()])
-               +- LogicalProject(a=[$0], b=[$1])
+               +- LogicalProject(select=[a, b])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -735,11 +735,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, count_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST, $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, count_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST, $0 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], count_c=[COUNT()])
-         +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalProject(select=[a, b])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -771,11 +771,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], $f2=[CASE(>($2, 10), 1, <($2, 0), 0, null:INTEGER)])
+         +- LogicalProject(select=[a, b]), 1, <($2, 0), 0, null:INTEGER)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -808,11 +808,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalProject(select=[a, b, c])
             +- LogicalFilter(condition=[>=($2, 0)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -845,11 +845,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2) FILTER $3])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[IS TRUE(AND(>=($2, 0), <($0, 0)))])
+         +- LogicalProject(select=[a, b, c]), <($0, 0)))])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -881,11 +881,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2) FILTER $3])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[IS TRUE(AND(<=($2, 0), <($0, 0)))])
+         +- LogicalProject(select=[a, b, c]), <($0, 0)))])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -917,11 +917,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], $f2=[IF(>($2, 10), 1, 0)])
+         +- LogicalProject(select=[a, b]), 1, 0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -950,9 +950,9 @@ WHERE row_num <= 10 AND b IS NOT NULL
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(row_num=[$3], a=[$0], c=[$2])
+LogicalProject(select=[row_num, a, c])
 +- LogicalFilter(condition=[AND(<=($3, 10), IS NOT NULL($1))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalFilter(condition=[>($2, 1000)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -987,13 +987,13 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, count_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-      +- LogicalProject(a=[$0], b=[$1], count_c=[$3])
+   +- LogicalProject(select=[a, b, count_c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, count_c])
          +- LogicalAggregate(group=[{0, 1, 2}], count_c=[COUNT()])
-            +- LogicalProject(a=[$0], b=[$1], cn=[$5])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], cn=[_UTF-16LE'cn'])
+            +- LogicalProject(select=[a, b, cn])
+               +- LogicalProject(select=[a, b, c, proctime, rowtime])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1025,11 +1025,11 @@ WHERE row_num <= 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, sum_c, row_num])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, sum_c]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0}], b=[LAST_VALUE($1)], sum_c=[SUM($2)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalProject(select=[a, b, c])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1057,9 +1057,9 @@ WHERE row_num = 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
+LogicalProject(select=[a, b, c, row_num])
 +- LogicalFilter(condition=[=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1090,9 +1090,9 @@ WHERE row_num <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[$3])
+LogicalProject(select=[category, shopId, max_price, row_num])
 +- LogicalFilter(condition=[<=($3, 3)])
-   +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[category, shopId, max_price]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -1111,17 +1111,17 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalAggregate(group=[{0}], b=[MAX($1)], c=[MIN($2)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<($3, 3)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0}], b=[MAX($1)], c=[MIN($2)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2])
+            +- LogicalProject(select=[a, b, c])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1159,12 +1159,12 @@ WHERE rank_num <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], ids=[$1], rank_num=[$2])
+LogicalProject(select=[name, ids, rank_num])
 +- LogicalFilter(condition=[<=($2, 3)])
-   +- LogicalProject(name=[$0], ids=[$1], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[name, ids]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0}], ids=[SUM($1) FILTER $2])
-         +- LogicalProject(name=[$6], id=[$5], $f2=[IS TRUE(>($5, 0))])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+         +- LogicalProject(select=[name, id]))])
+            +- LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
                +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}])
                   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                   +- LogicalFilter(condition=[=($cor1.a, $0)])
@@ -1198,14 +1198,14 @@ FROM (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0], b=[$1], d=[$2])
+LogicalProject(select=[c, b, d])
 +- LogicalFilter(condition=[<($3, 10)])
-   +- LogicalProject(c=[$0], b=[$1], d=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0, $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[c, b, d]) OVER (PARTITION BY $0, $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1}], d=[SUM($2) FILTER $3])
-         +- LogicalProject(c=[$2], b=[$1], a=[$0], $f3=[IS TRUE(>($0, 0))])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
+         +- LogicalProject(select=[c, b, a]))])
+            +- LogicalProject(select=[a, b, c, proctime, rowtime, rowNum])
                +- LogicalFilter(condition=[=($5, 1)])
-                  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY PROCTIME() NULLS FIRST)])
+                  +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $2 ORDER BY PROCTIME() NULLS FIRST)])
                      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
-+- LogicalProject(b=[$1], a=[$0])
++- LogicalProject(select=[b, a])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -43,7 +43,7 @@ HashAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
-+- LogicalProject(b=[$1], a=[$0])
++- LogicalProject(select=[b, a])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -63,7 +63,7 @@ HashAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
-+- LogicalProject(b=[$1], a=[$0])
++- LogicalProject(select=[b, a])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -83,7 +83,7 @@ HashAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[=($0, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -105,7 +105,7 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[=($0, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -126,7 +126,7 @@ HashAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[=($0, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -210,7 +210,7 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -231,7 +231,7 @@ HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -251,7 +251,7 @@ HashAggregate(isMerge=[false], groupBy=[a, b], select=[a, b])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -338,7 +338,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -369,7 +369,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -399,7 +399,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -545,7 +545,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp, string]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -580,7 +580,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp, string]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -614,7 +614,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp, string]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -753,9 +753,9 @@ SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
+LogicalProject(select=[a, EXPR$1, c])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
-   +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -778,9 +778,9 @@ SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
+LogicalProject(select=[a, EXPR$1, c])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
-   +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -802,9 +802,9 @@ SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
+LogicalProject(select=[a, EXPR$1, c])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
-   +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -840,7 +840,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -875,7 +875,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -909,7 +909,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -944,7 +944,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -979,7 +979,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -1013,7 +1013,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -1044,7 +1044,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -1075,7 +1075,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
@@ -1105,7 +1105,7 @@ FROM MyTable
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
++- LogicalProject(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>

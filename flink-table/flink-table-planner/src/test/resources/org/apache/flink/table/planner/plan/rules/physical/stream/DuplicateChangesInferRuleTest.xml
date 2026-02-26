@@ -21,7 +21,7 @@ limitations under the License.
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -41,7 +41,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_append_sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -59,7 +59,7 @@ Sink(table=[default_catalog.default_database.pk_append_sink], fields=[a, b, c], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<($2, CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -78,7 +78,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<($2, CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -97,7 +97,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL])
++- LogicalProject(select=[a, b])):INTEGER NOT NULL):BIGINT NOT NULL])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -115,7 +115,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL])
++- LogicalProject(select=[a, b])):INTEGER NOT NULL):BIGINT NOT NULL])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -133,7 +133,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<($2, CAST(NOW()):BIGINT NOT NULL)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -152,7 +152,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<($2, CAST(NOW()):BIGINT NOT NULL)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -171,7 +171,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[AND(<>($0, 1), <($2, CAST(NOW()):BIGINT NOT NULL))])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -190,7 +190,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[AND(<>($0, 1), <($2, CAST(NOW()):BIGINT NOT NULL))])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -209,7 +209,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(NOW()):BIGINT NOT NULL])
++- LogicalProject(select=[a, b])):BIGINT NOT NULL])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -227,7 +227,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(NOW()):BIGINT NOT NULL])
++- LogicalProject(select=[a, b])):BIGINT NOT NULL])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -245,7 +245,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -263,7 +263,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -281,7 +281,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
 ]]>
@@ -301,7 +301,7 @@ Sink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
 ]]>
@@ -321,7 +321,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], d
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[COUNT(DISTINCT $2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -348,7 +348,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, $f1, $f2
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$5], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $4), >($3, -($7, 60000:INTERVAL MINUTE)), <($3, +($7, 60000:INTERVAL MINUTE)))], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -374,7 +374,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$5], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -402,7 +402,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$5], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -431,7 +431,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
 +- LogicalSort(fetch=[10])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -452,7 +452,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalSort(fetch=[10])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -472,9 +472,9 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, rt])])
       :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -497,9 +497,9 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, rt])])
       :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -523,7 +523,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -545,14 +545,14 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
++- LogicalProject(select=[a, b])])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -579,13 +579,13 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1,
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
++- LogicalProject(select=[a, b])])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -611,14 +611,14 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
++- LogicalProject(select=[a, b])])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
++- LogicalProject(select=[a, b])])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -644,13 +644,13 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -677,11 +677,11 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1,
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR$2])
-+- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
++- LogicalProject(select=[a, EXPR$1, EXPR$2])
    +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
-      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+      +- LogicalProject(select=[a, window_start, window_end, b, c])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+            +- LogicalProject(select=[a, b, c, rt])
                +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -701,11 +701,11 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
-+- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
++- LogicalProject(select=[a, EXPR$1, EXPR$2])
    +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
-      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+      +- LogicalProject(select=[a, window_start, window_end, b, c])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+            +- LogicalProject(select=[a, b, c, rt])
                +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -725,9 +725,9 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[<=($3, 1)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
             +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -747,7 +747,7 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], d
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
 ]]>
@@ -765,7 +765,7 @@ Sink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.another_pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
 ]]>
@@ -783,9 +783,9 @@ Sink(table=[default_catalog.default_database.another_pk_upsert_snk], fields=[a, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, rt])])
       :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -814,9 +814,9 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, rt])])
       :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -845,11 +845,11 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR$2])
-+- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
++- LogicalProject(select=[a, EXPR$1, EXPR$2])
    +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
-      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+      +- LogicalProject(select=[a, window_start, window_end, b, c])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+            +- LogicalProject(select=[a, b, c, rt])
                +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -870,11 +870,11 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
-+- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
++- LogicalProject(select=[a, EXPR$1, EXPR$2])
    +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
-      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+      +- LogicalProject(select=[a, window_start, window_end, b, c])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+            +- LogicalProject(select=[a, b, c, rt])
                +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -896,10 +896,10 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, 
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
 ]]>
@@ -922,10 +922,10 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
 ]]>
@@ -947,16 +947,16 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$8], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $7), =($4, $11), =($5, $12))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
+      :- LogicalProject(select=[a, b, c, rt, window_start, window_end, window_time])
       :  +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+      :     +- LogicalProject(select=[a, b, c, rt])
       :        +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
+      +- LogicalProject(select=[a, b, c, rt, window_start, window_end, window_time])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+            +- LogicalProject(select=[a, b, c, rt])
                +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
 ]]>
@@ -983,11 +983,11 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], c
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$3], window_end=[$4])
++- LogicalProject(select=[a, b, c, window_start, window_end])
    +- LogicalFilter(condition=[<=($5, 1)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$4], window_end=[$5], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0, $4, $5 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, b, c, window_start, window_end]) OVER (PARTITION BY $0, $4, $5 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+            +- LogicalProject(select=[a, b, c, rt])
                +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>
@@ -1008,9 +1008,9 @@ Sink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], field
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$4], window_end=[$5])
++- LogicalProject(select=[a, b, c, window_start, window_end])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+      +- LogicalProject(select=[a, b, c, rt])
          +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
             +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 ]]>

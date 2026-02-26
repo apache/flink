@@ -23,25 +23,25 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalProject($f0=[IF(>($1, $2), $2, $1)], c=[$0])
    :  +- LogicalFilter(condition=[AND(>=($1, 1), >=($2, 1))])
    :     +- LogicalAggregate(group=[{0}], vcol_left_cnt=[COUNT($1)], vcol_right_cnt=[COUNT($2)])
    :        +- LogicalUnion(all=[true])
-   :           :- LogicalProject(c=[$0], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
-   :           :  +- LogicalProject(c=[$2])
+   :           :- LogicalProject(select=[c])
+   :           :  +- LogicalProject(select=[c])
    :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   :           +- LogicalProject(f=[$0], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
-   :              +- LogicalProject(f=[$2])
+   :           +- LogicalProject(select=[f])
+   :              +- LogicalProject(select=[f])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
@@ -54,27 +54,27 @@ LogicalProject(c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalFilter(condition=[=(1, 0)])
 :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalProject($f0=[IF(>($1, $2), $2, $1)], c=[$0])
    :  +- LogicalFilter(condition=[AND(>=($1, 1), >=($2, 1))])
    :     +- LogicalAggregate(group=[{0}], vcol_left_cnt=[COUNT($1)], vcol_right_cnt=[COUNT($2)])
    :        +- LogicalUnion(all=[true])
-   :           :- LogicalProject(c=[$0], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
-   :           :  +- LogicalProject(c=[$2])
+   :           :- LogicalProject(select=[c])
+   :           :  +- LogicalProject(select=[c])
    :           :     +- LogicalFilter(condition=[=(1, 0)])
    :           :        +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   :           +- LogicalProject(f=[$0], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
-   :              +- LogicalProject(f=[$2])
+   :           +- LogicalProject(select=[f])
+   :              +- LogicalProject(select=[f])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
@@ -87,26 +87,26 @@ LogicalProject(c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalFilter(condition=[=(1, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalProject($f0=[IF(>($1, $2), $2, $1)], c=[$0])
    :  +- LogicalFilter(condition=[AND(>=($1, 1), >=($2, 1))])
    :     +- LogicalAggregate(group=[{0}], vcol_left_cnt=[COUNT($1)], vcol_right_cnt=[COUNT($2)])
    :        +- LogicalUnion(all=[true])
-   :           :- LogicalProject(c=[$0], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
-   :           :  +- LogicalProject(c=[$2])
+   :           :- LogicalProject(select=[c])
+   :           :  +- LogicalProject(select=[c])
    :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   :           +- LogicalProject(f=[$0], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
-   :              +- LogicalProject(f=[$2])
+   :           +- LogicalProject(select=[f])
+   :              +- LogicalProject(select=[f])
    :                 +- LogicalFilter(condition=[=(1, 0)])
    :                    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
@@ -119,30 +119,30 @@ LogicalProject(c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalFilter(condition=[>($0, 1)])
    +- LogicalIntersect(all=[true])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2])
+      :- LogicalProject(select=[a, b, c])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalProject(d=[$0], e=[$1], f=[$2])
+      +- LogicalProject(select=[d, e, f])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalFilter(condition=[>($0, 1)])
-   +- LogicalProject(a=[$4], b=[$5], c=[$6])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
          :- LogicalProject($f0=[IF(>($3, $4), $4, $3)], a=[$0], b=[$1], c=[$2])
          :  +- LogicalFilter(condition=[AND(>=($3, 1), >=($4, 1))])
          :     +- LogicalAggregate(group=[{0, 1, 2}], vcol_left_cnt=[COUNT($3)], vcol_right_cnt=[COUNT($4)])
          :        +- LogicalUnion(all=[true])
-         :           :- LogicalProject(a=[$0], b=[$1], c=[$2], vcol_left_marker=[true], vcol_right_marker=[null:BOOLEAN])
-         :           :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         :           :- LogicalProject(select=[a, b, c])
+         :           :  +- LogicalProject(select=[a, b, c])
          :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-         :           +- LogicalProject(d=[$0], e=[$1], f=[$2], vcol_left_marker=[null:BOOLEAN], vcol_right_marker=[true])
-         :              +- LogicalProject(d=[$0], e=[$1], f=[$2])
+         :           +- LogicalProject(select=[d, e, f])
+         :              +- LogicalProject(select=[d, e, f])
          :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
          +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)])
 ]]>

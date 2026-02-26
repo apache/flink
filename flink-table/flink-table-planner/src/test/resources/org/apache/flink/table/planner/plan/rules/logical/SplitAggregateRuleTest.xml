@@ -33,7 +33,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[COUNT($1)], EXPR$4=[AVG($1)], EXPR$5=[SUM($1)])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -62,7 +62,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[SUM($1) FILTER $2])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -93,14 +93,14 @@ FROM(
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0], b=[$1], d=[$2], a=[$3], a0=[$4], b0=[$5], c0=[$6])
+LogicalProject(select=[c, b, d, a, a0, b0, c0])
 +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
-   :- LogicalProject(c=[$0], b=[$1], d=[$1], a=[$2])
+   :- LogicalProject(select=[c, b, d, a])
    :  +- LogicalAggregate(group=[{0}], d=[SUM($1)], a=[COUNT(DISTINCT $2)])
-   :     +- LogicalProject(c=[$2], b=[$1], a=[$0])
-   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$2])
+   :     +- LogicalProject(select=[c, b, a])
+   :        +- LogicalProject(select=[a, b, c, d])
    :           +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], d=[SUM($1)])
-   :              +- LogicalProject(a=[$0], b=[$1])
+   :              +- LogicalProject(select=[a, b])
    :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -127,7 +127,7 @@ FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -147,7 +147,7 @@ FlinkLogicalAggregate(group=[{}], agg#0=[$SUM0($1)])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -178,7 +178,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -211,7 +211,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[SUM($1)], EXPR$4=[AVG($1)])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -232,7 +232,7 @@ FlinkLogicalCalc(select=[a, $f1, $f2, $f3, CAST(IF(=($f5, 0), null:INTEGER, /($f
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -256,7 +256,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[MAX($2)], EXPR$5=[MIN($2)], EXPR$6=[COUNT($2)], EXPR$7=[COUNT()])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -279,7 +279,7 @@ FlinkLogicalCalc(select=[a, $f1 AS EXPR$1, CASE(=($f3, 0), null:INTEGER, $f2) AS
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[AVG($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -300,7 +300,7 @@ FlinkLogicalCalc(select=[a, $f1, $f2, CAST(IF(=($f4, 0), null:INTEGER, /($f3, $f
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -319,9 +319,9 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($2)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[FIRST_VALUE($1)])
-   +- LogicalProject(a=[$0], c=[$2])
+   +- LogicalProject(select=[a, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -341,7 +341,7 @@ FlinkLogicalCalc(select=[EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -363,7 +363,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[FIRST_VALUE($3)], agg#1=[$SUM0($4)])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LAST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -385,7 +385,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[LAST_VALUE($3)], agg#1=[$SUM0($4)])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -430,7 +430,7 @@ FlinkLogicalAggregate(group=[{0}], agg#0=[$SUM0($3)], agg#1=[MAX($4)])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -449,7 +449,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

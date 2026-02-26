@@ -28,9 +28,9 @@ WHERE rank_num >= 1 AND rank_num < 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rank_num=[$4])
+LogicalProject(select=[a, rank_num])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[RANK() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -55,9 +55,9 @@ WHERE rank_num >= 1 AND rank_num < 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rank_num=[$4])
+LogicalProject(select=[a, rank_num])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 3))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -82,9 +82,9 @@ WHERE rank_num >= 1 AND rank_num < 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -109,9 +109,9 @@ WHERE rank_num >= 1 AND rank_num < 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rank_num=[$4])
+LogicalProject(select=[a, rank_num])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAddColumns">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], kid=[CONCAT($2, _UTF-16LE'_kid_last')], _c4=[+($0, 2)], b2=[$1], _c6=[_UTF-16LE'literal_value'])
+LogicalProject(select=[a, b, c])], _c4=[+($0, 2)], b2=[$1], _c6=[_UTF-16LE'literal_value'])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -33,7 +33,7 @@ Calc(select=[a, b, c, CONCAT(c, '_kid_last') AS kid, (a + 2) AS _c4, b AS b2, 'l
   <TestCase name="testDropColumns">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -48,7 +48,7 @@ Calc(select=[c])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[AND(SEARCH($1, Sarg[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]), =($2, _UTF-16LE'xx'))])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -65,7 +65,7 @@ Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[(SEARCH(b, Sa
 LogicalFilter(condition=[=(MOD($0, 2), 1)])
 +- LogicalFilter(condition=[<($1, 2)])
    +- LogicalFilter(condition=[>($0, 0)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -94,7 +94,7 @@ Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func24$$2da7dcb3c
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[OR(SEARCH($1, Sarg[(-∞..1), (1..2), (2..3), (3..4), (4..5), (5..6), (6..7), (7..8), (8..9), (9..10), (10..11), (11..12), (12..13), (13..14), (14..15), (15..16), (16..17), (17..18), (18..19), (19..20), (20..21), (21..22), (22..23), (23..24), (24..25), (25..26), (26..27), (27..28), (28..29), (29..30), (30..+∞)]), <>($2, _UTF-16LE'xx'))])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -108,7 +108,7 @@ Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..2), (2..3), (3..4),
   <TestCase name="testRenameColumns">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a2=[$0], b2=[$1])
+LogicalProject(select=[a2, b2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -150,9 +150,9 @@ Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func1$$879c853756
   <TestCase name="testSelectFromGroupedWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$2], b=[$0])
+LogicalProject(select=[EXPR$0, EXPR$1, b])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[COUNT($5)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], $f5=[UPPER($2)])
+   +- LogicalProject(select=[a, b, c, d, rowtime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -169,9 +169,9 @@ Calc(select=[EXPR$0, EXPR$1, b])
   <TestCase name="testSelectFromWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($5)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], $f5=[UPPER($2)])
+   +- LogicalProject(select=[a, b, c, d, rowtime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

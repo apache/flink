@@ -22,16 +22,16 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
       +- LogicalSnapshot(period=[$cor0.rowtime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -58,10 +58,10 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.rowtime])
@@ -89,10 +89,10 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.rowtime])
@@ -120,15 +120,15 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], ts=[$2], rowtime=[$3], currency0=[$4], rate=[$5], ts0=[$6], rowtime0=[$7])
+LogicalProject(select=[amount, currency, ts, rowtime, currency0, rate, ts0, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
-   :  +- LogicalProject(amount=[$0], currency=[$1], ts=[$2], rowtime=[TO_TIMESTAMP_LTZ($2, 3)])
+   :  +- LogicalProject(select=[amount, currency, ts])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, OrdersLtz]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
-            +- LogicalProject(currency=[$0], rate=[$1], ts=[$2], rowtime=[TO_TIMESTAMP_LTZ($2, 3)])
+            +- LogicalProject(select=[currency, rate, ts])])
                +- LogicalTableScan(table=[[default_catalog, default_database, RatesLtz]])
 ]]>
     </Resource>
@@ -151,7 +151,7 @@ Calc(select=[amount, currency, ts, rowtime, currency0, rate, ts0, CAST(rowtime0 
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.rowtime_default_sink], fields=[order_id, currency, amount, order_time, rate, currency_time])
-+- LogicalProject(order_id=[$0], currency=[$1], amount=[$3], order_time=[$4], rate=[$7], currency_time=[$8])
++- LogicalProject(select=[order_id, currency, amount, order_time, rate, currency_time])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2, 4}])
       :- LogicalWatermarkAssigner(rowtime=[order_time], watermark=[$4])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, orders_rowtime]])
@@ -192,15 +192,15 @@ Sink(table=[default_catalog.default_database.rowtime_default_sink], fields=[orde
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
+LogicalProject(select=[currency, currency0, rate1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-            +- LogicalProject(currency=[$0], rate=[$1], rate1=[+($1, 1)], proctime=[PROCTIME()], rowtime=[$2])
+            +- LogicalProject(select=[currency, rate])], proctime=[PROCTIME()], rowtime=[$2])
                +- LogicalTableScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]])
 ]]>
     </Resource>
@@ -225,16 +225,16 @@ Calc(select=[currency, currency0, rate1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.rowtime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -261,16 +261,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, $1))])
       +- LogicalSnapshot(period=[$cor0.rowtime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -297,16 +297,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(+($1, 1), 100))])
       +- LogicalSnapshot(period=[$cor0.rowtime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -333,16 +333,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(_UTF-16LE'RMB-100', CONCAT(_UTF-16LE'RMB-', CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")))])
       +- LogicalSnapshot(period=[$cor0.rowtime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -369,16 +369,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
       +- LogicalSnapshot(period=[$cor0.rowtime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -405,16 +405,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(+($1, 1), 100))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -442,10 +442,10 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -473,14 +473,14 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
+LogicalProject(select=[currency, currency0, rate1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(currency=[$0], rate=[$1], rate1=[+($1, 1)], proctime=[PROCTIME()], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate])], proctime=[PROCTIME()], rowtime=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark]])
 ]]>
     </Resource>
@@ -505,15 +505,15 @@ Calc(select=[currency, currency0, rate1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
+LogicalProject(select=[currency, currency0, rate1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-            +- LogicalProject(currency=[$0], rate=[$1], rate1=[+($1, 1)], proctime=[PROCTIME()], rowtime=[$2])
+            +- LogicalProject(select=[currency, rate])], proctime=[PROCTIME()], rowtime=[$2])
                +- LogicalTableScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]])
 ]]>
     </Resource>
@@ -540,17 +540,17 @@ Calc(select=[currency, currency0, rate1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], proctime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, proctime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2])
+         +- LogicalProject(select=[currency, rate, proctime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-                  +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()])
+               +- LogicalProject(select=[currency, rate, proctime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                  +- LogicalProject(select=[currency, rate])])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly]])
 ]]>
     </Resource>
@@ -576,15 +576,15 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalAggregate(group=[{0}], rate=[LAST_VALUE($1)])
-            +- LogicalProject(currency=[$0], rate=[$1])
+            +- LogicalProject(select=[currency, rate])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -612,15 +612,15 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, $1))])
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalAggregate(group=[{0}], rate=[LAST_VALUE($1)])
-            +- LogicalProject(currency=[$0], rate=[$1])
+            +- LogicalProject(select=[currency, rate])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -648,16 +648,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(+($1, 1), 100))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -685,16 +685,16 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], rowtime0=[$6])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), =(_UTF-16LE'RMB-100', CONCAT(_UTF-16LE'RMB-', CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+         +- LogicalProject(select=[currency, rate, rowtime])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+               +- LogicalProject(select=[currency, rate, rowtime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -722,15 +722,15 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[amount, currency, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalFilter(condition=[AND(=($cor0.currency, $0), >($cor0.amount, 10), <($1, 100))])
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalAggregate(group=[{0}], rate=[LAST_VALUE($1)])
-            +- LogicalProject(currency=[$0], rate=[$1])
+            +- LogicalProject(select=[currency, rate])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory]])
 ]]>
@@ -757,11 +757,11 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
   <TestCase name="testTemporalJoinUpsertSourceWithPostFilter">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency0=[$4], rate=[$5], valid=[$6], rowtime0=[$7])
+LogicalProject(select=[amount, currency, rowtime, proctime, currency0, rate, valid, rowtime0])
 +- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
       :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :  +- LogicalProject(select=[amount, currency, rowtime])])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
       +- LogicalFilter(condition=[=($cor0.currency, $0)])
          +- LogicalSnapshot(period=[$cor0.rowtime])

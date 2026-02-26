@@ -25,9 +25,9 @@ ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -53,10 +53,10 @@ ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :  +- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -83,10 +83,10 @@ ON T.a = D.id WHERE D.age > 20]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, id])
 +- LogicalFilter(condition=[>($7, 20)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+      :- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -113,11 +113,11 @@ ON T.a = D.id WHERE D.age > 20]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, id])
 +- LogicalFilter(condition=[>($7, 20)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+      :  +- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -145,9 +145,9 @@ ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, id])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -173,10 +173,10 @@ ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, id])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :  +- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -203,9 +203,9 @@ ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], age=[$7], name=[$6], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, age, name, id])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -232,10 +232,10 @@ ON T.a = D.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], age=[$7], name=[$6], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, age, name, id])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :  +- LogicalProject(select=[a, b, c])], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])

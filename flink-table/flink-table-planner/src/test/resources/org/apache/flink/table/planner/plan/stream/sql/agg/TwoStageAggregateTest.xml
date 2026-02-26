@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
-   +- LogicalProject(b=[$1], a=[$0])
+   +- LogicalProject(select=[b, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -68,9 +68,9 @@ GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordT
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- LogicalProject(b=[$1], a=[$0])
+   +- LogicalProject(select=[b, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -93,7 +93,7 @@ Calc(select=[EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-+- LogicalProject(a=[$0])
++- LogicalProject(select=[a])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -114,9 +114,9 @@ GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(four=[$1], EXPR$1=[$2])
+LogicalProject(select=[four, EXPR$1])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
-   +- LogicalProject(b=[$1], four=[4], a=[$0])
+   +- LogicalProject(select=[b, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -138,10 +138,10 @@ Calc(select=[4 AS four, EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)], EXPR$1=[AVG($2)])
-   +- LogicalProject(d=[$1], c=[$2], a=[$0])
-      +- LogicalProject(a=[$0], d=[+($1, 3)], c=[$2])
+   +- LogicalProject(select=[d, c, a])
+      +- LogicalProject(select=[a])], c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -163,10 +163,10 @@ Calc(select=[EXPR$0, EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$1=[$1])
+LogicalProject(select=[b, EXPR$1])
 +- LogicalFilter(condition=[=($0, 2)])
    +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-      +- LogicalProject(b=[$1], a=[$0])
+      +- LogicalProject(select=[b, a])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

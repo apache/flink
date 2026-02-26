@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -47,7 +47,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
+LogicalProject(select=[d, e, f, g, h, a, b, c])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -69,7 +69,7 @@ HashJoin(joinType=[FullOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], se
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[=($1, $4)], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -98,9 +98,9 @@ SELECT * FROM (SELECT * FROM MyTable1) FULL JOIN (SELECT * FROM MyTable3) USING 
       <![CDATA[
 LogicalProject(a=[COALESCE($0, $3)], b=[$1], c=[$2], b0=[$4], c0=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[full])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
 ]]>
     </Resource>
@@ -121,7 +121,7 @@ Calc(select=[COALESCE(a, a0) AS a, b, c, b0, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -146,7 +146,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
+LogicalProject(select=[d, e, f, g, h, a, b, c])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -170,7 +170,7 @@ HashJoin(joinType=[InnerJoin], where=[((a = d) AND (b < h))], select=[d, e, f, g
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalFilter(condition=[=($0, $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -196,7 +196,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
+LogicalProject(select=[c, g])
 +- LogicalFilter(condition=[AND(=($5, $0), <($0, 2))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -228,14 +228,14 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
+LogicalProject(select=[a, b, d, e])
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $3), =($2, 2))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-         +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalProject(select=[d, e])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -264,7 +264,7 @@ Calc(select=[a, b, CAST(2 AS INTEGER) AS d, e])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalFilter(condition=[AND(=($1, $4), =($0, $3))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -295,13 +295,13 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
+LogicalProject(select=[a, b, d, e])
 +- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($2, 2), =($1, 1))], joinType=[inner])
    :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-   :  +- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalProject(select=[a, b])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-      +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalProject(select=[d, e])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -326,7 +326,7 @@ Calc(select=[a, 1 AS b, CAST(2 AS INTEGER) AS d, 1 AS e])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[AND(=($5, $0), =($6, $1))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -350,7 +350,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], d=[$3])
+LogicalProject(select=[a, d])
 +- LogicalFilter(condition=[=(+($0, 1), $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -378,7 +378,7 @@ SELECT * FROM leftPartitionTable, rightPartitionTable WHERE b1 = 1 AND b2 = 3 AN
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalFilter(condition=[AND(=($1, 1), =($3, 3), =($0, $2))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, leftPartitionTable]])
@@ -403,14 +403,14 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
+LogicalProject(select=[a, b, d, e])
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $3), =($0, 2))])
    +- LogicalJoin(condition=[true], joinType=[left])
       :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-         +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalProject(select=[d, e])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -445,13 +445,13 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
+LogicalProject(select=[a, b, d, e])
 +- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($0, 2), =($3, 1))], joinType=[left])
    :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-   :  +- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalProject(select=[a, b])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-      +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalProject(select=[d, e])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -475,7 +475,7 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], whe
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
+LogicalProject(select=[d, e, f, g, h, a, b, c])
 +- LogicalJoin(condition=[false], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -494,7 +494,7 @@ Calc(select=[d, e, f, g, h, null:INTEGER AS a, null:BIGINT AS b, null:VARCHAR(21
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -519,7 +519,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
+LogicalProject(select=[d, e, f, g, h, a, b, c])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -541,7 +541,7 @@ HashJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], se
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[=($1, $4)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -566,7 +566,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[d, e, f])
 +- LogicalFilter(condition=[AND(IS NULL($3), <($0, 12))])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -592,7 +592,7 @@ Calc(select=[null:INTEGER AS d, e, f], where=[d IS NULL])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[d, e, f])
 +- LogicalFilter(condition=[AND(<($3, 10), <($0, 12))])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -618,7 +618,7 @@ Calc(select=[d, e, f])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[d, e, f])
 +- LogicalFilter(condition=[=($3, null)])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -643,14 +643,14 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
+LogicalProject(select=[a, b, d, e])
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $3), =($2, 2))])
    +- LogicalJoin(condition=[true], joinType=[right])
       :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-         +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalProject(select=[d, e])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -685,13 +685,13 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
+LogicalProject(select=[a, b, d, e])
 +- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($2, 2), =($1, 1))], joinType=[right])
    :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-   :  +- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalProject(select=[a, b])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-      +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalProject(select=[d, e])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -715,7 +715,7 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[RightOuterJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
+LogicalProject(select=[d, e, f, g, h, a, b, c])
 +- LogicalJoin(condition=[false], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -734,7 +734,7 @@ Calc(select=[null:INTEGER AS d, null:BIGINT AS e, null:INTEGER AS f, null:VARCHA
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -759,7 +759,7 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
+LogicalProject(select=[d, e, f, g, h, a, b, c])
 +- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -782,7 +782,7 @@ HashJoin(joinType=[RightOuterJoin], where=[((a = d) AND (b < h))], select=[d, e,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalJoin(condition=[=($1, $4)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -812,12 +812,12 @@ ON (src1.k = src2.k AND src2.k > 10)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
+LogicalProject(select=[k, v, k0, v0])
 +- LogicalJoin(condition=[AND(=($0, $2), >($2, 10))], joinType=[left])
-   :- LogicalProject(k=[$0], v=[$1])
+   :- LogicalProject(select=[k, v])
    :  +- LogicalFilter(condition=[=($0, 0)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-   +- LogicalProject(k=[$0], v=[$1])
+   +- LogicalProject(select=[k, v])
       +- LogicalFilter(condition=[=($0, 0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>

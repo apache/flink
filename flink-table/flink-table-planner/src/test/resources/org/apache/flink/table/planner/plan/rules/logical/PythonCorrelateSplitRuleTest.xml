@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3])
+LogicalProject(select=[a, b, c, x])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[javaFunc(pyFunc($cor0.c))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -44,7 +44,7 @@ FlinkLogicalCalc(select=[a, b, c, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], x=[$4])
+LogicalProject(select=[a, b, c, x])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[javaFunc(pyFunc($cor0.d._1))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -67,7 +67,7 @@ FlinkLogicalCalc(select=[a, b, c, EXPR$0 AS x])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], x=[$4], y=[$5])
+LogicalProject(select=[a, b, c, x, y])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func(*($cor0.d._1, $cor0.a), pyFunc($cor0.d._2, $cor0.c))], rowType=[RecordType(INTEGER x, INTEGER y)])
@@ -89,7 +89,7 @@ FlinkLogicalCalc(select=[a, b, c, x, y])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4])
+LogicalProject(select=[a, b, c, x, y])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func(*($cor0.a, $cor0.a), pyFunc($cor0.b, $cor0.c))], rowType=[RecordType(INTEGER x, INTEGER y)])

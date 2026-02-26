@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f1=[$0], f2=[$1])
+LogicalProject(select=[f1, f2])
 +- LogicalSnapshot(period=[2023-01-01 02:00:00])
    +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
 ]]>
@@ -48,10 +48,10 @@ FROM
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(f1=[$0])
+:- LogicalProject(select=[f1])
 :  +- LogicalSnapshot(period=[2023-01-01 01:00:00])
 :     +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
-+- LogicalProject(f2=[$1])
++- LogicalProject(select=[f2])
    +- LogicalSnapshot(period=[2023-01-01 02:00:00])
       +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
 ]]>
@@ -70,7 +70,7 @@ Union(all=[true], union=[f1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f1=[$0], f2=[$1])
+LogicalProject(select=[f1, f2])
 +- LogicalSnapshot(period=[2023-01-01 02:00:00])
    +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
 ]]>
@@ -87,7 +87,7 @@ TableSourceScan(table=[[TimeTravelCatalog, default, t1, project=[f1, f2], metada
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f1=[$0], f2=[$1])
+LogicalProject(select=[f1, f2])
 +- LogicalSnapshot(period=[2023-01-01 10:00:00])
    +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
 ]]>
@@ -104,7 +104,7 @@ TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], versi
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f1=[$0], f2=[$1])
+LogicalProject(select=[f1, f2])
 +- LogicalSnapshot(period=[2023-01-01 02:00:00])
    +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
 ]]>
@@ -132,9 +132,9 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f2=[$1], f3=[$5])
+LogicalProject(select=[f2, f3])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
-   :- LogicalProject(f1=[$0], f2=[$1], p=[PROCTIME()])
+   :- LogicalProject(select=[f1, f2])])
    :  +- LogicalSnapshot(period=[2023-01-01 02:00:00])
    :     +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
    +- LogicalFilter(condition=[=($cor0.f1, $0)])
@@ -156,7 +156,7 @@ Calc(select=[f2, f3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f1=[$0], f2=[$1], f3=[$2])
+LogicalProject(select=[f1, f2, f3])
 +- LogicalSnapshot(period=[2023-03-02 00:00:00])
    +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
 ]]>

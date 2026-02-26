@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[=(1, 0)])
     LogicalTableScan(table=[[default_catalog, default_database, T2]])
 }))])
@@ -33,7 +33,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -51,18 +51,18 @@ WHERE x + y > 30
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(x=[$0], y=[$1])
+LogicalProject(select=[x, y])
 +- LogicalFilter(condition=[>(+($0, $1), 30)])
    +- LogicalUnion(all=[true])
-      :- LogicalProject(x=[$0], y=[$1])
+      :- LogicalProject(select=[x, y])
       :  +- LogicalValues(tuples=[[{ 10, 1 }, { 30, 3 }]])
-      +- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+      +- LogicalProject(select=[EXPR$0, EXPR$1])
          +- LogicalValues(tuples=[[{ 20, 2 }]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(x=[$0], y=[$1])
+LogicalProject(select=[x, y])
 +- LogicalValues(tuples=[[{ 30, 3 }]])
 ]]>
     </Resource>
@@ -80,18 +80,18 @@ WHERE X + Y > 30
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(X=[$0], Y=[$1])
+LogicalProject(select=[X, Y])
 +- LogicalFilter(condition=[>(+($0, $1), 30)])
    +- LogicalUnion(all=[false])
-      :- LogicalProject(X=[$0], Y=[$1])
+      :- LogicalProject(select=[X, Y])
       :  +- LogicalValues(tuples=[[{ 10, 1 }, { 30, 3 }, { 30, 3 }]])
-      +- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+      +- LogicalProject(select=[EXPR$0, EXPR$1])
          +- LogicalValues(tuples=[[{ 20, 2 }]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(X=[$0], Y=[$1])
+LogicalProject(select=[X, Y])
 +- LogicalAggregate(group=[{0, 1}])
    +- LogicalValues(tuples=[[{ 30, 3 }, { 30, 3 }]])
 ]]>
@@ -111,12 +111,12 @@ SELECT * FROM (VALUES (30, 3))
       <![CDATA[
 LogicalIntersect(all=[false])
 :- LogicalIntersect(all=[false])
-:  :- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+:  :- LogicalProject(select=[EXPR$0, EXPR$1])
 :  :  +- LogicalValues(tuples=[[{ 30, 3 }]])
-:  +- LogicalProject(x=[$0], y=[$1])
+:  +- LogicalProject(select=[x, y])
 :     +- LogicalFilter(condition=[>($0, 50)])
 :        +- LogicalValues(tuples=[[{ 10, 1 }, { 30, 3 }]])
-+- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
++- LogicalProject(select=[EXPR$0, EXPR$1])
    +- LogicalValues(tuples=[[{ 30, 3 }]])
 ]]>
     </Resource>
@@ -141,12 +141,12 @@ SELECT * FROM (VALUES (40, 4))
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalMinus(all=[false])
-:  :- LogicalProject(x=[$0], y=[$1])
+:  :- LogicalProject(select=[x, y])
 :  :  +- LogicalFilter(condition=[>($0, 30)])
 :  :     +- LogicalValues(tuples=[[{ 30, 3 }]])
-:  +- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+:  +- LogicalProject(select=[EXPR$0, EXPR$1])
 :     +- LogicalValues(tuples=[[{ 20, 2 }]])
-+- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
++- LogicalProject(select=[EXPR$0, EXPR$1])
    +- LogicalValues(tuples=[[{ 40, 4 }]])
 ]]>
     </Resource>
@@ -173,14 +173,14 @@ SELECT * FROM (VALUES (50, 5)) AS T (x, y) WHERE x > 50
 LogicalMinus(all=[false])
 :- LogicalMinus(all=[false])
 :  :- LogicalMinus(all=[false])
-:  :  :- LogicalProject(x=[$0], y=[$1])
+:  :  :- LogicalProject(select=[x, y])
 :  :  :  +- LogicalValues(tuples=[[{ 30, 3 }]])
-:  :  +- LogicalProject(x=[$0], y=[$1])
+:  :  +- LogicalProject(select=[x, y])
 :  :     +- LogicalFilter(condition=[>($0, 30)])
 :  :        +- LogicalValues(tuples=[[{ 20, 2 }]])
-:  +- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+:  +- LogicalProject(select=[EXPR$0, EXPR$1])
 :     +- LogicalValues(tuples=[[{ 40, 4 }]])
-+- LogicalProject(x=[$0], y=[$1])
++- LogicalProject(select=[x, y])
    +- LogicalFilter(condition=[>($0, 50)])
       +- LogicalValues(tuples=[[{ 50, 5 }]])
 ]]>
@@ -188,9 +188,9 @@ LogicalMinus(all=[false])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalProject(x=[$0], y=[$1])
+:- LogicalProject(select=[x, y])
 :  +- LogicalValues(tuples=[[{ 30, 3 }]])
-+- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
++- LogicalProject(select=[EXPR$0, EXPR$1])
    +- LogicalValues(tuples=[[{ 40, 4 }]])
 ]]>
     </Resource>
@@ -206,9 +206,9 @@ SELECT * FROM (VALUES (20, 2)) AS T (X, Y) WHERE X > 30
     <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalProject(X=[$0], Y=[$1])
+:- LogicalProject(select=[X, Y])
 :  +- LogicalValues(tuples=[[{ 30, 3 }, { 30, 3 }]])
-+- LogicalProject(X=[$0], Y=[$1])
++- LogicalProject(select=[X, Y])
    +- LogicalFilter(condition=[>($0, 30)])
       +- LogicalValues(tuples=[[{ 20, 2 }]])
 ]]>
@@ -216,7 +216,7 @@ LogicalMinus(all=[false])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
-+- LogicalProject(X=[$0], Y=[$1])
++- LogicalProject(select=[X, Y])
    +- LogicalValues(tuples=[[{ 30, 3 }, { 30, 3 }]])
 ]]>
     </Resource>
@@ -227,9 +227,9 @@ LogicalAggregate(group=[{0, 1}])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[=(1, 0)])
     LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })])
@@ -238,7 +238,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalValues(tuples=[[]])
 ]]>
     </Resource>

@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -40,9 +40,9 @@ BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -58,10 +58,10 @@ DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
+   +- LogicalProject(select=[a, b, c])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -77,10 +77,10 @@ BoundedStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
+   +- LogicalProject(select=[a, b, c])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -120,8 +120,8 @@ DataStreamScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
-+- LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
++- LogicalProject(select=[f0, f1])
    +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
       :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
       :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
@@ -143,8 +143,8 @@ Calc(select=[f0, name AS f1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
-+- LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
++- LogicalProject(select=[f0, f1])
    +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
       :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
       :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
@@ -166,8 +166,8 @@ Calc(select=[f0, name AS f1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
    +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -187,8 +187,8 @@ HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
    +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>

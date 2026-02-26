@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testPandasProcTimeBoundedPartitionedRangesOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY PROCTIME() NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY PROCTIME() NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -36,7 +36,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasProcTimeBoundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY PROCTIME() NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY PROCTIME() NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -53,7 +53,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasRowTimeBoundedPartitionedRangesOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -71,7 +71,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasRowTimeBoundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

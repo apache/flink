@@ -46,15 +46,15 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8])
+LogicalProject(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv])
 +- LogicalFilter(condition=[<=($9, 3)])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $1, $2 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv]) OVER (PARTITION BY $1, $2 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], sum_d=[SUM($4)], max_d=[MAX($4) FILTER $5], wAvg=[weightedAvg($6, $7)], uv=[COUNT(DISTINCT $8)])
-         +- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], window_time=[$9], d=[$3], $f5=[IS TRUE(>($1, 1000))], b=[$1], e=[$4], c=[$2])
+         +- LogicalProject(select=[a, window_start, window_end, window_time, d]))], b=[$1], e=[$4], c=[$2])
             +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                     +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -101,15 +101,15 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8])
+LogicalProject(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv])
 +- LogicalFilter(condition=[<=($9, 3)])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $1, $2 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv]) OVER (PARTITION BY $0, $1, $2 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], sum_d=[SUM($4)], max_d=[MAX($4) FILTER $5], wAvg=[weightedAvg($6, $7)], uv=[COUNT(DISTINCT $8)])
-         +- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], window_time=[$9], d=[$3], $f5=[IS TRUE(>($1, 1000))], b=[$1], e=[$4], c=[$2])
+         +- LogicalProject(select=[a, window_start, window_end, window_time, d]))], b=[$1], e=[$4], c=[$2])
             +- LogicalTableFunctionScan(invocation=[HOP(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                     +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -155,15 +155,15 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(window_start=[$1], window_end=[$2], window_time=[$3], a=[$0], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8])
+LogicalProject(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, uv])
 +- LogicalFilter(condition=[<=($9, 3)])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $1, $2 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv]) OVER (PARTITION BY $1, $2 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], sum_d=[SUM($4)], max_d=[MAX($4) FILTER $5], wAvg=[weightedAvg($6, $7)], uv=[COUNT(DISTINCT $8)])
-         +- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], window_time=[$9], d=[$3], $f5=[IS TRUE(>($1, 1000))], b=[$1], e=[$4], c=[$2])
+         +- LogicalProject(select=[a, window_start, window_end, window_time, d]))], b=[$1], e=[$4], c=[$2])
             +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                     +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -197,13 +197,13 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
+LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time, rownum])
 +- LogicalFilter(condition=[<=($10, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -234,13 +234,13 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+LogicalProject(select=[window_start, window_end, window_time, a, b, c, d, e])
 +- LogicalFilter(condition=[<=($10, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -272,13 +272,13 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
+LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time, rownum])
 +- LogicalFilter(condition=[<=($10, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[HOP(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -309,13 +309,13 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+LogicalProject(select=[window_start, window_end, window_time, a, b, c, d, e])
 +- LogicalFilter(condition=[<=($10, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[HOP(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -346,13 +346,13 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[$10])
+LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time, rownum])
 +- LogicalFilter(condition=[<=($10, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -382,13 +382,13 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(window_start=[$7], window_end=[$8], window_time=[$9], a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+LogicalProject(select=[window_start, window_end, window_time, a, b, c, d, e])
 +- LogicalFilter(condition=[<=($10, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -424,16 +424,16 @@ GROUP BY a, window_start, window_end
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[MAX($3) FILTER $4], wAvg=[weightedAvg($5, $6)], uv=[COUNT(DISTINCT $7)])
-+- LogicalProject(a=[$1], window_start=[$6], window_end=[$7], d=[$4], $f4=[IS TRUE(>($2, 1000))], b=[$2], e=[$5], c=[$3])
++- LogicalProject(select=[a, window_start, window_end, d]))], b=[$2], e=[$5], c=[$3])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(rowtime=[$0], a=[$1], b=[$2], c=[$3], d=[$4], e=[$5])
-         +- LogicalProject(rowtime=[$9], a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+      +- LogicalProject(select=[rowtime, a, b, c, d, e])
+         +- LogicalProject(select=[rowtime, a, b, c, d, e])
             +- LogicalFilter(condition=[<=($10, 3)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6], window_start=[$7], window_end=[$8], window_time=[$9], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
+               +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $7, $8 ORDER BY $1 DESC NULLS LAST)])
                   +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+                     +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
                         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                           +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                           +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -471,18 +471,18 @@ GROUP BY a, window_start, window_end
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[MAX($5)])
-+- LogicalProject(a=[$1], window_start=[$7], window_end=[$8], cnt=[$2], sum_d=[$3], max_d=[$4])
++- LogicalProject(select=[a, window_start, window_end, cnt, sum_d, max_d])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 3600000:INTERVAL HOUR)], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, INTEGER a, BIGINT cnt, DECIMAL(38, 3) sum_d, DECIMAL(10, 3) max_d, BIGINT wAvg, BIGINT uv, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(rowtime=[$0], a=[$1], cnt=[$2], sum_d=[$3], max_d=[$4], wAvg=[$5], uv=[$6])
-         +- LogicalProject(rowtime=[$3], a=[$0], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8])
+      +- LogicalProject(select=[rowtime, a, cnt, sum_d, max_d, wAvg, uv])
+         +- LogicalProject(select=[rowtime, a, cnt, sum_d, max_d, wAvg, uv])
             +- LogicalFilter(condition=[<=($9, 3)])
-               +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], sum_d=[$5], max_d=[$6], wAvg=[$7], uv=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $1, $2 ORDER BY $4 DESC NULLS LAST)])
+               +- LogicalProject(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv]) OVER (PARTITION BY $0, $1, $2 ORDER BY $4 DESC NULLS LAST)])
                   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], sum_d=[SUM($4)], max_d=[MAX($4) FILTER $5], wAvg=[weightedAvg($6, $7)], uv=[COUNT(DISTINCT $8)])
-                     +- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], window_time=[$9], d=[$3], $f5=[IS TRUE(>($1, 1000))], b=[$1], e=[$4], c=[$2])
+                     +- LogicalProject(select=[a, window_start, window_end, window_time, d]))], b=[$1], e=[$4], c=[$2])
                         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-                           +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+                           +- LogicalProject(select=[a, b, c, d, e, rowtime, proctime])
                               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                                 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+                                 +- LogicalProject(select=[a, b, c, d, e, rowtime])])
                                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

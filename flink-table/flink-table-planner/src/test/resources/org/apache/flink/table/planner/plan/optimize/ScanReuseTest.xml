@@ -22,12 +22,12 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], c0=[$9])
+LogicalProject(select=[a, b, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -49,14 +49,14 @@ Calc(select=[a, b, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], c0=[$10])
+LogicalProject(select=[a, b, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -79,12 +79,12 @@ Calc(select=[a, b, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$9])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -107,14 +107,14 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$10])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -137,14 +137,14 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], i=[$1], j=[$3])
+LogicalProject(select=[a, i, j])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], i=[$3.i])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], j=[$3.j])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -167,16 +167,16 @@ Calc(select=[a, nested_i AS i, nested_j AS j])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], i=[$1], j=[$3])
+LogicalProject(select=[a, i, j])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], i=[$3.i])
+      :- LogicalProject(select=[a])
       :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], j=[$3.j])
+      +- LogicalProject(select=[a])
          +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -199,14 +199,14 @@ Calc(select=[a, i, j])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], i=[$1], i0=[$3])
+LogicalProject(select=[a, i, i0])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], i=[$3.i])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], i=[$3.i])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -227,16 +227,16 @@ Calc(select=[a, nested_i AS i, nested_i0 AS i0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], i=[$1], i0=[$3])
+LogicalProject(select=[a, i, i0])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], i=[$3.i])
+      :- LogicalProject(select=[a])
       :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], i=[$3.i])
+      +- LogicalProject(select=[a])
          +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -257,14 +257,14 @@ Calc(select=[a, i, i0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], i=[$1], a0=[$2], nested=[$3])
+LogicalProject(select=[a, i, a0, nested])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], i=[$3.i])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], nested=[$3])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, nested])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -286,16 +286,16 @@ HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, nested_i, a0, nested
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], i=[$1], a0=[$2], nested=[$3])
+LogicalProject(select=[a, i, a0, nested])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], i=[$3.i])
+      :- LogicalProject(select=[a])
       :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], nested=[$3])
+      +- LogicalProject(select=[a, nested])
          +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -317,16 +317,16 @@ Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, i, a0, nested], leftInpu
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
       :  +- LogicalFilter(condition=[=($1, 1)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
          +- LogicalFilter(condition=[=($1, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
 ]]>
     </Resource>
@@ -347,18 +347,18 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
       :  +- LogicalFilter(condition=[=($1, 1)])
       :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
          +- LogicalFilter(condition=[=($1, 1)])
             +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
 ]]>
     </Resource>
@@ -379,12 +379,12 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
 ]]>
     </Resource>
@@ -405,14 +405,14 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
 ]]>
     </Resource>
@@ -433,16 +433,16 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalSort(fetch=[10])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalSort(fetch=[10])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -467,18 +467,18 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalSort(fetch=[10])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
       :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalSort(fetch=[10])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
             +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -502,16 +502,16 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
       :  +- LogicalFilter(condition=[=($2, _UTF-16LE'1')])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
          +- LogicalFilter(condition=[=($2, _UTF-16LE'1')])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
 ]]>
     </Resource>
@@ -534,15 +534,15 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$1], b=[$3])
+LogicalProject(select=[a, c, b])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$1], c=[$2])
+      :- LogicalProject(select=[a, c])
       :  +- LogicalAggregate(group=[{0}], a=[MIN($1)], c=[MIN($2)])
       :     +- LogicalProject($f0=[$TUMBLE($3, 10000:INTERVAL SECOND)], a=[$0], c=[$2])
       :        +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($3, 5000:INTERVAL SECOND)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, W_T]])
-      +- LogicalProject(a=[$1], b=[$2])
+      +- LogicalProject(select=[a, b])
          +- LogicalAggregate(group=[{0}], a=[MIN($1)], b=[MIN($2)])
             +- LogicalProject($f0=[$TUMBLE($3, 10000:INTERVAL SECOND)], a=[$0], b=[$1])
                +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($3, 5000:INTERVAL SECOND)])
@@ -572,12 +572,12 @@ Calc(select=[a, c, b])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=10}]]])
 ]]>
     </Resource>
@@ -598,14 +598,14 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=10}]]])
 ]]>
     </Resource>
@@ -628,13 +628,13 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$4])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[+($1, 1)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a])])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -657,15 +657,15 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$4])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[+($1, 1)])
+      :- LogicalProject(select=[a])])
       :  +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -688,16 +688,16 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
       :  +- LogicalFilter(condition=[=($1, 2)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
          +- LogicalFilter(condition=[=($1, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
 ]]>
     </Resource>
@@ -718,18 +718,18 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
       :  +- LogicalFilter(condition=[=($1, 2)])
       :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
          +- LogicalFilter(condition=[=($1, 1)])
             +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{filterable-fields=b}]]])
 ]]>
     </Resource>
@@ -752,16 +752,16 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$9])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
       :  +- LogicalFilter(condition=[=($1, 2)])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
          +- LogicalFilter(condition=[=($1, 3)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -784,18 +784,18 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$10])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
       :  +- LogicalFilter(condition=[=($1, 2)])
       :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
          +- LogicalFilter(condition=[=($1, 3)])
             +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -818,12 +818,12 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -844,14 +844,14 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -874,16 +874,16 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalSort(fetch=[11])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalSort(fetch=[10])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -911,18 +911,18 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalSort(fetch=[11])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
       :     +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :        +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalSort(fetch=[10])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6], rtime=[$7])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2, rtime])
             +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+               +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -949,12 +949,12 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], metadata_2=[$6], c=[$9], metadata_20=[$13])
+LogicalProject(select=[a, b, metadata_1, metadata_2, c, metadata_20])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -977,14 +977,14 @@ Calc(select=[a, b, metadata_1, metadata_2, c, metadata_20])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], metadata_2=[$6], c=[$10], metadata_20=[$14])
+LogicalProject(select=[a, b, metadata_1, metadata_2, c, metadata_20])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1007,12 +1007,12 @@ Calc(select=[a, b, metadata_1, metadata_2, c, metadata_20])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$9], metadata_2=[$13])
+LogicalProject(select=[a, b, metadata_1, c, metadata_2])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1035,14 +1035,14 @@ Calc(select=[a, b, metadata_1, c, metadata_2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$10], metadata_2=[$14])
+LogicalProject(select=[a, b, metadata_1, c, metadata_2])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1065,12 +1065,12 @@ Calc(select=[a, b, metadata_1, c, metadata_2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$9], metadata_10=[$11])
+LogicalProject(select=[a, b, metadata_1, c, metadata_10])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1093,14 +1093,14 @@ Calc(select=[a, b, metadata_1, c, metadata_10])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], c=[$10], metadata_10=[$12])
+LogicalProject(select=[a, b, metadata_1, c, metadata_10])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1123,12 +1123,12 @@ Calc(select=[a, b, metadata_1, c, metadata_10])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], compute_metadata=[$5], c=[$9], metadata_2=[$13])
+LogicalProject(select=[a, b, metadata_1, compute_metadata, c, metadata_2])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1151,14 +1151,14 @@ Calc(select=[a, b, metadata_1, compute_metadata, c, metadata_2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], metadata_1=[$4], compute_metadata=[$5], c=[$10], metadata_2=[$14])
+LogicalProject(select=[a, b, metadata_1, compute_metadata, c, metadata_2])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1181,16 +1181,16 @@ Calc(select=[a, b, metadata_1, compute_metadata, c, metadata_2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
       :  +- LogicalFilter(condition=[=($2, _UTF-16LE'1')])
-      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :     +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[$5], metadata_2=[$6])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1, compute_metadata, metadata_2])
          +- LogicalFilter(condition=[=($2, _UTF-16LE'2')])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+            +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{partition-list=c:1;c:2}]]])
 ]]>
     </Resource>
@@ -1211,12 +1211,12 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$9])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      :- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5])
+      +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1237,14 +1237,14 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], c0=[$10])
+LogicalProject(select=[a, c, c0])
 +- LogicalFilter(condition=[=($0, $8)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-      :  +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+      :  +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[-($7, 5000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], nested=[$3], metadata_1=[$4], compute_metadata=[*($4, 2)], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
+         +- LogicalProject(select=[a, b, c, nested, metadata_1])], metadata_2=[$5], rtime=[TO_TIMESTAMP($2, $3.s)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1265,22 +1265,22 @@ Calc(select=[a, c, c0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$3], a2=[$4])
+LogicalProject(select=[a1, a2])
 +- LogicalFilter(condition=[=($3, $9)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)], a2=[MIN($4)], metadata_0=[MIN($5)])
-      :  +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2], a2=[$3], metadata_0=[$0])
+      :  +- LogicalProject(select=[a0, window_start, window_end, a1, a2, metadata_0])
       :     +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      :        +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+      :        +- LogicalProject(select=[metadata_0, a0, a1, a2, ts, rowtime])
       :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-      :              +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+      :              +- LogicalProject(select=[metadata_0, a0, a1, a2, ts])])
       :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
       +- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)])
-         +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2])
+         +- LogicalProject(select=[a0, window_start, window_end, a1])
             +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+               +- LogicalProject(select=[metadata_0, a0, a1, a2, ts, rowtime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+                     +- LogicalProject(select=[metadata_0, a0, a1, a2, ts])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
 ]]>
     </Resource>
@@ -1311,22 +1311,22 @@ Calc(select=[a1, a2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$3], a2=[$8])
+LogicalProject(select=[a1, a2])
 +- LogicalFilter(condition=[=($3, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)])
-      :  +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2])
+      :  +- LogicalProject(select=[a0, window_start, window_end, a1])
       :     +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      :        +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+      :        +- LogicalProject(select=[metadata_0, a0, a1, a2, ts, rowtime])
       :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-      :              +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+      :              +- LogicalProject(select=[metadata_0, a0, a1, a2, ts])])
       :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
       +- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)], a2=[MIN($4)], metadata_0=[MIN($5)])
-         +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2], a2=[$3], metadata_0=[$0])
+         +- LogicalProject(select=[a0, window_start, window_end, a1, a2, metadata_0])
             +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+               +- LogicalProject(select=[metadata_0, a0, a1, a2, ts, rowtime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+                     +- LogicalProject(select=[metadata_0, a0, a1, a2, ts])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, metadata=[metadata_0]]])
 ]]>
     </Resource>
@@ -1355,13 +1355,13 @@ Calc(select=[a1, a2])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk1], fields=[origin_ts, partition, offset, id])
-+- LogicalProject(origin_ts=[$0], partition=[$1], offset=[$2], id=[$3])
-   +- LogicalProject(origin_ts=[$2], partition=[$3], offset=[$1], id=[$0])
++- LogicalProject(select=[origin_ts, partition, offset, id])
+   +- LogicalProject(select=[origin_ts, partition, offset, id])
       +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[offset, origin_ts, partition]]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[id])
-+- LogicalProject(id=[$3])
-   +- LogicalProject(origin_ts=[$2], partition=[$3], offset=[$1], id=[$0])
++- LogicalProject(select=[id])
+   +- LogicalProject(select=[origin_ts, partition, offset, id])
       +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[offset, origin_ts, partition]]])
 ]]>
     </Resource>
@@ -1383,7 +1383,7 @@ Sink(table=[default_catalog.default_database.snk2], fields=[id])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MySinkTs], fields=[a, ts_ltz])
-+- LogicalProject(a=[$0], ts_ltz=[$2])
++- LogicalProject(select=[a, ts_ltz])
    +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($2, 600000:INTERVAL MINUTE)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWatermark]])
 

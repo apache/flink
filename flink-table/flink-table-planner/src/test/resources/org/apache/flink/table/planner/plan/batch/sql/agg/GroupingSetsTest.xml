@@ -25,7 +25,7 @@ FROM emp GROUP BY CUBE(MOD(deptno, 20), gender)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], c=[$2], g=[$1])
+LogicalProject(select=[d, c, g])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
    +- LogicalProject(d=[MOD($1, 20)], g=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -49,7 +49,7 @@ Calc(select=[d, c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$1])
+LogicalProject(select=[c])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
    +- LogicalProject($f0=[1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -76,7 +76,7 @@ FROM emp GROUP BY ROLLUP (deptno + 1)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d1=[$0], d0=[-($0, 1)], c=[$1])
+LogicalProject(select=[d1])], c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
    +- LogicalProject(d1=[+($1, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -103,7 +103,7 @@ FROM emp GROUP BY ROLLUP(MOD(deptno, 20), gender)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], c=[$2], g=[$1])
+LogicalProject(select=[d, c, g])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()])
    +- LogicalProject(d=[MOD($1, 20)], g=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -127,7 +127,7 @@ Calc(select=[d, c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$1])
+LogicalProject(select=[c])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
    +- LogicalProject($f0=[1])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -152,7 +152,7 @@ Calc(select=[c])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-+- LogicalProject(deptno=[$2])
++- LogicalProject(select=[deptno])
    +- LogicalTableScan(table=[[default_catalog, default_database, emps]])
 ]]>
     </Resource>
@@ -178,13 +178,13 @@ FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(deptno=[$0], g=[0:BIGINT], c=[$1])
+:- LogicalProject(select=[deptno, c])
 :  +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-:     +- LogicalProject(deptno=[$7])
+:     +- LogicalProject(select=[deptno])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
-+- LogicalProject(deptno=[$0], g=[1:BIGINT], c=[$1])
++- LogicalProject(select=[deptno, c])
    +- LogicalAggregate(group=[{0}], groups=[[{}]], c=[COUNT()])
-      +- LogicalProject(deptno=[$7])
+      +- LogicalProject(select=[deptno])
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
 ]]>
     </Resource>
@@ -223,9 +223,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -247,9 +247,9 @@ Calc(select=[b, c, a, 0 AS g, CASE(SEARCH($e, Sarg[0, 1]), 0, 1) AS gb, CASE(($e
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalProject(EXPR$0=[$2])
++- LogicalProject(select=[EXPR$0])
    +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[COUNT()])
-      +- LogicalProject(deptno=[$1], gender=[$2])
+      +- LogicalProject(select=[deptno, gender])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -280,10 +280,10 @@ FROM emp AS e JOIN dept AS d USING (deptno)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$0], gender=[$2], min_name=[$3])
+LogicalProject(select=[deptno, gender, min_name])
 +- LogicalFilter(condition=[OR(>($4, 2), AND(=($2, _UTF-16LE'M'), =($0, 10)))])
    +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0, 2}, {0}, {1, 2}, {1}, {2}, {}]], min_name=[MIN($3)], agg#1=[COUNT()])
-      +- LogicalProject(deptno=[$1], deptno0=[$3], gender=[$2], ename=[$0])
+      +- LogicalProject(select=[deptno, deptno0, gender, ename])
          +- LogicalJoin(condition=[=($1, $3)], joinType=[inner])
             :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
             +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -326,9 +326,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -355,9 +355,9 @@ FROM emp WHERE deptno = 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$1], gender=[$0], EXPR$2=[$2], c=[$3])
+LogicalProject(select=[deptno, gender, EXPR$2, c])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$2=[GROUPING_ID($1, $0, $1)], c=[COUNT()])
-   +- LogicalProject(gender=[$2], deptno=[$1])
+   +- LogicalProject(select=[gender, deptno])
       +- LogicalFilter(condition=[=($1, 10)])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
@@ -392,9 +392,9 @@ from scott_emp
     <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first])
-+- LogicalProject(deptno=[$0], job=[$1], empno=[$2], ename=[$3], sumsal=[$4], gr_text=[CASE(=($5, 0), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
++- LogicalProject(select=[deptno, job, empno, ename, sumsal]), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 1), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 3), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =($5, 7), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
    +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1, 2, 3}, {0, 1}, {0}, {}]], sumsal=[SUM($4)], agg#1=[GROUPING_ID($0, $1, $2)])
-      +- LogicalProject(deptno=[$7], job=[$2], empno=[$0], ename=[$1], sal=[$5])
+      +- LogicalProject(select=[deptno, job, empno, ename, sal])
          +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
 ]]>
     </Resource>
@@ -427,10 +427,10 @@ FROM emp
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], gd=[$3], gid=[$4], gdgd=[$5], gidgd=[$6])
+LogicalProject(select=[c, gd, gid, gdgd, gidgd])
 +- LogicalFilter(condition=[<=($3, $6)])
    +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()], gd=[GROUPING($0)], gid=[GROUPING_ID($0)], gdgd=[GROUPING($0, $1, $0)], gidgd=[GROUPING_ID($0, $1, $0)])
-      +- LogicalProject(deptno=[$1], gender=[$2])
+      +- LogicalProject(select=[deptno, gender])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -462,10 +462,10 @@ FROM emp GROUP BY ROLLUP(deptno, gender)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$3], gid=[$4], gd=[$5], gg=[$6], ggd=[$7], gdg=[$8])
-+- LogicalProject(deptno=[$0], gender=[$1], c=[$2], g=[$3], gid=[0:BIGINT], gd=[$4], gg=[$5], ggd=[$6], gdg=[$7])
+LogicalProject(select=[c, g, gid, gd, gg, ggd, gdg])
++- LogicalProject(select=[deptno, gender, c, g, gd, gg, ggd, gdg])
    +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()], g=[GROUPING($0)], gd=[GROUPING_ID($0)], gg=[GROUPING_ID($1)], ggd=[GROUPING_ID($1, $0)], gdg=[GROUPING_ID($0, $1)])
-      +- LogicalProject(deptno=[$1], gender=[$2])
+      +- LogicalProject(select=[deptno, gender])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -497,10 +497,10 @@ FROM emp
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd0=[$5], gid=[$6], c=[$7])
-+- LogicalProject(deptno=[$0], gender=[$1], gd=[$2], gg=[$3], dg=[$4], gd_0=[$5], gid=[0:BIGINT], c=[$6])
+LogicalProject(select=[deptno, gender, gd, gg, dg, gd0, gid, c])
++- LogicalProject(select=[deptno, gender, gd, gg, dg, gd_0, c])
    +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], gd=[GROUPING($0)], gg=[GROUPING($1)], dg=[GROUPING_ID($0, $1)], gd=[GROUPING_ID($1, $0)], c=[COUNT()])
-      +- LogicalProject(deptno=[$1], gender=[$2])
+      +- LogicalProject(select=[deptno, gender])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -524,11 +524,11 @@ SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno),
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0])
+LogicalProject(select=[c])
 +- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(c=[$1], EXPR$1=[$2])
+   +- LogicalProject(select=[c, EXPR$1])
       +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], agg#1=[GROUPING($0)])
-         +- LogicalProject(deptno=[$1])
+         +- LogicalProject(select=[deptno])
             +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -562,7 +562,7 @@ FROM scott_emp GROUP BY CUBE(deptno, job)
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()], d=[GROUPING($0)], j=[GROUPING($1)], x=[GROUPING($0, $1)])
-+- LogicalProject(deptno=[$7], job=[$2])
++- LogicalProject(select=[deptno, job])
    +- LogicalTableScan(table=[[default_catalog, default_database, scott_emp]])
 ]]>
     </Resource>
@@ -584,9 +584,9 @@ Calc(select=[deptno, job, c, CASE(SEARCH($e, Sarg[0, 1]), 0, 1) AS d, CASE(($e =
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$1], g=[$2])
+LogicalProject(select=[c, g])
 +- LogicalAggregate(group=[{0}], c=[COUNT()], g=[GROUPING($0)])
-   +- LogicalProject(deptno=[$1])
+   +- LogicalProject(select=[deptno])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -609,9 +609,9 @@ SELECT COUNT(*) AS c, deptno, GROUPING(deptno) AS g FROM emp GROUP BY ROLLUP(dep
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$1], deptno=[$0], g=[$2])
+LogicalProject(select=[c, deptno, g])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], g=[GROUPING($0)])
-   +- LogicalProject(deptno=[$1])
+   +- LogicalProject(select=[deptno])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -636,9 +636,9 @@ GROUP BY GROUPING SETS (b, c)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT])
+LogicalProject(select=[b, c, a])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -660,7 +660,7 @@ Calc(select=[b, c, a, 0 AS g])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)])
-+- LogicalProject(b=[$1], c=[$2], a=[$0])
++- LogicalProject(select=[b, c, a])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -693,9 +693,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7], cnt=[$8])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid, cnt])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)], cnt=[COUNT()])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -749,7 +749,7 @@ GROUP BY GROUPING SETS ((a, b), (a, b, c))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[coalesce($2, _UTF-16LE'empty')], EXPR$3=[$3])
+LogicalProject(select=[a, b])], EXPR$3=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}]], EXPR$3=[AVG($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -778,9 +778,9 @@ FROM emps GROUP BY GROUPING SETS (deptno)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$0], a=[$1], g=[0:BIGINT], gb=[$2], gib=[$3])
+LogicalProject(select=[deptno, a, gb, gib])
 +- LogicalAggregate(group=[{0}], a=[AVG($1)], gb=[GROUPING($0)], gib=[GROUPING_ID($0)])
-   +- LogicalProject(deptno=[$2], age=[$6])
+   +- LogicalProject(select=[deptno, age])
       +- LogicalTableScan(table=[[default_catalog, default_database, emps]])
 ]]>
     </Resource>
@@ -812,9 +812,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -846,9 +846,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -869,9 +869,9 @@ Calc(select=[b, c, a, 0 AS g, CASE(SEARCH($e, Sarg[0, 1]), 0, 1) AS gb, CASE(($e
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$0], c=[$2])
+LogicalProject(select=[deptno, c])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1], gender=[$2])
+   +- LogicalProject(select=[deptno, gender])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -922,7 +922,7 @@ Calc(select=[($f0 + 1) AS half1, c])
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1])
+   +- LogicalProject(select=[deptno])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -946,9 +946,9 @@ SELECT gender, deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno, gender
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(gender=[$1], EXPR$1=[+($0, 1)], c=[$2])
+LogicalProject(select=[gender])], c=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1], gender=[$2])
+   +- LogicalProject(select=[deptno, gender])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -971,7 +971,7 @@ Calc(select=[gender, (deptno + 1) AS EXPR$1, c])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-+- LogicalProject(gender=[$2])
++- LogicalProject(select=[gender])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -995,7 +995,7 @@ Calc(select=[gender, c])
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
 +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject(gender=[$2])
+   +- LogicalProject(select=[gender])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -1024,7 +1024,7 @@ SELECT deptno + 1 AS d1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) HAVING C
 LogicalProject(d1=[+($0, 1)], c=[$1])
 +- LogicalFilter(condition=[>($1, 3)])
    +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-      +- LogicalProject(deptno=[$1])
+      +- LogicalProject(select=[deptno])
          +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -1048,7 +1048,7 @@ Calc(select=[(deptno + 1) AS d1, c], where=[(c > 3)])
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1], gender=[$2])
+   +- LogicalProject(select=[deptno, gender])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>

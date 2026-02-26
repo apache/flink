@@ -40,7 +40,7 @@ FROM MyTable, LATERAL TABLE(func1(c)) AS T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], f0=[$3], f1=[$4], f2=[$5], f3=[$6], f4=[$7], f5=[$8], f6=[$9], f7=[$10], f8=[$11], f9=[$12], f10=[$13], f11=[$14])
+LogicalProject(select=[a, b, c, f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1, VARCHAR(2147483647) f2, VARCHAR(2147483647) f3, VARCHAR(2147483647) f4, VARCHAR(2147483647) f5, INTEGER f6, INTEGER f7, INTEGER f8, INTEGER f9, INTEGER f10, INTEGER f11)])
@@ -56,12 +56,12 @@ Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select
   <TestCase name="testCorrelateWithMultiFilter">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0], d=[$1])
+LogicalProject(select=[c, d])
 +- LogicalFilter(condition=[>($2, 20)])
    +- LogicalFilter(condition=[>($2, 10)])
-      +- LogicalProject(c=[$2], d=[$3], e=[$4])
+      +- LogicalProject(select=[c, d, e])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-            :- LogicalProject(a=[$0], b=[$1], c=[$2])
+            :- LogicalProject(select=[a, b, c])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
             +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)])
 ]]>
@@ -77,12 +77,12 @@ Calc(select=[c, d])
   <TestCase name="testCorrelateWithMultiFilterAndWithoutCalcMergeRules">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0], d=[$1])
+LogicalProject(select=[c, d])
 +- LogicalFilter(condition=[>($2, 20)])
    +- LogicalFilter(condition=[>($2, 10)])
-      +- LogicalProject(c=[$2], d=[$3], e=[$4])
+      +- LogicalProject(select=[c, d, e])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-            :- LogicalProject(a=[$0], b=[$1], c=[$2])
+            :- LogicalProject(select=[a, b, c])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
             +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)])
 ]]>
@@ -98,7 +98,7 @@ Calc(select=[c, d])
   <TestCase name="testCrossJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], s=[$3])
+LogicalProject(select=[c, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])
@@ -115,7 +115,7 @@ Calc(select=[c, s])
   <TestCase name="testCrossJoin2">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], s=[$3])
+LogicalProject(select=[c, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2, _UTF-16LE'$')], rowType=[RecordType(VARCHAR(2147483647) s)])
@@ -132,7 +132,7 @@ Calc(select=[c, s])
   <TestCase name="testCustomType">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], name=[$3], len=[$4])
+LogicalProject(select=[c, name, len])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc2*(*org.apache.flink.table.planner.expressions.utils.Func13$aceadf1af6c698a4705a8fbd3984d0a3*($2))], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER len)])
@@ -150,7 +150,7 @@ Calc(select=[c, name, len])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[>($2, 2)])
-+- LogicalProject(c=[$2], name=[$3], len=[$4])
++- LogicalProject(select=[c, name, len])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc2*($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER len)])
@@ -205,7 +205,7 @@ FROM MyTable, LATERAL TABLE(str_split('Jack,John', ',')) AS T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
+LogicalProject(select=[a, b, c, EXPR$0])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -227,7 +227,7 @@ FROM MyTable, LATERAL TABLE(str_split('Jack,John')) AS T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
+LogicalProject(select=[a, b, c, EXPR$0])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -249,7 +249,7 @@ FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John', ',')) AS T ON TRUE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
+LogicalProject(select=[a, b, c, EXPR$0])
 +- LogicalJoin(condition=[true], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -271,7 +271,7 @@ FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John')) AS T ON TRUE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
+LogicalProject(select=[a, b, c, EXPR$0])
 +- LogicalJoin(condition=[true], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -287,7 +287,7 @@ Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_spl
   <TestCase name="testLeftOuterJoinWithLiteralTrue">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], s=[$3])
+LogicalProject(select=[c, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])

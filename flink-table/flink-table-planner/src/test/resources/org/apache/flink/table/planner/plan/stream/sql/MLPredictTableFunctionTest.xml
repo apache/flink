@@ -23,9 +23,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -43,9 +43,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(BINARY(10) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -63,9 +63,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(VARBINARY(10) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -83,9 +83,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -103,9 +103,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -123,9 +123,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -143,9 +143,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -163,9 +163,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -183,9 +183,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -203,9 +203,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -223,9 +223,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -243,9 +243,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -263,9 +263,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DECIMAL(5, 2) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -283,9 +283,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -303,9 +303,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(CHAR(10) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -323,9 +323,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(VARCHAR(20) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -343,9 +343,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -363,9 +363,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -383,9 +383,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -403,9 +403,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(INTEGER ARRAY col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -423,9 +423,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TINYINT ARRAY col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -443,9 +443,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(BOOLEAN col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -463,9 +463,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DECIMAL(5, 2) ARRAY col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -483,9 +483,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(VARCHAR(20) ARRAY col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -503,9 +503,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType((VARCHAR(2147483647), INTEGER) MAP col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -523,9 +523,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType((VARCHAR(2147483647), DECIMAL(5, 2)) MAP col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -543,9 +543,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType((VARCHAR(20), INTEGER ARRAY) MAP col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -563,9 +563,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -583,9 +583,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -603,9 +603,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(RecordType:peek_no_expand(DECIMAL(5, 2) a, INTEGER ARRAY b) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -623,9 +623,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(RecordType:peek_no_expand(VARCHAR(20) a, (VARCHAR(2147483647), INTEGER) MAP b) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -643,9 +643,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(RecordType:peek_no_expand(INTEGER ARRAY a, (VARCHAR(2147483647), DECIMAL(5, 2) ARRAY) MAP b) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -663,9 +663,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -683,9 +683,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType((VARCHAR(2147483647), RecordType:peek_no_expand(INTEGER a, VARCHAR(20) ARRAY b)) MAP col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -703,9 +703,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -723,9 +723,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -743,9 +743,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -763,9 +763,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -783,9 +783,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DOUBLE col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -803,9 +803,9 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(col=[$0], res=[$1])
+LogicalProject(select=[col, res])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'), DEFAULT())], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
-   +- LogicalProject(col=[$0])
+   +- LogicalProject(select=[col])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
@@ -823,11 +823,11 @@ FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, e, f])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'async':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'true', _UTF-16LE'timeout':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'100s'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -848,11 +848,11 @@ FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, c0, d0])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.ConflictModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), DEFAULT())], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) c0, INTEGER ARRAY d0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -873,11 +873,11 @@ FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, e, f])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), DEFAULT())], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -898,11 +898,11 @@ FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, ARGS  => D
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, e, f])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), DEFAULT())], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -923,11 +923,11 @@ FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL  => MODEL MyModel, ARGS   =>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, e, f])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -948,11 +948,11 @@ FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, e, f])
 +- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), DEFAULT())], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

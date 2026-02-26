@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testPandasRangeOverWindowAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c1')])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -37,7 +37,7 @@ Calc(select=[b, w0$o0 AS _c1])
   <TestCase name="testPandasRowsOverWindowAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

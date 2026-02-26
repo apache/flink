@@ -20,11 +20,11 @@ limitations under the License.
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LogicalProject(a=[$0], name=[$4], age=[$5])
++- LogicalProject(select=[a, name, age])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
-      :- LogicalProject(a=[$1], c=[$2], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, c])])
       :  +- LogicalAggregate(group=[{0}], a=[MAX($1)], c=[COUNT($2)])
-      :     +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      :     +- LogicalProject(select=[b, a, c])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -143,7 +143,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LogicalProject(a=[$0], name=[$6], age=[$7])
++- LogicalProject(select=[a, name, age])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -251,11 +251,11 @@ GROUP BY b
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
-+- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
-   +- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3], proc=[$4])
++- LogicalProject(select=[b, a, c, d])
+   +- LogicalProject(select=[b, a, c, d, proc])
       +- LogicalFilter(condition=[>($7, 10)])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
-            :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proc=[PROCTIME()])
+            :- LogicalProject(select=[b, a, c, d])])
             :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
             :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
             +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -282,9 +282,9 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], age=[$2], proctime=[$3], id0=[$4], name0=[$5], age0=[$6])
+LogicalProject(select=[id, name, age, proctime, id0, name0, age0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=D}]]])
-   :- LogicalProject(id=[$0], name=[$1], age=[$2], proctime=[PROCTIME()])
+   :- LogicalProject(select=[id, name, age])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, AppendOnlyTable]], hints=[[[ALIAS inheritPath:[] options:[AppendOnlyTable]]]])
    +- LogicalFilter(condition=[=($cor0.id, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -303,9 +303,9 @@ Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, nam
   <TestCase name="testJoinAsyncTableKeyOrderedWithCdcSource">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(id=[$0], name=[$1], age=[$2], proctime=[$3], id0=[$4], name0=[$5], age0=[$6])
+LogicalProject(select=[id, name, age, proctime, id0, name0, age0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, output-mode=allow_unordered, table=D}]]])
-   :- LogicalProject(id=[$0], name=[$1], age=[$2], proctime=[PROCTIME()])
+   :- LogicalProject(select=[id, name, age])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, UpsertTable]], hints=[[[ALIAS inheritPath:[] options:[UpsertTable]]]])
    +- LogicalFilter(condition=[=($cor0.id, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -333,7 +333,7 @@ Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, nam
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -355,7 +355,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=false, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -387,9 +387,9 @@ ON T1.a=D.id
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 1}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=ordered, table=D, capacity=200}]]])
-   :- LogicalProject(a=[$0], proctime=[$3])
+   :- LogicalProject(select=[a, proctime])
    :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D, capacity=1000}]]])
    :     :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    :     +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -417,7 +417,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -439,7 +439,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{table=LookupTable}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -461,7 +461,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{async=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -483,7 +483,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -511,13 +511,13 @@ ON MyLookupTable.a = D.id AND D.age = 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1])
+LogicalProject(select=[b])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
+   :- LogicalProject(select=[a, b, c, proctime, rowtime])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.a, $0), =($2, 10))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(id=[$0], name=[$1], age=[$2])
+         +- LogicalProject(select=[id, name, age])
             +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
 ]]>
     </Resource>
@@ -541,7 +541,7 @@ WHERE cast(D.name as bigint) > 1000
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalFilter(condition=[>(CAST($6):BIGINT, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -570,12 +570,12 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6], age=[$7], nominal_age=[$8])
+LogicalProject(select=[a, b, c, name, age, nominal_age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(id=[$0], name=[$1], age=[$2], nominal_age=[+($2, 1)])
+         +- LogicalProject(select=[id, name, age])])
             +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn]])
 ]]>
     </Resource>
@@ -600,12 +600,12 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6], age=[$7], nominal_age=[$8])
+LogicalProject(select=[a, b, c, name, age, nominal_age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($3, 12))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalProject(id=[$0], name=[$1], age=[$2], nominal_age=[+($2, 1)])
+         +- LogicalProject(select=[id, name, age])])
             +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn]])
 ]]>
     </Resource>
@@ -629,7 +629,7 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -657,7 +657,7 @@ ON T.b = concat(D.name, '!') AND D.age = 11
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.b, CONCAT($1, _UTF-16LE'!')), =($2, 11))])
@@ -684,7 +684,7 @@ WHERE D.name LIKE 'Jack%'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalFilter(condition=[LIKE($6, _UTF-16LE'Jack%')])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -707,7 +707,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.a, $0), =(CAST($cor0.c):INTEGER, $0))])
@@ -734,7 +734,7 @@ ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.a, +($0, 1)), =($cor0.b, CONCAT($1, _UTF-16LE'!')), =($2, 11))])
@@ -761,7 +761,7 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -785,9 +785,9 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, C
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
+LogicalProject(select=[a, b, proctime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
-   :- LogicalProject(a=[$0], b=[$1], proctime=[$3])
+   :- LogicalProject(select=[a, b, proctime])
    :  +- LogicalFilter(condition=[>($2, 1000)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -807,7 +807,7 @@ Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
   <TestCase name="testJoinTemporalTableWithNonDeterministicInsertOnlyInputCustomShuffle">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{shuffle=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -872,9 +872,9 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   <TestCase name="testJoinTemporalTableWithNonDeterministicUpsertInputCustomShuffle">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
+LogicalProject(select=[a, b, c, proctime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{shuffle=true, table=D}]]])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :- LogicalProject(select=[a, b, c])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, UpsertSource]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -953,7 +953,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age]
   <TestCase name="testJoinTemporalTableWithNotShuffleLookupHint">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{shuffle=false, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1026,7 +1026,7 @@ ON T.a = D.id
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, id])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1045,7 +1045,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
   <TestCase name="testJoinTemporalTableWithShuffleLookupHint">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{shuffle=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1110,7 +1110,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
   <TestCase name="testJoinTemporalTableWithShuffleLookupHintEmptyPartitioner">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{shuffle=true, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1184,7 +1184,7 @@ WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6])
+LogicalProject(select=[a, b, c, name])
 +- LogicalFilter(condition=[=(CONCAT(_UTF-16LE'Hello-', $6), _UTF-16LE'Hello-Jark')])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -1206,7 +1206,7 @@ Calc(select=[a, b, c, name])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LogicalProject(a=[$0], name=[$6], age=[$7])
++- LogicalProject(select=[a, name, age])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, time-out=600s, max-attempts=3, output-mode=allow_unordered, fixed-delay=10s, retry-predicate=lookup_miss, table=D, capacity=300}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1298,7 +1298,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LogicalProject(a=[$0], name=[$6], age=[$7])
++- LogicalProject(select=[a, name, age])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{time-out=600s, output-mode=allow_unordered, table=D, capacity=300}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1401,7 +1401,7 @@ ON T.a = D.id
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, async=true, time-out=300 s, max-attempts=10, output-mode=allow_unordered, fixed-delay=155 ms, retry-predicate=lookup_miss, table=D, capacity=1000}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1422,7 +1422,7 @@ Calc(select=[a])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LogicalProject(a=[$0], name=[$6], age=[$7])
++- LogicalProject(select=[a, name, age])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D}]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1516,7 +1516,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1546,7 +1546,7 @@ JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], id0=[$8], name0=[$9], age0=[$10])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age, id0, name0, age0])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D1}]]])
    :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=D1}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
@@ -1581,7 +1581,7 @@ JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], id0=[$8], name0=[$9], age0=[$10])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age, id0, name0, age0])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
    :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0, 0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0, 0] options:{retry-strategy=fixed_delay, max-attempts=3, fixed-delay=10s, retry-predicate=lookup_miss, table=LookupTable}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
@@ -1614,7 +1614,7 @@ JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=D}][LOOKUP inheritPath:[0] options:{output-mode=ordered, table=D}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -1642,7 +1642,7 @@ JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(select=[a, b, c, proctime, rowtime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}], joinHints=[[[LOOKUP inheritPath:[0] options:{output-mode=allow_unordered, table=AsyncLookupTable}][LOOKUP inheritPath:[0] options:{output-mode=ordered, table=AsyncLookupTable}]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[ALIAS inheritPath:[] options:[T]]]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])

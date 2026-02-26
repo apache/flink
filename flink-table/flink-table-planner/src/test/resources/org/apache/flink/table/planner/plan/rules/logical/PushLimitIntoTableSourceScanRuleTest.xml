@@ -23,13 +23,13 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(offset=[10], fetch=[10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[20]]], fields=[a, b, c])
 ]]>
@@ -42,13 +42,13 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(fetch=[10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[10]]], fields=[a, b, c])
 ]]>
@@ -61,13 +61,13 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[1], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(offset=[1], fetch=[10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[11]]], fields=[a, b, c])
 ]]>
@@ -80,13 +80,13 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[5])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(fetch=[5])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable, limit=[5]]], fields=[a, b, c])
 ]]>
@@ -99,13 +99,13 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(sort0=[$2], dir0=[ASC-nulls-first], fetch=[10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
 ]]>
@@ -118,13 +118,13 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(offset=[10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
 ]]>
@@ -137,13 +137,13 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- FlinkLogicalSort(offset=[10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
 ]]>

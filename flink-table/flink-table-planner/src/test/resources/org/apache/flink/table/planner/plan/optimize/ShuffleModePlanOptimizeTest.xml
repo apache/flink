@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c1=[$0], c2=[$1], c3=[$2])
+LogicalProject(select=[c1, c2, c3])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[inner])
    :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
@@ -91,7 +91,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c1=[$0], c2=[$1], c3=[$2])
+LogicalProject(select=[c1, c2, c3])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[inner])
    :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
@@ -160,7 +160,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c1=[$0], c2=[$1], c3=[$2])
+LogicalProject(select=[c1, c2, c3])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[inner])
    :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
@@ -229,7 +229,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c1=[$0], c2=[$1], c3=[$2])
+LogicalProject(select=[c1, c2, c3])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[inner])
    :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
@@ -288,7 +288,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c1=[$0], c2=[$1], c3=[$2])
+LogicalProject(select=[c1, c2, c3])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[inner])
    :  :- LogicalAggregate(group=[{}], c1=[COUNT()])
@@ -347,7 +347,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c1=[$0], c2=[$1], c3=[$2])
+LogicalProject(select=[c1, c2, c3])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[inner])
    :  :- LogicalAggregate(group=[{}], c1=[COUNT()])

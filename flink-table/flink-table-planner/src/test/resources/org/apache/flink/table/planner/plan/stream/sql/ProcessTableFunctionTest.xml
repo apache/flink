@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16LE'b', _UTF-16LE'c'), DESCRIPTOR(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -39,10 +39,10 @@ ProcessTableFunction(invocation=[f(DESCRIPTOR(_UTF-16LE'a'), DESCRIPTOR(_UTF-16L
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(score=[$0], out=[$1])
+LogicalProject(select=[score, out])
 +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
-   +- LogicalProject(name=[$0], score=[$1])
-      +- LogicalProject(name=[$0], score=[$1])
+   +- LogicalProject(select=[name, score])
+      +- LogicalProject(select=[name, score])
          +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -60,7 +60,7 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEF
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(DEFAULT(), _UTF-16LE'my-ptf')], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -77,7 +77,7 @@ ProcessTableFunction(invocation=[f(DEFAULT(), _UTF-16LE'my-ptf')], uid=[my-ptf],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(1000:INTERVAL SECOND, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -94,7 +94,7 @@ ProcessTableFunction(invocation=[f(1000:INTERVAL SECOND, DEFAULT(), DEFAULT())],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(12:INTERVAL YEAR, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -111,9 +111,9 @@ ProcessTableFunction(invocation=[f(12:INTERVAL YEAR, DEFAULT(), DEFAULT())], uid
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0], rowtime=[$1])
+LogicalProject(select=[out, rowtime])
 +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
-   +- LogicalProject(name=[$0], score=[$1], ts=[$2])
+   +- LogicalProject(select=[name, score, ts])
       +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, t_watermarked]])
 ]]>
@@ -130,17 +130,17 @@ ProcessTableFunction(invocation=[f(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
-+- LogicalProject(out=[$0])
++- LogicalProject(select=[out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
-+- LogicalProject(out=[$0])
++- LogicalProject(select=[out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 42, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -161,10 +161,10 @@ Sink(table=[default_catalog.default_database.t_sink], fields=[out])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], score=[$1], out=[$2])
+LogicalProject(select=[name, score, out])
 +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
-   +- LogicalProject(name=[$0], score=[$1])
-      +- LogicalProject(name=[$0], score=[$1])
+   +- LogicalProject(select=[name, score])
+      +- LogicalProject(select=[name, score])
          +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -181,7 +181,7 @@ ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[nu
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -198,7 +198,7 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -215,10 +215,10 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], uid=
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], score=[$1], out=[$2])
+LogicalProject(select=[name, score, out])
 +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
-   +- LogicalProject(name=[$0], score=[$1])
-      +- LogicalProject(name=[$0], score=[$1])
+   +- LogicalProject(select=[name, score])
+      +- LogicalProject(select=[name, score])
          +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -236,9 +236,9 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEF
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
-   +- LogicalProject(name=[$0], different=[$1])
+   +- LogicalProject(select=[name, different])
       +- LogicalProject(name=[_UTF-16LE'Bob'], different=[12])
          +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
@@ -255,17 +255,17 @@ ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[nu
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
++- LogicalProject(select=[name, out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
++- LogicalProject(select=[name, out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -284,19 +284,19 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
++- LogicalProject(select=[name, out])
    +- LogicalFilter(condition=[=($0, _UTF-16LE'Bob')])
       +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-         +- LogicalProject(name=[$0], score=[$1])
-            +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(select=[name, score])
+            +- LogicalProject(select=[name, score])
                +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
++- LogicalProject(select=[name, out])
    +- LogicalFilter(condition=[=($0, _UTF-16LE'Alice')])
       +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'same')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-         +- LogicalProject(name=[$0], score=[$1])
-            +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(select=[name, score])
+            +- LogicalProject(select=[name, score])
                +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -317,17 +317,17 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
++- LogicalProject(select=[name, out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 
 LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
++- LogicalProject(select=[name, out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
@@ -349,7 +349,7 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
+LogicalProject(select=[out])
 +- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
 ]]>
     </Resource>
@@ -366,11 +366,11 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(score=[$0], out=[$1])
-+- LogicalProject(score=[$0], out=[$1])
+LogicalProject(select=[score, out])
++- LogicalProject(select=[score, out])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(select=[name, score])
+         +- LogicalProject(select=[name, score])
             +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>

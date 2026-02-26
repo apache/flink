@@ -26,9 +26,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -52,9 +52,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2], rn=[$3])
+LogicalProject(select=[a, b, rk, rn])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -79,9 +79,9 @@ WHERE rk1 < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
+LogicalProject(select=[a, b, rk1, rk2])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -105,9 +105,9 @@ WHERE rk1 < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
+LogicalProject(select=[a, b, rk1, rk2])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -130,9 +130,9 @@ WHERE rk = 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[=($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -154,9 +154,9 @@ WHERE rk > 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[>($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -178,9 +178,9 @@ WHERE rk <= 2 AND rk > -2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[AND(<=($2, 2), >($2, -2))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -202,9 +202,9 @@ WHERE rk <= 2 AND a > 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[AND(<=($2, 2), >($0, 10))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -227,9 +227,9 @@ WHERE rk < a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[<($2, $0)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -251,9 +251,9 @@ WHERE rk > a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[>($2, $0)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -275,9 +275,9 @@ WHERE rk < a and b > 5
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[AND(<($2, $0), >(CAST($1):BIGINT, 5))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -299,9 +299,9 @@ WHERE rk = b
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[=($2, $1)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -323,9 +323,9 @@ WHERE rn <= 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rn=[$2])
+LogicalProject(select=[a, b, rn])
 +- LogicalFilter(condition=[<=($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -344,7 +344,7 @@ FlinkLogicalCalc(select=[a, b, w0$o0], where=[<=(w0$o0, 2)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -366,9 +366,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

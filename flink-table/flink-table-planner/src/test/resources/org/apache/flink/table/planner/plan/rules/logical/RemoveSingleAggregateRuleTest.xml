@@ -25,7 +25,7 @@ limitations under the License.
 LogicalProject(variablesSet=[[$cor0]], EXPR$0=[$SCALAR_QUERY({
 LogicalProject(EXPR$0=[-($0, 1)])
   LogicalAggregate(group=[{}], agg#0=[COUNT($0)])
-    LogicalProject(x=[$0])
+    LogicalProject(select=[x])
       LogicalFilter(condition=[=($1, $cor0.i)])
         LogicalTableScan(table=[[default_catalog, default_database, foo]])
 })])

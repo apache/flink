@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -42,7 +42,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -62,7 +62,7 @@ Sink(table=[default_catalog.default_database.sinkShuffleBy], fields=[a, b, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
-+- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -82,7 +82,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
-+- LogicalProject(a=[$0], EXPR$1=[1:BIGINT], EXPR$2=[1:BIGINT])
++- LogicalProject(select=[a])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

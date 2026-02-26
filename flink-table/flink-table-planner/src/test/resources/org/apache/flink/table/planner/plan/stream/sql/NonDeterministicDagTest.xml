@@ -31,9 +31,9 @@ group by a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, cnt, valid_uv])
-+- LogicalProject(a=[$0], cnt=[$1], valid_uv=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalProject(select=[a, cnt]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()], agg#1=[COUNT(DISTINCT $1) FILTER $2])
-      +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, -(UNIX_TIMESTAMP(), 180)))])
+      +- LogicalProject(select=[a, c]), 180)))])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -63,9 +63,9 @@ group by a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, valid_uv])
-+- LogicalProject(a=[$0], cnt=[$1], valid_uv=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalProject(select=[a, cnt]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()], agg#1=[COUNT(DISTINCT $1) FILTER $2])
-      +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, -(UNIX_TIMESTAMP(), 180)))])
+      +- LogicalProject(select=[a, c]), 180)))])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -95,9 +95,9 @@ group by a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, valid_uv])
-+- LogicalProject(a=[$0], cnt=[$1], valid_uv=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalProject(select=[a, cnt]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()], agg#1=[COUNT(DISTINCT $1) FILTER $2])
-      +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, -(UNIX_TIMESTAMP(), 180)))])
+      +- LogicalProject(select=[a, c]), 180)))])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -127,9 +127,9 @@ group by a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, valid_uv])
-+- LogicalProject(a=[$0], cnt=[$1], valid_uv=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalProject(select=[a, cnt]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()], agg#1=[COUNT(DISTINCT $1) FILTER $2])
-      +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, -(UNIX_TIMESTAMP(), 180)))])
+      +- LogicalProject(select=[a, c]), 180)))])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -159,13 +159,13 @@ where t1.a not in (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$2], b=[$1], d=[$3])
+LogicalProject(select=[a, day, b, d])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
   LogicalFilter(condition=[>($1, 100)])
     LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 }))])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -197,13 +197,13 @@ where t1.a not in (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$2], b=[$1], d=[$3])
+LogicalProject(select=[a, day, b, d])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
   LogicalFilter(condition=[>($1, 100)])
     LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 }))])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -244,10 +244,10 @@ select a, uv, b, nd from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd])
-+- LogicalProject(a=[$0], uv=[$1], b=[$2], nd=[$3])
++- LogicalProject(select=[a, uv, b, nd])
    +- LogicalFilter(condition=[=($4, 1)])
-      +- LogicalProject(a=[$0], uv=[$1], b=[$2], nd=[$3], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalProject(a=[$0], uv=[COUNT(DISTINCT $1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
+      +- LogicalProject(select=[a, uv, b, nd]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
             +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -288,10 +288,10 @@ select a, uv, b, nd from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd])
-+- LogicalProject(a=[$0], uv=[$1], b=[$2], nd=[$3])
++- LogicalProject(select=[a, uv, b, nd])
    +- LogicalFilter(condition=[=($4, 1)])
-      +- LogicalProject(a=[$0], uv=[$1], b=[$2], nd=[$3], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalProject(a=[$0], uv=[COUNT(DISTINCT $1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
+      +- LogicalProject(select=[a, uv, b, nd]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
             +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -332,10 +332,10 @@ select a, nd, b from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, nd, b])
-+- LogicalProject(a=[$0], nd=[$3], b=[$2])
++- LogicalProject(select=[a, nd, b])
    +- LogicalFilter(condition=[=($4, 1)])
-      +- LogicalProject(a=[$0], uv=[$1], b=[$2], nd=[$3], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalProject(a=[$0], uv=[COUNT(DISTINCT $1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
+      +- LogicalProject(select=[a, uv, b, nd]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
             +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -377,10 +377,10 @@ select a, nd, b from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, nd, b])
-+- LogicalProject(a=[$0], nd=[$3], b=[$2])
++- LogicalProject(select=[a, nd, b])
    +- LogicalFilter(condition=[=($4, 1)])
-      +- LogicalProject(a=[$0], uv=[$1], b=[$2], nd=[$3], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalProject(a=[$0], uv=[COUNT(DISTINCT $1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
+      +- LogicalProject(select=[a, uv, b, nd]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
             +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -438,7 +438,7 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalTableFunctionScan(invocation=[ndTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -465,7 +465,7 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalTableFunctionScan(invocation=[ndTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -493,7 +493,7 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, a1])
-+- LogicalProject(a=[$0], b=[$1], a1=[$4])
++- LogicalProject(select=[a, b, a1])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalTableFunctionScan(invocation=[ndTableFunc($cor0.a)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -525,9 +525,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$6], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, ndFunc($1)))])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -559,7 +559,7 @@ on t1.a = t2.a
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- LogicalProject(a=[ndFunc($5)], b=[$1], c=[$2])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -592,9 +592,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c])
-+- LogicalProject(a=[$0], version=[$6], c=[$7])
++- LogicalProject(select=[a, version, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($1, -(UNIX_TIMESTAMP(), 300)))])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -624,9 +624,9 @@ on t1.a = t2.a and ndFunc(t2.b) > 100
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), >(ndFunc($1), 100))])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -656,9 +656,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -688,9 +688,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -720,9 +720,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$6], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -752,9 +752,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$6], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -784,9 +784,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -817,9 +817,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -850,9 +850,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -882,9 +882,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -915,9 +915,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -948,9 +948,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -980,9 +980,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1012,9 +1012,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1045,12 +1045,12 @@ from cdc t1 join cdc t2
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$5], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$5], b0=[$6], c0=[$7], d0=[$8])
++- LogicalProject(select=[a, b, c])
+   +- LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
       +- LogicalJoin(condition=[=($4, $9)], joinType=[inner])
-         :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], $f4=[ndFunc($1)])
+         :- LogicalProject(select=[a, b, c, d])])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], $f4=[ndFunc($1)])
+         +- LogicalProject(select=[a, b, c, d])])
             +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1120,9 +1120,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c])
-+- LogicalProject(a=[$0], version=[$6], c=[$7])
++- LogicalProject(select=[a, version, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, -(UNIX_TIMESTAMP(), 300)))])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1152,9 +1152,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1185,9 +1185,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1218,9 +1218,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1250,9 +1250,9 @@ on t1.a = t2.a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 4}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1281,11 +1281,11 @@ SELECT t2.a, t2.b, t1.c FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$6], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($1, $6), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1316,11 +1316,11 @@ SELECT t2.a, t2.b, t1.c FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$6], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $5), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1351,11 +1351,11 @@ SELECT t2.a, t2.b, t1.c FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$6], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $5), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, b, c, d])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1384,7 +1384,7 @@ SELECT t2.a, t1.b, t2.c FROM cdc_with_watermark t1 JOIN cdc_with_watermark t2 ON
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $5), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[op_ts], watermark=[-($4, 5000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_watermark]])
@@ -1423,7 +1423,7 @@ SELECT t2.a, t1.b, t2.c FROM cdc_with_watermark t1 JOIN cdc_with_watermark t2 ON
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $5), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[op_ts], watermark=[-($4, 5000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_watermark]])
@@ -1462,7 +1462,7 @@ SELECT t2.a, t1.b, t2.c FROM cdc_with_watermark t1 JOIN cdc_with_watermark t2 ON
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $5), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[op_ts], watermark=[-($4, 5000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_watermark]])
@@ -1499,7 +1499,7 @@ SELECT t2.a, t1.b, t2.c FROM cdc_with_watermark t1 JOIN cdc_with_watermark t2 ON
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$5], b=[$1], c=[$7])
++- LogicalProject(select=[a, b, c])
    +- LogicalJoin(condition=[AND(=($0, $5), >($4, -($9, 5000:INTERVAL SECOND)))], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[op_ts], watermark=[-($4, 5000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_watermark]])
@@ -1536,8 +1536,8 @@ from cdc_without_pk
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
-+- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
++- LogicalProject(select=[metadata_1, b, metadata_2])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_without_pk, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -1563,7 +1563,7 @@ ON CONFLICT DO DEDUPLICATE
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- LogicalProject(a=[CAST($0):INTEGER], b=[CAST($4):BIGINT], c=[$7])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+      :- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
       +- LogicalTableFunctionScan(invocation=[str_split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
@@ -1587,8 +1587,8 @@ select a, b, c, e from cdc_with_meta_rename
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, e])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], e=[$5])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_3=[$4], e=[$4])
++- LogicalProject(select=[a, b, c, e])
+   +- LogicalProject(select=[a, b, c, d, metadata_3, e])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta_rename, metadata=[metadata_3]]])
 ]]>
     </Resource>
@@ -1610,8 +1610,8 @@ from cdc_with_meta
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, metadata_3])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_3=[$6])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
++- LogicalProject(select=[a, b, c, metadata_3])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -1633,8 +1633,8 @@ from cdc_with_meta
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
-+- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
++- LogicalProject(select=[a, metadata_3, c])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -1658,8 +1658,8 @@ from cdc_with_meta
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
-+- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
++- LogicalProject(select=[a, metadata_3, c])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -1683,8 +1683,8 @@ from cdc_with_meta
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, metadata_3, c])
-+- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
++- LogicalProject(select=[a, metadata_3, c])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -1708,7 +1708,7 @@ where t1.b > UNIX_TIMESTAMP() - 300
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[>($1, -(UNIX_TIMESTAMP(), 300))])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
@@ -1733,7 +1733,7 @@ where t1.b > UNIX_TIMESTAMP() - 300
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[>($1, -(UNIX_TIMESTAMP(), 300))])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
@@ -1757,7 +1757,7 @@ from cdc
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, c])
-+- LogicalProject(a=[$0], EXPR$1=[ndFunc($1)], c=[$2])
++- LogicalProject(select=[a])], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1781,7 +1781,7 @@ from cdc
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, EXPR$1, c])
-+- LogicalProject(a=[$0], EXPR$1=[ndFunc($1)], c=[$2])
++- LogicalProject(select=[a])], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1805,7 +1805,7 @@ from cdc
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1, c])
-+- LogicalProject(a=[$0], EXPR$1=[ndFunc($1)], c=[$2])
++- LogicalProject(select=[a])], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1832,7 +1832,7 @@ from T
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, ndCnt, mc])
 +- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -1861,7 +1861,7 @@ from T
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, ndCnt, mc])
 +- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -1890,7 +1890,7 @@ from T
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[EXPR$0, ndCnt, mc])
 +- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -1918,8 +1918,8 @@ group by `day`
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], cnt=[COUNT()], qmt=[SUM($1)])
-+- LogicalProject(day=[$4], b=[$1])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], day=[CONCAT(CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))])
++- LogicalProject(select=[day, b])
+   +- LogicalProject(select=[a, b, c, d]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1948,10 +1948,10 @@ on conflict do deduplicate
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day])
-+- LogicalProject(a=[$1], cnt=[$2], day=[$0])
++- LogicalProject(select=[a, cnt, day])
    +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-      +- LogicalProject(day=[$4], a=[$0])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
+      +- LogicalProject(select=[day, a])
+         +- LogicalProject(select=[a, b, c, d])])
             +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -1980,7 +1980,7 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, cnt, c])
-+- LogicalProject(EXPR$0=[$0], cnt=[$2], c=[$1])
++- LogicalProject(select=[EXPR$0, cnt, c])
    +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
       +- LogicalProject(EXPR$0=[ndFunc($0)], c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
@@ -2019,9 +2019,9 @@ ON CONFLICT DO DEDUPLICATE
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- LogicalProject(a=[CAST($0):INTEGER], b=[CAST($4):BIGINT], c=[$6])
    +- LogicalJoin(condition=[=($1, $5)], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      :- LogicalProject(select=[a, b, c, d])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-      +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+      +- LogicalProject(select=[a, b]))], d=[$3])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2056,11 +2056,11 @@ join (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a0=[$4], c-day=[$6], b=[$5], d=[$7])
+LogicalProject(select=[a, a0, day, b, d])
 +- LogicalJoin(condition=[=($1, $5)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2094,11 +2094,11 @@ join (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a0=[$4], c-day=[$6], b=[$5], d=[$7])
+LogicalProject(select=[a, a0, day, b, d])
 +- LogicalJoin(condition=[=($1, $5)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2132,11 +2132,11 @@ join (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$6], b=[$5], d=[$7])
+LogicalProject(select=[a, day, b, d])
 +- LogicalJoin(condition=[=($1, $5)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2170,11 +2170,11 @@ join (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$6], b=[$5], d=[$7])
+LogicalProject(select=[a, day, b, d])
 +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2210,11 +2210,11 @@ join (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$6], b=[$5], d=[$7])
+LogicalProject(select=[a, day, b, d])
 +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2257,9 +2257,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$1], b=[$2], EXPR$2=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalProject(select=[a, b]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalMatch(partition=[[2]], order=[[4 ASC-nulls-first]], outputFields=[[c, a, b, matchProctime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$0, 0), 1)]], inputFields=[[a, b, c, d, proctime]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -2298,9 +2298,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
-+- LogicalProject(a=[$1], b=[$2], EXPR$2=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
++- LogicalProject(select=[a, b]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalMatch(partition=[[2]], order=[[4 ASC-nulls-first]], outputFields=[[c, a, b, matchProctime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$0, 0), 1)]], inputFields=[[a, b, c, d, proctime]])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -2333,7 +2333,7 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd])
-+- LogicalProject(a=[$0], uv=[COUNT(DISTINCT $1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
++- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -2366,7 +2366,7 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd])
-+- LogicalProject(a=[$0], uv=[COUNT(DISTINCT $1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
++- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1], nd=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -2386,21 +2386,21 @@ Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a,
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXPR$3])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT(DISTINCT $3)])
-   +- LogicalProject(a=[$0], day=[$2], b=[$3], c=[$5])
+   +- LogicalProject(select=[a, day, b, c])
       +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
-         :- LogicalProject(a=[$0], b=[$1], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
+         :- LogicalProject(select=[a, b])])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-         +- LogicalProject(b=[$1], day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], c=[$2], d=[$3])
+         +- LogicalProject(select=[b]))], c=[$2], d=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c])
-+- LogicalProject(a=[$0], day=[$1], b=[$2], c=[$3])
++- LogicalProject(select=[a, day, b, c])
    +- LogicalFilter(condition=[>($2, 100)])
-      +- LogicalProject(a=[$0], day=[$2], b=[$3], c=[$5])
+      +- LogicalProject(select=[a, day, b, c])
          +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
-            :- LogicalProject(a=[$0], b=[$1], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
+            :- LogicalProject(select=[a, b])])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-            +- LogicalProject(b=[$1], day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], c=[$2], d=[$3])
+            +- LogicalProject(select=[b]))], c=[$2], d=[$3])
                +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -2448,11 +2448,11 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day])
-+- LogicalProject(a=[$0], qmt=[$2], day=[$1])
++- LogicalProject(select=[a, qmt, day])
    +- LogicalAggregate(group=[{0, 1}], qmt=[SUM($2)])
-      +- LogicalProject(a=[$0], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')], b=[$1])
+      +- LogicalProject(select=[a])], b=[$1])
          +- LogicalFilter(condition=[=($4, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST)])
+            +- LogicalProject(select=[a, b, c, d]) OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -2474,19 +2474,19 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day]
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, b, d])
-+- LogicalProject(a=[$0], b=[$1], d=[CAST($2):BIGINT])
++- LogicalProject(select=[a, b]):BIGINT])
    +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-      +- LogicalProject(a=[$0], day=[$2], b=[$1])
-         +- LogicalProject(a=[$1], b=[$3], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
-            +- LogicalProject(id=[$0], a=[$1.nested2.num], name=[$1.nested1.name], b=[+(+($1.nested1.value, $1.nested2.num), $3)])
-               +- LogicalProject(id=[$0], deepNested=[$1], name=[$2], metadata_1=[$3], metadata_2=[$4])
+      +- LogicalProject(select=[a, day, b])
+         +- LogicalProject(select=[a, b])])
+            +- LogicalProject(select=[id]), $3)])
+               +- LogicalProject(select=[id, deepNested, name, metadata_1, metadata_2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, nested_src, metadata=[metadata_1, metadata_2]]])
 
 LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, b, d])
-+- LogicalProject(a=[$1], b=[$2], d=[CAST($3):BIGINT])
++- LogicalProject(select=[a, b]):BIGINT])
    +- LogicalFilter(condition=[>($3, 100)])
-      +- LogicalProject(id=[$0], a=[$1.nested2.num], name=[$1.nested1.name], b=[+(+($1.nested1.value, $1.nested2.num), $3)])
-         +- LogicalProject(id=[$0], deepNested=[$1], name=[$2], metadata_1=[$3], metadata_2=[$4])
+      +- LogicalProject(select=[id]), $3)])
+         +- LogicalProject(select=[id, deepNested, name, metadata_1, metadata_2])
             +- LogicalTableScan(table=[[default_catalog, default_database, nested_src, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -2523,7 +2523,7 @@ group by a
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc])
 +- LogicalAggregate(group=[{0}], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -2553,7 +2553,7 @@ group by a
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc])
 +- LogicalAggregate(group=[{0}], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -2583,7 +2583,7 @@ group by a
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, ndCnt, mc])
 +- LogicalAggregate(group=[{0}], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -2618,11 +2618,11 @@ select a, b, c, d from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[IF(>($0, 100), +($1, $3), $1)], c=[CASE(>($3, 100), JSON_VALUE($2, _UTF-16LE'$.count'), ||(CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'#'))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalProject(select=[a]), +($1, $3), $1)], c=[CASE(>($3, 100), JSON_VALUE($2, _UTF-16LE'$.count'), ||(CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'#'))])
+   +- LogicalProject(select=[a, b, c, d])
       +- LogicalFilter(condition=[=($4, 1)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
-            +- LogicalProject(a=[$0], b=[$3], c=[$2], d=[ndFunc($1)])
+         +- LogicalProject(select=[a, b, c, d]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+            +- LogicalProject(select=[a, b, c])])
                +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2652,7 +2652,7 @@ FROM T1
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1, b])
-+- LogicalProject(a=[$0], EXPR$1=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1])
++- LogicalProject(select=[a]):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -2682,7 +2682,7 @@ FROM T1
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1, b])
-+- LogicalProject(a=[$0], EXPR$1=[ndAggFunc(CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1])
++- LogicalProject(select=[a]):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -2713,10 +2713,10 @@ WHERE rowNum = 1
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
-+- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
++- LogicalProject(select=[a, metadata_3, c])
    +- LogicalFilter(condition=[=($7, 1)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+      +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3]) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+         +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
             +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -2747,10 +2747,10 @@ WHERE rowNum = 1
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, metadata_3, c])
-+- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
++- LogicalProject(select=[a, metadata_3, c])
    +- LogicalFilter(condition=[=($7, 1)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+      +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3]) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+         +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
             +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -2776,7 +2776,7 @@ SELECT t2.a, t2.c, t1.b FROM T1 t1 JOIN T1 t2 ON
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
-+- LogicalProject(a=[$5], c=[$7], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -2807,7 +2807,7 @@ SELECT t2.a, t2.c, t1.b FROM T1 t1 JOIN T1 t2 ON
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, c, b])
-+- LogicalProject(a=[$5], c=[$7], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -2841,11 +2841,11 @@ select a, cnt, c, rn from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
++- LogicalProject(select=[a, cnt, c, rn])
    +- LogicalFilter(condition=[<=($3, 100)])
-      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, cnt, c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2)])
-            +- LogicalProject(a=[$0], c=[$2], b=[$1])
+            +- LogicalProject(select=[a, c, b])
                +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -2875,11 +2875,11 @@ select a, cnt, c, rn from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
++- LogicalProject(select=[a, cnt, c, rn])
    +- LogicalFilter(condition=[<=($3, 100)])
-      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, cnt, c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2)])
-            +- LogicalProject(a=[$0], c=[$2], b=[$1])
+            +- LogicalProject(select=[a, c, b])
                +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -2911,11 +2911,11 @@ WHERE rowNum = 1
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[=($5, 1)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], op_ts=[$4], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+      +- LogicalProject(select=[a, b, c, d, op_ts]) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
          +- LogicalWatermarkAssigner(rowtime=[op_ts], watermark=[-($4, 5000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], op_ts=[CAST($4):TIMESTAMP_LTZ(3) *ROWTIME*])
+            +- LogicalProject(select=[a, b, c, d]):TIMESTAMP_LTZ(3) *ROWTIME*])
                +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta_and_wm, metadata=[op_ts]]])
 ]]>
     </Resource>
@@ -2947,13 +2947,13 @@ where t1.a in (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$2], b=[$1], d=[$3])
+LogicalProject(select=[a, day, b, d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
   LogicalFilter(condition=[>($1, 100)])
     LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 })])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -2985,13 +2985,13 @@ where t1.a in (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c-day=[$2], b=[$1], d=[$3])
+LogicalProject(select=[a, day, b, d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
   LogicalFilter(condition=[>($1, 100)])
     LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 })])
-   +- LogicalProject(a=[$0], b=[$1], c-day=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))], d=[$3])
+   +- LogicalProject(select=[a, b]))], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -3023,13 +3023,13 @@ where t1.c in (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[IN($2, {
 LogicalProject(c=[CONCAT($2, DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd'))])
   LogicalFilter(condition=[>($1, 100)])
     LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 })])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   +- LogicalProject(select=[a, b, c, d])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 ]]>
     </Resource>
@@ -3048,16 +3048,16 @@ Join(joinType=[LeftSemiJoin], where=[(c = c0)], select=[a, b, c, d], leftInputSp
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1, day])
-+- LogicalProject(a=[$0], EXPR$1=[$2], day=[$1])
++- LogicalProject(select=[a, EXPR$1, day])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
-      +- LogicalProject(a=[$0], day=[$4], b=[$1])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
+      +- LogicalProject(select=[a, day, b])
+         +- LogicalProject(select=[a, b, c, d])])
             +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_computed_col]])
 
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day])
-+- LogicalProject(a=[$0], b=[$1], day=[$4])
++- LogicalProject(select=[a, b, day])
    +- LogicalFilter(condition=[>($1, 100)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_computed_col]])
 ]]>
     </Resource>
@@ -3091,9 +3091,9 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day])
-+- LogicalProject(a=[$0], b=[$1], day=[$4])
++- LogicalProject(select=[a, b, day])
    +- LogicalFilter(condition=[>($1, 100)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_computed_col]])
 ]]>
     </Resource>
@@ -3118,16 +3118,16 @@ FROM Orders AS o JOIN
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$7], b=[CAST($5):BIGINT], c=[$1])
++- LogicalProject(select=[a]):BIGINT], c=[$1])
    +- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
          :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-         :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+         :  +- LogicalProject(select=[amount, currency, rowtime])])
          :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
          +- LogicalFilter(condition=[=($cor0.currency, $0)])
             +- LogicalSnapshot(period=[$cor0.rowtime])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-                  +- LogicalProject(currency=[$0], rate=[$1], valid=[$2], metadata_1=[$4], rowtime=[$3])
+                  +- LogicalProject(select=[currency, rate, valid, metadata_1, rowtime])
                      +- LogicalTableScan(table=[[default_catalog, default_database, UpsertRates, metadata=[metadata_1]]])
 ]]>
     </Resource>
@@ -3159,16 +3159,16 @@ FROM Orders AS o JOIN
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$7], b=[CAST($5):BIGINT], c=[$1])
++- LogicalProject(select=[a]):BIGINT], c=[$1])
    +- LogicalFilter(condition=[=($6, _UTF-16LE'true')])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
          :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-         :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+         :  +- LogicalProject(select=[amount, currency, rowtime])])
          :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
          +- LogicalFilter(condition=[=($cor0.currency, $0)])
             +- LogicalSnapshot(period=[$cor0.rowtime])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-                  +- LogicalProject(currency=[$0], rate=[$1], valid=[$2], metadata_1=[$4], rowtime=[$3])
+                  +- LogicalProject(select=[currency, rate, valid, metadata_1, rowtime])
                      +- LogicalTableScan(table=[[default_catalog, default_database, UpsertRates, metadata=[metadata_1]]])
 ]]>
     </Resource>
@@ -3203,10 +3203,10 @@ ON CONFLICT DO DEDUPLICATE
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_3=[$6])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+   +- LogicalProject(select=[a, b, c, metadata_3])
+      +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -3235,10 +3235,10 @@ from cdc_with_meta
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-   +- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+   +- LogicalProject(select=[a, metadata_3, c])
+      +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -3268,10 +3268,10 @@ ON CONFLICT DO DEDUPLICATE
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d])
 +- LogicalUnion(all=[false])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :- LogicalProject(select=[a, b, c, d])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_3=[$6])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
+   +- LogicalProject(select=[a, b, c, metadata_3])
+      +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2, metadata_3])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -3301,11 +3301,11 @@ select a, cnt, c, rn from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
++- LogicalProject(select=[a, cnt, c, rn])
    +- LogicalFilter(condition=[<=($3, 100)])
-      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, cnt, c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2) FILTER $3])
-            +- LogicalProject(a=[$0], c=[$2], b=[$1], $f3=[IS TRUE(>($1, 0))])
+            +- LogicalProject(select=[a, c, b]))])
                +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -3336,11 +3336,11 @@ select a, cnt, c, rn from (
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, cnt, c, rn])
-+- LogicalProject(a=[$0], cnt=[$1], c=[$2], rn=[$3])
++- LogicalProject(select=[a, cnt, c, rn])
    +- LogicalFilter(condition=[<=($3, 100)])
-      +- LogicalProject(a=[$0], cnt=[$2], c=[$1], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[a, cnt, c]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0}], c=[MAX($1)], cnt=[SUM($2) FILTER $3])
-            +- LogicalProject(a=[$0], c=[$2], b=[$1], $f3=[IS TRUE(>($1, 0))])
+            +- LogicalProject(select=[a, c, b]))])
                +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -3368,7 +3368,7 @@ from upsert_src
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
 ]]>
     </Resource>
@@ -3392,7 +3392,7 @@ from upsert_src
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
 ]]>
     </Resource>
@@ -3416,7 +3416,7 @@ from upsert_src
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
 ]]>
     </Resource>
@@ -3440,7 +3440,7 @@ from upsert_src
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
 ]]>
     </Resource>
@@ -3465,8 +3465,8 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2])
-+- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
++- LogicalProject(select=[metadata_1, b, metadata_2])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -3492,8 +3492,8 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2])
-+- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
++- LogicalProject(select=[metadata_1, b, metadata_2])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -3518,8 +3518,8 @@ from upsert_src_with_meta
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
-+- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
++- LogicalProject(select=[metadata_1, b, metadata_2])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -3544,8 +3544,8 @@ from upsert_src_with_meta
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_1, b, metadata_2])
-+- LogicalProject(metadata_1=[$4], b=[$1], metadata_2=[$5])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5])
++- LogicalProject(select=[metadata_1, b, metadata_2])
+   +- LogicalProject(select=[a, b, c, d, metadata_1, metadata_2])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src_with_meta, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>

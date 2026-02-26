@@ -22,8 +22,8 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b])])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
 ]]>
     </Resource>
@@ -40,8 +40,8 @@ Calc(select=[a, b, (a + 1) AS c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b])])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
 ]]>
     </Resource>
@@ -64,9 +64,9 @@ on t1.a = t2.d
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   :- LogicalProject(select=[a, b])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]], hints=[[[OPTIONS inheritPath:[] options:{d.e.f=fakeVal, k6=v6}]]])
 ]]>
@@ -94,9 +94,9 @@ on t1.a = t2.d
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   :- LogicalProject(select=[a, b])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=v1, k2=v2, a.b.c=fakeVal, k5=v5})], dynamic options: {a.b.c=fakeVal, k5=v5}]], hints=[[[OPTIONS inheritPath:[] options:{a.b.c=fakeVal, k5=v5}]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={d.e.f=fakeVal, k3=v3, k4=v4, k6=v6})], dynamic options: {d.e.f=fakeVal, k6=v6}]], hints=[[[OPTIONS inheritPath:[] options:{d.e.f=fakeVal, k6=v6}]]])
 ]]>
@@ -123,9 +123,9 @@ on t1.a = t2.d
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   :- LogicalProject(select=[a, b])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], hints=[[[OPTIONS inheritPath:[] options:{k3=#v3, k4=#v4}]]])
 ]]>
@@ -153,9 +153,9 @@ on t1.a = t2.d
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   :- LogicalProject(select=[a, b])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=#v3, k4=#v4})], dynamic options: {k3=#v3, k4=#v4}]], hints=[[[OPTIONS inheritPath:[] options:{k3=#v3, k4=#v4}]]])
 ]]>
@@ -178,11 +178,11 @@ select * from t2 join v1 on v1.a = t2.d
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], a=[$3], b=[$4], c=[$5])
+LogicalProject(select=[d, e, f, a, b, c])
 +- LogicalJoin(condition=[=($3, $0)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   +- LogicalProject(select=[a, b, c])
+      +- LogicalProject(select=[a, b])])
          +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v111, k2=v2, k4=#v444})], dynamic options: {k1=#v111, k4=#v444}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v111, k4=#v444}]]])
 ]]>
     </Resource>
@@ -205,11 +205,11 @@ select * from t2 join v1 on v1.a = t2.d
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], a=[$3], b=[$4], c=[$5])
+LogicalProject(select=[d, e, f, a, b, c])
 +- LogicalJoin(condition=[=($3, $0)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [OptionsTableSource(props={k3=v3, k4=v4})]]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+   +- LogicalProject(select=[a, b, c])
+      +- LogicalProject(select=[a, b])])
          +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v111, k2=v2, k4=#v444})], dynamic options: {k1=#v111, k4=#v444}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v111, k4=#v444}]]])
 ]]>
     </Resource>
@@ -229,8 +229,8 @@ MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b])])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
 ]]>
     </Resource>
@@ -247,8 +247,8 @@ Calc(select=[a, b, (a + 1) AS c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b])])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [OptionsTableSource(props={k1=#v1, k2=#v2})], dynamic options: {k1=#v1, k2=#v2}]], hints=[[[OPTIONS inheritPath:[] options:{k1=#v1, k2=#v2}]]])
 ]]>
     </Resource>

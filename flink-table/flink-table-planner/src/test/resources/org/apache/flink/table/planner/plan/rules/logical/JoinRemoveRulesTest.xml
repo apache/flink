@@ -26,7 +26,7 @@ left outer join dept d on e.deptno = d.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalProject(deptno=[$7])
++- LogicalProject(select=[deptno])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -52,7 +52,7 @@ GROUP BY e.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1, $2)])
-+- LogicalProject(deptno=[$7], name=[$10], name0=[$12])
++- LogicalProject(select=[deptno, name, name0])
    +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
       :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -83,7 +83,7 @@ group by e.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(deptno=[$7], slacker=[$8])
++- LogicalProject(select=[deptno, slacker])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -107,7 +107,7 @@ group by e.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(deptno=[$7], job=[$2])
++- LogicalProject(select=[deptno, job])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -131,7 +131,7 @@ group by e.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(deptno=[$7], name=[$10])
++- LogicalProject(select=[deptno, name])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -156,7 +156,7 @@ right outer join dept d on e.deptno = d.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalProject(deptno=[$9])
++- LogicalProject(select=[deptno])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -164,7 +164,7 @@ LogicalAggregate(group=[{0}])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$0])
+LogicalProject(select=[deptno])
 +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
 ]]>
     </Resource>
@@ -180,7 +180,7 @@ group by d.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(deptno=[$9], name=[$10])
++- LogicalProject(select=[deptno, name])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -204,7 +204,7 @@ group by d.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(deptno=[$9], job=[$2])
++- LogicalProject(select=[deptno, job])
    +- LogicalJoin(condition=[=($7, $9)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
       +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -231,7 +231,7 @@ LEFT JOIN dept d2 ON e.deptno = d2.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}])
-+- LogicalProject(deptno=[$7])
++- LogicalProject(select=[deptno])
    +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
       :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -259,7 +259,7 @@ GROUP BY e.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(deptno=[$7], name0=[$12])
++- LogicalProject(select=[deptno, name0])
    +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
       :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -288,7 +288,7 @@ LEFT JOIN dept d2 ON e.deptno = d2.deptno
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
-+- LogicalProject(deptno=[$7], name=[$12])
++- LogicalProject(select=[deptno, name])
    +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
       :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
       :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -316,7 +316,7 @@ LEFT JOIN dept d2 ON e.deptno = d2.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7], deptno0=[$11])
+LogicalProject(select=[deptno, deptno0])
 +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
    :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -326,7 +326,7 @@ LogicalProject(deptno=[$7], deptno0=[$11])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7], deptno0=[$9])
+LogicalProject(select=[deptno, deptno0])
 +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -343,7 +343,7 @@ LEFT JOIN dept d ON e.deptno = d.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7], slacker=[$8])
+LogicalProject(select=[deptno, slacker])
 +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -351,7 +351,7 @@ LogicalProject(deptno=[$7], slacker=[$8])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7], slacker=[$8])
+LogicalProject(select=[deptno, slacker])
 +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -367,7 +367,7 @@ LEFT JOIN dept d2 ON e.deptno = d2.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7], deptno0=[$9])
+LogicalProject(select=[deptno, deptno0])
 +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
    :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -377,7 +377,7 @@ LogicalProject(deptno=[$7], deptno0=[$9])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7], deptno0=[$9])
+LogicalProject(select=[deptno, deptno0])
 +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -395,7 +395,7 @@ LEFT JOIN dept d ON e1.deptno = d.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7], deptno0=[$18])
+LogicalProject(select=[deptno, deptno0])
 +- LogicalJoin(condition=[=($7, $18)], joinType=[left])
    :- LogicalJoin(condition=[=($7, $16)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -405,7 +405,7 @@ LogicalProject(deptno=[$7], deptno0=[$18])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7], deptno0=[$18])
+LogicalProject(select=[deptno, deptno0])
 +- LogicalJoin(condition=[=($7, $18)], joinType=[left])
    :- LogicalJoin(condition=[=($7, $16)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -424,7 +424,7 @@ LEFT JOIN dept d ON e.deptno = d.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7])
+LogicalProject(select=[deptno])
 +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -432,7 +432,7 @@ LogicalProject(deptno=[$7])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7])
+LogicalProject(select=[deptno])
 +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -447,7 +447,7 @@ LEFT JOIN emp e2 ON e1.deptno = e2.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7])
+LogicalProject(select=[deptno])
 +- LogicalJoin(condition=[=($7, $16)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -455,7 +455,7 @@ LogicalProject(deptno=[$7])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7])
+LogicalProject(select=[deptno])
 +- LogicalJoin(condition=[=($7, $16)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -472,7 +472,7 @@ LEFT JOIN dept d ON e.deptno = d.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$7], name=[$10])
+LogicalProject(select=[deptno, name])
 +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -480,7 +480,7 @@ LogicalProject(deptno=[$7], name=[$10])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7], name=[$10])
+LogicalProject(select=[deptno, name])
 +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
@@ -497,7 +497,7 @@ RIGHT JOIN emp e ON e.deptno = d.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$9])
+LogicalProject(select=[deptno])
 +- LogicalJoin(condition=[=($9, $0)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, dept]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -505,7 +505,7 @@ LogicalProject(deptno=[$9])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$7])
+LogicalProject(select=[deptno])
 +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
@@ -520,7 +520,7 @@ RIGHT JOIN emp e2 ON e1.deptno = e2.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$16])
+LogicalProject(select=[deptno])
 +- LogicalJoin(condition=[=($7, $16)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -528,7 +528,7 @@ LogicalProject(deptno=[$16])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$16])
+LogicalProject(select=[deptno])
 +- LogicalJoin(condition=[=($7, $16)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -545,7 +545,7 @@ RIGHT JOIN emp e ON e.deptno = d.deptno
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(deptno=[$9], name=[$1])
+LogicalProject(select=[deptno, name])
 +- LogicalJoin(condition=[=($9, $0)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, dept]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
@@ -553,7 +553,7 @@ LogicalProject(deptno=[$9], name=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(deptno=[$9], name=[$1])
+LogicalProject(select=[deptno, name])
 +- LogicalJoin(condition=[=($9, $0)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, dept]])
    +- LogicalTableScan(table=[[default_catalog, default_database, emp]])

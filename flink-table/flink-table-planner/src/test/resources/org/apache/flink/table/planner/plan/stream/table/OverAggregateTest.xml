@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testProcTimeBoundedNonPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], _c1=[AS(COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[a]) OVER (ORDER BY $3 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -36,7 +36,7 @@ Calc(select=[a, w0$o0 AS _c1])
   <TestCase name="testProcTimeBoundedNonPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[c]) OVER (ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -53,7 +53,7 @@ Calc(select=[c, w0$o0 AS _c1])
   <TestCase name="testProcTimeBoundedPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], myAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'myAvg')])
+LogicalProject(select=[a]):BIGINT) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'myAvg')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -70,7 +70,7 @@ Calc(select=[a, w0$o0 AS myAvg])
   <TestCase name="testProcTimeBoundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[c]):BIGINT) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -87,7 +87,7 @@ Calc(select=[c, w0$o0 AS _c1])
   <TestCase name="testProcTimeUnboundedNonPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (ORDER BY $3 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(SUM($0) OVER (ORDER BY $3 NULLS FIRST), _UTF-16LE'_c3')])
+LogicalProject(select=[a, c]) OVER (ORDER BY $3 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(SUM($0) OVER (ORDER BY $3 NULLS FIRST), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -104,7 +104,7 @@ Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
   <TestCase name="testProcTimeUnboundedNonPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[c]) OVER (ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -121,7 +121,7 @@ Calc(select=[c, w0$o0 AS _c1])
   <TestCase name="testProcTimeUnboundedPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c3')])
+LogicalProject(select=[a, c]) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -138,7 +138,7 @@ Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
   <TestCase name="testProcTimeUnboundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], _c2=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c2')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], _c2=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c2')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -155,7 +155,7 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2])
   <TestCase name="testRowTimeBoundedDistinctWithPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c3')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -172,7 +172,7 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
   <TestCase name="testRowTimeBoundedDistinctWithPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c3')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -189,7 +189,7 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
   <TestCase name="testRowTimeBoundedNonPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], _c1=[AS(COUNT($2) OVER (ORDER BY $4 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[a]) OVER (ORDER BY $4 NULLS FIRST RANGE 10000 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -206,7 +206,7 @@ Calc(select=[a, w0$o0 AS _c1])
   <TestCase name="testRowTimeBoundedNonPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[c]) OVER (ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -223,7 +223,7 @@ Calc(select=[c, w0$o0 AS _c1])
   <TestCase name="testRowTimeBoundedPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], _c1=[AS(AVG($2) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'wAvg')])
+LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'wAvg')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -240,7 +240,7 @@ Calc(select=[a, w0$o0 AS _c1, w0$o1 AS wAvg])
   <TestCase name="testRowTimeBoundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($1) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'wAvg')])
+LogicalProject(select=[c]) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING), _UTF-16LE'wAvg')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -257,7 +257,7 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
   <TestCase name="testRowTimeUnboundedDistinctWithPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c3')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -274,7 +274,7 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
   <TestCase name="testRowTimeUnboundedDistinctWithPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c3')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], _c2=[AS(SUM(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c2')], _c3=[AS(AVG(DISTINCT AS(CAST($0):FLOAT, _UTF-16LE'a')) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -291,7 +291,7 @@ Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
   <TestCase name="testRowTimeUnboundedNonPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(SUM($0) OVER (ORDER BY $4 NULLS FIRST), _UTF-16LE'_c3')])
+LogicalProject(select=[a, c]) OVER (ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], _c3=[AS(SUM($0) OVER (ORDER BY $4 NULLS FIRST), _UTF-16LE'_c3')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -308,7 +308,7 @@ Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
   <TestCase name="testRowTimeUnboundedNonPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')])
+LogicalProject(select=[c]) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -325,7 +325,7 @@ Calc(select=[c, w0$o0 AS _c1])
   <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'wAvg')])
+LogicalProject(select=[a, c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'wAvg')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -342,7 +342,7 @@ Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS wAvg])
   <TestCase name="testRowTimeUnboundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

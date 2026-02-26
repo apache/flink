@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc(func1($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -43,7 +43,7 @@ Calc(select=[a, b, c, d, e, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc(ABS(func1($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -64,7 +64,7 @@ Calc(select=[a, b, c, d, e, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc(func1(ABS($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -86,7 +86,7 @@ Calc(select=[a, b, c, d, e, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc(CAST(CAST($cor0.a):INTEGER):INTEGER)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -107,7 +107,7 @@ Calc(select=[a, b, c, d, e, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.e.f.h)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -128,7 +128,7 @@ Calc(select=[a, b, c, d, e, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc(scalar($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -149,7 +149,7 @@ Calc(select=[a, b, c, d, e, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
+LogicalProject(select=[a, b, c, d, e, EXPR$0])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc(ABS($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])

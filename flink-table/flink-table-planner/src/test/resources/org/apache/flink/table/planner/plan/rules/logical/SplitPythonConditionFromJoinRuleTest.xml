@@ -29,10 +29,10 @@ SELECT a, d + 1 FROM(
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
-+- LogicalProject(a=[$0], d=[$1])
+LogicalProject(select=[a])])
++- LogicalProject(select=[a, d])
    +- LogicalFilter(condition=[=(pyFunc($0, $1), *($0, $1))])
-      +- LogicalProject(a=[$0], d=[$3])
+      +- LogicalProject(select=[a, d])
          +- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $0), +($0, $3)))], joinType=[inner])
             :- LogicalTableScan(table=[[default_catalog, default_database, leftTable]])
             +- LogicalTableScan(table=[[default_catalog, default_database, rightTable]])
@@ -56,7 +56,7 @@ FlinkLogicalCalc(select=[a, +(d, 1) AS EXPR$1], where=[AND(=(f0, +(a, d)), =(f1,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$3])
+LogicalProject(select=[a, b, d])
 +- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $3), $1))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, leftTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rightTable]])

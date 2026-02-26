@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $3), =($0, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -30,7 +30,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -43,7 +43,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $3), =($0, $4), =($1, $3))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -51,7 +51,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -64,7 +64,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $3), =($0, $4), =($0, $2))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -72,7 +72,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $2), =($3, $4), =($0, $3))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -85,20 +85,20 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$4], e=[$5], f=[$6])
+LogicalProject(select=[a, b, c, d, e, f])
++- LogicalProject(select=[a, b, c, d, e, f])
    +- LogicalJoin(condition=[AND(=($0, $4), =($0, $5), =($3, $4))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
+      :- LogicalProject(select=[a, b, c])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$4], e=[$5], f=[$6])
+LogicalProject(select=[a, b, c, d, e, f])
++- LogicalProject(select=[a, b, c, d, e, f])
    +- LogicalJoin(condition=[AND(=($0, $3), =($5, $4), =($0, $5))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($1, 1)])
+      :- LogicalProject(select=[a, b, c])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -110,7 +110,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $3), >($0, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -118,7 +118,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $3), >($0, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -131,7 +131,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(=($0, $3), =($0, $4), >($1, $3))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -139,7 +139,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalJoin(condition=[AND(>($1, $3), =($3, $4), =($0, $3))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -154,7 +154,7 @@ SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2 WHERE a = d AND a > 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.a, $1))])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -164,10 +164,10 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.a, $1))])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(=($0, $3), >($0, $4))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -182,7 +182,7 @@ SELECT * FROM MyTable1 WHERE EXISTS
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1), >($cor0.b, $0))])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -192,10 +192,10 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1), >($cor0.b, $0))])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(>($1, $3), =($3, $4), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -207,9 +207,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[>($cor0.a, $1)])
     LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })], variablesSet=[[$cor0]])
@@ -218,10 +218,10 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(=($0, $3), >($0, $4))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -233,9 +233,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[AND(>($cor0.a, $1), =($cor0.b, $0))])
     LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })], variablesSet=[[$cor0]])
@@ -244,10 +244,10 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(>($0, $4), =($0, $1), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -261,7 +261,7 @@ SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2 WHERE a = d AND a = 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1))])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -271,10 +271,10 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1))])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -289,7 +289,7 @@ SELECT * FROM MyTable1 WHERE EXISTS
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1), =($cor0.b, $0))])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -299,10 +299,10 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1), =($cor0.b, $0))])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -314,9 +314,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[=($cor0.a, $1)])
     LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })], variablesSet=[[$cor0]])
@@ -325,10 +325,10 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -340,9 +340,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[AND(=($cor0.a, $1), =($cor0.b, $0))])
     LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })], variablesSet=[[$cor0]])
@@ -351,10 +351,10 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>

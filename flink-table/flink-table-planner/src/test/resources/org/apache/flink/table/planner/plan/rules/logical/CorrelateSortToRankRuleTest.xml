@@ -33,26 +33,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(mf0=[$0], f1=[$1])
+LogicalProject(select=[mf0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{}], mf0=[MAX($0)])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.mf0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(mf0=[$0], f1=[$1])
+LogicalProject(select=[mf0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{}], mf0=[MAX($0)])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.mf0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -75,28 +75,28 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalProject(f0=[+($0, $1)])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=(CAST($0):BIGINT, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalProject(f0=[+($0, $1)])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=(CAST($0):BIGINT, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -119,20 +119,20 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[$0], orderBy=[$2 DESC], select=[f0=$0, f1=$1, f2=$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -155,20 +155,20 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f2=[$2])
+LogicalProject(select=[f0, f2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
    :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :  +- LogicalProject(select=[f0, f1])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f2=[$2])
+      +- LogicalProject(select=[f2])
          +- LogicalFilter(condition=[AND(=($0, $cor0.f0), =($1, $cor0.f1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f2=[$2])
+LogicalProject(select=[f0, f2])
 +- LogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[$0,$1], orderBy=[$2 DESC], select=[f0=$0, f1=$1, f2=$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -191,26 +191,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($cor0.f0, +($0, 1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($cor0.f0, +($0, 1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -233,26 +233,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f2=[$2])
+LogicalProject(select=[f0, f2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :  +- LogicalProject(select=[f0, f1])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f2=[$2])
+      +- LogicalProject(select=[f2])
          +- LogicalFilter(condition=[AND(=($0, 1), =($1, $cor0.f1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f2=[$2])
+LogicalProject(select=[f0, f2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :  +- LogicalProject(select=[f0, f1])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f2=[$2])
+      +- LogicalProject(select=[f2])
          +- LogicalFilter(condition=[AND(=($0, 1), =($1, $cor0.f1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -275,26 +275,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f2=[$2])
+LogicalProject(select=[f0, f2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
    :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :  +- LogicalProject(select=[f0, f1])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f2=[$2])
+      +- LogicalProject(select=[f2])
          +- LogicalFilter(condition=[AND(=(1, $cor0.f0), =($1, $cor0.f1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f2=[$2])
+LogicalProject(select=[f0, f2])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
    :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(f0=[$0], f1=[$1])
+   :  +- LogicalProject(select=[f0, f1])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f2=[$2])
+      +- LogicalProject(select=[f2])
          +- LogicalFilter(condition=[AND(=(1, $cor0.f0), =($1, $cor0.f1))])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -317,26 +317,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[>($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[>($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -360,26 +360,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
@@ -403,26 +403,26 @@ FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[2], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalAggregate(group=[{0}])
-   :  +- LogicalProject(f0=[$0])
+   :  +- LogicalProject(select=[f0])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[2], fetch=[3])
-      +- LogicalProject(f1=[$1], f2=[$2])
+      +- LogicalProject(select=[f1, f2])
          +- LogicalFilter(condition=[=($0, $cor0.f0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>

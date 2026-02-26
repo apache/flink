@@ -31,7 +31,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[SUM($1) FILTER $2])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -60,7 +60,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[SUM($1) FILTER $2])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -90,7 +90,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[SUM($1) FILTER $2])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -121,7 +121,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[SUM($1) FILTER $2])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(<>($1, 2))], $f3=[IS TRUE(<>($1, 5))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(<>($1, 5))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -155,9 +155,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)], EXPR$3=[COUNT(DISTINCT $1)])
-+- LogicalProject(b=[$1], c=[$2])
++- LogicalProject(select=[b, c])
    +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], c=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -190,9 +190,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)], EXPR$3=[COUNT(DISTINCT $1)])
-+- LogicalProject(b=[$1], c=[$2])
++- LogicalProject(select=[b, c])
    +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], c=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -226,9 +226,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)], EXPR$3=[COUNT(DISTINCT $1)])
-+- LogicalProject(b=[$1], c=[$2])
++- LogicalProject(select=[b, c])
    +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], c=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -265,9 +265,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[LAST_VALUE($1)], EXPR$3=[COUNT(DISTINCT $1)])
-+- LogicalProject(b=[$1], c=[$2])
++- LogicalProject(select=[b, c])
    +- LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)], c=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -297,7 +297,7 @@ GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, FIRST_VALUE_RET
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG(DISTINCT $1, $2)])
-+- LogicalProject(a=[$0], c=[$2], $f2=[_UTF-16LE'#'])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -318,7 +318,7 @@ GroupAggregate(groupBy=[a], select=[a, LISTAGG(DISTINCT c, $f2) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG(DISTINCT $1, $2)])
-+- LogicalProject(a=[$0], c=[$2], $f2=[_UTF-16LE'#'])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -340,7 +340,7 @@ GlobalGroupAggregate(groupBy=[a], select=[a, LISTAGG(distinct$0 (accDelimiter$0,
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG(DISTINCT $1, $2)])
-+- LogicalProject(a=[$0], c=[$2], $f2=[_UTF-16LE'#'])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -361,7 +361,7 @@ GroupAggregate(groupBy=[a], select=[a, LISTAGG(DISTINCT c, $f2) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG(DISTINCT $1, $2)])
-+- LogicalProject(a=[$0], c=[$2], $f2=[_UTF-16LE'#'])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -392,7 +392,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -424,7 +424,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -458,7 +458,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -495,7 +495,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -526,7 +526,7 @@ GlobalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRA
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -547,7 +547,7 @@ GroupAggregate(select=[COUNT(DISTINCT a) AS EXPR$0, SUM(DISTINCT b) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -569,7 +569,7 @@ GlobalGroupAggregate(select=[COUNT(distinct$0 count$0) AS EXPR$0, SUM(distinct$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -594,7 +594,7 @@ GroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT($f2_0) AS $f0, SU
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -630,7 +630,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -662,7 +662,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -696,7 +696,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -733,7 +733,7 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($1)], EXPR$3=[SUM($1)], EXPR$4=[COUNT()], EXPR$5=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], b=[$1], a=[$0])
++- LogicalProject(select=[c, b, a])
    +- LogicalAggregate(group=[{0}], b=[AVG($1)], c=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -768,7 +768,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[MAX($2)], EXPR$5=[MIN($2)], EXPR$6=[COUNT($2)], EXPR$7=[COUNT()])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -793,7 +793,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[MAX($2)], EXPR$5=[MIN($2)], EXPR$6=[COUNT($2)], EXPR$7=[COUNT()])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -819,7 +819,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[MAX($2)], EXPR$5=[MIN($2)], EXPR$6=[COUNT($2)], EXPR$7=[COUNT()])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -849,7 +849,7 @@ GROUP BY a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXPR$3=[AVG($2)], EXPR$4=[MAX($2)], EXPR$5=[MIN($2)], EXPR$6=[COUNT($2)], EXPR$7=[COUNT()])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -877,7 +877,7 @@ Calc(select=[a, $f1 AS EXPR$1, CASE(($f3 = 0), null:BIGINT, $f2) AS EXPR$2, (CAS
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[AVG($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -898,7 +898,7 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(DISTINCT b) AS EXPR$1, SUM(b) AS EX
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[AVG($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -920,7 +920,7 @@ GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[AVG($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -944,7 +944,7 @@ Calc(select=[a, $f1, $f2, IF(($f4 = 0), null:BIGINT, ($f3 / $f4)) AS $f3])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[AVG($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -970,7 +970,7 @@ Calc(select=[a, $f1, $f2, IF(($f4 = 0), null:BIGINT, ($f3 / $f4)) AS $f3])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -991,7 +991,7 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(DISTINCT c) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1013,7 +1013,7 @@ GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1036,7 +1036,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1061,7 +1061,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RET
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1082,7 +1082,7 @@ GroupAggregate(select=[COUNT(DISTINCT c) AS EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1104,7 +1104,7 @@ GlobalGroupAggregate(select=[COUNT(distinct$0 count$0) AS EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1127,7 +1127,7 @@ GroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT($f1_0) AS $f0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
++- LogicalProject(select=[c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1159,9 +1159,9 @@ FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
-+- LogicalProject(a=[$1], b=[$2])
++- LogicalProject(select=[a, b])
    +- LogicalAggregate(group=[{0}], a=[AVG($1)], b=[AVG($2)])
-      +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      +- LogicalProject(select=[c, a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1191,9 +1191,9 @@ FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
-+- LogicalProject(a=[$1], b=[$2])
++- LogicalProject(select=[a, b])
    +- LogicalAggregate(group=[{0}], a=[AVG($1)], b=[AVG($2)])
-      +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      +- LogicalProject(select=[c, a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1225,9 +1225,9 @@ FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
-+- LogicalProject(a=[$1], b=[$2])
++- LogicalProject(select=[a, b])
    +- LogicalAggregate(group=[{0}], a=[AVG($1)], b=[AVG($2)])
-      +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      +- LogicalProject(select=[c, a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1259,9 +1259,9 @@ FROM (
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
-+- LogicalProject(a=[$1], b=[$2])
++- LogicalProject(select=[a, b])
    +- LogicalAggregate(group=[{0}], a=[AVG($1)], b=[AVG($2)])
-      +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      +- LogicalProject(select=[c, a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1289,7 +1289,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RET
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1309,7 +1309,7 @@ GroupAggregate(groupBy=[a], select=[a, FIRST_VALUE(c) AS EXPR$1, COUNT(DISTINCT 
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1329,7 +1329,7 @@ GroupAggregate(groupBy=[a], select=[a, FIRST_VALUE(c) AS EXPR$1, COUNT(DISTINCT 
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1354,7 +1354,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, FIRST_VALUE_RET
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[FIRST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1379,7 +1379,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, FIRST_VALUE_RET
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LAST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1399,7 +1399,7 @@ GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(c) AS EXPR$1, COUNT(DISTINCT b
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LAST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1419,7 +1419,7 @@ GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(c) AS EXPR$1, COUNT(DISTINCT b
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LAST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1444,7 +1444,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, LAST_VALUE_RETR
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LAST_VALUE($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1469,7 +1469,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, LAST_VALUE_RETR
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1489,7 +1489,7 @@ GroupAggregate(groupBy=[a], select=[a, LISTAGG(c) AS EXPR$1, COUNT(DISTINCT b) A
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1510,7 +1510,7 @@ GlobalGroupAggregate(groupBy=[a], select=[a, LISTAGG((accDelimiter$0, concatAcc$
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1533,7 +1533,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, LISTAGG_RETRACT
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[LISTAGG($1)], EXPR$2=[COUNT(DISTINCT $2)])
-+- LogicalProject(a=[$0], c=[$2], b=[$1])
++- LogicalProject(select=[a, c, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1663,7 +1663,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RET
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1684,7 +1684,7 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(DISTINCT a) AS EXPR$1, COUNT(b) AS 
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1706,7 +1706,7 @@ GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1729,7 +1729,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $0)], EXPR$2=[COUNT($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1763,9 +1763,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
-+- LogicalProject(b=[$1], b1=[$2])
++- LogicalProject(select=[b, b1])
    +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1798,9 +1798,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
-+- LogicalProject(b=[$1], b1=[$2])
++- LogicalProject(select=[b, b1])
    +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1835,9 +1835,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
-+- LogicalProject(b=[$1], b1=[$2])
++- LogicalProject(select=[b, b1])
    +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1872,9 +1872,9 @@ FROM(
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
-+- LogicalProject(b=[$1], b1=[$2])
++- LogicalProject(select=[b, b1])
    +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1903,7 +1903,7 @@ GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRA
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1923,7 +1923,7 @@ GroupAggregate(groupBy=[c], select=[c, SUM(DISTINCT a) AS EXPR$1, SUM(a) AS EXPR
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1944,7 +1944,7 @@ GlobalGroupAggregate(groupBy=[c], select=[c, SUM(distinct$0 sum$0) AS EXPR$1, SU
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1969,7 +1969,7 @@ GroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, SUM_RETRACT($f3
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

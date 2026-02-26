@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAllEventTimeTumblingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0])
+LogicalProject(select=[EXPR$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -36,7 +36,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Final_COU
   <TestCase name="testEventTimeSlidingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1])
+LogicalProject(select=[string, EXPR$0])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, long, 8, 10)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -53,7 +53,7 @@ HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10
   <TestCase name="testEventTimeTumblingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1])
+LogicalProject(select=[string, EXPR$0])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -70,9 +70,9 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
   <TestCase name="testEventTimeTumblingGroupWindowOverTimeWithUdAgg">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1])
+LogicalProject(select=[string, EXPR$0])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*($0, $3)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
-   +- LogicalProject(long=[$0], int=[$1], string=[$2], int0=[CAST($1):BIGINT])
+   +- LogicalProject(select=[long, int, string]):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -92,7 +92,7 @@ SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
   <TestCase name="testLongEventTimeTumblingGroupWindowWithProperties">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
+LogicalProject(select=[string, EXPR$0, EXPR$1, EXPR$2, EXPR$3])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -109,7 +109,7 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 720000
   <TestCase name="testTimestampEventTimeTumblingGroupWindowWithProperties">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
+LogicalProject(select=[string, EXPR$0, EXPR$1, EXPR$2, EXPR$3])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>

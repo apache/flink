@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], ts=[$5])
+LogicalProject(select=[a, b, ts])
 +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($5, 10000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], t=[$4], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, t, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -40,9 +40,9 @@ TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], ts=[$5])
+LogicalProject(select=[a, b, ts])
 +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($5, 10000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], t=[$4], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, t, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -58,9 +58,9 @@ TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], ts=[$5])
+LogicalProject(select=[a, b, ts])
 +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($5, ITEM(ARRAY(10000:INTERVAL SECOND, 1000:INTERVAL SECOND), 1))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], t=[$4], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, t, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -76,9 +76,9 @@ TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], ts=[$5])
+LogicalProject(select=[a, b, ts])
 +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($5, 10000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], t=[$4], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, t, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -94,9 +94,9 @@ TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -112,9 +112,9 @@ TableSourceScan(table=[[default_catalog, default_database, VirtualTable, waterma
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
+LogicalProject(select=[a, b]), $3)])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -131,10 +131,10 @@ Calc(select=[a, b, EXTRACT(SECOND, CAST(Reinterpret((c + 5000:INTERVAL SECOND)) 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[>($1, 10)])
    +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -151,9 +151,9 @@ Calc(select=[a, b], where=[(b > 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rowtime=[$2])
+LogicalProject(select=[a, b, rowtime])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-   +- LogicalProject(a=[$0], b=[$1], rowtime=[TO_TIMESTAMP_LTZ($1, 0)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalTableScan(table=[[default_catalog, default_database, timeTestTable]])
 ]]>
     </Resource>
@@ -172,7 +172,7 @@ Calc(select=[a, b, Reinterpret(TO_TIMESTAMP_LTZ(b, 0)) AS rowtime])
       <![CDATA[
 LogicalProject(e=[$2.d.e], d=[$2.d])
 +- LogicalWatermarkAssigner(rowtime=[g], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], g=[$2.d.f])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
@@ -189,9 +189,9 @@ Calc(select=[c.d.e AS e, c.d AS d])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP_LTZ($3, 3)])
+   +- LogicalProject(select=[a, b, c, originTime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyLtzTable, metadata=[originTime]]])
 ]]>
     </Resource>
@@ -208,9 +208,9 @@ Calc(select=[a, b])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/($3, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
+   +- LogicalProject(select=[a, b, c, originTime])), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, metadata=[originTime]]])
 ]]>
     </Resource>
@@ -229,7 +229,7 @@ Calc(select=[a, b])
       <![CDATA[
 LogicalProject(EXPR$0=[-($0, $1)])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>

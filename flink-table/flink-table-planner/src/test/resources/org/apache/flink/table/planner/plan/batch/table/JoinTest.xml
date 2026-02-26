@@ -42,7 +42,7 @@ Calc(select=[*org.apache.flink.table.planner.plan.batch.table.JoinTest$Merger$*(
   <TestCase name="testFullOuterJoinEquiAndLocalPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -64,7 +64,7 @@ Calc(select=[b, y])
   <TestCase name="testFullOuterJoinEquiAndNonEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -85,7 +85,7 @@ Calc(select=[b, y])
   <TestCase name="testFullOuterJoinEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -107,7 +107,7 @@ Calc(select=[b, y])
   <TestCase name="testLeftOuterJoinEquiAndLocalPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -129,7 +129,7 @@ Calc(select=[b, y])
   <TestCase name="testLeftOuterJoinEquiAndNonEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -150,7 +150,7 @@ Calc(select=[b, y])
   <TestCase name="testLeftOuterJoinEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -172,7 +172,7 @@ Calc(select=[b, y])
   <TestCase name="testNoEqualityJoinPredicate1">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalFilter(condition=[=($3, $5)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, Table3]])
@@ -193,7 +193,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c, g], build=[right])
   <TestCase name="testNoEqualityJoinPredicate2">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
+LogicalProject(select=[c, g])
 +- LogicalFilter(condition=[<($0, $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, Table3]])
@@ -215,7 +215,7 @@ Calc(select=[c, g])
   <TestCase name="testRightOuterJoinEquiAndLocalPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], x=[$3])
+LogicalProject(select=[b, x])
 +- LogicalJoin(condition=[AND(=($0, $5), <($3, 2))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -237,7 +237,7 @@ Calc(select=[b, x])
   <TestCase name="testRightOuterJoinEquiAndNonEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -258,7 +258,7 @@ Calc(select=[b, y])
   <TestCase name="testRightOuterJoinEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])

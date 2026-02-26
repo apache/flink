@@ -46,7 +46,7 @@ HAVING COUNT(DISTINCT o.order_id) > 0]]>
       <![CDATA[
 LogicalFilter(condition=[>($3, 0)])
 +- LogicalAggregate(group=[{0, 1, 2}], order_count=[COUNT(DISTINCT $3)], total_items=[SUM($4)], total_value=[SUM($5)], avg_item_price=[AVG($6)], max_payment=[MAX($7)], min_payment=[MIN($7)], bulk_orders=[COUNT($8)])
-   +- LogicalProject(user_id=[$0], name=[$1], category_name=[$12], order_id=[$3], quantity=[$9], $f5=[*($9, $10)], unit_price=[$10], price=[$15], $f8=[CASE(>($9, 5), 1, null:INTEGER)])
+   +- LogicalProject(select=[user_id, name, category_name, order_id, quantity])], unit_price=[$10], price=[$15], $f8=[CASE(>($9, 5), 1, null:INTEGER)])
       +- LogicalJoin(condition=[=($0, $16)], joinType=[left])
          :- LogicalJoin(condition=[=($8, $11)], joinType=[left])
          :  :- LogicalJoin(condition=[=($3, $7)], joinType=[left])
@@ -118,7 +118,7 @@ HAVING COUNT(s.sale_id) > 0]]>
       <![CDATA[
 LogicalFilter(condition=[>($2, 0)])
 +- LogicalAggregate(group=[{0}], unique_users=[COUNT(DISTINCT $1)], total_sales=[COUNT($2)], total_revenue=[SUM($3)], avg_sale_amount=[AVG($3)], max_sale_amount=[MAX($3)])
-   +- LogicalProject(category_name=[$7], user_id=[$0], sale_id=[$10], amount=[$13])
+   +- LogicalProject(select=[category_name, user_id, sale_id, amount])
       +- LogicalJoin(condition=[=($0, $11)], joinType=[left])
          :- LogicalJoin(condition=[AND(=($0, $9), =($5, $6))], joinType=[left])
          :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -182,16 +182,16 @@ LEFT JOIN active_projects ap
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], dept_name=[$7], project_name=[$10], budget=[$8])
+LogicalProject(select=[user_id, name, order_id, dept_name, project_name, budget])
 +- LogicalJoin(condition=[=($6, $11)], joinType=[left])
    :- LogicalJoin(condition=[=($4, $6)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
    :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   :  +- LogicalProject(dept_id=[$0], dept_name=[$1], budget=[$2])
+   :  +- LogicalProject(select=[dept_id, dept_name, budget])
    :     +- LogicalFilter(condition=[>($2, 600000)])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, Departments]])
-   +- LogicalProject(project_id=[$0], project_name=[$1], dept_id=[$2])
+   +- LogicalProject(select=[project_id, project_name, dept_id])
       +- LogicalFilter(condition=[=($3, _UTF-16LE'ACTIVE')])
          +- LogicalTableScan(table=[[default_catalog, default_database, Projects]])
 ]]>
@@ -224,10 +224,10 @@ Calc(select=[user_id, name, order_id, dept_name, project_name, budget])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$5], location=[$7])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, subq]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
-   +- LogicalProject(order_id=[$0], u1=[$1], payment_id=[$3], u2=[$5], location=[$6], u3=[$7])
+   +- LogicalProject(select=[order_id, u1, payment_id, u2, location, u3])
       +- LogicalJoin(condition=[=($5, $7)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[o, p, s]]]])
          :- LogicalJoin(condition=[=($1, $5)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[o, p, s]]]])
          :  :- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
@@ -289,13 +289,13 @@ SELECT * FROM final_summary]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], total_orders=[$2], total_spent=[$3], avg_order_value=[$4], completed_orders=[$5])
+LogicalProject(select=[user_id, name, total_orders, total_spent, avg_order_value, completed_orders])
 +- LogicalAggregate(group=[{0, 1}], total_orders=[COUNT($2)], total_spent=[SUM($3)], avg_order_value=[AVG($3)], completed_orders=[COUNT($4)])
-   +- LogicalProject(user_id=[$0], name=[$1], order_id=[$2], price=[$5], $f4=[CASE($7, 1, null:INTEGER)])
-      +- LogicalProject(user_id=[$0], name=[$1], order_id=[$2], product=[$3], payment_id=[$4], price=[$5], status_name=[$7], is_final=[$8], method_name=[$10], processing_fee=[$11])
+   +- LogicalProject(select=[user_id, name, order_id, price])])
+      +- LogicalProject(select=[user_id, name, order_id, product, payment_id, price, status_name, is_final, method_name, processing_fee])
          +- LogicalJoin(condition=[=($4, $9)], joinType=[left])
             :- LogicalJoin(condition=[=($2, $6)], joinType=[left])
-            :  :- LogicalProject(user_id=[$0], name=[$1], order_id=[$3], product=[$5], payment_id=[$6], price=[$7])
+            :  :- LogicalProject(select=[user_id, name, order_id, product, payment_id, price])
             :  :  +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
             :  :     :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
             :  :     :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -358,7 +358,7 @@ LEFT JOIN Customers AS creators
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(assignment_id=[$0], user_id=[$1], detail_id=[$2], common_id=[$3], user_id0=[$4], name=[$5], depart_num=[$6], common_id0=[$7], detail_id0=[$8], creator_nm=[$9], common_id1=[$10], phase_id=[$11], common_id2=[$12], org_id=[$13], org_name=[$14], common_id3=[$15], user_id1=[$16], name0=[$17], depart_num0=[$18], common_id4=[$19])
+LogicalProject(select=[assignment_id, user_id, detail_id, common_id, user_id0, name, depart_num, common_id0, detail_id0, creator_nm, common_id1, phase_id, common_id2, org_id, org_name, common_id3, user_id1, name0, depart_num0, common_id4])
 +- LogicalJoin(condition=[AND(=($9, $18), =($10, $19))], joinType=[left])
    :- LogicalJoin(condition=[AND(=($6, $13), =($7, $15))], joinType=[left])
    :  :- LogicalJoin(condition=[=($10, $12)], joinType=[left])
@@ -412,7 +412,7 @@ LEFT JOIN Documents AS other_documents
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(assignment_id=[$0], user_id=[$1], detail_id=[$2], common_id=[$3], detail_id0=[$4], creator_nm=[$5], common_id0=[$6], detail_id1=[$7], creator_nm0=[$8], common_id1=[$9])
+LogicalProject(select=[assignment_id, user_id, detail_id, common_id, detail_id0, creator_nm, common_id0, detail_id1, creator_nm0, common_id1])
 +- LogicalJoin(condition=[=($1, $9)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($2, $4), =($3, $6))], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Assignments]])
@@ -476,7 +476,7 @@ LEFT JOIN ProductReviews pr
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], order_id=[$3], payment_id=[$6], category_name=[$10], product_tier=[CASE(AND($11, >($7, 1000)), _UTF-16LE'High-Value Premium':VARCHAR(19) CHARACTER SET "UTF-16LE", $11, _UTF-16LE'Premium':VARCHAR(19) CHARACTER SET "UTF-16LE", >($7, 500), _UTF-16LE'Standard High-Value':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'Standard':VARCHAR(19) CHARACTER SET "UTF-16LE")], recommendation_status=[CASE(AND(>=($15, 4), $16), _UTF-16LE'Highly Recommended':VARCHAR(18) CHARACTER SET "UTF-16LE", >=($15, 3), _UTF-16LE'Recommended':VARCHAR(18) CHARACTER SET "UTF-16LE", >=($15, 2), _UTF-16LE'Average':VARCHAR(18) CHARACTER SET "UTF-16LE", _UTF-16LE'Not Recommended':VARCHAR(18) CHARACTER SET "UTF-16LE")], final_price=[CASE(>($12, 0.2:DECIMAL(2, 1)), *($7, -(1, $12)), CAST($7):DOUBLE)])
+LogicalProject(select=[user_id, order_id, payment_id, category_name])), _UTF-16LE'High-Value Premium':VARCHAR(19) CHARACTER SET "UTF-16LE", $11, _UTF-16LE'Premium':VARCHAR(19) CHARACTER SET "UTF-16LE", >($7, 500), _UTF-16LE'Standard High-Value':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'Standard':VARCHAR(19) CHARACTER SET "UTF-16LE")], recommendation_status=[CASE(AND(>=($15, 4), $16), _UTF-16LE'Highly Recommended':VARCHAR(18) CHARACTER SET "UTF-16LE", >=($15, 3), _UTF-16LE'Recommended':VARCHAR(18) CHARACTER SET "UTF-16LE", >=($15, 2), _UTF-16LE'Average':VARCHAR(18) CHARACTER SET "UTF-16LE", _UTF-16LE'Not Recommended':VARCHAR(18) CHARACTER SET "UTF-16LE")], final_price=[CASE(>($12, 0.2:DECIMAL(2, 1)), *($7, -(1, $12)), CAST($7):DOUBLE)])
 +- LogicalJoin(condition=[=($5, $14)], joinType=[left])
    :- LogicalJoin(condition=[=($5, $9)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -570,13 +570,13 @@ WHERE total_spent > 0]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], user_name=[UPPER($1)], total_orders=[$2], total_spent_rounded=[ROUND($3, 2)], avg_order_value_rounded=[ROUND($4, 2)], summary=[CONCAT(_UTF-16LE'User: ', $1, _UTF-16LE' has ', CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, _UTF-16LE' orders')], customer_type=[CASE(>($2, 10), _UTF-16LE'Frequent Customer':VARCHAR(19) CHARACTER SET "UTF-16LE", >($2, 5), _UTF-16LE'Regular Customer':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'Occasional Customer':VARCHAR(19) CHARACTER SET "UTF-16LE")])
+LogicalProject(select=[user_id])], total_orders=[$2], total_spent_rounded=[ROUND($3, 2)], avg_order_value_rounded=[ROUND($4, 2)], summary=[CONCAT(_UTF-16LE'User: ', $1, _UTF-16LE' has ', CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, _UTF-16LE' orders')], customer_type=[CASE(>($2, 10), _UTF-16LE'Frequent Customer':VARCHAR(19) CHARACTER SET "UTF-16LE", >($2, 5), _UTF-16LE'Regular Customer':VARCHAR(19) CHARACTER SET "UTF-16LE", _UTF-16LE'Occasional Customer':VARCHAR(19) CHARACTER SET "UTF-16LE")])
 +- LogicalFilter(condition=[>($3, 0)])
    +- LogicalAggregate(group=[{0, 1}], total_orders=[COUNT(DISTINCT $2)], total_spent=[SUM($3)], avg_order_value=[AVG($3)], max_metric=[MAX($4)], min_metric=[MIN($4)], premium_orders=[COUNT($5)])
-      +- LogicalProject(user_id=[$0], name=[$1], order_id=[$2], price=[$4], metric_value=[$6], $f5=[CASE(=($7, _UTF-16LE'Premium'), 1, null:INTEGER)])
-         +- LogicalProject(user_id=[$0], name=[$1], order_id=[$2], payment_id=[$3], price=[$4], metric_type=[$7], metric_value=[$8], order_tier=[CASE(>($4, 1000), _UTF-16LE'Premium':VARCHAR(8) CHARACTER SET "UTF-16LE", >($4, 500), _UTF-16LE'Standard':VARCHAR(8) CHARACTER SET "UTF-16LE", _UTF-16LE'Basic':VARCHAR(8) CHARACTER SET "UTF-16LE")])
+      +- LogicalProject(select=[user_id, name, order_id, price, metric_value]), 1, null:INTEGER)])
+         +- LogicalProject(select=[user_id, name, order_id, payment_id, price, metric_type, metric_value]), _UTF-16LE'Premium':VARCHAR(8) CHARACTER SET "UTF-16LE", >($4, 500), _UTF-16LE'Standard':VARCHAR(8) CHARACTER SET "UTF-16LE", _UTF-16LE'Basic':VARCHAR(8) CHARACTER SET "UTF-16LE")])
             +- LogicalJoin(condition=[=($2, $6)], joinType=[left])
-               :- LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], price=[$7])
+               :- LogicalProject(select=[user_id, name, order_id, payment_id, price])
                :  +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
                :     :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
                :     :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -640,7 +640,7 @@ WHERE NOT (s.location IS NOT NULL)]]>
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.UnnestSink], targetColumns=[[0],[1],[2],[3],[4]], fields=[detail_id, element_data, data_value_id, user_id, order_id])
-+- LogicalProject(detail_id=[$0], element_data=[TRIM(FLAG(BOTH), _UTF-16LE' ', REGEXP_REPLACE($13, _UTF-16LE'[\[\]\"]', _UTF-16LE''))], data_value_id=[ARRAY_POSITION(split(REGEXP_REPLACE($3, _UTF-16LE'^\["|"\]$', _UTF-16LE''), _UTF-16LE'", "'), $13)], user_id=[$2], order_id=[$5])
++- LogicalProject(select=[detail_id]), _UTF-16LE' ', REGEXP_REPLACE($13, _UTF-16LE'[\[\]\"]', _UTF-16LE''))], data_value_id=[ARRAY_POSITION(split(REGEXP_REPLACE($3, _UTF-16LE'^\["|"\]$', _UTF-16LE''), _UTF-16LE'", "'), $13)], user_id=[$2], order_id=[$5])
    +- LogicalFilter(condition=[NOT(IS NOT NULL($11))])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
          :- LogicalJoin(condition=[=($12, $2)], joinType=[left])
@@ -650,7 +650,7 @@ LogicalSink(table=[default_catalog.default_database.UnnestSink], targetColumns=[
          :  :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
          :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
-         +- LogicalProject(edata=[$0])
+         +- LogicalProject(select=[edata])
             +- Uncollect
                +- LogicalProject(EXPR$0=[split(REGEXP_REPLACE($cor0.data, _UTF-16LE'^\["|"\]$', _UTF-16LE''), _UTF-16LE'", "')])
                   +- LogicalValues(tuples=[[{ 0 }]])
@@ -694,7 +694,7 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
    :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -724,7 +724,7 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   <TestCase name="testFourWayComplexJoinExplain">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
    :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -783,7 +783,7 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
    :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -831,7 +831,7 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$9], location=[$12])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($4, $13)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $11)], joinType=[left])
    :  :- LogicalJoin(condition=[=($1, $7)], joinType=[left])
@@ -889,7 +889,7 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[=($4, $8)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -937,15 +937,15 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($6, $9)], joinType=[left])
-   :- LogicalProject(user_id=[$0], name=[$1], cash=[$2], order_id=[$3], user_id0=[$4], product=[$5], payment_id=[$7], price=[$8], user_id1=[$9])
+   :- LogicalProject(select=[user_id, name, cash, order_id, user_id0, product, payment_id, price, user_id1])
    :  +- LogicalJoin(condition=[AND(=($0, $9), =($6, $10), OR(>=(FLOOR($2), FLOOR($8)), <($8, 0)))], joinType=[left])
-   :     :- LogicalProject(user_id=[$0], name=[$1], cash=[$2], order_id=[$3], user_id0=[$4], product=[$5], $f6=[UPPER($1)])
+   :     :- LogicalProject(select=[user_id, name, cash, order_id, user_id0, product])])
    :     :  +- LogicalJoin(condition=[=($4, $0)], joinType=[left])
    :     :     :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
    :     :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   :     +- LogicalProject(payment_id=[$0], price=[$1], user_id=[$2], $f3=[UPPER($0)])
+   :     +- LogicalProject(select=[payment_id, price, user_id])])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
 ]]>
@@ -989,7 +989,7 @@ FULL OUTER JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($4, $8)], joinType=[full])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[full])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -1050,7 +1050,7 @@ LEFT JOIN UserPreferences up
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], user_name_upper=[UPPER($1)], product_lower=[LOWER($5)], user_product=[CONCAT($1, _UTF-16LE' - ', $5)], description_preview=[SUBSTRING($11, 1, 50)], description_length=[CHAR_LENGTH($11)], price_rounded=[*(FLOOR(/($7, 100.0:DECIMAL(4, 1))), 100)], price_tier=[CASE(>($7, 1000), _UTF-16LE'High':VARCHAR(6) CHARACTER SET "UTF-16LE", >($7, 500), _UTF-16LE'Medium':VARCHAR(6) CHARACTER SET "UTF-16LE", _UTF-16LE'Low':VARCHAR(6) CHARACTER SET "UTF-16LE")], formatted_tags=[REGEXP_REPLACE($13, _UTF-16LE',', _UTF-16LE' | ')], product_created=[TO_TIMESTAMP_LTZ($12, 3)], user_preference=[COALESCE($15, _UTF-16LE'None')], notification_frequency=[CASE(=($16, _UTF-16LE'HIGH'), _UTF-16LE'Frequent Updates':VARCHAR(16) CHARACTER SET "UTF-16LE", =($16, _UTF-16LE'MEDIUM'), _UTF-16LE'Daily Updates':VARCHAR(16) CHARACTER SET "UTF-16LE", _UTF-16LE'Weekly Updates':VARCHAR(16) CHARACTER SET "UTF-16LE")])
+LogicalProject(select=[user_id])], product_lower=[LOWER($5)], user_product=[CONCAT($1, _UTF-16LE' - ', $5)], description_preview=[SUBSTRING($11, 1, 50)], description_length=[CHAR_LENGTH($11)], price_rounded=[*(FLOOR(/($7, 100.0:DECIMAL(4, 1))), 100)], price_tier=[CASE(>($7, 1000), _UTF-16LE'High':VARCHAR(6) CHARACTER SET "UTF-16LE", >($7, 500), _UTF-16LE'Medium':VARCHAR(6) CHARACTER SET "UTF-16LE", _UTF-16LE'Low':VARCHAR(6) CHARACTER SET "UTF-16LE")], formatted_tags=[REGEXP_REPLACE($13, _UTF-16LE',', _UTF-16LE' | ')], product_created=[TO_TIMESTAMP_LTZ($12, 3)], user_preference=[COALESCE($15, _UTF-16LE'None')], notification_frequency=[CASE(=($16, _UTF-16LE'HIGH'), _UTF-16LE'Frequent Updates':VARCHAR(16) CHARACTER SET "UTF-16LE", =($16, _UTF-16LE'MEDIUM'), _UTF-16LE'Daily Updates':VARCHAR(16) CHARACTER SET "UTF-16LE", _UTF-16LE'Weekly Updates':VARCHAR(16) CHARACTER SET "UTF-16LE")])
 +- LogicalJoin(condition=[=($0, $14)], joinType=[left])
    :- LogicalJoin(condition=[=($5, $9)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -1120,7 +1120,7 @@ LEFT JOIN Reviews r
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], product_name=[$7], price=[$8], price_with_tax=[ROUND(*($8, 1.1:DECIMAL(2, 1)), 2)], product_description=[CONCAT(_UTF-16LE'Product: ', $7)], review_length=[CHAR_LENGTH($14)], review_preview=[UPPER(SUBSTRING($14, 1, 10))], rating_category=[CASE(>=($13, 4), _UTF-16LE'High Rating':VARCHAR(13) CHARACTER SET "UTF-16LE", >=($13, 3), _UTF-16LE'Medium Rating':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'Low Rating':VARCHAR(13) CHARACTER SET "UTF-16LE")], days_since_created=[CAST(/INT(Reinterpret(-(CURRENT_DATE, $10)), 86400000)):INTEGER])
+LogicalProject(select=[user_id, name, order_id, product_name, price])), 2)], product_description=[CONCAT(_UTF-16LE'Product: ', $7)], review_length=[CHAR_LENGTH($14)], review_preview=[UPPER(SUBSTRING($14, 1, 10))], rating_category=[CASE(>=($13, 4), _UTF-16LE'High Rating':VARCHAR(13) CHARACTER SET "UTF-16LE", >=($13, 3), _UTF-16LE'Medium Rating':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'Low Rating':VARCHAR(13) CHARACTER SET "UTF-16LE")], days_since_created=[CAST(/INT(Reinterpret(-(CURRENT_DATE, $10)), 86400000)):INTEGER])
 +- LogicalJoin(condition=[=($6, $12)], joinType=[left])
    :- LogicalJoin(condition=[=($5, $6)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -1170,7 +1170,7 @@ JOIN EventTable2 e2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], val=[$1], price=[$4])
+LogicalProject(select=[id, val, price])
 +- LogicalJoin(condition=[AND(=($0, $3), >=($2, -($5, 60000:INTERVAL MINUTE)), <=($2, +($5, 60000:INTERVAL MINUTE)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[$rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, EventTable1]])
@@ -1213,22 +1213,22 @@ LEFT JOIN Subscriptions AS sub
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(developer_id=[$0], developer_name=[$1.info.name], ticket_id=[$3], ticket_priority=[$4.info.priority], feedback_id=[$6], feedback_rating=[$7.info.rating], sub_id=[$9], subscription_plan=[$10.info.plan])
-+- LogicalProject(developer_id=[$0], person=[$1], experience_years=[$2], ticket_id=[$3], reporter=[$4], issue=[$5], feedback_id=[$6], author=[$7], message=[$8], sub_id=[$10], subscriber=[$11], active=[$12])
+LogicalProject(select=[developer_id, ticket_id, feedback_id, sub_id])
++- LogicalProject(select=[developer_id, person, experience_years, ticket_id, reporter, issue, feedback_id, author, message, sub_id, subscriber, active])
    +- LogicalJoin(condition=[=($9, $13)], joinType=[left])
-      :- LogicalProject(developer_id=[$0], person=[$1], experience_years=[$2], ticket_id=[$3], reporter=[$4], issue=[$5], feedback_id=[$6], author=[$7], message=[$8], $f9=[$1.info.id])
-      :  +- LogicalProject(developer_id=[$0], person=[$1], experience_years=[$2], ticket_id=[$3], reporter=[$4], issue=[$5], feedback_id=[$7], author=[$8], message=[$9])
+      :- LogicalProject(select=[developer_id, person, experience_years, ticket_id, reporter, issue, feedback_id, author, message])
+      :  +- LogicalProject(select=[developer_id, person, experience_years, ticket_id, reporter, issue, feedback_id, author, message])
       :     +- LogicalJoin(condition=[=($6, $10)], joinType=[left])
-      :        :- LogicalProject(developer_id=[$0], person=[$1], experience_years=[$2], ticket_id=[$3], reporter=[$4], issue=[$5], $f6=[$1.info.id])
-      :        :  +- LogicalProject(developer_id=[$0], person=[$1], experience_years=[$2], ticket_id=[$4], reporter=[$5], issue=[$6])
+      :        :- LogicalProject(select=[developer_id, person, experience_years, ticket_id, reporter, issue])
+      :        :  +- LogicalProject(select=[developer_id, person, experience_years, ticket_id, reporter, issue])
       :        :     +- LogicalJoin(condition=[=($3, $7)], joinType=[left])
-      :        :        :- LogicalProject(developer_id=[$0], person=[$1], experience_years=[$2], $f3=[$1.info.id])
+      :        :        :- LogicalProject(select=[developer_id, person, experience_years])
       :        :        :  +- LogicalTableScan(table=[[default_catalog, default_database, Developers]])
-      :        :        +- LogicalProject(ticket_id=[$0], reporter=[$1], issue=[$2], $f3=[$1.info.id])
+      :        :        +- LogicalProject(select=[ticket_id, reporter, issue])
       :        :           +- LogicalTableScan(table=[[default_catalog, default_database, SupportTickets]])
-      :        +- LogicalProject(feedback_id=[$0], author=[$1], message=[$2], $f3=[$1.info.id])
+      :        +- LogicalProject(select=[feedback_id, author, message])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, Feedback]])
-      +- LogicalProject(sub_id=[$0], subscriber=[$1], active=[$2], $f3=[$1.info.id])
+      +- LogicalProject(select=[sub_id, subscriber, active])
          +- LogicalTableScan(table=[[default_catalog, default_database, Subscriptions]])
 ]]>
     </Resource>
@@ -1279,20 +1279,20 @@ LEFT JOIN (SELECT user_id, location FROM Shipments WHERE location IS NOT NULL) A
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], order_id=[$4], product=[$5], price=[$7], location=[$9])
+LogicalProject(select=[user_id, order_id, product, price, location])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $6)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :  :  :- LogicalProject(user_id=[$0], name=[$1], cash=[$2])
+   :  :  :- LogicalProject(select=[user_id, name, cash])
    :  :  :  +- LogicalFilter(condition=[>($2, 100)])
    :  :  :     +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
-   :  :  +- LogicalProject(user_id=[$1], order_id=[$0], product=[$2])
+   :  :  +- LogicalProject(select=[user_id, order_id, product])
    :  :     +- LogicalFilter(condition=[IS NOT NULL($2)])
    :  :        +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   :  +- LogicalProject(user_id=[$2], price=[$1])
+   :  +- LogicalProject(select=[user_id, price])
    :     +- LogicalFilter(condition=[>($1, 50)])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
-   +- LogicalProject(user_id=[$1], location=[$0])
+   +- LogicalProject(select=[user_id, location])
       +- LogicalFilter(condition=[IS NOT NULL($0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
 ]]>
@@ -1337,13 +1337,13 @@ ON u.user_id = op.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], cash=[$2], user_id0=[$3], order_id=[$4], payment_id=[$5], price=[$6])
+LogicalProject(select=[user_id, name, cash, user_id0, order_id, payment_id, price])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
-   +- LogicalProject(user_id=[$1], order_id=[$0], payment_id=[$3], price=[$5])
+   +- LogicalProject(select=[user_id, order_id, payment_id, price])
       +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-         +- LogicalProject(payment_id=[$0], user_id=[$2], price=[$1])
+         +- LogicalProject(select=[payment_id, user_id, price])
             +- LogicalFilter(condition=[>($1, 100)])
                +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
@@ -1370,7 +1370,7 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o, p]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{p=1h, u=1d, o=2d}]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o, p]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{p=1h, u=1d, o=2d}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
@@ -1397,7 +1397,7 @@ Calc(select=[user_id, name, order_id, payment_id])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], location=[$6])
+LogicalProject(select=[user_id, name, order_id, location])
 +- LogicalJoin(condition=[=($0, $7)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o]]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o]]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
@@ -1429,7 +1429,7 @@ Calc(select=[user_id, name, order_id, location])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[Users, o, p]]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[Users, o, p]]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[Users]]]])
@@ -1456,7 +1456,7 @@ Calc(select=[user_id, name, order_id, payment_id])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[Users, Orders, Payments]]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[Users, Orders, Payments]]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[Users]]]])
@@ -1483,7 +1483,7 @@ Calc(select=[user_id, name, order_id, payment_id])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{p=1h, u=1d, o=2d}]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{p=1h, u=1d, o=2d}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
@@ -1550,13 +1550,13 @@ Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], cha
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], order_id=[$1], payment_id=[$3], location=[$5])
+LogicalProject(select=[user_id, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
-   :- LogicalProject(user_id=[$0], order_id=[$3], ouid=[$4])
+   :- LogicalProject(select=[user_id, order_id, ouid])
    :  +- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o]]]])
    :     :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
-   +- LogicalProject(payment_id=[$0], user_id=[$2], location=[$3], suid=[$4])
+   +- LogicalProject(select=[payment_id, user_id, location, suid])
       +- LogicalJoin(condition=[=($2, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[p, s]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]], hints=[[[ALIAS inheritPath:[] options:[s]]]])
@@ -1611,7 +1611,7 @@ JOIN AddressPK a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_four_way], fields=[user_id, order_id, user_id0, payment_id, user_id1, name, location])
-+- LogicalProject(user_id=[$0], order_id=[$4], user_id0=[$5], payment_id=[$7], user_id1=[$8], name=[$1], location=[$11])
++- LogicalProject(select=[user_id, order_id, user_id0, payment_id, user_id1, name, location])
    +- LogicalJoin(condition=[AND(=($0, $10), IS NOT NULL($11))], joinType=[inner])
       :- LogicalJoin(condition=[AND(=($0, $8), >=($9, 0))], joinType=[inner])
       :  :- LogicalJoin(condition=[AND(=($0, $5), IS NOT NULL($6))], joinType=[inner])
@@ -1665,7 +1665,7 @@ JOIN PaymentsPK p
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_three_way], fields=[user_id, order_id, user_id0, payment_id, user_id1, description])
-+- LogicalProject(user_id=[$5], order_id=[$4], user_id0=[$8], payment_id=[$7], user_id1=[$0], description=[$3])
++- LogicalProject(select=[user_id, order_id, user_id0, payment_id, user_id1, description])
    +- LogicalJoin(condition=[=($5, $8)], joinType=[inner])
       :- LogicalJoin(condition=[=($5, $0)], joinType=[inner])
       :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
@@ -1703,7 +1703,7 @@ INNER JOIN OrdersPK o
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
-+- LogicalProject(user_id=[$5], order_id=[$4], product=[$6], region_id=[$2])
++- LogicalProject(select=[user_id, order_id, product, region_id])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
       +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
@@ -1738,7 +1738,7 @@ ON CONFLICT DO DEDUPLICATE]]>
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
-+- LogicalProject(user_id=[$5], order_id=[$4], product=[$6], region_id=[$2])
++- LogicalProject(select=[user_id, order_id, product, region_id])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
       +- LogicalTableScan(table=[[default_catalog, default_database, OrdersSimplePK]])
@@ -1776,7 +1776,7 @@ LEFT JOIN UsersPK u
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
-+- LogicalProject(user_id=[$1], order_id=[$0], product=[$2], region_id=[$5])
++- LogicalProject(select=[user_id, order_id, product, region_id])
    +- LogicalJoin(condition=[=($3, $1)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
       +- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
@@ -1813,14 +1813,14 @@ INNER JOIN (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], age=[$7])
+LogicalProject(select=[user_id, name, order_id, age])
 +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   +- LogicalProject(user_id=[$0], age=[$5])
+   +- LogicalProject(select=[user_id, age])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
-         :- LogicalProject(user_id=[$0], amount=[$1], proctime=[PROCTIME()])
+         :- LogicalProject(select=[user_id, amount])])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, StreamTable]])
          +- LogicalFilter(condition=[=($cor0.user_id, $0)])
             +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1858,7 +1858,7 @@ RIGHT JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($4, $8)], joinType=[right])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[right])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -1897,7 +1897,7 @@ LEFT JOIN Users u3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], cash=[$2], user_id0=[$3], name0=[$4], cash0=[$5], user_id1=[$6], name1=[$7], cash1=[$8], user_id2=[$9], name2=[$10], cash2=[$11])
+LogicalProject(select=[user_id, name, cash, user_id0, name0, cash0, user_id1, name1, cash1, user_id2, name2, cash2])
 +- LogicalJoin(condition=[=($6, $9)], joinType=[left])
    :- LogicalJoin(condition=[=($3, $6)], joinType=[left])
    :  :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
@@ -1935,9 +1935,9 @@ JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], amount=[$1], name=[$4], age=[$5])
+LogicalProject(select=[user_id, amount, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
-   :- LogicalProject(user_id=[$0], amount=[$1], proctime=[PROCTIME()])
+   :- LogicalProject(select=[user_id, amount])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, StreamTable]])
    +- LogicalFilter(condition=[=($cor0.user_id, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -1968,7 +1968,7 @@ INNER JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -1992,7 +1992,7 @@ Calc(select=[user_id, name, order_id, payment_id])
   <TestCase name="testThreeWayInnerJoinExplain">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2037,7 +2037,7 @@ INNER JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2074,7 +2074,7 @@ INNER JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($2, $7)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2117,7 +2117,7 @@ INNER JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{o=2d}]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{o=2d}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
@@ -2155,7 +2155,7 @@ INNER JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{p=1h, u=1d, o=2d}]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{p=1h, u=1d, o=2d}]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
@@ -2190,7 +2190,7 @@ INNER JOIN Payments p ON TRUE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalJoin(condition=[true], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2220,7 +2220,7 @@ MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[INNER], inputUniqueKeys=[n
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o, p]]]])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o, p]]]])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
@@ -2257,10 +2257,10 @@ JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$1], proctime=[$2], $rowtime=[$5], price=[$7])
+LogicalProject(select=[name, proctime, rowtime, price])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
-   :  :- LogicalProject(user_id=[$0], name=[$1], proctime=[PROCTIME()])
+   :  :- LogicalProject(select=[user_id, name])])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, UsersWithProctime]])
    :  +- LogicalWatermarkAssigner(rowtime=[$rowtime], watermark=[$2])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, OrdersWithRowtime]])
@@ -2299,7 +2299,7 @@ LEFT JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2323,7 +2323,7 @@ Calc(select=[user_id, name, order_id, payment_id])
   <TestCase name="testThreeWayLeftOuterJoinExplain">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2368,7 +2368,7 @@ LEFT JOIN Payments p
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
@@ -2406,7 +2406,7 @@ WHERE u.name = 'Gus' AND p.price > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
       :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -2435,7 +2435,7 @@ Calc(select=[user_id, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST
   <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExplain">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
       :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -2490,7 +2490,7 @@ WHERE u.name = 'Gus' AND p.price > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
+LogicalProject(select=[user_id, name, order_id, payment_id])
 +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
       :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -2541,10 +2541,10 @@ WHERE ts = 1]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], val=[$1], $rowtime=[$2])
+LogicalProject(select=[id, val, rowtime])
 +- LogicalFilter(condition=[=($4, 1)])
-   +- LogicalProject(id=[$0], val=[$1], $rowtime=[$2], price=[$3], ts=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
-      +- LogicalProject(id=[$0], val=[$1], $rowtime=[$2], price=[$4])
+   +- LogicalProject(select=[id, val, rowtime, price]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[id, val, rowtime, price])
          +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
             :- LogicalWatermarkAssigner(rowtime=[$rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, EventTable1]])
@@ -2583,12 +2583,12 @@ LEFT JOIN Users u
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[$0], user_id=[$1], product=[$2], user_id0=[$3], name=[$4], cash=[$5])
+LogicalProject(select=[order_id, user_id, product, user_id0, name, cash])
 +- LogicalJoin(condition=[=($1, $3)], joinType=[left])
    :- LogicalUnion(all=[true])
-   :  :- LogicalProject(order_id=[$0], user_id=[$1], product=[$2])
+   :  :- LogicalProject(select=[order_id, user_id, product])
    :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   :  +- LogicalProject(order_id=[$0], user_id=[$1], product=[$2])
+   :  +- LogicalProject(select=[order_id, user_id, product])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
 ]]>
@@ -2624,15 +2624,15 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($0, $10)], joinType=[left])
-   :- LogicalProject(user_id=[$0], name=[$1], cash=[$2], order_id=[$3], user_id0=[$4], product=[$5], payment_id=[$7], price=[$8], user_id2=[$9])
+   :- LogicalProject(select=[user_id, name, cash, order_id, user_id0, product, payment_id, price, user_id2])
    :  +- LogicalJoin(condition=[=($6, $10)], joinType=[left])
-   :     :- LogicalProject(user_id=[$0], name=[$1], cash=[$2], order_id=[$3], user_id0=[$4], product=[$5], user_id1=[CAST($0):INTEGER NOT NULL])
+   :     :- LogicalProject(select=[user_id, name, cash, order_id, user_id0, product]):INTEGER NOT NULL])
    :     :  +- LogicalJoin(condition=[=($4, $0)], joinType=[left])
    :     :     :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
    :     :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   :     +- LogicalProject(payment_id=[$0], price=[$1], user_id=[$2], user_id0=[CAST($2):INTEGER])
+   :     +- LogicalProject(select=[payment_id, price, user_id]):INTEGER])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
 ]]>
@@ -2680,7 +2680,7 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($0, $10)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :  :- LogicalJoin(condition=[=($4, $0)], joinType=[left])
@@ -2724,14 +2724,14 @@ WHERE (p.price - p.discount) > 100]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(product_id=[$0], net_price=[-($1, $2)], quantity=[$5], promo_text=[$8])
+LogicalProject(select=[product_id])], quantity=[$5], promo_text=[$8])
 +- LogicalFilter(condition=[>(-($1, $2), 100)])
-   +- LogicalProject(product_id=[$0], price=[$1], discount=[$2], sale_id=[$3], product_key=[$4], quantity=[$5], promo_id=[$7], product_key0=[$8], promo_text=[$9])
+   +- LogicalProject(select=[product_id, price, discount, sale_id, product_key, quantity, promo_id, product_key0, promo_text])
       +- LogicalJoin(condition=[=($6, $8)], joinType=[left])
-         :- LogicalProject(product_id=[$0], price=[$1], discount=[$2], sale_id=[$3], product_key=[$4], quantity=[$5], $f6=[-($1, $2)])
-         :  +- LogicalProject(product_id=[$0], price=[$1], discount=[$2], sale_id=[$4], product_key=[$5], quantity=[$6])
+         :- LogicalProject(select=[product_id, price, discount, sale_id, product_key, quantity])])
+         :  +- LogicalProject(select=[product_id, price, discount, sale_id, product_key, quantity])
          :     +- LogicalJoin(condition=[=($3, $5)], joinType=[left])
-         :        :- LogicalProject(product_id=[$0], price=[$1], discount=[$2], $f3=[-($1, $2)])
+         :        :- LogicalProject(select=[product_id, price, discount])])
          :        :  +- LogicalTableScan(table=[[default_catalog, default_database, Products]])
          :        +- LogicalTableScan(table=[[default_catalog, default_database, Sales]])
          +- LogicalTableScan(table=[[default_catalog, default_database, Promotions]])
@@ -2781,7 +2781,7 @@ LEFT JOIN Shipments s
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
+LogicalProject(select=[user_id, name, order_id, payment_id, location])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[OR(=($0, $8), =($1, $6))], joinType=[left])
    :  :- LogicalJoin(condition=[=($4, $0)], joinType=[left])

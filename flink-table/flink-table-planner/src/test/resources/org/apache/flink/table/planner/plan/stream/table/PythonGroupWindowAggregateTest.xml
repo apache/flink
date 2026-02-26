@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testGeneralEventTimeSessionGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
+LogicalProject(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[TestPythonAggregateFunction($0, $2)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -38,9 +38,9 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
   <TestCase name="testGeneralEventTimeSlidingGroupWindowOverCount">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
+LogicalProject(select=[b, EXPR$0])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[TestPythonAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -55,7 +55,7 @@ PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime,
   <TestCase name="testGeneralEventTimeSlidingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
+LogicalProject(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[TestPythonAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -74,9 +74,9 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
   <TestCase name="testGeneralEventTimeTumblingGroupWindowOverCount">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
+LogicalProject(select=[b, EXPR$0])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[TestPythonAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -91,7 +91,7 @@ PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime
   <TestCase name="testGeneralEventTimeTumblingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
+LogicalProject(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[TestPythonAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -110,9 +110,9 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
   <TestCase name="testPandasEventTimeSlidingGroupWindowOverCount">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
+LogicalProject(select=[b, EXPR$0])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -127,7 +127,7 @@ PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime,
   <TestCase name="testPandasEventTimeSlidingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
+LogicalProject(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -146,9 +146,9 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
   <TestCase name="testPandasEventTimeTumblingGroupWindowOverCount">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
+LogicalProject(select=[b, EXPR$0])
 +- LogicalWindowAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -163,7 +163,7 @@ PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime
   <TestCase name="testPandasEventTimeTumblingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
+LogicalProject(select=[b, EXPR$0, EXPR$1, EXPR$2])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])

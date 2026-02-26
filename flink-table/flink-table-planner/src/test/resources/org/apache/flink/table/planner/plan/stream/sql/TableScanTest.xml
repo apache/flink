@@ -43,7 +43,7 @@ GroupAggregate(select=[COUNT_RETRACT(*) AS EXPR$0], changelogMode=[I,UA,D])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[MAX($1)], EXPR$3=[MIN($1)])
-+- LogicalProject(b=[$2], ts=[$0])
++- LogicalProject(select=[b, ts])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -65,7 +65,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(*) AS EXPR$1, MAX_RETRACT(t
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[MAX($1)], EXPR$3=[MIN($1)])
-+- LogicalProject(a=[$1], ts=[$0])
++- LogicalProject(select=[a, ts])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -85,10 +85,10 @@ GroupAggregate(groupBy=[a], select=[a, COUNT_RETRACT(*) AS EXPR$1, MAX_RETRACT(t
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$2], c=[$3])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
+      +- LogicalProject(select=[id, a])], c=[$2], ts=[TO_TIMESTAMP($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -111,7 +111,7 @@ Calc(select=[a, b, c], changelogMode=[I,UA,D])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
+LogicalProject(select=[ts, a, b])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 1:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
@@ -131,8 +131,8 @@ Calc(select=[ts, a, b], where=[(a > 1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+LogicalProject(select=[a, b, c, d, e])
++- LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -149,10 +149,10 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2], my_ts=[$3], proc=[$4])
+LogicalProject(select=[ts, a, b, my_ts, proc])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 1:INTERVAL SECOND)])
-      +- LogicalProject(ts=[$0], a=[$1], b=[$2], my_ts=[-($0, 1:INTERVAL SECOND)], proc=[PROCTIME()])
+      +- LogicalProject(select=[ts, a, b])], proc=[PROCTIME()])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -171,8 +171,8 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[(a > 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], other_metadata=[$1], b=[$2], c=[$3], metadata_1=[$4], computed=[$5])
-+- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
+LogicalProject(select=[a, other_metadata, b, c, metadata_1, computed])
++- LogicalProject(select=[a]):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
@@ -189,8 +189,8 @@ Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadat
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$2], other_metadata=[$1])
-+- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
+LogicalProject(select=[b, other_metadata])
++- LogicalProject(select=[a]):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
@@ -207,8 +207,8 @@ Calc(select=[b, CAST(other_metadata AS INTEGER) AS other_metadata])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(timestamp=[$0], metadata_timestamp=[$1], other=[$2], computed_other=[$3], computed_timestamp=[$4])
-+- LogicalProject(timestamp=[$0], metadata_timestamp=[$2], other=[$1], computed_other=[UPPER($1)], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+LogicalProject(select=[timestamp, metadata_timestamp, other, computed_other, computed_timestamp])
++- LogicalProject(select=[timestamp, metadata_timestamp, other])], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
    +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]])
 ]]>
     </Resource>
@@ -225,8 +225,8 @@ Calc(select=[timestamp, metadata_timestamp, other, UPPER(other) AS computed_othe
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[ROW($0, $1)])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b])])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -243,9 +243,9 @@ Calc(select=[a, b, ROW(a, b) AS c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+LogicalProject(select=[a, b, c, d, e])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 1:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+   +- LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -263,7 +263,7 @@ WatermarkAssigner(rowtime=[d], watermark=[(d - 1:INTERVAL SECOND)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, DataStreamTable]])
 ]]>
     </Resource>
@@ -283,7 +283,7 @@ ON o.currency = r.currency
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$1], amount=[$0], rate=[$4], EXPR$3=[*($0, $4)])
+LogicalProject(select=[currency, amount, rate])])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1, 2}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
@@ -312,7 +312,7 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
+LogicalProject(select=[ts, a, b])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -334,7 +334,7 @@ ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
+LogicalProject(select=[currency_name, amount, rate])])
 +- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
@@ -361,7 +361,7 @@ ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
+LogicalProject(select=[currency_name, amount, rate])])
 +- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
@@ -391,7 +391,7 @@ ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
+LogicalProject(select=[currency_name, amount, rate])])
 +- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
@@ -418,7 +418,7 @@ ON o.currency_id = r.currency_id AND o.currency_name = r.currency_name
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency_name=[$2], amount=[$0], rate=[$5], EXPR$3=[*($0, $5)])
+LogicalProject(select=[currency_name, amount, rate])])
 +- LogicalJoin(condition=[AND(=($1, $3), =($2, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, rates_history]])
@@ -443,9 +443,9 @@ Calc(select=[currency_name, amount, rate, *(amount, rate) AS EXPR$3], changelogM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], time=[$2], mytime=[$3], current_time=[$4], json_row=[$5], timestamp=[$6])
+LogicalProject(select=[a, b, time, mytime, current_time, json_row, timestamp])
 +- LogicalWatermarkAssigner(rowtime=[timestamp], watermark=[$6])
-   +- LogicalProject(a=[$0], b=[$1], time=[$2], mytime=[$2], current_time=[CURRENT_TIME], json_row=[$3], timestamp=[$3.timestamp])
+   +- LogicalProject(select=[a, b, time, mytime, json_row])
       +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -467,9 +467,9 @@ ON o.currency = r.currency
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$1], amount=[$0], rate=[$4], EXPR$3=[*($0, $4)])
+LogicalProject(select=[currency, amount, rate])])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1, 2}])
-   :- LogicalProject(amount=[$0], currency=[$1], proctime=[PROCTIME()])
+   :- LogicalProject(select=[amount, currency])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalFilter(condition=[=($cor0.currency, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -496,7 +496,7 @@ Calc(select=[currency, amount, rate, *(amount, rate) AS EXPR$3], changelogMode=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
+LogicalProject(select=[ts, a, b])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -514,7 +514,7 @@ Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$2], a=[$1], ts=[$0])
+LogicalProject(select=[b, a, ts])
 +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -532,7 +532,7 @@ Calc(select=[b, a, ts], changelogMode=[I,UA,D])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id1=[$1], a=[$2], b=[$4])
+LogicalProject(select=[id1, a, b])
 +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -548,7 +548,7 @@ Calc(select=[id1, a, b], changelogMode=[I,UA,D])
   <TestCase name="testSetParallelismForSource">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(id=[$0], b=[$1], c=[$2], id0=[$3], a=[$4])
+LogicalProject(select=[id, b, c, id0, a])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, src]])
@@ -642,13 +642,13 @@ FROM (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$2], ts=[$0], a=[$1])
+LogicalProject(select=[b, ts, a])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(ts=[$0], a=[$1], b=[$2])
+   :- LogicalProject(select=[ts, a, b])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, changelog_src]])
-   +- LogicalProject(t=[$1], a=[$0], b=[$2])
+   +- LogicalProject(select=[t, a, b])
       +- LogicalAggregate(group=[{0}], t=[MAX($1)], b=[MAX($2)])
-         +- LogicalProject(a=[$1], ts=[$0], b=[$2])
+         +- LogicalProject(select=[a, ts, b])
             +- LogicalTableScan(table=[[default_catalog, default_database, append_src]])
 ]]>
     </Resource>
@@ -678,13 +678,13 @@ FROM (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$2], ts=[$0], a=[$1])
+LogicalProject(select=[b, ts, a])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(ts=[$0], a=[$1], b=[$2])
+   :- LogicalProject(select=[ts, a, b])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
-   +- LogicalProject(t=[$1], a=[$0], b=[$2])
+   +- LogicalProject(select=[t, a, b])
       +- LogicalAggregate(group=[{0}], t=[MAX($1)], b=[MAX($2)])
-         +- LogicalProject(a=[$1], ts=[$0], b=[$2])
+         +- LogicalProject(select=[a, ts, b])
             +- LogicalTableScan(table=[[default_catalog, default_database, append_src]])
 ]]>
     </Resource>
@@ -708,10 +708,10 @@ Union(all=[true], union=[b, ts, a], changelogMode=[I,UA,D])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$2], c=[$3])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
+      +- LogicalProject(select=[id, a])], c=[$2], ts=[TO_TIMESTAMP($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -733,9 +733,9 @@ Calc(select=[a, b, c], changelogMode=[I,UA,D])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], ts=[$4])
+LogicalProject(select=[id, ts])
 +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($4, 1000:INTERVAL SECOND)])
-   +- LogicalProject(id=[$0], a=[$1], b=[+($1, 1)], c=[$2], ts=[TO_TIMESTAMP($2)])
+   +- LogicalProject(select=[id, a])], c=[$2], ts=[TO_TIMESTAMP($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -754,7 +754,7 @@ Calc(select=[id, Reinterpret(TO_TIMESTAMP(c)) AS ts], changelogMode=[I,UA,D])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
+LogicalProject(select=[ts, a, b])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 5000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])

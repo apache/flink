@@ -23,9 +23,9 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[false])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -50,9 +50,9 @@ GroupAggregate(groupBy=[c], select=[c])
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[true])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -78,10 +78,10 @@ Calc(select=[c0 AS c])
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[false])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalFilter(condition=[=(1, 0)])
 :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -98,9 +98,9 @@ Values(tuples=[[]])
     <Resource name="ast">
       <![CDATA[
 LogicalIntersect(all=[false])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalFilter(condition=[=(1, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
@@ -117,11 +117,11 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalIntersect(all=[false])
-   :- LogicalProject(a=[$0], b=[$1])
+   :- LogicalProject(select=[a, b])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   +- LogicalProject(d=[$0], e=[$1])
+   +- LogicalProject(select=[d, e])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -147,9 +147,9 @@ Calc(select=[a])
     <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -174,9 +174,9 @@ GroupAggregate(groupBy=[c], select=[c])
     <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[true])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -202,10 +202,10 @@ Calc(select=[c0 AS c])
     <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalFilter(condition=[=(1, 0)])
 :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
@@ -222,9 +222,9 @@ Values(tuples=[[]])
     <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalProject(c=[$2])
+:- LogicalProject(select=[c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-+- LogicalProject(f=[$2])
++- LogicalProject(select=[f])
    +- LogicalFilter(condition=[=(1, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
@@ -245,9 +245,9 @@ GroupAggregate(groupBy=[c], select=[c])
     <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
-:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:- LogicalProject(select=[a, b, c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -269,9 +269,9 @@ GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
+:- LogicalProject(select=[a])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-+- LogicalProject(b=[$1])
++- LogicalProject(select=[b])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
@@ -292,7 +292,7 @@ Union(all=[true], union=[a])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
+:- LogicalProject(select=[a])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 +- LogicalProject(EXPR$0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])

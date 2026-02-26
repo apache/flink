@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -45,7 +45,7 @@ AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -74,13 +74,13 @@ ON t1.a = t2.d2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], d2=[$1])
+LogicalProject(select=[a, d2])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
-   :- LogicalProject(a=[$4])
+   :- LogicalProject(select=[a])
    :  +- LogicalJoin(condition=[=($4, $0)], joinType=[inner])
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-   +- LogicalProject(d2=[$7])
+   +- LogicalProject(select=[d2])
       +- LogicalJoin(condition=[=($7, $0)], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, T]])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -112,13 +112,13 @@ SELECT * FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], d=[$4])
+LogicalProject(select=[a, a0, b, c, d])
 +- LogicalJoin(condition=[=($1, $0)], joinType=[left])
    :- LogicalUnion(all=[true])
-   :  :- LogicalProject(a=[$0])
-   :  :  +- LogicalProject(a=[$0])
+   :  :- LogicalProject(select=[a])
+   :  :  +- LogicalProject(select=[a])
    :  :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   :  +- LogicalProject(a=[$0])
+   :  +- LogicalProject(select=[a])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -147,10 +147,10 @@ SELECT sum(b1) FROM r group by a1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
-   +- LogicalProject(a1=[$0], b1=[$1])
-      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7], a3=[$8], b3=[$9], c3=[$10], d3=[$11])
+   +- LogicalProject(select=[a1, b1])
+      +- LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3])
          +- LogicalFilter(condition=[AND(=($0, $4), =($0, $8))])
             +- LogicalJoin(condition=[true], joinType=[inner])
                :- LogicalJoin(condition=[true], joinType=[inner])
@@ -189,7 +189,7 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -212,7 +212,7 @@ AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -235,7 +235,7 @@ AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -258,7 +258,7 @@ AdaptiveJoin(originalJoin=[SortMergeJoin], joinType=[InnerJoin], where=[(a1 = a2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+LogicalProject(select=[a1, b1, c1, d1, a2, b2, c2, d2])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])

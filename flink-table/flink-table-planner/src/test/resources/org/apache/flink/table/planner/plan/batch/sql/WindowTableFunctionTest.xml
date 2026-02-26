@@ -32,11 +32,11 @@ GROUP BY window_start, window_end, b
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[SUM($3)])
-+- LogicalProject(window_start=[$0], window_end=[$1], b=[$3], cnt=[$4])
++- LogicalProject(select=[window_start, window_end, b, cnt])
    +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()])
-      +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], b=[$1])
+      +- LogicalProject(select=[window_start, window_end, a, b])
          +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+            +- LogicalProject(select=[a, b, c, d, ts])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -66,9 +66,9 @@ FROM TABLE(
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
+LogicalProject(select=[a, b, c, d, ts, window_start, window_end, window_time])
 +- LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -88,9 +88,9 @@ FROM TABLE(HOP(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '1' HOUR, INTERVAL '2' H
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
+LogicalProject(select=[a, b, c, d, ts, window_start, window_end, window_time])
 +- LogicalTableFunctionScan(invocation=[HOP(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -112,11 +112,11 @@ GROUP BY window_start, window_end, a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$3])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[MAX($3)])
-   +- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
+   +- LogicalProject(select=[window_start, window_end, a, c])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+         +- LogicalProject(select=[a, b, c, d, ts])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -146,9 +146,9 @@ FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
+LogicalProject(select=[a, b, c, d, ts, window_start, window_end, window_time])
 +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+   +- LogicalProject(select=[a, b, c, d, ts])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -174,9 +174,9 @@ GROUP BY window_start, window_end, a
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[MAX($3)])
-+- LogicalProject(window_start=[$5], window_end=[$6], a=[$0], c=[$2])
++- LogicalProject(select=[window_start, window_end, a, c])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 3000:INTERVAL SECOND)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+      +- LogicalProject(select=[a, b, c, d, ts])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -213,15 +213,15 @@ ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.b
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], a0=[$7], b0=[$8], c0=[$9], d=[$10], ts0=[$11], window_start0=[$12], window_end0=[$13], window_time0=[$14])
+LogicalProject(select=[ts, a, b, c, window_start, window_end, window_time, a0, b0, c0, d, ts0, window_start0, window_end0, window_time0])
 +- LogicalJoin(condition=[AND(=($4, $12), =($5, $13), =($1, $8))], joinType=[inner])
-   :- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
+   :- LogicalProject(select=[ts, a, b, c, window_start, window_end, window_time])
    :  +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-   :     +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3])
+   :     +- LogicalProject(select=[ts, a, b, c])
    :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
+   +- LogicalProject(select=[a, b, c, d, ts, window_start, window_end, window_time])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+         +- LogicalProject(select=[a, b, c, d, ts])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -251,11 +251,11 @@ WHERE rownum <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], rownum=[$7])
+LogicalProject(select=[ts, a, b, c, window_start, window_end, window_time, rownum])
 +- LogicalFilter(condition=[<=($7, 3)])
-   +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$5], window_time=[$6], rownum=[RANK() OVER (PARTITION BY $1, $4, $5 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[ts, a, b, c, window_start, window_end, window_time]) OVER (PARTITION BY $1, $4, $5 ORDER BY $2 NULLS FIRST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 900000:INTERVAL MINUTE)], rowType=[RecordType(TIMESTAMP(3) ts, BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-         +- LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3])
+         +- LogicalProject(select=[ts, a, b, c])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

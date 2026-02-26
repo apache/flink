@@ -47,12 +47,12 @@ MATCH_RECOGNIZE (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], dPrice=[$1])
+LogicalProject(select=[symbol, dPrice])
 +- LogicalMatch(partition=[[0]], order=[[]], outputFields=[[symbol, dPrice]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(PREV(A.$0, 0), _UTF-16LE'a')]], inputFields=[[symbol, price]])
    +- LogicalAggregate(group=[{0, 1}])
-      +- LogicalProject(symbol=[$0], price=[$1])
+      +- LogicalProject(select=[symbol, price])
          +- LogicalMatch(partition=[[0]], order=[[3 ASC-nulls-first]], outputFields=[[symbol, price, tax]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$1, 0), 0)]], inputFields=[[symbol, price, tax, ts_ltz]])
-            +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], ts_ltz=[PROCTIME()])
+            +- LogicalProject(select=[symbol, price, tax])])
                +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
 ]]>
     </Resource>

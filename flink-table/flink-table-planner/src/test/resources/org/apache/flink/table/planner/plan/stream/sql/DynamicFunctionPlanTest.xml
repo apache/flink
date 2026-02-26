@@ -27,7 +27,7 @@ GROUP BY cat, gmt_date]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
-+- LogicalProject(cat=[$2], gmt_date=[$3], cnt=[$4])
++- LogicalProject(select=[cat, gmt_date, cnt])
    +- LogicalFilter(condition=[=($3, CURRENT_DATE)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -52,9 +52,9 @@ GROUP BY cat, hh]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
-+- LogicalProject(cat=[$2], hh=[$6], cnt=[$4])
++- LogicalProject(select=[cat, hh, cnt])
    +- LogicalFilter(condition=[=(SUBSTR(CAST($5):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2), $6)])
-      +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+      +- LogicalProject(select=[a, b, cat, gmt_date, cnt, ts]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -79,9 +79,9 @@ GROUP BY gmt_date, ts, cat]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(gmt_date=[$0], ts=[$1], cat=[$2], EXPR$3=[SUBSTR(CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2)], EXPR$4=[$3])
+LogicalProject(select=[gmt_date, ts, cat]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", 1, 2)], EXPR$4=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$4=[SUM($3)])
-   +- LogicalProject(gmt_date=[$3], ts=[$5], cat=[$2], cnt=[$4])
+   +- LogicalProject(select=[gmt_date, ts, cat, cnt])
       +- LogicalFilter(condition=[AND(=($3, CURRENT_DATE), =($2, _UTF-16LE'fruit'), =($5, CURRENT_TIME))])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -106,9 +106,9 @@ Calc(select=[gmt_date, ts, 'fruit' AS cat, SUBSTR(CAST(ts AS VARCHAR(2147483647)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[$6])
+LogicalProject(select=[a, b, cat, gmt_date, cnt, ts, hh])
 +- LogicalFilter(condition=[AND(>(CAST($6):BIGINT, 12), LIKE($2, _UTF-16LE'fruit%'))])
-   +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+   +- LogicalProject(select=[a, b, cat, gmt_date, cnt, ts]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>

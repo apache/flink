@@ -29,17 +29,17 @@ HAVING AVG(x) > 50 AND VAR_POP(y) < 100]]>
       <![CDATA[
 LogicalFilter(condition=[AND(>($1, 50), <($2, 100))])
 +- LogicalAggregate(group=[{0}], avg_x=[AVG($1)], var_y=[VAR_POP($2)])
-   +- LogicalProject(category=[$1], x=[$2], y=[$3])
+   +- LogicalProject(select=[category, x, y])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalFilter(condition=[AND(>($1, 50), <($2, 100))])
-+- LogicalProject(category=[$0], avg_x=[/($1, $2)], var_y=[/($3, $4)])
-   +- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4])
++- LogicalProject(select=[category])], var_y=[/($3, $4)])
+   +- LogicalProject(select=[category]), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4])
       +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($1)], agg#1=[COUNT($1)], agg#2=[$WELFORD_M2$1($2)], agg#3=[COUNT($2)])
-         +- LogicalProject(category=[$1], x=[$2], y=[$3])
+         +- LogicalProject(select=[category, x, y])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -57,17 +57,17 @@ ORDER BY avg_x DESC]]>
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
 +- LogicalAggregate(group=[{0}], avg_x=[AVG($1)], stddev_y=[STDDEV_POP($2)])
-   +- LogicalProject(category=[$1], x=[$2], y=[$3])
+   +- LogicalProject(select=[category, x, y])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
-+- LogicalProject(category=[$0], avg_x=[/($1, $2)], stddev_y=[POWER(/($3, $4), 0.5:DECIMAL(2, 1))])
-   +- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4])
++- LogicalProject(select=[category])], stddev_y=[POWER(/($3, $4), 0.5:DECIMAL(2, 1))])
+   +- LogicalProject(select=[category]), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4])
       +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($1)], agg#1=[COUNT($1)], agg#2=[$WELFORD_M2$1($2)], agg#3=[COUNT($2)])
-         +- LogicalProject(category=[$1], x=[$2], y=[$3])
+         +- LogicalProject(select=[category, x, y])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -86,16 +86,16 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[AVG($1)], EXPR$3=[VAR_POP($1)], EXPR$4=[VAR_SAMP($1)], EXPR$5=[STDDEV_POP($1)], EXPR$6=[STDDEV_SAMP($1)])
-+- LogicalProject(category=[$1], x=[$2])
++- LogicalProject(select=[category, x])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], EXPR$1=[CASE(=($2, 0), null:DOUBLE, $1)], EXPR$2=[/($3, $2)], EXPR$3=[/($4, $2)], EXPR$4=[/($4, CASE(=($2, 1), null:BIGINT, -($2, 1)))], EXPR$5=[POWER(/($4, $2), 0.5:DECIMAL(2, 1))], EXPR$6=[POWER(/($4, CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))])
-+- LogicalProject(category=[$0], EXPR$1=[$1], $f2=[$2], $f3=[CASE(=($2, 0), null:DOUBLE, $1)], $f4=[$3])
+LogicalProject(select=[category]), null:DOUBLE, $1)], EXPR$2=[/($3, $2)], EXPR$3=[/($4, $2)], EXPR$4=[/($4, CASE(=($2, 1), null:BIGINT, -($2, 1)))], EXPR$5=[POWER(/($4, $2), 0.5:DECIMAL(2, 1))], EXPR$6=[POWER(/($4, CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))])
++- LogicalProject(select=[category, EXPR$1, f2]), null:DOUBLE, $1)], $f4=[$3])
    +- LogicalAggregate(group=[{0}], EXPR$1=[$SUM0($1)], agg#1=[COUNT($1)], agg#2=[$WELFORD_M2$1($1)])
-      +- LogicalProject(category=[$1], x=[$2])
+      +- LogicalProject(select=[category, x])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -111,16 +111,16 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[AVG($1)], EXPR$2=[VAR_POP($2)], EXPR$3=[STDDEV_SAMP($3)])
-+- LogicalProject(category=[$1], $f1=[+($2, $3)], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0:DOUBLE)])
++- LogicalProject(select=[category])], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0:DOUBLE)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], EXPR$1=[/($1, $2)], EXPR$2=[/($3, $4)], EXPR$3=[POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))])
-+- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
+LogicalProject(select=[category])], EXPR$2=[/($3, $4)], EXPR$3=[POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))])
++- LogicalProject(select=[category]), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
    +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($1)], agg#1=[COUNT($1)], agg#2=[$WELFORD_M2$1($2)], agg#3=[COUNT($2)], agg#4=[$WELFORD_M2$1($3)], agg#5=[COUNT($3)])
-      +- LogicalProject(category=[$1], $f1=[+($2, $3)], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0:DOUBLE)])
+      +- LogicalProject(select=[category])], $f2=[*($2, 2)], $f3=[CASE(>($2, 0), $2, 0:DOUBLE)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -136,16 +136,16 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[AVG($1) FILTER $2], EXPR$2=[STDDEV_POP($1) FILTER $3], EXPR$3=[VAR_SAMP($4) FILTER $5])
-+- LogicalProject(category=[$1], x=[$2], $f2=[IS TRUE(AND(>($2, $3), LIKE($1, _UTF-16LE'A%')))], $f3=[IS TRUE(>(+($2, $3), 100))], y=[$3], $f5=[IS TRUE(=(MOD($0, 2), 0))])
++- LogicalProject(select=[category, x]), LIKE($1, _UTF-16LE'A%')))], $f3=[IS TRUE(>(+($2, $3), 100))], y=[$3], $f5=[IS TRUE(=(MOD($0, 2), 0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], EXPR$1=[/($1, $2)], EXPR$2=[POWER(/($3, $4), 0.5:DECIMAL(2, 1))], EXPR$3=[/($5, CASE(=($6, 1), null:BIGINT, -($6, 1)))])
-+- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
+LogicalProject(select=[category])], EXPR$2=[POWER(/($3, $4), 0.5:DECIMAL(2, 1))], EXPR$3=[/($5, CASE(=($6, 1), null:BIGINT, -($6, 1)))])
++- LogicalProject(select=[category]), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
    +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($1) FILTER $2], agg#1=[COUNT($1) FILTER $2], agg#2=[$WELFORD_M2$1($1) FILTER $3], agg#3=[COUNT($1) FILTER $3], agg#4=[$WELFORD_M2$1($4) FILTER $5], agg#5=[COUNT($4) FILTER $5])
-      +- LogicalProject(category=[$1], x=[$2], $f2=[IS TRUE(AND(>($2, $3), LIKE($1, _UTF-16LE'A%')))], $f3=[IS TRUE(>(+($2, $3), 100))], y=[$3], $f5=[IS TRUE(=(MOD($0, 2), 0))])
+      +- LogicalProject(select=[category, x]), LIKE($1, _UTF-16LE'A%')))], $f3=[IS TRUE(>(+($2, $3), 100))], y=[$3], $f5=[IS TRUE(=(MOD($0, 2), 0))])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -161,16 +161,16 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[AVG($1)], EXPR$2=[VAR_POP($2)], EXPR$3=[STDDEV_SAMP($3)])
-+- LogicalProject(category=[$1], $f1=[CAST($0):DOUBLE], $f2=[CAST($2):DECIMAL(20, 4)], z=[$4])
++- LogicalProject(select=[category]):DOUBLE], $f2=[CAST($2):DECIMAL(20, 4)], z=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], EXPR$1=[/($1, $2)], EXPR$2=[CAST(/($3, $4)):DECIMAL(38, 6)], EXPR$3=[CAST(POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))):DECIMAL(38, 6)])
-+- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
+LogicalProject(select=[category])], EXPR$2=[CAST(/($3, $4)):DECIMAL(38, 6)], EXPR$3=[CAST(POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))):DECIMAL(38, 6)])
++- LogicalProject(select=[category]), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
    +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($1)], agg#1=[COUNT($1)], agg#2=[$WELFORD_M2$1($2)], agg#3=[COUNT($2)], agg#4=[$WELFORD_M2$1($3)], agg#5=[COUNT($3)])
-      +- LogicalProject(category=[$1], $f1=[CAST($0):DOUBLE], $f2=[CAST($2):DECIMAL(20, 4)], z=[$4])
+      +- LogicalProject(select=[category]):DOUBLE], $f2=[CAST($2):DECIMAL(20, 4)], z=[$4])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -186,7 +186,7 @@ FROM src2]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[VAR_POP($1)], EXPR$2=[STDDEV_SAMP($2)])
-+- LogicalProject(x=[$2], y=[$3], z=[$4])
++- LogicalProject(select=[x, y, z])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -195,7 +195,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[VAR_POP($1)], EXPR$2=[STD
 LogicalProject(EXPR$0=[/($0, $1)], EXPR$1=[/($2, $3)], EXPR$2=[CAST(POWER(/($4, CASE(=($5, 1), null:BIGINT, -($5, 1))), 0.5:DECIMAL(2, 1))):DECIMAL(38, 6)])
 +- LogicalProject($f0=[CASE(=($1, 0), null:DOUBLE, $0)], $f1=[$1], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5])
    +- LogicalAggregate(group=[{}], agg#0=[$SUM0($0)], agg#1=[COUNT($0)], agg#2=[$WELFORD_M2$1($1)], agg#3=[COUNT($1)], agg#4=[$WELFORD_M2$1($2)], agg#5=[COUNT($2)])
-      +- LogicalProject(x=[$2], y=[$3], z=[$4])
+      +- LogicalProject(select=[x, y, z])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -211,16 +211,16 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[AVG(DISTINCT $1)], EXPR$2=[VAR_POP(DISTINCT $2)], EXPR$3=[STDDEV_SAMP(DISTINCT $3)])
-+- LogicalProject(category=[$1], x=[$2], y=[$3], z=[$4])
++- LogicalProject(select=[category, x, y, z])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], EXPR$1=[/($1, $2)], EXPR$2=[/($3, $4)], EXPR$3=[CAST(POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))):DECIMAL(38, 6)])
-+- LogicalProject(category=[$0], $f1=[CASE(=($2, 0), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
+LogicalProject(select=[category])], EXPR$2=[/($3, $4)], EXPR$3=[CAST(POWER(/($5, CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))):DECIMAL(38, 6)])
++- LogicalProject(select=[category]), null:DOUBLE, $1)], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6])
    +- LogicalAggregate(group=[{0}], agg#0=[$SUM0(DISTINCT $1)], agg#1=[COUNT(DISTINCT $1)], agg#2=[$WELFORD_M2$1(DISTINCT $2)], agg#3=[COUNT(DISTINCT $2)], agg#4=[$WELFORD_M2$1(DISTINCT $3)], agg#5=[COUNT(DISTINCT $3)])
-      +- LogicalProject(category=[$1], x=[$2], y=[$3], z=[$4])
+      +- LogicalProject(select=[category, x, y, z])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -236,16 +236,16 @@ FROM src2 GROUP BY category, id]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[AVG($2)], EXPR$3=[VAR_SAMP($3)], EXPR$4=[VAR_POP($4)])
-+- LogicalProject(category=[$1], id=[$0], x=[$2], y=[$3], z=[$4])
++- LogicalProject(select=[category, id, x, y, z])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], id=[$1], EXPR$2=[/($2, $3)], EXPR$3=[/($4, CASE(=($5, 1), null:BIGINT, -($5, 1)))], EXPR$4=[CAST(/($6, $7)):DECIMAL(38, 6)])
-+- LogicalProject(category=[$0], id=[$1], $f2=[CASE(=($3, 0), null:DOUBLE, $2)], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6], $f7=[$7])
+LogicalProject(select=[category, id])], EXPR$3=[/($4, CASE(=($5, 1), null:BIGINT, -($5, 1)))], EXPR$4=[CAST(/($6, $7)):DECIMAL(38, 6)])
++- LogicalProject(select=[category, id]), null:DOUBLE, $2)], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6], $f7=[$7])
    +- LogicalAggregate(group=[{0, 1}], agg#0=[$SUM0($2)], agg#1=[COUNT($2)], agg#2=[$WELFORD_M2$1($3)], agg#3=[COUNT($3)], agg#4=[$WELFORD_M2$1($4)], agg#5=[COUNT($4)])
-      +- LogicalProject(category=[$1], id=[$0], x=[$2], y=[$3], z=[$4])
+      +- LogicalProject(select=[category, id, x, y, z])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -262,15 +262,15 @@ FROM src2 GROUP BY category]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[VAR_POP($1)], EXPR$2=[VAR_SAMP($1)], EXPR$3=[STDDEV_POP($1)], EXPR$4=[STDDEV_SAMP($1)])
-+- LogicalProject(category=[$1], x=[$2])
++- LogicalProject(select=[category, x])
    +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(category=[$0], EXPR$1=[/($1, $2)], EXPR$2=[/($1, CASE(=($2, 1), null:BIGINT, -($2, 1)))], EXPR$3=[POWER(/($1, $2), 0.5:DECIMAL(2, 1))], EXPR$4=[POWER(/($1, CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))])
+LogicalProject(select=[category])], EXPR$2=[/($1, CASE(=($2, 1), null:BIGINT, -($2, 1)))], EXPR$3=[POWER(/($1, $2), 0.5:DECIMAL(2, 1))], EXPR$4=[POWER(/($1, CASE(=($2, 1), null:BIGINT, -($2, 1))), 0.5:DECIMAL(2, 1))])
 +- LogicalAggregate(group=[{0}], agg#0=[$WELFORD_M2$1($1)], agg#1=[COUNT($1)])
-   +- LogicalProject(category=[$1], x=[$2])
+   +- LogicalProject(select=[category, x])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -288,16 +288,16 @@ FROM src GROUP BY a]]>
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[STDDEV_POP($1) FILTER $2], EXPR$2=[STDDEV_SAMP($1) FILTER $3], EXPR$3=[VAR_POP($1) FILTER $4], EXPR$4=[VAR_SAMP($1) FILTER $5], EXPR$5=[AVG($1) FILTER $6])
-+- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(>($1, 10))], $f3=[IS TRUE(>($1, 20))], $f4=[IS TRUE(>($1, 30))], $f5=[IS TRUE(>($1, 40))], $f6=[IS TRUE(>($1, 50))])
++- LogicalProject(select=[a, b]))], $f3=[IS TRUE(>($1, 20))], $f4=[IS TRUE(>($1, 30))], $f5=[IS TRUE(>($1, 40))], $f6=[IS TRUE(>($1, 50))])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[CAST(POWER(/($1, $2), 0.5:DECIMAL(2, 1))):BIGINT], EXPR$2=[CAST(POWER(/($3, CASE(=($4, 1), null:BIGINT, -($4, 1))), 0.5:DECIMAL(2, 1))):BIGINT], EXPR$3=[CAST(/($5, $6)):BIGINT], EXPR$4=[CAST(/($7, CASE(=($8, 1), null:BIGINT, -($8, 1)))):BIGINT], EXPR$5=[/($9, $10)])
-+- LogicalProject(a=[$0], $f1=[$1], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6], $f7=[$7], $f8=[$8], $f9=[CASE(=($10, 0), null:BIGINT, $9)], $f10=[$10])
+LogicalProject(select=[a]), 0.5:DECIMAL(2, 1))):BIGINT], EXPR$2=[CAST(POWER(/($3, CASE(=($4, 1), null:BIGINT, -($4, 1))), 0.5:DECIMAL(2, 1))):BIGINT], EXPR$3=[CAST(/($5, $6)):BIGINT], EXPR$4=[CAST(/($7, CASE(=($8, 1), null:BIGINT, -($8, 1)))):BIGINT], EXPR$5=[/($9, $10)])
++- LogicalProject(select=[a, f1, f2, f3, f4, f5, f6, f7, f8]), null:BIGINT, $9)], $f10=[$10])
    +- LogicalAggregate(group=[{0}], agg#0=[$WELFORD_M2$1($1) FILTER $2], agg#1=[COUNT($1) FILTER $2], agg#2=[$WELFORD_M2$1($1) FILTER $3], agg#3=[COUNT($1) FILTER $3], agg#4=[$WELFORD_M2$1($1) FILTER $4], agg#5=[COUNT($1) FILTER $4], agg#6=[$WELFORD_M2$1($1) FILTER $5], agg#7=[COUNT($1) FILTER $5], agg#8=[$SUM0($1) FILTER $6], agg#9=[COUNT($1) FILTER $6])
-      +- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(>($1, 10))], $f3=[IS TRUE(>($1, 20))], $f4=[IS TRUE(>($1, 30))], $f5=[IS TRUE(>($1, 40))], $f6=[IS TRUE(>($1, 50))])
+      +- LogicalProject(select=[a, b]))], $f3=[IS TRUE(>($1, 20))], $f4=[IS TRUE(>($1, 30))], $f5=[IS TRUE(>($1, 40))], $f6=[IS TRUE(>($1, 50))])
          +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>

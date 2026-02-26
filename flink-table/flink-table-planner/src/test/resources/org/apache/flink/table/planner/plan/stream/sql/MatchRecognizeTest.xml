@@ -55,11 +55,11 @@ MATCH_RECOGNIZE (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], dPrice=[$1], matchRowtime=[$2])
+LogicalProject(select=[symbol, dPrice, matchRowtime])
 +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, dPrice, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP, 86400000:INTERVAL DAY))]], inputFields=[[symbol, matchRowtime, price, startTime]])
-   +- LogicalProject(symbol=[$0], matchRowtime=[$1], price=[$2], startTime=[TUMBLE_START($3)])
+   +- LogicalProject(select=[symbol, matchRowtime, price])])
       +- LogicalAggregate(group=[{0, 1, 2, 3}])
-         +- LogicalProject(symbol=[$0], matchRowtime=[$3], price=[$1], $f3=[$TUMBLE($3, 3000:INTERVAL SECOND)])
+         +- LogicalProject(select=[symbol, matchRowtime, price])])
             +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]])
                +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
@@ -106,9 +106,9 @@ GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], price=[$2], rowTime=[TUMBLE_ROWTIME($1)], startTime=[TUMBLE_START($1)])
+LogicalProject(select=[symbol, price])], startTime=[TUMBLE_START($1)])
 +- LogicalAggregate(group=[{0, 1}], price=[SUM($2)])
-   +- LogicalProject(symbol=[$0], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)], price=[$1])
+   +- LogicalProject(select=[symbol])], price=[$1])
       +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts, price, tax]])
          +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($1, 1000:INTERVAL SECOND)])
             +- LogicalTableScan(table=[[default_catalog, default_database, Ticker1]])
@@ -153,9 +153,9 @@ GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], price=[$2], rowTime=[TUMBLE_ROWTIME($1)], startTime=[TUMBLE_START($1)])
+LogicalProject(select=[symbol, price])], startTime=[TUMBLE_START($1)])
 +- LogicalAggregate(group=[{0, 1}], price=[SUM($2)])
-   +- LogicalProject(symbol=[$0], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)], price=[$1])
+   +- LogicalProject(select=[symbol])], price=[$1])
       +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]])
          +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)])
             +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
@@ -189,8 +189,8 @@ FROM T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], price_sum=[CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), null:INTEGER)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
-+- LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
+LogicalProject(select=[symbol, price, tax, matchRowtime]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST), null:INTEGER)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, INTEGER price_sum)]
++- LogicalProject(select=[symbol, price, tax, matchRowtime]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
    +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
       +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)]), rowType=[RecordType(VARCHAR(2147483647) symbol, TIMESTAMP_LTZ(3) *ROWTIME* ts_ltz, INTEGER price, INTEGER tax)]
          +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]]), rowType=[RecordType(VARCHAR(2147483647) symbol, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts_ltz, INTEGER price, INTEGER tax)]
@@ -217,10 +217,10 @@ FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(matchRowtime), INTERVAL '3' second))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3], window_start=[$4], window_end=[$5], window_time=[$6]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]
+LogicalProject(select=[symbol, price, tax, matchRowtime, window_start, window_end, window_time]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]
 +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'matchRowtime'), 3000:INTERVAL SECOND)], rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *ROWTIME* window_time)]
-   +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
-      +- LogicalProject(symbol=[$0], price=[$1], tax=[$2], matchRowtime=[$3]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
+   +- LogicalProject(select=[symbol, price, tax, matchRowtime]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
+      +- LogicalProject(select=[symbol, price, tax, matchRowtime]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
          +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]]), rowType=[RecordType(VARCHAR(2147483647) symbol, INTEGER price, INTEGER tax, TIMESTAMP_LTZ(3) *ROWTIME* matchRowtime)]
             +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)]), rowType=[RecordType(VARCHAR(2147483647) symbol, TIMESTAMP_LTZ(3) *ROWTIME* ts_ltz, INTEGER price, INTEGER tax)]
                +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]]), rowType=[RecordType(VARCHAR(2147483647) symbol, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) ts_ltz, INTEGER price, INTEGER tax)]

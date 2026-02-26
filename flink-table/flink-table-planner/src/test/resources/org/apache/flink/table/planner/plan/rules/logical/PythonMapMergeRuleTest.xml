@@ -52,7 +52,7 @@ FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$BooleanPythonScalarFunction$79babfe6cb7eb9b3766addebed5ba23c*(+($0, 1), $0)])
-+- LogicalProject(a=[$0])
++- LogicalProject(select=[a])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 ]]>
     </Resource>

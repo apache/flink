@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
-   +- LogicalProject(long=[$0], proctime=[$2])
+   +- LogicalProject(select=[long, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -44,9 +44,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
-   +- LogicalProject(long=[$1], rowtime=[$0])
+   +- LogicalProject(select=[long, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -66,7 +66,7 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$0])
+LogicalProject(select=[rowtime])
 +- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'1990-12-02 12:11:11'):TIMESTAMP(3) NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
@@ -84,9 +84,9 @@ Calc(select=[rowtime], where=[(CAST(rowtime AS TIMESTAMP(3)) > 1990-12-02 12:11:
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- LogicalProject(proctime=[$2], long=[$0])
+   +- LogicalProject(select=[proctime, long])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -106,9 +106,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- LogicalProject(rowtime=[$0], long=[$1])
+   +- LogicalProject(select=[rowtime, long])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -133,7 +133,7 @@ JOIN MyTable1 T3 ON T1.long = T3.long AND T3.`int` < 20
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$0], proctime=[$5], long=[$1], int=[$4], long0=[$7])
+LogicalProject(select=[rowtime, proctime, long, int, long0])
 +- LogicalJoin(condition=[AND(=($1, $7), <($8, 20))], joinType=[inner])
    :- LogicalJoin(condition=[AND(=($1, $3), >($2, 10))], joinType=[inner])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -164,13 +164,13 @@ Calc(select=[rowtime, proctime, long, int0 AS int, long0])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.appendSink1], fields=[long, sum])
-+- LogicalProject(long=[$1], sum=[CAST($2):BIGINT])
++- LogicalProject(select=[long]):BIGINT])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
       +- LogicalProject($f0=[$TUMBLE($2, 10000:INTERVAL SECOND)], long=[$0], int=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[long, sum])
-+- LogicalProject(long=[$1], sum=[CAST($2):BIGINT])
++- LogicalProject(select=[long]):BIGINT])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
       +- LogicalProject($f0=[$TUMBLE($2, 10000:INTERVAL SECOND)], long=[$0], int=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -233,7 +233,7 @@ Calc(select=[w$end AS EXPR$0, long, EXPR$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$0], long=[$1], int=[$2], proctime=[$3])
+LogicalProject(select=[rowtime, long, int, proctime])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -253,7 +253,7 @@ SELECT rowtime FROM
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$0])
+LogicalProject(select=[rowtime])
 +- LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))], long=[$1])
    +- LogicalFilter(condition=[>($1, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -275,7 +275,7 @@ FROM MyTable, LATERAL TABLE(tableFunc(rowtime, proctime, '')) AS T(s)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
+LogicalProject(select=[rowtime, proctime, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc($cor0.rowtime, $cor0.proctime, _UTF-16LE'')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -296,9 +296,9 @@ Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, EXPR$0 AS s])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(rowtime=[$0])
+:- LogicalProject(select=[rowtime])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-+- LogicalProject(rowtime=[$0])
++- LogicalProject(select=[rowtime])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -353,7 +353,7 @@ FROM MyTable1
       <![CDATA[
 LogicalProject(rowtime=[TUMBLE_END($1)], long=[$0], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-   +- LogicalProject(long=[$1], $f1=[$TUMBLE($0, 100:INTERVAL SECOND)], int=[$2])
+   +- LogicalProject(select=[long])], int=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -375,9 +375,9 @@ GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2], long=[$0])
+LogicalProject(select=[EXPR$0, long])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
-   +- LogicalProject(long=[$1], $f1=[$TUMBLE($0, 100:INTERVAL SECOND)], rowtime=[$0])
+   +- LogicalProject(select=[long])], rowtime=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -401,10 +401,10 @@ HAVING QUARTER(TUMBLE_END(rowtime, INTERVAL '1' SECOND)) = 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2], long=[$0])
+LogicalProject(select=[EXPR$0, long])
 +- LogicalFilter(condition=[=(EXTRACT(FLAG(QUARTER), TUMBLE_END($1)), 1)])
    +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
-      +- LogicalProject(long=[$1], $f1=[$TUMBLE($0, 1000:INTERVAL SECOND)], rowtime=[$0])
+      +- LogicalProject(select=[long])], rowtime=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>

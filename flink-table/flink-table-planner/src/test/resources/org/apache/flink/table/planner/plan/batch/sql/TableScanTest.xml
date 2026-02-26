@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
+LogicalProject(select=[ts, a, b])
 +- LogicalFilter(condition=[>($1, 1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -40,8 +40,8 @@ Calc(select=[ts, a, b], where=[(a > 1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+LogicalProject(select=[a, b, c, d, e])
++- LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
 ]]>
     </Resource>
@@ -58,8 +58,8 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], ptime=[$5])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)], ptime=[PROCTIME()])
+LogicalProject(select=[a, b, c, d, e, ptime])
++- LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)], ptime=[PROCTIME()])
    +- LogicalTableScan(table=[[default_catalog, default_database, proctime_t]])
 ]]>
     </Resource>
@@ -76,8 +76,8 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e, PROCTIME_
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+LogicalProject(select=[a, b, c, d, e])
++- LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
 ]]>
     </Resource>
@@ -91,7 +91,7 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
   <TestCase name="testTableApiScanWithComputedColumn">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
 ]]>
     </Resource>
@@ -129,7 +129,7 @@ TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[word])
   <TestCase name="testTableApiScanWithWatermark">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+LogicalProject(select=[a, b])], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
 ]]>
     </Resource>

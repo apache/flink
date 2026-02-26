@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testFilterMinusTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$0], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
    +- LogicalFilter(condition=[>($0, 0)])
       +- LogicalMinus(all=[true])
@@ -50,7 +50,7 @@ Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
   <TestCase name="testFilterUnionTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$0], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
    +- LogicalFilter(condition=[>($0, 0)])
       +- LogicalUnion(all=[true])
@@ -80,7 +80,7 @@ LogicalProject(a1=[AS($0, _UTF-16LE'a1')])
   LogicalFilter(condition=[=($1, _UTF-16LE'two')])
     LogicalTableScan(table=[[default_catalog, default_database, A]])
 })])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
@@ -113,11 +113,11 @@ Calc(select=[(b = 1972-02-22 07:12:00.333) AS b2])
   <TestCase name="testProjectMinusTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], c=[$2])
+LogicalProject(select=[b, c])
 +- LogicalMinus(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, left]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, right]])
 ]]>
     </Resource>
@@ -140,11 +140,11 @@ Calc(select=[b0 AS b, c0 AS c])
   <TestCase name="testProjectUnionTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], c=[$2])
+LogicalProject(select=[b, c])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, left]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, right]])
 ]]>
     </Resource>
@@ -162,9 +162,9 @@ Union(all=[true], union=[b, c])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
+:- LogicalProject(select=[a])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-+- LogicalProject(b=[$1])
++- LogicalProject(select=[b])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
@@ -182,7 +182,7 @@ Union(all=[true], union=[a])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
+:- LogicalProject(select=[a])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 +- LogicalProject(_c0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])

@@ -34,12 +34,12 @@ PythonCorrelate(invocation=[*org.apache.flink.table.planner.utils.MockPythonTabl
   <TestCase name="testCorrelateWithMultiFilter">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0], d=[$1])
+LogicalProject(select=[c, d])
 +- LogicalFilter(condition=[>($2, 20)])
    +- LogicalFilter(condition=[>($2, 10)])
-      +- LogicalProject(c=[$2], d=[$3], e=[$4])
+      +- LogicalProject(select=[c, d, e])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-            :- LogicalProject(a=[$0], b=[$1], c=[$2])
+            :- LogicalProject(select=[a, b, c])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
             +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)])
 ]]>
@@ -55,12 +55,12 @@ Calc(select=[c, d])
   <TestCase name="testCorrelateWithMultiFilterAndWithoutCalcMergeRules">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$0], d=[$1])
+LogicalProject(select=[c, d])
 +- LogicalFilter(condition=[>($2, 20)])
    +- LogicalFilter(condition=[>($2, 10)])
-      +- LogicalProject(c=[$2], d=[$3], e=[$4])
+      +- LogicalProject(select=[c, d, e])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-            :- LogicalProject(a=[$0], b=[$1], c=[$2])
+            :- LogicalProject(select=[a, b, c])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
             +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], rowType=[RecordType(VARCHAR(2147483647) d, INTEGER e)])
 ]]>
@@ -76,7 +76,7 @@ Calc(select=[c, d])
   <TestCase name="testCrossJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], s=[$3])
+LogicalProject(select=[c, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])
@@ -93,7 +93,7 @@ Calc(select=[c, s])
   <TestCase name="testCrossJoin2">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], s=[$3])
+LogicalProject(select=[c, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2, _UTF-16LE'$')], rowType=[RecordType(VARCHAR(2147483647) s)])
@@ -110,7 +110,7 @@ Calc(select=[c, s])
   <TestCase name="testLeftOuterJoinWithLiteralTrue">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], s=[$3])
+LogicalProject(select=[c, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])
@@ -128,7 +128,7 @@ Calc(select=[c, s])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[>($1, _UTF-16LE'')])
-+- LogicalProject(c=[$2], s=[$3])
++- LogicalProject(select=[c, s])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])

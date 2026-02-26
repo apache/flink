@@ -46,10 +46,10 @@ WHERE r > 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], r=[$1])
+LogicalProject(select=[a, r])
 +- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], r=[random_udf($1)])
-      +- LogicalProject(a=[$0], b=[$1], c1=[$3])
+   +- LogicalProject(select=[a])])
+      +- LogicalProject(select=[a, b, c1])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
             :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
             +- LogicalTableFunctionScan(invocation=[str_split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -70,9 +70,9 @@ Calc(select=[a, r], where=[>(r, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a1=[$1])
+LogicalProject(select=[a, a1])
 +- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($1)])
+   +- LogicalProject(select=[a])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -90,9 +90,9 @@ Calc(select=[a, a1], where=[(a1 > 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>(random_udf($1), 10)])
-   +- LogicalProject(a=[$0], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -109,7 +109,7 @@ Calc(select=[a], where=[>(random_udf(b), 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[CAST($1):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
+LogicalProject(select=[EXPR$0]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
 +- LogicalValues(tuples=[[{ 3, _UTF-16LE'c' }]])
 ]]>
     </Resource>
@@ -126,7 +126,7 @@ Calc(select=[a AS EXPR$0, CAST(b AS VARCHAR(2147483647)) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(<($0, 10), >($1, 20))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -178,7 +178,7 @@ Calc(select=[MAP('a', 0.12, 'b', 0.5) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[OR(<($0, 10), >($0, 20))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -199,7 +199,7 @@ WHERE b = DATE '1984-07-12' AND c = TIME '14:34:24' AND d = TIMESTAMP '1984-07-1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[AND(=($1, 1984-07-12), =($2, 14:34:24), =($3, 1984-07-12 14:34:24))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
 ]]>
@@ -217,7 +217,7 @@ Calc(select=[a, CAST(1984-07-12 AS DATE) AS b, CAST(14:34:24 AS TIME(0)) AS c, C
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(OR(=($1, 1), =($1, 3), =($1, 4), =($1, 5), =($1, 6)), =($2, _UTF-16LE'xx'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -235,7 +235,7 @@ Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[(SEARCH(b, Sa
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(OR(=($1, 1), =($1, 3), =($1, CAST($0):INTEGER), =($1, 5), =($1, 6)), =($2, _UTF-16LE'xx'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -271,9 +271,9 @@ Calc(select=[ROW('foo', 12, 1984-07-12 14:34:24) AS EXPR$0, ARRAY(12, 12) AS EXP
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<($0, 50)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalFilter(condition=[>($1, 0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -291,8 +291,8 @@ Calc(select=[a, b, c], where=[((b > 0) AND (a < 50))])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$1])
-+- LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[c])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -309,7 +309,7 @@ Calc(select=[c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(_1=[$0._1], _2=[$0._2], c=[$2], _10=[$1._1], _20=[$1._2])
+LogicalProject(select=[c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -343,7 +343,7 @@ Calc(select=[MAP(a, c) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[OR(NOT(OR(=($1, 1), =($1, 3), =($1, 4), =($1, 5), =($1, 6))), =($2, _UTF-16LE'xx'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -361,7 +361,7 @@ Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..3), (3..4), (4..5),
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($1, 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -379,7 +379,7 @@ Calc(select=[a, b, c], where=[(b > 0)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -413,7 +413,7 @@ Calc(select=[IF(SEARCH(c, Sarg[_UTF-16LE''; NULL AS TRUE]), 'a', 'b') AS EXPR$0]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[OR(=($0, 1), =($0, 10), IS NULL($0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -431,7 +431,7 @@ Calc(select=[a, b, c], where=[SEARCH(a, Sarg[1, 10; NULL AS TRUE])])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable4]])
 ]]>
     </Resource>
@@ -464,7 +464,7 @@ Calc(select=[MAP(b, 30, 10, a) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
+LogicalProject(select=[a])])
 +- LogicalFilter(condition=[>($1, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -488,7 +488,7 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$3=[1984-07-12], EXPR$4=[14:34:24], EXPR$5=[1984-07-12 14:34:24])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -505,8 +505,8 @@ Calc(select=[a, b, c, 1984-07-12 AS EXPR$3, 14:34:24 AS EXPR$4, 1984-07-12 14:34
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(1-_./Ü=[$0], b=[$1], c=[$2])
-+- LogicalProject(1-_./Ü=[$0], b=[$1], c=[$2])
+LogicalProject(select=[Ü, b, c])
++- LogicalProject(select=[Ü, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

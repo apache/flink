@@ -19,9 +19,9 @@ limitations under the License.
   <TestCase name="testInvalidChangelogInput">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], rank_num=[$1])
+LogicalProject(select=[a, rank_num])
 +- LogicalFilter(condition=[=($1, 1)])
-   +- LogicalProject(a=[$0], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
       +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($2, 5000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
 
@@ -44,9 +44,9 @@ Calc(select=[a, 1 AS $1])
   <TestCase name="testInvalidRowNumberConditionOnProctime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], rank_num=[$1])
+LogicalProject(select=[a, rank_num])
 +- LogicalFilter(condition=[=($1, 2)])
-   +- LogicalProject(a=[$0], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -68,9 +68,9 @@ Calc(select=[a, 2 AS $1])
   <TestCase name="testInvalidRowNumberConditionOnRowtime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], rank_num=[$1])
+LogicalProject(select=[a, rank_num])
 +- LogicalFilter(condition=[=($1, 3)])
-   +- LogicalProject(a=[$0], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -92,12 +92,12 @@ Calc(select=[a, 3 AS $1])
   <TestCase name="testLastRowWithWindowOnRowtime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], EXPR$1=[$2], EXPR$2=[TUMBLE_START($1)])
+LogicalProject(select=[b, EXPR$1])])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($2, 4:INTERVAL SECOND)], a=[$0])
-      +- LogicalProject(a=[$0], b=[$1], ts=[$2])
+   +- LogicalProject(select=[b])], a=[$0])
+      +- LogicalProject(select=[a, b, ts])
          +- LogicalFilter(condition=[=($3, 1)])
-            +- LogicalProject(a=[$0], b=[$1], ts=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+            +- LogicalProject(select=[a, b, ts]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, ts)]]])
 
@@ -127,12 +127,12 @@ Calc(select=[b, EXPR$1, w$start AS EXPR$2])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-+- LogicalProject(b=[$1])
-   +- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[b])
+   +- LogicalProject(select=[a, b])
       +- LogicalFilter(condition=[<=($4, 1)])
-         +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+         +- LogicalProject(select=[a, b, rowtime, proctime]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-               +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]])
 
 == Optimized Physical Plan ==
@@ -167,12 +167,12 @@ GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-+- LogicalProject(b=[$1])
-   +- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[b])
+   +- LogicalProject(select=[a, b])
       +- LogicalFilter(condition=[=($4, 1)])
-         +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalProject(select=[a, b, rowtime, proctime]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-               +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]])
 
 == Optimized Physical Plan ==
@@ -206,9 +206,9 @@ GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
   <TestCase name="testSimpleFirstRowOnBuiltinProctime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, rowNum])
 +- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
+   +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -230,12 +230,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS 
   <TestCase name="testSimpleFirstRowOnProctime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, b, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(b=[$1], a=[$0], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[b, a, c])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalFilter(condition=[=($5, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+            +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -263,12 +263,12 @@ Calc(select=[EXPR$0, b, EXPR$2])
   <TestCase name="testSimpleFirstRowOnRowtime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, b, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(b=[$1], a=[$0], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[b, a, c])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalFilter(condition=[<=($5, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+            +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -296,9 +296,9 @@ Calc(select=[EXPR$0, b, EXPR$2])
   <TestCase name="testSimpleLastRowOnBuiltinProctime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
+LogicalProject(select=[a, b, c, proctime, rowtime, rowNum])
 +- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (ORDER BY PROCTIME() DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (ORDER BY PROCTIME() DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -320,12 +320,12 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS 
   <TestCase name="testSimpleLastRowOnProctime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, b, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(b=[$1], a=[$0], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[b, a, c])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalFilter(condition=[=($5, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+            +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -353,12 +353,12 @@ Calc(select=[EXPR$0, b, EXPR$2])
   <TestCase name="testSimpleLastRowOnRowtime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, b, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(b=[$1], a=[$0], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[b, a, c])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalFilter(condition=[=($5, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
+            +- LogicalProject(select=[a, b, c, proctime, rowtime]) OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==

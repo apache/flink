@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[DENSE_RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime]])
 ]]>
     </Resource>
@@ -194,9 +194,9 @@ FROM (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[$4])
-+- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[COUNT() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
-   +- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[COUNT() OVER (PARTITION BY $0, $1 ORDER BY $2 NULLS FIRST)])
+LogicalProject(select=[a, b, ts, c1, c2])
++- LogicalProject(select=[a, b, ts, c1]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, ts]) OVER (PARTITION BY $0, $1 ORDER BY $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -224,7 +224,7 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN 0 PRECEDING AND 0 FOLLOWING)])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN 0 PRECEDING AND 0 FOLLOWING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -250,7 +250,7 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS 0 PRECEDING)])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS 0 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -276,7 +276,7 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN CURRENT ROW AND 0 FOLLOWING)])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN CURRENT ROW AND 0 FOLLOWING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -354,7 +354,7 @@ Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2)])
+LogicalProject(select=[c]) OVER (PARTITION BY $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -375,7 +375,7 @@ OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN UNBOUND
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[CASE(>(COUNT($0) OVER (ORDER BY $1 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $1 NULLS FIRST), null:INTEGER)])
+LogicalProject(select=[c]) OVER (ORDER BY $1 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $1 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -395,7 +395,7 @@ Calc(select=[c, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT() OVER ()])
+LogicalProject(select=[c]) OVER ()])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -466,7 +466,7 @@ Calc(select=[w0$o0 AS $0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime]])
 ]]>
     </Resource>
@@ -726,7 +726,7 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $0 DESC NULLS LAST)], EXPR$2=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $1 NULLS FIRST)])
+LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $0 DESC NULLS LAST)], EXPR$2=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $1 NULLS FIRST)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

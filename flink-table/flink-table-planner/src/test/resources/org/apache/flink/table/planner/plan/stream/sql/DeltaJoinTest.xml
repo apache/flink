@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.append_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -47,11 +47,11 @@ Sink(table=[default_catalog.default_database.append_snk], fields=[a0, a1, a2, a3
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
+   +- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $7))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-         +- LogicalProject(b0=[$0], b2=[$1], b1=[$2], $f3=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
+         +- LogicalProject(select=[b0, b2, b1]), _UTF-16LE' ', $1)])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
@@ -75,7 +75,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, 1.1), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -101,7 +101,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -122,13 +122,13 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -161,7 +161,7 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1])
-+- LogicalProject(a0=[$0], a1=[$1])
++- LogicalProject(select=[a0, a1])
    +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
 ]]>
     </Resource>
@@ -179,7 +179,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1], conflict
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -200,7 +200,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -232,7 +232,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($3, $4)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
@@ -257,9 +257,9 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3])
+      :- LogicalProject(select=[a0, a1, a2, a3])
       :  +- LogicalFilter(condition=[>($1, 1.1:DECIMAL(2, 1))])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -295,12 +295,12 @@ insert into snk(l0, l1, r0, r2, r1)
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$5], b2=[$4], b1=[$3])
++- LogicalProject(select=[a0, a1]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$5], b2=[$4], b1=[$3])
    +- LogicalJoin(condition=[AND(=($2, $3), =($1, $4), <>($5, 0))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :- LogicalProject(select=[a0, a2, a1])
       :  +- LogicalFilter(condition=[>($0, 1)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalProject(b1=[$2], b2=[$1], b0=[$0])
+      +- LogicalProject(select=[b1, b2, b0])
          +- LogicalFilter(condition=[<($2, 10)])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -325,7 +325,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($3, $4)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
@@ -352,7 +352,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($3, 1)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
@@ -378,7 +378,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($3, 1)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
@@ -405,7 +405,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($0, $6)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
@@ -432,7 +432,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($0, 1)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
@@ -460,7 +460,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalFilter(condition=[>($0, 1)])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
@@ -487,7 +487,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
@@ -511,7 +511,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -535,7 +535,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5), =($3, $4))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -559,7 +559,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -580,7 +580,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -609,13 +609,13 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, tmp_src11]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, tmp_src12]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -642,13 +642,13 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -674,15 +674,15 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
+   +- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
+   +- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -708,15 +708,15 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
+   +- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
+   +- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
       +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -742,13 +742,13 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -778,13 +778,13 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -825,9 +825,9 @@ insert into snk(l0, l1, r0, r2, r1)
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a0, a1]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :- LogicalProject(select=[a0, a2, a1])
       :  +- LogicalFilter(condition=[>($0, RAND(10))])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -862,10 +862,10 @@ insert into snk
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalProject(b0=[$0], b2=[$1], b1=[$2])
+      +- LogicalProject(select=[b0, b2, b1])
          +- LogicalFilter(condition=[>($0, RAND(10))])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -897,9 +897,9 @@ insert into snk(l0, l1, r0, r2, r1)
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a0, a1]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :- LogicalProject(select=[a0, a2, a1])
       :  +- LogicalFilter(condition=[>($0, RAND(10))])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -925,7 +925,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, all_changelog_src]])
       +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
@@ -951,7 +951,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_and_update_before_src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_and_update_before_src2]])
@@ -979,7 +979,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
@@ -1005,7 +1005,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($0, $4), =($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
@@ -1037,9 +1037,9 @@ insert into snk(l0, r0, r2)
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
-+- LogicalProject(a0=[$0], EXPR$1=[null:DOUBLE], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
++- LogicalProject(select=[a0]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :- LogicalProject(select=[a0, a2, a1])
       :  +- LogicalFilter(condition=[=($3, 1)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, src1WithPartition]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1064,7 +1064,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], EXPR$1=[+($1, 1.1:DECIMAL(2, 1))], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0]))], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1089,9 +1089,9 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a0, a1, a2, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2])
+      :- LogicalProject(select=[a0, a1, a2])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1115,9 +1115,9 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1])
-+- LogicalProject(a2=[$2], a0=[$0], a1=[$1], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a2, a0, a1, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($0, $5), =($1, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$1], a1=[$2], a2=[$0])
+      :- LogicalProject(select=[a0, a1, a2])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1141,9 +1141,9 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a0, a1, a2, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[SUBSTRING($2, 2)])
+      :- LogicalProject(select=[a0, a1])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1168,9 +1168,9 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a0, a1, a2, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[SUBSTRING($2, 2)])
+      :- LogicalProject(select=[a0, a1])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithMultiIndexes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1203,9 +1203,9 @@ insert into snk(l0, r0, r2)
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
-+- LogicalProject(a0=[$0], EXPR$1=[null:DOUBLE], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
++- LogicalProject(select=[a0]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :- LogicalProject(select=[a0, a2, a1])
       :  +- LogicalProject(a0=[CAST($3):INTEGER NOT NULL], a1=[$0], a2=[$1], a3=[$2])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, src1WithMetadata, metadata=[a0]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1231,7 +1231,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1255,9 +1255,9 @@ Sink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
-+- LogicalProject(a0=[$0], new_a1=[$3], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
++- LogicalProject(select=[a0, new_a1]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], new_a1=[+($1, 1)])
+      :- LogicalProject(select=[a0, a1, a2])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithComputingCol]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1282,9 +1282,9 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
-+- LogicalProject(a0=[$0], new_a1=[$3], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
++- LogicalProject(select=[a0, new_a1]) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], new_a1=[+($1, RAND(10))])
+      :- LogicalProject(select=[a0, a1, a2]))])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithComputingCol]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1309,7 +1309,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_src]])
@@ -1333,7 +1333,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, non_index_src]])
@@ -1357,9 +1357,9 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, EXPR$2, EXPR$3, EXPR$4, EXPR$5, b1])
-+- LogicalProject(a0=[$0], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[$5], EXPR$5=[$6], b1=[$1])
++- LogicalProject(select=[a0, EXPR$1, EXPR$2, EXPR$3, EXPR$4, EXPR$5, b1])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)], EXPR$2=[MAX($3)], EXPR$3=[MAX($4)], EXPR$4=[MAX($5)], EXPR$5=[MAX($6)])
-      +- LogicalProject(a0=[$0], b1=[$6], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5])
+      +- LogicalProject(select=[a0, b1, a1, a2, a3, b0, b2])
          +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
             :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
             +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1386,11 +1386,11 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, EXPR$2, E
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalProject(a0=[$1], a1=[$0], a2=[$2], a3=[$3])
+      :- LogicalProject(select=[a0, a1, a2, a3])
       :  +- LogicalAggregate(group=[{0}], a0=[MAX($1)], a2=[MAX($2)], a3=[MAX($3)])
-      :     +- LogicalProject(a1=[$1], a0=[$0], a2=[$2], a3=[$3])
+      :     +- LogicalProject(select=[a1, a0, a2, a3])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
@@ -1416,7 +1416,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1440,7 +1440,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6], b00=[$7], b20=[$8], b10=[$9])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10])
    +- LogicalJoin(condition=[AND(=($1, $9), =($2, $8))], joinType=[inner])
       :- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :  :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
@@ -1470,7 +1470,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5), <(+($0, RAND(10)), $4))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1494,7 +1494,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5), >($4, $0))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1518,7 +1518,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5), >($4, $0), <>($5, _UTF-16LE'Hello'), >($0, 99))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1544,7 +1544,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
@@ -1568,7 +1568,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a2, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], b0=[$3], b2=[$4], b1=[$5])
++- LogicalProject(select=[a0, a1, a2, b0, b2, b1])
    +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[a2], watermark=[-($2, 1000:INTERVAL SECOND)])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, wm_source]])
@@ -1595,7 +1595,7 @@ Sink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a2, b0, 
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
++- LogicalProject(select=[a0, a1, a2, a3, b0, b2, b1])
    +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, non_lookup_src]])

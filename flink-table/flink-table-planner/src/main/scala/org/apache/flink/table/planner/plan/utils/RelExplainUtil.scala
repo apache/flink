@@ -969,4 +969,43 @@ object RelExplainUtil {
     sb.append("]")
     sb.toString
   }
+
+  /**
+   * Converts projection fields to a more readable string format with field names instead of
+   * positional indices like $0, $1, etc.
+   *
+   * @param projects
+   *   the list of projection expressions
+   * @param inputFieldNames
+   *   the list of input field names
+   * @param outputFieldNames
+   *   the list of output field names
+   * @return
+   *   a formatted string showing field names and their sources
+   */
+  def projectFieldsToString(
+      projects: util.List[RexNode],
+      inputFieldNames: util.List[String],
+      outputFieldNames: util.List[String]): String = {
+    val result = new StringBuilder
+    for (i <- 0 until projects.size()) {
+      if (i > 0) result.append(", ")
+      val project = projects.get(i)
+      val outputName = outputFieldNames.get(i)
+
+      project match {
+        case inputRef: RexInputRef =>
+          val inputName = inputFieldNames.get(inputRef.getIndex)
+          if (inputName.equals(outputName)) {
+            result.append(outputName)
+          } else {
+            result.append(s"$inputName AS $outputName")
+          }
+        case _ =>
+          // For complex expressions, show both expression and output name
+          result.append(s"${project.toString} AS $outputName")
+      }
+    }
+    result.toString
+  }
 }

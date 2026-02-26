@@ -19,12 +19,12 @@ limitations under the License.
   <TestCase name="testMultiWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2], f1=[$1])
+LogicalProject(select=[EXPR$0, f1])
 +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($2)]], window=[SlidingGroupWindow('w2, proctime, 20, 10)], properties=[EXPR$0])
    +- LogicalProject(proctime=[AS($3, _UTF-16LE'proctime')], c=[$0], f0=[$1], f1=[AS(+($2, 1), _UTF-16LE'f1')])
       +- LogicalWindowTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w1, e, 50)], properties=[EXPR$0])
          +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
+            +- LogicalProject(select=[a, b, c, d])])
                +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -45,10 +45,10 @@ Calc(select=[EXPR$0, f1])
   <TestCase name="testSingleWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$1], _c1=[AS(+($2, 1), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
+LogicalProject(select=[f0]), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalWindowTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -66,10 +66,10 @@ Calc(select=[f0, (f1 + 1) AS _c1, EXPR$0, EXPR$1])
   <TestCase name="testTimeMaterializer">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$1], _c1=[AS(+($2, 1), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
+LogicalProject(select=[f0]), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalWindowTableAggregate(group=[{4}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d])])
          +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>

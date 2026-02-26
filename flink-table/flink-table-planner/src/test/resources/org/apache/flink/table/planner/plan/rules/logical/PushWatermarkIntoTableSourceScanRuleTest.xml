@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{scan.watermark.idle-timeout=60s}]]])
 ]]>
@@ -40,7 +40,7 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -58,7 +58,7 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -76,7 +76,7 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{scan.watermark.alignment.max-drift=1min, scan.watermark.alignment.group=group1}]]])
 ]]>
@@ -94,7 +94,7 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -112,7 +112,7 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{scan.watermark.emit.strategy=on-event}]]])
 ]]>
@@ -130,7 +130,7 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -148,9 +148,9 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -168,9 +168,9 @@ FlinkLogicalCalc(select=[a, b, c, d])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[TO_TIMESTAMP($0, $1)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -188,10 +188,10 @@ FlinkLogicalCalc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[>($3, TO_TIMESTAMP(_UTF-16LE'2020-10-09 12:12:12'))])
    +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -210,9 +210,9 @@ FlinkLogicalCalc(select=[a, b])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
+LogicalProject(select=[a, b, c, metadata, computed])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, CAST(+($3, $4)):INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[CAST($3):BIGINT], computed=[+(CAST($3):BIGINT, $1)])
+   +- LogicalProject(select=[a, b, c]):BIGINT], computed=[+(CAST($3):BIGINT, $1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, metadata=[metadata_2]]])
 ]]>
     </Resource>
@@ -230,9 +230,9 @@ FlinkLogicalCalc(select=[a, b, c, metadata, computed])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], g=[$3])
+LogicalProject(select=[a, b, c, g])
 +- LogicalWatermarkAssigner(rowtime=[g], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], g=[$2.d.f])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -250,9 +250,9 @@ FlinkLogicalCalc(select=[a, b, c, g])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], e=[$3])
+LogicalProject(select=[a, b, c, e])
 +- LogicalWatermarkAssigner(rowtime=[e], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], e=[$2.d])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -270,7 +270,7 @@ FlinkLogicalCalc(select=[a, b, c, e])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[-($2, 5000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -288,9 +288,9 @@ FlinkLogicalCalc(select=[a, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[func(func($3, $0), $0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -308,9 +308,9 @@ FlinkLogicalCalc(select=[a, b, c, d])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalWatermarkAssigner(rowtime=[b], watermark=[$1])
-   +- LogicalProject(a=[$0], b=[parse_ts($0)])
+   +- LogicalProject(select=[a])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

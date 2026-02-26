@@ -32,9 +32,9 @@ WHERE rank_num <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(category=[$0], max_price=[$2], rank_num=[$3])
+LogicalProject(select=[category, max_price, rank_num])
 +- LogicalFilter(condition=[<=($3, 3)])
-   +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[category, shopId, max_price]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -60,9 +60,9 @@ WHERE  rank_num <= 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rank_num=[$4], rowtime=[$3], a=[$0], rank_num0=[$4], a0=[$0], rank_num1=[$4])
+LogicalProject(select=[rank_num, rowtime, a, rank_num0, a0, rank_num1])
 +- LogicalFilter(condition=[<=($4, 2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -87,9 +87,9 @@ WHERE rank_num = 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -114,9 +114,9 @@ WHERE rank_num = 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$3])
+LogicalProject(select=[rowtime])
 +- LogicalFilter(condition=[=($4, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -141,9 +141,9 @@ WHERE rank_num <= 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rowtime=[$3])
+LogicalProject(select=[a, rowtime])
 +- LogicalFilter(condition=[<=($4, 2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -171,9 +171,9 @@ WHERE rank_num <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(category=[$0], max_price=[$2], rank_num=[$4])
+LogicalProject(select=[category, max_price, rank_num])
 +- LogicalFilter(condition=[<=($4, 3)])
-   +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], min_price=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[category, shopId, max_price, min_price]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -205,9 +205,9 @@ WHERE rank_num <= 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[$3])
+LogicalProject(select=[category, shopId, max_price, rank_num])
 +- LogicalFilter(condition=[<=($3, 3)])
-   +- LogicalProject(category=[$0], shopId=[$1], max_price=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(select=[category, shopId, max_price]) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
       +- LogicalAggregate(group=[{0, 1}], max_price=[MAX($2)], min_price=[MIN($2)])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -233,9 +233,9 @@ WHERE  rank_num <= 2 AND a > 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$3], c=[$2])
+LogicalProject(select=[rowtime, c])
 +- LogicalFilter(condition=[AND(<=($4, 2), >($0, 10))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -260,9 +260,9 @@ WHERE  rank_num <= 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rowtime=[$3], rank_num=[$4])
+LogicalProject(select=[a, rowtime, rank_num])
 +- LogicalFilter(condition=[<=($4, 2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rowtime]) OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

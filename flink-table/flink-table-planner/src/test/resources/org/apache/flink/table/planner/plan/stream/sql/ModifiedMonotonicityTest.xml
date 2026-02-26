@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
++- LogicalProject(select=[a1, a3])
    +- LogicalAggregate(group=[{0, 1}], a3=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
@@ -46,7 +46,7 @@ GroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS EXPR$1], changelogMode=[I,UA
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
++- LogicalProject(select=[a1, a3])
    +- LogicalAggregate(group=[{0, 1}], a3=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
@@ -72,7 +72,7 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MAX(max$0) AS EXPR$1], changelogM
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
++- LogicalProject(select=[a1, a3])
    +- LogicalAggregate(group=[{0, 1}], a3=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
@@ -95,7 +95,7 @@ GroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(a3) AS EXPR$1], changelogMo
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
++- LogicalProject(select=[a1, a3])
    +- LogicalAggregate(group=[{0, 1}], a3=[MAX($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
@@ -121,7 +121,7 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(min$0) AS EXPR$1], ch
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
++- LogicalProject(select=[a1, a3])
    +- LogicalAggregate(group=[{0, 1}], a3=[MIN($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
@@ -144,7 +144,7 @@ GroupAggregate(groupBy=[a1], select=[a1, MIN(a3) AS EXPR$1], changelogMode=[I,UA
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-+- LogicalProject(a3=[$2])
++- LogicalProject(select=[a3])
    +- LogicalAggregate(group=[{0, 1}], a3=[MIN($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>

@@ -26,9 +26,9 @@ WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], f=[$4])
+LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -41,7 +41,7 @@ LogicalProject(i=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], f=[$4])
+LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[>($3, 100)])
    +- LogicalJoin(condition=[=($2, $5)], joinType=[semi])
       :- LogicalProject(a=[*($0, 2)], b=[$1], d=[+($3, 1)], e=[$4], f=[$5])
@@ -49,7 +49,7 @@ LogicalProject(a=[$0], f=[$4])
       :     +- LogicalJoin(condition=[true], joinType=[inner])
       :        :- LogicalTableScan(table=[[default_catalog, default_database, x]])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, y]])
-      +- LogicalProject(i=[$0])
+      +- LogicalProject(select=[i])
          +- LogicalFilter(condition=[<($1, 50)])
             +- LogicalTableScan(table=[[default_catalog, default_database, z]])
 ]]>
@@ -65,13 +65,13 @@ WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], f=[$4])
+LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
-   +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4], f=[$5])
+   +- LogicalProject(select=[a, b, d, e, f])
       +- LogicalFilter(condition=[=($2, $5)])
          +- LogicalJoin(condition=[true], joinType=[inner])
             :- LogicalTableScan(table=[[default_catalog, default_database, x]])
@@ -80,15 +80,15 @@ LogicalProject(i=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], f=[$4])
+LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[>($3, 100)])
-   +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4], f=[$5])
+   +- LogicalProject(select=[a, b, d, e, f])
       +- LogicalFilter(condition=[=($2, $5)])
          +- LogicalJoin(condition=[true], joinType=[inner])
             :- LogicalTableScan(table=[[default_catalog, default_database, x]])
             +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
                :- LogicalTableScan(table=[[default_catalog, default_database, y]])
-               +- LogicalProject(i=[$0])
+               +- LogicalProject(select=[i])
                   +- LogicalFilter(condition=[<($1, 50)])
                      +- LogicalTableScan(table=[[default_catalog, default_database, z]])
 ]]>

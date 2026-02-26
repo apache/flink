@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAddColumns">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[TestFunc($0, $1)])
+LogicalProject(select=[a, b, c])])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -47,7 +47,7 @@ Calc(select=[CONCAT(string1, string2) AS _c0])
   <TestCase name="testColumnRange">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], c=[$2], a=[$0], e=[$4], f=[$5], d=[$3])
+LogicalProject(select=[b, c, a, e, f, d])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -61,7 +61,7 @@ Calc(select=[b, c, a, e, f, d])
   <TestCase name="testColumnWithoutRange">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], f=[$5])
+LogicalProject(select=[a, b, c, f])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -75,7 +75,7 @@ Calc(select=[a, b, c, f])
   <TestCase name="testDropColumns">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -103,7 +103,7 @@ Calc(select=[int, long, string1, string2], where=[(CONCAT(string1, string2) = 'a
   <TestCase name="testGroupBy">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$0=[$2])
+LogicalProject(select=[a, b, EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -119,7 +119,7 @@ GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$0])
   <TestCase name="testInverseSelection">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(e=[$4], f=[$5])
+LogicalProject(select=[e, f])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -166,7 +166,7 @@ Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc0*($2)], co
   <TestCase name="testOver">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, CAST($1):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'countDist')])
+LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, CAST($1):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'countDist')])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -183,7 +183,7 @@ Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
   <TestCase name="testRenameColumns">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$0], b=[$1])
+LogicalProject(select=[d, b])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -211,7 +211,7 @@ Calc(select=[TestFunc(double, long) AS _c0])
   <TestCase name="testWindowGroupBy">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[AS($2, _UTF-16LE'c')])
+LogicalProject(select=[a, b])])
 +- LogicalWindowAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)], window=[SlidingGroupWindow('w, b, 3, 10)], properties=[])
    +- LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')], c=[AS($2, _UTF-16LE'c')], d=[AS($3, _UTF-16LE'd')])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])

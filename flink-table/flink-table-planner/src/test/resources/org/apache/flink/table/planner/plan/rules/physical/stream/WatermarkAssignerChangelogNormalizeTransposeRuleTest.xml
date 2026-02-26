@@ -30,11 +30,11 @@ GROUP BY currency2, TUMBLE(currency_time, INTERVAL '5' SECOND)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency2=[$0], cnt=[$2], w_start=[TUMBLE_START($1)], w_end=[TUMBLE_END($1)])
+LogicalProject(select=[currency2, cnt])], w_end=[TUMBLE_END($1)])
 +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-   +- LogicalProject(currency2=[$1], $f1=[$TUMBLE($5, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[currency2])])
       +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($5, 5000:INTERVAL SECOND)])
-         +- LogicalProject(currency=[$0], currency2=[+($0, 2)], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
+         +- LogicalProject(select=[currency])], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
             +- LogicalTableScan(table=[[default_catalog, default_database, src_with_computed_column2]])
 ]]>
     </Resource>
@@ -66,11 +66,11 @@ GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$0], cnt=[$2], w_start=[TUMBLE_START($1)], w_end=[TUMBLE_END($1)])
+LogicalProject(select=[currency, cnt])], w_end=[TUMBLE_END($1)])
 +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-   +- LogicalProject(currency=[$0], $f1=[$TUMBLE($4, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[currency])])
       +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($4, 5000:INTERVAL SECOND)])
-         +- LogicalProject(currency=[$0], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
+         +- LogicalProject(select=[currency, currency_no, rate, c])])
             +- LogicalTableScan(table=[[default_catalog, default_database, src_with_computed_column]])
 ]]>
     </Resource>
@@ -97,7 +97,7 @@ FROM t1 INNER JOIN t2 FOR SYSTEM_TIME AS OF t1.ingestion_time
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$2], f=[$6])
+LogicalProject(select=[a, b, f])
 +- LogicalFilter(condition=[=($6, true)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
       :- LogicalWatermarkAssigner(rowtime=[ingestion_time], watermark=[$0])
@@ -106,7 +106,7 @@ LogicalProject(a=[$1], b=[$2], f=[$6])
       +- LogicalFilter(condition=[=($cor0.a, $2)])
          +- LogicalSnapshot(period=[$cor0.ingestion_time])
             +- LogicalWatermarkAssigner(rowtime=[ingestion_time], watermark=[$1])
-               +- LogicalProject(k=[$0], ingestion_time=[CAST($3):TIMESTAMP(3) *ROWTIME*], a=[$1], f=[$2])
+               +- LogicalProject(select=[k]):TIMESTAMP(3) *ROWTIME*], a=[$1], f=[$2])
                   +- LogicalTableScan(table=[[default_catalog, default_database, t2, metadata=[ts]]])
 ]]>
     </Resource>
@@ -142,7 +142,7 @@ LogicalProject(w_start=[TUMBLE_START($0)], w_end=[TUMBLE_END($0)], max_rate=[$1]
 +- LogicalAggregate(group=[{0}], max_rate=[MAX($1)])
    +- LogicalProject($f0=[$TUMBLE($4, 5000:INTERVAL SECOND)], rate=[$2])
       +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($4, 5000:INTERVAL SECOND)])
-         +- LogicalProject(currency=[$0], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
+         +- LogicalProject(select=[currency, currency_no, rate, c])])
             +- LogicalTableScan(table=[[default_catalog, default_database, src_with_computed_column]])
 ]]>
     </Resource>
@@ -207,9 +207,9 @@ GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(currency=[$0], cnt=[$2], w_start=[TUMBLE_START($1)], w_end=[TUMBLE_END($1)])
+LogicalProject(select=[currency, cnt])], w_end=[TUMBLE_END($1)])
 +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-   +- LogicalProject(currency=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[currency])])
       +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($3, 5000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, simple_src]])
 ]]>

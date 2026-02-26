@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[b, c])
-+- LogicalProject(b=[$1], c=[$2])
++- LogicalProject(select=[b, c])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -83,7 +83,7 @@ Sink(table=[default_catalog.default_database.t], fields=[b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[b, c])
-+- LogicalProject(b=[$1], c=[$2])
++- LogicalProject(select=[b, c])
    +- LogicalFilter(condition=[NOT(=($1, _UTF-16LE'123'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -135,7 +135,7 @@ Sink(table=[default_catalog.default_database.t], fields=[b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalFilter(condition=[AND(=($0, 1), =($1, _UTF-16LE'123'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -198,7 +198,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalFilter(condition=[NOT(AND(=($0, 1), =($1, _UTF-16LE'123')))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -250,7 +250,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
-+- LogicalProject(meta_f1=[$3], meta_f2=[$4], b=[$1])
++- LogicalProject(select=[meta_f1, meta_f2, b])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'123')])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -313,7 +313,7 @@ Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
-+- LogicalProject(meta_f1=[$3], meta_f2=[$4], b=[$1])
++- LogicalProject(select=[meta_f1, meta_f2, b])
    +- LogicalFilter(condition=[NOT(=($1, _UTF-16LE'123'))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -365,7 +365,7 @@ Sink(table=[default_catalog.default_database.t], fields=[meta_f1, meta_f2, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'123'), =(CAST($0):BIGINT, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -494,7 +494,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalFilter(condition=[NOT(AND(=($1, _UTF-16LE'123'), =(CAST($0):BIGINT, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -599,7 +599,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
@@ -648,7 +648,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalFilter(condition=[false])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 

@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[>($2, 2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -39,7 +39,7 @@ FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[>($2, CAST(1.1:DECIMAL(2, 1)):INTEGER NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -56,9 +56,9 @@ FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
+LogicalProject(select=[name, id, amount, virtualField, price])
 +- LogicalFilter(condition=[>($2, 2)])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalProject(select=[name, id, amount])], price=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -75,7 +75,7 @@ FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[>($3, 10)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -93,7 +93,7 @@ FlinkLogicalCalc(select=[name, id, amount, price], where=[>(price, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[OR(>($2, 2), <($2, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -111,9 +111,9 @@ FlinkLogicalCalc(select=[name, id, amount, price], where=[IS NOT NULL(amount)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
+LogicalProject(select=[name, id, amount, virtualField, price])
 +- LogicalFilter(condition=[OR(>($2, 2), <($2, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalProject(select=[name, id, amount])], price=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -130,7 +130,7 @@ FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[OR(=($0, _UTF-16LE'Alice'), =($0, _UTF-16LE'Bob'), =($0, _UTF-16LE'Dave'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -148,7 +148,7 @@ FlinkLogicalCalc(select=[name, id, amount, price], where=[SEARCH(name, Sarg[_UTF
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[>($3, CAST(10.1:DECIMAL(3, 1)):INTEGER NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -166,9 +166,9 @@ FlinkLogicalCalc(select=[name, id, amount, price], where=[>(price, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
+LogicalProject(select=[name, id, amount, virtualField, price])
 +- LogicalFilter(condition=[>($4, 10)])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalProject(select=[name, id, amount])], price=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -185,7 +185,7 @@ FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], event_time=[$1])
+LogicalProject(select=[name, event_time])
 +- LogicalFilter(condition=[=(LOWER($0), _UTF-16LE'foo')])
    +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[-($1, 5000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, WithWatermark]])
@@ -205,7 +205,7 @@ FlinkLogicalCalc(select=[name, event_time], where=[=(LOWER(name), 'foo')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[AND(>($2, 2), <($2, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -222,9 +222,9 @@ FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
+LogicalProject(select=[name, id, amount, virtualField, price])
 +- LogicalFilter(condition=[AND(>($2, 2), <($2, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalProject(select=[name, id, amount])], price=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -241,7 +241,7 @@ FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), =(UPPER($1), _UTF-16LE'bar'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
 ]]>
@@ -258,7 +258,7 @@ FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MTable, f
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[AND(>($2, 2), >($3, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -276,7 +276,7 @@ FlinkLogicalCalc(select=[name, id, amount, price], where=[>(price, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[OR(>($2, 2), >($3, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -294,9 +294,9 @@ FlinkLogicalCalc(select=[name, id, amount, price], where=[OR(>(amount, 2), >(pri
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
+LogicalProject(select=[name, id, amount, virtualField, price])
 +- LogicalFilter(condition=[OR(>($2, 2), >($4, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalProject(select=[name, id, amount])], price=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -313,9 +313,9 @@ FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
+LogicalProject(select=[name, id, amount, virtualField, price])
 +- LogicalFilter(condition=[AND(>($2, 2), >($4, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalProject(select=[name, id, amount])], price=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -333,7 +333,7 @@ FlinkLogicalCalc(select=[name, id, amount, +(amount, 1) AS virtualField, price],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[AND(>($2, 2), <($1, 100), >(CAST($2):BIGINT, 10))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -354,7 +354,7 @@ TIMESTAMPADD(YEAR, 2, b) >= a]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[OR(>=(+($0, *(3600000:INTERVAL HOUR, 5)), $1), >=(+($1, *(12:INTERVAL YEAR, 2)), $0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
 ]]>
@@ -378,7 +378,7 @@ SELECT a FROM MyView WHERE a IS NOT NULL
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[IS NOT NULL($0)])
    +- LogicalProject(a=[CASE(>($2, 0), $0, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -397,7 +397,7 @@ FlinkLogicalCalc(select=[CASE(>(amount, 0), name, null:VARCHAR(2147483647)) AS a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'2024-05-13 08:00:00'):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
 ]]>
@@ -414,7 +414,7 @@ FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MTable, f
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+LogicalProject(select=[name, id, amount, price])
 +- LogicalFilter(condition=[AND(>($2, 2), <(myUdf($2), 32))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

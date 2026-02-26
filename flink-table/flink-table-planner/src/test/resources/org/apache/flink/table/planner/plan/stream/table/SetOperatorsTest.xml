@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testFilterUnionTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$0], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
    +- LogicalFilter(condition=[>($0, 0)])
       +- LogicalUnion(all=[true])
@@ -44,7 +44,7 @@ Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[IN($0, {
-LogicalProject(x=[$0])
+LogicalProject(select=[x])
   LogicalTableScan(table=[[default_catalog, default_database, Table2]])
 })])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
@@ -65,7 +65,7 @@ Join(joinType=[LeftSemiJoin], where=[(a = x)], select=[a, b, c], leftInputSpec=[
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[IN($0, {
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
   LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
     LogicalFilter(condition=[LIKE($1, _UTF-16LE'%Hanoi%')])
       LogicalTableScan(table=[[default_catalog, default_database, tableB]])
@@ -91,10 +91,10 @@ Join(joinType=[LeftSemiJoin], where=[(a = EXPR$0)], select=[a, b, c], leftInputS
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[AND(IN($0, {
-LogicalProject(x=[$0])
+LogicalProject(select=[x])
   LogicalTableScan(table=[[default_catalog, default_database, tableB]])
 }), IN($1, {
-LogicalProject(w=[$0])
+LogicalProject(select=[w])
   LogicalTableScan(table=[[default_catalog, default_database, tableC]])
 }))])
 +- LogicalTableScan(table=[[default_catalog, default_database, tableA]])
@@ -119,11 +119,11 @@ Join(joinType=[LeftSemiJoin], where=[(b = w)], select=[a, b, c], leftInputSpec=[
   <TestCase name="testProjectUnionTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], c=[$2])
+LogicalProject(select=[b, c])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, left]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, right]])
 ]]>
     </Resource>

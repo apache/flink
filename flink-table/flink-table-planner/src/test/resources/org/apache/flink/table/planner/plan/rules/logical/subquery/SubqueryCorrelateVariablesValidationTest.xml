@@ -28,10 +28,10 @@ WHERE  EXISTS (SELECT max(t2h) FROM t2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(t1a=[$0])
+LogicalProject(select=[t1a])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
-  LogicalProject(t2h=[$7])
+  LogicalProject(select=[t2h])
     LogicalJoin(condition=[=($0, $cor0.t1a)], joinType=[left])
       LogicalTableScan(table=[[default_catalog, default_database, t2]])
       LogicalTableScan(table=[[default_catalog, default_database, t1]])
@@ -41,7 +41,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(t1a=[$0])
+LogicalProject(select=[t1a])
 +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
@@ -62,7 +62,7 @@ FROM   t1
       <![CDATA[
 LogicalProject(variablesSet=[[$cor0]], EXPR$0=[CASE(EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-  LogicalProject(t3d=[$3])
+  LogicalProject(select=[t3d])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t3]])
 }), 1, 2)])
@@ -91,12 +91,12 @@ FROM   t1
       <![CDATA[
 LogicalProject(variablesSet=[[$cor0]], min_t3d=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-  LogicalProject(t3d=[$3])
+  LogicalProject(select=[t3d])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t3]])
 })], max_t2h=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
-  LogicalProject(t2h=[$7])
+  LogicalProject(select=[t2h])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t2]])
 })])
@@ -106,18 +106,18 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(min_t3d=[$9], max_t2h=[$11])
+LogicalProject(select=[min_t3d, max_t2h])
 +- LogicalJoin(condition=[=($0, $10)], joinType=[left])
-   :- LogicalProject(t1a=[$0], t1b=[$1], t1c=[$2], t1d=[$3], t1e=[$4], t1f=[$5], t1g=[$6], t1h=[$7], t1i=[$8], EXPR$0=[$10])
+   :- LogicalProject(select=[t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i, EXPR$0])
    :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
    :     :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
    :     :  +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    :     +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
-   :        +- LogicalProject(t3a=[$0], t3d=[$3])
+   :        +- LogicalProject(select=[t3a, t3d])
    :           +- LogicalFilter(condition=[IS NOT NULL($0)])
    :              +- LogicalTableScan(table=[[default_catalog, default_database, t3]])
    +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
-      +- LogicalProject(t2a=[$0], t2h=[$7])
+      +- LogicalProject(select=[t2a, t2h])
          +- LogicalFilter(condition=[IS NOT NULL($0)])
             +- LogicalTableScan(table=[[default_catalog, default_database, t2]])
 ]]>
@@ -145,17 +145,17 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(min_t1d=[$10])
+LogicalProject(select=[min_t1d])
 +- LogicalJoin(condition=[=($3, $9)], joinType=[left])
    :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
    +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
-      +- LogicalProject(t1d=[$9], $f0=[$9])
+      +- LogicalProject(select=[t1d, f0])
          +- LogicalJoin(condition=[true], joinType=[inner])
             :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, t3]])
             +- LogicalAggregate(group=[{0}])
-               +- LogicalProject(t1d=[$3])
+               +- LogicalProject(select=[t1d])
                   +- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
                      +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>

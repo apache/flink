@@ -22,10 +22,10 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(event_time=[$0], name=[$1], lowercase_name=[$2])
+LogicalProject(select=[event_time, name, lowercase_name])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'foo')])
    +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[$0])
-      +- LogicalProject(event_time=[$0], name=[$1], lowercase_name=[LOWER($1)])
+      +- LogicalProject(select=[event_time, name])])
          +- LogicalTableScan(table=[[default_catalog, default_database, WithWatermark]])
 ]]>
     </Resource>
@@ -42,10 +42,10 @@ Calc(select=[Reinterpret(event_time) AS event_time, name, CAST('foo' AS VARCHAR(
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], f=[$4])
+LogicalProject(select=[a, b, c, d, f])
 +- LogicalFilter(condition=[=(UPPER($4), _UTF-16LE'welcome')])
    +- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)], f=[$3])
+      +- LogicalProject(select=[a, b, c])], f=[$3])
          +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>
@@ -62,7 +62,7 @@ Calc(select=[a, b, Reinterpret(c) AS c, func(c, a) AS d, f])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[=(LOWER($3), _UTF-16LE'hello')])
    +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -80,7 +80,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], event_time=[$1])
+LogicalProject(select=[name, event_time])
 +- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), =(UPPER($0), _UTF-16LE'FOO'))])
    +- LogicalTableScan(table=[[default_catalog, default_database, NoWatermark]])
 ]]>
@@ -97,7 +97,7 @@ TableSourceScan(table=[[default_catalog, default_database, NoWatermark, filter=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[>($1, 5)])
    +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -116,7 +116,7 @@ Calc(select=[a, b, c, d], where=[(b > 5)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[AND(=(LOWER($3), _UTF-16LE'h'), IS NOT NULL($3))])
    +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -135,7 +135,7 @@ Calc(select=[a, b, c, d], where=[d IS NOT NULL])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], event_time=[$1])
+LogicalProject(select=[name, event_time])
 +- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), IS NOT NULL($0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, NoWatermark]])
 ]]>

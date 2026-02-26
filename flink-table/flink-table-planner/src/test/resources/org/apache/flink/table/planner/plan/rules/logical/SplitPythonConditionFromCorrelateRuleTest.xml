@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], s=[$3], l=[$4])
+LogicalProject(select=[a, b, c, s, l])
 +- LogicalFilter(condition=[AND(=($4, $0), =($2, $3), =(pyFunc($4, $4), 2), =(+($4, 1), *($4, $4)))])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])

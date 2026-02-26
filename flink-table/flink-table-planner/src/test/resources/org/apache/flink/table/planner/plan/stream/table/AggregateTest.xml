@@ -36,7 +36,7 @@ Calc(select=[b, TMP_0.f0 AS x, TMP_0.f1 AS y])
   <TestCase name="testAggregateWithScalarResult">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], TMP_0=[$1])
+LogicalProject(select=[b, TMP_0])
 +- LogicalAggregate(group=[{1}], TMP_0=[COUNT($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -52,7 +52,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS TMP_0])
   <TestCase name="testDistinctAggregateOnTumbleWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -68,7 +68,7 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], select=[
   <TestCase name="testDistinctAggregateWithGroupingOnSessionWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$0=[$1], EXPR$1=[$2])
+LogicalProject(select=[a, EXPR$0, EXPR$1])
 +- LogicalWindowAggregate(group=[{0}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT(DISTINCT $2)], window=[SessionGroupWindow('w, rowtime, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -84,7 +84,7 @@ GroupWindowAggregate(groupBy=[a], window=[SessionGroupWindow('w, rowtime, 900000
   <TestCase name="testGroupAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{1}], EXPR$0=[COUNT($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -101,9 +101,9 @@ Calc(select=[EXPR$0])
   <TestCase name="testGroupAggregateWithAverage">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
+LogicalProject(select=[b, EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
-   +- LogicalProject(b=[$1], a0=[CAST($0):DOUBLE])
+   +- LogicalProject(select=[b]):DOUBLE])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -119,9 +119,9 @@ GroupAggregate(groupBy=[b], select=[b, AVG(a0) AS EXPR$0])
   <TestCase name="testGroupAggregateWithConstant1">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(four=[$1], EXPR$0=[$2])
+LogicalProject(select=[four, EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
-   +- LogicalProject(a=[$0], four=[4], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -138,9 +138,9 @@ Calc(select=[4 AS four, EXPR$0])
   <TestCase name="testGroupAggregateWithConstant2">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(four=[$1], EXPR$0=[$2])
+LogicalProject(select=[four, EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
-   +- LogicalProject(b=[$1], four=[4], a=[$0])
+   +- LogicalProject(select=[b, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -157,9 +157,9 @@ Calc(select=[4 AS four, EXPR$0])
   <TestCase name="testGroupAggregateWithExpressionInSelect">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[MIN($2)], EXPR$1=[AVG($0)])
-   +- LogicalProject(a=[$0], d=[MOD($1, 3)], c=[$2])
+   +- LogicalProject(select=[a])], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -177,7 +177,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=($0, 2)])
-+- LogicalProject(b=[$0], EXPR$0=[$1])
++- LogicalProject(select=[b, EXPR$0])
    +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -195,7 +195,7 @@ Calc(select=[CAST(2 AS INTEGER) AS b, EXPR$0])
   <TestCase name="testGroupDistinctAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
@@ -212,9 +212,9 @@ Calc(select=[EXPR$0, EXPR$1])
   <TestCase name="testGroupDistinctAggregateWithUDAGG">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*(DISTINCT $0, $2)], EXPR$1=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg*($0, $2)])
-   +- LogicalProject(a=[$0], c=[$2], b0=[CAST($1):BIGINT])
+   +- LogicalProject(select=[a, c]):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
@@ -231,7 +231,7 @@ Calc(select=[EXPR$0, EXPR$1])
   <TestCase name="testMultiDistinctAggregateSameFieldOnHopWindow">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1, EXPR$2])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $0)], EXPR$2=[MAX($0)], window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

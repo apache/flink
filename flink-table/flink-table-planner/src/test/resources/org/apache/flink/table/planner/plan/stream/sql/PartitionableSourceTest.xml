@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -41,9 +41,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id >
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -60,9 +60,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id >
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -79,9 +79,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id >
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[=($3, 4)])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -97,9 +97,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[=($3, 4)])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -115,9 +115,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[=($3, 4)])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -133,9 +133,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$1])
+LogicalProject(select=[name])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableAndFilterableTable]])
 ]]>
     </Resource>
@@ -151,9 +151,9 @@ TableSourceScan(table=[[test_catalog, test_database, PartitionableAndFilterableT
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$1])
+LogicalProject(select=[name])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableAndFilterableTable]])
 ]]>
     </Resource>
@@ -169,9 +169,9 @@ TableSourceScan(table=[[test_catalog, test_database, PartitionableAndFilterableT
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$1])
+LogicalProject(select=[name])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableAndFilterableTable]])
 ]]>
     </Resource>
@@ -187,9 +187,9 @@ TableSourceScan(table=[[default_catalog, default_database, PartitionableAndFilte
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableAndFilterableTable]])
 ]]>
     </Resource>
@@ -206,9 +206,9 @@ Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableAndFilterableTable]])
 ]]>
     </Resource>
@@ -225,9 +225,9 @@ Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableAndFilterableTable]])
 ]]>
     </Resource>
@@ -244,9 +244,9 @@ Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -263,9 +263,9 @@ Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -282,9 +282,9 @@ Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -301,9 +301,9 @@ Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -320,9 +320,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -339,9 +339,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -358,9 +358,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -377,9 +377,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[(id > 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
 ]]>
     </Resource>
@@ -396,9 +396,9 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[(id > 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
+LogicalProject(select=[id, name, part1, part2, virtualField])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+   +- LogicalProject(select=[id, name, part1, part2])])
       +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
 ]]>
     </Resource>

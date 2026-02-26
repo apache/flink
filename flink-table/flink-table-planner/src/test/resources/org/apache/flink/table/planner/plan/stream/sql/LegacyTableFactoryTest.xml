@@ -39,7 +39,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`T`], fields=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a)]]])
 ]]>
     </Resource>

@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[AVG($2)])
-   +- LogicalProject(a=[$0], c=[$2], d=[$3])
+   +- LogicalProject(select=[a, c, d])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -48,9 +48,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[COUNT($2)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -74,9 +74,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[weightedAvg($2, $3)])
-   +- LogicalProject(a=[$0], b=[$1], d=[$3], $f3=[1])
+   +- LogicalProject(select=[a, b, d])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -98,9 +98,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$3])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[AVG($3)])
-   +- LogicalProject(b=[$1], c=[$2], d=[$3], a=[$0])
+   +- LogicalProject(select=[b, c, d, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -121,9 +121,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$3])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[COUNT()])
-   +- LogicalProject(b=[$1], c=[$2], d=[$3])
+   +- LogicalProject(select=[b, c, d])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -145,9 +145,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$3])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[weightedAvg($3, $4)])
-   +- LogicalProject(b=[$1], c=[$2], d=[$3], a=[$0], $f4=[1])
+   +- LogicalProject(select=[b, c, d, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -169,9 +169,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[AVG($2)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -195,9 +195,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[COUNT()])
-   +- LogicalProject(b=[$1], c=[$2])
+   +- LogicalProject(select=[b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
@@ -221,9 +221,9 @@ Calc(select=[EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$2])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[weightedAvg($2, $3)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0], $f3=[1])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>

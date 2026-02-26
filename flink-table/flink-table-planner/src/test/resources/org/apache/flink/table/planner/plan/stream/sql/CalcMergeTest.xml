@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], b1=[random_udf($1)], c=[$2])
+   +- LogicalProject(select=[a])], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -41,7 +41,7 @@ Calc(select=[a, c], where=[(random_udf(b) > 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b2=[$1])
+LogicalProject(select=[a1, b2])
 +- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
    +- LogicalProject(a1=[random_udf($0)], b2=[random_udf($1)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -60,7 +60,7 @@ Calc(select=[random_udf(a) AS a1, random_udf(b) AS b2], where=[(CAST(c AS BIGINT
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalFilter(condition=[>($0, $1)])
    +- LogicalProject(a1=[random_udf($0)], b2=[random_udf($1)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -79,9 +79,9 @@ Calc(select=[c], where=[(random_udf(a) > random_udf(b))])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a1=[$1])
+LogicalProject(select=[a, a1])
 +- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($0)])
+   +- LogicalProject(select=[a])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -118,9 +118,9 @@ Calc(select=[random_udf(random_udf(a)) AS a2], where=[(b > 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a1=[$1])
+LogicalProject(select=[a, a1])
 +- LogicalFilter(condition=[>($1, _UTF-16LE'10')])
-   +- LogicalProject(a=[$0], a1=[SUBSTR(CAST(random_udf($0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+   +- LogicalProject(select=[a])):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -138,9 +138,9 @@ Calc(select=[a, a1], where=[(a1 > '10')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[=($1, $0)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalFilter(condition=[=($0, $1)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -178,9 +178,9 @@ Calc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($0)], c=[$2])
+   +- LogicalProject(select=[a])], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

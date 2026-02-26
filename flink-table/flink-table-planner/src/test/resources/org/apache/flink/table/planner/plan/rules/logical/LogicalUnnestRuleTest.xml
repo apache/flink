@@ -22,10 +22,10 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], s=[$3])
+LogicalProject(select=[a, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
+   +- LogicalProject(select=[s])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -33,10 +33,10 @@ LogicalProject(a=[$0], s=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], s=[$3])
+LogicalProject(select=[a, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
+   +- LogicalProject(select=[s])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
@@ -47,10 +47,10 @@ LogicalProject(a=[$0], s=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], v=[$4])
+LogicalProject(select=[a, b, v])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(k=[$0], v=[$1])
+   +- LogicalProject(select=[k, v])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -58,10 +58,10 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], v=[$4])
+LogicalProject(select=[a, b, v])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(k=[$0], v=[$1])
+   +- LogicalProject(select=[k, v])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1)])
 ]]>
     </Resource>
@@ -77,13 +77,13 @@ WHERE x > a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
+LogicalProject(select=[a, b, x, y])
 +- LogicalFilter(condition=[>($2, $0)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-      :- LogicalProject(a=[$0], b=[$1])
+      :- LogicalProject(select=[a, b])
       :  +- LogicalFilter(condition=[<($0, 3)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(x=[$0], y=[$1])
+      +- LogicalProject(select=[x, y])
          +- Uncollect
             +- LogicalProject(b=[$cor0.b])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -91,13 +91,13 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
+LogicalProject(select=[a, b, x, y])
 +- LogicalFilter(condition=[>($2, $0)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-      :- LogicalProject(a=[$0], b=[$1])
+      :- LogicalProject(select=[a, b])
       :  +- LogicalFilter(condition=[<($0, 3)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(x=[$0], y=[$1])
+      +- LogicalProject(select=[x, y])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
@@ -111,13 +111,13 @@ SELECT a, s FROM T LEFT JOIN UNNEST(T.`set`) AS A(s) ON TRUE WHERE a < 5
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], s=[$2])
+LogicalProject(select=[a, s])
 +- LogicalFilter(condition=[<($0, 5)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1}])
       :- LogicalAggregate(group=[{0}], set=[COLLECT($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0])
+      +- LogicalProject(select=[s])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -125,13 +125,13 @@ LogicalProject(a=[$0], s=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], s=[$2])
+LogicalProject(select=[a, s])
 +- LogicalFilter(condition=[<($0, 5)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1}])
       :- LogicalAggregate(group=[{0}], set=[COLLECT($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0])
+      +- LogicalProject(select=[s])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
@@ -142,10 +142,10 @@ LogicalProject(a=[$0], s=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- Uncollect
          +- LogicalProject(business_data=[$cor0.business_data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -153,10 +153,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
@@ -167,10 +167,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- Uncollect
          +- LogicalProject(business_data=[$cor0.business_data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -178,7 +178,7 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
    +- LogicalProject(bd_name=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
@@ -192,10 +192,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- Uncollect
          +- LogicalProject(data=[$cor0.nested.data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -203,7 +203,7 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
    +- LogicalProject(bd_name=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
@@ -217,10 +217,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- Uncollect
          +- LogicalProject(EXPR$0=[ITEM($cor0.nested_array, 0).data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -228,7 +228,7 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
    +- LogicalProject(bd_name=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
@@ -242,10 +242,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- Uncollect
          +- LogicalProject(business_data=[$cor0.business_data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -253,10 +253,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.business_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
@@ -267,10 +267,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- Uncollect
          +- LogicalProject(data=[$cor0.nested.data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -278,10 +278,10 @@ LogicalProject(bd_name=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(bd_name=[$3])
+LogicalProject(select=[bd_name])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
-   +- LogicalProject(bd_name=[$0])
+   +- LogicalProject(select=[bd_name])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0)])
 ]]>
     </Resource>
@@ -298,14 +298,14 @@ SELECT b, s FROM T, UNNEST(T.`set`) AS A(s) where b < 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], s=[$2])
+LogicalProject(select=[b, s])
 +- LogicalFilter(condition=[<($0, 3)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-      :- LogicalProject(b=[$0], set=[$2])
+      :- LogicalProject(select=[b, set])
       :  +- LogicalAggregate(group=[{0, 1}], set=[COLLECT($0)])
-      :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
+      :     +- LogicalProject(select=[b])])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0])
+      +- LogicalProject(select=[s])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -313,14 +313,14 @@ LogicalProject(b=[$0], s=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(b=[$0], s=[$2])
+LogicalProject(select=[b, s])
 +- LogicalFilter(condition=[<($0, 3)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-      :- LogicalProject(b=[$0], set=[$2])
+      :- LogicalProject(select=[b, set])
       :  +- LogicalAggregate(group=[{0, 1}], set=[COLLECT($0)])
-      :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
+      :     +- LogicalProject(select=[b])])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0])
+      +- LogicalProject(select=[s])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType:peek_no_expand(BIGINT f0)])
 ]]>
     </Resource>
@@ -331,10 +331,10 @@ LogicalProject(b=[$0], s=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], s=[$3])
+LogicalProject(select=[a, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
+   +- LogicalProject(select=[s])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -342,10 +342,10 @@ LogicalProject(a=[$0], s=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], s=[$3])
+LogicalProject(select=[a, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
+   +- LogicalProject(select=[s])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.c)], rowType=[RecordType:peek_no_expand(INTEGER ARRAY f0)])
 ]]>
     </Resource>
@@ -359,13 +359,13 @@ SELECT b, id, point FROM T, UNNEST(T.`set`) AS A(id, point) WHERE b < 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], id=[$2], point=[$3])
+LogicalProject(select=[b, id, point])
 +- LogicalFilter(condition=[<($0, 3)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalAggregate(group=[{0}], set=[COLLECT($1)])
-      :  +- LogicalProject(b=[$1], c=[$2])
+      :  +- LogicalProject(select=[b, c])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(id=[$0], point=[$1])
+      +- LogicalProject(select=[id, point])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -373,13 +373,13 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(b=[$0], id=[$2], point=[$3])
+LogicalProject(select=[b, id, point])
 +- LogicalFilter(condition=[<($0, 3)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalAggregate(group=[{0}], set=[COLLECT($1)])
-      :  +- LogicalProject(b=[$1], c=[$2])
+      :  +- LogicalProject(select=[b, c])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(id=[$0], point=[$1])
+      +- LogicalProject(select=[id, point])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.set)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
@@ -390,11 +390,11 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
+LogicalProject(select=[a, b, s, t])
 +- LogicalFilter(condition=[>($2, 13)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0], t=[$1])
+      +- LogicalProject(select=[s, t])
          +- Uncollect
             +- LogicalProject(b=[$cor0.b])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -402,11 +402,11 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
+LogicalProject(select=[a, b, s, t])
 +- LogicalFilter(condition=[>($2, 13)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0], t=[$1])
+      +- LogicalProject(select=[s, t])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
@@ -417,7 +417,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
+LogicalProject(select=[a, b, _1, _2])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -428,7 +428,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
+LogicalProject(select=[a, b, _1, _2])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -442,10 +442,10 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$3])
+LogicalProject(select=[a, b, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
+   +- LogicalProject(select=[s])
       +- Uncollect
          +- LogicalProject(b=[$cor0.b])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -453,10 +453,10 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$3])
+LogicalProject(select=[a, b, s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
+   +- LogicalProject(select=[s])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER f0)])
 ]]>
     </Resource>
@@ -476,14 +476,14 @@ WHERE b2 <> 'Hello'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b1=[$1], b2=[$2])
+LogicalProject(select=[a, b1, b2])
 +- LogicalFilter(condition=[<>($2, _UTF-16LE'Hello')])
-   +- LogicalProject(a=[$0], b1=[$2], b2=[$3])
+   +- LogicalProject(select=[a, b1, b2])
       +- LogicalFilter(condition=[>=($2, 12)])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-            :- LogicalProject(a=[$0], b=[$1])
+            :- LogicalProject(select=[a, b])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-            +- LogicalProject(b1=[$0], b2=[$1])
+            +- LogicalProject(select=[b1, b2])
                +- Uncollect
                   +- LogicalProject(b=[$cor0.b])
                      +- LogicalValues(tuples=[[{ 0 }]])
@@ -491,14 +491,14 @@ LogicalProject(a=[$0], b1=[$1], b2=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b1=[$1], b2=[$2])
+LogicalProject(select=[a, b1, b2])
 +- LogicalFilter(condition=[<>($2, _UTF-16LE'Hello')])
-   +- LogicalProject(a=[$0], b1=[$2], b2=[$3])
+   +- LogicalProject(select=[a, b1, b2])
       +- LogicalFilter(condition=[>=($2, 12)])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-            :- LogicalProject(a=[$0], b=[$1])
+            :- LogicalProject(select=[a, b])
             :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-            +- LogicalProject(b1=[$0], b2=[$1])
+            +- LogicalProject(select=[b1, b2])
                +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)])
 ]]>
     </Resource>
@@ -509,8 +509,8 @@ LogicalProject(a=[$0], b1=[$1], b2=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(val=[$0], pos=[$1])
-+- LogicalProject(val=[$0], pos=[$1])
+LogicalProject(select=[val, pos])
++- LogicalProject(select=[val, pos])
    +- Uncollect(withOrdinality=[true])
       +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
          +- LogicalValues(tuples=[[{ 0 }]])
@@ -518,8 +518,8 @@ LogicalProject(val=[$0], pos=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(val=[$0], pos=[$1])
-+- LogicalProject(val=[$0], pos=[$1])
+LogicalProject(select=[val, pos])
++- LogicalProject(select=[val, pos])
    +- Uncollect(withOrdinality=[true])
       +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
          +- LogicalValues(tuples=[[{ 0 }]])
@@ -532,10 +532,10 @@ LogicalProject(val=[$0], pos=[$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+LogicalProject(select=[a, number, ordinality])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(number=[$0], ordinality=[$1])
+   +- LogicalProject(select=[number, ordinality])
       +- Uncollect(withOrdinality=[true])
          +- LogicalProject(b=[$cor0.b])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -543,10 +543,10 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+LogicalProject(select=[a, number, ordinality])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(number=[$0], ordinality=[$1])
+   +- LogicalProject(select=[number, ordinality])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -562,15 +562,15 @@ CROSS JOIN UNNEST(array_val) WITH ORDINALITY AS B(elem, element_pos)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], array_val=[$2], array_pos=[$3], elem=[$4], element_pos=[$5])
+LogicalProject(select=[id, array_val, array_pos, elem, element_pos])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
    :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   :  +- LogicalProject(array_val=[$0], array_pos=[$1])
+   :  +- LogicalProject(select=[array_val, array_pos])
    :     +- Uncollect(withOrdinality=[true])
    :        +- LogicalProject(nested_array=[$cor0.nested_array])
    :           +- LogicalValues(tuples=[[{ 0 }]])
-   +- LogicalProject(elem=[$0], element_pos=[$1])
+   +- LogicalProject(select=[elem, element_pos])
       +- Uncollect(withOrdinality=[true])
          +- LogicalProject(array_val=[$cor1.array_val])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -578,13 +578,13 @@ LogicalProject(id=[$0], array_val=[$2], array_pos=[$3], elem=[$4], element_pos=[
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(id=[$0], array_val=[$2], array_pos=[$3], elem=[$4], element_pos=[$5])
+LogicalProject(select=[id, array_val, array_pos, elem, element_pos])
 +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{2}])
    :- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   :  +- LogicalProject(array_val=[$0], array_pos=[$1])
+   :  +- LogicalProject(select=[array_val, array_pos])
    :     +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.nested_array)], rowType=[RecordType:peek_no_expand(INTEGER ARRAY EXPR$0, INTEGER ORDINALITY)])
-   +- LogicalProject(elem=[$0], element_pos=[$1])
+   +- LogicalProject(select=[elem, element_pos])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor1.array_val)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -595,11 +595,11 @@ LogicalProject(id=[$0], array_val=[$2], array_pos=[$3], elem=[$4], element_pos=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
+LogicalProject(select=[a, b, s, t, o])
 +- LogicalFilter(condition=[>($2, 13)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0], t=[$1], o=[$2])
+      +- LogicalProject(select=[s, t, o])
          +- Uncollect(withOrdinality=[true])
             +- LogicalProject(b=[$cor0.b])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -607,11 +607,11 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
+LogicalProject(select=[a, b, s, t, o])
 +- LogicalFilter(condition=[>($2, 13)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0], t=[$1], o=[$2])
+      +- LogicalProject(select=[s, t, o])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -622,7 +622,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3], o=[$4])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
+LogicalProject(select=[a, b, _1, _2, ORDINALITY])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -633,7 +633,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3], ORDINALITY=[$4])
+LogicalProject(select=[a, b, _1, _2, ORDINALITY])
 +- LogicalFilter(condition=[>($2, 1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -654,12 +654,12 @@ WHERE ordinality = 1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], number=[$1], ordinality=[$2])
+LogicalProject(select=[a, number, ordinality])
 +- LogicalFilter(condition=[=($2, 1)])
-   +- LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+   +- LogicalProject(select=[a, number, ordinality])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
          :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-         +- LogicalProject(number=[$0], ordinality=[$1])
+         +- LogicalProject(select=[number, ordinality])
             +- Uncollect(withOrdinality=[true])
                +- LogicalProject(b=[$cor0.b])
                   +- LogicalValues(tuples=[[{ 0 }]])
@@ -667,12 +667,12 @@ LogicalProject(a=[$0], number=[$1], ordinality=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], number=[$1], ordinality=[$2])
+LogicalProject(select=[a, number, ordinality])
 +- LogicalFilter(condition=[=($2, 1)])
-   +- LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+   +- LogicalProject(select=[a, number, ordinality])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
          :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-         +- LogicalProject(number=[$0], ordinality=[$1])
+         +- LogicalProject(select=[number, ordinality])
             +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -683,10 +683,10 @@ LogicalProject(a=[$0], number=[$1], ordinality=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], k=[$2], v=[$3], pos=[$4])
+LogicalProject(select=[id, k, v, pos])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(k=[$0], v=[$1], pos=[$2])
+   +- LogicalProject(select=[k, v, pos])
       +- Uncollect(withOrdinality=[true])
          +- LogicalProject(map_data=[$cor0.map_data])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -694,10 +694,10 @@ LogicalProject(id=[$0], k=[$2], v=[$3], pos=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(id=[$0], k=[$2], v=[$3], pos=[$4])
+LogicalProject(select=[id, k, v, pos])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(k=[$0], v=[$1], pos=[$2])
+   +- LogicalProject(select=[k, v, pos])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.map_data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, VARCHAR(2147483647) f1, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -712,12 +712,12 @@ FROM T CROSS JOIN UNNEST(words) WITH ORDINALITY AS A(word, pos)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], word=[$2], pos=[$3])
+LogicalProject(select=[a, word, pos])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalAggregate(group=[{0}], words=[COLLECT($1)])
-   :  +- LogicalProject(a=[$0], c=[$2])
+   :  +- LogicalProject(select=[a, c])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(word=[$0], pos=[$1])
+   +- LogicalProject(select=[word, pos])
       +- Uncollect(withOrdinality=[true])
          +- LogicalProject(words=[$cor0.words])
             +- LogicalValues(tuples=[[{ 0 }]])
@@ -725,12 +725,12 @@ LogicalProject(a=[$0], word=[$2], pos=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], word=[$2], pos=[$3])
+LogicalProject(select=[a, word, pos])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
    :- LogicalAggregate(group=[{0}], words=[COLLECT($1)])
-   :  +- LogicalProject(a=[$0], c=[$2])
+   :  +- LogicalProject(select=[a, c])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(word=[$0], pos=[$1])
+   +- LogicalProject(select=[word, pos])
       +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.words)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) EXPR$0, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -746,11 +746,11 @@ WHERE number > 10 AND ordinality < 3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+LogicalProject(select=[a, number, ordinality])
 +- LogicalFilter(condition=[AND(>($2, 10), <($3, 3))])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(number=[$0], ordinality=[$1])
+      +- LogicalProject(select=[number, ordinality])
          +- Uncollect(withOrdinality=[true])
             +- LogicalProject(b=[$cor0.b])
                +- LogicalValues(tuples=[[{ 0 }]])
@@ -758,11 +758,11 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+LogicalProject(select=[a, number, ordinality])
 +- LogicalFilter(condition=[AND(>($2, 10), <($3, 3))])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(number=[$0], ordinality=[$1])
+      +- LogicalProject(select=[number, ordinality])
          +- LogicalTableFunctionScan(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], rowType=[RecordType:peek_no_expand(INTEGER EXPR$0, INTEGER ORDINALITY)])
 ]]>
     </Resource>
@@ -773,7 +773,7 @@ LogicalProject(a=[$0], number=[$2], ordinality=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0])
+LogicalProject(select=[EXPR$0])
 +- Uncollect
    +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
       +- LogicalValues(tuples=[[{ 0 }]])
@@ -781,7 +781,7 @@ LogicalProject(EXPR$0=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(EXPR$0=[$0])
+LogicalProject(select=[EXPR$0])
 +- Uncollect
    +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
       +- LogicalValues(tuples=[[{ 0 }]])

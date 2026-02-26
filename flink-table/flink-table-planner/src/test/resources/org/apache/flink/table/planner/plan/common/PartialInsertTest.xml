@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT], g=[CAST(456):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST(456):INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -45,7 +45,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT], g=[CAST(456):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST(456):INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -69,7 +69,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[6],[5],[2],[3]], fields=[a, b, c, d, e, f, g])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT], g=[CAST(456):INTEGER])
++- LogicalProject(select=[a, b, c, d, e]):BIGINT], g=[CAST(456):INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -91,7 +91,7 @@ Sink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[6],[5],[2],[3]], fields=[a, b, c, d, e, f, g])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT], g=[CAST(456):INTEGER])
++- LogicalProject(select=[a, b, c, d, e]):BIGINT], g=[CAST(456):INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -114,12 +114,12 @@ Sink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalMinus(all=[true])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -151,12 +151,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalMinus(all=[true])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -189,7 +189,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
-+- LogicalProject(a=[$0], EXPR$1=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], d=[$3], e=[$4], EXPR$4=[null:BIGINT], EXPR$5=[null:INTEGER])
++- LogicalProject(select=[a]) CHARACTER SET "UTF-16LE"], d=[$3], e=[$4], EXPR$4=[null:BIGINT], EXPR$5=[null:INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
@@ -213,7 +213,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
-+- LogicalProject(a=[$0], EXPR$1=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], d=[$3], e=[$4], EXPR$4=[null:BIGINT], EXPR$5=[null:INTEGER])
++- LogicalProject(select=[a]) CHARACTER SET "UTF-16LE"], d=[$3], e=[$4], EXPR$4=[null:BIGINT], EXPR$5=[null:INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
@@ -244,12 +244,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalIntersect(all=[true])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -281,12 +281,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalIntersect(all=[true])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -322,9 +322,9 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -345,9 +345,9 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -368,7 +368,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],[1],[2],[3],[4],[5]], fields=[a, b, c, d, e, f])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT])
++- LogicalProject(select=[a, b, c, d, e]):BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -387,7 +387,7 @@ Sink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],[1],[2],[3],[4],[5]], fields=[a, b, c, d, e, f])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT])
++- LogicalProject(select=[a, b, c, d, e]):BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -406,16 +406,16 @@ Sink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalUnion(all=[true])
       :- LogicalUnion(all=[true])
-      :  :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  :- LogicalProject(select=[a, c, d, e])
       :  :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      :  +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      :  +- LogicalProject(select=[a, c, d, e])
       :     +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[123])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -447,16 +447,16 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalUnion(all=[true])
       :- LogicalUnion(all=[true])
-      :  :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :  :- LogicalProject(select=[a, c, d, e])
       :  :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      :  +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      :  +- LogicalProject(select=[a, c, d, e])
       :     +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[123])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -492,12 +492,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalUnion(all=[true])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -524,12 +524,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalUnion(all=[true])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -559,12 +559,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalUnion(all=[false])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -594,12 +594,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
-+- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
++- LogicalProject(select=[a, c, d, e]):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalUnion(all=[false])
-      :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
+      :- LogicalProject(select=[a, c, d, e])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
+      +- LogicalProject(select=[a, c, d, e])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

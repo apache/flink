@@ -22,12 +22,12 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V3]]]])
-   :- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V3]]]])
+   :- LogicalProject(select=[a1, b1])
    :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V2]]]], hints=[[[ALIAS inheritPath:[0] options:[V3]]]])
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   :     +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   :     +- LogicalProject(select=[a1, b1])
    :        +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]][ALIAS inheritPath:[0, 1, 0] options:[V3]]]])
    :           :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    :           +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -60,10 +60,10 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a3=[$0], b3=[$1])
+LogicalProject(select=[a3, b3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   +- LogicalProject(select=[a1, b1])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -89,9 +89,9 @@ Calc(select=[a3, b3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -112,9 +112,9 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(IS NULL(a1), IS NULL(a2), =(a1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -135,7 +135,7 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[OR(IS NULL(a1), IS NULL(a2), =(a1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b1=[$1], EXPR$1=[CAST($0):INTEGER])
+LogicalProject(select=[b1]):INTEGER])
 +- LogicalJoin(condition=[=($1, $3)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -157,7 +157,7 @@ Calc(select=[b1, CAST(a1 AS INTEGER) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -179,7 +179,7 @@ HashJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], build
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[AND(=($0, $2), <($0, 1))], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -202,7 +202,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[AND(=($1, $3), <($0, 1), <($0, $2))], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -224,7 +224,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[AND(=(b1, b2), <(a1, a2))], select=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -246,7 +246,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalFilter(condition=[AND(=($0, $2), >($0, 1))])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -270,7 +270,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[full], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -292,7 +292,7 @@ NestedLoopJoin(joinType=[FullOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[full], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -314,11 +314,11 @@ NestedLoopJoin(joinType=[FullOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
   LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-    LogicalProject(a1=[$2], a2=[$0])
+    LogicalProject(select=[a1, a2])
       LogicalJoin(condition=[=($0, $2)], joinType=[inner])
         LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -350,9 +350,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, EXPR$0)], select=[a1, b1], build=
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalFilter(condition=[=($cor0.a1, $0)])
     LogicalJoin(condition=[=($0, $2)], joinType=[inner])
       LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -381,7 +381,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[+($0, $cor0.a1)])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -424,11 +424,11 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
-    LogicalProject(a2=[$0], a1=[$2])
+    LogicalProject(select=[a2, a1])
       LogicalJoin(condition=[=($0, $2)], joinType=[inner])
         LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -458,12 +458,12 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], isBroadcas
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[+($0, $cor0.a1)])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
     LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-    LogicalProject(a3=[$2], b3=[$3])
+    LogicalProject(select=[a3, b3])
       LogicalJoin(condition=[=($0, $2)], joinType=[inner])
         LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
         LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
@@ -509,9 +509,9 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
     LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
@@ -539,7 +539,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -560,7 +560,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -581,7 +581,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1, T2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -602,7 +602,7 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T2, T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -623,7 +623,7 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
+LogicalProject(select=[a1, b1, a2, b2, a3, b3])
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $5))])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1, T2]]]])
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0, 0] options:[T1, T2]]]])
@@ -651,7 +651,7 @@ HashJoin(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, a2, b2, a3, b3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
+LogicalProject(select=[a1, b1, a2, b2, a3, b3])
 +- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1, T2]]]])
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0, 0] options:[T1, T2]]]])
@@ -679,7 +679,7 @@ HashJoin(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
+LogicalProject(select=[a1, b1, a2, b2, a3, b3])
 +- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1, T3]]]])
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0, 0] options:[T1, T3]]]])
@@ -706,7 +706,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
+LogicalProject(select=[a1, b1, a2, b2, a3, b3])
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $5))])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T2, T3]]]])
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0, 0] options:[T2, T3]]]])
@@ -733,7 +733,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(b1, b3)], select=[a1, b1, a2, b2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
+LogicalProject(select=[a1, b1, a2, b2, a3, b3])
 +- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T2, T3]]]])
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0, 0] options:[T2, T3]]]])
@@ -760,7 +760,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -781,7 +781,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[>(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -802,7 +802,7 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -823,9 +823,9 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, a2,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -847,9 +847,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -872,7 +872,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(a1, a2)], select=[a1, b1], build=[rig
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-+- LogicalProject(b1=[$1], a1=[$0])
++- LogicalProject(select=[b1, a1])
    +- LogicalJoin(condition=[=($1, $3)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -897,12 +897,12 @@ HashAggregate(isMerge=[true], groupBy=[b1], select=[b1, Final_SUM(sum$0) AS EXPR
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V22]]]])
-   :- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V22]]]])
+   :- LogicalProject(select=[a1, b1])
    :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V2]]]], hints=[[[ALIAS inheritPath:[0] options:[V22]]]])
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   :     +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   :     +- LogicalProject(select=[a1, b1])
    :        +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]][ALIAS inheritPath:[0, 1, 0] options:[V22]]]])
    :           :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    :           +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -935,12 +935,12 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V2]]]])
-   :- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   :- LogicalProject(select=[a1, b1])
    :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V22]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   :     +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V22]]]])
+   :     +- LogicalProject(select=[a1, b1])
    :        +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V22]][ALIAS inheritPath:[0, 1, 0] options:[V2]]]])
    :           :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    :           +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -973,10 +973,10 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   +- LogicalProject(select=[a1, b1])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1004,10 +1004,10 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a4=[$2], b4=[$3])
+LogicalProject(select=[a1, b1, a4, b4])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[V4]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalProject(a4=[$0], b4=[$1], hints=[[[ALIAS options:[V4]]]])
+   +- LogicalProject(select=[a4, b4])
       +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
 ]]>
     </Resource>
@@ -1026,10 +1026,10 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, a3, b3],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+   +- LogicalProject(select=[a1, b1])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1057,13 +1057,12 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], cnt=[$SCALAR_QUERY({
-LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+LogicalProject(select=[a1])])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
     LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[T4]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -1098,14 +1097,14 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a1, EXPR$0], buil
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]])
+LogicalProject(select=[a1])
++- LogicalProject(select=[a1, b1])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[T4]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
       +- LogicalUnion(all=[false], hints=[[[ALIAS options:[T2]]]])
-         :- LogicalProject(a2=[$0])
+         :- LogicalProject(select=[a2])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a2=[$0])
+         +- LogicalProject(select=[a2])
             +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 ]]>
     </Resource>
@@ -1130,18 +1129,17 @@ Calc(select=[a1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], cnt=[$SCALAR_QUERY({
-LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+LogicalProject(select=[a1])])
   LogicalFilter(condition=[=($2, 1)])
     LogicalJoin(condition=[=($0, $2)], joinType=[inner])
       LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
       LogicalUnion(all=[false])
-        LogicalProject(a3=[$0])
+        LogicalProject(select=[a3])
           LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-        LogicalProject(a3=[$0])
+        LogicalProject(select=[a3])
           LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]])
++- LogicalProject(select=[a1, b1])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[T4]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1185,8 +1183,8 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a1, $f2], build=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[EXPR$0]]]])
+LogicalProject(select=[a1, b1])
++- LogicalProject(select=[a1, b1])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[EXPR$0]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1209,8 +1207,8 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[EXPR$0]]]])
+LogicalProject(select=[a1, b1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[EXPR$0]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -1235,10 +1233,10 @@ Calc(select=[a1, CAST('abc' AS VARCHAR(2147483647)) AS b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
+LogicalProject(select=[a1, b1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V5]]]])
+   +- LogicalProject(select=[a1, b1])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V5]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -1266,8 +1264,8 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V5]]]])
+LogicalProject(select=[a1, b1])
++- LogicalProject(select=[a1, b1])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V5]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -1290,8 +1288,8 @@ Calc(select=[a1, b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1])
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+LogicalProject(select=[a1, b1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -1316,7 +1314,7 @@ Calc(select=[a1, CAST('abc' AS VARCHAR(2147483647)) AS b1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1337,7 +1335,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1356,21 +1354,21 @@ NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, b1, a2, b2], buil
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.S1], fields=[a1, b1])
-+- LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[>($2, 2)])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+         +- LogicalProject(select=[a1, b1])
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 
 LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1])
-+- LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[>($2, 5)])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+         +- LogicalProject(select=[a1, b1])
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1410,21 +1408,21 @@ Sink(table=[default_catalog.default_database.S2], fields=[a1, b1])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.S1], fields=[a1, b1])
-+- LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[>($2, 2)])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+         +- LogicalProject(select=[a1, b1])
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 
 LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1])
-+- LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[>($2, 5)])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+         +- LogicalProject(select=[a1, b1])
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1466,21 +1464,21 @@ Sink(table=[default_catalog.default_database.S2], fields=[a1, b1])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.S1], fields=[a1, b1])
-+- LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[>($2, 2)])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[V2]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]])
+         +- LogicalProject(select=[a1, b1])
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]])
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 
 LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1])
-+- LogicalProject(a1=[$0], b1=[$1])
++- LogicalProject(select=[a1, b1])
    +- LogicalFilter(condition=[>($2, 5)])
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0] options:[T1]]]])
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V3]]]])
+         +- LogicalProject(select=[a1, b1])
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[T1]]]], hints=[[[ALIAS inheritPath:[0] options:[V3]]]])
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1546,7 +1544,7 @@ Calc(select=[+(a1, 1) AS EXPR$0, *(a1, 10) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1, T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1567,7 +1565,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalFilter(condition=[>($0, 5)])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[T1]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -1591,7 +1589,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1, T2]][NEST_LOOP inheritPath:[0] options:[T2, T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1612,7 +1610,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]][NEST_LOOP inheritPath:[0] options:[T2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1634,11 +1632,11 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[false])
-:- LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+:- LogicalProject(select=[a1, b1, a2, b2])
 :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
 :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
 :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-+- LogicalProject(a3=[$0], b3=[$1], a1=[$2], b1=[$3])
++- LogicalProject(select=[a3, b3, a1, b1])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T3]]]])
       :- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
@@ -1667,7 +1665,7 @@ HashAggregate(isMerge=[true], groupBy=[a1, b1, a2, b2], select=[a1, b1, a2, b2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]][BROADCAST inheritPath:[0] options:[T1]][SHUFFLE_HASH inheritPath:[0] options:[T1]][SHUFFLE_MERGE inheritPath:[0] options:[T1]][MULTI_JOIN inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1688,7 +1686,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1709,7 +1707,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[>(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -1730,7 +1728,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
+LogicalProject(select=[a1, b1, a2, b2])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T2]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])

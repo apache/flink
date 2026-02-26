@@ -38,7 +38,7 @@ Calc(select=[f0 AS d, f1 AS e])
       <![CDATA[
 LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
 +- LogicalTableAggregate(group=[{1}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
-   +- LogicalProject(a=[$0], b=[$1], $f3=[+($2, 1)])
+   +- LogicalProject(select=[a, b])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testBoundedStreamScan[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(f0=[$0])
+LogicalProject(select=[f0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -54,7 +54,7 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[
   <TestCase name="testBoundedStreamScan[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(f0=[$0])
+LogicalProject(select=[f0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -89,7 +89,7 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[
   <TestCase name="testCorrelate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(s=[$4])
+LogicalProject(select=[s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -141,7 +141,7 @@ Calc(select=[EXPR$0 AS s])
   <TestCase name="testCorrelate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(s=[$4])
+LogicalProject(select=[s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -193,10 +193,10 @@ Calc(select=[EXPR$0 AS s])
   <TestCase name="testGroupWindowAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[b])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[b])])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -261,10 +261,10 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
   <TestCase name="testGroupWindowAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[b])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[b])])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -330,7 +330,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -411,7 +411,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -491,7 +491,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
   <TestCase name="testHashJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -547,7 +547,7 @@ HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0,
   <TestCase name="testHashJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -604,7 +604,7 @@ HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0,
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalProject(select=[a, b, c, d])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -657,7 +657,7 @@ Limit(offset=[0], fetch=[10], global=[true])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalProject(select=[a, b, c, d])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -709,9 +709,9 @@ Limit(offset=[0], fetch=[10], global=[true])
   <TestCase name="testLookupJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[$6], name=[$7], age=[$8])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 5}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :- LogicalProject(select=[a, b, c, d, rowtime])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.b, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -777,9 +777,9 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
   <TestCase name="testLookupJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[$6], name=[$7], age=[$8])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 5}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :- LogicalProject(select=[a, b, c, d, rowtime])])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.b, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -845,9 +845,9 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
   <TestCase name="testMatch[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(aid=[$0], bid=[$1], cid=[$2])
+LogicalProject(select=[aid, bid, cid])
 +- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c, d, rowtime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -899,9 +899,9 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
   <TestCase name="testMatch[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(aid=[$0], bid=[$1], cid=[$2])
+LogicalProject(select=[aid, bid, cid])
 +- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c, d, rowtime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -953,7 +953,7 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
   <TestCase name="testMultiInput[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7], a1=[$8], b1=[$9], c1=[$10], d1=[$11])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1])
 +- LogicalFilter(condition=[AND(=($0, $4), =($0, $8))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1026,7 +1026,7 @@ MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where
   <TestCase name="testMultiInput[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7], a1=[$8], b1=[$9], c1=[$10], d1=[$11])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1])
 +- LogicalFilter(condition=[AND(=($0, $4), =($0, $8))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalJoin(condition=[true], joinType=[inner])
@@ -1099,7 +1099,7 @@ MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where
   <TestCase name="testNestedLoopJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -1153,7 +1153,7 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
   <TestCase name="testNestedLoopJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -1207,8 +1207,8 @@ NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b
   <TestCase name="testOverAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
++- LogicalProject(select=[a, b, c, d, rowtime])])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1274,8 +1274,8 @@ Calc(select=[b, w0$o0 AS $1])
   <TestCase name="testOverAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
++- LogicalProject(select=[a, b, c, d, rowtime])])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1341,9 +1341,9 @@ Calc(select=[b, w0$o0 AS $1])
   <TestCase name="testRank[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], row_num=[$1])
+LogicalProject(select=[a, row_num])
 +- LogicalFilter(condition=[<=($1, $0)])
-   +- LogicalProject(a=[$0], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1409,9 +1409,9 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
   <TestCase name="testRank[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], row_num=[$1])
+LogicalProject(select=[a, row_num])
 +- LogicalFilter(condition=[<=($1, $0)])
-   +- LogicalProject(a=[$0], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1478,7 +1478,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1615,7 +1615,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1752,7 +1752,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalProject(select=[a, b, c, d])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1805,7 +1805,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalProject(select=[a, b, c, d])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1857,7 +1857,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
   <TestCase name="testSortMergeJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -1913,7 +1913,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
   <TestCase name="testSortMergeJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -1969,10 +1969,10 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0
   <TestCase name="testSortWindowAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[b])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[FIRST_VALUE($2)])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)], a=[$0])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[b])], a=[$0])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2038,10 +2038,10 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
   <TestCase name="testSortWindowAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[b])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[FIRST_VALUE($2)])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)], a=[$0])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[b])], a=[$0])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==

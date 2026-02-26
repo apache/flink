@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -95,7 +95,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMa
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -169,7 +169,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMa
   <TestCase name="testCorrelate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(s=[$4])
+LogicalProject(select=[s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -221,7 +221,7 @@ Calc(select=[EXPR$0 AS s])
   <TestCase name="testCorrelate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(s=[$4])
+LogicalProject(select=[s])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -273,11 +273,11 @@ Calc(select=[EXPR$0 AS s])
   <TestCase name="testDeduplicate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($6, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], rk=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime]) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -368,11 +368,11 @@ Calc(select=[a, b, c])
   <TestCase name="testDeduplicate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=($6, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], rk=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime]) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -464,7 +464,7 @@ Calc(select=[a, b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -526,7 +526,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
++- LogicalProject(select=[c, a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -588,7 +588,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[MAX($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -628,7 +628,7 @@ GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[MAX($1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -667,11 +667,11 @@ GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
   <TestCase name="testGroupWindowAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[b])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
+   +- LogicalProject(select=[b])])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -736,11 +736,11 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
   <TestCase name="testGroupWindowAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[b])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
+   +- LogicalProject(select=[b])])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -806,7 +806,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -900,7 +900,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -993,13 +993,13 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
   <TestCase name="testIntervalJoinNegativeWindow[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$7])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $6), >=($5, +($11, 7200000:INTERVAL HOUR)), <=($5, +($11, 3600000:INTERVAL HOUR)))], joinType=[left])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[a, b, c, d, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 
 == Optimized Physical Plan ==
@@ -1154,13 +1154,13 @@ Calc(select=[a, b])
   <TestCase name="testIntervalJoinNegativeWindow[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$7])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $6), >=($5, +($11, 7200000:INTERVAL HOUR)), <=($5, +($11, 3600000:INTERVAL HOUR)))], joinType=[left])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[a, b, c, d, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 
 == Optimized Physical Plan ==
@@ -1315,13 +1315,13 @@ Calc(select=[a, b])
   <TestCase name="testIntervalJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$7])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $6), >=($5, -($11, 3600000:INTERVAL HOUR)), <=($5, +($11, 3600000:INTERVAL HOUR)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[a, b, c, d, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 
 == Optimized Physical Plan ==
@@ -1465,13 +1465,13 @@ Calc(select=[a, b])
   <TestCase name="testIntervalJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$7])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $6), >=($5, -($11, 3600000:INTERVAL HOUR)), <=($5, +($11, 3600000:INTERVAL HOUR)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[a, b, c, d, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 
 == Optimized Physical Plan ==
@@ -1615,7 +1615,7 @@ Calc(select=[a, b])
   <TestCase name="testJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -1671,7 +1671,7 @@ Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0]
   <TestCase name="testJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
+LogicalProject(select=[a, b, c, d, a0, b0, c0, d0])
 +- LogicalFilter(condition=[=($0, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, A]])
@@ -1728,11 +1728,11 @@ Join(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0]
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)])
-+- LogicalProject(b=[$1], window_start=[$6], window_end=[$7], a=[$0])
++- LogicalProject(select=[b, window_start, window_end, a])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 5000:INTERVAL SECOND)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalProject(select=[a, b, c, d, rowtime])])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1824,11 +1824,11 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)])
-+- LogicalProject(b=[$1], window_start=[$6], window_end=[$7], a=[$0])
++- LogicalProject(select=[b, window_start, window_end, a])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 5000:INTERVAL SECOND)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalProject(select=[a, b, c, d, rowtime])])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -1919,10 +1919,10 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
   <TestCase name="testLookupJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[$6], name=[$7], age=[$8])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 5}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[a, b, c, d, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.b, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -2001,10 +2001,10 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
   <TestCase name="testLookupJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[$6], name=[$7], age=[$8])
+LogicalProject(select=[a, b, c, d, rowtime, proctime, id, name, age])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 5}])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalProject(select=[a, b, c, d, rowtime])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.b, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
@@ -2083,10 +2083,10 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id
   <TestCase name="testMatch[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(aid=[$0], bid=[$1], cid=[$2])
+LogicalProject(select=[aid, bid, cid])
 +- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2151,10 +2151,10 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
   <TestCase name="testMatch[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(aid=[$0], bid=[$1], cid=[$2])
+LogicalProject(select=[aid, bid, cid])
 +- LogicalMatch(partition=[[]], order=[[5 ASC-nulls-first]], outputFields=[[aid, bid, cid]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[((_UTF-16LE'A"', _UTF-16LE'l'), _UTF-16LE'C')], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[=(LAST(*.$0, 0), 1), =(LAST(*.$1, 0), 2), =(LAST(*.$2, 0), _UTF-16LE'c')]], inputFields=[[a, b, c, d, rowtime, proctime]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+      +- LogicalProject(select=[a, b, c, d, rowtime])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2219,9 +2219,9 @@ Match(orderBy=[proctime ASC], measures=[FINAL(A".a) AS aid, FINAL(l.a) AS bid, F
   <TestCase name="testOverAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c, d, rowtime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2286,9 +2286,9 @@ Calc(select=[b, w0$o0 AS $1])
   <TestCase name="testOverAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   +- LogicalProject(select=[a, b, c, d, rowtime])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2353,9 +2353,9 @@ Calc(select=[b, w0$o0 AS $1])
   <TestCase name="testRank[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], row_num=[$1])
+LogicalProject(select=[a, row_num])
 +- LogicalFilter(condition=[<=($1, $0)])
-   +- LogicalProject(a=[$0], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2420,9 +2420,9 @@ Calc(select=[a, w0$o0])
   <TestCase name="testRank[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], row_num=[$1])
+LogicalProject(select=[a, row_num])
 +- LogicalFilter(condition=[<=($1, $0)])
-   +- LogicalProject(a=[$0], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2487,8 +2487,8 @@ Calc(select=[a, w0$o0])
   <TestCase name="testTableGroupAggregate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(f0=[$0], f1=[$1])
-+- LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
++- LogicalProject(select=[f0, f1])
    +- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
@@ -2539,8 +2539,8 @@ GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.Top3*(f0) AS (
   <TestCase name="testTableGroupAggregate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(f0=[$0], f1=[$1])
-+- LogicalProject(f0=[$0], f1=[$1])
+LogicalProject(select=[f0, f1])
++- LogicalProject(select=[f0, f1])
    +- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.Top3*($0)]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MySource]])
 
@@ -2595,7 +2595,7 @@ LogicalProject(EXPR$0=[*($0, $5)])
 +- LogicalFilter(condition=[=($1, $4)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :  +- LogicalProject(select=[amount, currency, rowtime])])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
       +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) *ROWTIME* rowtime)])
 
@@ -2692,7 +2692,7 @@ LogicalProject(EXPR$0=[*($0, $5)])
 +- LogicalFilter(condition=[=($1, $4)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
-      :  +- LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[PROCTIME()])
+      :  +- LogicalProject(select=[amount, currency, rowtime])])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
       +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) *ROWTIME* rowtime)])
 
@@ -2785,11 +2785,11 @@ Calc(select=[(amount * rate) AS EXPR$0])
   <TestCase name="testTemporalSortOnEventTime[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2854,11 +2854,11 @@ Calc(select=[a])
   <TestCase name="testTemporalSortOnEventTime[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -2923,11 +2923,11 @@ Calc(select=[a])
   <TestCase name="testTemporalSortOnProcTime[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], proctime=[$5], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3005,11 +3005,11 @@ Calc(select=[a])
   <TestCase name="testTemporalSortOnProcTime[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], proctime=[$5], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+         +- LogicalProject(select=[a, b, c, d, rowtime])])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3088,11 +3088,11 @@ Calc(select=[a])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)])
-+- LogicalProject(b=[$1], window_start=[$6], window_end=[$7], a=[$0])
++- LogicalProject(select=[b, window_start, window_end, a])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 5000:INTERVAL SECOND)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalProject(select=[a, b, c, d, rowtime])])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3171,11 +3171,11 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)])
-+- LogicalProject(b=[$1], window_start=[$6], window_end=[$7], a=[$0])
++- LogicalProject(select=[b, window_start, window_end, a])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 5000:INTERVAL SECOND)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalProject(select=[a, b, c, d, rowtime])])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3253,13 +3253,13 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
   <TestCase name="testWindowDeduplicate[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(window_start=[$6], window_end=[$7], a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[window_start, window_end, a, b, c])
 +- LogicalFilter(condition=[<=($9, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], window_start=[$6], window_end=[$7], window_time=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $6, $7 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $6, $7 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+         +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3363,13 +3363,13 @@ Calc(select=[window_start, window_end, a, b, c])
   <TestCase name="testWindowDeduplicate[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(window_start=[$6], window_end=[$7], a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[window_start, window_end, a, b, c])
 +- LogicalFilter(condition=[<=($9, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], window_start=[$6], window_end=[$7], window_time=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $6, $7 ORDER BY $4 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $6, $7 ORDER BY $4 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+         +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3473,23 +3473,23 @@ Calc(select=[window_start, window_end, a, b, c])
   <TestCase name="testWindowJoin[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], cnt0=[$8], uv0=[$9])
+LogicalProject(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
 +- LogicalJoin(condition=[AND(=($1, $6), =($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
+   :- LogicalProject(select=[a, window_start, window_end, cnt, uv])
    :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$6], window_end=[$7], window_time=[$8], c=[$2])
+   :     +- LogicalProject(select=[a, window_start, window_end, window_time, c])
    :        +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   :           +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
    :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :                 +- LogicalProject(select=[a, b, c, d, rowtime])])
    :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
+   +- LogicalProject(select=[a, window_start, window_end, cnt, uv])
       +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$6], window_end=[$7], window_time=[$8], c=[$2])
+         +- LogicalProject(select=[a, window_start, window_end, window_time, c])
             +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+               +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+                     +- LogicalProject(select=[a, b, c, d, rowtime])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
@@ -3663,23 +3663,23 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
   <TestCase name="testWindowJoin[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], cnt0=[$8], uv0=[$9])
+LogicalProject(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
 +- LogicalJoin(condition=[AND(=($1, $6), =($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
+   :- LogicalProject(select=[a, window_start, window_end, cnt, uv])
    :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$6], window_end=[$7], window_time=[$8], c=[$2])
+   :     +- LogicalProject(select=[a, window_start, window_end, window_time, c])
    :        +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+   :           +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
    :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :                 +- LogicalProject(select=[a, b, c, d, rowtime])])
    :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
+   +- LogicalProject(select=[a, window_start, window_end, cnt, uv])
       +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$6], window_end=[$7], window_time=[$8], c=[$2])
+         +- LogicalProject(select=[a, window_start, window_end, window_time, c])
             +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+               +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+                     +- LogicalProject(select=[a, b, c, d, rowtime])])
                         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
@@ -3853,13 +3853,13 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
   <TestCase name="testWindowRank[isNameSimplifyEnabled=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(window_start=[$6], window_end=[$7], a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[window_start, window_end, a, b, c])
 +- LogicalFilter(condition=[<=($9, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], window_start=[$6], window_end=[$7], window_time=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $6, $7 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $6, $7 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+         +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -3963,13 +3963,13 @@ Calc(select=[window_start, window_end, a, b, c])
   <TestCase name="testWindowRank[isNameSimplifyEnabled=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(window_start=[$6], window_end=[$7], a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[window_start, window_end, a, b, c])
 +- LogicalFilter(condition=[<=($9, 3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], window_start=[$6], window_end=[$7], window_time=[$8], rownum=[ROW_NUMBER() OVER (PARTITION BY $0, $6, $7 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, d, rowtime, proctime, window_start, window_end, window_time]) OVER (PARTITION BY $0, $6, $7 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rowtime'), 900000:INTERVAL MINUTE)], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+         +- LogicalProject(select=[a, b, c, d, rowtime, proctime])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+               +- LogicalProject(select=[a, b, c, d, rowtime])])
                   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==

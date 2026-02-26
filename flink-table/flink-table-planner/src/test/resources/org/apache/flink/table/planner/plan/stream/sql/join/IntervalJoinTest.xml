@@ -28,10 +28,10 @@ SELECT t1.a FROM MyTable t1 WHERE t1.a IN (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[IN($0, {
 LogicalAggregate(group=[{0}])
-  LogicalProject(a=[$0])
+  LogicalProject(select=[a])
     LogicalFilter(condition=[AND(=($cor0.b, $1), >=($cor0.rowtime, $4), <=($cor0.rowtime, +($4, 300000:INTERVAL MINUTE)))])
       LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })], variablesSet=[[$cor0]])
@@ -72,7 +72,7 @@ SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$5])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)), <($3, +($9, 5000:INTERVAL SECOND)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -100,7 +100,7 @@ SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$5])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -130,13 +130,13 @@ SELECT t2.a FROM MyTable3 t1 JOIN MyTable4 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$4])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $4), >($3, -($7, 5000:INTERVAL SECOND)), <($3, +($7, 5000:INTERVAL SECOND)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[TO_TIMESTAMP_LTZ($1, 3)])
+   :  +- LogicalProject(select=[a, b, c])])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[TO_TIMESTAMP_LTZ($1, 3)])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable4]])
 ]]>
     </Resource>
@@ -166,7 +166,7 @@ SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$5])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $5), OR(>($3, -($8, 5000:INTERVAL SECOND)), <($3, +($9, 5000:INTERVAL SECOND))))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -194,7 +194,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[AND(=($0, $5), =($3, $8))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -223,7 +223,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[AND(=($0, $5), =($4, $9))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -258,11 +258,11 @@ JOIN T2 AS t2 ON t1.a = t2.a AND t1.nullField = t2.nullField AND
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$5], c=[$7], c0=[$2])
+LogicalProject(select=[a, c, c0])
 +- LogicalJoin(condition=[AND(=($0, $5), =($4, $9), >=($3, -($8, 5000:INTERVAL SECOND)), <=($3, +($8, 5000:INTERVAL SECOND)))], joinType=[inner])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], nullField=[null:BIGINT])
+   :- LogicalProject(select=[a, b, c, proctime])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], nullField=[12:BIGINT])
+   +- LogicalProject(select=[a, b, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -284,7 +284,7 @@ FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[LIKE($1, $6)])
    +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[full])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -315,7 +315,7 @@ FROM MyTable t1 Full OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -345,7 +345,7 @@ FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -375,7 +375,7 @@ FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -404,7 +404,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -433,7 +433,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[AND(=($0, $5), >=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -462,7 +462,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(>=($3, -($8, 3600000:INTERVAL HOUR)), <=($3, +($8, 3600000:INTERVAL HOUR)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -492,7 +492,7 @@ FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -523,7 +523,7 @@ GROUP BY TUMBLE(t1.rowtime, INTERVAL '6' HOUR), t1.b
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
+LogicalProject(select=[b, aSum, bCnt])
 +- LogicalAggregate(group=[{0, 1}], aSum=[SUM($2)], bCnt=[COUNT($3)])
    +- LogicalProject($f0=[$TUMBLE($4, 21600000:INTERVAL HOUR)], b=[$1], a0=[$5], b0=[$6])
       +- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
@@ -559,7 +559,7 @@ GROUP BY TUMBLE(t2.rowtime, INTERVAL '6' HOUR), t2.b
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
+LogicalProject(select=[b, aSum, bCnt])
 +- LogicalAggregate(group=[{0, 1}], aSum=[SUM($2)], bCnt=[COUNT($3)])
    +- LogicalProject($f0=[$TUMBLE($9, 21600000:INTERVAL HOUR)], b=[$6], a=[$0], $f3=[$1])
       +- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
@@ -593,7 +593,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -622,7 +622,7 @@ SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[AND(=($0, $5), >=($4, -($9, 600000:INTERVAL MINUTE)), <=($4, +($9, 3600000:INTERVAL HOUR)))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -651,7 +651,7 @@ SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(>=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -681,7 +681,7 @@ FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -711,7 +711,7 @@ FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$6])
+LogicalProject(select=[a, b])
 +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 10000:INTERVAL SECOND)), <=($4, +($9, 3600000:INTERVAL HOUR)))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])

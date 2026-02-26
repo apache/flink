@@ -19,9 +19,9 @@ limitations under the License.
   <TestCase name="testClearJoinHintWithInvalidPropagationToViewWhileViewHasJoinHints">
     <Resource name="beforePropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -30,9 +30,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterPropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]][BROADCAST inheritPath:[0, 0, 0] options:[t3]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -41,9 +41,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterClearingJoinHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -54,9 +54,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
   <TestCase name="testClearJoinHintWithInvalidPropagationToViewWhileViewHasNoJoinHints">
     <Resource name="beforePropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -65,9 +65,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterPropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0, 0] options:[t3]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -76,9 +76,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterClearingJoinHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t3]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -89,9 +89,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
   <TestCase name="testClearJoinHintWithoutPropagatingToView">
     <Resource name="beforePropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -100,9 +100,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterPropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0, 0] options:[t1]]]], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -111,9 +111,9 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterClearingJoinHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
-   :- LogicalProject(a=[$0], hints=[[[ALIAS options:[t4]]]]), rowType=[RecordType(BIGINT a)]
+   :- LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
    :  +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[t4]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :     :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    :     +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -124,7 +124,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
   <TestCase name="testNoNeedToClearJoinHint">
     <Resource name="beforePropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -132,7 +132,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterPropagatingHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]
@@ -140,7 +140,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
     </Resource>
     <Resource name="afterClearingJoinHints">
       <![CDATA[
-LogicalProject(a=[$0]), rowType=[RecordType(BIGINT a)]
+LogicalProject(select=[a]), rowType=[RecordType(BIGINT a)]
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[t1]]]]), rowType=[RecordType(BIGINT a, BIGINT a0)]
    :- LogicalTableScan(table=[[builtin, default, t1]]), rowType=[RecordType(BIGINT a)]
    +- LogicalTableScan(table=[[builtin, default, t2]]), rowType=[RecordType(BIGINT a)]

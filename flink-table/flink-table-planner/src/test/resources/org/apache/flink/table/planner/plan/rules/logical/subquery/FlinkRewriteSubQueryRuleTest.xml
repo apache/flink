@@ -22,10 +22,10 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-  LogicalProject(e=[$1])
+  LogicalProject(select=[e])
     LogicalFilter(condition=[>($0, 10)])
       LogicalTableScan(table=[[default_catalog, default_database, y]])
 }), 0)])
@@ -34,13 +34,13 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[>($3, 0)])
       +- LogicalJoin(condition=[true], joinType=[left])
          :- LogicalTableScan(table=[[default_catalog, default_database, x]])
          +- LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-            +- LogicalProject(e=[$1])
+            +- LogicalProject(select=[e])
                +- LogicalFilter(condition=[>($0, 10)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -52,11 +52,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
   LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-    LogicalProject(f=[$2])
+    LogicalProject(select=[f])
       LogicalFilter(condition=[>($0, 10)])
         LogicalTableScan(table=[[default_catalog, default_database, y]])
 }), 0)])
@@ -65,15 +65,15 @@ LogicalProject(EXPR$0=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[>($3, 0)])
       +- LogicalJoin(condition=[true], joinType=[left])
          :- LogicalTableScan(table=[[default_catalog, default_database, x]])
          +- LogicalAggregate(group=[{}], agg#0=[SINGLE_VALUE($0)])
-            +- LogicalProject(EXPR$0=[$1])
+            +- LogicalProject(select=[EXPR$0])
                +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-                  +- LogicalProject(f=[$2])
+                  +- LogicalProject(select=[f])
                      +- LogicalFilter(condition=[>($0, 10)])
                         +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -137,7 +137,7 @@ LIMIT 100
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
 +- LogicalAggregate(group=[{0}])
-   +- LogicalProject(i_product_name=[$2])
+   +- LogicalProject(select=[i_product_name])
       +- LogicalFilter(condition=[AND(>=($0, 738), <=($0, +(738, 40)), >($SCALAR_QUERY({
 LogicalAggregate(group=[{}], item_cnt=[COUNT()])
   LogicalFilter(condition=[OR(AND(=($1, $cor0.i_manufact), OR(AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'powder'), =($4, _UTF-16LE'khaki')), OR(=($5, _UTF-16LE'Ounce'), =($5, _UTF-16LE'Oz')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))), AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'brown'), =($4, _UTF-16LE'honeydew')), OR(=($5, _UTF-16LE'Bunch'), =($5, _UTF-16LE'Ton')), OR(=($6, _UTF-16LE'N/A'), =($6, _UTF-16LE'small'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'floral'), =($4, _UTF-16LE'deep')), OR(=($5, _UTF-16LE'N/A'), =($5, _UTF-16LE'Dozen')), OR(=($6, _UTF-16LE'petite'), =($6, _UTF-16LE'large'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'light'), =($4, _UTF-16LE'cornflower')), OR(=($5, _UTF-16LE'Box'), =($5, _UTF-16LE'Pound')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))))), AND(=($1, $cor0.i_manufact), OR(AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'midnight'), =($4, _UTF-16LE'snow')), OR(=($5, _UTF-16LE'Pallet'), =($5, _UTF-16LE'Gross')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))), AND(=($3, _UTF-16LE'Women'), OR(=($4, _UTF-16LE'cyan'), =($4, _UTF-16LE'papaya')), OR(=($5, _UTF-16LE'Cup'), =($5, _UTF-16LE'Dram')), OR(=($6, _UTF-16LE'N/A'), =($6, _UTF-16LE'small'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'orange'), =($4, _UTF-16LE'frosted')), OR(=($5, _UTF-16LE'Each'), =($5, _UTF-16LE'Tbl')), OR(=($6, _UTF-16LE'petite'), =($6, _UTF-16LE'large'))), AND(=($3, _UTF-16LE'Men'), OR(=($4, _UTF-16LE'forest'), =($4, _UTF-16LE'ghost')), OR(=($5, _UTF-16LE'Lb'), =($5, _UTF-16LE'Bundle')), OR(=($6, _UTF-16LE'medium'), =($6, _UTF-16LE'extra large'))))))])
@@ -150,11 +150,11 @@ LogicalAggregate(group=[{}], item_cnt=[COUNT()])
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
 +- LogicalAggregate(group=[{0}])
-   +- LogicalProject(i_product_name=[$2])
+   +- LogicalProject(select=[i_product_name])
       +- LogicalFilter(condition=[AND(>=($0, 738), <=($0, +(738, 40)))])
          +- LogicalJoin(condition=[=($7, $1)], joinType=[semi])
             :- LogicalTableScan(table=[[default_catalog, default_database, item]])
-            +- LogicalProject(i_manufact=[$1])
+            +- LogicalProject(select=[i_manufact])
                +- LogicalFilter(condition=[OR(AND(=($3, _UTF-16LE'Women'), SEARCH($4, Sarg[_UTF-16LE'khaki':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'powder':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Ounce':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Oz':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'extra large':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'medium':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Women'), SEARCH($4, Sarg[_UTF-16LE'brown':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'honeydew':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Bunch':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Ton':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'N/A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'small':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Men'), SEARCH($4, Sarg[_UTF-16LE'deep':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'floral':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Dozen':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'N/A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'large':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'petite':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Men'), SEARCH($4, Sarg[_UTF-16LE'cornflower':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'light':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Box':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Pound':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'extra large':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'medium':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Women'), SEARCH($4, Sarg[_UTF-16LE'midnight':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'snow':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Gross':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Pallet':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'extra large':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'medium':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Women'), SEARCH($4, Sarg[_UTF-16LE'cyan':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'papaya':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Cup':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Dram':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'N/A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'small':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Men'), SEARCH($4, Sarg[_UTF-16LE'frosted':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'orange':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Each':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Tbl':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'large':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'petite':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")), AND(=($3, _UTF-16LE'Men'), SEARCH($4, Sarg[_UTF-16LE'forest':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'ghost':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($5, Sarg[_UTF-16LE'Bundle':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Lb':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), SEARCH($6, Sarg[_UTF-16LE'extra large':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'medium':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")))])
                   +- LogicalTableScan(table=[[default_catalog, default_database, item]])
 ]]>
@@ -166,7 +166,7 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[100])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -177,10 +177,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -192,7 +192,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -203,10 +203,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -218,7 +218,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -229,10 +229,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -244,7 +244,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -255,10 +255,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -270,7 +270,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<(0, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -281,10 +281,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -296,7 +296,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<(0.99:DECIMAL(3, 2), $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -307,10 +307,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -322,7 +322,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=(1, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -333,10 +333,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -348,7 +348,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=(0.01:DECIMAL(3, 2), $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($cor0.a, $0)])
@@ -359,10 +359,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-   +- LogicalProject(d=[$0])
+   +- LogicalProject(select=[d])
       +- LogicalFilter(condition=[true])
          +- LogicalTableScan(table=[[default_catalog, default_database, y]])
 ]]>
@@ -374,7 +374,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -385,7 +385,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -402,7 +402,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -413,7 +413,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -430,7 +430,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -441,7 +441,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -458,7 +458,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>=($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -469,7 +469,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -486,7 +486,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<(0, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -497,7 +497,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -514,7 +514,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<(0.99:DECIMAL(3, 2), $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -525,7 +525,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -542,7 +542,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=(1, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -553,7 +553,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])
@@ -570,7 +570,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[<=(0.01:DECIMAL(3, 2), $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[>($0, 10)])
@@ -581,7 +581,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalJoin(condition=[$3], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, x]])
    +- LogicalProject($f0=[IS NOT NULL($0)])

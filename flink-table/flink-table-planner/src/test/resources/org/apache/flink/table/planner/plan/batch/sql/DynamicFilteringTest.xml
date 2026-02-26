@@ -19,15 +19,15 @@ limitations under the License.
   <TestCase name="testDuplicateFactTables[mode = ALL_EXCHANGES_BLOCKING]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
-+- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
++- LogicalProject(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    +- LogicalJoin(condition=[=($5, $12)], joinType=[inner])
-      :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+      :- LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
       :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
       :     +- LogicalJoin(condition=[true], joinType=[inner])
       :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
-      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], b10=[CAST($1):BIGINT])
+      +- LogicalProject(select=[a1, b1, c1, p1]):BIGINT])
          +- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
 
 == Optimized Physical Plan ==
@@ -181,15 +181,15 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
   <TestCase name="testDuplicateFactTables[mode = ALL_EXCHANGES_PIPELINED]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
-+- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a10=[$8], b10=[$9], c10=[$10], p10=[$11])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
++- LogicalProject(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    +- LogicalJoin(condition=[=($5, $12)], joinType=[inner])
-      :- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+      :- LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
       :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
       :     +- LogicalJoin(condition=[true], joinType=[inner])
       :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
-      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], b10=[CAST($1):BIGINT])
+      +- LogicalProject(select=[a1, b1, c1, p1]):BIGINT])
          +- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
 
 == Optimized Physical Plan ==
@@ -343,7 +343,7 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
   <TestCase name="testDynamicFilteringWithMultipleInput[mode = ALL_EXCHANGES_BLOCKING]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a2=[$8], b2=[$9], c2=[$10], p2=[$11])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p, a2, b2, c2, p2])
 +- LogicalFilter(condition=[AND(=($3, $7), =($3, $11), >($4, 10))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalJoin(condition=[true], joinType=[inner])
@@ -462,7 +462,7 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
   <TestCase name="testDynamicFilteringWithMultipleInput[mode = ALL_EXCHANGES_PIPELINED]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7], a2=[$8], b2=[$9], c2=[$10], p2=[$11])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p, a2, b2, c2, p2])
 +- LogicalFilter(condition=[AND(=($3, $7), =($3, $11), >($4, 10))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalJoin(condition=[true], joinType=[inner])
@@ -581,7 +581,7 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
   <TestCase name="testDynamicFilteringWithStaticPartitionPruning[mode = ALL_EXCHANGES_BLOCKING]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
 +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10), >(CAST($3):BIGINT, 1))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
@@ -683,7 +683,7 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
   <TestCase name="testDynamicFilteringWithStaticPartitionPruning[mode = ALL_EXCHANGES_PIPELINED]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
 +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10), >(CAST($3):BIGINT, 1))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
@@ -785,7 +785,7 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
   <TestCase name="testLegacySource[mode = ALL_EXCHANGES_BLOCKING]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], p1=[$4], x=[$5], y=[$6], z=[$7], p=[$8])
+LogicalProject(select=[a1, b1, c1, d1, p1, x, y, z, p])
 +- LogicalFilter(condition=[AND(=($4, $8), >($5, 10))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, legacy_source]])
@@ -854,7 +854,7 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, d1, p1, x, 
   <TestCase name="testLegacySource[mode = ALL_EXCHANGES_PIPELINED]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], p1=[$4], x=[$5], y=[$6], z=[$7], p=[$8])
+LogicalProject(select=[a1, b1, c1, d1, p1, x, y, z, p])
 +- LogicalFilter(condition=[AND(=($4, $8), >($5, 10))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, legacy_source]])
@@ -924,12 +924,12 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, d1, p1, x, 
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-:- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+:- LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
 :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
 :     +- LogicalJoin(condition=[true], joinType=[inner])
 :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
-+- LogicalProject(a2=[$0], b2=[$1], c2=[$2], p2=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
++- LogicalProject(select=[a2, b2, c2, p2, x, y, z, p])
    +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
       +- LogicalJoin(condition=[true], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, fact2]])
@@ -1077,12 +1077,12 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-:- LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+:- LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
 :  +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
 :     +- LogicalJoin(condition=[true], joinType=[inner])
 :        :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, dim]])
-+- LogicalProject(a2=[$0], b2=[$1], c2=[$2], p2=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
++- LogicalProject(select=[a2, b2, c2, p2, x, y, z, p])
    +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
       +- LogicalJoin(condition=[true], joinType=[inner])
          :- LogicalTableScan(table=[[default_catalog, default_database, fact2]])
@@ -1229,7 +1229,7 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
   <TestCase name="testSimpleDynamicFiltering[mode = ALL_EXCHANGES_BLOCKING]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
 +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])
@@ -1331,7 +1331,7 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
   <TestCase name="testSimpleDynamicFiltering[mode = ALL_EXCHANGES_PIPELINED]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], p1=[$3], x=[$4], y=[$5], z=[$6], p=[$7])
+LogicalProject(select=[a1, b1, c1, p1, x, y, z, p])
 +- LogicalFilter(condition=[AND(=($3, $7), >($4, 10))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, fact1]])

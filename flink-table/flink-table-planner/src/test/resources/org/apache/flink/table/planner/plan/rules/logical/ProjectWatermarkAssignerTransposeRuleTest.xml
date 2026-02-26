@@ -31,7 +31,7 @@ LogicalProject(d1=[$3.d1], EXPR$1=[+($3.d2, $1)])
       <![CDATA[
 LogicalProject(d1=[$0.d1], EXPR$1=[+($0.d2, $1)])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
-   +- LogicalProject(d=[$3], b=[$1], c=[$2])
+   +- LogicalProject(select=[d, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
@@ -42,7 +42,7 @@ LogicalProject(d1=[$0.d1], EXPR$1=[+($0.d2, $1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
+LogicalProject(select=[a, c])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
@@ -50,7 +50,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalWatermarkAssigner(rowtime=[c], watermark=[$1])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
@@ -70,7 +70,7 @@ LogicalProject(EXPR$0=[EXTRACT(FLAG(SECOND), $2)])
       <![CDATA[
 LogicalProject(EXPR$0=[EXTRACT(FLAG(SECOND), $0)])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$0])
-   +- LogicalProject(c=[$2])
+   +- LogicalProject(select=[c])
       +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
@@ -81,18 +81,18 @@ LogicalProject(EXPR$0=[EXTRACT(FLAG(SECOND), $0)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], e=[$1])
+LogicalProject(select=[a, b, e])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], e=[$1])
+LogicalProject(select=[a, b, e])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], d=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, d])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -103,18 +103,18 @@ LogicalProject(a=[$0], b=[$1], e=[$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], d=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, d])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -125,18 +125,18 @@ LogicalProject(a=[$0], b=[$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
+LogicalProject(select=[a, b]), $3)])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $2)])
+LogicalProject(select=[a, b]), $2)])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], d=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, d])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -147,18 +147,18 @@ LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $2)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[EXTRACT(FLAG(SECOND), $3)])
+LogicalProject(select=[a]), $3)])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[myFunc($3, $2.c2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[EXTRACT(FLAG(SECOND), $1)])
+LogicalProject(select=[a]), $1)])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[myFunc($1, $2.c2)])
-   +- LogicalProject(a=[$0], d=[$3], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, d, c])
+      +- LogicalProject(select=[a, b, c])])
          +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
@@ -169,17 +169,17 @@ LogicalProject(a=[$0], EXPR$1=[EXTRACT(FLAG(SECOND), $1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$3])
+LogicalProject(select=[a, b, d])
 +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
-+- LogicalProject(a=[$0], b=[$1], d=[$3])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
++- LogicalProject(select=[a, b, d])
+   +- LogicalProject(select=[a, b, c])])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
 ]]>
     </Resource>
@@ -190,16 +190,16 @@ LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], d1=[$3.d1], d2=[$3.d2])
+LogicalProject(select=[b])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(b=[$0], d1=[$1.d1], d2=[$1.d2])
+LogicalProject(select=[b])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
-   +- LogicalProject(b=[$1], d=[$3], c=[$2])
+   +- LogicalProject(select=[b, d, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
@@ -210,16 +210,16 @@ LogicalProject(b=[$0], d1=[$1.d1], d2=[$1.d2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], a=[$0])
+LogicalProject(select=[b, a])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(b=[$0], a=[$1])
+LogicalProject(select=[b, a])
 +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
-   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+   +- LogicalProject(select=[b, a, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
@@ -230,16 +230,16 @@ LogicalProject(b=[$0], a=[$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>

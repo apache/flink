@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -36,10 +36,10 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
   <TestCase name="testAggregateWithFilter">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
+LogicalProject(select=[EXPR$0, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
    +- LogicalFilter(condition=[=($0, 1)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalProject(select=[a, b, c])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -56,11 +56,11 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
   <TestCase name="testAggregateWithFilterOnNestedFields">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3])
+LogicalProject(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
 +- LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalFilter(condition=[=($0, 1)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalProject(select=[a, b, c])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -78,7 +78,7 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=($0, 1)])
-+- LogicalProject(a=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
++- LogicalProject(select=[a, EXPR$0, EXPR$1, EXPR$2])
    +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

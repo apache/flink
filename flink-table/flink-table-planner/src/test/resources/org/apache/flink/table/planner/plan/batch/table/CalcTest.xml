@@ -22,7 +22,7 @@ limitations under the License.
 LogicalFilter(condition=[=(MOD($0, 2), 1)])
 +- LogicalFilter(condition=[<($1, 2)])
    +- LogicalFilter(condition=[>($0, 0)])
-      +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(select=[a, b])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -36,7 +36,7 @@ Calc(select=[a, b], where=[((a > 0) AND (b < 2) AND (MOD(a, 2) = 1))])
   <TestCase name="testMultipleFlatteningsTable">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a$_1=[$0._1], a$_2=[$0._2], c=[$2], b$_1=[$1._1], b$_2=[$1._2])
+LogicalProject(select=[c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -50,7 +50,7 @@ Calc(select=[a._1 AS a$_1, a._2 AS a$_2, c, b._1 AS b$_1, b._2 AS b$_2])
   <TestCase name="testNestedFlattening">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a$_1=[$0._1], a$_2=[$0._2], b=[$1])
+LogicalProject(select=[b])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -78,7 +78,7 @@ Calc(select=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCas
   <TestCase name="testSelectAggregation">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+LogicalProject(select=[EXPR$0, EXPR$1])
 +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[MAX($1)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -95,7 +95,7 @@ HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$
   <TestCase name="testSelectAggregationFromGroupedTable">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{2}], EXPR$0=[SUM($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -113,7 +113,7 @@ Calc(select=[EXPR$0])
   <TestCase name="testSelectAllFieldsFromGroupedTable">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$1])
+LogicalProject(select=[a, c])
 +- LogicalAggregate(group=[{0, 2}])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -131,7 +131,7 @@ HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=($1, 2)])
-+- LogicalProject(word=[$0], frequency=[$1])
++- LogicalProject(select=[word, frequency])
    +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -149,7 +149,7 @@ Calc(select=[word, CAST(2 AS BIGINT) AS frequency], where=[(EXPR$0 = 2)])
   <TestCase name="testSelectFromGroupedTable">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalAggregate(group=[{0, 2}])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -167,9 +167,9 @@ Calc(select=[a])
   <TestCase name="testSelectFromGroupedTableWithFunctionKey">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
-   +- LogicalProject(a=[$0], k=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$MyHashCode$*($2)])
+   +- LogicalProject(select=[a])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -187,9 +187,9 @@ Calc(select=[EXPR$0])
   <TestCase name="testSelectFromGroupedTableWithNonTrivialKey">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
-   +- LogicalProject(a=[$0], k=[UPPER($2)])
+   +- LogicalProject(select=[a])])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -221,7 +221,7 @@ Calc(select=[hashCode(c) AS _c0, b])
   <TestCase name="testSimpleSelect">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

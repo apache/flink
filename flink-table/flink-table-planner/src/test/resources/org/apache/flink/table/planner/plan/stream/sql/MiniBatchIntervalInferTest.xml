@@ -34,14 +34,14 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
-+- LogicalProject(b=[$1], a=[$0])
-   +- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[b, a])
+   +- LogicalProject(select=[a, b])
       +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 5000:INTERVAL SECOND)), <=($4, +($9, 10000:INTERVAL SECOND)))], joinType=[inner])
          :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-         :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+         :  +- LogicalProject(select=[a, b, c])], rowtime=[$3])
          :     +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+            +- LogicalProject(select=[a, b, c])], rowtime=[$3])
                +- LogicalTableScan(table=[[default_catalog, default_database, wmTable2]])
 ]]>
     </Resource>
@@ -75,9 +75,9 @@ GROUP BY long, TUMBLE(rowtime, INTERVAL '10' SECOND)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(long=[$0], cnt=[$2], rt=[TUMBLE_END($1)])
+LogicalProject(select=[long, cnt])])
 +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
-   +- LogicalProject(long=[$0], $f1=[$TUMBLE($3, 10000:INTERVAL SECOND)], str=[$2])
+   +- LogicalProject(select=[long])], str=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -98,8 +98,8 @@ Calc(select=[long, cnt, w$end AS rt])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
-+- LogicalProject(b=[$1], a=[$0], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
++- LogicalProject(select=[b, a, c])
+   +- LogicalProject(select=[a, b, c])], rowtime=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -120,7 +120,7 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
-+- LogicalProject(b=[$1], a=[$0], c=[$2])
++- LogicalProject(select=[b, a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyDataStream1]])
 ]]>
     </Resource>
@@ -155,16 +155,16 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$1=[$2], EXPR$2=[TUMBLE_START($1)], EXPR$3=[TUMBLE_END($1)])
+LogicalProject(select=[b, EXPR$1])], EXPR$3=[TUMBLE_END($1)])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[COUNT($2)])
-   +- LogicalProject(b=[$1], $f1=[$TUMBLE($2, 5000:INTERVAL SECOND)], a=[$0])
-      +- LogicalProject(a=[$0], b=[$1], rt=[$4])
+   +- LogicalProject(select=[b])], a=[$0])
+      +- LogicalProject(select=[a, b, rt])
          +- LogicalJoin(condition=[AND(=($0, $5), >=($4, -($9, 5000:INTERVAL SECOND)), <=($4, +($9, 10000:INTERVAL SECOND)))], joinType=[inner])
             :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-            :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+            :  +- LogicalProject(select=[a, b, c])], rowtime=[$3])
             :     +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+               +- LogicalProject(select=[a, b, c])], rowtime=[$3])
                   +- LogicalTableScan(table=[[default_catalog, default_database, wmTable2]])
 ]]>
     </Resource>
@@ -215,20 +215,20 @@ Calc(select=[b, EXPR$1, w$start AS EXPR$2, w$end AS EXPR$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], EXPR$1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST ROWS 5 PRECEDING)])
-+- LogicalProject(a=[$1], b=[$0], rt=[$2])
+LogicalProject(select=[b]) OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST ROWS 5 PRECEDING)])
++- LogicalProject(select=[a, b, rt])
    +- LogicalJoin(condition=[AND(=($1, $4), >=($2, -($5, 5000:INTERVAL SECOND)), <=($2, +($5, 10000:INTERVAL SECOND)))], joinType=[inner])
-      :- LogicalProject(b=[$0], a=[$2], rt=[TUMBLE_ROWTIME($1)])
+      :- LogicalProject(select=[b, a])])
       :  +- LogicalAggregate(group=[{0, 1}], a=[COUNT($2)])
-      :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 5000:INTERVAL SECOND)], a=[$0])
+      :     +- LogicalProject(select=[b])], a=[$0])
       :        +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-      :           +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+      :           +- LogicalProject(select=[a, b, c])], rowtime=[$3])
       :              +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
-      +- LogicalProject(b=[$0], a=[$2], rt=[HOP_ROWTIME($1)])
+      +- LogicalProject(select=[b, a])])
          +- LogicalAggregate(group=[{0, 1}], a=[COUNT($2)])
-            +- LogicalProject(b=[$1], $f1=[$HOP($4, 5000:INTERVAL SECOND, 6000:INTERVAL SECOND)], a=[$0])
+            +- LogicalProject(select=[b])], a=[$0])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-                  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+                  +- LogicalProject(select=[a, b, c])], rowtime=[$3])
                      +- LogicalTableScan(table=[[default_catalog, default_database, wmTable2]])
 ]]>
     </Resource>
@@ -276,21 +276,21 @@ Calc(select=[b, w0$o0 AS $1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalProject(a=[$0], b=[$1], b0=[$3], a1=[$4])
+LogicalProject(select=[a, b])
++- LogicalProject(select=[a, b, b0, a1])
    +- LogicalJoin(condition=[=($2, $4)], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], a0=[CAST($0):BIGINT])
+      :- LogicalProject(select=[a, b]):BIGINT])
       :  +- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-      :     +- LogicalProject(a=[$0], b=[$1])
-      :        +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+      :     +- LogicalProject(select=[a, b])
+      :        +- LogicalProject(select=[a, b, c])], rowtime=[$3])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0}], a=[COUNT()])
-         +- LogicalProject(b=[$0])
-            +- LogicalProject(b=[$0], a=[$2], rt=[HOP_ROWTIME($1)])
+         +- LogicalProject(select=[b])
+            +- LogicalProject(select=[b, a])])
                +- LogicalAggregate(group=[{0, 1}], a=[COUNT($2)])
-                  +- LogicalProject(b=[$1], $f1=[$HOP($4, 5000:INTERVAL SECOND, 6000:INTERVAL SECOND)], a=[$0])
+                  +- LogicalProject(select=[b])], a=[$0])
                      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-                        +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+                        +- LogicalProject(select=[a, b, c])], rowtime=[$3])
                            +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
@@ -321,13 +321,13 @@ Calc(select=[a, b])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
-+- LogicalProject(id1=[$1], EXPR$1=[$2])
++- LogicalProject(select=[id1, EXPR$1])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject($f0=[$HOP($2, 12000:INTERVAL SECOND, 4000:INTERVAL SECOND)], id1=[$0], text=[$1], $f3=[_UTF-16LE'*'])
-         +- LogicalProject(id1=[$1], text=[$2], ts=[TUMBLE_ROWTIME($0)])
+         +- LogicalProject(select=[id1, text])])
             +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
                +- LogicalProject($f0=[$TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
-                  +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
+                  +- LogicalProject(select=[id1, ts, text])
                      +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                         +- LogicalJoin(condition=[true], joinType=[inner])
                            :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
@@ -336,10 +336,10 @@ LogicalSink(table=[default_catalog.default_database.appendSink1], fields=[id1, E
                               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
-+- LogicalProject(id1=[$1], EXPR$1=[$2])
++- LogicalProject(select=[id1, EXPR$1])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject($f0=[$TUMBLE($1, 9000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'-'])
-         +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
+         +- LogicalProject(select=[id1, ts, text])
             +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                +- LogicalJoin(condition=[true], joinType=[inner])
                   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
@@ -349,11 +349,11 @@ LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[id1, E
 
 LogicalSink(table=[default_catalog.default_database.retractSink3], fields=[id1, EXPR$1])
 +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
-   +- LogicalProject(id1=[$0], text=[$1])
-      +- LogicalProject(id1=[$1], text=[$2], ts=[TUMBLE_ROWTIME($0)])
+   +- LogicalProject(select=[id1, text])
+      +- LogicalProject(select=[id1, text])])
          +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
             +- LogicalProject($f0=[$TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
-               +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
+               +- LogicalProject(select=[id1, ts, text])
                   +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                      +- LogicalJoin(condition=[true], joinType=[inner])
                         :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
@@ -459,8 +459,8 @@ Sink(table=[default_catalog.default_database.retractSink3], fields=[id1, EXPR$1]
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
-+- LogicalProject(cnt=[$1], int=[$0])
-   +- LogicalProject(int=[$1], cnt=[COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 5 PRECEDING)])
++- LogicalProject(select=[cnt, int])
+   +- LogicalProject(select=[int]) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST ROWS 5 PRECEDING)])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -484,9 +484,9 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
-+- LogicalProject(b=[$1], a=[$0], c=[$2])
++- LogicalProject(select=[b, a, c])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+      +- LogicalProject(select=[a, b, c])], rowtime=[$3])
          +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
@@ -518,10 +518,10 @@ GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
-+- LogicalProject(cnt=[$1], c=[$0])
-   +- LogicalProject(c=[$2], cnt=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)])
++- LogicalProject(select=[cnt, c])
+   +- LogicalProject(select=[c]) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)])
       +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+         +- LogicalProject(select=[a, b, c])], rowtime=[$3])
             +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
@@ -555,8 +555,8 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
-+- LogicalProject(r_a=[$1], o_a=[$0])
-   +- LogicalProject(o_a=[$0], r_a=[$5])
++- LogicalProject(select=[r_a, o_a])
+   +- LogicalProject(select=[o_a, r_a])
       +- LogicalFilter(condition=[=($1, $6)])
          +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
             :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
@@ -601,14 +601,14 @@ GlobalGroupAggregate(groupBy=[r_a], select=[r_a, COUNT(count$0) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$1=[$2])
+LogicalProject(select=[b, EXPR$1])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
-   +- LogicalProject(b=[$0], $f1=[$TUMBLE($2, 5000:INTERVAL SECOND)], cnt=[$1])
-      +- LogicalProject(b=[$0], cnt=[$2], rt=[TUMBLE_ROWTIME($1)])
+   +- LogicalProject(select=[b])], cnt=[$1])
+      +- LogicalProject(select=[b, cnt])])
          +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
-            +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 10000:INTERVAL SECOND)], a=[$0])
+            +- LogicalProject(select=[b])], a=[$0])
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-                  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+                  +- LogicalProject(select=[a, b, c])], rowtime=[$3])
                      +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>
@@ -642,12 +642,12 @@ GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, $f1, 5000)], 
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-+- LogicalProject(b=[$0], cnt=[$1])
-   +- LogicalProject(b=[$0], cnt=[$2], w_start=[HOP_START($1)], w_end=[HOP_END($1)])
++- LogicalProject(select=[b, cnt])
+   +- LogicalProject(select=[b, cnt])], w_end=[HOP_END($1)])
       +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
-         +- LogicalProject(b=[$1], $f1=[$HOP($4, 5000:INTERVAL SECOND, 6000:INTERVAL SECOND)], a=[$0])
+         +- LogicalProject(select=[b])], a=[$0])
             +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+               +- LogicalProject(select=[a, b, c])], rowtime=[$3])
                   +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
 ]]>
     </Resource>

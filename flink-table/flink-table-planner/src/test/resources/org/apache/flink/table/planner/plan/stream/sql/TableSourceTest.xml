@@ -29,7 +29,7 @@ FROM T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
+LogicalProject(select=[id])
 +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -73,8 +73,8 @@ FROM T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
-+- LogicalProject(id=[$0], deepNested=[$1], metadata_1=[$2], metadata_2=[$3])
+LogicalProject(select=[id]), $2)])
++- LogicalProject(select=[id, deepNested, metadata_1, metadata_2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -96,8 +96,8 @@ FROM T
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
-+- LogicalProject(id=[$0], deepNested=[$1], metadata_1=[$2], metadata_2=[$3])
+LogicalProject(select=[id]), $2)])
++- LogicalProject(select=[id, deepNested, metadata_1, metadata_2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -114,9 +114,9 @@ Calc(select=[id, deepNested.nested1 AS nested1, ((deepNested.nested1.value + dee
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rtime=[$1])
+LogicalProject(select=[rtime])
 +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+   +- LogicalProject(select=[id, rtime, val, name])])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -151,9 +151,9 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
+LogicalProject(select=[name, val, rtime, id])
 +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+   +- LogicalProject(select=[id, rtime, val, name])])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -171,9 +171,9 @@ WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
+LogicalProject(select=[ptime, name, val, id])
 +- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+   +- LogicalProject(select=[id, rtime, val, name])])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -192,8 +192,8 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], ts1=[$5], tags=[$2])
-+- LogicalProject(id=[$0], name=[$1], tags=[$2], op=[$3], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
+LogicalProject(select=[id, ts1, tags])
++- LogicalProject(select=[id, name, tags, op, ts])])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -210,8 +210,8 @@ Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, tags])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], ts1=[$5], op=[$3])
-+- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
+LogicalProject(select=[id, ts1, op])
++- LogicalProject(select=[id, name]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
@@ -228,8 +228,8 @@ Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, CAST(op AS VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], ts1=[$5], op=[$3])
-+- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
+LogicalProject(select=[id, ts1, op])
++- LogicalProject(select=[id, name]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
@@ -246,8 +246,8 @@ Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, CAST(op AS VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(ts=[$4], id=[$0], name=[$1], tags=[$2], op=[$3])
-+- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
+LogicalProject(select=[ts, id, name, tags, op])
++- LogicalProject(select=[id, name]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
@@ -264,8 +264,8 @@ Calc(select=[ts, id, name, CAST(tags AS VARCHAR(2147483647)) AS tags, CAST(op AS
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], ts=[$4], tags=[$2])
-+- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
+LogicalProject(select=[id, ts, tags])
++- LogicalProject(select=[id, name]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
@@ -282,8 +282,8 @@ Calc(select=[id, ts, CAST(tags AS VARCHAR(2147483647)) AS tags])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(id=[$0], ts=[$4], tags=[$2])
-+- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
+LogicalProject(select=[id, ts, tags])
++- LogicalProject(select=[id, name]):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
@@ -306,9 +306,9 @@ FROM rowTimeT WHERE val > 100
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], EXPR$1=[TUMBLE_END($1)], EXPR$2=[$2])
+LogicalProject(select=[name])], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[AVG($2)])
-   +- LogicalProject(name=[$3], $f1=[$TUMBLE($1, 600000:INTERVAL MINUTE)], val=[$2])
+   +- LogicalProject(select=[name])], val=[$2])
       +- LogicalFilter(condition=[>($2, 100)])
          +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
@@ -331,7 +331,7 @@ Calc(select=[name, w$end AS EXPR$1, EXPR$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
+LogicalProject(select=[rowtime, id, name, val])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[SOURCE_WATERMARK()])
    +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
@@ -349,7 +349,7 @@ Calc(select=[rowtime, id, name, val])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
+LogicalProject(select=[rowtime, id, name, val])
 +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>

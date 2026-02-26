@@ -24,9 +24,9 @@ from view2 where row_num <= 3]]>
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
++- LogicalProject(select=[name, eat, cnt])
    +- LogicalFilter(condition=[<=($3, 3)])
-      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[name, eat, cnt]) OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
             +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
 ]]>
@@ -55,9 +55,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -87,9 +87,9 @@ WHERE rk1 < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
+LogicalProject(select=[a, b, rk1, rk2])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -118,9 +118,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
+LogicalProject(select=[a, rk, b, c])
 +- LogicalFilter(condition=[<($1, 10)])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
+   +- LogicalProject(select=[a]) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -148,9 +148,9 @@ WHERE rk = 2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[=($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -178,9 +178,9 @@ WHERE rk <= 2 AND rk > -2
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[AND(<=($2, 2), >($2, -2))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -208,9 +208,9 @@ WHERE rk <= 2 AND a > 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[AND(<=($2, 2), >($0, 10))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -247,9 +247,9 @@ WHERE rnb <= 200
       <![CDATA[
 LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
 +- LogicalFilter(condition=[<=($4, 200)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rna=[$3], rnb=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+   +- LogicalProject(select=[a, b, c, rna]) OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
       +- LogicalFilter(condition=[<=($3, 100)])
-         +- LogicalProject(a=[$0], b=[$1], c=[$2], rna=[ROW_NUMBER() OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(select=[a, b, c]) OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -318,11 +318,11 @@ FROM
     <Resource name="ast">
       <![CDATA[
 LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$3])
-+- LogicalProject(uri=[$0], reqcount=[$1], rownum_2=[$3], start_time=[$2])
++- LogicalProject(select=[uri, reqcount, rownum_2, start_time])
    +- LogicalFilter(condition=[<=($3, 100000)])
-      +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[RANK() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalProject(select=[uri, reqcount, start_time]) OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
          +- LogicalFilter(condition=[<=($3, 100000)])
-            +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[RANK() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalProject(select=[uri, reqcount, start_time]) OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -358,9 +358,9 @@ WHERE rk < 10
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
+LogicalProject(select=[a, b, rk])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+   +- LogicalProject(select=[a, b]) OVER (ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

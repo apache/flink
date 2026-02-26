@@ -25,13 +25,13 @@ SELECT a, GROUP_ID() AS g, COUNT(*) as c FROM MyTable GROUP BY GROUPING SETS (a,
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], g=[0:BIGINT], c=[$1])
+:- LogicalProject(select=[a, c])
 :  +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-:     +- LogicalProject(a=[$0])
+:     +- LogicalProject(select=[a])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-+- LogicalProject(a=[$0], g=[1:BIGINT], c=[$1])
++- LogicalProject(select=[a, c])
    +- LogicalAggregate(group=[{0}], groups=[[{}]], c=[COUNT()])
-      +- LogicalProject(a=[$0])
+      +- LogicalProject(select=[a])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -67,9 +67,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -91,9 +91,9 @@ GROUP BY GROUPING SETS (b, c)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT])
+LogicalProject(select=[b, c, a])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], a=[AVG($2)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -114,9 +114,9 @@ SELECT count(b) as b, count(c) as c FROM MyTable GROUP BY GROUPING SETS (b, c)
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$2], c=[$3])
+LogicalProject(select=[b, c])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0}, {1}]], b=[COUNT($0)], c=[COUNT($1)])
-   +- LogicalProject(b=[$1], c=[$2])
+   +- LogicalProject(select=[b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -139,7 +139,7 @@ GROUP BY GROUPING SETS ((a, b), (a, c))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$3], b=[$4], c=[$5])
+LogicalProject(select=[a, b, c])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], a=[COUNT($0)], b=[COUNT($1)], c=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -167,9 +167,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], a=[$1], g=[0:BIGINT], gb=[$2], gib=[$3])
+LogicalProject(select=[b, a, gb, gib])
 +- LogicalAggregate(group=[{0}], a=[AVG($1)], gb=[GROUPING($0)], gib=[GROUPING_ID($0)])
-   +- LogicalProject(b=[$1], a=[$0])
+   +- LogicalProject(select=[b, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -199,9 +199,9 @@ FROM MyTable
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], c=[$1], a=[$2], g=[0:BIGINT], gb=[$3], gc=[$4], gib=[$5], gic=[$6], gid=[$7])
+LogicalProject(select=[b, c, a, gb, gc, gib, gic, gid])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], a=[AVG($2)], gb=[GROUPING($0)], gc=[GROUPING($1)], gib=[GROUPING_ID($0)], gic=[GROUPING_ID($1)], gid=[GROUPING_ID($0, $1)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0])
+   +- LogicalProject(select=[b, c, a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[func3($1)])
+LogicalProject(select=[a])])
 +- LogicalAggregate(group=[{0}], agg#0=[COUNT()])
-   +- LogicalProject(a=[$0])
+   +- LogicalProject(select=[a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -99,7 +99,7 @@ AsyncCalc(select=[func1(f0) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[func1($0)])
+LogicalProject(select=[a])])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -135,12 +135,12 @@ Calc(select=[f0 AS EXPR$0, f00 AS EXPR$1, f0 AS EXPR$2, f00 AS EXPR$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a2=[$6], b2=[$7], c2=[$8], d2=[$9])
+LogicalProject(select=[a])
++- LogicalProject(select=[a, b, c, d, e, a2, b2, c2, d2])
    +- LogicalJoin(condition=[AND(=($5, $10), REGEXP(func2($0), _UTF-16LE'string (2|4)'))], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], $f5=[func2($0)])
+      :- LogicalProject(select=[a, b, c, d, e])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3], $f4=[func2($0)])
+      +- LogicalProject(select=[a2, b2, c2, d2])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -164,7 +164,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $5), >(func6($0, $5), 10))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -190,7 +190,7 @@ Calc(select=[a], where=[>(f0, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'val (2|3)')])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -218,7 +218,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>(func6($0, $5), 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -287,7 +287,7 @@ AsyncCalc(select=[func1(1) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[AND(=($0, $5), >(func6($0, $5), 10))])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -314,12 +314,12 @@ Calc(select=[a], where=[>(f0, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a2=[$5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a2=[$6], b2=[$7], c2=[$8], d2=[$9])
+LogicalProject(select=[a, a2])
++- LogicalProject(select=[a, b, c, d, e, a2, b2, c2, d2])
    +- LogicalJoin(condition=[=($5, $10)], joinType=[left])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], $f5=[func1($0)])
+      :- LogicalProject(select=[a, b, c, d, e])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3], $f4=[func1($0)])
+      +- LogicalProject(select=[a2, b2, c2, d2])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -342,7 +342,7 @@ Calc(select=[a, a2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a2=[$5])
+LogicalProject(select=[a, a2])
 +- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'string (2|3)')])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -368,7 +368,7 @@ Join(joinType=[LeftOuterJoin], where=[=(a, a2)], select=[a, a2], leftInputSpec=[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>(func6($0, $5), 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -395,7 +395,7 @@ Calc(select=[a], where=[>(f0, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $5), >(func1($5), 10))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -421,7 +421,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>(func1($5), 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -521,7 +521,7 @@ Calc(select=[CONCAT(f0, 'foo') AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(blah=[$0])
+LogicalProject(select=[blah])
 +- LogicalFilter(condition=[REGEXP($0, _UTF-16LE'string (2|3)')])
    +- LogicalProject(blah=[func2($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -541,7 +541,7 @@ Calc(select=[f0 AS blah], where=[REGEXP(f0, 'string (2|3)')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[AND(=($0, $5), >(func6($0, $5), 10))])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -568,12 +568,12 @@ Calc(select=[a], where=[>(f0, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a2=[$5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a2=[$6], b2=[$7], c2=[$8], d2=[$9])
+LogicalProject(select=[a, a2])
++- LogicalProject(select=[a, b, c, d, e, a2, b2, c2, d2])
    +- LogicalJoin(condition=[=($5, $10)], joinType=[right])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], $f5=[func1($0)])
+      :- LogicalProject(select=[a, b, c, d, e])])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3], $f4=[func1($0)])
+      +- LogicalProject(select=[a2, b2, c2, d2])])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -596,7 +596,7 @@ Calc(select=[a, a2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>(func6($0, $5), 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -623,7 +623,7 @@ Calc(select=[a], where=[>(f0, 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalJoin(condition=[AND(=($0, $5), >(func1($0), 10))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -649,7 +649,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>(func1($0), 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -749,7 +749,7 @@ Calc(select=[f0 AS EXPR$0, f0 AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'string (2|3)')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -787,8 +787,8 @@ Calc(select=[f0 AS EXPR$0], where=[REGEXP(f0, 'val (2|3)')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(blah=[$0])
-+- LogicalProject(blah=[$0])
+LogicalProject(select=[blah])
++- LogicalProject(select=[blah])
    +- LogicalFilter(condition=[REGEXP(func2($0), _UTF-16LE'string (2|3)')])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -807,7 +807,7 @@ Calc(select=[a], where=[REGEXP(f0, 'string (2|3)')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[>=(func1($0), 12)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -828,7 +828,7 @@ Calc(select=[a], where=[>=(f0, 12)])
       <![CDATA[
 LogicalProject(EXPR$0=[func1($0)])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(a2=[$0])
+LogicalProject(select=[a2])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
