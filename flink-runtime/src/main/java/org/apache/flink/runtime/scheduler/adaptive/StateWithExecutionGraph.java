@@ -56,6 +56,7 @@ import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.VertexEndOfDataListener;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -487,5 +488,14 @@ abstract class StateWithExecutionGraph implements State {
 
         /** Archive failure. */
         void archiveFailure(RootExceptionHistoryEntry failure);
+
+        /**
+         * Get the rescale timeline.
+         *
+         * @return The rescale timeline handler.
+         */
+        default RescaleTimeline getRescaleTimeline() {
+            throw new UnsupportedOperationException();
+        }
     }
 }
