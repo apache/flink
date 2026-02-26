@@ -91,7 +91,11 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
       return Intl.DateTimeFormat().resolvedOptions().timeZone;
     } catch (error) {
       console.error('[getBrowserTimezone] Error getting browser timezone, falling back to UTC:', error);
-      return 'UTC';
+      // As a last resort, rely on runtime environment offset
+      const offset = -new Date().getTimezoneOffset();
+      const sign = offset >= 0 ? '+' : '-';
+      const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+      return `Etc/GMT${sign}${hours}`;
     }
   }
 
