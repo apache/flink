@@ -49,9 +49,11 @@ public final class ColumnList implements Serializable {
     private ColumnList(List<String> names, List<DataType> dataTypes) {
         Preconditions.checkNotNull(names, "Names must not be null.");
         Preconditions.checkNotNull(dataTypes, "Data types must not be null.");
-        Preconditions.checkArgument(!names.contains(null), "Names must not contain null elements.");
         Preconditions.checkArgument(
-                !dataTypes.contains(null), "Data types must not contain null elements.");
+                names.stream().noneMatch(Objects::isNull), "Names must not contain null elements.");
+        Preconditions.checkArgument(
+                dataTypes.stream().noneMatch(Objects::isNull),
+                "Data types must not contain null elements.");
         Preconditions.checkArgument(
                 dataTypes.isEmpty() || dataTypes.size() == names.size(),
                 "Mismatch between data types and names.");
