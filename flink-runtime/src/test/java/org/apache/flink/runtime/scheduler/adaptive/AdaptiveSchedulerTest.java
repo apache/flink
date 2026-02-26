@@ -100,6 +100,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -2697,6 +2698,22 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
         public DummyState(StateWithoutExecutionGraph.Context context, JobStatus jobStatus) {
             super(context, AdaptiveSchedulerTest.LOG);
             this.jobStatus = jobStatus;
+        }
+
+        @Override
+        public Durable getDurable() {
+            return null;
+        }
+
+        @Override
+        public void cancel() {}
+
+        @Override
+        public void suspend(Throwable cause) {}
+
+        @Override
+        public JobID getJobId() {
+            return null;
         }
 
         @Override
