@@ -400,6 +400,54 @@ public class OptimizerConfigOptions {
                     .withDescription(
                             "Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.");
 
+    // ========================================================================
+    // Async Batch Lookup Join Options
+    // ========================================================================
+
+    /**
+     * Configuration option to enable async batch lookup join for temporal table joins.
+     * 
+     * <p>When enabled, multiple lookup requests are batched together to reduce network overhead
+     * and improve throughput. This is particularly beneficial for high-throughput scenarios
+     * with frequent dimension table lookups.
+     */
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED =
+            key("table.optimizer.dim-lookup-join.batch.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Whether to enable the dim table batch lookup join.");
+
+    /**
+     * Configuration option for the batch size of async batch lookup join.
+     * 
+     * <p>Controls how many lookup requests are batched together. Larger batch sizes
+     * can improve throughput but may increase latency and memory usage. The optimal
+     * value depends on the specific use case and system characteristics.
+     */
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE =
+            key("table.optimizer.dim-lookup-join.batch.size")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("The batch size of dim table lookup join.");
+
+    /**
+     * Configuration option for the flush interval of async batch lookup join.
+     * 
+     * <p>Controls the maximum time to wait before flushing a batch, even if the
+     * batch size hasn't been reached. This ensures that records don't wait
+     * indefinitely when the input rate is low. Smaller intervals reduce latency
+     * but may decrease batch efficiency.
+     */
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS =
+            key("table.optimizer.dim-lookup-join.batch.flush.millis")
+                    .longType()
+                    .defaultValue(2000L)
+                    .withDescription(
+                            "The flush interval of dim table lookup join in batch mode, in millis.");
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {

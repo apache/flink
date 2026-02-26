@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -55,6 +56,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.common.BatchLookupFunctionWrapper;
+import org.apache.flink.table.planner.plan.nodes.exec.common.BatchResultFutureWrapper;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
@@ -72,6 +75,8 @@ import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.lookup.AsyncBatchLookupJoinRunner;
+import org.apache.flink.table.runtime.operators.join.lookup.AsyncBatchLookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
@@ -492,38 +497,85 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
         DataStructureConverter<?, ?> fetcherConverter =
                 DataStructureConverters.getConverter(generatedFuncWithType.dataType());
+        
+        // Check if batch lookup join is enabled
+        boolean batchEnabled = config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED);
+        int batchSize = config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE);
+        long flushIntervalMillis = config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS);
+        
         AsyncFunction<RowData, RowData> asyncFunc;
-        if (projectionOnTemporalTable != null) {
-            // a projection or filter after table source scan
-            GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc =
-                    LookupJoinCodeGenerator.generateCalcMapFunction(
-                            config,
-                            classLoader,
-                            JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
-                            filterOnTemporalTable,
-                            projectionOutputRelDataType,
-                            tableSourceRowType);
-            asyncFunc =
-                    new AsyncLookupJoinWithCalcRunner(
-                            generatedFuncWithType.tableFunc(),
-                            (DataStructureConverter<RowData, Object>) fetcherConverter,
-                            generatedCalc,
-                            generatedResultFuture,
-                            generatedPreFilterCondition,
-                            InternalSerializers.create(rightRowType),
-                            isLeftOuterJoin,
-                            asyncLookupOptions.asyncBufferCapacity);
+        if (batchEnabled) {
+            // Use batch lookup join runners for improved performance
+            // For now, use a wrapper to adapt single lookup function to batch interface
+            // TODO: Implement proper batch code generation in future versions
+            if (projectionOnTemporalTable != null) {
+                // a projection or filter after table source scan
+                GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc =
+                        LookupJoinCodeGenerator.generateCalcMapFunction(
+                                config,
+                                classLoader,
+                                JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
+                                filterOnTemporalTable,
+                                projectionOutputRelDataType,
+                                tableSourceRowType);
+                asyncFunc =
+                        new AsyncBatchLookupJoinWithCalcRunner(
+                                new BatchLookupFunctionWrapper(generatedFuncWithType.tableFunc()),
+                                (DataStructureConverter<RowData, Object>) fetcherConverter,
+                                generatedCalc,
+                                new BatchResultFutureWrapper(generatedResultFuture),
+                                InternalSerializers.create(rightRowType),
+                                isLeftOuterJoin,
+                                asyncLookupOptions.asyncBufferCapacity,
+                                batchSize,
+                                flushIntervalMillis);
+            } else {
+                // right type is the same as table source row type, because no calc after temporal table
+                asyncFunc =
+                        new AsyncBatchLookupJoinRunner(
+                                new BatchLookupFunctionWrapper(generatedFuncWithType.tableFunc()),
+                                (DataStructureConverter<RowData, Object>) fetcherConverter,
+                                new BatchResultFutureWrapper(generatedResultFuture),
+                                InternalSerializers.create(rightRowType),
+                                isLeftOuterJoin,
+                                asyncLookupOptions.asyncBufferCapacity,
+                                batchSize,
+                                flushIntervalMillis);
+            }
         } else {
-            // right type is the same as table source row type, because no calc after temporal table
-            asyncFunc =
-                    new AsyncLookupJoinRunner(
-                            generatedFuncWithType.tableFunc(),
-                            (DataStructureConverter<RowData, Object>) fetcherConverter,
-                            generatedResultFuture,
-                            generatedPreFilterCondition,
-                            InternalSerializers.create(rightRowType),
-                            isLeftOuterJoin,
-                            asyncLookupOptions.asyncBufferCapacity);
+            // Use original single lookup join runners
+            if (projectionOnTemporalTable != null) {
+                // a projection or filter after table source scan
+                GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc =
+                        LookupJoinCodeGenerator.generateCalcMapFunction(
+                                config,
+                                classLoader,
+                                JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
+                                filterOnTemporalTable,
+                                projectionOutputRelDataType,
+                                tableSourceRowType);
+                asyncFunc =
+                        new AsyncLookupJoinWithCalcRunner(
+                                generatedFuncWithType.tableFunc(),
+                                (DataStructureConverter<RowData, Object>) fetcherConverter,
+                                generatedCalc,
+                                generatedResultFuture,
+                                generatedPreFilterCondition,
+                                InternalSerializers.create(rightRowType),
+                                isLeftOuterJoin,
+                                asyncLookupOptions.asyncBufferCapacity);
+            } else {
+                // right type is the same as table source row type, because no calc after temporal table
+                asyncFunc =
+                        new AsyncLookupJoinRunner(
+                                generatedFuncWithType.tableFunc(),
+                                (DataStructureConverter<RowData, Object>) fetcherConverter,
+                                generatedResultFuture,
+                                generatedPreFilterCondition,
+                                InternalSerializers.create(rightRowType),
+                                isLeftOuterJoin,
+                                asyncLookupOptions.asyncBufferCapacity);
+            }
         }
         if (asyncLookupOptions.keyOrdered) {
             Preconditions.checkState(
