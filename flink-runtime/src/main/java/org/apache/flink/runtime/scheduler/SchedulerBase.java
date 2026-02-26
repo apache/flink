@@ -873,6 +873,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 ArchivedExecutionGraph.createFrom(executionGraph),
                 getExceptionHistory(),
                 getSchedulerType(),
+                null,
                 null);
     }
 

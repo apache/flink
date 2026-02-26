@@ -74,6 +74,7 @@ class JobRescaleConfigHandlerTest {
                         new ArchivedExecutionGraphBuilder().build(),
                         Collections.emptyList(),
                         null,
+                        null,
                         null);
         final ExecutionGraphInfo finalExecutionGraphInfo = executionGraphInfo;
         assertThatThrownBy(() -> testInstance.handleRequest(request, finalExecutionGraphInfo))
@@ -88,7 +89,8 @@ class JobRescaleConfigHandlerTest {
                         new ArchivedExecutionGraphBuilder().build(),
                         Collections.emptyList(),
                         null,
-                        jobRescaleConfigInfo);
+                        jobRescaleConfigInfo,
+                        null);
         assertThat(testInstance.handleRequest(request, executionGraphInfo))
                 .isEqualTo(jobRescaleConfigInfo);
     }
