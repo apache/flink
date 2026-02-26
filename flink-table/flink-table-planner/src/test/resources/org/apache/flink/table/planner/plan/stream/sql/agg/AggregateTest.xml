@@ -263,7 +263,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, cnt])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
 ]]>
     </Resource>
   </TestCase>
@@ -282,7 +283,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]], fields=[id, cnt, sys_col])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
 ]]>
     </Resource>
   </TestCase>
@@ -301,7 +303,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[cnt, id, sys_col]]], fields=[cnt, id, sys_col])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[], metadata=[cnt]]], fields=[cnt])
 ]]>
     </Resource>
   </TestCase>
@@ -320,7 +323,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]], fields=[nested, id, cnt, sys_col])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[nested], metadata=[]]], fields=[nested])
 ]]>
     </Resource>
   </TestCase>
