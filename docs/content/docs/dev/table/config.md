@@ -143,6 +143,27 @@ The following options can be used to adjust the behavior of the query optimizer 
 
 {{< generated/optimizer_config_configuration >}}
 
+#### Async Batch Lookup Join Options
+
+Async Batch Lookup Join is a performance optimization for temporal table joins that batches multiple lookup requests together to reduce network overhead and improve throughput.
+
+**table.optimizer.dim-lookup-join.batch.enabled**
+- **Type**: Boolean
+- **Default**: false
+- **Description**: Whether to enable async batch lookup join for temporal table joins. When enabled, multiple lookup requests are batched together for better performance.
+
+**table.optimizer.dim-lookup-join.batch.size**
+- **Type**: Integer  
+- **Default**: 100
+- **Description**: The number of lookup requests to batch together. Larger values improve throughput but may increase latency and memory usage.
+
+**table.optimizer.dim-lookup-join.batch.flush.millis**
+- **Type**: Long
+- **Default**: 2000
+- **Description**: The maximum time in milliseconds to wait before flushing a batch. Smaller values reduce latency but may decrease batch efficiency.
+
+For detailed usage examples and best practices, see [Async Batch Lookup Join]({{< ref "docs/dev/table/sql/async-batch-lookup-join" >}}).
+
 ### Table Options
 
 The following options can be used to adjust the behavior of the table planner.
