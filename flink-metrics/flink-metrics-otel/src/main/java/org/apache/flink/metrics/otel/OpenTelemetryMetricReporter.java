@@ -32,6 +32,8 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
+
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
@@ -44,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -55,6 +58,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -72,15 +77,33 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
 
     private static final String LOGICAL_SCOPE_PREFIX = "flink.";
 
+    @GuardedBy("this")
     private final Map<Gauge<?>, MetricMetadata> gauges = new HashMap<>();
+
+    @GuardedBy("this")
     private final Map<Counter, MetricMetadata> counters = new HashMap<>();
+
+    @GuardedBy("this")
     private final Map<Histogram, MetricMetadata> histograms = new HashMap<>();
+
+    @GuardedBy("this")
     private final Map<Meter, MetricMetadata> meters = new HashMap<>();
+
     private final Clock clock;
 
     // In order to produce deltas, we keep a snapshot of the previous counter collection.
+    @GuardedBy("this")
     private Map<Metric, Long> lastValueSnapshots = Collections.emptyMap();
+
+    @GuardedBy("this")
     private long lastCollectTimeNanos = 0;
+
+    @GuardedBy("this")
+    private int batchSize = OpenTelemetryReporterOptions.BATCH_SIZE.defaultValue();
+
+    @GuardedBy("this")
+    private long exportCompletionTimeoutMillis =
+            OpenTelemetryReporterOptions.EXPORT_COMPLETION_TIMEOUT_MILLIS.defaultValue();
 
     public OpenTelemetryMetricReporter() {
         this(Clock.systemUTC());
@@ -92,10 +115,18 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
     }
 
     @Override
-    public void open(MetricConfig metricConfig) {
+    public void open(final MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryMetricReporter");
         super.open(metricConfig);
 
+        synchronized (this) {
+            exporter = createExporter(metricConfig);
+            configureBatching(metricConfig);
+        }
+    }
+
+    /** Creates the {@link MetricExporter} based on the configured protocol. */
+    protected MetricExporter createExporter(final MetricConfig metricConfig) {
         final String protocol =
                 Optional.ofNullable(
                                 metricConfig.getProperty(
@@ -104,29 +135,27 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
 
         switch (protocol.toLowerCase()) {
             case "http":
-                OtlpHttpMetricExporterBuilder httpBuilder = OtlpHttpMetricExporter.builder();
+                final OtlpHttpMetricExporterBuilder httpBuilder = OtlpHttpMetricExporter.builder();
                 tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
                 tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
                 tryConfigureCompression(metricConfig, httpBuilder::setCompression);
-                exporter = httpBuilder.build();
-                break;
+                return httpBuilder.build();
             default:
                 LOG.warn(
                         "Unknown protocol '{}' for OpenTelemetryMetricReporter, defaulting to gRPC",
                         protocol);
             // Fall through to the "gRPC" case
             case "grpc":
-                OtlpGrpcMetricExporterBuilder grpcBuilder = OtlpGrpcMetricExporter.builder();
+                final OtlpGrpcMetricExporterBuilder grpcBuilder = OtlpGrpcMetricExporter.builder();
                 tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
                 tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
                 tryConfigureCompression(metricConfig, grpcBuilder::setCompression);
-                exporter = grpcBuilder.build();
-                break;
+                return grpcBuilder.build();
         }
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         if (exporter != null) {
             exporter.flush();
             waitForLastReportToComplete();
@@ -269,39 +298,136 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         return map;
     }
 
-    private @Nullable CompletableResultCode lastResult;
+    private volatile @Nullable CompletableFuture<Void> lastReportFuture;
 
     @Override
     public void report() {
-        Collection<MetricData> metricData = collectAllMetrics();
+        final List<MetricData> metricData = List.copyOf(collectAllMetrics());
+        final int totalMetrics = metricData.size();
+        if (totalMetrics == 0) {
+            return;
+        }
+
+        // In order to avoid potentially large memory allocations on `.partition()` call.
+        // doesn't require additional synchronized as it comes after collectAllMetrics, which
+        // is synchronized
+        final int localBatchSize = Math.min(batchSize, totalMetrics);
+
+        final Iterable<List<MetricData>> batches = Lists.partition(metricData, localBatchSize);
+        final int totalBatches = (totalMetrics + localBatchSize - 1) / localBatchSize;
+        final List<CompletableResultCode> results = new ArrayList<>(totalBatches);
+        for (final List<MetricData> batch : batches) {
+            results.add(exportBatch(batch));
+        }
+
+        lastReportFuture =
+                CompletableFuture.runAsync(
+                                () ->
+                                        reportWhenExportIsComplete(
+                                                totalMetrics, results, localBatchSize))
+                        .whenComplete(
+                                (ignored, throwable) -> {
+                                    if (throwable != null) {
+                                        LOG.warn("Error while reporting metrics", throwable);
+                                    }
+                                });
+    }
+
+    private CompletableResultCode exportBatch(final Collection<MetricData> batch) {
         try {
-            lastResult = exporter.export(metricData);
-            lastResult.whenComplete(
-                    () -> {
-                        if (lastResult.isSuccess()) {
-                            LOG.debug(
-                                    "Exported {} metrics using {}",
-                                    metricData.size(),
-                                    exporter.getClass().getName());
-                        } else {
-                            LOG.warn(
-                                    "Failed to export {} metrics using {}",
-                                    metricData.size(),
-                                    exporter.getClass().getName());
-                        }
-                    });
+            // exporter used without synchronize block, because `exportBatch` happens
+            // after `collectAllMetrics` which adds memory barrier.
+            return exporter.export(batch);
         } catch (Exception e) {
             LOG.error(
                     "Failed to call export for {} metrics using {}",
-                    metricData.size(),
-                    exporter.getClass().getName());
+                    batch.size(),
+                    exporter.getClass().getName(),
+                    e);
+            return CompletableResultCode.ofFailure();
         }
+    }
+
+    private void reportWhenExportIsComplete(
+            final int totalMetrics,
+            final List<CompletableResultCode> results,
+            final int localBatchSize) {
+        final CountDownLatch completedResults = new CountDownLatch(results.size());
+        results.forEach(result -> result.whenComplete(completedResults::countDown));
+
+        try {
+            final boolean isCompleteReport =
+                    completedResults.await(exportCompletionTimeoutMillis, TimeUnit.MILLISECONDS);
+
+            final int successfulBatches =
+                    (int) results.stream().filter(CompletableResultCode::isSuccess).count();
+            final int failedBatches = results.size() - successfulBatches;
+
+            logFinalStatistics(
+                    localBatchSize,
+                    successfulBatches,
+                    failedBatches,
+                    totalMetrics,
+                    isCompleteReport);
+        } catch (final InterruptedException e) {
+            LOG.warn(
+                    "Thread waiting for metrics export results have been interrupted. "
+                            + "Exports results are unknown",
+                    e);
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void logFinalStatistics(
+            int localBatchSize,
+            int successfulBatches,
+            int failedBatches,
+            int totalMetrics,
+            boolean isCompleteReport) {
+        if (failedBatches > 0 || !isCompleteReport) {
+            LOG.warn(
+                    "Metric export completed with issues: totalMetrics={}, batchSize={}, "
+                            + "successfulBatches={}, failedBatches={}, completedInTime={}",
+                    totalMetrics,
+                    localBatchSize,
+                    successfulBatches,
+                    failedBatches,
+                    isCompleteReport);
+        } else {
+            LOG.debug(
+                    "Metric export completed successfully: totalMetrics={}, batchSize={}, "
+                            + "successfulBatches={}",
+                    totalMetrics,
+                    localBatchSize,
+                    successfulBatches);
+        }
+    }
+
+    private void configureBatching(MetricConfig metricConfig) {
+        int configuredBatchSize =
+                metricConfig.getInteger(
+                        OpenTelemetryReporterOptions.BATCH_SIZE.key(),
+                        OpenTelemetryReporterOptions.BATCH_SIZE.defaultValue());
+        batchSize = configuredBatchSize <= 0 ? Integer.MAX_VALUE : configuredBatchSize;
+        exportCompletionTimeoutMillis =
+                metricConfig.getLong(
+                        OpenTelemetryReporterOptions.EXPORT_COMPLETION_TIMEOUT_MILLIS.key(),
+                        OpenTelemetryReporterOptions.EXPORT_COMPLETION_TIMEOUT_MILLIS
+                                .defaultValue());
+        LOG.info(
+                "Configured batching: batchSize={}, exportCompletionTimeoutMillis={}",
+                batchSize,
+                exportCompletionTimeoutMillis);
     }
 
     @VisibleForTesting
     void waitForLastReportToComplete() {
-        if (lastResult != null) {
-            lastResult.join(1, TimeUnit.MINUTES);
+        if (lastReportFuture != null) {
+            try {
+                lastReportFuture.get(1, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                LOG.warn("Waiting for last report to complete failed", e);
+            }
         }
     }
 }
