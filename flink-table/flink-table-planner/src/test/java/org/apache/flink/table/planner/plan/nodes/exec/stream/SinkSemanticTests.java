@@ -67,6 +67,8 @@ public class SinkSemanticTests extends SemanticTestBase {
                 SinkTestPrograms.APPEND_ONLY_WITH_PK_WITH_ON_CONFLICT,
                 SinkTestPrograms.UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT_DISABLED,
                 SinkTestPrograms.ON_CONFLICT_NOT_ALLOWED_FOR_APPEND_ONLY_SINK,
-                SinkTestPrograms.ON_CONFLICT_NOT_ALLOWED_FOR_RETRACT_SINK);
+                SinkTestPrograms.ON_CONFLICT_NOT_ALLOWED_FOR_RETRACT_SINK,
+                SinkTestPrograms.ON_CONFLICT_DO_NOTHING_REQUIRES_WATERMARKS,
+                SinkTestPrograms.ON_CONFLICT_DO_ERROR_REQUIRES_WATERMARKS);
     }
 }

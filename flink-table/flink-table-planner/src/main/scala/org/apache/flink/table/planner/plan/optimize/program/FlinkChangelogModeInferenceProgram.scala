@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.optimize.program
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.InsertConflictStrategy
+import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
@@ -32,6 +33,7 @@ import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterO
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.optimize.ChangelogNormalizeRequirementResolver
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFastStrategy, RetractStrategy, UpdateFastStrategy}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -1072,6 +1074,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         }
       }
 
+      // Validate that sources have watermarks when using ERROR or NOTHING strategy
+      if (
+        sink.conflictStrategy != null &&
+        (sink.conflictStrategy.getBehavior == ConflictBehavior.ERROR ||
+          sink.conflictStrategy.getBehavior == ConflictBehavior.NOTHING)
+      ) {
+        validateSourcesHaveWatermarks(sink)
+      }
+
       tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty && !sinkIsRetract
         case UpsertMaterialize.NONE => false
@@ -1114,6 +1125,35 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
 
           upsertKeyDiffersFromPk
+      }
+    }
+
+    private def validateSourcesHaveWatermarks(sink: StreamPhysicalSink): Unit = {
+      val sourcesWithoutWatermarks = new java.util.ArrayList[String]()
+      collectSourcesWithoutWatermarks(sink.getInput, sourcesWithoutWatermarks)
+      if (!sourcesWithoutWatermarks.isEmpty) {
+        throw new ValidationException(
+          s"ON CONFLICT DO ${sink.conflictStrategy.getBehavior} requires all source " +
+            s"tables to define watermarks, but the following source(s) do not: " +
+            s"${sourcesWithoutWatermarks.mkString(", ")}. " +
+            s"Please add a WATERMARK declaration to these tables.")
+      }
+    }
+
+    private def collectSourcesWithoutWatermarks(
+        rel: RelNode,
+        result: java.util.List[String]): Unit = {
+      rel match {
+        case ts: StreamPhysicalTableSourceScan =>
+          val table = ts.getTable.unwrap(classOf[TableSourceTable])
+          if (
+            table != null &&
+            table.contextResolvedTable.getResolvedSchema.getWatermarkSpecs.isEmpty
+          ) {
+            result.add(table.contextResolvedTable.getIdentifier.asSummaryString())
+          }
+        case _ =>
+          rel.getInputs.forEach(input => collectSourcesWithoutWatermarks(input, result))
       }
     }
   }

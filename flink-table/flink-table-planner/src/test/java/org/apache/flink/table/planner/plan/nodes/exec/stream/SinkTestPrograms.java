@@ -26,6 +26,8 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.time.LocalDateTime;
+
 /** Tests for verifying sink semantics. */
 public class SinkTestPrograms {
 
@@ -97,12 +99,28 @@ public class SinkTestPrograms {
                             "ON CONFLICT DO NOTHING keeps the first record when multiple records have the same PK.")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addSchema("a INT", "b BIGINT")
+                                    .addSchema(
+                                            "a INT",
+                                            "b BIGINT",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts")
                                     .addOption("changelog-mode", "I")
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, 1, 10L),
-                                            Row.ofKind(RowKind.INSERT, 1, 20L),
-                                            Row.ofKind(RowKind.INSERT, 2, 30L))
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    1,
+                                                    10L,
+                                                    LocalDateTime.of(2024, 1, 1, 0, 0, 1)),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    1,
+                                                    20L,
+                                                    LocalDateTime.of(2024, 1, 1, 0, 0, 2)),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    2,
+                                                    30L,
+                                                    LocalDateTime.of(2024, 1, 1, 0, 0, 3)))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
@@ -118,11 +136,23 @@ public class SinkTestPrograms {
                             "ON CONFLICT DO ERROR with no conflicts passes through all records.")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addSchema("a INT", "b BIGINT")
+                                    .addSchema(
+                                            "a INT",
+                                            "b BIGINT",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts")
                                     .addOption("changelog-mode", "I")
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, 1, 10L),
-                                            Row.ofKind(RowKind.INSERT, 2, 20L))
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    1,
+                                                    10L,
+                                                    LocalDateTime.of(2024, 1, 1, 0, 0, 1)),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    2,
+                                                    20L,
+                                                    LocalDateTime.of(2024, 1, 1, 0, 0, 2)))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
@@ -327,5 +357,45 @@ public class SinkTestPrograms {
                             "ON CONFLICT clause is only allowed for upsert sinks. "
                                     + "The sink 'default_catalog.default_database.sink_t' is not an upsert sink "
                                     + "because it requires UPDATE_BEFORE (retract mode).")
+                    .build();
+
+    public static final TableTestProgram ON_CONFLICT_DO_NOTHING_REQUIRES_WATERMARKS =
+            TableTestProgram.of(
+                            "sink-on-conflict-do-nothing-requires-watermarks",
+                            "ON CONFLICT DO NOTHING requires sources to have watermarks.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 10L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO NOTHING",
+                            ValidationException.class,
+                            "requires all source tables to define watermarks")
+                    .build();
+
+    public static final TableTestProgram ON_CONFLICT_DO_ERROR_REQUIRES_WATERMARKS =
+            TableTestProgram.of(
+                            "sink-on-conflict-do-error-requires-watermarks",
+                            "ON CONFLICT DO ERROR requires sources to have watermarks.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 10L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO ERROR",
+                            ValidationException.class,
+                            "requires all source tables to define watermarks")
                     .build();
 }
