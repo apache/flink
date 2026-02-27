@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -258,16 +260,26 @@ class BatchLookupFunctionWrapperTest {
         }
 
         @Override
-        public void complete(Iterable<Object> result) {
-            for (Object item : result) {
-                results.add(item);
-            }
+        public void complete(Collection<Object> result) {
+            results.addAll(result);
             latch.countDown();
         }
 
         @Override
         public void completeExceptionally(Throwable error) {
             latch.countDown();
+        }
+
+        @Override
+        public void complete(CollectionSupplier<Object> supplier) {
+            try {
+                Collection<Object> result = supplier.get();
+                results.addAll(result);
+            } catch (Exception e) {
+                // Ignore exception for testing
+            } finally {
+                latch.countDown();
+            }
         }
     }
 
@@ -281,7 +293,7 @@ class BatchLookupFunctionWrapperTest {
         }
 
         @Override
-        public void complete(Iterable<Object> result) {
+        public void complete(Collection<Object> result) {
             latch.countDown();
         }
 
@@ -289,6 +301,17 @@ class BatchLookupFunctionWrapperTest {
         public void completeExceptionally(Throwable error) {
             errors.add(error);
             latch.countDown();
+        }
+
+        @Override
+        public void complete(CollectionSupplier<Object> supplier) {
+            try {
+                supplier.get();
+            } catch (Exception e) {
+                errors.add(e);
+            } finally {
+                latch.countDown();
+            }
         }
     }
 }
