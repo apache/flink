@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.HashJoinOperator;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTestBase;
 import org.apache.flink.table.runtime.operators.join.SortMergeJoinOperator;
-import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
+import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoinGenerator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -268,10 +268,15 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
             boolean buildLeft,
             boolean isBroadcast,
             OperatorType operatorType) {
-        AdaptiveJoin adaptiveJoin = genAdaptiveJoin(flinkJoinType, operatorType);
-        adaptiveJoin.markAsBroadcastJoin(isBroadcast, buildLeft);
+        AdaptiveJoinGenerator adaptiveJoinGenerator = genAdaptiveJoinGenerator();
 
-        return adaptiveJoin.genOperatorFactory(getClass().getClassLoader(), new Configuration());
+        return adaptiveJoinGenerator.genOperatorFactory(
+                getClass().getClassLoader(),
+                new Configuration(),
+                flinkJoinType,
+                operatorType == SortMergeJoin,
+                isBroadcast,
+                buildLeft);
     }
 
     public void assertOperatorType(Object operator, OperatorType expectedOperatorType) {
@@ -301,7 +306,7 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
         }
     }
 
-    public AdaptiveJoin genAdaptiveJoin(FlinkJoinType flinkJoinType, OperatorType operatorType) {
+    public AdaptiveJoinGenerator genAdaptiveJoinGenerator() {
         GeneratedJoinCondition condFuncCode =
                 new GeneratedJoinCondition(
                         Int2HashJoinOperatorTestBase.MyJoinCondition.class.getCanonicalName(),
@@ -316,7 +321,6 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
         return new AdaptiveJoinOperatorGenerator(
                 new int[] {0},
                 new int[] {0},
-                flinkJoinType,
                 new boolean[] {true},
                 RowType.of(new IntType(), new IntType()),
                 RowType.of(new IntType(), new IntType()),
@@ -326,8 +330,6 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
                 20,
                 10000,
                 false,
-                TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY.defaultValue().getBytes(),
-                true,
-                operatorType);
+                TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY.defaultValue().getBytes());
     }
 }
