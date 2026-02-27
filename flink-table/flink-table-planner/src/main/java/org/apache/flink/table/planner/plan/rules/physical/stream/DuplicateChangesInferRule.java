@@ -43,7 +43,6 @@ import org.apache.flink.table.planner.plan.trait.DuplicateChangesTraitDef;
 import org.apache.flink.table.planner.plan.trait.UpdateKind;
 import org.apache.flink.table.planner.plan.trait.UpdateKindTraitDef;
 import org.apache.flink.table.planner.plan.utils.DuplicateChangesUtils;
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -52,7 +51,6 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rex.RexProgram;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
@@ -103,14 +101,6 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
                     canConsumeDuplicateChanges
                             ? DuplicateChangesTrait.ALLOW
                             : DuplicateChangesTrait.DISALLOW;
-        } else if (rel instanceof StreamPhysicalCalcBase) {
-            RexProgram calcProgram = ((StreamPhysicalCalcBase) rel).getProgram();
-            // if the calc contains non-deterministic fields, we should not allow duplicate
-            if (!FlinkRexUtil.isDeterministic(calcProgram)) {
-                requiredTrait = DuplicateChangesTrait.DISALLOW;
-            } else {
-                requiredTrait = parentTrait;
-            }
         } else if (rel instanceof StreamPhysicalJoin) {
             // join with only update after can forward parent duplicate changes
             UpdateKind updateKindTrait =
@@ -121,7 +111,8 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
             } else {
                 requiredTrait = DuplicateChangesTrait.DISALLOW;
             }
-        } else if (rel instanceof StreamPhysicalExchange
+        } else if (rel instanceof StreamPhysicalCalcBase
+                || rel instanceof StreamPhysicalExchange
                 || rel instanceof StreamPhysicalMiniBatchAssigner
                 || rel instanceof StreamPhysicalWatermarkAssigner
                 || rel instanceof StreamPhysicalDropUpdateBefore
