@@ -431,3 +431,17 @@ The following option has been moved from `org.apache.flink.table.planner.plan.ru
 to `org.apache.flink.table.api.config.OptimizerConfigOptions` and promoted to `@PublicEvolving`
 
 - `table.optimizer.incremental-agg-enabled`
+
+#### Set security.ssl.algorithms default value to modern cipher suite
+
+### [FLINK-39022](https://issues.apache.org/jira/browse/FLINK-39022)
+
+A JDK update (affecting JDK 11.0.30+, 17.0.18+, 21.0.10+, and 24+) disabled `TLS_RSA_*` cipher suites.
+This was done to support forward-secrecy (RFC 9325) and comply with the IETF Draft on *Deprecating Obsolete Key Exchange Methods in TLS*.
+
+To support these and future JDK versions, the default value for the Flink configuration option `security.ssl.algorithms` has been changed to a modern, widely available cipher suite:
+
+`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
+
+This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements.
+If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
