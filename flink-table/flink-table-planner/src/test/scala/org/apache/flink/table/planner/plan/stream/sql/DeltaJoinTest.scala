@@ -162,6 +162,15 @@ class DeltaJoinTest extends TableTestBase {
         .primaryKey("l0", "l1", "l2", "r1", "r2")
         .build()
     )
+
+    addTable(
+      "dim",
+      Schema
+        .newBuilder()
+        .column("f0", DataTypes.INT.notNull)
+        .column("f1", DataTypes.DOUBLE.notNull)
+        .build()
+    )
   }
 
   @Test
@@ -1152,6 +1161,47 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from tmp_src12 join src2 " +
         "on tmp_src12.a2 = src2.b2 on conflict do deduplicate")
     util.verifyRelPlan(stmt)
+  }
+
+  @Test
+  def testLookupJoinAfterDeltaJoin(): Unit = {
+    tEnv.executeSql("""
+                      |create temporary view myv as
+                      |select *, proctime() as pt from src1 join src2
+                      | on src1.a1 = src2.b1
+                      |   and src1.a2 = src2.b2
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk
+                               |select a0, a1, a2, a3, b0, b2, b1 from myv
+                               |  join dim for system_time as of pt
+                               |  on a0 = f0
+                               |on conflict do deduplicate
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testLookupJoinBeforeJoin(): Unit = {
+    tEnv.executeSql("""
+                      |create temporary view src1_v as
+                      |select *, proctime() as pt from src1
+                      |""".stripMargin)
+
+    tEnv.executeSql("""
+                      |create temporary view lookup_v as
+                      |select a0, a1, a2, a3 from src1_v
+                      |  join dim for system_time as of pt
+                      |  on a0 = f0
+                      |""".stripMargin)
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk
+                               |select a0, a1, a2, a3, b0, b2, b1 from lookup_v
+                               |  join src2
+                               |  on a1 = b1 and a2 = b2
+                               |on conflict do deduplicate
+                               |""".stripMargin)
   }
 
   @Test
