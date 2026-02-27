@@ -39,6 +39,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DIS
 import static org.apache.flink.python.util.PythonDependencyUtils.CACHE;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
+import static org.apache.flink.python.util.PythonDependencyUtils.getArchiveTargetDirName;
 import static org.apache.flink.python.util.PythonDependencyUtils.merge;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -235,6 +236,12 @@ class PythonDependencyUtilsTest {
         Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PythonOptions.PYTHON_PATH, pyPath);
         verifyConfiguration(expectedConfiguration, actual);
+    }
+
+    @Test
+    void testGetArchiveTargetDirName() {
+        assertThat(getArchiveTargetDirName("venv.zip#venv")).isEqualTo("venv");
+        assertThat(getArchiveTargetDirName("venv")).isEqualTo("venv");
     }
 
     private void verifyCachedFiles(Map<String, String> expected, Configuration config) {

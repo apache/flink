@@ -1008,7 +1008,8 @@ public final class DynamicSinkUtils {
                                                             adjustByVirtualColumns(columns, pos);
                                                     return rexBuilder.makeAbstractCast(
                                                             expectedRelDataType,
-                                                            relBuilder.field(posAdjusted));
+                                                            relBuilder.field(posAdjusted),
+                                                            false);
                                                 }))
                         .collect(Collectors.toList());
 

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.application.ApplicationCancellationHandler;
 import org.apache.flink.runtime.rest.handler.application.ApplicationDetailsHandler;
 import org.apache.flink.runtime.rest.handler.application.ApplicationsOverviewHandler;
+import org.apache.flink.runtime.rest.handler.application.JobManagerApplicationConfigurationHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
@@ -137,6 +138,7 @@ import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.YarnCancelJobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.YarnStopJobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.application.ApplicationDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.application.JobManagerApplicationConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
@@ -506,6 +508,14 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         responseHeaders,
                         ApplicationDetailsHeaders.getInstance());
 
+        JobManagerApplicationConfigurationHandler jobManagerApplicationConfigurationHandler =
+                new JobManagerApplicationConfigurationHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobManagerApplicationConfigurationHeaders.getInstance(),
+                        clusterConfiguration);
+
         JobAccumulatorsHandler jobAccumulatorsHandler =
                 new JobAccumulatorsHandler(
                         leaderRetriever,
@@ -818,6 +828,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(
                         applicationDetailsHandler.getMessageHeaders(), applicationDetailsHandler));
+        handlers.add(
+                Tuple2.of(
+                        jobManagerApplicationConfigurationHandler.getMessageHeaders(),
+                        jobManagerApplicationConfigurationHandler));
         handlers.add(Tuple2.of(jobAccumulatorsHandler.getMessageHeaders(), jobAccumulatorsHandler));
         handlers.add(Tuple2.of(taskManagersHandler.getMessageHeaders(), taskManagersHandler));
         handlers.add(

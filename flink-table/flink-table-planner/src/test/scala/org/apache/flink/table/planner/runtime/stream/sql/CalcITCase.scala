@@ -948,4 +948,21 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("1,2")
     assertThat(result).isEqualTo(expected)
   }
+
+  @Test
+  def testWeekQuarterIntervals(): Unit = {
+    val sql =
+      """
+        |SELECT INTERVAL '2' WEEK, INTERVAL '3' QUARTER
+        |""".stripMargin
+
+    val result = tEnv
+      .executeSql(sql)
+      .collect()
+      .asScala
+      .toList
+      .map(_.toString)
+    val expected = List("PT336H,P9M")
+    assertThat(result).isEqualTo(expected)
+  }
 }

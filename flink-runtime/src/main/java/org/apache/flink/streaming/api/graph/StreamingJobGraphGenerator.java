@@ -135,7 +135,7 @@ public class StreamingJobGraphGenerator {
         return new StreamingJobGraphGenerator(
                         Thread.currentThread().getContextClassLoader(),
                         streamGraph,
-                        streamGraph.getJobID(),
+                        streamGraph.getOptionalJobId().orElse(null),
                         streamGraph.getApplicationId().orElse(null),
                         Runnable::run)
                 .createJobGraph();

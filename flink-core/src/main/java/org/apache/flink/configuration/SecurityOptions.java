@@ -507,19 +507,20 @@ public class SecurityOptions {
      * The standard SSL algorithms to be supported.
      *
      * <p>More options here -
-     * http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
+     * https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names
      */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_ALGORITHMS =
             key("security.ssl.algorithms")
                     .stringType()
-                    .defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA")
+                    .defaultValue(
+                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The comma separated list of standard SSL algorithms to be supported. Read more %s",
                                             link(
-                                                    "http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites",
+                                                    "https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names",
                                                     "here"))
                                     .build());
 

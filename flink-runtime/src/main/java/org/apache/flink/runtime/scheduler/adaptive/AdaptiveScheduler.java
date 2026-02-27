@@ -715,6 +715,11 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return JobManagerOptions.SchedulerType.Adaptive;
+    }
+
+    @Override
     public void startScheduling() {
         checkIdleSlotTimeout();
         state.as(Created.class)
@@ -844,7 +849,8 @@ public class AdaptiveScheduler
 
     @Override
     public ExecutionGraphInfo requestJob() {
-        return new ExecutionGraphInfo(state.getJob(), exceptionHistory.toArrayList());
+        return new ExecutionGraphInfo(
+                state.getJob(), exceptionHistory.toArrayList(), getSchedulerType());
     }
 
     @Override

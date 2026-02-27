@@ -27,6 +27,7 @@ import org.apache.flink.util.OperatingSystem;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -135,5 +136,65 @@ class PythonDependencyInfoTest {
         PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(config, distributedCache);
 
         assertThat(dependencyInfo.getPythonExec()).isEqualTo("/usr/bin/python3");
+    }
+
+    @Test
+    void testIsPythonExecFromArchives() {
+        // exec matches archive target dir
+        Map<String, String> archives = new HashMap<>();
+        archives.put("/tmp/venv.zip", "venv");
+        assertThat(
+                        new PythonDependencyInfo(
+                                        new HashMap<>(),
+                                        null,
+                                        null,
+                                        archives,
+                                        "venv" + File.separator + "bin" + File.separator + "python")
+                                .isPythonExecFromArchives())
+                .isTrue();
+
+        // exec does not match any archive
+        assertThat(
+                        new PythonDependencyInfo(
+                                        new HashMap<>(), null, null, archives, "/usr/bin/python3")
+                                .isPythonExecFromArchives())
+                .isFalse();
+
+        // archive value with param delimiter ("originalFileName#targetDirName")
+        Map<String, String> archivesWithDelimiter = new HashMap<>();
+        archivesWithDelimiter.put("/tmp/venv.zip", "venv.zip#myenv");
+        assertThat(
+                        new PythonDependencyInfo(
+                                        new HashMap<>(),
+                                        null,
+                                        null,
+                                        archivesWithDelimiter,
+                                        "myenv"
+                                                + File.separator
+                                                + "bin"
+                                                + File.separator
+                                                + "python")
+                                .isPythonExecFromArchives())
+                .isTrue();
+
+        // empty archives
+        assertThat(
+                        new PythonDependencyInfo(
+                                        new HashMap<>(),
+                                        null,
+                                        null,
+                                        new HashMap<>(),
+                                        "venv" + File.separator + "bin" + File.separator + "python")
+                                .isPythonExecFromArchives())
+                .isFalse();
+
+        // exec without separator — entire string is the base dir
+        Map<String, String> archivesForBareExec = new HashMap<>();
+        archivesForBareExec.put("/tmp/python.zip", "python");
+        assertThat(
+                        new PythonDependencyInfo(
+                                        new HashMap<>(), null, null, archivesForBareExec, "python")
+                                .isPythonExecFromArchives())
+                .isTrue();
     }
 }

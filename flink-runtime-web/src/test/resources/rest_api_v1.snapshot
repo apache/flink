@@ -110,6 +110,14 @@
               "name" : {
                 "type" : "string"
               },
+              "jobType" : {
+                "type" : "string",
+                "enum" : [ "BATCH", "STREAMING" ]
+              },
+              "schedulerType" : {
+                "type" : "string",
+                "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -160,6 +168,38 @@
     "response" : {
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+    }
+  }, {
+    "url" : "/applications/:applicationid/jobmanager/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "applicationid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ConfigurationInfoEntry",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      }
     }
   }, {
     "url" : "/cluster",
@@ -1164,6 +1204,14 @@
               "name" : {
                 "type" : "string"
               },
+              "jobType" : {
+                "type" : "string",
+                "enum" : [ "BATCH", "STREAMING" ]
+              },
+              "schedulerType" : {
+                "type" : "string",
+                "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -1234,6 +1282,10 @@
         "job-type" : {
           "type" : "string",
           "enum" : [ "BATCH", "STREAMING" ]
+        },
+        "schedulerType" : {
+          "type" : "string",
+          "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
         },
         "start-time" : {
           "type" : "integer"

@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** Variant represent a semi-structured data. */
 @PublicEvolving
@@ -176,6 +177,14 @@ public interface Variant {
     Variant getElement(int index) throws VariantTypeException;
 
     /**
+     * Get the size of an array variant.
+     *
+     * @return Number of elements if this variant is an array
+     * @throws VariantTypeException If this variant is not an array.
+     */
+    int getArraySize() throws VariantTypeException;
+
+    /**
      * Access value of the specified field of an object variant. If there is no field with the
      * specified name, null is returned.
      *
@@ -185,6 +194,15 @@ public interface Variant {
      * @throws VariantTypeException If this variant is not an object.
      */
     Variant getField(String fieldName) throws VariantTypeException;
+
+    /**
+     * Get the field names of an object variant only at top level. Doesn't include the nested
+     * fields.
+     *
+     * @return List of field names if this variant is an object
+     * @throws VariantTypeException If this variant is not an object.
+     */
+    List<String> getFieldNames() throws VariantTypeException;
 
     /** Parses the variant to json. */
     String toJson();

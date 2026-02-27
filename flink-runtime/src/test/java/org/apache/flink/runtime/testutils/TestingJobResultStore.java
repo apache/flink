@@ -34,6 +34,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
+
 /**
  * {@code TestingJobResultStore} is a {@link JobResultStore} implementation that can be used in
  * tests.
@@ -47,7 +49,12 @@ public class TestingJobResultStore implements JobResultStore {
     }
 
     public static JobResult createJobResult(JobID jobId, @Nullable JobStatus jobStatus) {
-        return new JobResult.Builder().jobId(jobId).jobStatus(jobStatus).netRuntime(1).build();
+        return new JobResult.Builder()
+                .jobId(jobId)
+                .jobName(DEFAULT_STREAMING_JOB_NAME)
+                .jobStatus(jobStatus)
+                .netRuntime(1)
+                .build();
     }
 
     private final Function<JobResultEntry, CompletableFuture<Void>> createDirtyResultConsumer;

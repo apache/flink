@@ -89,9 +89,14 @@ public class PipelineExecutorUtils {
         final ExecutionConfigAccessor executionConfigAccessor =
                 ExecutionConfigAccessor.fromConfiguration(configuration);
 
-        configuration
-                .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
-                .ifPresent(strJobID -> streamGraph.setJobId(JobID.fromHexString(strJobID)));
+        if (streamGraph.getOptionalJobId().isEmpty()) {
+            JobID jobId =
+                    configuration
+                            .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
+                            .map(JobID::fromHexString)
+                            .orElse(JobID.generate());
+            streamGraph.setJobId(jobId);
+        }
 
         if (configuration.get(DeploymentOptions.ATTACHED)
                 && configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {

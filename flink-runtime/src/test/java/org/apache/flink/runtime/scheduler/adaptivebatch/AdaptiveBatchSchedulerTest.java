@@ -49,7 +49,6 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -142,8 +141,7 @@ class AdaptiveBatchSchedulerTest {
 
         // trigger source2 finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source2);
-        // Wait for parallelism to be decided (may happen asynchronously)
-        CommonTestUtils.waitUntilCondition(() -> sinkExecutionJobVertex.getParallelism() == 10);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(10);
 
         // check that the jobGraph is updated
         assertThat(sink.getParallelism()).isEqualTo(10);
@@ -152,8 +150,6 @@ class AdaptiveBatchSchedulerTest {
         // subpartitions of source1 is ceil(128 / 6) * 6 = 132, total number of subpartitions of
         // source2 is ceil(128 / 4) * 4 = 128, so total bytes is (132 + 128) * SUBPARTITION_BYTES =
         // 26_000L.
-        // Wait for input bytes to be calculated (may happen asynchronously during deployment)
-        CommonTestUtils.waitUntilCondition(() -> allInputBytesCalculated(sinkExecutionJobVertex));
         checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex, 26_000L);
     }
 
@@ -196,9 +192,8 @@ class AdaptiveBatchSchedulerTest {
 
         // trigger source finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
-        // Wait for parallelism to be decided (may happen asynchronously)
-        CommonTestUtils.waitUntilCondition(() -> mapExecutionJobVertex.getParallelism() == 5);
-        CommonTestUtils.waitUntilCondition(() -> sinkExecutionJobVertex.getParallelism() == 5);
+        assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
 
         // trigger map finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);
@@ -209,8 +204,6 @@ class AdaptiveBatchSchedulerTest {
 
         // check aggregatedInputDataBytes of each ExecutionVertex calculated. Total number of
         // subpartitions of map is 5, so total bytes sink consume is 5 * SUBPARTITION_BYTES = 500L.
-        // Wait for input bytes to be calculated (may happen asynchronously during deployment)
-        CommonTestUtils.waitUntilCondition(() -> allInputBytesCalculated(sinkExecutionJobVertex));
         checkAggregatedInputDataBytesIsCalculated(sinkExecutionJobVertex, 500L);
     }
 
@@ -456,15 +449,6 @@ class AdaptiveBatchSchedulerTest {
         }
 
         assertThat(totalInputBytes).isEqualTo(expectedTotalBytes);
-    }
-
-    private boolean allInputBytesCalculated(ExecutionJobVertex jobVertex) {
-        for (ExecutionVertex ev : jobVertex.getTaskVertices()) {
-            if (ev.getInputBytes() == ExecutionVertex.NUM_BYTES_UNKNOWN) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private void triggerFailedByPartitionNotFound(

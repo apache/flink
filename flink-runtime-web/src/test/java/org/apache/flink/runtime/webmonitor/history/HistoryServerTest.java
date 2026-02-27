@@ -922,8 +922,7 @@ class HistoryServerTest {
                         JobsOverviewHeaders.URL,
                         new MultipleJobsDetails(
                                 Collections.singleton(
-                                        JobDetails.createDetailsForJob(
-                                                executionGraphInfo.getArchivedExecutionGraph()))));
+                                        JobDetails.createDetailsForJob(executionGraphInfo))));
         FsJsonArchivist.writeArchivedJsons(
                 ArchivePathUtils.getJobArchivePath(clusterConfig, jobId, applicationId),
                 Collections.singletonList(archivedJobsOverview));

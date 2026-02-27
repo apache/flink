@@ -870,7 +870,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     public ExecutionGraphInfo requestJob() {
         mainThreadExecutor.assertRunningInMainThread();
         return new ExecutionGraphInfo(
-                ArchivedExecutionGraph.createFrom(executionGraph), getExceptionHistory());
+                ArchivedExecutionGraph.createFrom(executionGraph),
+                getExceptionHistory(),
+                getSchedulerType());
     }
 
     @Override

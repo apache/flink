@@ -16,18 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.table;
+package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
-import com.example.state.writer.job.schema.avro.AvroRecord;
+/**
+ * Interface for managing the job IDs.
+ *
+ * <p>This interface allows custom logic to update the job ID of a {@link StreamGraph} before
+ * submitting the job.
+ */
+public interface JobIdManager {
 
-/** {@link SavepointTypeInformationFactory} for specific avro record. */
-public class SpecificAvroSavepointTypeInformationFactory
-        implements SavepointTypeInformationFactory {
-    @Override
-    public TypeInformation<?> getTypeInformation() {
-        return new AvroTypeInfo<>(AvroRecord.class);
-    }
+    /**
+     * Updates the job ID of the given {@link StreamGraph}.
+     *
+     * @param streamGraph The {@link StreamGraph} to update.
+     */
+    void updateJobId(StreamGraph streamGraph);
+
+    JobIdManager NO_OP =
+            new JobIdManager() {
+                @Override
+                public void updateJobId(StreamGraph streamGraph) {
+                    // no-op
+                }
+            };
 }

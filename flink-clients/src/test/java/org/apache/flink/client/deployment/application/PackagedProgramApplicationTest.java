@@ -57,7 +57,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -176,7 +175,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         getProgram(2),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false,
@@ -269,7 +267,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         getProgram(2),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false,
@@ -481,7 +478,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         getProgram(1),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false,
@@ -1081,7 +1077,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         FailingJob.getProgram(),
-                        Collections.emptyList(),
                         configuration,
                         true,
                         true /* enforceSingleJobExecution */,
@@ -1100,7 +1095,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         FailingJob.getProgram(),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false /* enforceSingleJobExecution */,
@@ -1234,7 +1228,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         program,
-                        Collections.emptyList(),
                         configuration,
                         handleFatalError,
                         enforceSingleJobExecution,

@@ -39,9 +39,10 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
@@ -58,8 +59,8 @@ import java.util.concurrent.Executor;
 
 /** Handler returning the details for the specified job. */
 public class JobDetailsHandler
-        extends AbstractAccessExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
-        implements OnlyExecutionGraphJsonArchivist {
+        extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
+        implements JsonArchivist {
 
     private final MetricFetcher metricFetcher;
 
@@ -84,27 +85,33 @@ public class JobDetailsHandler
 
     @Override
     protected JobDetailsInfo handleRequest(
-            HandlerRequest<EmptyRequestBody> request, AccessExecutionGraph executionGraph)
+            HandlerRequest<EmptyRequestBody> request, ExecutionGraphInfo executionGraphInfo)
             throws RestHandlerException {
         metricFetcher.update();
-        return createJobDetailsInfo(executionGraph, metricFetcher.getMetricStore().getJobs());
+        return createJobDetailsInfo(executionGraphInfo, metricFetcher.getMetricStore().getJobs());
     }
 
     @Override
-    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+    public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
-        ResponseBody json = createJobDetailsInfo(graph, null);
+        ResponseBody json = createJobDetailsInfo(executionGraphInfo, null);
         String path =
                 getMessageHeaders()
                         .getTargetRestEndpointURL()
-                        .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
+                        .replace(
+                                ':' + JobIDPathParameter.KEY,
+                                executionGraphInfo
+                                        .getArchivedExecutionGraph()
+                                        .getJobID()
+                                        .toString());
         return Collections.singleton(new ArchivedJson(path, json));
     }
 
     private static JobDetailsInfo createJobDetailsInfo(
-            AccessExecutionGraph executionGraph,
+            ExecutionGraphInfo executionGraphInfo,
             @Nullable MetricStore.JobMetricStoreSnapshot jobMetrics) {
         final long now = System.currentTimeMillis();
+        final AccessExecutionGraph executionGraph = executionGraphInfo.getArchivedExecutionGraph();
         final long startTime = executionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
         final long endTime =
                 executionGraph.getState().isGloballyTerminalState()
@@ -153,6 +160,7 @@ public class JobDetailsHandler
                 executionGraph.isStoppable(),
                 executionGraph.getState(),
                 executionGraph.getJobType(),
+                executionGraphInfo.getSchedulerType(),
                 startTime,
                 endTime,
                 duration,

@@ -769,7 +769,8 @@ class WatermarkITCase {
                 .process(new Operator4ProcessFunction())
                 .withName("Operator4")
                 .withParallelism(DEFAULT_PARALLELISM);
-        return env.getStreamGraph();
+
+        return getStreamGraph(env);
     }
 
     public StreamGraph getStreamGraphForTestSource(
@@ -795,7 +796,8 @@ class WatermarkITCase {
                 .process(new Operator2ProcessFunction(null, null))
                 .withName("Operator2")
                 .withParallelism(DEFAULT_PARALLELISM);
-        return env.getStreamGraph();
+
+        return getStreamGraph(env);
     }
 
     public StreamGraph getStreamGraphForAlignedWatermark(
@@ -1042,5 +1044,11 @@ class WatermarkITCase {
             }
         }
         return true;
+    }
+
+    private StreamGraph getStreamGraph(ExecutionEnvironmentImpl env) {
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setJobId(JobID.generate());
+        return streamGraph;
     }
 }

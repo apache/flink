@@ -18,12 +18,17 @@
 
 package org.apache.flink.state.table;
 
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.utils.TypeUtils;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.state.api.OperatorIdentifier;
+import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -31,26 +36,23 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.state.table.SavepointConnectorOptions.FIELDS;
 import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_CLASS;
 import static org.apache.flink.state.table.SavepointConnectorOptions.KEY_CLASS_PLACEHOLDER;
@@ -73,14 +75,26 @@ import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /** Dynamic source factory for {@link SavepointDynamicTableSource}. */
 public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFactory {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(SavepointDynamicTableSourceFactory.class);
+
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
         Configuration options = new Configuration();
         context.getCatalogTable().getOptions().forEach(options::setString);
+        SerializerConfig serializerConfig = new SerializerConfigImpl(options);
 
         final String stateBackendType = options.getOptional(STATE_BACKEND_TYPE).orElse(null);
         final String statePath = options.get(STATE_PATH);
         final OperatorIdentifier operatorIdentifier = getOperatorIdentifier(options);
+
+        final Map<String, StateMetaInfoSnapshot> preloadedStateMetadata =
+                preloadStateMetadata(statePath, operatorIdentifier);
+
+        // Create resolver with preloaded metadata
+        SavepointTypeInfoResolver typeResolver =
+                new SavepointTypeInfoResolver(preloadedStateMetadata, serializerConfig);
 
         final Tuple2<Integer, int[]> keyValueProjections =
                 createKeyValueProjections(context.getCatalogTable());
@@ -94,127 +108,29 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
 
         RowType.RowField keyRowField = rowType.getFields().get(keyValueProjections.f0);
         ConfigOption<String> keyFormatOption =
-                key(String.format("%s.%s.%s", FIELDS, keyRowField.getName(), VALUE_CLASS))
-                        .stringType()
-                        .noDefaultValue();
+                optionOf(keyRowField.getName(), VALUE_CLASS).stringType().noDefaultValue();
         optionalOptions.add(keyFormatOption);
 
         ConfigOption<String> keyTypeInfoFactoryOption =
-                key(String.format("%s.%s.%s", FIELDS, keyRowField.getName(), VALUE_TYPE_FACTORY))
-                        .stringType()
-                        .noDefaultValue();
+                optionOf(keyRowField.getName(), VALUE_TYPE_FACTORY).stringType().noDefaultValue();
         optionalOptions.add(keyTypeInfoFactoryOption);
 
         TypeInformation<?> keyTypeInfo =
-                getTypeInfo(options, keyFormatOption, keyTypeInfoFactoryOption, keyRowField, true);
+                typeResolver.resolveKeyType(
+                        options, keyFormatOption, keyTypeInfoFactoryOption, keyRowField);
 
         final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueConfigProjections =
                 Tuple2.of(
                         keyValueProjections.f0,
                         Arrays.stream(keyValueProjections.f1)
                                 .mapToObj(
-                                        columnIndex -> {
-                                            RowType.RowField valueRowField =
-                                                    rowType.getFields().get(columnIndex);
-
-                                            ConfigOption<String> stateNameOption =
-                                                    key(String.format(
-                                                                    "%s.%s.%s",
-                                                                    FIELDS,
-                                                                    valueRowField.getName(),
-                                                                    STATE_NAME))
-                                                            .stringType()
-                                                            .noDefaultValue();
-                                            optionalOptions.add(stateNameOption);
-
-                                            ConfigOption<SavepointConnectorOptions.StateType>
-                                                    stateTypeOption =
-                                                            key(String.format(
-                                                                            "%s.%s.%s",
-                                                                            FIELDS,
-                                                                            valueRowField.getName(),
-                                                                            STATE_TYPE))
-                                                                    .enumType(
-                                                                            SavepointConnectorOptions
-                                                                                    .StateType
-                                                                                    .class)
-                                                                    .noDefaultValue();
-                                            optionalOptions.add(stateTypeOption);
-
-                                            ConfigOption<String> mapKeyFormatOption =
-                                                    key(String.format(
-                                                                    "%s.%s.%s",
-                                                                    FIELDS,
-                                                                    valueRowField.getName(),
-                                                                    KEY_CLASS))
-                                                            .stringType()
-                                                            .noDefaultValue();
-                                            optionalOptions.add(mapKeyFormatOption);
-
-                                            ConfigOption<String> mapKeyTypeInfoFactoryOption =
-                                                    key(String.format(
-                                                                    "%s.%s.%s",
-                                                                    FIELDS,
-                                                                    valueRowField.getName(),
-                                                                    KEY_TYPE_FACTORY))
-                                                            .stringType()
-                                                            .noDefaultValue();
-                                            optionalOptions.add(mapKeyTypeInfoFactoryOption);
-
-                                            ConfigOption<String> valueFormatOption =
-                                                    key(String.format(
-                                                                    "%s.%s.%s",
-                                                                    FIELDS,
-                                                                    valueRowField.getName(),
-                                                                    VALUE_CLASS))
-                                                            .stringType()
-                                                            .noDefaultValue();
-                                            optionalOptions.add(valueFormatOption);
-
-                                            ConfigOption<String> valueTypeInfoFactoryOption =
-                                                    key(String.format(
-                                                                    "%s.%s.%s",
-                                                                    FIELDS,
-                                                                    valueRowField.getName(),
-                                                                    VALUE_TYPE_FACTORY))
-                                                            .stringType()
-                                                            .noDefaultValue();
-                                            optionalOptions.add(valueTypeInfoFactoryOption);
-
-                                            LogicalType valueLogicalType = valueRowField.getType();
-
-                                            SavepointConnectorOptions.StateType stateType =
-                                                    options.getOptional(stateTypeOption)
-                                                            .orElseGet(
-                                                                    () ->
-                                                                            inferStateType(
-                                                                                    valueLogicalType));
-
-                                            TypeInformation<?> mapKeyTypeInfo =
-                                                    getTypeInfo(
-                                                            options,
-                                                            keyFormatOption,
-                                                            mapKeyTypeInfoFactoryOption,
-                                                            valueRowField,
-                                                            stateType.equals(
-                                                                    SavepointConnectorOptions
-                                                                            .StateType.MAP));
-
-                                            TypeInformation<?> valueTypeInfo =
-                                                    getTypeInfo(
-                                                            options,
-                                                            valueFormatOption,
-                                                            valueTypeInfoFactoryOption,
-                                                            valueRowField,
-                                                            true);
-                                            return new StateValueColumnConfiguration(
-                                                    columnIndex,
-                                                    options.getOptional(stateNameOption)
-                                                            .orElse(valueRowField.getName()),
-                                                    stateType,
-                                                    mapKeyTypeInfo,
-                                                    valueTypeInfo);
-                                        })
+                                        columnIndex ->
+                                                createStateColumnConfiguration(
+                                                        columnIndex,
+                                                        rowType,
+                                                        options,
+                                                        optionalOptions,
+                                                        typeResolver))
                                 .collect(Collectors.toList()));
         FactoryUtil.validateFactoryOptions(requiredOptions, optionalOptions, options);
 
@@ -232,6 +148,77 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                 keyTypeInfo,
                 keyValueConfigProjections,
                 rowType);
+    }
+
+    private StateValueColumnConfiguration createStateColumnConfiguration(
+            int columnIndex,
+            RowType rowType,
+            Configuration options,
+            Set<ConfigOption<?>> optionalOptions,
+            SavepointTypeInfoResolver typeResolver) {
+
+        RowType.RowField valueRowField = rowType.getFields().get(columnIndex);
+
+        ConfigOption<String> stateNameOption =
+                optionOf(valueRowField.getName(), STATE_NAME).stringType().noDefaultValue();
+        optionalOptions.add(stateNameOption);
+
+        ConfigOption<SavepointConnectorOptions.StateType> stateTypeOption =
+                optionOf(valueRowField.getName(), STATE_TYPE)
+                        .enumType(SavepointConnectorOptions.StateType.class)
+                        .noDefaultValue();
+        optionalOptions.add(stateTypeOption);
+
+        ConfigOption<String> mapKeyFormatOption =
+                optionOf(valueRowField.getName(), KEY_CLASS).stringType().noDefaultValue();
+        optionalOptions.add(mapKeyFormatOption);
+
+        ConfigOption<String> mapKeyTypeInfoFactoryOption =
+                optionOf(valueRowField.getName(), KEY_TYPE_FACTORY).stringType().noDefaultValue();
+        optionalOptions.add(mapKeyTypeInfoFactoryOption);
+
+        ConfigOption<String> valueFormatOption =
+                optionOf(valueRowField.getName(), VALUE_CLASS).stringType().noDefaultValue();
+        optionalOptions.add(valueFormatOption);
+
+        ConfigOption<String> valueTypeInfoFactoryOption =
+                optionOf(valueRowField.getName(), VALUE_TYPE_FACTORY).stringType().noDefaultValue();
+        optionalOptions.add(valueTypeInfoFactoryOption);
+
+        LogicalType valueLogicalType = valueRowField.getType();
+
+        SavepointConnectorOptions.StateType stateType =
+                options.getOptional(stateTypeOption)
+                        .orElseGet(() -> inferStateType(valueLogicalType));
+
+        TypeSerializer<?> mapKeyTypeSerializer =
+                typeResolver.resolveSerializer(
+                        options,
+                        mapKeyFormatOption,
+                        mapKeyTypeInfoFactoryOption,
+                        valueRowField,
+                        stateType.equals(SavepointConnectorOptions.StateType.MAP),
+                        SavepointTypeInfoResolver.InferenceContext.MAP_KEY);
+
+        TypeSerializer<?> valueTypeSerializer =
+                typeResolver.resolveSerializer(
+                        options,
+                        valueFormatOption,
+                        valueTypeInfoFactoryOption,
+                        valueRowField,
+                        true,
+                        SavepointTypeInfoResolver.InferenceContext.VALUE);
+
+        return new StateValueColumnConfiguration(
+                columnIndex,
+                options.getOptional(stateNameOption).orElse(valueRowField.getName()),
+                stateType,
+                mapKeyTypeSerializer,
+                valueTypeSerializer);
+    }
+
+    private static ConfigOptions.OptionBuilder optionOf(String rowField, String optionName) {
+        return ConfigOptions.key(String.format("%s.%s.%s", FIELDS, rowField, optionName));
     }
 
     private Tuple2<Integer, int[]> createKeyValueProjections(ResolvedCatalogTable catalogTable) {
@@ -271,46 +258,6 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         return physicalFields.filter(pos -> keyProjection != pos).toArray();
     }
 
-    private TypeInformation<?> getTypeInfo(
-            Configuration options,
-            ConfigOption<String> classOption,
-            ConfigOption<String> typeInfoFactoryOption,
-            RowType.RowField rowField,
-            boolean inferStateType) {
-        Optional<String> clazz = options.getOptional(classOption);
-        Optional<String> typeInfoFactory = options.getOptional(typeInfoFactoryOption);
-        if (clazz.isPresent() && typeInfoFactory.isPresent()) {
-            throw new IllegalArgumentException(
-                    "Either "
-                            + classOption.key()
-                            + " or "
-                            + typeInfoFactoryOption.key()
-                            + " can be specified for column "
-                            + rowField.getName()
-                            + ".");
-        }
-        try {
-            if (clazz.isPresent()) {
-                return TypeInformation.of(Class.forName(clazz.get()));
-            } else if (typeInfoFactory.isPresent()) {
-                SavepointTypeInformationFactory savepointTypeInformationFactory =
-                        (SavepointTypeInformationFactory)
-                                TypeUtils.getInstance(typeInfoFactory.get(), new Object[0]);
-                return savepointTypeInformationFactory.getTypeInformation();
-            } else {
-                if (inferStateType) {
-                    String inferredValueFormat =
-                            inferStateValueFormat(rowField.getName(), rowField.getType());
-                    return TypeInformation.of(Class.forName(inferredValueFormat));
-                } else {
-                    return null;
-                }
-            }
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private SavepointConnectorOptions.StateType inferStateType(LogicalType logicalType) {
         switch (logicalType.getTypeRoot()) {
             case ARRAY:
@@ -324,82 +271,24 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         }
     }
 
-    @Nullable
-    private String inferStateMapKeyFormat(String columnName, LogicalType logicalType) {
-        return logicalType.is(LogicalTypeRoot.MAP)
-                ? inferStateValueFormat(columnName, ((MapType) logicalType).getKeyType())
-                : null;
-    }
-
-    private String inferStateValueFormat(String columnName, LogicalType logicalType) {
-        switch (logicalType.getTypeRoot()) {
-            case CHAR:
-            case VARCHAR:
-                return String.class.getName();
-
-            case BOOLEAN:
-                return Boolean.class.getName();
-
-            case BINARY:
-            case VARBINARY:
-                return byte[].class.getName();
-
-            case DECIMAL:
-                return BigDecimal.class.getName();
-
-            case TINYINT:
-                return Byte.class.getName();
-
-            case SMALLINT:
-                return Short.class.getName();
-
-            case INTEGER:
-                return Integer.class.getName();
-
-            case BIGINT:
-                return Long.class.getName();
-
-            case FLOAT:
-                return Float.class.getName();
-
-            case DOUBLE:
-                return Double.class.getName();
-
-            case DATE:
-                return Integer.class.getName();
-
-            case INTERVAL_YEAR_MONTH:
-            case INTERVAL_DAY_TIME:
-                return Long.class.getName();
-
-            case ARRAY:
-                return inferStateValueFormat(
-                        columnName, ((ArrayType) logicalType).getElementType());
-
-            case MAP:
-                return inferStateValueFormat(columnName, ((MapType) logicalType).getValueType());
-
-            case NULL:
-                return null;
-
-            case ROW:
-            case MULTISET:
-            case TIME_WITHOUT_TIME_ZONE:
-            case TIMESTAMP_WITHOUT_TIME_ZONE:
-            case TIMESTAMP_WITH_TIME_ZONE:
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-            case DISTINCT_TYPE:
-            case STRUCTURED_TYPE:
-            case RAW:
-            case SYMBOL:
-            case UNRESOLVED:
-            case DESCRIPTOR:
-            default:
-                throw new UnsupportedOperationException(
-                        String.format(
-                                "Unable to infer state format for SQL type: %s in column: %s. "
-                                        + "Please override the type with the following config parameter: %s.%s.%s",
-                                logicalType, columnName, FIELDS, columnName, VALUE_CLASS));
+    /**
+     * Preloads all state metadata for an operator in a single I/O operation.
+     *
+     * @param savepointPath Path to the savepoint
+     * @param operatorIdentifier Operator UID or hash
+     * @return Map from state name to StateMetaInfoSnapshot
+     */
+    private Map<String, StateMetaInfoSnapshot> preloadStateMetadata(
+            String savepointPath, OperatorIdentifier operatorIdentifier) {
+        try {
+            return SavepointLoader.loadOperatorStateMetadata(savepointPath, operatorIdentifier);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    String.format(
+                            "Failed to load state metadata from savepoint '%s' for operator '%s'. "
+                                    + "Ensure the savepoint path is valid and the operator exists in the savepoint. ",
+                            savepointPath, operatorIdentifier),
+                    e);
         }
     }
 

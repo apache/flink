@@ -709,45 +709,43 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                     })
                             .collect(Collectors.toList());
 
-            // Add placeholder to prevent duplicate terminal status changes
-            CompletableFuture<Void> archivingCompleteFuture = new CompletableFuture<>();
-            applicationArchivingFutures.put(applicationId, archivingCompleteFuture);
+            // wait for all jobs to be stored, then archive the application
+            CompletableFuture<?> applicationArchivingFuture =
+                    FutureUtils.combineAll(jobFutures)
+                            .thenComposeAsync(
+                                    combinedJobs -> {
+                                        Map<JobID, ExecutionGraphInfo> jobs = new HashMap<>();
+                                        for (ExecutionGraphInfo executionGraphInfo : combinedJobs) {
+                                            jobs.put(
+                                                    executionGraphInfo.getJobId(),
+                                                    executionGraphInfo);
+                                            partialExecutionGraphInfoStore.remove(
+                                                    executionGraphInfo.getJobId());
+                                        }
 
-            // wait for all jobs to be stored
-            FutureUtils.combineAll(jobFutures)
-                    .thenAcceptAsync(
-                            combinedJobs -> {
-                                Map<JobID, ExecutionGraphInfo> jobs = new HashMap<>();
-                                for (ExecutionGraphInfo executionGraphInfo : combinedJobs) {
-                                    jobs.put(executionGraphInfo.getJobId(), executionGraphInfo);
-                                    partialExecutionGraphInfoStore.remove(
-                                            executionGraphInfo.getJobId());
-                                }
+                                        ArchivedApplication archivedApplication =
+                                                new ArchivedApplication(
+                                                        application.getApplicationId(),
+                                                        application.getName(),
+                                                        application.getApplicationStatus(),
+                                                        stateTimestamps,
+                                                        jobs);
 
-                                ArchivedApplication archivedApplication =
-                                        new ArchivedApplication(
-                                                application.getApplicationId(),
-                                                application.getName(),
-                                                application.getApplicationStatus(),
-                                                stateTimestamps,
-                                                jobs);
-
-                                applications.remove(applicationId);
-                                writeToArchivedApplicationStore(archivedApplication);
-                                historyServerArchivist
-                                        .archiveApplication(archivedApplication)
-                                        .whenComplete(
-                                                (result, throwable) -> {
-                                                    if (throwable != null) {
-                                                        log.info(
-                                                                "Could not archive completed application ({}) to the history server.",
-                                                                applicationId,
-                                                                throwable);
-                                                    }
-                                                    archivingCompleteFuture.complete(null);
-                                                });
-                            },
-                            getMainThreadExecutor());
+                                        applications.remove(applicationId);
+                                        writeToArchivedApplicationStore(archivedApplication);
+                                        return historyServerArchivist
+                                                .archiveApplication(archivedApplication)
+                                                .exceptionally(
+                                                        throwable -> {
+                                                            log.info(
+                                                                    "Could not archive completed application ({}) to the history server.",
+                                                                    applicationId,
+                                                                    throwable);
+                                                            return null;
+                                                        });
+                                    },
+                                    getMainThreadExecutor());
+            applicationArchivingFutures.put(applicationId, applicationArchivingFuture);
         }
     }
 
@@ -1166,9 +1164,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private Collection<JobDetails> getCompletedJobDetails() {
         return Stream.concat(
-                        getPartialExecutionGraphInfo()
-                                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
-                                .map(JobDetails::createDetailsForJob),
+                        getPartialExecutionGraphInfo().map(JobDetails::createDetailsForJob),
                         archivedApplicationStore.getJobDetails().stream())
                 .collect(Collectors.toList());
     }
@@ -1278,7 +1274,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             // is it a completed job?
                             final Optional<JobDetails> optionalJobDetails =
                                     getExecutionGraphInfoFromStore(jobId)
-                                            .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                                             .map(JobDetails::createDetailsForJob);
                             return optionalJobDetails
                                     .map(

@@ -51,6 +51,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A base class for {@link PipelineExecutor executors} that invoke directly methods of the {@link
@@ -110,14 +111,21 @@ public class EmbeddedExecutor implements PipelineExecutor {
             throws Exception {
         checkNotNull(pipeline);
         checkNotNull(configuration);
+        checkState(pipeline instanceof StreamGraph);
+
+        StreamGraph streamGraph = (StreamGraph) pipeline;
 
         final Optional<JobID> optJobId =
                 configuration
                         .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
                         .map(JobID::fromHexString);
 
-        if (optJobId.isPresent() && submittedJobIds.contains(optJobId.get())) {
-            return getJobClientFuture(optJobId.get(), userCodeClassloader);
+        // Skip resubmission if the job is recovered via HA.
+        // When optJobId is present, the streamGraph's ID is deterministically derived from it. In
+        // this case, if the streamGraph's ID is in submittedJobIds, it means the job was submitted
+        // in a previous run and should not be resubmitted.
+        if (optJobId.isPresent() && submittedJobIds.contains(streamGraph.getJobID())) {
+            return getJobClientFuture(streamGraph.getJobID(), userCodeClassloader);
         }
 
         return submitAndGetJobClientFuture(pipeline, configuration, userCodeClassloader);

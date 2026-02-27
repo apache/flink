@@ -227,7 +227,6 @@ public class ArchivedApplicationStoreTestUtils {
             Collection<ArchivedApplication> archivedApplications) {
         return archivedApplications.stream()
                 .flatMap(archivedApplication -> archivedApplication.getJobs().values().stream())
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }

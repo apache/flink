@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
@@ -48,7 +49,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -64,6 +64,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,7 +80,9 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     private final PackagedProgramDescriptor programDescriptor;
 
-    private final Collection<JobID> recoveredJobIds;
+    private final Collection<JobInfo> recoveredJobInfos;
+
+    private final Collection<JobInfo> recoveredTerminalJobInfos;
 
     private final Configuration configuration;
 
@@ -104,7 +107,28 @@ public class PackagedProgramApplication extends AbstractApplication {
     public PackagedProgramApplication(
             final ApplicationID applicationId,
             final PackagedProgram program,
-            final Collection<JobID> recoveredJobIds,
+            final Configuration configuration,
+            final boolean handleFatalError,
+            final boolean enforceSingleJobExecution,
+            final boolean submitFailedJobOnApplicationError,
+            final boolean shutDownOnFinish) {
+        this(
+                applicationId,
+                program,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                configuration,
+                handleFatalError,
+                enforceSingleJobExecution,
+                submitFailedJobOnApplicationError,
+                shutDownOnFinish);
+    }
+
+    public PackagedProgramApplication(
+            final ApplicationID applicationId,
+            final PackagedProgram program,
+            final Collection<JobInfo> recoveredJobInfos,
+            final Collection<JobInfo> recoveredTerminalJobInfos,
             final Configuration configuration,
             final boolean handleFatalError,
             final boolean enforceSingleJobExecution,
@@ -112,7 +136,8 @@ public class PackagedProgramApplication extends AbstractApplication {
             final boolean shutDownOnFinish) {
         super(applicationId);
         this.program = checkNotNull(program);
-        this.recoveredJobIds = checkNotNull(recoveredJobIds);
+        this.recoveredJobInfos = checkNotNull(recoveredJobInfos);
+        this.recoveredTerminalJobInfos = checkNotNull(recoveredTerminalJobInfos);
         this.configuration = checkNotNull(configuration);
         this.handleFatalError = handleFatalError;
         this.enforceSingleJobExecution = enforceSingleJobExecution;
@@ -527,7 +552,8 @@ public class PackagedProgramApplication extends AbstractApplication {
                                             .key())));
             return;
         }
-        final List<JobID> applicationJobIds = new ArrayList<>(recoveredJobIds);
+        final List<JobID> applicationJobIds =
+                recoveredJobInfos.stream().map(JobInfo::getJobId).collect(Collectors.toList());
         try {
             if (program == null) {
                 LOG.info("Reconstructing program from descriptor {}", programDescriptor);
@@ -544,7 +570,8 @@ public class PackagedProgramApplication extends AbstractApplication {
                     program,
                     enforceSingleJobExecution,
                     true /* suppress sysout */,
-                    getApplicationId());
+                    getApplicationId(),
+                    getAllRecoveredJobInfos());
 
             if (applicationJobIds.isEmpty()) {
                 jobIdsFuture.completeExceptionally(
@@ -579,6 +606,11 @@ public class PackagedProgramApplication extends AbstractApplication {
                         new ApplicationExecutionException("Could not execute application.", t));
             }
         }
+    }
+
+    private Collection<JobInfo> getAllRecoveredJobInfos() {
+        return Stream.concat(recoveredJobInfos.stream(), recoveredTerminalJobInfos.stream())
+                .collect(Collectors.toList());
     }
 
     private CompletableFuture<Void> waitForJobResults(

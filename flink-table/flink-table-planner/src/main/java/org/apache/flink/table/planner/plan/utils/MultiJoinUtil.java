@@ -71,9 +71,13 @@ public class MultiJoinUtil {
         final SqlKind kind = call.getOperator().getKind();
 
         if (kind != SqlKind.EQUALS) {
-            for (final RexNode operand : call.getOperands()) {
-                extractEqualityConditions(
-                        operand, inputOffsets, inputFieldCounts, joinAttributeMap);
+            // Only conjunctions (AND) can contain equality conditions that are valid for multijoin.
+            // All other condition types are deferred to the postJoinFilter.
+            if (kind == SqlKind.AND) {
+                for (final RexNode operand : call.getOperands()) {
+                    extractEqualityConditions(
+                            operand, inputOffsets, inputFieldCounts, joinAttributeMap);
+                }
             }
             return;
         }

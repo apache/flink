@@ -638,6 +638,10 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher = createTestingDispatcherBuilder().build(rpcService);
         dispatcher.start();
         final ApplicationID applicationId = mockApplicationStatusChange(ApplicationState.FINISHED);
+        // wait for archive to complete
+        dispatcher
+                .getApplicationArchivingFuture(applicationId)
+                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         assertThrows(
                 IllegalStateException.class,
                 () ->
@@ -1675,11 +1679,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 .setJobDetailsFunction(
                         () ->
                                 JobDetails.createDetailsForJob(
-                                        new ArchivedExecutionGraphBuilder()
-                                                .setJobID(jobId)
-                                                .setState(currentJobStatus)
-                                                .setStateTimestamps(stateTimeStampsForRunningJob)
-                                                .build()))
+                                        new ExecutionGraphInfo(
+                                                new ArchivedExecutionGraphBuilder()
+                                                        .setJobID(jobId)
+                                                        .setState(currentJobStatus)
+                                                        .setStateTimestamps(
+                                                                stateTimeStampsForRunningJob)
+                                                        .build())))
                 .build();
     }
 

@@ -467,7 +467,7 @@ class JMFailoverITCase {
                 .transform("Sink", TypeInformation.of(Void.class), new StubRecordSink())
                 .slotSharingGroup("group4");
 
-        StreamGraph streamGraph = env.getStreamGraph();
+        StreamGraph streamGraph = getStreamGraph(env);
         streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         streamGraph.setJobType(JobType.BATCH);
         streamGraph.setJobName(jobName);
@@ -499,7 +499,7 @@ class JMFailoverITCase {
                 .transform("Sink", TypeInformation.of(Void.class), new StubRecordSink())
                 .slotSharingGroup("group4");
 
-        StreamGraph streamGraph = env.getStreamGraph();
+        StreamGraph streamGraph = getStreamGraph(env);
         streamGraph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
         streamGraph.setJobType(JobType.BATCH);
         streamGraph.setJobName(jobName);
@@ -509,6 +509,12 @@ class JMFailoverITCase {
     private static void setSubtaskBlocked(
             List<Integer> indices, boolean block, Map<Integer, Boolean> subtaskBlocked) {
         indices.forEach(index -> subtaskBlocked.put(index, block));
+    }
+
+    private StreamGraph getStreamGraph(StreamExecutionEnvironment env) {
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setJobId(JobID.generate());
+        return streamGraph;
     }
 
     /**

@@ -154,6 +154,10 @@ public class StateTtlConfig implements Serializable {
         return new Builder(ttl);
     }
 
+    public static Builder newBuilder(StateTtlConfig config) {
+        return new Builder(config);
+    }
+
     /** Builder for the {@link StateTtlConfig}. */
     @PublicEvolving
     public static class Builder {
@@ -168,6 +172,15 @@ public class StateTtlConfig implements Serializable {
 
         private Builder(Duration ttl) {
             this.ttl = ttl;
+        }
+
+        private Builder(StateTtlConfig config) {
+            this.updateType = config.updateType;
+            this.stateVisibility = config.stateVisibility;
+            this.ttlTimeCharacteristic = config.ttlTimeCharacteristic;
+            this.ttl = config.ttl;
+            this.strategies.putAll(config.cleanupStrategies.strategies);
+            this.isCleanupInBackground = config.cleanupStrategies.isCleanupInBackground;
         }
 
         /**
