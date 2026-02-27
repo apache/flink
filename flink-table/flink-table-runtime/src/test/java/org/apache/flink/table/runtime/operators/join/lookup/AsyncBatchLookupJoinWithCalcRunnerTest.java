@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -31,11 +32,11 @@ import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
+import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedResultFutureWrapper;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -68,12 +70,12 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
     void setUp() throws Exception {
         testAsyncFunction = new TestAsyncFunction();
         testCalcFunction = new TestCalcFunction();
-        
+
         // Create serializer for right side rows
-        LogicalType[] rightTypes = new LogicalType[] {
-            DataTypes.INT().getLogicalType(),
-            DataTypes.STRING().getLogicalType()
-        };
+        LogicalType[] rightTypes =
+                new LogicalType[] {
+                    DataTypes.INT().getLogicalType(), DataTypes.STRING().getLogicalType()
+                };
         rightRowSerializer = new RowDataSerializer(rightTypes);
 
         // Create generated function wrapper
@@ -81,12 +83,13 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
                 new GeneratedFunctionWrapper<>(testAsyncFunction);
 
         // Create data structure converter
-        DataType rightDataType = DataTypes.ROW(
-            DataTypes.FIELD("id", DataTypes.INT()),
-            DataTypes.FIELD("name", DataTypes.STRING())
-        );
+        DataType rightDataType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("id", DataTypes.INT()),
+                        DataTypes.FIELD("name", DataTypes.STRING()));
+        @SuppressWarnings({"unchecked", "rawtypes"})
         DataStructureConverter<RowData, Object> fetcherConverter =
-                DataStructureConverters.getConverter(rightDataType);
+                (DataStructureConverter) DataStructureConverters.getConverter(rightDataType);
 
         // Create generated result future
         GeneratedResultFuture<TableFunctionResultFuture<List<RowData>>> generatedResultFuture =
@@ -97,19 +100,20 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
                 new GeneratedFunctionWrapper<>(testCalcFunction);
 
         // Create runner
-        runner = new AsyncBatchLookupJoinWithCalcRunner(
-                generatedFetcher,
-                fetcherConverter,
-                generatedResultFuture,
-                generatedCalc,
-                rightRowSerializer,
-                false, // not left outer join
-                ASYNC_BUFFER_CAPACITY,
-                BATCH_SIZE,
-                FLUSH_INTERVAL_MILLIS);
+        runner =
+                new AsyncBatchLookupJoinWithCalcRunner(
+                        generatedFetcher,
+                        fetcherConverter,
+                        generatedCalc,
+                        generatedResultFuture,
+                        rightRowSerializer,
+                        false, // not left outer join
+                        ASYNC_BUFFER_CAPACITY,
+                        BATCH_SIZE,
+                        FLUSH_INTERVAL_MILLIS);
 
         // Set runtime context
-        runner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        runner.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
         runner.open(DefaultOpenContext.INSTANCE);
     }
 
@@ -119,11 +123,11 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
         List<RowData> results = Collections.synchronizedList(new ArrayList<>());
 
         // Create test input data
-        List<RowData> inputRows = Arrays.asList(
-            GenericRowData.of(1, StringData.fromString("Alice")),
-            GenericRowData.of(2, StringData.fromString("Bob")),
-            GenericRowData.of(3, StringData.fromString("Charlie"))
-        );
+        List<RowData> inputRows =
+                Arrays.asList(
+                        GenericRowData.of(1, StringData.fromString("Alice")),
+                        GenericRowData.of(2, StringData.fromString("Bob")),
+                        GenericRowData.of(3, StringData.fromString("Charlie")));
 
         // Process inputs
         for (RowData input : inputRows) {
@@ -156,31 +160,35 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
                 new GeneratedFunctionWrapper<>(filteringCalc);
 
         // Create new runner with filtering calc
-        AsyncBatchLookupJoinWithCalcRunner filteringRunner = new AsyncBatchLookupJoinWithCalcRunner(
-                new GeneratedFunctionWrapper<>(testAsyncFunction),
-                DataStructureConverters.getConverter(DataTypes.ROW(
-                    DataTypes.FIELD("id", DataTypes.INT()),
-                    DataTypes.FIELD("name", DataTypes.STRING()))),
-                new GeneratedResultFutureWrapper<>(new TestTableFunctionResultFuture()),
-                generatedFilteringCalc,
-                rightRowSerializer,
-                false,
-                ASYNC_BUFFER_CAPACITY,
-                BATCH_SIZE,
-                FLUSH_INTERVAL_MILLIS);
+        AsyncBatchLookupJoinWithCalcRunner filteringRunner =
+                new AsyncBatchLookupJoinWithCalcRunner(
+                        new GeneratedFunctionWrapper<>(testAsyncFunction),
+                        (DataStructureConverter)
+                                DataStructureConverters.getConverter(
+                                        DataTypes.ROW(
+                                                DataTypes.FIELD("id", DataTypes.INT()),
+                                                DataTypes.FIELD("name", DataTypes.STRING()))),
+                        generatedFilteringCalc,
+                        new GeneratedResultFutureWrapper<>(new TestTableFunctionResultFuture()),
+                        rightRowSerializer,
+                        false,
+                        ASYNC_BUFFER_CAPACITY,
+                        BATCH_SIZE,
+                        FLUSH_INTERVAL_MILLIS);
 
-        filteringRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        filteringRunner.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
         filteringRunner.open(DefaultOpenContext.INSTANCE);
 
         CountDownLatch latch = new CountDownLatch(1); // Only expect 1 result after filtering
         List<RowData> results = Collections.synchronizedList(new ArrayList<>());
 
         // Create test input data (only even IDs will pass the filter)
-        List<RowData> inputRows = Arrays.asList(
-            GenericRowData.of(1, StringData.fromString("Alice")),   // filtered out
-            GenericRowData.of(2, StringData.fromString("Bob")),     // passes filter
-            GenericRowData.of(3, StringData.fromString("Charlie"))  // filtered out
-        );
+        List<RowData> inputRows =
+                Arrays.asList(
+                        GenericRowData.of(1, StringData.fromString("Alice")), // filtered out
+                        GenericRowData.of(2, StringData.fromString("Bob")), // passes filter
+                        GenericRowData.of(3, StringData.fromString("Charlie")) // filtered out
+                        );
 
         // Process inputs
         for (RowData input : inputRows) {
@@ -203,31 +211,34 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
                 new GeneratedFunctionWrapper<>(projectingCalc);
 
         // Create new runner with projecting calc
-        AsyncBatchLookupJoinWithCalcRunner projectingRunner = new AsyncBatchLookupJoinWithCalcRunner(
-                new GeneratedFunctionWrapper<>(testAsyncFunction),
-                DataStructureConverters.getConverter(DataTypes.ROW(
-                    DataTypes.FIELD("id", DataTypes.INT()),
-                    DataTypes.FIELD("name", DataTypes.STRING()))),
-                new GeneratedResultFutureWrapper<>(new TestTableFunctionResultFuture()),
-                generatedProjectingCalc,
-                rightRowSerializer,
-                false,
-                ASYNC_BUFFER_CAPACITY,
-                BATCH_SIZE,
-                FLUSH_INTERVAL_MILLIS);
+        AsyncBatchLookupJoinWithCalcRunner projectingRunner =
+                new AsyncBatchLookupJoinWithCalcRunner(
+                        new GeneratedFunctionWrapper<>(testAsyncFunction),
+                        (DataStructureConverter)
+                                DataStructureConverters.getConverter(
+                                        DataTypes.ROW(
+                                                DataTypes.FIELD("id", DataTypes.INT()),
+                                                DataTypes.FIELD("name", DataTypes.STRING()))),
+                        generatedProjectingCalc,
+                        new GeneratedResultFutureWrapper<>(new TestTableFunctionResultFuture()),
+                        rightRowSerializer,
+                        false,
+                        ASYNC_BUFFER_CAPACITY,
+                        BATCH_SIZE,
+                        FLUSH_INTERVAL_MILLIS);
 
-        projectingRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        projectingRunner.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
         projectingRunner.open(DefaultOpenContext.INSTANCE);
 
         CountDownLatch latch = new CountDownLatch(BATCH_SIZE);
         List<RowData> results = Collections.synchronizedList(new ArrayList<>());
 
         // Create test input data
-        List<RowData> inputRows = Arrays.asList(
-            GenericRowData.of(1, StringData.fromString("Alice")),
-            GenericRowData.of(2, StringData.fromString("Bob")),
-            GenericRowData.of(3, StringData.fromString("Charlie"))
-        );
+        List<RowData> inputRows =
+                Arrays.asList(
+                        GenericRowData.of(1, StringData.fromString("Alice")),
+                        GenericRowData.of(2, StringData.fromString("Bob")),
+                        GenericRowData.of(3, StringData.fromString("Charlie")));
 
         // Process inputs
         for (RowData input : inputRows) {
@@ -252,24 +263,26 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
         private volatile int lastBatchSize = 0;
 
         @Override
-        public void asyncInvoke(List<RowData> input, ResultFuture<Object> resultFuture) throws Exception {
+        public void asyncInvoke(List<RowData> input, ResultFuture<Object> resultFuture)
+                throws Exception {
             invocationCount.incrementAndGet();
             lastBatchSize = input.size();
-            
+
             // Simulate async processing
-            CompletableFuture.runAsync(() -> {
-                try {
-                    Thread.sleep(10); // Simulate some processing time
-                    List<Object> results = new ArrayList<>();
-                    for (RowData row : input) {
-                        // Echo back the input as result
-                        results.add(row);
-                    }
-                    resultFuture.complete(results);
-                } catch (Exception e) {
-                    resultFuture.completeExceptionally(e);
-                }
-            });
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(10); // Simulate some processing time
+                            List<Object> results = new ArrayList<>();
+                            for (RowData row : input) {
+                                // Echo back the input as result
+                                results.add(row);
+                            }
+                            resultFuture.complete(results);
+                        } catch (Exception e) {
+                            resultFuture.completeExceptionally(e);
+                        }
+                    });
         }
 
         public int getInvocationCount() {
@@ -288,10 +301,7 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
         public void flatMap(RowData value, Collector<RowData> out) throws Exception {
             invocationCount.incrementAndGet();
             // Transform: add 100 to the ID
-            GenericRowData result = GenericRowData.of(
-                value.getInt(0) + 100,
-                value.getString(1)
-            );
+            GenericRowData result = GenericRowData.of(value.getInt(0) + 100, value.getString(1));
             out.collect(result);
         }
 
@@ -329,10 +339,22 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
         }
 
         @Override
-        public void complete(Iterable<RowData> result) {
+        public void complete(Collection<RowData> result) {
             for (RowData row : result) {
                 results.add(row);
                 latch.countDown();
+            }
+        }
+
+        @Override
+        public void complete(
+                org.apache.flink.streaming.api.functions.async.CollectionSupplier<RowData>
+                        supplier) {
+            try {
+                Collection<RowData> result = supplier.get();
+                complete(result);
+            } catch (Exception e) {
+                completeExceptionally(e);
             }
         }
 
@@ -343,9 +365,10 @@ class AsyncBatchLookupJoinWithCalcRunnerTest {
         }
     }
 
-    private static class TestTableFunctionResultFuture extends TableFunctionResultFuture<List<RowData>> {
+    private static class TestTableFunctionResultFuture
+            extends TableFunctionResultFuture<List<RowData>> {
         @Override
-        public void complete(List<RowData> result) {
+        public void complete(Collection<List<RowData>> result) {
             // Implementation for test
         }
 

@@ -51,23 +51,24 @@ class BatchLookupFunctionWrapperTest {
         singleFunction = new TestSingleAsyncFunction();
         GeneratedFunction<AsyncFunction<RowData, Object>> singleLookupFunction =
                 new GeneratedFunctionWrapper<>(singleFunction);
-        
+
         wrapper = new BatchLookupFunctionWrapper(singleLookupFunction);
     }
 
     @Test
     void testBatchToSingleAdaptation() throws Exception {
-        AsyncFunction<List<RowData>, Object> batchFunction = wrapper.newInstance(getClass().getClassLoader());
-        
+        AsyncFunction<List<RowData>, Object> batchFunction =
+                wrapper.newInstance(getClass().getClassLoader());
+
         CountDownLatch latch = new CountDownLatch(1);
         List<Object> results = Collections.synchronizedList(new ArrayList<>());
 
         // Create batch input
-        List<RowData> batchInput = Arrays.asList(
-            GenericRowData.of(1, StringData.fromString("Alice")),
-            GenericRowData.of(2, StringData.fromString("Bob")),
-            GenericRowData.of(3, StringData.fromString("Charlie"))
-        );
+        List<RowData> batchInput =
+                Arrays.asList(
+                        GenericRowData.of(1, StringData.fromString("Alice")),
+                        GenericRowData.of(2, StringData.fromString("Bob")),
+                        GenericRowData.of(3, StringData.fromString("Charlie")));
 
         // Process batch
         batchFunction.asyncInvoke(batchInput, new TestBatchResultFuture(results, latch));
@@ -87,13 +88,15 @@ class BatchLookupFunctionWrapperTest {
 
     @Test
     void testEmptyBatch() throws Exception {
-        AsyncFunction<List<RowData>, Object> batchFunction = wrapper.newInstance(getClass().getClassLoader());
-        
+        AsyncFunction<List<RowData>, Object> batchFunction =
+                wrapper.newInstance(getClass().getClassLoader());
+
         CountDownLatch latch = new CountDownLatch(1);
         List<Object> results = Collections.synchronizedList(new ArrayList<>());
 
         // Process empty batch
-        batchFunction.asyncInvoke(Collections.emptyList(), new TestBatchResultFuture(results, latch));
+        batchFunction.asyncInvoke(
+                Collections.emptyList(), new TestBatchResultFuture(results, latch));
 
         // Wait for completion
         assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
@@ -110,15 +113,15 @@ class BatchLookupFunctionWrapperTest {
 
     @Test
     void testSingleItemBatch() throws Exception {
-        AsyncFunction<List<RowData>, Object> batchFunction = wrapper.newInstance(getClass().getClassLoader());
-        
+        AsyncFunction<List<RowData>, Object> batchFunction =
+                wrapper.newInstance(getClass().getClassLoader());
+
         CountDownLatch latch = new CountDownLatch(1);
         List<Object> results = Collections.synchronizedList(new ArrayList<>());
 
         // Create single item batch
-        List<RowData> batchInput = Collections.singletonList(
-            GenericRowData.of(1, StringData.fromString("Alice"))
-        );
+        List<RowData> batchInput =
+                Collections.singletonList(GenericRowData.of(1, StringData.fromString("Alice")));
 
         // Process batch
         batchFunction.asyncInvoke(batchInput, new TestBatchResultFuture(results, latch));
@@ -138,8 +141,9 @@ class BatchLookupFunctionWrapperTest {
 
     @Test
     void testLargeBatch() throws Exception {
-        AsyncFunction<List<RowData>, Object> batchFunction = wrapper.newInstance(getClass().getClassLoader());
-        
+        AsyncFunction<List<RowData>, Object> batchFunction =
+                wrapper.newInstance(getClass().getClassLoader());
+
         CountDownLatch latch = new CountDownLatch(1);
         List<Object> results = Collections.synchronizedList(new ArrayList<>());
 
@@ -171,18 +175,20 @@ class BatchLookupFunctionWrapperTest {
         TestErrorAsyncFunction errorFunction = new TestErrorAsyncFunction();
         GeneratedFunction<AsyncFunction<RowData, Object>> errorLookupFunction =
                 new GeneratedFunctionWrapper<>(errorFunction);
-        
-        BatchLookupFunctionWrapper errorWrapper = new BatchLookupFunctionWrapper(errorLookupFunction);
-        AsyncFunction<List<RowData>, Object> batchFunction = errorWrapper.newInstance(getClass().getClassLoader());
-        
+
+        BatchLookupFunctionWrapper errorWrapper =
+                new BatchLookupFunctionWrapper(errorLookupFunction);
+        AsyncFunction<List<RowData>, Object> batchFunction =
+                errorWrapper.newInstance(getClass().getClassLoader());
+
         CountDownLatch latch = new CountDownLatch(1);
         List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
 
         // Create batch input
-        List<RowData> batchInput = Arrays.asList(
-            GenericRowData.of(1, StringData.fromString("Alice")),
-            GenericRowData.of(2, StringData.fromString("Bob"))
-        );
+        List<RowData> batchInput =
+                Arrays.asList(
+                        GenericRowData.of(1, StringData.fromString("Alice")),
+                        GenericRowData.of(2, StringData.fromString("Bob")));
 
         // Process batch
         batchFunction.asyncInvoke(batchInput, new TestErrorResultFuture(errors, latch));
@@ -212,17 +218,18 @@ class BatchLookupFunctionWrapperTest {
         @Override
         public void asyncInvoke(RowData input, ResultFuture<Object> resultFuture) throws Exception {
             invocationCount.incrementAndGet();
-            
+
             // Simulate async processing
-            CompletableFuture.runAsync(() -> {
-                try {
-                    Thread.sleep(1); // Minimal processing time
-                    // Echo back the input as result
-                    resultFuture.complete(Collections.singletonList(input));
-                } catch (Exception e) {
-                    resultFuture.completeExceptionally(e);
-                }
-            });
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(1); // Minimal processing time
+                            // Echo back the input as result
+                            resultFuture.complete(Collections.singletonList(input));
+                        } catch (Exception e) {
+                            resultFuture.completeExceptionally(e);
+                        }
+                    });
         }
 
         public int getInvocationCount() {
@@ -234,9 +241,10 @@ class BatchLookupFunctionWrapperTest {
         @Override
         public void asyncInvoke(RowData input, ResultFuture<Object> resultFuture) throws Exception {
             // Always throw an error
-            CompletableFuture.runAsync(() -> {
-                resultFuture.completeExceptionally(new RuntimeException("Test error"));
-            });
+            CompletableFuture.runAsync(
+                    () -> {
+                        resultFuture.completeExceptionally(new RuntimeException("Test error"));
+                    });
         }
     }
 

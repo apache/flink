@@ -19,9 +19,10 @@
 package org.apache.flink.table.runtime.operators.join.lookup;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -38,16 +39,17 @@ import java.util.List;
 
 /**
  * The async batch join runner with an additional calculate function on the dimension table.
- * 
- * <p>This runner extends AsyncBatchLookupJoinRunner to support additional computation
- * (projection, filtering) on the dimension table data after lookup. It combines the
- * benefits of batch processing with the flexibility of post-lookup transformations.
- * 
+ *
+ * <p>This runner extends AsyncBatchLookupJoinRunner to support additional computation (projection,
+ * filtering) on the dimension table data after lookup. It combines the benefits of batch processing
+ * with the flexibility of post-lookup transformations.
+ *
  * <p>Use cases:
+ *
  * <ul>
- *   <li>Filtering dimension table results based on conditions</li>
- *   <li>Projecting only required columns from dimension table</li>
- *   <li>Applying transformations to dimension table data</li>
+ *   <li>Filtering dimension table results based on conditions
+ *   <li>Projecting only required columns from dimension table
+ *   <li>Applying transformations to dimension table data
  * </ul>
  */
 public class AsyncBatchLookupJoinWithCalcRunner extends AsyncBatchLookupJoinRunner {
@@ -79,21 +81,21 @@ public class AsyncBatchLookupJoinWithCalcRunner extends AsyncBatchLookupJoinRunn
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
     }
 
     @Override
     public TableFunctionResultFuture<List<RowData>> createFetcherResultFuture(
-            Configuration parameters) throws Exception {
+            OpenContext openContext) throws Exception {
         TableFunctionResultFuture<List<RowData>> joinConditionCollector =
-                super.createFetcherResultFuture(parameters);
+                super.createFetcherResultFuture(openContext);
         FlatMapFunction<RowData, RowData> calc =
                 generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
-        FunctionUtils.openFunction(calc, parameters);
+        FunctionUtils.openFunction(calc, openContext);
         return new TemporalTableCalcResultFuture(calc, joinConditionCollector);
     }
 
@@ -149,6 +151,16 @@ public class AsyncBatchLookupJoinWithCalcRunner extends AsyncBatchLookupJoinRunn
                     }
                 }
                 joinConditionResultFuture.complete(calcCollector.collection);
+            }
+        }
+
+        @Override
+        public void complete(CollectionSupplier<List<RowData>> supplier) {
+            try {
+                Collection<List<RowData>> result = supplier.get();
+                complete(result);
+            } catch (Throwable t) {
+                completeExceptionally(t);
             }
         }
 

@@ -19,9 +19,11 @@
 package org.apache.flink.table.runtime.operators.join.lookup;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.table.data.GenericRowData;
@@ -51,17 +53,18 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The async batch join runner to lookup the dimension table.
- * 
- * <p>This runner implements async batch lookup join functionality that batches multiple
- * lookup requests together to reduce network overhead and improve throughput. It is
- * particularly beneficial for high-throughput scenarios with frequent dimension table lookups.
- * 
+ *
+ * <p>This runner implements async batch lookup join functionality that batches multiple lookup
+ * requests together to reduce network overhead and improve throughput. It is particularly
+ * beneficial for high-throughput scenarios with frequent dimension table lookups.
+ *
  * <p>Key features:
+ *
  * <ul>
- *   <li>Batches multiple lookup requests to reduce network round-trips</li>
- *   <li>Asynchronous processing to maintain low latency</li>
- *   <li>Configurable batch size and flush interval</li>
- *   <li>Object pooling to reduce garbage collection overhead</li>
+ *   <li>Batches multiple lookup requests to reduce network round-trips
+ *   <li>Asynchronous processing to maintain low latency
+ *   <li>Configurable batch size and flush interval
+ *   <li>Object pooling to reduce garbage collection overhead
  * </ul>
  */
 public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
@@ -93,6 +96,7 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
      * We use {@link BlockingQueue} to make sure the head {@link ResultFuture}s are available.
      */
     private transient BlockingQueue<BatchJoinedRowResultFuture> resultFutureBuffer;
+
     /**
      * A Collection contains all ResultFutures in the runner which is used to invoke {@code close()}
      * on every ResultFuture. {@link #resultFutureBuffer} may not contain all the ResultFutures
@@ -102,7 +106,7 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
 
     /**
      * Constructor for AsyncBatchLookupJoinRunner.
-     * 
+     *
      * @param generatedFetcher Generated function for async lookup operations
      * @param fetcherConverter Converter for data structure conversion
      * @param generatedResultFuture Generated result future for handling results
@@ -132,11 +136,11 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, parameters);
+        FunctionUtils.openFunction(fetcher, openContext);
 
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedResultFuture.compile(getRuntimeContext().getUserCodeClassLoader());
@@ -151,7 +155,7 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
             BatchJoinedRowResultFuture rf =
                     new BatchJoinedRowResultFuture(
                             resultFutureBuffer,
-                            createFetcherResultFuture(parameters),
+                            createFetcherResultFuture(openContext),
                             fetcherConverter,
                             isLeftOuterJoin,
                             rightRowSerializer.getArity());
@@ -173,10 +177,10 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
 
     /**
      * Asynchronously processes a single input record by adding it to the current batch.
-     * 
-     * <p>When the batch size is reached, the batch is automatically flushed.
-     * Otherwise, the record waits for more records or the flush timer to trigger.
-     * 
+     *
+     * <p>When the batch size is reached, the batch is automatically flushed. Otherwise, the record
+     * waits for more records or the flush timer to trigger.
+     *
      * @param input The input row data
      * @param resultFuture The result future to complete when lookup is done
      */
@@ -196,10 +200,10 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
 
     /**
      * Flushes the current batch of lookup requests.
-     * 
-     * <p>This method is called either when the batch size is reached or when the
-     * flush timer expires. It processes all accumulated requests in a single
-     * batch operation to the dimension table.
+     *
+     * <p>This method is called either when the batch size is reached or when the flush timer
+     * expires. It processes all accumulated requests in a single batch operation to the dimension
+     * table.
      */
     private void flush() {
         synchronized (this.rowDatas) {
@@ -223,11 +227,11 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
     }
 
     public TableFunctionResultFuture<List<RowData>> createFetcherResultFuture(
-            Configuration parameters) throws Exception {
+            OpenContext openContext) throws Exception {
         TableFunctionResultFuture<List<RowData>> resultFuture =
                 generatedResultFuture.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(resultFuture, getRuntimeContext());
-        FunctionUtils.openFunction(resultFuture, parameters);
+        FunctionUtils.openFunction(resultFuture, openContext);
         return resultFuture;
     }
 
@@ -372,6 +376,16 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
         }
 
         @Override
+        public void complete(CollectionSupplier<Object> supplier) {
+            try {
+                Collection<Object> result = supplier.get();
+                complete(result);
+            } catch (Throwable t) {
+                completeExceptionally(t);
+            }
+        }
+
+        @Override
         public void completeExceptionally(Throwable error) {
             if (realOutputs != null && currentIndex < realOutputs.size()) {
                 realOutputs.get(currentIndex).completeExceptionally(error);
@@ -398,6 +412,16 @@ public class AsyncBatchLookupJoinRunner extends RichAsyncFunction<RowData, RowDa
             @Override
             public void completeExceptionally(Throwable error) {
                 BatchJoinedRowResultFuture.this.completeExceptionally(error);
+            }
+
+            @Override
+            public void complete(CollectionSupplier<List<RowData>> supplier) {
+                try {
+                    Collection<List<RowData>> result = supplier.get();
+                    complete(result);
+                } catch (Throwable t) {
+                    completeExceptionally(t);
+                }
             }
         }
     }
