@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -35,17 +37,21 @@ public class RescalesStatsSnapshot implements Serializable {
 
     private final List<Rescale> rescaleHistory;
     private final Map<AbstractID, Rescale> idToRescaleMap;
+    private final Map<TerminalState, Rescale> latestRescales;
     private final RescalesSummarySnapshot rescalesSummarySnapshot;
 
     public RescalesStatsSnapshot(
-            List<Rescale> rescaleHistory, RescalesSummarySnapshot rescalesSummarySnapshot) {
-        this.rescaleHistory = rescaleHistory;
+            List<Rescale> rescaleHistory,
+            Map<TerminalState, Rescale> latestRescales,
+            RescalesSummarySnapshot rescalesSummarySnapshot) {
+        this.rescaleHistory = Collections.unmodifiableList(rescaleHistory);
         this.idToRescaleMap =
                 rescaleHistory.stream()
                         .collect(
                                 Collectors.toMap(
                                         r -> r.getRescaleIdInfo().getRescaleUuid(),
                                         Function.identity()));
+        this.latestRescales = Collections.unmodifiableMap(latestRescales);
         this.rescalesSummarySnapshot = rescalesSummarySnapshot;
     }
 
@@ -57,6 +63,11 @@ public class RescalesStatsSnapshot implements Serializable {
         return idToRescaleMap.get(rescaleId);
     }
 
+    @Nullable
+    public Rescale getLatestRescale(TerminalState terminalState) {
+        return latestRescales.get(terminalState);
+    }
+
     public RescalesSummarySnapshot getRescalesSummarySnapshot() {
         return rescalesSummarySnapshot;
     }
@@ -64,6 +75,7 @@ public class RescalesStatsSnapshot implements Serializable {
     public static RescalesStatsSnapshot emptySnapshot() {
         return new RescalesStatsSnapshot(
                 new ArrayList<>(),
+                new HashMap<>(),
                 new RescalesSummarySnapshot(
                         StatsSummarySnapshot.empty(),
                         StatsSummarySnapshot.empty(),

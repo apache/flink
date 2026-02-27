@@ -29,17 +29,17 @@ import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.job.rescales.JobIDRescaleIDParameters;
-import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetails;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetails.VertexParallelismRescaleInfo;
-import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleIDPathParameter;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesHistory;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesHistoryHeaders;
 import org.apache.flink.runtime.rest.messages.job.rescales.SchedulerStateSpan;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.Rescale;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleIdInfo;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesStatsSnapshot;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesSummary;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesSummarySnapshot;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.SlotSharingGroupRescale;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminatedReason;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.TriggerCause;
@@ -58,50 +58,34 @@ import static org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDeta
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link JobRescaleDetailsHandler}. */
-class JobRescaleDetailsHandlerTest {
-
-    private final JobRescaleDetailsHandler testInstance =
-            new JobRescaleDetailsHandler(
+/** Test for {@link JobRescalesHistoryHandler}. */
+class JobRescalesHistoryHandlerTest {
+    private final JobRescalesHistoryHandler testInstance =
+            new JobRescalesHistoryHandler(
                     CompletableFuture::new,
                     TestingUtils.TIMEOUT,
                     Collections.emptyMap(),
-                    JobRescaleDetailsHeaders.getInstance(),
+                    JobRescalesHistoryHeaders.getInstance(),
                     new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
                     Executors.directExecutor());
 
     @Test
-    void testUnNormalCases() throws HandlerRequestException, RestHandlerException {
+    void testSchedulerNotEnabledRescalesHistory() throws HandlerRequestException {
         // Test for adaptive scheduler rescales was not enabled for job.
         final ExecutionGraphInfo executionGraphInfoWithNullRescalesStatsSnapshot =
                 new ExecutionGraphInfo(
                         new ArchivedExecutionGraphBuilder().build(), Collections.emptyList(), null);
         final HandlerRequest<EmptyRequestBody> request =
-                createRequest(
-                        executionGraphInfoWithNullRescalesStatsSnapshot.getJobId(),
-                        new AbstractID());
+                createRequest(executionGraphInfoWithNullRescalesStatsSnapshot.getJobId());
         assertThatThrownBy(
                         () ->
                                 testInstance.handleRequest(
                                         request, executionGraphInfoWithNullRescalesStatsSnapshot))
                 .isInstanceOf(RestHandlerException.class);
-
-        // Test for that case could not find rescale details for the specified rescale uuid.
-        final ExecutionGraphInfo executionGraphInfoWithEmptyRescalesStatsSnapshot =
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder().build(),
-                        Collections.emptyList(),
-                        RescalesStatsSnapshot.emptySnapshot());
-        assertThatThrownBy(
-                        () ->
-                                testInstance.handleRequest(
-                                        request, executionGraphInfoWithEmptyRescalesStatsSnapshot))
-                .isInstanceOf(RestHandlerException.class);
     }
 
     @Test
-    void testRequestNormalJobRescaleStatisticsDetails()
-            throws HandlerRequestException, RestHandlerException {
+    void testRequestNormalJobRescaleHistory() throws HandlerRequestException, RestHandlerException {
         Rescale rescale =
                 new Rescale(new RescaleIdInfo(new AbstractID(), 1L))
                         .setStartTimestamp(1L)
@@ -139,32 +123,36 @@ class JobRescaleDetailsHandlerTest {
 
         RescalesSummary rescalesSummary = new RescalesSummary(2);
         rescalesSummary.addTerminated(rescale);
+        RescalesSummarySnapshot rescalesSummarySnapshot = rescalesSummary.createSnapshot();
+        RescalesStatsSnapshot rescalesStatsSnapshot =
+                new RescalesStatsSnapshot(
+                        Collections.singletonList(rescale),
+                        Collections.singletonMap(rescale.getTerminalState(), rescale),
+                        rescalesSummarySnapshot);
 
         final ExecutionGraphInfo executionGraphInfo =
                 new ExecutionGraphInfo(
                         new ArchivedExecutionGraphBuilder().build(),
                         Collections.emptyList(),
-                        new RescalesStatsSnapshot(
-                                Collections.singletonList(rescale),
-                                Collections.singletonMap(rescale.getTerminalState(), rescale),
-                                rescalesSummary.createSnapshot()));
+                        rescalesStatsSnapshot);
         final HandlerRequest<EmptyRequestBody> request =
-                createRequest(
-                        executionGraphInfo.getJobId(), rescale.getRescaleIdInfo().getRescaleUuid());
-        JobRescaleDetails jobRescaleDetails =
+                createRequest(executionGraphInfo.getJobId());
+        JobRescalesHistory actualJobRescalesHistory =
                 testInstance.handleRequest(request, executionGraphInfo);
-        assertThat(jobRescaleDetails).isEqualTo(fromRescale(rescale, true));
+
+        JobRescalesHistory expectedJobRescalesHistory =
+                JobRescalesHistory.from(Collections.singletonList(fromRescale(rescale, false)));
+        assertThat(actualJobRescalesHistory).isEqualTo(expectedJobRescalesHistory);
     }
 
-    private static HandlerRequest<EmptyRequestBody> createRequest(
-            JobID jobId, AbstractID rescaleUuid) throws HandlerRequestException {
+    private static HandlerRequest<EmptyRequestBody> createRequest(JobID jobId)
+            throws HandlerRequestException {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
-        pathParameters.put(JobRescaleIDPathParameter.KEY, rescaleUuid.toString());
 
         return HandlerRequest.resolveParametersAndCreate(
                 EmptyRequestBody.getInstance(),
-                new JobIDRescaleIDParameters(),
+                new JobMessageParameters(),
                 pathParameters,
                 new HashMap<>(),
                 Collections.emptyList());

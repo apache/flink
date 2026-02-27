@@ -51,6 +51,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -182,16 +183,18 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
                 terminatedReason);
     }
 
-    public static JobRescaleDetails fromRescale(Rescale rescale, boolean includeSchedulerStates) {
+    public static JobRescaleDetails fromRescale(Rescale rescale, boolean includeDetailedInfo) {
         return new JobRescaleDetails(
                 rescale.getRescaleIdInfo().getRescaleUuid().toString(),
                 rescale.getRescaleIdInfo().getResourceRequirementsId().toString(),
                 rescale.getRescaleIdInfo().getRescaleAttemptId(),
-                rescale.getVertices(),
-                convertMapValues(
-                        rescale.getSlots(),
-                        SlotSharingGroupRescaleInfo::fromSlotSharingGroupRescale),
-                includeSchedulerStates ? rescale.getSchedulerStates() : null,
+                includeDetailedInfo ? rescale.getVertices() : Collections.emptyMap(),
+                includeDetailedInfo
+                        ? convertMapValues(
+                                rescale.getSlots(),
+                                SlotSharingGroupRescaleInfo::fromSlotSharingGroupRescale)
+                        : Collections.emptyMap(),
+                includeDetailedInfo ? rescale.getSchedulerStates() : Collections.emptyList(),
                 rescale.getStartTimestamp(),
                 rescale.getEndTimestamp(),
                 rescale.getTerminalState(),
