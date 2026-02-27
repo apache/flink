@@ -53,6 +53,8 @@ import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
+import org.apache.flink.runtime.resourcemanager.health.NoOpNodeHealthManager;
+import org.apache.flink.runtime.resourcemanager.health.NodeHealthManager;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
@@ -174,6 +176,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private final AtomicReference<byte[]> latestTokens = new AtomicReference<>();
 
+    private final NodeHealthManager nodeHealthManager;
+
     private final ResourceAllocator resourceAllocator;
 
     public ResourceManager(
@@ -241,6 +245,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.startedFuture = new CompletableFuture<>();
 
         this.delegationTokenManager = delegationTokenManager;
+
+        this.nodeHealthManager = new NoOpNodeHealthManager();
 
         this.resourceAllocator = getResourceAllocator();
     }
