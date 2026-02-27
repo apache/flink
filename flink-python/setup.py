@@ -204,7 +204,7 @@ try:
 
         try:
             os.mkdir(TEMP_PATH)
-        except:
+        except Exception:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)

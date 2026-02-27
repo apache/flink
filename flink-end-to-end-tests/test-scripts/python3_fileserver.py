@@ -27,5 +27,5 @@ httpd = socketserver.TCPServer(("", 9999), handler)
 
 try:
     httpd.handle_request()
-except:
+except Exception:
     httpd.shutdown()

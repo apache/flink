@@ -69,7 +69,7 @@ def invoke_java_object_method(obj, method_name):
             j_method = clz.getDeclaredMethod(method_name, None)
             if j_method is not None:
                 break
-        except:
+        except Exception:
             clz = clz.getSuperclass()
     if j_method is None:
         raise Exception("No such method: " + method_name)
@@ -477,7 +477,7 @@ def run_with_config(config_dict):
             for key in config_dict:
                 try:
                     original_config[key] = config.getString(key)
-                except:
+                except Exception:
                     original_config[key] = None
 
             # Set new configuration

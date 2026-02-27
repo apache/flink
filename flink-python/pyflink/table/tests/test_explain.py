@@ -41,7 +41,7 @@ class StreamTableExplainTests(PyFlinkStreamTableTestCase):
         assert isinstance(result, str)
         try:
             json.loads(result.split('== Physical Execution Plan ==')[1])
-        except:
+        except Exception:
             self.fail('The execution plan of explain detail is not in json format.')
 
 

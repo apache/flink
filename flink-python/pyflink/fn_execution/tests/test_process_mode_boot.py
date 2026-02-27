@@ -142,5 +142,5 @@ class PythonBootTests(PyFlinkTestCase):
         try:
             if self.tmp_dir is not None:
                 shutil.rmtree(self.tmp_dir)
-        except:
+        except Exception:
             pass
