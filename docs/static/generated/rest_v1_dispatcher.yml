@@ -51,6 +51,26 @@ paths:
       responses:
         "202":
           description: The request was successful.
+  /applications/{applicationid}/jobmanager/config:
+    get:
+      description: Returns the jobmanager's configuration of a specific application.
+      operationId: getJobManagerApplicationConfiguration
+      parameters:
+      - name: applicationid
+        in: path
+        description: 32-character hexadecimal string value that identifies an application.
+        required: true
+        schema:
+          $ref: "#/components/schemas/ApplicationID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConfigurationInfoEntry"
   /cluster:
     delete:
       description: Shuts down the cluster
@@ -2666,6 +2686,8 @@ components:
             $ref: "#/components/schemas/SerializedValueOptionalFailureObject"
         jobId:
           $ref: "#/components/schemas/JobID"
+        jobName:
+          type: string
         jobStatus:
           $ref: "#/components/schemas/JobStatus"
         netRuntime:
