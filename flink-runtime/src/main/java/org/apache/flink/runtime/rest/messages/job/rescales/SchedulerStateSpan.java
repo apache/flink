@@ -16,9 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.adaptive.timeline;
+package org.apache.flink.runtime.rest.messages.job.rescales;
 
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
 
@@ -33,22 +36,38 @@ import java.util.Objects;
 public class SchedulerStateSpan implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    public static final String FIELD_NAME_STATE = "state";
+    public static final String FIELD_NAME_ENTER_TIMESTAMP = "enterTimestampInMillis";
+    public static final String FIELD_NAME_LEAVE_TIMESTAMP = "leaveTimestampInMillis";
+    public static final String FIELD_NAME_DURATION = "durationInMillis";
+    public static final String FIELD_NAME_EXCEPTION = "stringifiedException";
+
+    @JsonProperty(FIELD_NAME_STATE)
     private final String state;
 
-    @Nullable private final Long enterTimestamp;
+    @Nullable
+    @JsonProperty(FIELD_NAME_ENTER_TIMESTAMP)
+    private final Long enterTimestamp;
 
-    @Nullable private final Long leaveTimestamp;
+    @Nullable
+    @JsonProperty(FIELD_NAME_LEAVE_TIMESTAMP)
+    private final Long leaveTimestamp;
 
-    @Nullable private final Long duration;
+    @Nullable
+    @JsonProperty(FIELD_NAME_DURATION)
+    private final Long duration;
 
-    @Nullable private String stringifiedException;
+    @Nullable
+    @JsonProperty(FIELD_NAME_EXCEPTION)
+    private String stringifiedException;
 
+    @JsonCreator
     public SchedulerStateSpan(
-            String state,
-            Long logicEnterMillis,
-            Long logicLeaveMillis,
-            Long duration,
-            String stringifiedException) {
+            @JsonProperty(FIELD_NAME_STATE) String state,
+            @JsonProperty(FIELD_NAME_ENTER_TIMESTAMP) Long logicEnterMillis,
+            @JsonProperty(FIELD_NAME_LEAVE_TIMESTAMP) Long logicLeaveMillis,
+            @JsonProperty(FIELD_NAME_DURATION) Long duration,
+            @JsonProperty(FIELD_NAME_EXCEPTION) String stringifiedException) {
         this.state = Preconditions.checkNotNull(state);
         this.enterTimestamp = logicEnterMillis;
         this.leaveTimestamp = logicLeaveMillis;

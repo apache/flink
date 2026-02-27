@@ -89,6 +89,11 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
         this.upperPart = random.nextLong();
     }
 
+    /** Constructs a new random ID from a uniform distribution. */
+    public AbstractID(String hexString) {
+        this(StringUtils.hexStringToByte(hexString));
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /**

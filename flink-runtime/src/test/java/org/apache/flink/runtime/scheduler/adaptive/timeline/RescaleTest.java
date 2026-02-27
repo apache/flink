@@ -23,6 +23,8 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetails.VertexParallelismRescaleInfo;
+import org.apache.flink.runtime.rest.messages.job.rescales.SchedulerStateSpan;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.JobGraphJobInformation;
@@ -225,26 +227,26 @@ class RescaleTest {
     void testSetDesiredVertexParallelism() {
         Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
         rescale.setDesiredVertexParallelism(jobInformation);
-        Map<JobVertexID, VertexParallelismRescale> vertices = rescale.getVertices();
+        Map<JobVertexID, VertexParallelismRescaleInfo> vertices = rescale.getVertices();
         assertThat(vertices).hasSize(4);
         assertThat(vertices.keySet())
                 .isEqualTo(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getJobVertexId)
+                                .map(VertexParallelismRescaleInfo::getJobVertexId)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream().map(JobVertex::getID).collect(Collectors.toSet()));
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getJobVertexName)
+                                .map(VertexParallelismRescaleInfo::getJobVertexName)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream().map(JobVertex::getName).collect(Collectors.toSet()));
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getSlotSharingGroupId)
+                                .map(VertexParallelismRescaleInfo::getSlotSharingGroupId)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream()
@@ -253,7 +255,7 @@ class RescaleTest {
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getSlotSharingGroupName)
+                                .map(VertexParallelismRescaleInfo::getSlotSharingGroupName)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream()
@@ -262,12 +264,12 @@ class RescaleTest {
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getDesiredParallelism)
+                                .map(VertexParallelismRescaleInfo::getDesiredParallelism)
                                 .collect(Collectors.toList()))
                 .containsExactlyInAnyOrder(2, 3, 4, 5);
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getSufficientParallelism)
+                                .map(VertexParallelismRescaleInfo::getSufficientParallelism)
                                 .collect(Collectors.toList()))
                 .containsExactlyInAnyOrder(1, 2, 3, 4);
     }
@@ -300,15 +302,15 @@ class RescaleTest {
         // Test for non-null last rescale.
         // Prepare the last completed rescale.
         Rescale lastCompletedRescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
-        Map<JobVertexID, VertexParallelismRescale> lastRescaleVertices =
+        Map<JobVertexID, VertexParallelismRescaleInfo> lastRescaleVertices =
                 lastCompletedRescale.getModifiableVertices();
         jobVertices.forEach(
                 jobVertex -> {
-                    VertexParallelismRescale vertexParallelismRescale =
+                    VertexParallelismRescaleInfo vertexParallelismRescale =
                             lastRescaleVertices.computeIfAbsent(
                                     jobVertex.getID(),
                                     ignored ->
-                                            new VertexParallelismRescale(
+                                            new VertexParallelismRescaleInfo(
                                                     jobVertex.getID(),
                                                     jobInformation
                                                             .getVertexInformation(jobVertex.getID())
@@ -340,7 +342,7 @@ class RescaleTest {
 
         assertThat(
                         rescale.getVertices().values().stream()
-                                .map(VertexParallelismRescale::getPreRescaleParallelism)
+                                .map(VertexParallelismRescaleInfo::getPreRescaleParallelism)
                                 .collect(Collectors.toSet()))
                 .containsExactly(4);
     }
@@ -357,7 +359,7 @@ class RescaleTest {
         rescale.setPostRescaleVertexParallelism(jobInformation, postVertexParallelism);
         assertThat(
                         rescale.getVertices().values().stream()
-                                .map(VertexParallelismRescale::getPostRescaleParallelism)
+                                .map(VertexParallelismRescaleInfo::getPostRescaleParallelism)
                                 .collect(Collectors.toSet()))
                 .containsExactly(2);
     }
