@@ -131,6 +131,12 @@ public class FileUtilsTest {
     @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testDeleteProtectedDirectory() throws Exception {
+        // Skip this test when running as root, as root can delete write-protected files
+        String user = System.getProperty("user.name");
+        assumeThat(user)
+                .withFailMessage("This test does not work when running as root")
+                .isNotEqualTo("root");
+
         // deleting a write protected file should throw an error
 
         File cannotDeleteParent = TempDirUtils.newFolder(temporaryFolder);
