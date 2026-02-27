@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -96,6 +97,10 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     /** Number of requested or registered recovered workers per worker resource spec. */
     private final WorkerCounter totalWorkerCounter;
+    
+    private final Counter requestWorkerTotal;
+
+    private final Counter releaseWorkerTotal;
 
     /** Identifiers and worker resource spec of all allocated workers. */
     private final Map<ResourceID, WorkerResourceSpec> workerResourceSpecs;
@@ -169,6 +174,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.workerNodeMap = new HashMap<>();
         this.pendingWorkerCounter = new WorkerCounter();
         this.totalWorkerCounter = new WorkerCounter();
+        this.requestWorkerTotal = resourceManagerMetricGroup.counter(MetricNames.TOTAL_REQUEST_TASK_MANAGERS);
+        this.releaseWorkerTotal = resourceManagerMetricGroup.counter(MetricNames.TOTAL_RELEASE_TASK_MANAGERS);
         this.workerResourceSpecs = new HashMap<>();
         this.unallocatedWorkerFutures = new HashMap<>();
         this.currentAttemptUnregisteredWorkers = new HashSet<>();
@@ -340,6 +347,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                         releaseOrRequestWorkerNumber,
                         totalWorkerCounter.getNum(workerResourceSpec),
                         declaredWorkerNumber);
+                releaseWorkerTotal.inc(releaseOrRequestWorkerNumber);
 
                 // release unwanted workers.
                 int remainingReleasingWorkerNumber =
@@ -494,6 +502,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                         flinkConfig, workerResourceSpec);
         final int pendingCount = pendingWorkerCounter.increaseAndGet(workerResourceSpec);
         totalWorkerCounter.increaseAndGet(workerResourceSpec);
+        requestWorkerTotal.inc();
 
         log.info(
                 "Requesting new worker with resource spec {}, current pending count: {}.",
