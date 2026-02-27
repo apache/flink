@@ -763,6 +763,27 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
+  def testCalcWithNonDeterministicFuncBeforeJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select a0, a1, a2, a3, b0, b2, b1 from (" +
+        "  select a0, a1, a2, cast(RAND() * a3 AS int) as a3 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFuncAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk " +
+        "select cast(a0 + RAND() as int), a1, a2, a3, b0, b2, b1 from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
   def testSourceWithAllRowKinds(): Unit = {
     util.tableConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
