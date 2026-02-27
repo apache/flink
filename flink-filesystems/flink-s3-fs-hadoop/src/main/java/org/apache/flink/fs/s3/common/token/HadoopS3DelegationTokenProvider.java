@@ -32,16 +32,17 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.Credentials;
+import software.amazon.awssdk.services.sts.model.GetSessionTokenRequest;
 import software.amazon.awssdk.services.sts.model.GetSessionTokenResponse;
 
 import java.util.Optional;
 
-/** Delegation token provider for S3 filesystems. */
+/** Delegation token provider for S3 filesystems using AWS SDK v2. */
 @Internal
-public abstract class AbstractS3DelegationTokenProvider implements DelegationTokenProvider {
+public abstract class HadoopS3DelegationTokenProvider implements DelegationTokenProvider {
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(AbstractS3DelegationTokenProvider.class);
+            LoggerFactory.getLogger(HadoopS3DelegationTokenProvider.class);
 
     private String region;
     private String accessKey;
@@ -87,15 +88,20 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        try (StsClient stsClient =
+        // Create AWS SDK v2 STS client
+        StsClient stsClient =
                 StsClient.builder()
                         .region(Region.of(region))
                         .credentialsProvider(
                                 StaticCredentialsProvider.create(
                                         AwsBasicCredentials.create(accessKey, secretKey)))
-                        .build()) {
-            GetSessionTokenResponse sessionTokenResponse = stsClient.getSessionToken();
-            Credentials credentials = sessionTokenResponse.credentials();
+                        .build();
+
+        try {
+            GetSessionTokenRequest request = GetSessionTokenRequest.builder().build();
+            GetSessionTokenResponse response = stsClient.getSessionToken(request);
+            Credentials credentials = response.credentials();
+
             LOG.info(
                     "Session credentials obtained successfully with access key: {} expiration: {}",
                     credentials.accessKeyId(),
@@ -104,6 +110,10 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
             return new ObtainedDelegationTokens(
                     InstantiationUtil.serializeObject(credentials),
                     Optional.of(credentials.expiration().toEpochMilli()));
+        } finally {
+            stsClient.close();
         }
     }
+
+    public abstract String serviceConfigPrefix();
 }

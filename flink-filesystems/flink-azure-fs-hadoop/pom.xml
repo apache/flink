@@ -159,6 +159,10 @@ under the License.
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<!-- Exclude GPL-licensed content from Hadoop transitive dependencies -->
+										<exclude>com/sun/jersey/**</exclude>
+										<exclude>com/sun/xml/bind/**</exclude>
+										<exclude>javax/xml/bind/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

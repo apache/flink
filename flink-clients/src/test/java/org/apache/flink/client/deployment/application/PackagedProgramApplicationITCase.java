@@ -59,6 +59,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -70,6 +71,7 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests related to {@link PackagedProgramApplication}. */
+@Isolated("MiniCluster tests with leadership changes that can interfere with parallel tests")
 class PackagedProgramApplicationITCase {
 
     @RegisterExtension

@@ -32,14 +32,14 @@ import software.amazon.awssdk.services.sts.model.Credentials;
 
 import javax.annotation.Nullable;
 
-/** Delegation token receiver for S3 filesystems. */
+/** Delegation token receiver for S3 filesystems using AWS SDK v2. */
 @Internal
-public abstract class AbstractS3DelegationTokenReceiver implements DelegationTokenReceiver {
+public abstract class HadoopS3DelegationTokenReceiver implements DelegationTokenReceiver {
 
     public static final String PROVIDER_CONFIG_NAME = "fs.s3a.aws.credentials.provider";
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(AbstractS3DelegationTokenReceiver.class);
+            LoggerFactory.getLogger(HadoopS3DelegationTokenReceiver.class);
 
     @VisibleForTesting @Nullable static volatile Credentials credentials;
 
@@ -49,12 +49,12 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
         LOG.info("Updating Hadoop configuration");
 
         String providers = hadoopConfig.get(PROVIDER_CONFIG_NAME, "");
-        if (!providers.contains(DynamicTemporaryAWSCredentialsProvider.NAME)) {
+        if (!providers.contains(HadoopDynamicTemporaryAWSCredentialsProvider.NAME)) {
             if (providers.isEmpty()) {
                 LOG.debug("Setting provider");
-                providers = DynamicTemporaryAWSCredentialsProvider.NAME;
+                providers = HadoopDynamicTemporaryAWSCredentialsProvider.NAME;
             } else {
-                providers = DynamicTemporaryAWSCredentialsProvider.NAME + "," + providers;
+                providers = HadoopDynamicTemporaryAWSCredentialsProvider.NAME + "," + providers;
                 LOG.debug("Prepending provider, new providers value: {}", providers);
             }
             hadoopConfig.set(PROVIDER_CONFIG_NAME, providers);
@@ -88,7 +88,7 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
         LOG.info("Updating session credentials");
         credentials =
                 InstantiationUtil.deserializeObject(
-                        tokens, AbstractS3DelegationTokenReceiver.class.getClassLoader());
+                        tokens, HadoopS3DelegationTokenReceiver.class.getClassLoader());
         LOG.info(
                 "Session credentials updated successfully with access key: {} expiration: {}",
                 credentials.accessKeyId(),
@@ -99,4 +99,6 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
     public static Credentials getCredentials() {
         return credentials;
     }
+
+    public abstract String serviceName();
 }

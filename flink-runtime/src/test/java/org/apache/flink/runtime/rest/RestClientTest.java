@@ -244,9 +244,19 @@ class RestClientTest {
 
             restClient.close();
 
+            // When the client is closed while a request is in progress, the future should fail.
+            // Due to race conditions, the exception can be either:
+            // - IllegalStateException: "RestClient closed before request completed" (FLINK-32583)
+            // - IOException/ConnectionClosedException: "Channel became inactive"
             FlinkAssertions.assertThatFuture(responseFuture)
                     .eventuallyFailsWith(ExecutionException.class)
-                    .withCauseInstanceOf(IOException.class);
+                    .satisfies(
+                            e -> {
+                                Throwable cause = e.getCause();
+                                assertThat(cause)
+                                        .isInstanceOfAny(
+                                                IOException.class, IllegalStateException.class);
+                            });
         } finally {
             if (connectionSocket != null) {
                 connectionSocket.close();

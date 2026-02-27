@@ -76,6 +76,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import javax.annotation.Nonnull;
 import javax.net.ssl.HttpsURLConnection;
@@ -116,6 +117,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
 @ExtendWith(ParameterizedTestExtension.class)
+@Isolated("Network timing-sensitive tests that can fail with parallel test execution")
 public class RestServerEndpointITCase {
 
     private static final JobID PATH_JOB_ID = new JobID();

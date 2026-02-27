@@ -709,6 +709,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                     })
                             .collect(Collectors.toList());
 
+            // Add placeholder to prevent duplicate terminal status changes
+            CompletableFuture<Void> archivingCompleteFuture = new CompletableFuture<>();
+            applicationArchivingFutures.put(applicationId, archivingCompleteFuture);
+
             // wait for all jobs to be stored
             FutureUtils.combineAll(jobFutures)
                     .thenAcceptAsync(
@@ -730,19 +734,18 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                                 applications.remove(applicationId);
                                 writeToArchivedApplicationStore(archivedApplication);
-                                CompletableFuture<?> applicationArchivingFuture =
-                                        historyServerArchivist
-                                                .archiveApplication(archivedApplication)
-                                                .exceptionally(
-                                                        throwable -> {
-                                                            log.info(
-                                                                    "Could not archive completed application ({}) to the history server.",
-                                                                    applicationId,
-                                                                    throwable);
-                                                            return null;
-                                                        });
-                                applicationArchivingFutures.put(
-                                        applicationId, applicationArchivingFuture);
+                                historyServerArchivist
+                                        .archiveApplication(archivedApplication)
+                                        .whenComplete(
+                                                (result, throwable) -> {
+                                                    if (throwable != null) {
+                                                        log.info(
+                                                                "Could not archive completed application ({}) to the history server.",
+                                                                applicationId,
+                                                                throwable);
+                                                    }
+                                                    archivingCompleteFuture.complete(null);
+                                                });
                             },
                             getMainThreadExecutor());
         }

@@ -20,15 +20,16 @@ package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.annotation.Internal;
 
-import com.amazonaws.SdkBaseException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.services.sts.model.Credentials;
 
 import java.net.URI;
 
@@ -37,9 +38,13 @@ import java.net.URI;
  * reference this class name from configuration property fs.s3a.aws.credentials.provider. Therefore,
  * changing the class name would be a backward-incompatible change. This credential provider must
  * not fail in creation because that will break a chain of credential providers.
+ *
+ * <p>This class implements both AWS SDK V1 {@link AWSCredentialsProvider} (for Presto) and AWS SDK
+ * V2 {@link AwsCredentialsProvider} (for Hadoop 3.4.0+) interfaces to support both filesystems.
  */
 @Internal
-public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsProvider {
+public class DynamicTemporaryAWSCredentialsProvider
+        implements AWSCredentialsProvider, AwsCredentialsProvider {
 
     public static final String NAME = DynamicTemporaryAWSCredentialsProvider.class.getName();
 
@@ -52,21 +57,45 @@ public class DynamicTemporaryAWSCredentialsProvider implements AWSCredentialsPro
 
     public DynamicTemporaryAWSCredentialsProvider(URI uri, Configuration conf) {}
 
+    /**
+     * AWS SDK V1 method - used by Presto S3 filesystem.
+     *
+     * @return AWS SDK V1 credentials
+     */
     @Override
-    public AWSCredentials getCredentials() throws SdkBaseException {
+    public AWSCredentials getCredentials() {
         Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
         if (credentials == null) {
             throw new NoAwsCredentialsException(COMPONENT);
         }
-        LOG.debug("Providing session credentials");
+        LOG.debug("Providing session credentials (SDK V1)");
         return new BasicSessionCredentials(
-                credentials.getAccessKeyId(),
-                credentials.getSecretAccessKey(),
-                credentials.getSessionToken());
+                credentials.accessKeyId(),
+                credentials.secretAccessKey(),
+                credentials.sessionToken());
     }
 
+    /** AWS SDK V1 method - refresh is a no-op as credentials are managed externally. */
     @Override
     public void refresh() {
-        // Intentionally blank. Credentials are updated by S3DelegationTokenReceiver
+        // Credentials are managed by the DelegationTokenReceiver, no-op here
+    }
+
+    /**
+     * AWS SDK V2 method - used by Hadoop 3.4.0+ S3A filesystem.
+     *
+     * @return AWS SDK V2 credentials
+     */
+    @Override
+    public software.amazon.awssdk.auth.credentials.AwsCredentials resolveCredentials() {
+        Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
+        if (credentials == null) {
+            throw new NoAwsCredentialsException(COMPONENT);
+        }
+        LOG.debug("Providing session credentials (SDK V2)");
+        return AwsSessionCredentials.create(
+                credentials.accessKeyId(),
+                credentials.secretAccessKey(),
+                credentials.sessionToken());
     }
 }

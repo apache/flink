@@ -24,53 +24,116 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-core:2.20.1
 - com.fasterxml.jackson.core:jackson-databind:2.20.1
 - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.20.1
-- com.fasterxml.woodstox:woodstox-core:5.3.0
+- com.fasterxml.woodstox:woodstox-core:5.4.0
+- com.github.pjfanning:jersey-json:1.22.0
 - com.google.guava:guava:26.0-jre
 - com.google.inject:guice:4.2.2
 - commons-beanutils:commons-beanutils:1.9.4
 - commons-codec:commons-codec:1.15
-- commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.15.1
 - commons-logging:commons-logging:1.1.3
 - io.airlift:slice:0.38
 - io.airlift:units:1.3
+- io.dropwizard.metrics:metrics-core:3.2.5
 - joda-time:joda-time:2.5
+- io.netty:netty-buffer:4.2.6.Final
+- io.netty:netty-codec:4.2.6.Final
+- io.netty:netty-codec-base:4.2.6.Final
+- io.netty:netty-codec-compression:4.2.6.Final
+- io.netty:netty-codec-http:4.2.6.Final
+- io.netty:netty-codec-http2:4.2.6.Final
+- io.netty:netty-codec-marshalling:4.2.6.Final
+- io.netty:netty-codec-protobuf:4.2.6.Final
+- io.netty:netty-common:4.2.6.Final
+- io.netty:netty-handler:4.2.6.Final
+- io.netty:netty-resolver:4.2.6.Final
+- io.netty:netty-transport:4.2.6.Final
+- io.netty:netty-transport-classes-epoll:4.2.6.Final
+- io.netty:netty-transport-native-epoll:4.2.6.Final
+- io.netty:netty-transport-native-unix-common:4.2.6.Final
 - org.alluxio:alluxio-shaded-client:2.7.3
+- org.apache.commons:commons-collections4:4.4
 - org.apache.commons:commons-compress:1.26.0
-- org.apache.commons:commons-configuration2:2.1.1
+- org.apache.commons:commons-configuration2:2.10.1
 - org.apache.commons:commons-lang3:3.18.0
 - org.apache.commons:commons-text:1.10.0
-- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
-- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
-- org.apache.hadoop:hadoop-annotations:3.3.4
-- org.apache.hadoop:hadoop-auth:3.3.4
-- org.apache.hadoop:hadoop-aws:3.3.4
-- org.apache.hadoop:hadoop-common:3.3.4
+- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.4.0
+- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25:1.4.0
+- org.apache.hadoop:hadoop-annotations:3.4.2
+- org.apache.hadoop:hadoop-auth:3.4.2
+- org.apache.hadoop:hadoop-aws:3.4.2
+- org.apache.hadoop:hadoop-common:3.4.2
 - org.apache.httpcomponents:httpclient:4.5.13
 - org.apache.httpcomponents:httpcore:4.4.14
 - org.apache.hudi:hudi-presto-bundle:0.10.1
-- org.apache.kerby:kerb-core:1.0.1
-- org.apache.kerby:kerby-asn1:1.0.1
-- org.apache.kerby:kerby-pkix:1.0.1
-- org.apache.kerby:kerby-util:1.0.1
+- org.apache.kerby:kerb-core:2.0.3
+- org.apache.kerby:kerb-crypto:2.0.3
+- org.apache.kerby:kerb-util:2.0.3
+- org.apache.kerby:kerby-asn1:2.0.3
+- org.apache.kerby:kerby-config:2.0.3
+- org.apache.kerby:kerby-pkix:2.0.3
+- org.apache.kerby:kerby-util:2.0.3
+- org.codehaus.jettison:jettison:1.5.4
+- org.reactivestreams:reactive-streams:1.0.4
 - org.weakref:jmxutils:1.19
-- org.wildfly.openssl:wildfly-openssl:1.0.7.Final
+- org.wildfly.openssl:wildfly-openssl:2.1.4.Final
 - org.xerial.snappy:snappy-java:1.1.10.7
-- software.amazon.ion:ion-java:1.0.2
+- software.amazon.awssdk:annotations:2.29.52
+- software.amazon.awssdk:apache-client:2.29.52
+- software.amazon.awssdk:arns:2.29.52
+- software.amazon.awssdk:auth:2.29.52
+- software.amazon.awssdk:aws-core:2.29.52
+- software.amazon.awssdk:aws-json-protocol:2.29.52
+- software.amazon.awssdk:aws-query-protocol:2.29.52
+- software.amazon.awssdk:aws-xml-protocol:2.29.52
+- software.amazon.awssdk:checksums:2.29.52
+- software.amazon.awssdk:checksums-spi:2.29.52
+- software.amazon.awssdk:crt-core:2.29.52
+- software.amazon.awssdk:dynamodb:2.29.52
+- software.amazon.awssdk:endpoints-spi:2.29.52
+- software.amazon.awssdk:http-auth:2.29.52
+- software.amazon.awssdk:http-auth-aws:2.29.52
+- software.amazon.awssdk:http-auth-aws-eventstream:2.29.52
+- software.amazon.awssdk:http-auth-spi:2.29.52
+- software.amazon.awssdk:http-client-spi:2.29.52
+- software.amazon.awssdk:identity-spi:2.29.52
+- software.amazon.awssdk:json-utils:2.29.52
+- software.amazon.awssdk:kms:2.29.52
+- software.amazon.awssdk:metrics-spi:2.29.52
+- software.amazon.awssdk:netty-nio-client:2.29.52
+- software.amazon.awssdk:profiles:2.29.52
+- software.amazon.awssdk:protocol-core:2.29.52
+- software.amazon.awssdk:regions:2.29.52
+- software.amazon.awssdk:retries:2.29.52
+- software.amazon.awssdk:retries-spi:2.29.52
+- software.amazon.awssdk:s3:2.29.52
+- software.amazon.awssdk:s3-transfer-manager:2.29.52
+- software.amazon.awssdk:sdk-core:2.29.52
+- software.amazon.awssdk:sso:2.29.52
+- software.amazon.awssdk:sts:2.29.52
+- software.amazon.awssdk:third-party-jackson-core:2.29.52
+- software.amazon.awssdk:utils:2.29.52
+- software.amazon.eventstream:eventstream:1.0.1
+- software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3:1.2.1
 
 This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).
 See bundled license files for details.
 
-- dnsjava:dnsjava:2.1.7
+- dnsjava:dnsjava:3.6.1
 
 This project bundles the following dependencies under the Creative Commons CC0 1.0 Universal Public Domain Dedication License (http://creativecommons.org/publicdomain/zero/1.0/)
 See bundled license files for details.
 
 - org.hdrhistogram:HdrHistogram:2.1.9
 
+This project bundles the following dependencies under the Bouncy Castle License (https://www.bouncycastle.org/licence.html)
+
+- org.bouncycastle:bcprov-jdk18on:1.78.1
+
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
 
+- com.sun.xml.bind:jaxb-impl:2.2.3-1
 - javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
@@ -92,10 +155,10 @@ The bundled Apache Hadoop Relocated (Shaded) Third-party Miscellaneous Libs
 org.apache.hadoop.thirdparty:hadoop-shaded-guava dependency bundles the following dependencies under
 the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.google.guava:guava:30.1.1-jre
+- com.google.guava:guava:33.3.1-jre
 
 The bundled Apache Hadoop Relocated (Shaded) Third-party Miscellaneous Libs
-org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7 dependency bundles the following dependencies under
+org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25 dependency bundles the following dependencies under
 the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.google.protobuf:protobuf-java:3.7.1
+- com.google.protobuf:protobuf-java:3.25.5

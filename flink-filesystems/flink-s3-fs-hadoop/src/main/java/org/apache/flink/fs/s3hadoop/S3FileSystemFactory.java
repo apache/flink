@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
+import org.apache.flink.fs.s3.common.token.HadoopS3DelegationTokenReceiver;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
@@ -95,5 +96,10 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
         final S3AFileSystem s3Afs = (S3AFileSystem) fs;
         return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
+    }
+
+    @Override
+    protected void updateDelegationTokenConfig(org.apache.hadoop.conf.Configuration hadoopConfig) {
+        HadoopS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
     }
 }
