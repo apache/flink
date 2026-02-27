@@ -25,12 +25,17 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.planner.loader.PlannerModule;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.InstantiationUtil;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -46,49 +51,112 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class AdaptiveJoinOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT>
         implements AdaptiveJoin {
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptiveJoinOperatorFactory.class);
+
     private static final long serialVersionUID = 1L;
 
-    private final byte[] adaptiveJoinSerialized;
-
-    @Nullable private transient AdaptiveJoin adaptiveJoin;
+    private final byte[] adaptiveJoinGeneratorSerialized;
 
     @Nullable private StreamOperatorFactory<OUT> finalFactory;
 
-    public AdaptiveJoinOperatorFactory(byte[] adaptiveJoinSerialized) {
-        this.adaptiveJoinSerialized = checkNotNull(adaptiveJoinSerialized);
+    private final boolean checkClassLoaderLeak;
+
+    private final FlinkJoinType joinType;
+
+    private final boolean originIsSortMergeJoin;
+
+    private final boolean originalLeftIsBuild;
+
+    private boolean leftIsBuild;
+
+    private boolean isBroadcastJoin;
+
+    public AdaptiveJoinOperatorFactory(
+            byte[] adaptiveJoinGeneratorSerialized,
+            FlinkJoinType joinType,
+            boolean originIsSortMergeJoin,
+            boolean leftIsBuild,
+            boolean checkClassLoaderLeak) {
+        this.adaptiveJoinGeneratorSerialized = checkNotNull(adaptiveJoinGeneratorSerialized);
+        this.joinType = joinType;
+        this.originIsSortMergeJoin = originIsSortMergeJoin;
+        this.leftIsBuild = leftIsBuild;
+        this.originalLeftIsBuild = leftIsBuild;
+        this.checkClassLoaderLeak = checkClassLoaderLeak;
     }
 
     @Override
     public StreamOperatorFactory<?> genOperatorFactory(
-            ClassLoader classLoader, ReadableConfig config) {
-        checkAndLazyInitialize();
+            ClassLoader userClassLoader, ReadableConfig config) {
+        // In some IT/E2E tests, plannerModule may be null, so we handle it specially to avoid
+        // breaking these tests.
+        PlannerModule plannerModule = null;
+        try {
+            plannerModule = PlannerModule.getInstance();
+        } catch (Throwable throwable) {
+            LOG.warn(
+                    "Failed to get PlannerModule instance, may cause adaptive join deserialization failure.",
+                    throwable);
+        }
+
+        ClassLoader classLoader =
+                plannerModule == null
+                        ? userClassLoader
+                        : FlinkUserCodeClassLoaders.parentFirst(
+                                plannerModule.getSubmoduleClassLoader().getURLs(),
+                                userClassLoader,
+                                NOOP_EXCEPTION_HANDLER,
+                                checkClassLoaderLeak);
+
+        AdaptiveJoinGenerator adaptiveJoinGenerator;
+        try {
+            adaptiveJoinGenerator =
+                    InstantiationUtil.deserializeObject(
+                            adaptiveJoinGeneratorSerialized, classLoader);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new RuntimeException(
+                    "Failed to deserialize AdaptiveJoinGenerator instance. "
+                            + "Please check whether the flink-table-planner-loader.jar is in the classpath.",
+                    e);
+        }
         this.finalFactory =
-                (StreamOperatorFactory<OUT>) adaptiveJoin.genOperatorFactory(classLoader, config);
+                (StreamOperatorFactory<OUT>)
+                        adaptiveJoinGenerator.genOperatorFactory(
+                                classLoader,
+                                config,
+                                joinType,
+                                originIsSortMergeJoin,
+                                isBroadcastJoin,
+                                leftIsBuild);
         return this.finalFactory;
     }
 
     @Override
     public FlinkJoinType getJoinType() {
-        checkAndLazyInitialize();
-        return adaptiveJoin.getJoinType();
+        return joinType;
     }
 
     @Override
-    public void markAsBroadcastJoin(boolean canBeBroadcast, boolean leftIsBuild) {
-        checkAndLazyInitialize();
-        adaptiveJoin.markAsBroadcastJoin(canBeBroadcast, leftIsBuild);
+    public void markAsBroadcastJoin(boolean canBroadcast, boolean leftIsBuild) {
+        this.isBroadcastJoin = canBroadcast;
+        this.leftIsBuild = leftIsBuild;
     }
 
     @Override
     public boolean shouldReorderInputs() {
-        checkAndLazyInitialize();
-        return adaptiveJoin.shouldReorderInputs();
-    }
-
-    private void checkAndLazyInitialize() {
-        if (this.adaptiveJoin == null) {
-            lazyInitialize();
+        // Sort merge join requires the left side to be read first if the broadcast threshold is not
+        // met.
+        if (!isBroadcastJoin && originIsSortMergeJoin) {
+            return false;
         }
+
+        if (leftIsBuild != originalLeftIsBuild) {
+            LOG.info(
+                    "The build side of the adaptive join has been updated. Compile phase build side: {}, Runtime build side: {}.",
+                    originalLeftIsBuild ? "left" : "right",
+                    leftIsBuild ? "left" : "right");
+        }
+        return !leftIsBuild;
     }
 
     @Override
@@ -112,29 +180,5 @@ public class AdaptiveJoinOperatorFactory<OUT> extends AbstractStreamOperatorFact
         throw new UnsupportedOperationException(
                 "The method should not be invoked in the "
                         + "adaptive join operator for batch jobs.");
-    }
-
-    private void lazyInitialize() {
-        if (!tryInitializeAdaptiveJoin(Thread.currentThread().getContextClassLoader())) {
-            boolean isSuccess =
-                    tryInitializeAdaptiveJoin(
-                            PlannerModule.getInstance().getSubmoduleClassLoader());
-            if (!isSuccess) {
-                throw new RuntimeException(
-                        "Failed to deserialize AdaptiveJoin instance. "
-                                + "Please check whether the flink-table-planner-loader.jar is in the classpath.");
-            }
-        }
-    }
-
-    private boolean tryInitializeAdaptiveJoin(ClassLoader classLoader) {
-        try {
-            this.adaptiveJoin =
-                    InstantiationUtil.deserializeObject(adaptiveJoinSerialized, classLoader);
-        } catch (ClassNotFoundException | IOException e) {
-            return false;
-        }
-
-        return true;
     }
 }
