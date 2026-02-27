@@ -573,11 +573,10 @@ public class DeltaJoinUtil {
     }
 
     private static boolean areAllRexNodeDeterministic(List<RexNode> rexNodes) {
-        // Delta joins may produce duplicate data, and when this data is sent downstream, we want it
-        // to be processed in an idempotent manner. However, the presence of non-deterministic
-        // functions can lead to unpredictable results, such as random filtering or the addition of
-        // non-deterministic columns. Therefore, we strictly prohibit the use of non-deterministic
-        // functions in this context to ensure consistent and reliable processing.
+        // The presence of non-deterministic in projection or filter before join will output
+        // non-deterministic fields or rows to delta join. Therefore, we strictly prohibit the use
+        // of non-deterministic functions before delta join to ensure consistent and reliable
+        // processing.
         return rexNodes.stream().allMatch(RexUtil::isDeterministic);
     }
 
