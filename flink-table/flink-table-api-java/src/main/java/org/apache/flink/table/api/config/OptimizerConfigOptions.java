@@ -406,10 +406,10 @@ public class OptimizerConfigOptions {
 
     /**
      * Configuration option to enable async batch lookup join for temporal table joins.
-     * 
-     * <p>When enabled, multiple lookup requests are batched together to reduce network overhead
-     * and improve throughput. This is particularly beneficial for high-throughput scenarios
-     * with frequent dimension table lookups.
+     *
+     * <p>When enabled, multiple lookup requests are batched together to reduce network overhead and
+     * improve throughput. This is particularly beneficial for high-throughput scenarios with
+     * frequent dimension table lookups.
      */
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED =
@@ -420,10 +420,10 @@ public class OptimizerConfigOptions {
 
     /**
      * Configuration option for the batch size of async batch lookup join.
-     * 
-     * <p>Controls how many lookup requests are batched together. Larger batch sizes
-     * can improve throughput but may increase latency and memory usage. The optimal
-     * value depends on the specific use case and system characteristics.
+     *
+     * <p>Controls how many lookup requests are batched together. Larger batch sizes can improve
+     * throughput but may increase latency and memory usage. The optimal value depends on the
+     * specific use case and system characteristics.
      */
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Integer> TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE =
@@ -434,11 +434,10 @@ public class OptimizerConfigOptions {
 
     /**
      * Configuration option for the flush interval of async batch lookup join.
-     * 
-     * <p>Controls the maximum time to wait before flushing a batch, even if the
-     * batch size hasn't been reached. This ensures that records don't wait
-     * indefinitely when the input rate is low. Smaller intervals reduce latency
-     * but may decrease batch efficiency.
+     *
+     * <p>Controls the maximum time to wait before flushing a batch, even if the batch size hasn't
+     * been reached. This ensures that records don't wait indefinitely when the input rate is low.
+     * Smaller intervals reduce latency but may decrease batch efficiency.
      */
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS =

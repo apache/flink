@@ -23,36 +23,43 @@ import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
- * Wrapper to adapt single result future to batch result future interface.
- * This is a temporary solution until proper batch code generation is implemented.
+ * Wrapper to adapt single result future to batch result future interface. This is a temporary
+ * solution until proper batch code generation is implemented.
  */
-public class BatchResultFutureWrapper extends GeneratedResultFuture<TableFunctionResultFuture<List<RowData>>> {
-    
+public class BatchResultFutureWrapper
+        extends GeneratedResultFuture<TableFunctionResultFuture<List<RowData>>> {
+
     private final GeneratedResultFuture<TableFunctionResultFuture<RowData>> singleResultFuture;
-    
-    public BatchResultFutureWrapper(GeneratedResultFuture<TableFunctionResultFuture<RowData>> singleResultFuture) {
-        super(singleResultFuture.getClassName(), singleResultFuture.getCode(), singleResultFuture.getReferences());
+
+    public BatchResultFutureWrapper(
+            GeneratedResultFuture<TableFunctionResultFuture<RowData>> singleResultFuture) {
+        super(
+                singleResultFuture.getClassName(),
+                singleResultFuture.getCode(),
+                singleResultFuture.getReferences());
         this.singleResultFuture = singleResultFuture;
     }
-    
+
     @Override
     public TableFunctionResultFuture<List<RowData>> newInstance(ClassLoader classLoader) {
-        TableFunctionResultFuture<RowData> singleFuture = singleResultFuture.newInstance(classLoader);
+        TableFunctionResultFuture<RowData> singleFuture =
+                singleResultFuture.newInstance(classLoader);
         return new BatchTableFunctionResultFutureAdapter(singleFuture);
     }
-    
-    private static class BatchTableFunctionResultFutureAdapter extends TableFunctionResultFuture<List<RowData>> {
-        
+
+    private static class BatchTableFunctionResultFutureAdapter
+            extends TableFunctionResultFuture<List<RowData>> {
+
         private final TableFunctionResultFuture<RowData> singleFuture;
-        
-        public BatchTableFunctionResultFutureAdapter(TableFunctionResultFuture<RowData> singleFuture) {
+
+        public BatchTableFunctionResultFutureAdapter(
+                TableFunctionResultFuture<RowData> singleFuture) {
             this.singleFuture = singleFuture;
         }
-        
+
         @Override
         public void setInput(Object input) {
             // For batch processing, input should be a List<RowData>
@@ -68,12 +75,13 @@ public class BatchResultFutureWrapper extends GeneratedResultFuture<TableFunctio
                 singleFuture.setInput(input);
             }
         }
-        
+
         @Override
-        public void setResultFuture(org.apache.flink.streaming.api.functions.async.ResultFuture<?> resultFuture) {
+        public void setResultFuture(
+                org.apache.flink.streaming.api.functions.async.ResultFuture<?> resultFuture) {
             singleFuture.setResultFuture(resultFuture);
         }
-        
+
         @Override
         public void complete(java.util.Collection<List<RowData>> result) {
             // Convert batch result to single result format
@@ -87,12 +95,12 @@ public class BatchResultFutureWrapper extends GeneratedResultFuture<TableFunctio
             }
             singleFuture.complete(singleResult);
         }
-        
+
         @Override
         public void completeExceptionally(Throwable error) {
             singleFuture.completeExceptionally(error);
         }
-        
+
         @Override
         public void close() throws Exception {
             singleFuture.close();

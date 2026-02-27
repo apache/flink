@@ -56,8 +56,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.common.BatchLookupFunctionWrapper;
-import org.apache.flink.table.planner.plan.nodes.exec.common.BatchResultFutureWrapper;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
@@ -497,12 +495,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
         DataStructureConverter<?, ?> fetcherConverter =
                 DataStructureConverters.getConverter(generatedFuncWithType.dataType());
-        
+
         // Check if batch lookup join is enabled
-        boolean batchEnabled = config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED);
-        int batchSize = config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE);
-        long flushIntervalMillis = config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS);
-        
+        boolean batchEnabled =
+                config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED);
+        int batchSize =
+                config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE);
+        long flushIntervalMillis =
+                config.get(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS);
+
         AsyncFunction<RowData, RowData> asyncFunc;
         if (batchEnabled) {
             // Use batch lookup join runners for improved performance
@@ -530,7 +532,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                                 batchSize,
                                 flushIntervalMillis);
             } else {
-                // right type is the same as table source row type, because no calc after temporal table
+                // right type is the same as table source row type, because no calc after temporal
+                // table
                 asyncFunc =
                         new AsyncBatchLookupJoinRunner(
                                 new BatchLookupFunctionWrapper(generatedFuncWithType.tableFunc()),
@@ -565,7 +568,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                                 isLeftOuterJoin,
                                 asyncLookupOptions.asyncBufferCapacity);
             } else {
-                // right type is the same as table source row type, because no calc after temporal table
+                // right type is the same as table source row type, because no calc after temporal
+                // table
                 asyncFunc =
                         new AsyncLookupJoinRunner(
                                 generatedFuncWithType.tableFunc(),

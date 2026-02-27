@@ -25,21 +25,23 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Integration tests for async batch lookup join functionality.
- */
+/** Integration tests for async batch lookup join functionality. */
 public class AsyncBatchLookupJoinTest extends BatchAbstractTestBase {
 
     @Test
     public void testAsyncBatchLookupJoinConfiguration() {
         // Test that the configuration options are properly recognized
         // This is a basic test to verify the configuration options exist and work
-        
+
         // Test default values
-        boolean defaultBatchEnabled = OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED.defaultValue();
-        int defaultBatchSize = OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE.defaultValue();
-        long defaultFlushInterval = OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS.defaultValue();
-        
+        boolean defaultBatchEnabled =
+                OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED.defaultValue();
+        int defaultBatchSize =
+                OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE.defaultValue();
+        long defaultFlushInterval =
+                OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS
+                        .defaultValue();
+
         assertThat(defaultBatchEnabled).isFalse();
         assertThat(defaultBatchSize).isEqualTo(100);
         assertThat(defaultFlushInterval).isEqualTo(2000L);
@@ -49,41 +51,47 @@ public class AsyncBatchLookupJoinTest extends BatchAbstractTestBase {
     public void testConfigurationKeys() {
         // Test that configuration keys are correctly defined
         assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED.key())
-            .isEqualTo("table.optimizer.dim-lookup-join.batch.enabled");
-        
+                .isEqualTo("table.optimizer.dim-lookup-join.batch.enabled");
+
         assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE.key())
-            .isEqualTo("table.optimizer.dim-lookup-join.batch.size");
-        
+                .isEqualTo("table.optimizer.dim-lookup-join.batch.size");
+
         assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS.key())
-            .isEqualTo("table.optimizer.dim-lookup-join.batch.flush.millis");
+                .isEqualTo("table.optimizer.dim-lookup-join.batch.flush.millis");
     }
 
     @Test
     public void testConfigurationDescriptions() {
         // Test that configuration descriptions are not empty
-        assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED.description())
-            .isNotEmpty()
-            .contains("dim table batch lookup join");
-        
+        assertThat(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED
+                                .description())
+                .isNotEmpty()
+                .contains("dim table batch lookup join");
+
         assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE.description())
-            .isNotEmpty()
-            .contains("batch size");
-        
-        assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS.description())
-            .isNotEmpty()
-            .contains("flush interval");
+                .isNotEmpty()
+                .contains("batch size");
+
+        assertThat(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS
+                                .description())
+                .isNotEmpty()
+                .contains("flush interval");
     }
 
     @Test
     public void testConfigurationTypes() {
         // Test that configuration options have correct types
         assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_ENABLED.getClazz())
-            .isEqualTo(Boolean.class);
-        
+                .isEqualTo(Boolean.class);
+
         assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_SIZE.getClazz())
-            .isEqualTo(Integer.class);
-        
-        assertThat(OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS.getClazz())
-            .isEqualTo(Long.class);
+                .isEqualTo(Integer.class);
+
+        assertThat(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DIM_LOOKUP_JOIN_BATCH_FLUSH_MILLIS
+                                .getClazz())
+                .isEqualTo(Long.class);
     }
 }
