@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.table.catalog.CatalogStore;
@@ -192,7 +193,8 @@ public class ApiFactoryUtil {
      * table.secret-store.{identifier}.{param2}: xxx
      * }</pre>
      */
-    public static SecretStoreFactory findAndCreateSecretStoreFactory(
+    @VisibleForTesting
+    static SecretStoreFactory findAndCreateSecretStoreFactory(
             Configuration configuration, ClassLoader classLoader) {
         String identifier = configuration.get(CommonSecretOptions.TABLE_SECRET_STORE_KIND);
 
@@ -213,7 +215,8 @@ public class ApiFactoryUtil {
      * table.secret-store.{identifier}.{param2}: xxx
      * }</pre>
      */
-    public static SecretStoreFactory.Context buildSecretStoreFactoryContext(
+    @VisibleForTesting
+    static SecretStoreFactory.Context buildSecretStoreFactoryContext(
             Configuration configuration, ClassLoader classLoader) {
         String identifier = configuration.get(CommonSecretOptions.TABLE_SECRET_STORE_KIND);
         String secretStoreOptionPrefix =
