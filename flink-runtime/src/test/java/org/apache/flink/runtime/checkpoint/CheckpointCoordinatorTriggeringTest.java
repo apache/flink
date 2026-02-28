@@ -216,9 +216,8 @@ class CheckpointCoordinatorTriggeringTest {
     }
 
     /**
-     * Tests that when initialCheckpointDelay is 0 (default), the initial triggering delay falls
-     * back to the default behavior in {@link
-     * CheckpointCoordinatorConfiguration#getInitialTriggeringDelay()}.
+     * Tests that when initialCheckpointDelay is 0 (default), the random initial delay falls back to
+     * minPauseBetweenCheckpoints plus a random jitter bounded by minPauseBetweenCheckpoints.
      */
     @Test
     void testDefaultInitialDelayBehavior() throws Exception {

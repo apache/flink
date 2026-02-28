@@ -73,7 +73,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     private final boolean enableCheckpointsAfterTasksFinish;
 
     private final boolean recoverOutputOnDownstreamTask;
-    
+
     private final boolean pauseSourcesUntilFirstCheckpoint;
 
     /** The initial delay before the first checkpoint is triggered after the job starts. */
@@ -336,8 +336,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return ThreadLocalRandom.current()
                 .nextLong(
                         minPauseBetweenCheckpoints,
-                        checkpointInterval
-                                + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
+                        checkpointInterval + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
