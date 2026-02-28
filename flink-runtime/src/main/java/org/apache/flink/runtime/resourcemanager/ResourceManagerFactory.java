@@ -27,6 +27,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.health.NoOpNodeHealthManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
@@ -148,7 +149,8 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 rmRuntimeServicesConfig,
                 highAvailabilityServices,
                 rpcService.getScheduledExecutor(),
-                slotManagerMetricGroup);
+                slotManagerMetricGroup,
+                new NoOpNodeHealthManager());
     }
 
     protected abstract ResourceManagerRuntimeServicesConfiguration
