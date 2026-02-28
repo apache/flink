@@ -137,7 +137,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     // Management blocklist functions
-    private volatile java.util.function.Supplier<CompletableFuture<Collection<String>>>
+    private volatile java.util.function.Supplier<
+                    CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>>
             getAllManagementBlockedNodesSupplier =
                     () -> CompletableFuture.completedFuture(Collections.emptyList());
 
@@ -283,7 +284,9 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     public void setGetAllManagementBlockedNodesSupplier(
-            java.util.function.Supplier<CompletableFuture<Collection<String>>>
+            java.util.function.Supplier<
+                            CompletableFuture<
+                                    Collection<org.apache.flink.runtime.blocklist.BlockedNode>>>
                     getAllManagementBlockedNodesSupplier) {
         this.getAllManagementBlockedNodesSupplier = getAllManagementBlockedNodesSupplier;
     }
@@ -609,18 +612,21 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Collection<String>> getAllManagementBlockedNodes() {
+    public CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllManagementBlockedNodes(Duration timeout) {
         return getAllManagementBlockedNodesSupplier.get();
     }
 
     @Override
-    public CompletableFuture<Acknowledge> addManagementBlockedNode(
-            String nodeId, String reason, Duration timeout) {
-        return addManagementBlockedNodeFunction.apply(Tuple3.of(nodeId, reason, timeout));
+    public CompletableFuture<Void> addManagementBlockedNode(
+            String nodeId, String reason, Duration duration, Duration timeout) {
+        addManagementBlockedNodeFunction.apply(Tuple3.of(nodeId, reason, duration));
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Acknowledge> removeManagementBlockedNode(String nodeId) {
-        return removeManagementBlockedNodeFunction.apply(nodeId);
+    public CompletableFuture<Void> removeManagementBlockedNode(String nodeId, Duration timeout) {
+        removeManagementBlockedNodeFunction.apply(nodeId);
+        return CompletableFuture.completedFuture(null);
     }
 }
