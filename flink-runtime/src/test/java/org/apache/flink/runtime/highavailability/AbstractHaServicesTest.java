@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -167,6 +168,28 @@ class AbstractHaServicesTest {
 
         @Override
         public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+            return false;
+        }
+
+        @Override
+        public boolean put(File localFile, ApplicationID applicationId, BlobKey blobKey)
+                throws IOException {
+            return false;
+        }
+
+        @Override
+        public boolean delete(ApplicationID applicationId, BlobKey blobKey) {
+            return false;
+        }
+
+        @Override
+        public boolean deleteAll(ApplicationID applicationId) {
+            return false;
+        }
+
+        @Override
+        public boolean get(ApplicationID applicationId, BlobKey blobKey, File localFile)
+                throws IOException {
             return false;
         }
     }

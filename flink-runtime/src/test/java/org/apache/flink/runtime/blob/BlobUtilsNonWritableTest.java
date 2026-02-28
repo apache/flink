@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -68,7 +69,9 @@ class BlobUtilsNonWritableTest {
         assertThatThrownBy(
                         () ->
                                 BlobUtils.getStorageLocation(
-                                        getStorageLocationFile(), null, new TransientBlobKey()))
+                                        getStorageLocationFile(),
+                                        (JobID) null,
+                                        new TransientBlobKey()))
                 .isInstanceOf(IOException.class);
     }
 
@@ -90,6 +93,17 @@ class BlobUtilsNonWritableTest {
                                 BlobUtils.getStorageLocation(
                                         getStorageLocationFile(),
                                         new JobID(),
+                                        new PermanentBlobKey()))
+                .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    void testExceptionOnCreateCacheDirectoryFailureForApplicationPermanent() {
+        assertThatThrownBy(
+                        () ->
+                                BlobUtils.getStorageLocation(
+                                        getStorageLocationFile(),
+                                        new ApplicationID(),
                                         new PermanentBlobKey()))
                 .isInstanceOf(IOException.class);
     }

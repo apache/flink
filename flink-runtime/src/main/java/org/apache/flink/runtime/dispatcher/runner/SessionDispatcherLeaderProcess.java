@@ -124,6 +124,8 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     private CompletableFuture<Void>
             createDispatcherBasedOnRecoveredExecutionPlansAndRecoveredDirtyJobResults() {
+        // TODO support application recovery which may require fetching user jar from blob server
+
         final CompletableFuture<Collection<JobResult>> dirtyJobsFuture =
                 CompletableFuture.supplyAsync(this::getDirtyJobResultsIfRunning, ioExecutor);
 

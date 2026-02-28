@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -62,6 +63,7 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -97,6 +99,25 @@ class BlobServerPutTest {
         }
     }
 
+    /** Checked thread that calls {@link BlobServer#getStorageLocation(JobID, BlobKey)}. */
+    public static class ContentAddressableGetStorageLocationForApplication extends CheckedThread {
+        private final BlobServer server;
+        private final ApplicationID applicationId;
+        private final BlobKey key;
+
+        ContentAddressableGetStorageLocationForApplication(
+                BlobServer server, ApplicationID applicationId, BlobKey key) {
+            this.server = server;
+            this.applicationId = applicationId;
+            this.key = key;
+        }
+
+        @Override
+        public void go() throws Exception {
+            server.getStorageLocation(applicationId, key);
+        }
+    }
+
     /** Tests concurrent calls to {@link BlobServer#getStorageLocation(JobID, BlobKey)}. */
     @Test
     void testServerContentAddressableGetStorageLocationConcurrentNoJob() throws Exception {
@@ -125,6 +146,35 @@ class BlobServerPutTest {
                         new ContentAddressableGetStorageLocation(server, jobId, key2),
                         new ContentAddressableGetStorageLocation(server, jobId, key2),
                         new ContentAddressableGetStorageLocation(server, jobId, key2)
+                    };
+            checkedThreadSimpleTest(threads);
+        }
+    }
+
+    /** Tests concurrent calls to {@link BlobServer#getStorageLocation(ApplicationID, BlobKey)}. */
+    @Test
+    void testServerContentAddressableGetStorageLocationConcurrentForApplication() throws Exception {
+        final ApplicationID applicationId = new ApplicationID();
+
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
+            server.start();
+
+            BlobKey key1 = new TransientBlobKey();
+            BlobKey key2 = new PermanentBlobKey();
+            CheckedThread[] threads =
+                    new CheckedThread[] {
+                        new ContentAddressableGetStorageLocationForApplication(
+                                server, applicationId, key1),
+                        new ContentAddressableGetStorageLocationForApplication(
+                                server, applicationId, key1),
+                        new ContentAddressableGetStorageLocationForApplication(
+                                server, applicationId, key1),
+                        new ContentAddressableGetStorageLocationForApplication(
+                                server, applicationId, key2),
+                        new ContentAddressableGetStorageLocationForApplication(
+                                server, applicationId, key2),
+                        new ContentAddressableGetStorageLocationForApplication(
+                                server, applicationId, key2)
                     };
             checkedThreadSimpleTest(threads);
         }
@@ -317,6 +367,70 @@ class BlobServerPutTest {
         }
     }
 
+    @Test
+    void testPutStreamSuccessfulGetForApplication() throws IOException {
+        testPutStreamSuccessfulGetForApplication(new ApplicationID(), new ApplicationID());
+    }
+
+    /**
+     * Uploads two file streams for different applications into the server via the {@link
+     * BlobServer}. File transfers should be successful.
+     *
+     * @param applicationId1 first application id
+     * @param applicationId2 second application id
+     */
+    private void testPutStreamSuccessfulGetForApplication(
+            ApplicationID applicationId1, ApplicationID applicationId2) throws IOException {
+
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
+            server.start();
+
+            byte[] data = new byte[2000000];
+            rnd.nextBytes(data);
+            byte[] data2 = Arrays.copyOfRange(data, 10, 54);
+
+            // put data for applicationId1 and verify
+            BlobKey key1a =
+                    put(server, applicationId1, new ByteArrayInputStream(data), PERMANENT_BLOB);
+            assertThat(key1a).isNotNull();
+            // second upload of same data should yield a different BlobKey
+            BlobKey key1a2 =
+                    put(server, applicationId1, new ByteArrayInputStream(data), PERMANENT_BLOB);
+            assertThat(key1a2).isNotNull();
+            verifyKeyDifferentHashEquals(key1a, key1a2);
+
+            BlobKey key1b =
+                    put(server, applicationId1, new ByteArrayInputStream(data2), PERMANENT_BLOB);
+            assertThat(key1b).isNotNull();
+
+            verifyContents(server, applicationId1, key1a, data);
+            verifyContents(server, applicationId1, key1a2, data);
+            verifyContents(server, applicationId1, key1b, data2);
+
+            // now put data for applicationId2 and verify that both are ok
+            BlobKey key2a =
+                    put(server, applicationId2, new ByteArrayInputStream(data), PERMANENT_BLOB);
+            assertThat(key2a).isNotNull();
+            verifyKeyDifferentHashEquals(key1a, key2a);
+
+            BlobKey key2b =
+                    put(server, applicationId2, new ByteArrayInputStream(data2), PERMANENT_BLOB);
+            assertThat(key2b).isNotNull();
+            verifyKeyDifferentHashEquals(key1b, key2b);
+
+            // verify the accessibility and the BLOB contents
+            verifyContents(server, applicationId2, key2a, data);
+            verifyContents(server, applicationId2, key2b, data2);
+
+            // verify the accessibility and the BLOB contents one more time
+            verifyContents(server, applicationId1, key1a, data);
+            verifyContents(server, applicationId1, key1a2, data);
+            verifyContents(server, applicationId1, key1b, data2);
+            verifyContents(server, applicationId2, key2a, data);
+            verifyContents(server, applicationId2, key2b, data2);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @Test
@@ -398,6 +512,70 @@ class BlobServerPutTest {
             verifyContents(server, jobId1, key1b, data2);
             verifyContents(server, jobId2, key2a, data);
             verifyContents(server, jobId2, key2b, data2);
+        }
+    }
+
+    @Test
+    void testPutChunkedStreamSuccessfulGetForApplication() throws IOException {
+        testPutChunkedStreamSuccessfulGetForApplication(new ApplicationID(), new ApplicationID());
+    }
+
+    /**
+     * Uploads two chunked file streams for different applications into the server via the {@link
+     * BlobServer}. File transfers should be successful.
+     *
+     * @param applicationId1 first application id
+     * @param applicationId2 second application id
+     */
+    private void testPutChunkedStreamSuccessfulGetForApplication(
+            ApplicationID applicationId1, ApplicationID applicationId2) throws IOException {
+
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
+            server.start();
+
+            byte[] data = new byte[2000000];
+            rnd.nextBytes(data);
+            byte[] data2 = Arrays.copyOfRange(data, 10, 54);
+
+            // put data for applicationId1 and verify
+            BlobKey key1a =
+                    put(server, applicationId1, new ChunkedInputStream(data, 19), PERMANENT_BLOB);
+            assertThat(key1a).isNotNull();
+            // second upload of same data should yield a different BlobKey
+            BlobKey key1a2 =
+                    put(server, applicationId1, new ChunkedInputStream(data, 19), PERMANENT_BLOB);
+            assertThat(key1a2).isNotNull();
+            verifyKeyDifferentHashEquals(key1a, key1a2);
+
+            BlobKey key1b =
+                    put(server, applicationId1, new ChunkedInputStream(data2, 19), PERMANENT_BLOB);
+            assertThat(key1b).isNotNull();
+
+            verifyContents(server, applicationId1, key1a, data);
+            verifyContents(server, applicationId1, key1a2, data);
+            verifyContents(server, applicationId1, key1b, data2);
+
+            // now put data for applicationId2 and verify that both are ok
+            BlobKey key2a =
+                    put(server, applicationId2, new ChunkedInputStream(data, 19), PERMANENT_BLOB);
+            assertThat(key2a).isNotNull();
+            verifyKeyDifferentHashEquals(key1a, key2a);
+
+            BlobKey key2b =
+                    put(server, applicationId2, new ChunkedInputStream(data2, 19), PERMANENT_BLOB);
+            assertThat(key2b).isNotNull();
+            verifyKeyDifferentHashEquals(key1b, key2b);
+
+            // verify the accessibility and the BLOB contents
+            verifyContents(server, applicationId2, key2a, data);
+            verifyContents(server, applicationId2, key2b, data2);
+
+            // verify the accessibility and the BLOB contents one more time
+            verifyContents(server, applicationId1, key1a, data);
+            verifyContents(server, applicationId1, key1a2, data);
+            verifyContents(server, applicationId1, key1b, data2);
+            verifyContents(server, applicationId2, key2a, data);
+            verifyContents(server, applicationId2, key2b, data2);
         }
     }
 
@@ -712,6 +890,125 @@ class BlobServerPutTest {
         }
     }
 
+    @Test
+    void testConcurrentPutOperationsForApplication()
+            throws IOException, ExecutionException, InterruptedException {
+        testConcurrentPutOperationsForApplication(new ApplicationID());
+    }
+
+    /**
+     * [FLINK-6020] Tests that concurrent put operations will only upload the file once to the
+     * {@link BlobStore} and that the files are not corrupt at any time.
+     *
+     * @param applicationId application ID to use
+     */
+    private void testConcurrentPutOperationsForApplication(ApplicationID applicationId)
+            throws IOException, InterruptedException, ExecutionException {
+        final Configuration config = new Configuration();
+        final int concurrentPutOperations = 2;
+        final int dataSize = 1024;
+
+        Collection<BlobKey> persistedBlobs = ConcurrentHashMap.newKeySet();
+        TestingBlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setPutForApplicationFunction(
+                                (file, appId, blobKey) -> {
+                                    persistedBlobs.add(blobKey);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
+
+        final CountDownLatch countDownLatch = new CountDownLatch(concurrentPutOperations);
+        final byte[] data = new byte[dataSize];
+
+        ArrayList<CompletableFuture<BlobKey>> allFutures = new ArrayList<>(concurrentPutOperations);
+
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentPutOperations);
+
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir, config, blobStore)) {
+            server.start();
+
+            for (int i = 0; i < concurrentPutOperations; i++) {
+                CompletableFuture<BlobKey> putFuture =
+                        CompletableFuture.supplyAsync(
+                                () -> {
+                                    try {
+                                        BlockingInputStream inputStream =
+                                                new BlockingInputStream(countDownLatch, data);
+                                        BlobKey uploadedKey =
+                                                put(
+                                                        server,
+                                                        applicationId,
+                                                        inputStream,
+                                                        PERMANENT_BLOB);
+                                        // check the uploaded file's contents (concurrently)
+                                        verifyContents(server, applicationId, uploadedKey, data);
+                                        return uploadedKey;
+                                    } catch (IOException e) {
+                                        throw new CompletionException(
+                                                new FlinkException("Could not upload blob.", e));
+                                    }
+                                },
+                                executor);
+
+                allFutures.add(putFuture);
+            }
+
+            FutureUtils.ConjunctFuture<Collection<BlobKey>> conjunctFuture =
+                    FutureUtils.combineAll(allFutures);
+
+            // wait until all operations have completed and check that no exception was thrown
+            Collection<BlobKey> blobKeys = conjunctFuture.get();
+
+            Iterator<BlobKey> blobKeyIterator = blobKeys.iterator();
+
+            assertThat(blobKeyIterator).hasNext();
+
+            BlobKey blobKey = blobKeyIterator.next();
+
+            // make sure that all blob keys are the same
+            while (blobKeyIterator.hasNext()) {
+                verifyKeyDifferentHashEquals(blobKey, blobKeyIterator.next());
+            }
+
+            // check the uploaded file's contents
+            verifyContents(server, applicationId, blobKey, data);
+
+            // check that we only uploaded the file once to the blob store
+            assertThat(persistedBlobs).hasSameElementsAs(blobKeys);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testFailedBlobStorePutsDeletesLocalBlobForApplication() throws IOException {
+        final BlobKey.BlobType blobType = PERMANENT_BLOB;
+        final ApplicationID applicationId = ApplicationID.generate();
+        final byte[] data = new byte[] {1, 2, 3};
+
+        final File storageDir = TempDirUtils.newFolder(tempDir);
+        final TestingBlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setPutForApplicationFunction(
+                                (file, appId, blobKey) -> {
+                                    throw new IOException("Could not persist the file.");
+                                })
+                        .createTestingBlobStore();
+        try (final BlobServer blobServer =
+                new BlobServer(new Configuration(), storageDir, blobStore)) {
+            assertThatThrownBy(() -> put(blobServer, applicationId, data, blobType))
+                    .isInstanceOf(IOException.class);
+
+            final File applicationSpecificStorageDirectory =
+                    new File(
+                            BlobUtils.getStorageLocationPath(
+                                    storageDir.getAbsolutePath(), applicationId));
+
+            assertThat(applicationSpecificStorageDirectory).isEmptyDirectory();
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -778,6 +1075,46 @@ class BlobServerPutTest {
     }
 
     /**
+     * Helper to put a blob for an application.
+     *
+     * @param service BlobServer to use
+     * @param applicationId application ID
+     * @param data blob data
+     * @param blobType whether the BLOB should become permanent or transient
+     * @return blob key for the uploaded data
+     */
+    static BlobKey put(
+            BlobService service,
+            ApplicationID applicationId,
+            byte[] data,
+            BlobKey.BlobType blobType)
+            throws IOException {
+        checkArgument(blobType == PERMANENT_BLOB);
+        checkArgument(service instanceof BlobServer);
+        return ((BlobServer) service).putPermanent(applicationId, data);
+    }
+
+    /**
+     * Helper to put a blob for an application using an InputStream.
+     *
+     * @param service BlobServer to use
+     * @param applicationId application ID
+     * @param data blob data
+     * @param blobType whether the BLOB should become permanent or transient
+     * @return blob key for the uploaded data
+     */
+    static BlobKey put(
+            BlobService service,
+            ApplicationID applicationId,
+            InputStream data,
+            BlobKey.BlobType blobType)
+            throws IOException {
+        checkArgument(blobType == PERMANENT_BLOB);
+        checkArgument(service instanceof BlobServer);
+        return ((BlobServer) service).putPermanent(applicationId, data);
+    }
+
+    /**
      * GET the data stored at the two keys and check that it is equal to <tt>data</tt>.
      *
      * @param blobService BlobServer to use
@@ -806,6 +1143,40 @@ class BlobServerPutTest {
             throws IOException {
 
         File file = get(blobService, jobId, key);
+        validateGetAndClose(Files.newInputStream(file.toPath()), data);
+    }
+
+    /**
+     * GET the data stored at the key for an application and check that it is equal to
+     * <tt>data</tt>.
+     *
+     * @param blobService BlobServer to use
+     * @param applicationId application ID
+     * @param key blob key
+     * @param data expected data
+     */
+    static void verifyContents(
+            BlobService blobService, ApplicationID applicationId, BlobKey key, byte[] data)
+            throws IOException {
+
+        File file = get(blobService, applicationId, key);
+        validateGetAndClose(Files.newInputStream(file.toPath()), data);
+    }
+
+    /**
+     * GET the data stored at the key for an application and check that it is equal to
+     * <tt>data</tt>.
+     *
+     * @param blobService BlobServer to use
+     * @param applicationId application ID
+     * @param key blob key
+     * @param data expected data
+     */
+    static void verifyContents(
+            BlobService blobService, ApplicationID applicationId, BlobKey key, InputStream data)
+            throws IOException {
+
+        File file = get(blobService, applicationId, key);
         validateGetAndClose(Files.newInputStream(file.toPath()), data);
     }
 

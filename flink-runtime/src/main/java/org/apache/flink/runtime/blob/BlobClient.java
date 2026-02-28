@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -47,6 +48,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.APPLICATION_RELATED_CONTENT;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
@@ -182,6 +184,78 @@ public final class BlobClient implements Closeable {
         } // end loop over retries
     }
 
+    /**
+     * Downloads a BLOB (binary large object) from the {@link BlobServer} to a local file.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey blob key identifying the file to be downloaded
+     * @param localJarFile the local file to write to
+     * @param serverAddress address of the server to download from
+     * @param blobClientConfig client configuration for the connection
+     * @param numFetchRetries number of retries before failing
+     * @throws IOException if an I/O error occurs during the download
+     */
+    static void downloadFromBlobServer(
+            ApplicationID applicationId,
+            BlobKey blobKey,
+            File localJarFile,
+            InetSocketAddress serverAddress,
+            Configuration blobClientConfig,
+            int numFetchRetries)
+            throws IOException {
+
+        final byte[] buf = new byte[BUFFER_SIZE];
+        LOG.info(
+                "Downloading {} for application {} from {}", blobKey, applicationId, serverAddress);
+
+        // loop over retries
+        int attempt = 0;
+        while (true) {
+            try (final BlobClient bc = new BlobClient(serverAddress, blobClientConfig);
+                    final InputStream is = bc.getInternal(applicationId, blobKey);
+                    final OutputStream os = new FileOutputStream(localJarFile)) {
+                while (true) {
+                    final int read = is.read(buf);
+                    if (read < 0) {
+                        break;
+                    }
+                    os.write(buf, 0, read);
+                }
+
+                return;
+            } catch (Throwable t) {
+                String message =
+                        "Failed to fetch BLOB "
+                                + blobKey
+                                + " for application "
+                                + applicationId
+                                + " from "
+                                + serverAddress
+                                + " and store it under "
+                                + localJarFile.getAbsolutePath();
+                if (attempt < numFetchRetries) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.error(message + " Retrying...", t);
+                    } else {
+                        LOG.error(message + " Retrying...");
+                    }
+                } else {
+                    LOG.error(message + " No retries left.", t);
+                    throw new IOException(message, t);
+                }
+
+                // retry
+                ++attempt;
+                LOG.info(
+                        "Downloading {} for application {} from {} (retry {})",
+                        blobKey,
+                        applicationId,
+                        serverAddress,
+                        attempt);
+            }
+        } // end loop over retries
+    }
+
     @Override
     public void close() throws IOException {
         this.socket.close();
@@ -235,6 +309,45 @@ public final class BlobClient implements Closeable {
     }
 
     /**
+     * Downloads the BLOB identified by the given BLOB key from the BLOB server.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey blob key associated with the requested file
+     * @return an input stream to read the retrieved data from
+     * @throws FileNotFoundException if there is no such file;
+     * @throws IOException if an I/O error occurs during the download
+     */
+    InputStream getInternal(ApplicationID applicationId, BlobKey blobKey) throws IOException {
+
+        if (this.socket.isClosed()) {
+            throw new IllegalStateException(
+                    "BLOB Client is not connected. "
+                            + "Client has been shut down or encountered an error before.");
+        }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "GET BLOB {} for application {} from {}.",
+                    blobKey,
+                    applicationId,
+                    socket.getLocalSocketAddress());
+        }
+
+        try {
+            OutputStream os = this.socket.getOutputStream();
+            InputStream is = this.socket.getInputStream();
+
+            // Send GET header
+            sendGetHeader(os, applicationId, blobKey);
+            receiveAndCheckGetResponse(is);
+
+            return new BlobInputStream(is, blobKey, os);
+        } catch (Throwable t) {
+            BlobUtils.closeSilently(socket, LOG);
+            throw new IOException("GET operation failed: " + t.getMessage(), t);
+        }
+    }
+
+    /**
      * Constructs and writes the header data for a GET operation to the given output stream.
      *
      * @param outputStream the output stream to write the header data to
@@ -260,6 +373,30 @@ public final class BlobClient implements Closeable {
             outputStream.write(JOB_RELATED_CONTENT);
             outputStream.write(jobId.getBytes());
         }
+        blobKey.writeToOutputStream(outputStream);
+    }
+
+    /**
+     * Constructs and writes the header data for a GET operation to the given output stream.
+     *
+     * @param outputStream the output stream to write the header data to
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey blob key associated with the requested file
+     * @throws IOException thrown if an I/O error occurs while writing the header data to the output
+     *     stream
+     */
+    private static void sendGetHeader(
+            OutputStream outputStream, ApplicationID applicationId, BlobKey blobKey)
+            throws IOException {
+        checkNotNull(blobKey);
+        checkNotNull(applicationId);
+
+        // Signal type of operation
+        outputStream.write(GET_OPERATION);
+
+        // Send application ID and key
+        outputStream.write(APPLICATION_RELATED_CONTENT);
+        outputStream.write(applicationId.getBytes());
         blobKey.writeToOutputStream(outputStream);
     }
 
@@ -406,6 +543,59 @@ public final class BlobClient implements Closeable {
         final FileSystem fs = file.getFileSystem();
         try (InputStream is = fs.open(file)) {
             return (PermanentBlobKey) putInputStream(jobId, is, PERMANENT_BLOB);
+        }
+    }
+
+    /**
+     * Uploads data from the given input stream to the BLOB server, associating it with an
+     * application ID.
+     *
+     * @param applicationId the ID of the application the BLOB belongs to
+     * @param inputStream the input stream to read the data from
+     * @param blobType whether the BLOB should become permanent or transient
+     * @return the computed BLOB key of the uploaded BLOB
+     * @throws IOException thrown if an I/O error occurs while uploading the data to the BLOB server
+     */
+    BlobKey putInputStream(
+            ApplicationID applicationId, InputStream inputStream, BlobKey.BlobType blobType)
+            throws IOException {
+
+        if (this.socket.isClosed()) {
+            throw new IllegalStateException(
+                    "BLOB Client is not connected. "
+                            + "Client has been shut down or encountered an error before.");
+        }
+        checkNotNull(inputStream);
+        checkNotNull(applicationId);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "PUT BLOB stream for application {} to {}.",
+                    applicationId,
+                    socket.getLocalSocketAddress());
+        }
+
+        try (BlobOutputStream os = new BlobOutputStream(applicationId, blobType, socket)) {
+            IOUtils.copyBytes(inputStream, os, BUFFER_SIZE, false);
+            return os.finish();
+        } catch (Throwable t) {
+            BlobUtils.closeSilently(socket, LOG);
+            throw new IOException("PUT operation failed: " + t.getMessage(), t);
+        }
+    }
+
+    /**
+     * Uploads a single file to the {@link PermanentBlobService} of the given {@link BlobServer},
+     * associating it with an application ID.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param file file to upload
+     * @throws IOException if the upload fails
+     */
+    public PermanentBlobKey uploadFile(ApplicationID applicationId, Path file) throws IOException {
+        final FileSystem fs = file.getFileSystem();
+        try (InputStream is = fs.open(file)) {
+            return (PermanentBlobKey) putInputStream(applicationId, is, PERMANENT_BLOB);
         }
     }
 }

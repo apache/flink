@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
@@ -161,6 +162,27 @@ public enum ClientUtils {
             throws IOException {
         for (Tuple2<String, PermanentBlobKey> blobKey : blobKeys) {
             executionPlan.setUserArtifactBlobKey(blobKey.f0, blobKey.f1);
+        }
+    }
+
+    /**
+     * Uploads the given jar for the application using the {@link BlobClient} from the given {@link
+     * Supplier}.
+     *
+     * @param jarFile jar to upload
+     * @param applicationId id of the application the jar belongs to
+     * @param clientSupplier supplier of blob client to upload files with
+     * @throws FlinkException if the upload fails
+     */
+    public static PermanentBlobKey uploadUserJarForApplication(
+            Path jarFile,
+            ApplicationID applicationId,
+            SupplierWithException<BlobClient, IOException> clientSupplier)
+            throws FlinkException {
+        try (BlobClient client = clientSupplier.get()) {
+            return client.uploadFile(applicationId, jarFile);
+        } catch (IOException ioe) {
+            throw new FlinkException("Could not upload the file.", ioe);
         }
     }
 }
