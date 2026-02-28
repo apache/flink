@@ -39,6 +39,9 @@ import org.apache.flink.runtime.rest.handler.application.ApplicationDetailsHandl
 import org.apache.flink.runtime.rest.handler.application.ApplicationExceptionsHandler;
 import org.apache.flink.runtime.rest.handler.application.ApplicationsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.application.JobManagerApplicationConfigurationHandler;
+import org.apache.flink.runtime.rest.handler.cluster.BlocklistAddHandler;
+import org.apache.flink.runtime.rest.handler.cluster.BlocklistListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.BlocklistRemoveHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
@@ -149,6 +152,9 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeader
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.BlocklistListHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.BlocklistRemoveHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
@@ -1011,6 +1017,32 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(
                         nodeQuarantineListHandler.getMessageHeaders(), nodeQuarantineListHandler));
+
+        // Blocklist handlers
+        BlocklistListHandler blocklistListHandler =
+                new BlocklistListHandler(
+                        leaderRetriever,
+                        timeout,
+                        BlocklistListHeaders.getInstance(),
+                        resourceManagerRetriever);
+
+        BlocklistAddHandler blocklistAddHandler =
+                new BlocklistAddHandler(
+                        leaderRetriever,
+                        timeout,
+                        BlocklistAddHeaders.getInstance(),
+                        resourceManagerRetriever);
+
+        BlocklistRemoveHandler blocklistRemoveHandler =
+                new BlocklistRemoveHandler(
+                        leaderRetriever,
+                        timeout,
+                        BlocklistRemoveHeaders.getInstance(),
+                        resourceManagerRetriever);
+
+        handlers.add(Tuple2.of(blocklistListHandler.getMessageHeaders(), blocklistListHandler));
+        handlers.add(Tuple2.of(blocklistAddHandler.getMessageHeaders(), blocklistAddHandler));
+        handlers.add(Tuple2.of(blocklistRemoveHandler.getMessageHeaders(), blocklistRemoveHandler));
 
         handlers.add(
                 Tuple2.of(
