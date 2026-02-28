@@ -56,6 +56,20 @@ public interface BlocklistHandler {
     Set<String> getAllBlockedNodeIds();
 
     /**
+     * Get all blocked nodes with detailed information.
+     *
+     * @return a collection containing all blocked nodes
+     */
+    Collection<BlockedNode> getAllBlockedNodes();
+
+    /**
+     * Remove nodes from the blocklist by node IDs.
+     *
+     * @param nodeIds the node IDs to remove
+     */
+    void removeTimeoutNodes(Collection<String> nodeIds);
+
+    /**
      * Register a new blocklist listener.
      *
      * @param blocklistListener the newly registered listener

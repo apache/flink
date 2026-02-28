@@ -330,4 +330,34 @@ public interface ResourceManagerGateway
      */
     CompletableFuture<Collection<org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus>>
             listQuarantinedNodes(@RpcTimeout Duration timeout);
+
+    /**
+     * Get all blocked nodes from the blocklist.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the collection of blocked nodes
+     */
+    CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllBlockedNodes(@RpcTimeout Duration timeout);
+
+    /**
+     * Add nodes to the blocklist.
+     *
+     * @param nodeId the ID of the node to add to blocklist
+     * @param cause the cause for blocking the node
+     * @param endTimestamp the timestamp when the block should end
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is added to blocklist
+     */
+    CompletableFuture<Void> addBlockedNode(
+            String nodeId, String cause, long endTimestamp, @RpcTimeout Duration timeout);
+
+    /**
+     * Remove nodes from the blocklist.
+     *
+     * @param nodeId the ID of the node to remove from blocklist
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is removed from blocklist
+     */
+    CompletableFuture<Void> removeBlockedNode(String nodeId, @RpcTimeout Duration timeout);
 }
