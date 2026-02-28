@@ -88,8 +88,7 @@ abstract class SavepointStateBackendSwitchTestBase {
     }
 
     @TestTemplate
-    public void switchStateBackend() throws Exception {
-
+    void switchStateBackend() throws Exception {
         final File pathToWrite = TempDirUtils.newFile(tempFolder);
 
         final MapStateDescriptor<Long, Long> mapStateDescriptor =

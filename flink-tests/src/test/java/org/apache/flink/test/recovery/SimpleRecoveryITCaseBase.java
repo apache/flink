@@ -60,8 +60,7 @@ abstract class SimpleRecoveryITCaseBase {
                             .build());
 
     @Test
-    public void testFailedRunThenSuccessfulRun() throws Exception {
-
+    void testFailedRunThenSuccessfulRun() throws Exception {
         try {
             // attempt 1
             {
@@ -122,7 +121,7 @@ abstract class SimpleRecoveryITCaseBase {
     }
 
     @Test
-    public void testRestart() throws Exception {
+    void testRestart() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -150,7 +149,7 @@ abstract class SimpleRecoveryITCaseBase {
     }
 
     @Test
-    public void testRestartMultipleTimes() throws Exception {
+    void testRestartMultipleTimes() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setRuntimeMode(RuntimeExecutionMode.BATCH);

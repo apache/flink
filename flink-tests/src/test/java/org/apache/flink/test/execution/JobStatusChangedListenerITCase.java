@@ -96,12 +96,12 @@ class JobStatusChangedListenerITCase {
     private static List<JobStatusChangedEvent> statusChangedEvents = new ArrayList<>();
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         statusChangedEvents.clear();
     }
 
     @Test
-    public void testJobStatusChangedForSucceededApplication() throws Exception {
+    void testJobStatusChangedForSucceededApplication() throws Exception {
         Configuration configuration = createConfiguration();
         try (StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration)) {
@@ -137,8 +137,7 @@ class JobStatusChangedListenerITCase {
     }
 
     @Test
-    public void testJobStatusChangedForFailedApplication(
-            @InjectClusterClient ClusterClient<?> client) {
+    void testJobStatusChangedForFailedApplication(@InjectClusterClient ClusterClient<?> client) {
         Configuration configuration = createConfiguration();
 
         try (StreamExecutionEnvironment env =
@@ -172,7 +171,7 @@ class JobStatusChangedListenerITCase {
     }
 
     @Test
-    public void testJobStatusChangedForCancelledApplication(
+    void testJobStatusChangedForCancelledApplication(
             @InjectMiniCluster MiniCluster miniCluster,
             @InjectClusterClient ClusterClient<?> client)
             throws Exception {

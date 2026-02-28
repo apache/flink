@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GenericTypeInfoTest {
 
     @Test
-    public void testSerializerTree() {
+    void testSerializerTree() {
         TypeInformation<CollectionDataStreams.PojoWithCollectionGeneric> ti =
                 (TypeInformation<CollectionDataStreams.PojoWithCollectionGeneric>)
                         TypeExtractor.createTypeInfo(

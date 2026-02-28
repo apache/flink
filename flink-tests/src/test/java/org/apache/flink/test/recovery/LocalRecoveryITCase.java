@@ -79,7 +79,7 @@ class LocalRecoveryITCase {
     @TempDir private File tmpDirectory;
 
     @Test
-    public void testRecoverLocallyFromProcessCrashWithWorkingDirectory() throws Exception {
+    void testRecoverLocallyFromProcessCrashWithWorkingDirectory() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
         configuration.set(JobManagerOptions.PORT, 0);

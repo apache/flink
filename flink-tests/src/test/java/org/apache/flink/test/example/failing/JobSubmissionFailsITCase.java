@@ -80,8 +80,8 @@ class JobSubmissionFailsITCase {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testExceptionInInitializeOnMaster(
-            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
+    void testExceptionInInitializeOnMaster(@InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         final JobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
         failingJobVertex.setInvokableClass(NoOpInvokable.class);
         failingJobVertex.setParallelism(1);
@@ -99,7 +99,7 @@ class JobSubmissionFailsITCase {
     }
 
     @Test
-    public void testSubmitEmptyJobGraph(@InjectClusterClient ClusterClient<?> clusterClient)
+    void testSubmitEmptyJobGraph(@InjectClusterClient ClusterClient<?> clusterClient)
             throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         runJobSubmissionTest(
@@ -115,8 +115,7 @@ class JobSubmissionFailsITCase {
     }
 
     @Test
-    public void testMissingJarBlob(@InjectClusterClient ClusterClient<?> clusterClient)
-            throws Exception {
+    void testMissingJarBlob(@InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         final JobGraph jobGraph = getJobGraphWithMissingBlobKey();
         runJobSubmissionTest(
                 clusterClient,

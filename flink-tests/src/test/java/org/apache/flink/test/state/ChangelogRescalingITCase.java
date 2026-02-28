@@ -128,7 +128,7 @@ class ChangelogRescalingITCase {
     }
 
     @BeforeEach
-    public void before() throws Exception {
+    void before() throws Exception {
         Configuration configuration = new Configuration();
         FsStateChangelogStorageFactory.configure(configuration, tempDir, Duration.ofMinutes(1), 10);
         cluster =
@@ -141,7 +141,7 @@ class ChangelogRescalingITCase {
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -149,8 +149,7 @@ class ChangelogRescalingITCase {
     }
 
     @TestTemplate
-    public void test() throws Exception {
-        // before rescale
+    void test() throws Exception { // before rescale
         JobID jobID1 = submit(configureJob(parallelism1, tempDir), graph -> {});
 
         Thread.sleep(ACCUMULATE_TIME_MILLIS);

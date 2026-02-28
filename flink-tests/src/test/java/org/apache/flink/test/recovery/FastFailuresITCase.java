@@ -39,7 +39,7 @@ class FastFailuresITCase extends AbstractTestBase {
     static final int NUM_FAILURES = 200;
 
     @Test
-    public void testThis() throws Exception {
+    void testThis() throws Exception {
         final int parallelism = 4;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

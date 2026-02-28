@@ -62,7 +62,7 @@ class ObjectReuseITCase extends AbstractTestBase {
     @Parameter private boolean objectReuse;
 
     @TestTemplate
-    public void testKeyedReduce() throws Exception {
+    void testKeyedReduce() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         if (objectReuse) {
@@ -92,8 +92,7 @@ class ObjectReuseITCase extends AbstractTestBase {
     }
 
     @TestTemplate
-    public void testGlobalReduce() throws Exception {
-
+    void testGlobalReduce() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         if (objectReuse) {

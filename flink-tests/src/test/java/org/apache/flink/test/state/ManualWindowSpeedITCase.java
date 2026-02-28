@@ -59,7 +59,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
     @TempDir private File tempFolder;
 
     @Test
-    public void testTumblingIngestionTimeWindowsWithFsBackend() throws Exception {
+    void testTumblingIngestionTimeWindowsWithFsBackend() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
@@ -98,7 +98,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTumblingIngestionTimeWindowsWithFsBackendWithLateness() throws Exception {
+    void testTumblingIngestionTimeWindowsWithFsBackendWithLateness() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
@@ -139,7 +139,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTumblingIngestionTimeWindowsWithRocksDBBackend() throws Exception {
+    void testTumblingIngestionTimeWindowsWithRocksDBBackend() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
@@ -176,7 +176,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTumblingIngestionTimeWindowsWithRocksDBBackendWithLateness() throws Exception {
+    void testTumblingIngestionTimeWindowsWithRocksDBBackendWithLateness() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(1);
