@@ -205,7 +205,15 @@ class RestClientTest {
         }
     }
 
-    /** Tests that we fail the operation if the client closes. */
+    /**
+     * Tests that we fail the operation if the client closes.
+     *
+     * <p>The exact exception depends on timing.
+     *
+     * <p>Both are valid outcomes when the client is closed with a request in-flight.
+     *
+     * <p>See FLINK-39180
+     */
     @Test
     void testRestClientClosedHandling() throws Exception {
         final Configuration config = new Configuration();
@@ -244,9 +252,24 @@ class RestClientTest {
 
             restClient.close();
 
+            // Both exceptions are valid depending on timing (see javadoc)
             FlinkAssertions.assertThatFuture(responseFuture)
                     .eventuallyFailsWith(ExecutionException.class)
-                    .withCauseInstanceOf(IOException.class);
+                    .satisfies(
+                            e ->
+                                    assertThat(e.getCause())
+                                            .satisfiesAnyOf(
+                                                    c ->
+                                                            assertThat(c)
+                                                                    .isInstanceOf(
+                                                                            IllegalStateException
+                                                                                    .class)
+                                                                    .hasMessage(
+                                                                            "RestClient closed before request completed"),
+                                                    c ->
+                                                            assertThat(c)
+                                                                    .isInstanceOf(
+                                                                            IOException.class)));
         } finally {
             if (connectionSocket != null) {
                 connectionSocket.close();
