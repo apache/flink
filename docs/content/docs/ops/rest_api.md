@@ -80,6 +80,16 @@ The retry is only safe until the [async operation store duration]({{< ref "docs/
 The OpenAPI specification is still experimental.
 {{< /hint >}}
 
+#### Management Blocklist APIs
+
+The REST API includes endpoints for managing the cluster blocklist:
+
+- `POST /cluster/blocklist` - Add a node to the blocklist
+- `DELETE /cluster/blocklist/{nodeId}` - Remove a node from the blocklist  
+- `GET /cluster/blocklist` - List all blocked nodes
+
+For detailed information about the Management Blocklist feature, see [Management Blocklist]({{< ref "docs/ops/management_blocklist" >}}).
+
 #### API reference
 
 {{< tabs "f00ed142-b05f-44f0-bafc-799080c1d40d" >}}
