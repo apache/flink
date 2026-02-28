@@ -25,9 +25,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Collection;
 
-/**
- * Response body for listing quarantined nodes.
- */
+/** Response body for listing quarantined nodes. */
 public class NodeQuarantineListResponseBody implements ResponseBody {
 
     public static final String FIELD_NAME_QUARANTINED_NODES = "quarantinedNodes";
@@ -37,7 +35,8 @@ public class NodeQuarantineListResponseBody implements ResponseBody {
 
     @JsonCreator
     public NodeQuarantineListResponseBody(
-            @JsonProperty(FIELD_NAME_QUARANTINED_NODES) Collection<NodeQuarantineInfo> quarantinedNodes) {
+            @JsonProperty(FIELD_NAME_QUARANTINED_NODES)
+                    Collection<NodeQuarantineInfo> quarantinedNodes) {
         this.quarantinedNodes = quarantinedNodes;
     }
 
@@ -45,9 +44,7 @@ public class NodeQuarantineListResponseBody implements ResponseBody {
         return quarantinedNodes;
     }
 
-    /**
-     * Information about a quarantined node.
-     */
+    /** Information about a quarantined node. */
     public static class NodeQuarantineInfo {
 
         public static final String FIELD_NAME_NODE_ID = "nodeId";
