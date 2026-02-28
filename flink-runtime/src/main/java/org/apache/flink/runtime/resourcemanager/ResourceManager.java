@@ -951,6 +951,36 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
+    public CompletableFuture<Void> quarantineNode(
+            ResourceID resourceID, String reason, Duration duration, Duration timeout) {
+        return CompletableFuture.runAsync(() -> {
+            final String hostname = getHostnameForResourceId(resourceID);
+            nodeHealthManager.markQuarantined(resourceID, hostname, reason, duration);
+            log.info("Node {} has been quarantined for reason: {}, duration: {}", 
+                    resourceID.getStringWithMetadata(), reason, duration);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> removeNodeQuarantine(ResourceID resourceID, Duration timeout) {
+        return CompletableFuture.runAsync(() -> {
+            nodeHealthManager.removeQuarantine(resourceID);
+            log.info("Quarantine removed from node {}", resourceID.getStringWithMetadata());
+        });
+    }
+
+    @Override
+    public CompletableFuture<Collection<org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus>> listQuarantinedNodes(Duration timeout) {
+        return CompletableFuture.completedFuture(nodeHealthManager.listAll());
+    }
+
+    private String getHostnameForResourceId(ResourceID resourceID) {
+        // For now, return the resource ID string as hostname
+        // In a real implementation, this could be obtained from TaskManager registration info
+        return resourceID.getStringWithMetadata();
+    }
+
+    @Override
     @Local // Bug; see FLINK-27954
     public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
             ResourceID taskManagerId, Duration timeout) {
