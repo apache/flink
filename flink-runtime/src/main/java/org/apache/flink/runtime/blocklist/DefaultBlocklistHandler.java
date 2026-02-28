@@ -161,6 +161,41 @@ public class DefaultBlocklistHandler implements BlocklistHandler, AutoCloseable 
     }
 
     @Override
+    public Collection<BlockedNode> getAllBlockedNodes() {
+        assertRunningInMainThread();
+
+        return blocklistTracker.getAllBlockedNodes();
+    }
+
+    @Override
+    public void removeTimeoutNodes(Collection<String> nodeIds) {
+        assertRunningInMainThread();
+
+        if (nodeIds.isEmpty()) {
+            return;
+        }
+
+        Collection<BlockedNode> removedNodes = blocklistTracker.removeBlockedNodes(nodeIds);
+        if (!removedNodes.isEmpty()) {
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "Manually removed {} blocked nodes, details {}. "
+                                + "Total {} blocked nodes currently, details: {}.",
+                        removedNodes.size(),
+                        removedNodes,
+                        blocklistTracker.getAllBlockedNodes().size(),
+                        blocklistTracker.getAllBlockedNodes());
+            } else {
+                log.info(
+                        "Manually removed {} blocked nodes. Total {} blocked nodes currently.",
+                        removedNodes.size(),
+                        blocklistTracker.getAllBlockedNodes().size());
+            }
+            blocklistContext.unblockResources(removedNodes);
+        }
+    }
+
+    @Override
     public void registerBlocklistListener(BlocklistListener blocklistListener) {
         assertRunningInMainThread();
 
