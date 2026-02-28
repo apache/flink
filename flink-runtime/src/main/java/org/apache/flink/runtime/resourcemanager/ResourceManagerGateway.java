@@ -310,10 +310,7 @@ public interface ResourceManagerGateway
      * @return Future that completes when the node is quarantined
      */
     CompletableFuture<Void> quarantineNode(
-            ResourceID resourceID,
-            String reason,
-            Duration duration,
-            @RpcTimeout Duration timeout);
+            ResourceID resourceID, String reason, Duration duration, @RpcTimeout Duration timeout);
 
     /**
      * Remove quarantine from a node to allow new slots to be allocated on it.
@@ -323,8 +320,7 @@ public interface ResourceManagerGateway
      * @return Future that completes when the quarantine is removed
      */
     CompletableFuture<Void> removeNodeQuarantine(
-            ResourceID resourceID,
-            @RpcTimeout Duration timeout);
+            ResourceID resourceID, @RpcTimeout Duration timeout);
 
     /**
      * List all quarantined nodes.
@@ -332,6 +328,6 @@ public interface ResourceManagerGateway
      * @param timeout timeout of the asynchronous operation
      * @return Future containing the collection of quarantined node health statuses
      */
-    CompletableFuture<Collection<org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus>> listQuarantinedNodes(
-            @RpcTimeout Duration timeout);
+    CompletableFuture<Collection<org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus>>
+            listQuarantinedNodes(@RpcTimeout Duration timeout);
 }

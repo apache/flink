@@ -224,7 +224,8 @@ abstract class FineGrainedSlotManagerTestBase {
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
-            Optional<NodeHealthManager> optionalNodeHealthManager = FineGrainedSlotManagerTestBase.this.getNodeHealthManager();
+            Optional<NodeHealthManager> optionalNodeHealthManager =
+                    FineGrainedSlotManagerTestBase.this.getNodeHealthManager();
             nodeHealthManager = optionalNodeHealthManager.orElse(new NoOpNodeHealthManager());
             slotManager =
                     FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
