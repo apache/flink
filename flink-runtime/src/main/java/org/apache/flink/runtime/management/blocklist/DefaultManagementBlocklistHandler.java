@@ -74,7 +74,7 @@ public class DefaultManagementBlocklistHandler
         checkNotNull(duration, "duration");
 
         Instant endTime = Instant.now().plus(duration);
-        BlockedNode blockedNode = new BlockedNode(nodeId, reason, endTime);
+        BlockedNode blockedNode = new BlockedNode(nodeId, reason, endTime.toEpochMilli());
 
         BlockedNode existing = blockedNodes.put(nodeId, blockedNode);
         if (existing != null) {
@@ -113,7 +113,7 @@ public class DefaultManagementBlocklistHandler
         }
 
         // Check if the node has expired
-        if (blockedNode.getEndTimestamp().isBefore(Instant.now())) {
+        if (blockedNode.getEndTimestamp() < System.currentTimeMillis()) {
             blockedNodes.remove(nodeId);
             LOG.debug("Removed expired blocked node: {}", blockedNode);
             return false;
@@ -128,7 +128,7 @@ public class DefaultManagementBlocklistHandler
             return Collections.emptyList();
         }
 
-        Instant now = Instant.now();
+        long now = System.currentTimeMillis();
         Set<String> expiredNodes = new HashSet<>();
 
         blockedNodes
@@ -136,7 +136,7 @@ public class DefaultManagementBlocklistHandler
                 .removeIf(
                         entry -> {
                             BlockedNode node = entry.getValue();
-                            if (node.getEndTimestamp().isBefore(now)) {
+                            if (node.getEndTimestamp() < now) {
                                 expiredNodes.add(entry.getKey());
                                 LOG.debug("Removed expired blocked node: {}", node);
                                 return true;
