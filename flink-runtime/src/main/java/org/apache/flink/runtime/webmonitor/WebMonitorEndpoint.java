@@ -993,28 +993,24 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         // Node quarantine handlers
         NodeQuarantineHandler nodeQuarantineHandler =
                 new NodeQuarantineHandler(
-                        leaderRetriever,
-                        timeout,
-                        responseHeaders,
-                        resourceManagerRetriever);
+                        leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
 
         NodeRemoveQuarantineHandler nodeRemoveQuarantineHandler =
                 new NodeRemoveQuarantineHandler(
-                        leaderRetriever,
-                        timeout,
-                        responseHeaders,
-                        resourceManagerRetriever);
+                        leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
 
         NodeQuarantineListHandler nodeQuarantineListHandler =
                 new NodeQuarantineListHandler(
-                        leaderRetriever,
-                        timeout,
-                        responseHeaders,
-                        resourceManagerRetriever);
+                        leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
 
         handlers.add(Tuple2.of(nodeQuarantineHandler.getMessageHeaders(), nodeQuarantineHandler));
-        handlers.add(Tuple2.of(nodeRemoveQuarantineHandler.getMessageHeaders(), nodeRemoveQuarantineHandler));
-        handlers.add(Tuple2.of(nodeQuarantineListHandler.getMessageHeaders(), nodeQuarantineListHandler));
+        handlers.add(
+                Tuple2.of(
+                        nodeRemoveQuarantineHandler.getMessageHeaders(),
+                        nodeRemoveQuarantineHandler));
+        handlers.add(
+                Tuple2.of(
+                        nodeQuarantineListHandler.getMessageHeaders(), nodeQuarantineListHandler));
 
         handlers.add(
                 Tuple2.of(
