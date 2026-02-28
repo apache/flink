@@ -136,6 +136,20 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             notifyNewBlockedNodesFunction =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
+    // Management blocklist functions
+    private volatile java.util.function.Supplier<CompletableFuture<Collection<String>>>
+            getAllManagementBlockedNodesSupplier =
+                    () -> CompletableFuture.completedFuture(Collections.emptyList());
+
+    private volatile java.util.function.Function<
+                    Tuple3<String, String, Duration>, CompletableFuture<Acknowledge>>
+            addManagementBlockedNodeFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+
+    private volatile java.util.function.Function<String, CompletableFuture<Acknowledge>>
+            removeManagementBlockedNodeFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+
     public TestingResourceManagerGateway() {
         this(
                 ResourceManagerId.generate(),
@@ -266,6 +280,25 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             Function<Collection<BlockedNode>, CompletableFuture<Acknowledge>>
                     notifyNewBlockedNodesFunction) {
         this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
+    }
+
+    public void setGetAllManagementBlockedNodesSupplier(
+            java.util.function.Supplier<CompletableFuture<Collection<String>>>
+                    getAllManagementBlockedNodesSupplier) {
+        this.getAllManagementBlockedNodesSupplier = getAllManagementBlockedNodesSupplier;
+    }
+
+    public void setAddManagementBlockedNodeFunction(
+            java.util.function.Function<
+                            Tuple3<String, String, Duration>, CompletableFuture<Acknowledge>>
+                    addManagementBlockedNodeFunction) {
+        this.addManagementBlockedNodeFunction = addManagementBlockedNodeFunction;
+    }
+
+    public void setRemoveManagementBlockedNodeFunction(
+            java.util.function.Function<String, CompletableFuture<Acknowledge>>
+                    removeManagementBlockedNodeFunction) {
+        this.removeManagementBlockedNodeFunction = removeManagementBlockedNodeFunction;
     }
 
     @Override
@@ -573,5 +606,21 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     @Override
     public CompletableFuture<Acknowledge> notifyNewBlockedNodes(Collection<BlockedNode> newNodes) {
         return notifyNewBlockedNodesFunction.apply(newNodes);
+    }
+
+    @Override
+    public CompletableFuture<Collection<String>> getAllManagementBlockedNodes() {
+        return getAllManagementBlockedNodesSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> addManagementBlockedNode(
+            String nodeId, String reason, Duration timeout) {
+        return addManagementBlockedNodeFunction.apply(Tuple3.of(nodeId, reason, timeout));
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> removeManagementBlockedNode(String nodeId) {
+        return removeManagementBlockedNodeFunction.apply(nodeId);
     }
 }
