@@ -42,7 +42,6 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -58,8 +57,7 @@ import static org.assertj.core.api.Assertions.fail;
  * <p>TODO Test conflict when different UDFs write to accumulator with same name but with different
  * type. The conflict will occur in JobManager while merging.
  */
-@SuppressWarnings("serial")
-public class AccumulatorITCase extends JavaProgramTestBase {
+class AccumulatorITCase extends JavaProgramTestBase {
 
     private static final String INPUT = "one\n" + "two two\n" + "three three three\n";
     private static final String EXPECTED = "one 1\ntwo 2\nthree 3\n";
@@ -90,20 +88,14 @@ public class AccumulatorITCase extends JavaProgramTestBase {
                 .isEqualTo(Double.valueOf(getParallelism()));
 
         // Test histogram (words per line distribution)
-        Map<Integer, Integer> dist = new HashMap<>();
-        dist.put(1, 1);
-        dist.put(2, 1);
-        dist.put(3, 1);
         assertThat(res.<Map<Integer, Integer>>getAccumulatorResult("words-per-line"))
-                .isEqualTo(dist);
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.ofEntries(Map.entry(1, 1), Map.entry(2, 1), Map.entry(3, 1)));
 
         // Test distinct words (custom accumulator)
-        Set<StringValue> distinctWords = new HashSet<>();
-        distinctWords.add(new StringValue("one"));
-        distinctWords.add(new StringValue("two"));
-        distinctWords.add(new StringValue("three"));
         assertThat(res.<Set<StringValue>>getAccumulatorResult("distinct-words"))
-                .isEqualTo(distinctWords);
+                .containsExactlyInAnyOrder(
+                        new StringValue("one"), new StringValue("two"), new StringValue("three"));
     }
 
     @Override
@@ -255,7 +247,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
     }
 
     /** Custom accumulator. */
-    public static class SetAccumulator<T> implements Accumulator<T, HashSet<T>> {
+    private static class SetAccumulator<T> implements Accumulator<T, HashSet<T>> {
 
         private static final long serialVersionUID = 1L;
 
