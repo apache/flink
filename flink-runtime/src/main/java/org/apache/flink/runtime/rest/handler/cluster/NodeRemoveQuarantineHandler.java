@@ -37,51 +37,67 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handler for removing node quarantine via REST API.
- */
-public class NodeRemoveQuarantineHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, NodeQuarantineResponseBody, NodeQuarantineHeaders.NodeIdMessageParameters> {
+/** Handler for removing node quarantine via REST API. */
+public class NodeRemoveQuarantineHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                NodeQuarantineResponseBody,
+                NodeQuarantineHeaders.NodeIdMessageParameters> {
 
-    private final GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final GatewayRetriever<? extends ResourceManagerGateway>
+            resourceManagerGatewayRetriever;
 
     public NodeRemoveQuarantineHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
             Map<String, String> responseHeaders,
             GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever) {
-        super(leaderRetriever, timeout, responseHeaders, NodeQuarantineHeaders.RemoveQuarantineHeaders.INSTANCE);
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                NodeQuarantineHeaders.RemoveQuarantineHeaders.INSTANCE);
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
     }
 
     @Override
     protected CompletableFuture<NodeQuarantineResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody> request,
-            @Nonnull RestfulGateway gateway) throws RestHandlerException {
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
 
-        final String nodeIdString = request.getPathParameter(NodeQuarantineHeaders.NodeIdPathParameter.class);
+        final String nodeIdString =
+                request.getPathParameter(NodeQuarantineHeaders.NodeIdPathParameter.class);
         final ResourceID resourceID = new ResourceID(nodeIdString);
 
         final ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway();
 
         return resourceManagerGateway
                 .removeNodeQuarantine(resourceID, timeout)
-                .handle((Void result, Throwable throwable) -> {
-                    if (throwable != null) {
-                        return new NodeQuarantineResponseBody(
-                                false, 
-                                "Failed to remove quarantine from node: " + throwable.getMessage());
-                    } else {
-                        return new NodeQuarantineResponseBody(
-                                true, 
-                                "Quarantine removed from node " + nodeIdString + " successfully");
-                    }
-                });
+                .handle(
+                        (Void result, Throwable throwable) -> {
+                            if (throwable != null) {
+                                return new NodeQuarantineResponseBody(
+                                        false,
+                                        "Failed to remove quarantine from node: "
+                                                + throwable.getMessage());
+                            } else {
+                                return new NodeQuarantineResponseBody(
+                                        true,
+                                        "Quarantine removed from node "
+                                                + nodeIdString
+                                                + " successfully");
+                            }
+                        });
     }
 
     private ResourceManagerGateway getResourceManagerGateway() throws RestHandlerException {
-        return resourceManagerGatewayRetriever.getNow()
-                .orElseThrow(() -> new RestHandlerException(
-                        "ResourceManager not available", 
-                        HttpResponseStatus.SERVICE_UNAVAILABLE));
+        return resourceManagerGatewayRetriever
+                .getNow()
+                .orElseThrow(
+                        () ->
+                                new RestHandlerException(
+                                        "ResourceManager not available",
+                                        HttpResponseStatus.SERVICE_UNAVAILABLE));
     }
 }

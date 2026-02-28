@@ -38,56 +38,74 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handler for quarantining nodes via REST API.
- */
-public class NodeQuarantineHandler extends AbstractRestHandler<RestfulGateway, NodeQuarantineRequestBody, NodeQuarantineResponseBody, NodeQuarantineHeaders.NodeIdMessageParameters> {
+/** Handler for quarantining nodes via REST API. */
+public class NodeQuarantineHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                NodeQuarantineRequestBody,
+                NodeQuarantineResponseBody,
+                NodeQuarantineHeaders.NodeIdMessageParameters> {
 
-    private final GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final GatewayRetriever<? extends ResourceManagerGateway>
+            resourceManagerGatewayRetriever;
 
     public NodeQuarantineHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
             Map<String, String> responseHeaders,
             GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever) {
-        super(leaderRetriever, timeout, responseHeaders, NodeQuarantineHeaders.QuarantineNodeHeaders.INSTANCE);
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                NodeQuarantineHeaders.QuarantineNodeHeaders.INSTANCE);
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
     }
 
     @Override
     protected CompletableFuture<NodeQuarantineResponseBody> handleRequest(
             @Nonnull HandlerRequest<NodeQuarantineRequestBody> request,
-            @Nonnull RestfulGateway gateway) throws RestHandlerException {
+            @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
 
-        final String nodeIdString = request.getPathParameter(NodeQuarantineHeaders.NodeIdPathParameter.class);
+        final String nodeIdString =
+                request.getPathParameter(NodeQuarantineHeaders.NodeIdPathParameter.class);
         final ResourceID resourceID = new ResourceID(nodeIdString);
         final NodeQuarantineRequestBody requestBody = request.getRequestBody();
 
         final String reason = requestBody.getReason();
-        final Duration duration = requestBody.getDuration() != null ? 
-            requestBody.getDuration() : Duration.ofMinutes(30); // Default 30 minutes
+        final Duration duration =
+                requestBody.getDuration() != null
+                        ? requestBody.getDuration()
+                        : Duration.ofMinutes(30); // Default 30 minutes
 
         final ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway();
 
         return resourceManagerGateway
                 .quarantineNode(resourceID, reason, duration, timeout)
-                .handle((Void result, Throwable throwable) -> {
-                    if (throwable != null) {
-                        return new NodeQuarantineResponseBody(
-                                false, 
-                                "Failed to quarantine node: " + throwable.getMessage());
-                    } else {
-                        return new NodeQuarantineResponseBody(
-                                true, 
-                                "Node " + nodeIdString + " has been quarantined successfully");
-                    }
-                });
+                .handle(
+                        (Void result, Throwable throwable) -> {
+                            if (throwable != null) {
+                                return new NodeQuarantineResponseBody(
+                                        false,
+                                        "Failed to quarantine node: " + throwable.getMessage());
+                            } else {
+                                return new NodeQuarantineResponseBody(
+                                        true,
+                                        "Node "
+                                                + nodeIdString
+                                                + " has been quarantined successfully");
+                            }
+                        });
     }
 
     private ResourceManagerGateway getResourceManagerGateway() throws RestHandlerException {
-        return resourceManagerGatewayRetriever.getNow()
-                .orElseThrow(() -> new RestHandlerException(
-                        "ResourceManager not available", 
-                        HttpResponseStatus.SERVICE_UNAVAILABLE));
+        return resourceManagerGatewayRetriever
+                .getNow()
+                .orElseThrow(
+                        () ->
+                                new RestHandlerException(
+                                        "ResourceManager not available",
+                                        HttpResponseStatus.SERVICE_UNAVAILABLE));
     }
 }

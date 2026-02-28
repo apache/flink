@@ -32,15 +32,15 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Headers for node quarantine REST API endpoints.
- */
+/** Headers for node quarantine REST API endpoints. */
 public class NodeQuarantineHeaders {
 
-    /**
-     * Headers for quarantining a node (POST).
-     */
-    public static class QuarantineNodeHeaders implements MessageHeaders<NodeQuarantineRequestBody, NodeQuarantineResponseBody, NodeIdMessageParameters> {
+    /** Headers for quarantining a node (POST). */
+    public static class QuarantineNodeHeaders
+            implements MessageHeaders<
+                    NodeQuarantineRequestBody,
+                    NodeQuarantineResponseBody,
+                    NodeIdMessageParameters> {
 
         public static final QuarantineNodeHeaders INSTANCE = new QuarantineNodeHeaders();
 
@@ -89,10 +89,10 @@ public class NodeQuarantineHeaders {
         }
     }
 
-    /**
-     * Headers for removing node quarantine (DELETE).
-     */
-    public static class RemoveQuarantineHeaders implements MessageHeaders<EmptyRequestBody, NodeQuarantineResponseBody, NodeIdMessageParameters> {
+    /** Headers for removing node quarantine (DELETE). */
+    public static class RemoveQuarantineHeaders
+            implements MessageHeaders<
+                    EmptyRequestBody, NodeQuarantineResponseBody, NodeIdMessageParameters> {
 
         public static final RemoveQuarantineHeaders INSTANCE = new RemoveQuarantineHeaders();
 
@@ -141,12 +141,13 @@ public class NodeQuarantineHeaders {
         }
     }
 
-    /**
-     * Headers for listing quarantined nodes (GET).
-     */
-    public static class ListQuarantinedNodesHeaders implements MessageHeaders<EmptyRequestBody, NodeQuarantineListResponseBody, MessageParameters> {
+    /** Headers for listing quarantined nodes (GET). */
+    public static class ListQuarantinedNodesHeaders
+            implements MessageHeaders<
+                    EmptyRequestBody, NodeQuarantineListResponseBody, MessageParameters> {
 
-        public static final ListQuarantinedNodesHeaders INSTANCE = new ListQuarantinedNodesHeaders();
+        public static final ListQuarantinedNodesHeaders INSTANCE =
+                new ListQuarantinedNodesHeaders();
 
         private static final String URL = "/cluster/nodes/quarantine";
 
@@ -193,9 +194,7 @@ public class NodeQuarantineHeaders {
         }
     }
 
-    /**
-     * Path parameter for node ID.
-     */
+    /** Path parameter for node ID. */
     public static class NodeIdPathParameter extends MessagePathParameter<String> {
 
         public static final String KEY = "nodeid";
@@ -220,9 +219,7 @@ public class NodeQuarantineHeaders {
         }
     }
 
-    /**
-     * Message parameters containing NodeIdPathParameter.
-     */
+    /** Message parameters containing NodeIdPathParameter. */
     public static class NodeIdMessageParameters extends MessageParameters {
 
         private final NodeIdPathParameter nodeIdPathParameter = new NodeIdPathParameter();
@@ -238,9 +235,7 @@ public class NodeQuarantineHeaders {
         }
     }
 
-    /**
-     * Empty message parameters for endpoints without parameters.
-     */
+    /** Empty message parameters for endpoints without parameters. */
     public static class EmptyMessageParameters extends MessageParameters {
 
         private static final EmptyMessageParameters INSTANCE = new EmptyMessageParameters();

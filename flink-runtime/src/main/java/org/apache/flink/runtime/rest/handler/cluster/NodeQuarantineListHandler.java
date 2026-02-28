@@ -40,26 +40,34 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * Handler for listing quarantined nodes via REST API.
- */
-public class NodeQuarantineListHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, NodeQuarantineListResponseBody, MessageParameters> {
+/** Handler for listing quarantined nodes via REST API. */
+public class NodeQuarantineListHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                NodeQuarantineListResponseBody,
+                MessageParameters> {
 
-    private final GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final GatewayRetriever<? extends ResourceManagerGateway>
+            resourceManagerGatewayRetriever;
 
     public NodeQuarantineListHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
             Map<String, String> responseHeaders,
             GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever) {
-        super(leaderRetriever, timeout, responseHeaders, NodeQuarantineHeaders.ListQuarantinedNodesHeaders.INSTANCE);
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                NodeQuarantineHeaders.ListQuarantinedNodesHeaders.INSTANCE);
         this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
     }
 
     @Override
     protected CompletableFuture<NodeQuarantineListResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody> request,
-            @Nonnull RestfulGateway gateway) throws RestHandlerException {
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
 
         final ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway();
 
@@ -68,24 +76,30 @@ public class NodeQuarantineListHandler extends AbstractRestHandler<RestfulGatewa
                 .thenApply(this::convertToResponseBody);
     }
 
-    private NodeQuarantineListResponseBody convertToResponseBody(Collection<NodeHealthStatus> nodeHealthStatuses) {
-        final Collection<NodeQuarantineListResponseBody.NodeQuarantineInfo> quarantineInfos = 
+    private NodeQuarantineListResponseBody convertToResponseBody(
+            Collection<NodeHealthStatus> nodeHealthStatuses) {
+        final Collection<NodeQuarantineListResponseBody.NodeQuarantineInfo> quarantineInfos =
                 nodeHealthStatuses.stream()
-                        .map(status -> new NodeQuarantineListResponseBody.NodeQuarantineInfo(
-                                status.getResourceID().toString(),
-                                status.getHostname(),
-                                status.getReason(),
-                                status.getQuarantineTimestamp(),
-                                status.getExpirationTimestamp()))
+                        .map(
+                                status ->
+                                        new NodeQuarantineListResponseBody.NodeQuarantineInfo(
+                                                status.getResourceID().toString(),
+                                                status.getHostname(),
+                                                status.getReason(),
+                                                status.getQuarantineTimestamp(),
+                                                status.getExpirationTimestamp()))
                         .collect(Collectors.toList());
 
         return new NodeQuarantineListResponseBody(quarantineInfos);
     }
 
     private ResourceManagerGateway getResourceManagerGateway() throws RestHandlerException {
-        return resourceManagerGatewayRetriever.getNow()
-                .orElseThrow(() -> new RestHandlerException(
-                        "ResourceManager not available", 
-                        HttpResponseStatus.SERVICE_UNAVAILABLE));
+        return resourceManagerGatewayRetriever
+                .getNow()
+                .orElseThrow(
+                        () ->
+                                new RestHandlerException(
+                                        "ResourceManager not available",
+                                        HttpResponseStatus.SERVICE_UNAVAILABLE));
     }
 }
