@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -63,6 +64,38 @@ class TestingBlobUtils {
                 new File(
                         BlobUtils.getStorageLocationPath(
                                 storageDirectory.toString(), jobId, blobKey));
+        FileUtils.createParentDirectories(storageLocation);
+        FileUtils.writeByteArrayToFile(storageLocation, fileContent);
+
+        return blobKey;
+    }
+
+    @Nonnull
+    static PermanentBlobKey writePermanentBlob(
+            Path storageDirectory, ApplicationID applicationId, byte[] fileContent)
+            throws IOException {
+        return (PermanentBlobKey)
+                writeBlob(
+                        storageDirectory,
+                        applicationId,
+                        fileContent,
+                        BlobKey.BlobType.PERMANENT_BLOB);
+    }
+
+    @Nonnull
+    static BlobKey writeBlob(
+            Path storageDirectory,
+            ApplicationID applicationId,
+            byte[] fileContent,
+            BlobKey.BlobType blobType)
+            throws IOException {
+        final BlobKey blobKey =
+                BlobKey.createKey(blobType, BlobUtils.createMessageDigest().digest(fileContent));
+
+        final File storageLocation =
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                storageDirectory.toString(), applicationId, blobKey));
         FileUtils.createParentDirectories(storageLocation);
         FileUtils.writeByteArrayToFile(storageLocation, fileContent);
 

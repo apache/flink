@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -109,6 +110,54 @@ public final class TestingBlobHelpers {
     /**
      * Checks how many of the files given by blob keys are accessible.
      *
+     * @param applicationId ID of a application
+     * @param keys blob keys to check
+     * @param blobService BLOB store to use
+     * @param doThrow whether exceptions should be ignored (<tt>false</tt>), or thrown
+     *     (<tt>true</tt>)
+     * @return number of files existing at {@link BlobServer#getStorageLocation(JobID, BlobKey)} and
+     *     {@link PermanentBlobCache#getStorageLocation(JobID, BlobKey)}, respectively
+     */
+    public static <T> int checkFilesExist(
+            ApplicationID applicationId,
+            Collection<? extends BlobKey> keys,
+            T blobService,
+            boolean doThrow)
+            throws IOException {
+
+        int numFiles = 0;
+
+        for (BlobKey key : keys) {
+            final File storageDir;
+            if (blobService instanceof BlobServer) {
+                BlobServer server = (BlobServer) blobService;
+                storageDir = server.getStorageDir();
+            } else if (blobService instanceof PermanentBlobCache) {
+                PermanentBlobCache cache = (PermanentBlobCache) blobService;
+                storageDir = cache.getStorageDir();
+            } else {
+                throw new UnsupportedOperationException(
+                        "unsupported BLOB service class: "
+                                + blobService.getClass().getCanonicalName());
+            }
+
+            final File blobFile =
+                    new File(
+                            BlobUtils.getStorageLocationPath(
+                                    storageDir.getAbsolutePath(), applicationId, key));
+            if (blobFile.exists()) {
+                ++numFiles;
+            } else if (doThrow) {
+                throw new IOException("File " + blobFile + " does not exist.");
+            }
+        }
+
+        return numFiles;
+    }
+
+    /**
+     * Checks how many of the files given by blob keys are accessible.
+     *
      * @param expectedCount number of expected files in the blob service for the given job
      * @param jobId ID of a job
      * @param blobService BLOB store to use
@@ -132,6 +181,35 @@ public final class TestingBlobHelpers {
         } else {
             assertThat(blobsForJob.length)
                     .as("Too many/few files in job dir: " + Arrays.asList(blobsForJob))
+                    .isEqualTo(expectedCount);
+        }
+    }
+
+    /**
+     * Checks the number of files in the blob service for the given application.
+     *
+     * @param expectedCount number of expected files in the blob service for the given application
+     * @param applicationId ID of an application
+     * @param blobServer BLOB server to use
+     */
+    public static void checkFileCountForApplication(
+            int expectedCount, ApplicationID applicationId, BlobServer blobServer)
+            throws IOException {
+
+        final File applicationDir =
+                blobServer
+                        .getStorageLocation(applicationId, new PermanentBlobKey())
+                        .getParentFile();
+        File[] blobsForApplication = applicationDir.listFiles();
+        if (blobsForApplication == null) {
+            if (expectedCount != 0) {
+                throw new IOException("File " + applicationDir + " does not exist.");
+            }
+        } else {
+            assertThat(blobsForApplication.length)
+                    .as(
+                            "Too many/few files in application dir: "
+                                    + Arrays.asList(blobsForApplication))
                     .isEqualTo(expectedCount);
         }
     }

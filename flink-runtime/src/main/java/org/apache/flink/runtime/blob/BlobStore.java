@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 
 import java.io.File;
@@ -59,4 +60,38 @@ public interface BlobStore extends BlobView {
      *     <tt>false</tt> otherwise
      */
     boolean deleteAll(JobID jobId);
+
+    /**
+     * Copies the local file to the blob store.
+     *
+     * @param localFile The file to copy
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey The ID for the file in the blob store
+     * @return whether the file was copied (<tt>true</tt>) or not (<tt>false</tt>)
+     * @throws IOException If the copy fails
+     */
+    boolean put(File localFile, ApplicationID applicationId, BlobKey blobKey) throws IOException;
+
+    /**
+     * Tries to delete a blob from storage.
+     *
+     * <p>NOTE: This also tries to delete any created directories if empty.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey The blob ID
+     * @return <tt>true</tt> if the given blob is successfully deleted or non-existing;
+     *     <tt>false</tt> otherwise
+     */
+    boolean delete(ApplicationID applicationId, BlobKey blobKey);
+
+    /**
+     * Tries to delete all blobs for the given application from storage.
+     *
+     * <p>NOTE: This also tries to delete any created directories if empty.
+     *
+     * @param applicationId The ApplicationID part of all blobs to delete
+     * @return <tt>true</tt> if the application directory is successfully deleted or non-existing;
+     *     <tt>false</tt> otherwise
+     */
+    boolean deleteAll(ApplicationID applicationId);
 }

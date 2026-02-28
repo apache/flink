@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -59,7 +60,9 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
+import static org.apache.flink.runtime.blob.BlobUtils.APPLICATION_DIR_PREFIX;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -489,6 +492,367 @@ class BlobServerGetTest {
     }
 
     /**
+     * Checks the correct result if a GET operation fails during the lookup of the file for an
+     * application.
+     */
+    @Test
+    void testGetPermanentFailsDuringLookupForApplication() throws IOException {
+        final ApplicationID applicationId1 = new ApplicationID();
+        final ApplicationID applicationId2 = new ApplicationID();
+        final BlobKey.BlobType blobType = PERMANENT_BLOB;
+
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
+            server.start();
+
+            byte[] data = new byte[2000000];
+            rnd.nextBytes(data);
+
+            // put content addressable (like libraries)
+            BlobKey key = put(server, applicationId1, data, blobType);
+            assertThat(key).isNotNull();
+
+            // delete file to make sure that GET requests fail
+            File blobFile = server.getStorageLocation(applicationId1, key);
+            assertThat(blobFile.delete()).isTrue();
+
+            // issue a GET request that fails
+            verifyDeleted(server, applicationId1, key);
+
+            // add the same data under a second applicationId
+            BlobKey key2 = put(server, applicationId2, data, blobType);
+            assertThat(key2).isNotNull();
+            verifyKeyDifferentHashEquals(key, key2);
+
+            // request for applicationId2 should succeed
+            get(server, applicationId2, key2);
+            // request for jobId1 should still fail
+            verifyDeleted(server, applicationId1, key);
+
+            // same checks as for applicationId1 but for applicationId2 should also work:
+            blobFile = server.getStorageLocation(applicationId2, key2);
+            assertThat(blobFile.delete()).isTrue();
+            verifyDeleted(server, applicationId2, key2);
+        }
+    }
+
+    /**
+     * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create incoming files
+     * for an application. File transfers should fail.
+     */
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
+    @Test
+    void testGetFailsIncomingForApplicationHa() throws IOException {
+        assumeThat(OperatingSystem.isWindows()).as("setWritable doesn't work on Windows").isFalse();
+
+        final ApplicationID applicationId = new ApplicationID();
+
+        final Configuration config = new Configuration();
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
+                HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
+
+        BlobStoreService blobStore = null;
+
+        try {
+            blobStore = BlobUtils.createBlobStoreFromConfig(config);
+
+            File tempFileDir = null;
+            try (BlobServer server = TestingBlobUtils.createServer(tempDir, config, blobStore)) {
+                server.start();
+
+                // store the data on the server (and blobStore), remove from local store
+                byte[] data = new byte[2000000];
+                rnd.nextBytes(data);
+                BlobKey blobKey = put(server, applicationId, data, PERMANENT_BLOB);
+                assertThat(server.getStorageLocation(applicationId, blobKey).delete()).isTrue();
+
+                // make sure the blob server cannot create any files in its storage dir
+                tempFileDir = server.createTemporaryFilename().getParentFile();
+                assertThat(tempFileDir.setExecutable(true, false)).isTrue();
+                assertThat(tempFileDir.setReadable(true, false)).isTrue();
+                assertThat(tempFileDir.setWritable(false, false)).isTrue();
+
+                // request the file from the BlobStore
+                try {
+                    assertThatThrownBy(() -> get(server, applicationId, blobKey))
+                            .satisfies(
+                                    FlinkAssertions.anyCauseMatches(
+                                            IOException.class, "Permission denied"));
+                } finally {
+                    HashSet<String> expectedDirs = new HashSet<>();
+                    expectedDirs.add("incoming");
+                    expectedDirs.add(APPLICATION_DIR_PREFIX + applicationId);
+                    // only the incoming and application directory should exist
+                    File storageDir = tempFileDir.getParentFile();
+                    String[] actualDirs = storageDir.list();
+                    assertThat(actualDirs).isNotNull();
+                    assertThat(actualDirs).isNotEmpty();
+                    assertThat(new HashSet<>(Arrays.asList(actualDirs))).isEqualTo(expectedDirs);
+
+                    // application directory should be empty
+                    File applicationDir =
+                            new File(
+                                    tempFileDir.getParentFile(),
+                                    APPLICATION_DIR_PREFIX + applicationId);
+                    assertThat(applicationDir.list()).isEmpty();
+                }
+            } finally {
+                // set writable again to make sure we can remove the directory
+                if (tempFileDir != null) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tempFileDir.setWritable(true, false);
+                }
+            }
+        } finally {
+            if (blobStore != null) {
+                blobStore.cleanupAllData();
+                blobStore.close();
+            }
+        }
+    }
+
+    /**
+     * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create the final
+     * storage file for an application. File transfers should fail.
+     */
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
+    @Test
+    void testGetFailsStoreForApplicationHa() throws IOException {
+        assumeThat(OperatingSystem.isWindows()).as("setWritable doesn't work on Windows").isFalse();
+
+        final ApplicationID applicationId = new ApplicationID();
+
+        final Configuration config = new Configuration();
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
+                HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
+
+        BlobStoreService blobStore = null;
+
+        try {
+            blobStore = BlobUtils.createBlobStoreFromConfig(config);
+
+            File applicationStoreDir = null;
+            try (BlobServer server = TestingBlobUtils.createServer(tempDir, config, blobStore)) {
+                server.start();
+
+                // store the data on the server (and blobStore), remove from local store
+                byte[] data = new byte[2000000];
+                rnd.nextBytes(data);
+                BlobKey blobKey = put(server, applicationId, data, PERMANENT_BLOB);
+                assertThat(server.getStorageLocation(applicationId, blobKey).delete()).isTrue();
+
+                // make sure the blob cache cannot create any files in its storage dir
+                applicationStoreDir =
+                        server.getStorageLocation(applicationId, blobKey).getParentFile();
+                assertThat(applicationStoreDir.setExecutable(true, false)).isTrue();
+                assertThat(applicationStoreDir.setReadable(true, false)).isTrue();
+                assertThat(applicationStoreDir.setWritable(false, false)).isTrue();
+
+                // request the file from the BlobStore
+                try {
+                    assertThatThrownBy(() -> get(server, applicationId, blobKey))
+                            .isInstanceOf(AccessDeniedException.class);
+                } finally {
+                    // there should be no remaining incoming files
+                    File incomingFileDir = new File(applicationStoreDir.getParent(), "incoming");
+                    assertThat(incomingFileDir.list()).isEmpty();
+
+                    // there should be no files in the application directory
+                    assertThat(applicationStoreDir.list()).isEmpty();
+                }
+            } finally {
+                // set writable again to make sure we can remove the directory
+                if (applicationStoreDir != null) {
+                    //noinspection ResultOfMethodCallIgnored
+                    applicationStoreDir.setWritable(true, false);
+                }
+            }
+        } finally {
+            if (blobStore != null) {
+                blobStore.cleanupAllData();
+                blobStore.close();
+            }
+        }
+    }
+
+    /**
+     * Retrieves a BLOB from the HA store to a {@link BlobServer} whose HA store does not contain
+     * the file for an application. File transfers should fail.
+     */
+    @Test
+    void testGetFailsHaStoreForApplicationHa() throws IOException {
+        final ApplicationID applicationId = new ApplicationID();
+
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
+            server.start();
+
+            // store the data on the server (and blobStore), remove from local store
+            byte[] data = new byte[2000000];
+            rnd.nextBytes(data);
+            BlobKey blobKey = put(server, applicationId, data, PERMANENT_BLOB);
+            assertThat(server.getStorageLocation(applicationId, blobKey).delete()).isTrue();
+
+            File tempFileDir = server.createTemporaryFilename().getParentFile();
+
+            // request the file from the BlobStore
+            try {
+                assertThatThrownBy(() -> get(server, applicationId, blobKey))
+                        .isInstanceOf(NoSuchFileException.class);
+            } finally {
+                HashSet<String> expectedDirs = new HashSet<>();
+                expectedDirs.add("incoming");
+                expectedDirs.add(APPLICATION_DIR_PREFIX + applicationId);
+                // only the incoming and application directory should exist
+                File storageDir = tempFileDir.getParentFile();
+                String[] actualDirs = storageDir.list();
+                assertThat(actualDirs).isNotNull();
+                assertThat(actualDirs).isNotEmpty();
+                assertThat(new HashSet<>(Arrays.asList(actualDirs))).isEqualTo(expectedDirs);
+
+                // application directory should be empty
+                File applicationDir =
+                        new File(
+                                tempFileDir.getParentFile(),
+                                APPLICATION_DIR_PREFIX + applicationId);
+                assertThat(applicationDir.list()).isEmpty();
+            }
+        }
+    }
+
+    @Test
+    void testConcurrentGetOperationsForApplicationHa()
+            throws IOException, ExecutionException, InterruptedException {
+        final ApplicationID applicationId = new ApplicationID();
+        final byte[] data = {1, 2, 3, 4, 99, 42};
+
+        final BlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setGetForApplicationFunction(
+                                (appId, blobKey, file) -> {
+                                    FileUtils.writeByteArrayToFile(file, data);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
+
+        final int numberConcurrentGetOperations = 3;
+        final List<CompletableFuture<File>> getOperations =
+                new ArrayList<>(numberConcurrentGetOperations);
+
+        final ExecutorService executor =
+                Executors.newFixedThreadPool(numberConcurrentGetOperations);
+
+        try (final BlobServer server =
+                TestingBlobUtils.createServer(tempDir, new Configuration(), blobStore)) {
+
+            server.start();
+
+            // upload data first
+            final BlobKey blobKey = put(server, applicationId, data, PERMANENT_BLOB);
+
+            // remove local copy so that a transfer from HA store takes place
+            assertThat(server.getStorageLocation(applicationId, blobKey).delete()).isTrue();
+
+            for (int i = 0; i < numberConcurrentGetOperations; i++) {
+                CompletableFuture<File> getOperation =
+                        CompletableFuture.supplyAsync(
+                                () -> {
+                                    try {
+                                        File file = get(server, applicationId, blobKey);
+                                        // check that we have read the right data
+                                        validateGetAndClose(
+                                                Files.newInputStream(file.toPath()), data);
+                                        return file;
+                                    } catch (IOException e) {
+                                        throw new CompletionException(
+                                                new FlinkException(
+                                                        "Could not read blob for key "
+                                                                + blobKey
+                                                                + '.',
+                                                        e));
+                                    }
+                                },
+                                executor);
+
+                getOperations.add(getOperation);
+            }
+
+            CompletableFuture<Collection<File>> filesFuture = FutureUtils.combineAll(getOperations);
+            filesFuture.get();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testGetChecksForCorruptionInPermanentBlobForApplicationInCaseOfRestart()
+            throws IOException {
+        final ApplicationID applicationId = new ApplicationID();
+        final byte[] data = new byte[] {1, 2, 3};
+        final byte[] corruptedData = new byte[] {3, 2, 1};
+
+        final File storageDir = TempDirUtils.newFolder(tempDir);
+        try (final BlobServer blobServer =
+                new BlobServer(
+                        new Configuration(), Reference.borrowed(storageDir), new VoidBlobStore())) {
+            final BlobKey blobKey = put(blobServer, applicationId, data, PERMANENT_BLOB);
+
+            blobServer.close();
+
+            final File blob = BlobUtils.getStorageLocation(storageDir, applicationId, blobKey);
+            // corrupt the file
+            FileUtils.writeByteArrayToFile(blob, corruptedData);
+
+            try (final BlobServer restartedBlobServer =
+                    new BlobServer(
+                            new Configuration(),
+                            Reference.borrowed(storageDir),
+                            new VoidBlobStore())) {
+                assertThatThrownBy(() -> get(restartedBlobServer, applicationId, blobKey))
+                        .isInstanceOf(IOException.class);
+            }
+        }
+    }
+
+    @Test
+    void testGetReDownloadsCorruptedPermanentBlobForApplicationFromBlobStore() throws IOException {
+        final ApplicationID applicationId = new ApplicationID();
+        final byte[] data = new byte[] {1, 2, 3};
+        final byte[] corruptedData = new byte[] {3, 2, 1};
+
+        final File storageDir = TempDirUtils.newFolder(tempDir);
+        final OneShotLatch getCalled = new OneShotLatch();
+        final BlobStore blobStore =
+                new TestingBlobStoreBuilder()
+                        .setGetForApplicationFunction(
+                                (appId, blobKey, file) -> {
+                                    getCalled.trigger();
+                                    FileUtils.writeByteArrayToFile(file, data);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
+        try (final BlobServer blobServer =
+                new BlobServer(new Configuration(), Reference.borrowed(storageDir), blobStore)) {
+            final BlobKey blobKey = put(blobServer, applicationId, data, PERMANENT_BLOB);
+
+            blobServer.close();
+
+            final File blob = BlobUtils.getStorageLocation(storageDir, applicationId, blobKey);
+            // corrupt the file
+            FileUtils.writeByteArrayToFile(blob, corruptedData);
+
+            try (final BlobServer restartedBlobServer =
+                    new BlobServer(
+                            new Configuration(), Reference.borrowed(storageDir), blobStore)) {
+                // we should re-download the file from the BlobStore
+                final File file = get(restartedBlobServer, applicationId, blobKey);
+                validateGetAndClose(Files.newInputStream(file.toPath()), data);
+                assertThat(getCalled.isTriggered()).isTrue();
+            }
+        }
+    }
+
+    /**
      * Retrieves the given blob.
      *
      * <p>Note that if a {@link BlobCacheService} is used, it may try to access the {@link
@@ -509,6 +873,19 @@ class BlobServerGetTest {
     }
 
     /**
+     * Retrieves the given blob for an application.
+     *
+     * @param service BLOB client to use for connecting to the BLOB service
+     * @param applicationId application ID
+     * @param key key identifying the BLOB to request
+     */
+    static File get(BlobService service, ApplicationID applicationId, BlobKey key)
+            throws IOException {
+        checkArgument(key instanceof PermanentBlobKey);
+        return service.getPermanentBlobService().getFile(applicationId, (PermanentBlobKey) key);
+    }
+
+    /**
      * Checks that the given blob does not exist anymore by trying to access it.
      *
      * <p>Note that if a {@link BlobCacheService} is used, it may try to access the {@link
@@ -520,5 +897,16 @@ class BlobServerGetTest {
      */
     static void verifyDeleted(BlobService service, @Nullable JobID jobId, BlobKey key) {
         assertThatThrownBy(() -> get(service, jobId, key)).isInstanceOf(IOException.class);
+    }
+
+    /**
+     * Checks that the given blob does not exist anymore by trying to access it.
+     *
+     * @param service BLOB client to use for connecting to the BLOB service
+     * @param applicationId application ID
+     * @param key key identifying the BLOB to request
+     */
+    static void verifyDeleted(BlobService service, ApplicationID applicationId, BlobKey key) {
+        assertThatThrownBy(() -> get(service, applicationId, key)).isInstanceOf(IOException.class);
     }
 }

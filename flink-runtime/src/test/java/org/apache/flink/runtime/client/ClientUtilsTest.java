@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
@@ -189,5 +190,25 @@ public class ClientUtilsTest {
                     InstantiationUtil.<PermanentBlobKey>deserializeObject(
                             actual.blobKey, ClientUtilsTest.class.getClassLoader()));
         }
+    }
+
+    @Test
+    void uploadUserJarForApplication() throws Exception {
+        java.nio.file.Path tmpDir = TempDirUtils.newFolder(temporaryFolder).toPath();
+        Path jarFile = new Path(Files.createFile(tmpDir.resolve("application.jar")).toString());
+
+        ApplicationID applicationId = new ApplicationID();
+
+        PermanentBlobKey blobKey =
+                ClientUtils.uploadUserJarForApplication(
+                        jarFile,
+                        applicationId,
+                        () ->
+                                new BlobClient(
+                                        new InetSocketAddress("localhost", blobServer.getPort()),
+                                        new Configuration()));
+
+        // verify that blob exists for the application
+        blobServer.getFile(applicationId, blobKey);
     }
 }

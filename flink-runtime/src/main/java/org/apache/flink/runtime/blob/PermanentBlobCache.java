@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -267,6 +268,25 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
         checkNotNull(jobId);
         return getFileInternal(jobId, key);
+    }
+
+    /**
+     * Returns the path to a local copy of the file associated with the provided application ID and
+     * blob key.
+     *
+     * <p>We will first attempt to serve the BLOB from the local storage. If the BLOB is not in
+     * there, we will try to download it from the HA store, or directly from the {@link BlobServer}.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param key blob key associated with the requested file
+     * @return The path to the file.
+     * @throws java.io.FileNotFoundException if the BLOB does not exist;
+     * @throws IOException if any other error occurs when retrieving the file
+     */
+    @Override
+    public File getFile(ApplicationID applicationId, PermanentBlobKey key) throws IOException {
+        checkNotNull(applicationId);
+        return getFileInternal(applicationId, key);
     }
 
     /**

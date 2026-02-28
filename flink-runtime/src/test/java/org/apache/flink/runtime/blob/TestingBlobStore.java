@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.function.TriFunctionWithException;
 
@@ -41,6 +42,18 @@ public class TestingBlobStore implements BlobStore {
     @Nonnull
     private final TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException> getFunction;
 
+    @Nonnull
+    private final TriFunctionWithException<File, ApplicationID, BlobKey, Boolean, IOException>
+            putForApplicationFunction;
+
+    @Nonnull private final BiFunction<ApplicationID, BlobKey, Boolean> deleteForApplicationFunction;
+
+    @Nonnull private final Function<ApplicationID, Boolean> deleteAllForApplicationFunction;
+
+    @Nonnull
+    private final TriFunctionWithException<ApplicationID, BlobKey, File, Boolean, IOException>
+            getForApplicationFunction;
+
     public TestingBlobStore(
             @Nonnull
                     TriFunctionWithException<File, JobID, BlobKey, Boolean, IOException>
@@ -49,11 +62,23 @@ public class TestingBlobStore implements BlobStore {
             @Nonnull Function<JobID, Boolean> deleteAllFunction,
             @Nonnull
                     TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException>
-                            getFunction) {
+                            getFunction,
+            @Nonnull
+                    TriFunctionWithException<File, ApplicationID, BlobKey, Boolean, IOException>
+                            putForApplicationFunction,
+            @Nonnull BiFunction<ApplicationID, BlobKey, Boolean> deleteForApplicationFunction,
+            @Nonnull Function<ApplicationID, Boolean> deleteAllForApplicationFunction,
+            @Nonnull
+                    TriFunctionWithException<ApplicationID, BlobKey, File, Boolean, IOException>
+                            getForApplicationFunction) {
         this.putFunction = putFunction;
         this.deleteFunction = deleteFunction;
         this.deleteAllFunction = deleteAllFunction;
         this.getFunction = getFunction;
+        this.putForApplicationFunction = putForApplicationFunction;
+        this.deleteForApplicationFunction = deleteForApplicationFunction;
+        this.deleteAllForApplicationFunction = deleteAllForApplicationFunction;
+        this.getForApplicationFunction = getForApplicationFunction;
     }
 
     @Override
@@ -74,5 +99,27 @@ public class TestingBlobStore implements BlobStore {
     @Override
     public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
         return getFunction.apply(jobId, blobKey, localFile);
+    }
+
+    @Override
+    public boolean put(File localFile, ApplicationID applicationId, BlobKey blobKey)
+            throws IOException {
+        return putForApplicationFunction.apply(localFile, applicationId, blobKey);
+    }
+
+    @Override
+    public boolean delete(ApplicationID applicationId, BlobKey blobKey) {
+        return deleteForApplicationFunction.apply(applicationId, blobKey);
+    }
+
+    @Override
+    public boolean deleteAll(ApplicationID applicationId) {
+        return deleteAllForApplicationFunction.apply(applicationId);
+    }
+
+    @Override
+    public boolean get(ApplicationID applicationId, BlobKey blobKey, File localFile)
+            throws IOException {
+        return getForApplicationFunction.apply(applicationId, blobKey, localFile);
     }
 }

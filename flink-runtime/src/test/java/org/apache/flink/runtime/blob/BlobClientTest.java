@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
+import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -267,7 +269,7 @@ class BlobClientTest {
 
             // Retrieve the data (job-unrelated)
             if (blobType == TRANSIENT_BLOB) {
-                validateGetAndClose(client.getInternal(null, receivedKey1), testBuffer);
+                validateGetAndClose(client.getInternal((JobID) null, receivedKey1), testBuffer);
                 // transient BLOBs should be deleted from the server, eventually
                 verifyDeletedEventually(getBlobServer(), null, receivedKey1);
             }
@@ -280,7 +282,10 @@ class BlobClientTest {
 
             // Check reaction to invalid keys for job-unrelated blobs
             final BlobClient finalClient1 = client;
-            assertThatThrownBy(() -> finalClient1.getInternal(null, BlobKey.createKey(blobType)))
+            assertThatThrownBy(
+                            () ->
+                                    finalClient1.getInternal(
+                                            (JobID) null, BlobKey.createKey(blobType)))
                     .isInstanceOf(IOException.class);
 
             // Check reaction to invalid keys for job-related blobs
@@ -343,7 +348,7 @@ class BlobClientTest {
             // Store the data (job-unrelated)
             if (blobType == TRANSIENT_BLOB) {
                 is = Files.newInputStream(testFile.toPath());
-                receivedKey1 = client.putInputStream(null, is, blobType);
+                receivedKey1 = client.putInputStream((JobID) null, is, blobType);
                 assertThat(receivedKey1.getHash()).isEqualTo(digest);
             }
 
@@ -358,7 +363,7 @@ class BlobClientTest {
             if (blobType == TRANSIENT_BLOB) {
                 verifyKeyDifferentHashEquals(receivedKey1, receivedKey2);
 
-                validateGetAndClose(client.getInternal(null, receivedKey1), testFile);
+                validateGetAndClose(client.getInternal((JobID) null, receivedKey1), testFile);
                 // transient BLOBs should be deleted from the server, eventually
                 verifyDeletedEventually(getBlobServer(), null, receivedKey1);
             }
@@ -576,6 +581,163 @@ class BlobClientTest {
             assertThat(address.getHostAddress())
                     .as("Should return the bound address")
                     .isEqualTo(loopbackAddress);
+        }
+    }
+
+    @Test
+    void testContentAddressableStreamForApplication() throws IOException {
+
+        File testFile = tempDir.resolve("test_file").toFile();
+        byte[] digest = prepareTestFile(testFile);
+
+        InputStream is = null;
+
+        try (BlobClient client =
+                new BlobClient(
+                        new InetSocketAddress(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
+                        getBlobClientConfig())) {
+
+            ApplicationID applicationId = new ApplicationID();
+
+            is = Files.newInputStream(testFile.toPath());
+            BlobKey receivedKey = client.putInputStream(applicationId, is, PERMANENT_BLOB);
+            assertThat(receivedKey.getHash()).isEqualTo(digest);
+
+            is.close();
+            is = null;
+
+            validateGetAndClose(client.getInternal(applicationId, receivedKey), testFile);
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks the correct result if a GET operation fails during the file download with
+     * ApplicationID.
+     */
+    @Test
+    void testGetFailsDuringStreamingForApplication() throws IOException {
+
+        assumeThat(isSSLEnabled())
+                .as("This test can deadlock when using SSL. See FLINK-19369.")
+                .isFalse();
+
+        try (BlobClient client =
+                new BlobClient(
+                        new InetSocketAddress(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
+                        getBlobClientConfig())) {
+
+            byte[] data = new byte[5000000];
+            Random rnd = new Random();
+            rnd.nextBytes(data);
+
+            ApplicationID applicationId = new ApplicationID();
+
+            // put content addressable (like libraries)
+            BlobKey key =
+                    client.putInputStream(
+                            applicationId, new ByteArrayInputStream(data), PERMANENT_BLOB);
+            assertThat(key).isNotNull();
+
+            // issue a GET request that succeeds
+            InputStream is = client.getInternal(applicationId, key);
+
+            byte[] receiveBuffer = new byte[data.length];
+            int firstChunkLen = 50000;
+            BlobUtils.readFully(is, receiveBuffer, 0, firstChunkLen, null);
+            BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
+
+            // shut down the server
+            for (BlobServerConnection conn : getBlobServer().getCurrentActiveConnections()) {
+                conn.close();
+            }
+
+            try {
+                BlobUtils.readFully(
+                        is,
+                        receiveBuffer,
+                        2 * firstChunkLen,
+                        data.length - 2 * firstChunkLen,
+                        null);
+                // we tolerate that this succeeds, as the receiver socket may have buffered
+                // everything already, but in this case, also verify the contents
+                assertThat(receiveBuffer).isEqualTo(data);
+            } catch (IOException e) {
+                // expected
+            }
+        }
+    }
+
+    /** Tests the uploadFile method with ApplicationID. */
+    @Test
+    void testUploadFileForApplication() throws Exception {
+        uploadJarFileForApplication(getBlobServer(), getBlobClientConfig());
+    }
+
+    static void uploadJarFileForApplication(BlobServer blobServer, Configuration blobClientConfig)
+            throws Exception {
+        final File testFile = File.createTempFile("testfile", ".dat");
+        testFile.deleteOnExit();
+        prepareTestFile(testFile);
+
+        InetSocketAddress serverAddress =
+                new InetSocketAddress(blobServer.getAddress().getHostName(), blobServer.getPort());
+
+        uploadJarFileForApplication(serverAddress, blobClientConfig, testFile);
+        uploadJarFileForApplication(serverAddress, blobClientConfig, testFile);
+    }
+
+    private static void uploadJarFileForApplication(
+            final InetSocketAddress serverAddress,
+            final Configuration blobClientConfig,
+            final File testFile)
+            throws IOException {
+        ApplicationID applicationId = new ApplicationID();
+
+        try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
+            PermanentBlobKey key = blobClient.uploadFile(applicationId, new Path(testFile.toURI()));
+
+            validateGetAndClose(blobClient.getInternal(applicationId, key), testFile);
+        }
+    }
+
+    /** Tests the static downloadFromBlobServer method with ApplicationID. */
+    @Test
+    void testDownloadFromBlobServerForApplication() throws Exception {
+        final File testFile = File.createTempFile("testfile", ".dat");
+        testFile.deleteOnExit();
+        byte[] digest = prepareTestFile(testFile);
+
+        InetSocketAddress serverAddress =
+                new InetSocketAddress(
+                        getBlobServer().getAddress().getHostName(), getBlobServer().getPort());
+
+        try (BlobClient blobClient = new BlobClient(serverAddress, getBlobClientConfig())) {
+            ApplicationID applicationId = new ApplicationID();
+            BlobKey key =
+                    blobClient.putInputStream(
+                            applicationId, Files.newInputStream(testFile.toPath()), PERMANENT_BLOB);
+            assertThat(key.getHash()).isEqualTo(digest);
+
+            // Download using the static method
+            File downloadedFile = tempDir.resolve("downloaded").toFile();
+            BlobClient.downloadFromBlobServer(
+                    applicationId, key, downloadedFile, serverAddress, getBlobClientConfig(), 0);
+
+            // Verify the downloaded content
+            validateGetAndClose(
+                    Files.newInputStream(downloadedFile.toPath()),
+                    Files.newInputStream(testFile.toPath()));
         }
     }
 
