@@ -67,12 +67,12 @@ class ZooKeeperLeaderElectionITCase {
     @TempDir Path tempFolder;
 
     @BeforeAll
-    public static void setup() throws Exception {
+    static void setup() throws Exception {
         zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
     }
 
     @AfterAll
-    public static void tearDown() throws Exception {
+    static void tearDown() throws Exception {
         if (zkServer != null) {
             zkServer.close();
             zkServer = null;
@@ -86,7 +86,7 @@ class ZooKeeperLeaderElectionITCase {
      * successfully executed.
      */
     @Test
-    public void testJobExecutionOnClusterWithLeaderChange() throws Exception {
+    void testJobExecutionOnClusterWithLeaderChange() throws Exception {
         final int numDispatchers = 3;
         final int numTMs = 2;
         final int numSlotsPerTM = 2;

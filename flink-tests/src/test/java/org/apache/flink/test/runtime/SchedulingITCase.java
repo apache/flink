@@ -61,7 +61,7 @@ class SchedulingITCase {
 
     /** Tests that if local recovery is disabled we won't spread out tasks when recovering. */
     @Test
-    public void testDisablingLocalRecovery() throws Exception {
+    void testDisablingLocalRecovery() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, false);
 
@@ -73,7 +73,7 @@ class SchedulingITCase {
      * failover.
      */
     @Test
-    public void testLocalRecoveryFull() throws Exception {
+    void testLocalRecoveryFull() throws Exception {
         testLocalRecoveryInternal("full");
     }
 
@@ -82,7 +82,7 @@ class SchedulingITCase {
      * regional failover.
      */
     @Test
-    public void testLocalRecoveryRegion() throws Exception {
+    void testLocalRecoveryRegion() throws Exception {
         testLocalRecoveryInternal("region");
     }
 

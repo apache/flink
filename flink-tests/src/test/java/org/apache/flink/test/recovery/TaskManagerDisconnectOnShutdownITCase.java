@@ -77,7 +77,7 @@ class TaskManagerDisconnectOnShutdownITCase {
             LoggerFactory.getLogger(TaskManagerDisconnectOnShutdownITCase.class);
 
     @Test
-    public void testTaskManagerProcessFailure() {
+    void testTaskManagerProcessFailure() {
         Configuration config = new Configuration();
         config.set(JobManagerOptions.ADDRESS, "localhost");
         config.set(JobManagerOptions.PORT, 0);

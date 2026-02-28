@@ -116,7 +116,7 @@ class ChangelogCompatibilityITCase {
     }
 
     @TestTemplate
-    public void testRestore() throws Exception {
+    void testRestore() throws Exception {
         runAndStoreIfAllowed().ifPresent(this::restoreAndValidate);
     }
 
@@ -303,7 +303,7 @@ class ChangelogCompatibilityITCase {
     }
 
     @BeforeEach
-    public void before() throws Exception {
+    void before() throws Exception {
         checkpointDir = TempDirUtils.newFolder(tempDir);
         savepointDir = TempDirUtils.newFolder(tempDir);
         Configuration config = new Configuration();
@@ -322,7 +322,7 @@ class ChangelogCompatibilityITCase {
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }

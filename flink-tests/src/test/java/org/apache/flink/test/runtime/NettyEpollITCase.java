@@ -45,7 +45,7 @@ class NettyEpollITCase {
     private static final int NUM_TASK_MANAGERS = 2;
 
     @Test
-    public void testNettyEpoll() throws Exception {
+    void testNettyEpoll() throws Exception {
         Optional<MiniClusterWithClientResource> clusterOpt = trySetUpCluster();
         assumeThat(clusterOpt).as("This test is only supported on linux").isPresent();
         MiniClusterWithClientResource cluster = clusterOpt.get();

@@ -110,7 +110,7 @@ import static org.assertj.core.api.Assertions.fail;
 class TypeSerializerTestCoverageTest {
 
     @Test
-    public void testTypeSerializerTestCoverage() {
+    void testTypeSerializerTestCoverage() {
         final Reflections reflections = new Reflections("org.apache.flink");
 
         final Set<Class<? extends TypeSerializer>> typeSerializers =

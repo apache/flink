@@ -64,7 +64,7 @@ class AccumulatorErrorITCase {
     }
 
     @Test
-    public void testFaultyAccumulator() throws Exception {
+    void testFaultyAccumulator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Test Exception forwarding with faulty Accumulator implementation
@@ -76,7 +76,7 @@ class AccumulatorErrorITCase {
     }
 
     @Test
-    public void testInvalidTypeAccumulator() {
+    void testInvalidTypeAccumulator() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Test Exception forwarding with faulty Accumulator implementation
@@ -91,7 +91,7 @@ class AccumulatorErrorITCase {
     }
 
     @Test
-    public void testFaultyMergeAccumulator() throws Exception {
+    void testFaultyMergeAccumulator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Test Exception forwarding with faulty Accumulator implementation

@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class StateHandleSerializationTest {
 
     @Test
-    public void ensureStateHandlesHaveSerialVersionUID() {
+    void ensureStateHandlesHaveSerialVersionUID() {
         Reflections reflections = new Reflections("org.apache.flink");
 
         // check all state handles

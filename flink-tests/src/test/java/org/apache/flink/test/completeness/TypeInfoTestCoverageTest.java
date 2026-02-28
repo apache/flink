@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class TypeInfoTestCoverageTest {
 
     @Test
-    public void testTypeInfoTestCoverage() {
+    void testTypeInfoTestCoverage() {
         Reflections reflections = new Reflections("org.apache.flink");
 
         Set<Class<? extends TypeInformation>> typeInfos =

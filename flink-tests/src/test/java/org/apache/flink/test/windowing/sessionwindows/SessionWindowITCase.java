@@ -89,7 +89,7 @@ class SessionWindowITCase extends AbstractTestBase {
     private static final String SESSION_COUNTER_LATE_KEY = "ALL_SESSIONS_LATE_COUNT";
 
     @Test
-    public void testSessionWindowing() throws Exception {
+    void testSessionWindowing() throws Exception {
         SessionEventGeneratorDataSource dataSource = new SessionEventGeneratorDataSource();
         runTest(dataSource, new ValidatingWindowFunction());
     }

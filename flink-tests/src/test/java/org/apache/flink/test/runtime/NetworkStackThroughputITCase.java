@@ -236,7 +236,7 @@ class NetworkStackThroughputITCase {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testThroughput() throws Exception {
+    void testThroughput() throws Exception {
         Object[][] configParams =
                 new Object[][] {
                     new Object[] {1, false, false, false, 4, 2},
