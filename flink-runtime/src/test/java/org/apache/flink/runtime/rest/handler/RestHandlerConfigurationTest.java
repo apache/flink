@@ -154,7 +154,7 @@ class RestHandlerConfigurationTest {
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
 
-        // When EXECUTION_GRAPH_CACHE_TTL is not set, it should default to REFRESH_INTERVAL
+        // When CACHE_EXECUTION_GRAPH_TIMEOUT is not set, it should default to REFRESH_INTERVAL
         assertThat(restHandlerConfiguration.getExecutionGraphCacheTTL()).isEqualTo(refreshInterval);
     }
 
@@ -165,7 +165,7 @@ class RestHandlerConfigurationTest {
         final Duration cacheTTL = Duration.ofMillis(10000L);
         final Configuration config = new Configuration();
         config.set(WebOptions.REFRESH_INTERVAL, refreshInterval);
-        config.set(WebOptions.EXECUTION_GRAPH_CACHE_TTL, cacheTTL);
+        config.set(RestOptions.CACHE_EXECUTION_GRAPH_TIMEOUT, cacheTTL);
 
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
@@ -183,7 +183,7 @@ class RestHandlerConfigurationTest {
     void testExecutionGraphCacheTTLZeroValue() {
         final Duration zeroCacheTTL = Duration.ZERO;
         final Configuration config = new Configuration();
-        config.set(WebOptions.EXECUTION_GRAPH_CACHE_TTL, zeroCacheTTL);
+        config.set(RestOptions.CACHE_EXECUTION_GRAPH_TIMEOUT, zeroCacheTTL);
 
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
@@ -197,7 +197,7 @@ class RestHandlerConfigurationTest {
     void testExecutionGraphCacheTTLNegativeValue() {
         final Duration negativeCacheTTL = Duration.ofMillis(-1000L);
         final Configuration config = new Configuration();
-        config.set(WebOptions.EXECUTION_GRAPH_CACHE_TTL, negativeCacheTTL);
+        config.set(RestOptions.CACHE_EXECUTION_GRAPH_TIMEOUT, negativeCacheTTL);
 
         assertThatThrownBy(() -> RestHandlerConfiguration.fromConfiguration(config))
                 .isInstanceOf(IllegalArgumentException.class)

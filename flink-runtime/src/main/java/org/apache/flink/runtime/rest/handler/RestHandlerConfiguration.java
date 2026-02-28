@@ -124,10 +124,10 @@ public class RestHandlerConfiguration {
     public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
         final long refreshInterval = configuration.get(WebOptions.REFRESH_INTERVAL).toMillis();
 
-        // If EXECUTION_GRAPH_CACHE_TTL is not set, fall back to REFRESH_INTERVAL
+        // If CACHE_EXECUTION_GRAPH_TIMEOUT is not set, fall back to REFRESH_INTERVAL
         final Duration executionGraphCacheTTL =
                 configuration
-                        .getOptional(WebOptions.EXECUTION_GRAPH_CACHE_TTL)
+                        .getOptional(RestOptions.CACHE_EXECUTION_GRAPH_TIMEOUT)
                         .orElse(Duration.ofMillis(refreshInterval));
 
         final int checkpointHistorySize = configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE);
