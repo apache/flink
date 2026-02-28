@@ -63,6 +63,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
+            org.apache.flink.runtime.management.blocklist.ManagementBlocklistHandler.Factory
+                    managementBlocklistHandlerFactory,
             JobLeaderIdService jobLeaderIdService,
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
@@ -79,6 +81,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
                 slotManager,
                 clusterPartitionTrackerFactory,
                 blocklistHandlerFactory,
+                managementBlocklistHandlerFactory,
                 jobLeaderIdService,
                 clusterInformation,
                 fatalErrorHandler,
