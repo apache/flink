@@ -28,6 +28,8 @@ import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.resourcemanager.health.NoOpNodeHealthManager;
+import org.apache.flink.runtime.resourcemanager.health.NodeHealthManager;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
@@ -82,6 +84,10 @@ abstract class FineGrainedSlotManagerTestBase {
 
     protected abstract Optional<ResourceAllocationStrategy> getResourceAllocationStrategy(
             SlotManagerConfiguration slotManagerConfiguration);
+
+    protected Optional<NodeHealthManager> getNodeHealthManager() {
+        return Optional.empty();
+    }
 
     static SlotStatus createAllocatedSlotStatus(
             JobID jobId, AllocationID allocationID, ResourceProfile resourceProfile) {
@@ -156,6 +162,7 @@ abstract class FineGrainedSlotManagerTestBase {
                 new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
         private FineGrainedSlotManager slotManager;
+        private NodeHealthManager nodeHealthManager;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
@@ -182,6 +189,10 @@ abstract class FineGrainedSlotManagerTestBase {
 
         ResourceManagerId getResourceManagerId() {
             return resourceManagerId;
+        }
+
+        NodeHealthManager getNodeHealthManager() {
+            return nodeHealthManager;
         }
 
         public void setSlotManagerMetricGroup(SlotManagerMetricGroup slotManagerMetricGroup) {
@@ -213,6 +224,8 @@ abstract class FineGrainedSlotManagerTestBase {
 
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
+            Optional<NodeHealthManager> optionalNodeHealthManager = FineGrainedSlotManagerTestBase.this.getNodeHealthManager();
+            nodeHealthManager = optionalNodeHealthManager.orElse(new NoOpNodeHealthManager());
             slotManager =
                     FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
                             .setSlotManagerConfiguration(configuration)
@@ -223,6 +236,7 @@ abstract class FineGrainedSlotManagerTestBase {
                             .setResourceAllocationStrategy(
                                     getResourceAllocationStrategy(configuration)
                                             .orElse(resourceAllocationStrategyBuilder.build()))
+                            .setNodeHealthManager(nodeHealthManager)
                             .build();
 
             runInMainThreadAndWait(
