@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Message headers for adding a node to the blocklist. */
 public class BlocklistAddHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 BlocklistAddRequestBody, BlocklistAddResponseBody, EmptyMessageParameters> {
 
     private static final BlocklistAddHeaders INSTANCE = new BlocklistAddHeaders();
