@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -144,7 +145,7 @@ public class NodeQuarantineHeaders {
     /** Headers for listing quarantined nodes (GET). */
     public static class ListQuarantinedNodesHeaders
             implements MessageHeaders<
-                    EmptyRequestBody, NodeQuarantineListResponseBody, MessageParameters> {
+                    EmptyRequestBody, NodeQuarantineListResponseBody, EmptyMessageParameters> {
 
         public static final ListQuarantinedNodesHeaders INSTANCE =
                 new ListQuarantinedNodesHeaders();
@@ -174,7 +175,7 @@ public class NodeQuarantineHeaders {
         }
 
         @Override
-        public MessageParameters getUnresolvedMessageParameters() {
+        public EmptyMessageParameters getUnresolvedMessageParameters() {
             return EmptyMessageParameters.getInstance();
         }
 
@@ -227,28 +228,6 @@ public class NodeQuarantineHeaders {
         @Override
         public Collection<MessagePathParameter<?>> getPathParameters() {
             return Collections.singleton(nodeIdPathParameter);
-        }
-
-        @Override
-        public Collection<MessageQueryParameter<?>> getQueryParameters() {
-            return Collections.emptyList();
-        }
-    }
-
-    /** Empty message parameters for endpoints without parameters. */
-    public static class EmptyMessageParameters extends MessageParameters {
-
-        private static final EmptyMessageParameters INSTANCE = new EmptyMessageParameters();
-
-        private EmptyMessageParameters() {}
-
-        public static EmptyMessageParameters getInstance() {
-            return INSTANCE;
-        }
-
-        @Override
-        public Collection<MessagePathParameter<?>> getPathParameters() {
-            return Collections.emptyList();
         }
 
         @Override
