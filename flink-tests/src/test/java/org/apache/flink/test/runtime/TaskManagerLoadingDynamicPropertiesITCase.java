@@ -68,7 +68,7 @@ class TaskManagerLoadingDynamicPropertiesITCase {
     @TempDir Path folder;
 
     @Test
-    public void testLoadingDynamicPropertiesInBash() throws Exception {
+    void testLoadingDynamicPropertiesInBash() throws Exception {
         final Configuration clientConfiguration = new Configuration();
         final File homeDir = new File(folder.toString(), "home");
         assertThat(homeDir.mkdir()).isTrue();

@@ -66,8 +66,7 @@ class JobRetrievalITCase {
     private RestClusterClient<StandaloneClusterId> client;
 
     @BeforeEach
-    public void setUp(@InjectClusterClient RestClusterClient<?> restClusterClient)
-            throws Exception {
+    void setUp(@InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
         final Configuration clientConfig = new Configuration();
         clientConfig.addAll(restClusterClient.getFlinkConfiguration());
         clientConfig.set(RestOptions.RETRY_MAX_ATTEMPTS, 0);
@@ -77,14 +76,14 @@ class JobRetrievalITCase {
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         if (client != null) {
             client.close();
         }
     }
 
     @Test
-    public void testJobRetrieval() throws Exception {
+    void testJobRetrieval() throws Exception {
         final JobVertex imalock = new JobVertex("imalock");
         imalock.setInvokableClass(SemaphoreInvokable.class);
         imalock.setParallelism(1);
@@ -126,7 +125,7 @@ class JobRetrievalITCase {
     }
 
     @Test
-    public void testNonExistingJobRetrieval() throws Exception {
+    void testNonExistingJobRetrieval() throws Exception {
         final JobID jobID = new JobID();
 
         try {

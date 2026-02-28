@@ -67,13 +67,12 @@ class StatefulOperatorChainedTaskTest {
     @TempDir private Path temporaryFolder;
 
     @BeforeEach
-    public void setup() throws IOException {
+    void setup() throws IOException {
         RESTORED_OPERATORS.clear();
     }
 
     @Test
-    public void testMultipleStatefulOperatorChainedSnapshotAndRestore() throws Exception {
-
+    void testMultipleStatefulOperatorChainedSnapshotAndRestore() throws Exception {
         OperatorID headOperatorID = new OperatorID(42L, 42L);
         OperatorID tailOperatorID = new OperatorID(44L, 44L);
 

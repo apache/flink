@@ -87,7 +87,7 @@ class TaskManagerWideRocksDbMemorySharingITCase {
     private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @Test
-    public void testBlockCache(
+    void testBlockCache(
             @InjectMiniCluster MiniCluster miniCluster,
             @InjectClusterClient RestClusterClient<?> restClusterClient)
             throws Exception {

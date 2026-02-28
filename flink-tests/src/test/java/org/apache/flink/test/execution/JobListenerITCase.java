@@ -58,7 +58,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnBatchEnvironment(
+    void testExecuteCallsJobListenerOnBatchEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
@@ -92,7 +92,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnBatchEnvironment(
+    void testExecuteAsyncCallsJobListenerOnBatchEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
@@ -123,7 +123,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment(
+    void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
@@ -149,7 +149,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment(
+    void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
@@ -175,7 +175,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnStreamingEnvironment(
+    void testExecuteCallsJobListenerOnStreamingEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
@@ -209,7 +209,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnStreamingEnvironment(
+    void testExecuteAsyncCallsJobListenerOnStreamingEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
@@ -240,7 +240,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnMainThreadOnStreamEnvironment(
+    void testExecuteCallsJobListenerOnMainThreadOnStreamEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
@@ -266,7 +266,7 @@ class JobListenerITCase {
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnMainThreadOnStreamEnvironment(
+    void testExecuteAsyncCallsJobListenerOnMainThreadOnStreamEnvironment(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 

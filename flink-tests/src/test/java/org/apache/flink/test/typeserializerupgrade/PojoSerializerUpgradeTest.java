@@ -99,7 +99,7 @@ class PojoSerializerUpgradeTest {
     private StateBackend stateBackend;
 
     @BeforeEach
-    public void before() throws DynamicCodeLoadingException, IOException {
+    void before() throws DynamicCodeLoadingException, IOException {
         Configuration config = new Configuration();
         config.set(StateBackendOptions.STATE_BACKEND, backendType);
         config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.toUri().toString());
@@ -181,19 +181,19 @@ class PojoSerializerUpgradeTest {
 
     /** We should be able to handle a changed field order of a POJO as keyed state. */
     @TestTemplate
-    public void testChangedFieldOrderWithKeyedState() throws Exception {
+    void testChangedFieldOrderWithKeyedState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_B, true, true);
     }
 
     /** We should be able to handle a changed field order of a POJO as operator state. */
     @TestTemplate
-    public void testChangedFieldOrderWithOperatorState() throws Exception {
+    void testChangedFieldOrderWithOperatorState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_B, true, false);
     }
 
     /** Changing field types of a POJO as keyed state should require a state migration. */
     @TestTemplate
-    public void testChangedFieldTypesWithKeyedState() throws Exception {
+    void testChangedFieldTypesWithKeyedState() throws Exception {
         try {
             testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, true);
             fail("Expected a state migration exception.");
@@ -208,7 +208,7 @@ class PojoSerializerUpgradeTest {
 
     /** Changing field types of a POJO as operator state should require a state migration. */
     @TestTemplate
-    public void testChangedFieldTypesWithOperatorState() throws Exception {
+    void testChangedFieldTypesWithOperatorState() throws Exception {
         try {
             testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, false);
             fail("Expected a state migration exception.");
@@ -223,25 +223,25 @@ class PojoSerializerUpgradeTest {
 
     /** Adding fields to a POJO as keyed state should succeed. */
     @TestTemplate
-    public void testAdditionalFieldWithKeyedState() throws Exception {
+    void testAdditionalFieldWithKeyedState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
     }
 
     /** Adding fields to a POJO as operator state should succeed. */
     @TestTemplate
-    public void testAdditionalFieldWithOperatorState() throws Exception {
+    void testAdditionalFieldWithOperatorState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, false);
     }
 
     /** Removing fields from a POJO as keyed state should succeed. */
     @TestTemplate
-    public void testMissingFieldWithKeyedState() throws Exception {
+    void testMissingFieldWithKeyedState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, true);
     }
 
     /** Removing fields from a POJO as operator state should succeed. */
     @TestTemplate
-    public void testMissingFieldWithOperatorState() throws Exception {
+    void testMissingFieldWithOperatorState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, false);
     }
 

@@ -85,7 +85,7 @@ class IPv6HostnamesITCase {
     }
 
     @Test
-    public void testClusterWithIPv6host() throws Exception {
+    void testClusterWithIPv6host() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 

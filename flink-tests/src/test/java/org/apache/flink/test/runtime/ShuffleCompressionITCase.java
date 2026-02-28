@@ -85,7 +85,7 @@ class ShuffleCompressionITCase {
     }
 
     @TestTemplate
-    public void testNoDataCompressionForSortMergeBlockingShuffle() throws Exception {
+    void testNoDataCompressionForSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(
                 NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC,

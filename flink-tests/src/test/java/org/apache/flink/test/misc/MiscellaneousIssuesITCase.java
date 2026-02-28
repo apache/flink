@@ -63,7 +63,7 @@ class MiscellaneousIssuesITCase {
                             .build());
 
     @Test
-    public void testNullValues() throws Exception {
+    void testNullValues() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -89,7 +89,7 @@ class MiscellaneousIssuesITCase {
     }
 
     @Test
-    public void testDisjointDataflows() throws Exception {
+    void testDisjointDataflows() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(5);
 
@@ -99,8 +99,7 @@ class MiscellaneousIssuesITCase {
     }
 
     @Test
-    public void testAccumulatorsAfterNoOp() throws Exception {
-
+    void testAccumulatorsAfterNoOp() throws Exception {
         final String accName = "test_accumulator";
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

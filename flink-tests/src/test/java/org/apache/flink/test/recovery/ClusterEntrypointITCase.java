@@ -46,8 +46,7 @@ class ClusterEntrypointITCase {
     @TempDir File tempFolder;
 
     @Test
-    public void testDeterministicWorkingDirectoryIsNotDeletedInCaseOfProcessFailure()
-            throws Exception {
+    void testDeterministicWorkingDirectoryIsNotDeletedInCaseOfProcessFailure() throws Exception {
         final ResourceID resourceId = ResourceID.generate();
 
         final Configuration configuration = new Configuration();
@@ -83,8 +82,7 @@ class ClusterEntrypointITCase {
     }
 
     @Test
-    public void testNondeterministicWorkingDirectoryIsDeletedInCaseOfProcessFailure()
-            throws Exception {
+    void testNondeterministicWorkingDirectoryIsDeletedInCaseOfProcessFailure() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(ClusterOptions.PROCESS_WORKING_DIR_BASE, tempFolder.getAbsolutePath());
 

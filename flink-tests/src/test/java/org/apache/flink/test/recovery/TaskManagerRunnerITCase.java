@@ -50,7 +50,7 @@ class TaskManagerRunnerITCase {
     @TempDir Path tempFolder;
 
     @Test
-    public void testDeterministicWorkingDirIsNotDeletedInCaseOfProcessFailure() throws Exception {
+    void testDeterministicWorkingDirIsNotDeletedInCaseOfProcessFailure() throws Exception {
         final ResourceID resourceId = ResourceID.generate();
 
         final Configuration configuration = new Configuration();
@@ -87,7 +87,7 @@ class TaskManagerRunnerITCase {
     }
 
     @Test
-    public void testNondeterministicWorkingDirIsDeletedInCaseOfProcessFailure() throws Exception {
+    void testNondeterministicWorkingDirIsDeletedInCaseOfProcessFailure() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(ClusterOptions.PROCESS_WORKING_DIR_BASE, tempFolder.toString());
         configuration.set(JobManagerOptions.ADDRESS, "localhost");

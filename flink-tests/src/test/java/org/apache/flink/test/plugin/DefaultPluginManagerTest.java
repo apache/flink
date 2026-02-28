@@ -53,7 +53,7 @@ class DefaultPluginManagerTest extends PluginTestBase {
     private Collection<PluginDescriptor> descriptors;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         /*
          * We setup a plugin directory hierarchy and utilize DirectoryBasedPluginFinder to create the
          * descriptors:
@@ -81,8 +81,7 @@ class DefaultPluginManagerTest extends PluginTestBase {
     }
 
     @Test
-    public void testPluginLoading() {
-
+    void testPluginLoading() {
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
         final PluginManager pluginManager =
                 new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
@@ -107,7 +106,7 @@ class DefaultPluginManagerTest extends PluginTestBase {
     }
 
     @Test
-    public void classLoaderMustBeTheSameInsideAPlugin() {
+    void classLoaderMustBeTheSameInsideAPlugin() {
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
         final PluginManager pluginManager =
                 new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);

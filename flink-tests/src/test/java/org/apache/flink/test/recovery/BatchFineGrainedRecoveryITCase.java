@@ -202,13 +202,13 @@ class BatchFineGrainedRecoveryITCase {
     private static GlobalMapFailureTracker failureTracker;
 
     @BeforeAll
-    public static void setMiniCluster(@InjectMiniCluster MiniCluster miniCluster) {
+    static void setMiniCluster(@InjectMiniCluster MiniCluster miniCluster) {
         BatchFineGrainedRecoveryITCase.miniCluster = miniCluster;
     }
 
     @SuppressWarnings("OverlyBroadThrowsClause")
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         client = new MiniClusterClient(miniCluster);
 
         lastTaskManagerIndexInMiniCluster = new AtomicInteger(0);
@@ -217,14 +217,14 @@ class BatchFineGrainedRecoveryITCase {
     }
 
     @AfterEach
-    public void teardown() throws Exception {
+    void teardown() throws Exception {
         if (client != null) {
             client.close();
         }
     }
 
     @Test
-    public void testProgram() throws Exception {
+    void testProgram() throws Exception {
         StreamExecutionEnvironment env = createExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         DataStream<Long> input = env.fromSequence(0, EMITTED_RECORD_NUMBER - 1);

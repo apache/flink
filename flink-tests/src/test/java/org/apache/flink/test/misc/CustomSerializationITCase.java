@@ -67,7 +67,7 @@ class CustomSerializationITCase {
     }
 
     @Test
-    public void testIncorrectSerializer1() throws Exception {
+    void testIncorrectSerializer1() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
@@ -97,7 +97,7 @@ class CustomSerializationITCase {
     }
 
     @Test
-    public void testIncorrectSerializer2() throws Exception {
+    void testIncorrectSerializer2() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
@@ -127,7 +127,7 @@ class CustomSerializationITCase {
     }
 
     @Test
-    public void testIncorrectSerializer3() throws Exception {
+    void testIncorrectSerializer3() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);
@@ -157,7 +157,7 @@ class CustomSerializationITCase {
     }
 
     @Test
-    public void testIncorrectSerializer4() throws Exception {
+    void testIncorrectSerializer4() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARALLELISM);

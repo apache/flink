@@ -92,7 +92,7 @@ class ChangelogRecoveryCachingITCase {
     private MiniClusterWithClientResource cluster;
 
     @BeforeEach
-    public void init() throws Exception {
+    void init() throws Exception {
         File tmpFolder = TempDirUtils.newFolder(temporaryFolder);
         registerFileSystem(fileSystem = new OpenOnceFileSystem(), tmpFolder.toURI().getScheme());
 
@@ -113,7 +113,7 @@ class ChangelogRecoveryCachingITCase {
     }
 
     @AfterEach
-    public void after() throws Exception {
+    void after() throws Exception {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -122,7 +122,7 @@ class ChangelogRecoveryCachingITCase {
     }
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         JobID jobID1 = submit(configureJob(TempDirUtils.newFolder(temporaryFolder)), graph -> {});
 
         Thread.sleep(ACCUMULATE_TIME_MILLIS);

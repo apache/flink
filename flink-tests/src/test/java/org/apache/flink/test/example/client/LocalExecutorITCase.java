@@ -58,7 +58,7 @@ class LocalExecutorITCase {
     private LocalExecutor executor;
 
     @BeforeEach
-    public void before() {
+    void before() {
         executor =
                 LocalExecutor.createWithFactory(
                         new Configuration(),

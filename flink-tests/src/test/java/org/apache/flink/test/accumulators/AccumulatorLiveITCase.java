@@ -109,7 +109,7 @@ public class AccumulatorLiveITCase {
     }
 
     @BeforeEach
-    public void resetLatches() throws InterruptedException {
+    void resetLatches() throws InterruptedException {
         NotifyingMapper.reset();
     }
 

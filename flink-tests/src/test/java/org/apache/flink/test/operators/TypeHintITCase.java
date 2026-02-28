@@ -49,7 +49,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 class TypeHintITCase extends AbstractTestBase {
 
     @Test
-    public void testIdentityMapWithMissingTypesAndStringTypeHint() throws Exception {
+    void testIdentityMapWithMissingTypesAndStringTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds =
@@ -66,7 +66,7 @@ class TypeHintITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testIdentityMapWithMissingTypesAndTypeInformationTypeHint() throws Exception {
+    void testIdentityMapWithMissingTypesAndTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds =
@@ -92,7 +92,7 @@ class TypeHintITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFlatMapWithClassTypeHint() throws Exception {
+    void testFlatMapWithClassTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStreamSource<Tuple3<Integer, Long, String>> ds =
@@ -108,7 +108,7 @@ class TypeHintITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testJoinWithTypeInformationTypeHint() throws Exception {
+    void testJoinWithTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -134,7 +134,7 @@ class TypeHintITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFlatJoinWithTypeInformationTypeHint() throws Exception {
+    void testFlatJoinWithTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -160,7 +160,7 @@ class TypeHintITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testCoGroupWithTypeInformationTypeHint() throws Exception {
+    void testCoGroupWithTypeInformationTypeHint() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 

@@ -52,7 +52,7 @@ class DistributedCacheTest extends AbstractTestBase {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testParseCachedFilesFromStringAndBack() {
+    void testParseCachedFilesFromStringAndBack() {
         List<String> cachedFilesStringList =
                 Arrays.asList(
                         "{path: /path/to/file1, name: file1, executable: 'true'}",
@@ -79,7 +79,7 @@ class DistributedCacheTest extends AbstractTestBase {
     }
 
     @Test
-    public void testStreamingDistributedCache() throws Exception {
+    void testStreamingDistributedCache() throws Exception {
         String textPath = createTempFile("count.txt", DATA);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerCachedFile(textPath, "cache_test");

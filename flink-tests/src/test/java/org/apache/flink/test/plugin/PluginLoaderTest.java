@@ -36,8 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PluginLoaderTest extends PluginTestBase {
 
     @Test
-    public void testPluginLoading() throws Exception {
-
+    void testPluginLoading() throws Exception {
         final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
@@ -85,7 +84,7 @@ class PluginLoaderTest extends PluginTestBase {
     }
 
     @Test
-    public void testClose() throws MalformedURLException {
+    void testClose() throws MalformedURLException {
         final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
         String[] parentPatterns = {TestSpi.class.getName()};

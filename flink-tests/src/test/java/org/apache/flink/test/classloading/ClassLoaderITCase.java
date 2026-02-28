@@ -101,8 +101,7 @@ public class ClassLoaderITCase {
     private static final int parallelism = 4;
 
     @BeforeAll
-    public static void setUp() throws Exception {
-
+    static void setUp() throws Exception {
         Configuration config = new Configuration();
 
         // we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening
@@ -142,20 +141,19 @@ public class ClassLoaderITCase {
     }
 
     @AfterAll
-    public static void tearDownClass() {
+    static void tearDownClass() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         TestStreamEnvironment.unsetAsContext();
     }
 
     @Test
-    public void testStreamingCustomSplitJobWithCustomClassLoader()
-            throws ProgramInvocationException {
+    void testStreamingCustomSplitJobWithCustomClassLoader() throws ProgramInvocationException {
         PackagedProgram streamingInputSplitTestProg =
                 PackagedProgram.newBuilder()
                         .setJarFile(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE))
@@ -171,8 +169,7 @@ public class ClassLoaderITCase {
     }
 
     @Test
-    public void testStreamingClassloaderJobWithCustomClassLoader()
-            throws ProgramInvocationException {
+    void testStreamingClassloaderJobWithCustomClassLoader() throws ProgramInvocationException {
         // regular streaming job
         PackagedProgram streamingProg =
                 PackagedProgram.newBuilder().setJarFile(new File(STREAMING_PROG_JAR_FILE)).build();
@@ -187,7 +184,7 @@ public class ClassLoaderITCase {
     }
 
     @Test
-    public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader()
+    void testCheckpointedStreamingClassloaderJobWithCustomClassLoader()
             throws ProgramInvocationException {
         // checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
         // the test also ensures that user specific exceptions are serializable between JobManager
@@ -221,7 +218,7 @@ public class ClassLoaderITCase {
     }
 
     @Test
-    public void testUserCodeTypeJobWithCustomClassLoader() throws ProgramInvocationException {
+    void testUserCodeTypeJobWithCustomClassLoader() throws ProgramInvocationException {
         PackagedProgram userCodeTypeProg =
                 PackagedProgram.newBuilder().setJarFile(new File(USERCODETYPE_JAR_PATH)).build();
 
@@ -235,7 +232,7 @@ public class ClassLoaderITCase {
     }
 
     @Test
-    public void testCheckpointingCustomKvStateJobWithCustomClassLoader()
+    void testCheckpointingCustomKvStateJobWithCustomClassLoader()
             throws IOException, ProgramInvocationException {
         File checkpointDir = TempDirUtils.newFolder(folder);
         File outputDir = TempDirUtils.newFolder(folder);
@@ -265,7 +262,7 @@ public class ClassLoaderITCase {
 
     /** Tests disposal of a savepoint, which contains custom user code KvState. */
     @Test
-    public void testDisposeSavepointWithCustomKvState() throws Exception {
+    void testDisposeSavepointWithCustomKvState() throws Exception {
         ClusterClient<?> clusterClient =
                 new MiniClusterClient(new Configuration(), miniClusterResource.getMiniCluster());
 
@@ -365,8 +362,7 @@ public class ClassLoaderITCase {
     }
 
     @Test
-    public void testProgramWithChildFirstClassLoader()
-            throws IOException, ProgramInvocationException {
+    void testProgramWithChildFirstClassLoader() throws IOException, ProgramInvocationException {
         // We have two files named test-resource in src/resource (parent classloader classpath) and
         // tmp folders (child classloader classpath) respectively.
         String childResourceDirName = "child0";
@@ -404,8 +400,7 @@ public class ClassLoaderITCase {
     }
 
     @Test
-    public void testProgramWithParentFirstClassLoader()
-            throws IOException, ProgramInvocationException {
+    void testProgramWithParentFirstClassLoader() throws IOException, ProgramInvocationException {
         // We have two files named test-resource in src/resource (parent classloader classpath) and
         // tmp folders (child classloader classpath) respectively.
         String childResourceDirName = "child1";
