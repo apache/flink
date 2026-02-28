@@ -23,9 +23,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Response body for node quarantine operations.
- */
+/** Response body for node quarantine operations. */
 public class NodeQuarantineResponseBody implements ResponseBody {
 
     public static final String FIELD_NAME_SUCCESS = "success";

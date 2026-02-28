@@ -27,9 +27,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 
-/**
- * Request body for quarantining a node.
- */
+/** Request body for quarantining a node. */
 public class NodeQuarantineRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_REASON = "reason";
