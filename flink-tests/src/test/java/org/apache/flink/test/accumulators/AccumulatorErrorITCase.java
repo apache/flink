@@ -24,9 +24,6 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
@@ -57,12 +54,6 @@ class AccumulatorErrorITCase {
                             .setNumberSlotsPerTaskManager(3)
                             .build());
 
-    public static Configuration getConfiguration() {
-        Configuration config = new Configuration();
-        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
-        return config;
-    }
-
     @Test
     void testFaultyAccumulator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -72,7 +63,7 @@ class AccumulatorErrorITCase {
                 .map(new FaultyAccumulatorUsingMapper())
                 .sinkTo(new DiscardingSink<>());
 
-        assertAccumulatorsShouldFail(env.execute());
+        assertAccumulatorsShouldFail(env.execute(), FaultyCloneAccumulator.class.getName());
     }
 
     @Test
@@ -99,7 +90,7 @@ class AccumulatorErrorITCase {
                 .map(new FaultyMergeAccumulatorUsingMapper())
                 .sinkTo(new DiscardingSink<>());
 
-        assertAccumulatorsShouldFail(env.execute());
+        assertAccumulatorsShouldFail(env.execute(), FaultyMergeAccumulator.class.getName());
     }
 
     /* testFaultyAccumulator */
@@ -124,7 +115,7 @@ class AccumulatorErrorITCase {
 
         @Override
         public LongCounter clone() {
-            throw new CustomException();
+            throw new CustomException(FaultyCloneAccumulator.class.getName());
         }
     }
 
@@ -179,7 +170,7 @@ class AccumulatorErrorITCase {
 
         @Override
         public void merge(Accumulator<Long, Long> other) {
-            throw new CustomException();
+            throw new CustomException(FaultyMergeAccumulator.class.getName());
         }
 
         @Override
@@ -190,11 +181,18 @@ class AccumulatorErrorITCase {
 
     private static class CustomException extends RuntimeException {
         private static final long serialVersionUID = 42;
+
+        private CustomException(String message) {
+            super(message);
+        }
     }
 
-    private static void assertAccumulatorsShouldFail(JobExecutionResult result) {
+    private static void assertAccumulatorsShouldFail(
+            JobExecutionResult result, String expectedMessage) {
         assertThatThrownBy(result::getAllAccumulatorResults)
                 .cause()
-                .hasCauseInstanceOf(CustomException.class);
+                .hasCauseInstanceOf(CustomException.class)
+                .cause()
+                .hasMessage(expectedMessage);
     }
 }
