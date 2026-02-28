@@ -149,35 +149,6 @@ public class BatchExecutionOptions {
                             "Controls how long an detected slow node should be blocked for.");
 
     @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
-    public static final ConfigOption<Boolean> BLOCKLIST_ENABLED =
-            key("execution.batch.blocklist.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "A flag to enable or disable the blocklist functionality. "
-                                    + "When enabled, nodes can be manually added to a blocklist to prevent "
-                                    + "new slots from being allocated on them. This is independent of "
-                                    + "speculative execution.");
-
-    @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
-    public static final ConfigOption<Duration> BLOCKLIST_DEFAULT_DURATION =
-            key("execution.batch.blocklist.default-duration")
-                    .durationType()
-                    .defaultValue(Duration.ofMinutes(10))
-                    .withDescription(
-                            "The default duration for which a node should be blocked when added to the blocklist "
-                                    + "without specifying an explicit duration.");
-
-    @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
-    public static final ConfigOption<Duration> BLOCKLIST_MAX_DURATION =
-            key("execution.batch.blocklist.max-duration")
-                    .durationType()
-                    .defaultValue(Duration.ofHours(24))
-                    .withDescription(
-                            "The maximum duration for which a node can be blocked. "
-                                    + "This prevents accidentally blocking nodes for too long.");
-
-    @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
     public static final ConfigOption<Boolean> JOB_RECOVERY_ENABLED =
             key("execution.batch.job-recovery.enabled")
                     .booleanType()

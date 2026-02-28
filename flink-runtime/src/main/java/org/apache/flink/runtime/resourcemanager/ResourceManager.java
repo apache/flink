@@ -96,6 +96,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -175,6 +176,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     protected final BlocklistHandler blocklistHandler;
 
+    protected final org.apache.flink.runtime.management.blocklist.ManagementBlocklistHandler
+            managementBlocklistHandler;
+
     private final AtomicReference<byte[]> latestTokens = new AtomicReference<>();
 
     private final NodeHealthManager nodeHealthManager;
@@ -190,6 +194,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
+            org.apache.flink.runtime.management.blocklist.ManagementBlocklistHandler.Factory
+                    managementBlocklistHandlerFactory,
             JobLeaderIdService jobLeaderIdService,
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
@@ -220,6 +226,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         this::getNodeIdOfTaskManager,
                         getMainThreadExecutor(),
                         log);
+
+        this.managementBlocklistHandler = managementBlocklistHandlerFactory.create();
 
         this.jobManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
@@ -1008,6 +1016,42 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 () -> {
                     blocklistHandler.removeTimeoutNodes(Collections.singletonList(nodeId));
                     log.info("Node {} has been removed from blocklist", nodeId);
+                });
+    }
+
+    @Override
+    public CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllManagementBlockedNodes(Duration timeout) {
+        return CompletableFuture.completedFuture(
+                new HashSet<>(managementBlocklistHandler.getAllBlockedNodes()));
+    }
+
+    @Override
+    public CompletableFuture<Void> addManagementBlockedNode(
+            String nodeId, String reason, Duration duration, Duration timeout) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    managementBlocklistHandler.addBlockedNode(nodeId, reason, duration);
+                    log.info(
+                            "Node {} has been added to management blocklist for reason: {} (duration: {})",
+                            nodeId,
+                            reason,
+                            duration);
+                });
+    }
+
+    @Override
+    public CompletableFuture<Void> removeManagementBlockedNode(String nodeId, Duration timeout) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    boolean removed = managementBlocklistHandler.removeBlockedNode(nodeId);
+                    if (removed) {
+                        log.info("Node {} has been removed from management blocklist", nodeId);
+                    } else {
+                        log.warn(
+                                "Attempted to remove non-existent node {} from management blocklist",
+                                nodeId);
+                    }
                 });
     }
 

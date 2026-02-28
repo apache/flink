@@ -62,7 +62,7 @@ public class BlocklistListHandler
                 .getFuture()
                 .thenCompose(
                         resourceManagerGateway ->
-                                resourceManagerGateway.getAllBlockedNodes(timeout))
+                                resourceManagerGateway.getAllManagementBlockedNodes(timeout))
                 .thenApply(BlocklistListResponseBody::new);
     }
 }

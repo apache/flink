@@ -332,7 +332,7 @@ public interface ResourceManagerGateway
             listQuarantinedNodes(@RpcTimeout Duration timeout);
 
     /**
-     * Get all blocked nodes from the blocklist.
+     * Get all blocked nodes from the batch execution blocklist.
      *
      * @param timeout timeout of the asynchronous operation
      * @return Future containing the collection of blocked nodes
@@ -341,7 +341,7 @@ public interface ResourceManagerGateway
             getAllBlockedNodes(@RpcTimeout Duration timeout);
 
     /**
-     * Add nodes to the blocklist.
+     * Add nodes to the batch execution blocklist.
      *
      * @param nodeId the ID of the node to add to blocklist
      * @param cause the cause for blocking the node
@@ -353,11 +353,42 @@ public interface ResourceManagerGateway
             String nodeId, String cause, long endTimestamp, @RpcTimeout Duration timeout);
 
     /**
-     * Remove nodes from the blocklist.
+     * Remove nodes from the batch execution blocklist.
      *
      * @param nodeId the ID of the node to remove from blocklist
      * @param timeout timeout of the asynchronous operation
      * @return Future that completes when the node is removed from blocklist
      */
     CompletableFuture<Void> removeBlockedNode(String nodeId, @RpcTimeout Duration timeout);
+
+    /**
+     * Get all blocked nodes from the management blocklist.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the collection of blocked nodes
+     */
+    CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllManagementBlockedNodes(@RpcTimeout Duration timeout);
+
+    /**
+     * Add a node to the management blocklist.
+     *
+     * @param nodeId the ID of the node to add to management blocklist
+     * @param reason the reason for blocking the node
+     * @param duration the duration for which the node should be blocked
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is added to management blocklist
+     */
+    CompletableFuture<Void> addManagementBlockedNode(
+            String nodeId, String reason, Duration duration, @RpcTimeout Duration timeout);
+
+    /**
+     * Remove a node from the management blocklist.
+     *
+     * @param nodeId the ID of the node to remove from management blocklist
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is removed from management blocklist
+     */
+    CompletableFuture<Void> removeManagementBlockedNode(
+            String nodeId, @RpcTimeout Duration timeout);
 }

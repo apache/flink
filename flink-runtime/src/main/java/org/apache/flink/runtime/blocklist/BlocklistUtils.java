@@ -36,9 +36,9 @@ public class BlocklistUtils {
     }
 
     public static boolean isBlocklistEnabled(Configuration configuration) {
-        // Enable blocklist if either explicitly enabled or speculative execution is enabled
-        return configuration.get(BatchExecutionOptions.BLOCKLIST_ENABLED)
-                || configuration.get(BatchExecutionOptions.SPECULATIVE_ENABLED);
+        // Enable batch blocklist only if speculative execution is enabled
+        // This is separate from management blocklist functionality
+        return configuration.get(BatchExecutionOptions.SPECULATIVE_ENABLED);
     }
 
     /** Private default constructor to avoid being instantiated. */

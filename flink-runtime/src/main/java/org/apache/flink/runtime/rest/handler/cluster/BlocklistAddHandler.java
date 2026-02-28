@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.rest.handler.cluster;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ManagementOptions;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddRequestBody;
 import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddResponseBody;
@@ -31,9 +34,10 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-/** Handler for adding nodes to the blocklist. */
+/** Handler for adding nodes to the management blocklist. */
 public class BlocklistAddHandler
         extends AbstractRestHandler<
                 RestfulGateway,
@@ -42,6 +46,7 @@ public class BlocklistAddHandler
                 EmptyMessageParameters> {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
+    private final Configuration configuration;
 
     public BlocklistAddHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -51,9 +56,11 @@ public class BlocklistAddHandler
                             BlocklistAddResponseBody,
                             EmptyMessageParameters>
                     messageHeaders,
-            GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever) {
+            GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+            Configuration configuration) {
         super(leaderRetriever, timeout, messageHeaders);
         this.resourceManagerRetriever = resourceManagerRetriever;
+        this.configuration = configuration;
     }
 
     @Override
@@ -64,25 +71,45 @@ public class BlocklistAddHandler
 
         final BlocklistAddRequestBody requestBody = request.getRequestBody();
 
+        // Use provided duration or default duration from configuration
+        final Duration duration =
+                requestBody.getDuration() != null
+                        ? requestBody.getDuration()
+                        : configuration.get(ManagementOptions.BLOCKLIST_DEFAULT_DURATION);
+
+        // Validate duration against maximum allowed
+        final Duration maxDuration = configuration.get(ManagementOptions.BLOCKLIST_MAX_DURATION);
+        if (duration.compareTo(maxDuration) > 0) {
+            throw new RestHandlerException(
+                    "Requested duration "
+                            + duration
+                            + " exceeds maximum allowed duration "
+                            + maxDuration,
+                    org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus
+                            .BAD_REQUEST);
+        }
+
         return resourceManagerRetriever
                 .getFuture()
                 .thenCompose(
                         resourceManagerGateway ->
-                                resourceManagerGateway.addBlockedNode(
+                                resourceManagerGateway.addManagementBlockedNode(
                                         requestBody.getNodeId(),
-                                        requestBody.getCause(),
-                                        requestBody.getEndTimestamp(),
+                                        requestBody.getReason(),
+                                        duration,
                                         timeout))
                 .thenApply(
                         ignored ->
                                 new BlocklistAddResponseBody(
                                         "Node "
                                                 + requestBody.getNodeId()
-                                                + " successfully added to blocklist"))
+                                                + " successfully added to management blocklist for "
+                                                + duration))
                 .exceptionally(
                         throwable -> {
                             throw new RuntimeException(
-                                    "Failed to add node to blocklist: " + throwable.getMessage(),
+                                    "Failed to add node to management blocklist: "
+                                            + throwable.getMessage(),
                                     throwable);
                         });
     }

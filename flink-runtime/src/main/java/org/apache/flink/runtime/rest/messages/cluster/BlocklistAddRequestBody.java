@@ -24,44 +24,49 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
 import java.util.Objects;
 
-/** Request body for adding a node to the blocklist. */
+/** Request body for adding a node to the management blocklist. */
 public class BlocklistAddRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_NODE_ID = "nodeId";
-    public static final String FIELD_NAME_CAUSE = "cause";
-    public static final String FIELD_NAME_END_TIMESTAMP = "endTimestamp";
+    public static final String FIELD_NAME_REASON = "reason";
+    public static final String FIELD_NAME_DURATION = "duration";
 
     @JsonProperty(FIELD_NAME_NODE_ID)
     private final String nodeId;
 
-    @JsonProperty(FIELD_NAME_CAUSE)
-    private final String cause;
+    @JsonProperty(FIELD_NAME_REASON)
+    private final String reason;
 
-    @JsonProperty(FIELD_NAME_END_TIMESTAMP)
-    private final long endTimestamp;
+    @JsonProperty(FIELD_NAME_DURATION)
+    @Nullable
+    private final Duration duration;
 
     @JsonCreator
     public BlocklistAddRequestBody(
             @JsonProperty(FIELD_NAME_NODE_ID) String nodeId,
-            @JsonProperty(FIELD_NAME_CAUSE) String cause,
-            @JsonProperty(FIELD_NAME_END_TIMESTAMP) long endTimestamp) {
+            @JsonProperty(FIELD_NAME_REASON) String reason,
+            @JsonProperty(FIELD_NAME_DURATION) @Nullable Duration duration) {
         this.nodeId = Preconditions.checkNotNull(nodeId, "nodeId must not be null");
-        this.cause = Preconditions.checkNotNull(cause, "cause must not be null");
-        this.endTimestamp = endTimestamp;
+        this.reason = Preconditions.checkNotNull(reason, "reason must not be null");
+        this.duration = duration;
     }
 
     public String getNodeId() {
         return nodeId;
     }
 
-    public String getCause() {
-        return cause;
+    public String getReason() {
+        return reason;
     }
 
-    public long getEndTimestamp() {
-        return endTimestamp;
+    @Nullable
+    public Duration getDuration() {
+        return duration;
     }
 
     @Override
@@ -73,14 +78,14 @@ public class BlocklistAddRequestBody implements RequestBody {
             return false;
         }
         BlocklistAddRequestBody that = (BlocklistAddRequestBody) o;
-        return endTimestamp == that.endTimestamp
-                && Objects.equals(nodeId, that.nodeId)
-                && Objects.equals(cause, that.cause);
+        return Objects.equals(nodeId, that.nodeId)
+                && Objects.equals(reason, that.reason)
+                && Objects.equals(duration, that.duration);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(nodeId, cause, endTimestamp);
+        return Objects.hash(nodeId, reason, duration);
     }
 
     @Override
@@ -89,11 +94,11 @@ public class BlocklistAddRequestBody implements RequestBody {
                 + "nodeId='"
                 + nodeId
                 + '\''
-                + ", cause='"
-                + cause
+                + ", reason='"
+                + reason
                 + '\''
-                + ", endTimestamp="
-                + endTimestamp
+                + ", duration="
+                + duration
                 + '}';
     }
 }
