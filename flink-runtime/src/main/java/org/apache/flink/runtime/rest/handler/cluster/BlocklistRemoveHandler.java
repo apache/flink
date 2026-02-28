@@ -34,7 +34,7 @@ import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Handler for removing nodes from the blocklist. */
+/** Handler for removing nodes from the management blocklist. */
 public class BlocklistRemoveHandler
         extends AbstractRestHandler<
                 RestfulGateway,
@@ -70,15 +70,17 @@ public class BlocklistRemoveHandler
                 .getFuture()
                 .thenCompose(
                         resourceManagerGateway ->
-                                resourceManagerGateway.removeBlockedNode(nodeId, timeout))
+                                resourceManagerGateway.removeManagementBlockedNode(nodeId, timeout))
                 .thenApply(
                         ignored ->
                                 new BlocklistRemoveResponseBody(
-                                        "Node " + nodeId + " successfully removed from blocklist"))
+                                        "Node "
+                                                + nodeId
+                                                + " successfully removed from management blocklist"))
                 .exceptionally(
                         throwable -> {
                             throw new RuntimeException(
-                                    "Failed to remove node from blocklist: "
+                                    "Failed to remove node from management blocklist: "
                                             + throwable.getMessage(),
                                     throwable);
                         });
