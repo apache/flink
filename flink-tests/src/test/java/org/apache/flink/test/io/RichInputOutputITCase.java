@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for rich DataSource and DataSink input output formats accessing RuntimeContext by checking
  * accumulator values.
  */
-public class RichInputOutputITCase extends JavaProgramTestBase {
+class RichInputOutputITCase extends JavaProgramTestBase {
 
     private String inputPath;
     private static ConcurrentLinkedQueue<Integer> readCalls;

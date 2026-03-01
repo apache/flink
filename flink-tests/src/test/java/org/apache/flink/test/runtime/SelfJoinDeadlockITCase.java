@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1141">FLINK-1141</a>
  */
 @Timeout(value = 120, unit = TimeUnit.SECONDS)
-public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
+class SelfJoinDeadlockITCase extends JavaProgramTestBase {
 
     protected String resultPath;
 

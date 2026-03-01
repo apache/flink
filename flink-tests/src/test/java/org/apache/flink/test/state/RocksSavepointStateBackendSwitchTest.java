@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Tests for switching a RocksDB state backend to a different one. */
-public class RocksSavepointStateBackendSwitchTest extends SavepointStateBackendSwitchTestBase {
+class RocksSavepointStateBackendSwitchTest extends SavepointStateBackendSwitchTestBase {
     public RocksSavepointStateBackendSwitchTest(
             BackendSwitchSpec fromBackend, BackendSwitchSpec toBackend) {
         super(fromBackend, toBackend);
