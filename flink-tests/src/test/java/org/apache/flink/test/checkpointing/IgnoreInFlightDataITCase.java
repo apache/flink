@@ -59,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test of ignoring in-flight data during recovery. */
 @ExtendWith(TestLoggerExtension.class)
 class IgnoreInFlightDataITCase {
-    public static final Logger LOG = LoggerFactory.getLogger(IgnoreInFlightDataITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(IgnoreInFlightDataITCase.class);
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
@@ -87,7 +87,7 @@ class IgnoreInFlightDataITCase {
         return config;
     }
 
-    public void setupSharedObjects() {
+    private void setupSharedObjects() {
         checkpointReachSinkLatch = sharedObjects.add(new OneShotLatch());
         resultBeforeFail = sharedObjects.add(new AtomicLong());
         result = sharedObjects.add(new AtomicLong());

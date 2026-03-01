@@ -125,7 +125,7 @@ class NotifyCheckpointAbortedITCase {
 
     private static Path checkpointPath;
 
-    @Parameter public boolean unalignedCheckpointEnabled;
+    @Parameter private boolean unalignedCheckpointEnabled;
 
     @Parameters(name = "unalignedCheckpointEnabled ={0}")
     public static Collection<Boolean> parameter() {

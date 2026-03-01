@@ -92,10 +92,10 @@ class MapStateNullValueCheckpointingITCase {
                 });
     }
 
-    @Parameter public String stateBackend;
+    @Parameter private String stateBackend;
 
     @Parameter(1)
-    public Either<CheckpointType, SavepointFormatType> snapshotType;
+    private Either<CheckpointType, SavepointFormatType> snapshotType;
 
     @TempDir private Path tmpFolder;
 

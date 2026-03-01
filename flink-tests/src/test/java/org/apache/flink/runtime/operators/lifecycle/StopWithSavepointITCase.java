@@ -108,7 +108,7 @@ class StopWithSavepointITCase extends AbstractTestBase {
     @Parameter public boolean withDrain;
 
     @Parameter(1)
-    public TestingGraphBuilder graphBuilder;
+    private TestingGraphBuilder graphBuilder;
 
     @TestTemplate
     void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {

@@ -74,7 +74,7 @@ class CheckpointIntervalDuringBacklogITCase {
             LongStream.rangeClosed(0, NUM_RECORDS - 1).boxed().collect(Collectors.toList());
 
     @RegisterExtension
-    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             // allocate more, independent resources to speed up both sources startup

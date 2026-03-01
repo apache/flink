@@ -70,7 +70,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /** Integration test for performing rescale of unaligned checkpoint. */
 @ExtendWith(ParameterizedTestExtension.class)
 class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
-    public static final int NUM_GROUPS = 100;
+    private static final int NUM_GROUPS = 100;
     @Parameter private String desc;
 
     @Parameter(1)

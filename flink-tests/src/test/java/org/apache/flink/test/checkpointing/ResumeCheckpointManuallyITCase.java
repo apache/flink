@@ -85,7 +85,7 @@ class ResumeCheckpointManuallyITCase {
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int SLOTS_PER_TASK_MANAGER = 2;
 
-    @Parameter public RecoveryClaimMode recoveryClaimMode;
+    @Parameter private RecoveryClaimMode recoveryClaimMode;
 
     @Parameters(name = "RecoveryClaimMode = {0}")
     public static Collection<RecoveryClaimMode> parameters() {

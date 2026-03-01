@@ -81,12 +81,12 @@ class SavepointFormatITCase {
     private static final String STATE_BACKEND_ROCKSDB = "ROCKSDB";
     private static final String STATE_BACKEND_HEAP = "HEAP";
 
-    @TempDir Path checkpointsDir;
-    @TempDir Path originalSavepointDir;
-    @TempDir Path renamedSavepointDir;
+    @TempDir private Path checkpointsDir;
+    @TempDir private Path originalSavepointDir;
+    @TempDir private Path renamedSavepointDir;
 
     @RegisterExtension
-    LoggerAuditingExtension loggerAuditingExtension =
+    private LoggerAuditingExtension loggerAuditingExtension =
             new LoggerAuditingExtension(SavepointFormatITCase.class, Level.INFO);
 
     private static List<Arguments> parameters() {
