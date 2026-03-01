@@ -77,17 +77,17 @@ class JoinCancelingITCase extends CancelingTestBase {
     }
 
     @Test
-    public void testCancelWhileReadingSlowInputs() throws Exception {
+    void testCancelWhileReadingSlowInputs() throws Exception {
         executeTask(new SimpleMatcher<Integer>(), true);
     }
 
     @Test
-    public void testCancelWhileReadingFastInputs() throws Exception {
+    void testCancelWhileReadingFastInputs() throws Exception {
         executeTask(new SimpleMatcher<Integer>(), false);
     }
 
     @Test
-    public void testCancelPriorToFirstRecordReading() throws Exception {
+    void testCancelPriorToFirstRecordReading() throws Exception {
         executeTask(new StuckInOpenMatcher<Integer>(), false);
     }
 
@@ -123,12 +123,12 @@ class JoinCancelingITCase extends CancelingTestBase {
     // -----------------
 
     @Test
-    public void testCancelWhileJoining() throws Exception {
+    void testCancelWhileJoining() throws Exception {
         executeTaskWithGenerator(new DelayingMatcher<Integer>(), 500, 3, 10 * 1000, 20 * 1000);
     }
 
     @Test
-    public void testCancelWithLongCancellingResponse() throws Exception {
+    void testCancelWithLongCancellingResponse() throws Exception {
         executeTaskWithGenerator(
                 new LongCancelTimeMatcher<Integer>(), 500, 3, 10 * 1000, 10 * 1000);
     }
@@ -137,7 +137,7 @@ class JoinCancelingITCase extends CancelingTestBase {
     // ---------------------------------
 
     @Test
-    public void testCancelWithHighparallelism() throws Exception {
+    void testCancelWithHighparallelism() throws Exception {
         executeTask(new SimpleMatcher<Integer>(), false, 64);
     }
 

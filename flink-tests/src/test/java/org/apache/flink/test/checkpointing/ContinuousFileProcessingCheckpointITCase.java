@@ -72,7 +72,7 @@ class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestB
     private static Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
 
     @BeforeEach
-    public void createHDFS() throws IOException {
+    void createHDFS() throws IOException {
         // TODO the 'NO_OF_RETRIES' is useless for current RestartPipelinedRegionStrategy,
         // for this ContinuousFileProcessingCheckpointITCase, using
         // RestartPipelinedRegionStrategy would result in endless running.
@@ -91,7 +91,7 @@ class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestB
     }
 
     @AfterEach
-    public void destroyHDFS() {
+    void destroyHDFS() {
         if (baseDir != null) {
             FileUtil.fullyDelete(baseDir);
         }
