@@ -70,7 +70,7 @@ class LocalExecutorITCase {
 
     @Test
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
-    public void testLocalExecutorWithWordCount() throws Exception {
+    void testLocalExecutorWithWordCount() throws Exception {
         // set up the files
         File inFile = File.createTempFile("wctext", ".in");
         File outFile = File.createTempFile("wctext", ".out");

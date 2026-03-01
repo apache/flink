@@ -29,8 +29,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for custom {@link Partitioner}. */
-@SuppressWarnings("serial")
-public class CustomPartitioningITCase extends JavaProgramTestBase {
+class CustomPartitioningITCase extends JavaProgramTestBase {
 
     @Override
     protected JobExecutionResult testProgram() throws Exception {

@@ -63,14 +63,14 @@ class DefaultSchedulerLocalRecoveryITCase {
     // executionHistory non-linear. The lack of a linear executionHistory prevents us from applying
     // the same test for the AdaptiveScheduler.
     @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
-    public void testLocalRecoveryFull() throws Exception {
+    void testLocalRecoveryFull() throws Exception {
         testLocalRecoveryInternal("full");
     }
 
     @Test
     // see comment in #testLocalRecoveryFull
     @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
-    public void testLocalRecoveryRegion() throws Exception {
+    void testLocalRecoveryRegion() throws Exception {
         testLocalRecoveryInternal("region");
     }
 

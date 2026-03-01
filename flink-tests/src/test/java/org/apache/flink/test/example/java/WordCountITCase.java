@@ -27,7 +27,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** Test {@link WordCount}. */
-public class WordCountITCase extends JavaProgramTestBase {
+class WordCountITCase extends JavaProgramTestBase {
 
     protected String textPath;
     protected String resultPath;

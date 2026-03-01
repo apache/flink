@@ -40,9 +40,7 @@ import java.io.Serializable;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** WordCount with subclass and interface example. */
-@SuppressWarnings("serial")
-public class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBase
-        implements Serializable {
+class WordCountSubclassInterfacePOJOITCase extends JavaProgramTestBase implements Serializable {
     private static final long serialVersionUID = 1L;
     protected String textPath;
     protected String resultPath;

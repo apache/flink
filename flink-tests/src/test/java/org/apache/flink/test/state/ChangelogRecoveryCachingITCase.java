@@ -113,7 +113,7 @@ class ChangelogRecoveryCachingITCase {
     }
 
     @AfterEach
-    void after() throws Exception {
+    void after() {
         if (cluster != null) {
             cluster.after();
             cluster = null;

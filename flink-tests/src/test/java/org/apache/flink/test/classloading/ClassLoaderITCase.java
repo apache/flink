@@ -71,7 +71,7 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Test job classloader. */
 @ExtendWith(TestLoggerExtension.class)
-public class ClassLoaderITCase {
+class ClassLoaderITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
 
