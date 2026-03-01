@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 class JUnitJupiterTest {
     @Test
     @DisplayName("Assumption and Assertion Test")
-    public void assumptionAssertionTest() {
+    void assumptionAssertionTest() {
         assumeTrue(true, "This case is absolutely true");
         assertThat(true).withFailMessage("This case is absolutely true").isTrue();
     }
@@ -44,7 +44,7 @@ class JUnitJupiterTest {
     @ParameterizedTest
     @DisplayName("Parameterized Test")
     @ValueSource(strings = {"racecar", "radar", "able was I ere I saw elba"})
-    public void parameterizedTest(String word) {
+    void parameterizedTest(String word) {
         assertThat(isPalindrome(word))
                 .withFailMessage("The string in parameter should be palindrome")
                 .isTrue();

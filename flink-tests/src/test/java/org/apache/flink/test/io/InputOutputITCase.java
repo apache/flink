@@ -28,7 +28,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 /**
  * Tests for non rich DataSource and DataSink input output formats being correctly used at runtime.
  */
-public class InputOutputITCase extends JavaProgramTestBase {
+class InputOutputITCase extends JavaProgramTestBase {
 
     @Override
     protected JobExecutionResult testProgram() throws Exception {

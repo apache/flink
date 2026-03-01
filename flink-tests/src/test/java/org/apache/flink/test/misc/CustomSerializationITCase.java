@@ -60,7 +60,7 @@ class CustomSerializationITCase {
                             .setNumberSlotsPerTaskManager(PARALLELISM)
                             .build());
 
-    public static Configuration getConfiguration() {
+    private static Configuration getConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("30m"));
         return config;

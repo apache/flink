@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * job must be canceled and the client must report the failure. The second (working) job must finish
  * successfully and compute the correct result.
  */
-public class TaskFailureITCase extends JavaProgramTestBase {
+class TaskFailureITCase extends JavaProgramTestBase {
 
     private static final String EXCEPTION_STRING = "This is an expected Test Exception";
 
