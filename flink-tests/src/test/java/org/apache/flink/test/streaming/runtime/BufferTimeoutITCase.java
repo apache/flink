@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BufferTimeoutITCase extends AbstractTestBase {
 
     @RegisterExtension
-    public final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     /**
      * The test verifies that it is possible to disable explicit buffer flushing. It checks that

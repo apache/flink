@@ -106,7 +106,7 @@ class SinkV2ITCase extends AbstractTestBase {
                     .collect(Collectors.toList());
 
     @RegisterExtension
-    static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
+    private static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
 
     @Test
     void writerAndCommitterExecuteInStreamingMode() throws Exception {
