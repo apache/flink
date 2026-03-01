@@ -233,7 +233,7 @@ abstract class ChangelogRecoveryITCaseBase {
         return JobID.fromByteArray(randomBytes);
     }
 
-    public static Set<StateHandleID> getAllStateHandleId(JobID jobID, MiniCluster miniCluster)
+    protected static Set<StateHandleID> getAllStateHandleId(JobID jobID, MiniCluster miniCluster)
             throws IOException,
                     FlinkJobNotFoundException,
                     ExecutionException,

@@ -97,7 +97,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RescalingITCase {
 
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private static final int numTaskManagers = 2;
@@ -175,7 +175,7 @@ class RescalingITCase {
      * Tests that a job with purely keyed state can be restarted from a savepoint with a different
      * parallelism.
      */
-    public void testSavepointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism)
+    private void testSavepointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism)
             throws Exception {
         final int numberKeys = 42;
         final int numberElements = 1000;
@@ -501,7 +501,7 @@ class RescalingITCase {
      * {@link ListCheckpointed} as it subsumes {@link
      * org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}.
      */
-    public void testSavepointRescalingPartitionedOperatorState(
+    private void testSavepointRescalingPartitionedOperatorState(
             boolean scaleOut, OperatorCheckpointMethod checkpointMethod) throws Exception {
         final int parallelism = scaleOut ? numSlots : numSlots / 2;
         final int parallelism2 = scaleOut ? numSlots / 2 : numSlots;

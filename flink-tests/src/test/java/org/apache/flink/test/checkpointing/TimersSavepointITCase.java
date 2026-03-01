@@ -75,14 +75,14 @@ class TimersSavepointITCase {
     // We use a single past Flink version as we verify heap timers stored in raw state
     // Starting from 1.13 we do not store heap timers in raw state, but we keep them in
     // managed state
-    public static final String SAVEPOINT_FILE_NAME = "legacy-raw-state-heap-timers-rocks-db-1.12";
+    private static final String SAVEPOINT_FILE_NAME = "legacy-raw-state-heap-timers-rocks-db-1.12";
 
     /**
      * This test runs in either of two modes: 1) we want to generate the binary savepoint, i.e. we
      * have to run the checkpointing functions 2) we want to verify restoring, so we have to run the
      * checking functions.
      */
-    public enum ExecutionMode {
+    private enum ExecutionMode {
         PERFORM_SAVEPOINT,
         VERIFY_SAVEPOINT
     }
@@ -93,7 +93,7 @@ class TimersSavepointITCase {
     private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
     @RegisterExtension
-    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)

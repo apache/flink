@@ -105,7 +105,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AutoRescalingITCase {
 
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private static final int numTaskManagers = 2;
@@ -214,7 +214,7 @@ class AutoRescalingITCase {
      * Tests that a job with purely keyed state can be restarted from a checkpoint with a different
      * parallelism.
      */
-    public void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
+    private void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
         final int numberKeys = 42;
         final int numberElements = 1000;
         final int parallelism = scaleOut ? totalSlots / 2 : totalSlots;
@@ -497,7 +497,7 @@ class AutoRescalingITCase {
     }
 
     /** Tests rescaling of partitioned operator state. */
-    public void testCheckpointRescalingPartitionedOperatorState(
+    private void testCheckpointRescalingPartitionedOperatorState(
             boolean scaleOut, OperatorCheckpointMethod checkpointMethod) throws Exception {
         final int parallelism = scaleOut ? totalSlots : totalSlots / 2;
         final int parallelism2 = scaleOut ? totalSlots / 2 : totalSlots;

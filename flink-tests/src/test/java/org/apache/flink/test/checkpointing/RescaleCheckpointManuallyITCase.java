@@ -151,7 +151,7 @@ class RescaleCheckpointManuallyITCase {
      * Tests that a job with purely keyed state can be restarted from a checkpoint with a different
      * parallelism.
      */
-    public void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
+    private void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
         final int numberKeys = 42;
         final int numberElements = 1000;
         final int numberElements2 = 500;

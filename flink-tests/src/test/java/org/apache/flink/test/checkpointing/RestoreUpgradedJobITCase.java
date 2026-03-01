@@ -95,7 +95,7 @@ class RestoreUpgradedJobITCase {
     private static final int TOTAL_RECORDS = 100;
 
     @TempDir private static File temporaryFolder;
-    @Parameter public TestCheckpointType checkpointType;
+    @Parameter private TestCheckpointType checkpointType;
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
@@ -106,7 +106,7 @@ class RestoreUpgradedJobITCase {
                             .build());
 
     @RegisterExtension
-    public final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private SharedReference<OneShotLatch> allDataEmittedLatch;
     private SharedReference<AtomicLong> result;

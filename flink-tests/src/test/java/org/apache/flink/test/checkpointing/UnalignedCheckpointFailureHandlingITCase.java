@@ -89,10 +89,10 @@ class UnalignedCheckpointFailureHandlingITCase {
     @TempDir private Path temporaryFolder;
 
     @RegisterExtension
-    public final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @RegisterExtension
-    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(PARALLELISM)

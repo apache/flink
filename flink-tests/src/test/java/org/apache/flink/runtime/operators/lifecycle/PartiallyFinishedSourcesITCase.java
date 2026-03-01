@@ -82,16 +82,16 @@ class PartiallyFinishedSourcesITCase {
 
     private MiniClusterResource miniClusterResource;
 
-    @Parameter public TestingGraphBuilder graphBuilder;
+    @Parameter private TestingGraphBuilder graphBuilder;
 
     @Parameter(1)
-    public TestCommandScope subtaskScope;
+    private TestCommandScope subtaskScope;
 
     @Parameter(2)
-    public boolean failover;
+    private boolean failover;
 
     @Parameter(3)
-    public String failoverStrategy;
+    private String failoverStrategy;
 
     @BeforeEach
     void init() throws Exception {

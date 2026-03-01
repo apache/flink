@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Collector;
 
@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * reflects the "exactly once" semantics.
  */
 @SuppressWarnings("deprecation")
-class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
+class CoStreamCheckpointingITCase extends AbstractTestBase {
 
     private static final long NUM_STRINGS = 10_000L;
     private static final int PARALLELISM = 4;

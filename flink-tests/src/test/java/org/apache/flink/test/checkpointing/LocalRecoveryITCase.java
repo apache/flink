@@ -56,10 +56,10 @@ class LocalRecoveryITCase {
     @Parameter public StateBackendEnum backendEnum;
 
     @Parameter(1)
-    public boolean localRecoveryEnabled;
+    private boolean localRecoveryEnabled;
 
     @Parameter(2)
-    public boolean localBackupEnabled;
+    private boolean localBackupEnabled;
 
     private static final List<StateBackendEnum> STATE_BACKEND_ENUMS =
             Arrays.asList(ROCKSDB_FULL, ROCKSDB_INCREMENTAL_ZK, FILE);

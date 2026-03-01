@@ -69,9 +69,9 @@ class ChangelogLocalRecoveryITCase {
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int NUM_TASK_SLOTS = 1;
 
-    @TempDir public File tempFolder;
+    @TempDir private File tempFolder;
 
-    public final Configuration configuration;
+    private final Configuration configuration;
 
     public ChangelogLocalRecoveryITCase(Configuration configuration) {
         this.configuration = configuration;
