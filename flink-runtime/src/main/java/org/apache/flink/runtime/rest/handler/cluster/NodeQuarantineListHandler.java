@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -35,6 +34,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -53,7 +53,7 @@ public class NodeQuarantineListHandler
 
     public NodeQuarantineListHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever) {
         super(
