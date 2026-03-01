@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TimestampedFileInputSplitTest {
 
     @Test
-    public void testSplitEquality() {
+    void testSplitEquality() {
 
         TimestampedFileInputSplit richFirstSplit =
                 new TimestampedFileInputSplit(10, 2, new Path("test"), 0, 100, null);
@@ -62,7 +62,7 @@ class TimestampedFileInputSplitTest {
     }
 
     @Test
-    public void testSplitComparison() {
+    void testSplitComparison() {
         TimestampedFileInputSplit richFirstSplit =
                 new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
 
@@ -92,7 +92,7 @@ class TimestampedFileInputSplitTest {
     }
 
     @Test
-    public void testIllegalArgument() {
+    void testIllegalArgument() {
         assertThatThrownBy(
                         () -> {
                             new TimestampedFileInputSplit(
@@ -107,7 +107,7 @@ class TimestampedFileInputSplitTest {
     }
 
     @Test
-    public void testPriorityQ() {
+    void testPriorityQ() {
         TimestampedFileInputSplit richFirstSplit =
                 new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
 

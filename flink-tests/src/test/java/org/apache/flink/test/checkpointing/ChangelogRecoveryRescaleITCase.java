@@ -29,12 +29,12 @@ import org.junit.jupiter.api.TestTemplate;
 class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTestBase {
 
     @TestTemplate
-    public void testRescaleOut() throws Exception {
+    void testRescaleOut() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(NUM_SLOTS / 2), getEnv(NUM_SLOTS));
     }
 
     @TestTemplate
-    public void testRescaleIn() throws Exception {
+    void testRescaleIn() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(NUM_SLOTS), getEnv(NUM_SLOTS / 2));
     }
 

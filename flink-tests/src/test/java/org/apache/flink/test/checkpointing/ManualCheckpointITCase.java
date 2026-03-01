@@ -71,7 +71,7 @@ class ManualCheckpointITCase extends AbstractTestBase {
     }
 
     @TestTemplate
-    public void testTriggeringWhenPeriodicDisabled(@InjectMiniCluster MiniCluster miniCluster)
+    void testTriggeringWhenPeriodicDisabled(@InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         int parallelism = MINI_CLUSTER_EXTENSION.getNumberSlots();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -99,7 +99,7 @@ class ManualCheckpointITCase extends AbstractTestBase {
     }
 
     @TestTemplate
-    public void testTriggeringWhenPeriodicEnabled(@InjectMiniCluster MiniCluster miniCluster)
+    void testTriggeringWhenPeriodicEnabled(@InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         int parallelism = MINI_CLUSTER_EXTENSION.getNumberSlots();
         final int checkpointingInterval = 500;

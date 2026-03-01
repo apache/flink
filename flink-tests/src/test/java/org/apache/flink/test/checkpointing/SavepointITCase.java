@@ -160,7 +160,7 @@ class SavepointITCase {
     private File savepointDir;
 
     @BeforeEach
-    public void setUp() throws Exception {
+    void setUp() throws Exception {
         checkpointDir = new File(folder, "checkpoints");
         savepointDir = new File(folder, "savepoints");
 
@@ -170,12 +170,12 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopWithSavepointForFlip27SourceWithDrain() throws Exception {
+    void testStopWithSavepointForFlip27SourceWithDrain() throws Exception {
         testStopWithSavepointForFlip27Source(true);
     }
 
     @Test
-    public void testStopWithSavepointForFlip27SourceWithoutDrain() throws Exception {
+    void testStopWithSavepointForFlip27SourceWithoutDrain() throws Exception {
         testStopWithSavepointForFlip27Source(false);
     }
 
@@ -224,7 +224,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopWithSavepointWithDrainCallsFinishBeforeSnapshotState() throws Exception {
+    void testStopWithSavepointWithDrainCallsFinishBeforeSnapshotState() throws Exception {
         int sinkParallelism = 5;
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -287,7 +287,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopWithSavepointFailsOverToSavepoint() throws Throwable {
+    void testStopWithSavepointFailsOverToSavepoint() throws Throwable {
         int sinkParallelism = 5;
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -367,7 +367,7 @@ class SavepointITCase {
      * </ol>
      */
     @Test
-    public void testTriggerSavepointAndResumeWithFileBasedCheckpoints() throws Exception {
+    void testTriggerSavepointAndResumeWithFileBasedCheckpoints() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
@@ -383,7 +383,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testTriggerSavepointAndResumeWithClaim() throws Exception {
+    void testTriggerSavepointAndResumeWithClaim() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
@@ -408,7 +408,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testTriggerSavepointAndResumeWithLegacyMode() throws Exception {
+    void testTriggerSavepointAndResumeWithLegacyMode() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
@@ -437,7 +437,7 @@ class SavepointITCase {
 
     @Test
     @Disabled("Disabling this test because it regularly fails on AZP. See FLINK-25427.")
-    public void testTriggerSavepointAndResumeWithNoClaim() throws Exception {
+    void testTriggerSavepointAndResumeWithNoClaim() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
@@ -538,7 +538,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath()
+    void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath()
             throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
@@ -561,7 +561,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testShouldAddEntropyToSavepointPath() throws Exception {
+    void testShouldAddEntropyToSavepointPath() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
         final int parallelism = numTaskManagers * numSlotsPerTaskManager;
@@ -708,7 +708,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testTriggerSavepointForNonExistingJob() throws Exception {
+    void testTriggerSavepointForNonExistingJob() throws Exception {
         // Config
         final int numTaskManagers = 1;
         final int numSlotsPerTaskManager = 1;
@@ -741,7 +741,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testTriggerSavepointWithCheckpointingDisabled() throws Exception {
+    void testTriggerSavepointWithCheckpointingDisabled() throws Exception {
         // Config
         final int numTaskManagers = 1;
         final int numSlotsPerTaskManager = 1;
@@ -782,7 +782,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testTriggerSavepointWithoutCheckpointBaseLocations() throws Exception {
+    void testTriggerSavepointWithoutCheckpointBaseLocations() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getCheckpointConfig().disableCheckpointing();
         env.setParallelism(1);
@@ -883,7 +883,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopSavepointWithBoundedInput() throws Exception {
+    void testStopSavepointWithBoundedInput() throws Exception {
         final int numTaskManagers = 2;
         final int numSlotsPerTaskManager = 2;
 
@@ -931,7 +931,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testSubmitWithUnknownSavepointPath() throws Exception {
+    void testSubmitWithUnknownSavepointPath() throws Exception {
         // Config
         int numTaskManagers = 1;
         int numSlotsPerTaskManager = 1;
@@ -984,7 +984,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopWithSavepointFailingInSnapshotCreation() throws Exception {
+    void testStopWithSavepointFailingInSnapshotCreation() throws Exception {
         testStopWithFailingSourceInOnePipeline(
                 new SnapshotFailingInfiniteTestSource(),
                 TempDirUtils.newFolder(folder.toPath()),
@@ -997,7 +997,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopWithSavepointFailingAfterSnapshotCreation() throws Exception {
+    void testStopWithSavepointFailingAfterSnapshotCreation() throws Exception {
         // the trigger need to be reset in case the test is run multiple times
         CancelFailingInfiniteTestSource.checkpointCompleteTriggered = false;
         testStopWithFailingSourceInOnePipeline(
@@ -1019,7 +1019,7 @@ class SavepointITCase {
     }
 
     @Test
-    public void testStopWithSavepointWithDrainGlobalFailoverIfSavepointAborted() throws Exception {
+    void testStopWithSavepointWithDrainGlobalFailoverIfSavepointAborted() throws Exception {
         final int parallelism = 2;
         PathFailingFileSystem.resetFailingPath(savepointDir.getAbsolutePath() + ".*/_metadata");
         MiniClusterWithClientResource cluster =
@@ -1186,7 +1186,7 @@ class SavepointITCase {
      * that only concern stateless operators.
      */
     @Test
-    public void testCanRestoreWithModifiedStatelessOperators() throws Exception {
+    void testCanRestoreWithModifiedStatelessOperators() throws Exception {
 
         // Config
         int numTaskManagers = 2;

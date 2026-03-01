@@ -102,7 +102,7 @@ class TimersSavepointITCase {
 
     @Test
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
-    public void testSavepointWithTimers(
+    void testSavepointWithTimers(
             @InjectClusterClient ClusterClient<?> client,
             @InjectMiniCluster MiniCluster miniCluster)
             throws Exception {

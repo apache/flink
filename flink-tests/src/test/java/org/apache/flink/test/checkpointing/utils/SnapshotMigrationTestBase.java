@@ -102,7 +102,7 @@ public abstract class SnapshotMigrationTestBase {
     }
 
     @BeforeEach
-    public void setupMiniCluster() throws Exception {
+    void setupMiniCluster() throws Exception {
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -114,7 +114,7 @@ public abstract class SnapshotMigrationTestBase {
     }
 
     @AfterEach
-    public void destroyMiniCluster() {
+    void destroyMiniCluster() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
             miniClusterResource = null;

@@ -63,7 +63,7 @@ class StateHandleReuseITCase extends AbstractTestBase {
     private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @Test
-    public void runTest() throws Exception {
+    void runTest() throws Exception {
         TestJobExecutor.execute(buildJob(), MINI_CLUSTER_RESOURCE.getMiniCluster())
                 // register once: should succeed
                 .waitForEvent(CheckpointCompletedEvent.class)

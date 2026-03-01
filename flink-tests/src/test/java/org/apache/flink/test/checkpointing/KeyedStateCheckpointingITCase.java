@@ -104,7 +104,7 @@ class KeyedStateCheckpointingITCase {
     @TempDir private Path tmpFolder;
 
     @Test
-    public void testWithMemoryBackendAsync() throws Exception {
+    void testWithMemoryBackendAsync() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StateBackendUtils.configureHashMapStateBackend(env);
         CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
@@ -112,7 +112,7 @@ class KeyedStateCheckpointingITCase {
     }
 
     @Test
-    public void testWithFsBackendAsync() throws Exception {
+    void testWithFsBackendAsync() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StateBackendUtils.configureHashMapStateBackend(env);
         CheckpointStorageUtils.configureFileSystemCheckpointStorage(
@@ -121,7 +121,7 @@ class KeyedStateCheckpointingITCase {
     }
 
     @Test
-    public void testWithRocksDbBackendFull() throws Exception {
+    void testWithRocksDbBackendFull() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StateBackendUtils.configureRocksDBStateBackend(env, false);
         env.configure(
@@ -135,7 +135,7 @@ class KeyedStateCheckpointingITCase {
     }
 
     @Test
-    public void testWithRocksDbBackendIncremental() throws Exception {
+    void testWithRocksDbBackendIncremental() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StateBackendUtils.configureRocksDBStateBackend(env, true);
         env.configure(
@@ -149,7 +149,7 @@ class KeyedStateCheckpointingITCase {
     }
 
     @Test
-    public void testWithForStBackendIncremental() throws Exception {
+    void testWithForStBackendIncremental() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.configure(
                 new Configuration()

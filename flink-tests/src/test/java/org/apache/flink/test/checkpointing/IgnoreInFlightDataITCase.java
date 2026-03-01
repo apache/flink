@@ -108,7 +108,7 @@ class IgnoreInFlightDataITCase {
      * attempts.
      */
     @Test
-    public void testIgnoreInFlightDataDuringRecovery() {
+    void testIgnoreInFlightDataDuringRecovery() {
         while (!executeIgnoreInFlightDataDuringRecovery()) {
             // This test can fail if the first checkpoint happens before the Source emits some data.
             // In this case, the test will be restarted until it reach success or the test timeout

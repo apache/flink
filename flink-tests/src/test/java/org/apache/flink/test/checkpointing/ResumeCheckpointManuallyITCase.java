@@ -95,7 +95,7 @@ class ResumeCheckpointManuallyITCase {
     @TempDir private File temporaryFolder;
 
     @TestTemplate
-    public void testExternalizedIncrementalRocksDBCheckpointsStandalone() throws Exception {
+    void testExternalizedIncrementalRocksDBCheckpointsStandalone() throws Exception {
         testExternalizedCheckpoints(
                 temporaryFolder,
                 null,
@@ -105,7 +105,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFullRocksDBCheckpointsStandalone() throws Exception {
+    void testExternalizedFullRocksDBCheckpointsStandalone() throws Exception {
         testExternalizedCheckpoints(
                 temporaryFolder,
                 null,
@@ -115,7 +115,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryStandalone()
+    void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryStandalone()
             throws Exception {
         testExternalizedCheckpoints(
                 temporaryFolder,
@@ -126,8 +126,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryStandalone()
-            throws Exception {
+    void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryStandalone() throws Exception {
         testExternalizedCheckpoints(
                 temporaryFolder,
                 null,
@@ -137,7 +136,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFSCheckpointsStandalone() throws Exception {
+    void testExternalizedFSCheckpointsStandalone() throws Exception {
         testExternalizedCheckpoints(
                 temporaryFolder,
                 null,
@@ -147,7 +146,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFSCheckpointsWithLocalRecoveryStandalone() throws Exception {
+    void testExternalizedFSCheckpointsWithLocalRecoveryStandalone() throws Exception {
         testExternalizedCheckpoints(
                 temporaryFolder,
                 null,
@@ -157,7 +156,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedIncrementalRocksDBCheckpointsZookeeper() throws Exception {
+    void testExternalizedIncrementalRocksDBCheckpointsZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             testExternalizedCheckpoints(
                     temporaryFolder,
@@ -169,7 +168,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFullRocksDBCheckpointsZookeeper() throws Exception {
+    void testExternalizedFullRocksDBCheckpointsZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             testExternalizedCheckpoints(
                     temporaryFolder,
@@ -181,7 +180,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryZookeeper()
+    void testExternalizedIncrementalRocksDBCheckpointsWithLocalRecoveryZookeeper()
             throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             testExternalizedCheckpoints(
@@ -194,8 +193,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryZookeeper()
-            throws Exception {
+    void testExternalizedFullRocksDBCheckpointsWithLocalRecoveryZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             testExternalizedCheckpoints(
                     temporaryFolder,
@@ -207,7 +205,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFSCheckpointsZookeeper() throws Exception {
+    void testExternalizedFSCheckpointsZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             testExternalizedCheckpoints(
                     temporaryFolder,
@@ -219,7 +217,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedFSCheckpointsWithLocalRecoveryZookeeper() throws Exception {
+    void testExternalizedFSCheckpointsWithLocalRecoveryZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             testExternalizedCheckpoints(
                     temporaryFolder,
@@ -231,7 +229,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedSwitchRocksDBCheckpointsStandalone() throws Exception {
+    void testExternalizedSwitchRocksDBCheckpointsStandalone() throws Exception {
         Configuration previousStateBackendConfig =
                 createRocksDBStateBackend(temporaryFolder, false);
         Configuration newStateBackendConfig = createRocksDBStateBackend(temporaryFolder, true);
@@ -246,8 +244,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedSwitchRocksDBCheckpointsWithLocalRecoveryStandalone()
-            throws Exception {
+    void testExternalizedSwitchRocksDBCheckpointsWithLocalRecoveryStandalone() throws Exception {
         Configuration previousStateBackendConfig =
                 createRocksDBStateBackend(temporaryFolder, false);
         Configuration newStateBackendConfig = createRocksDBStateBackend(temporaryFolder, true);
@@ -262,7 +259,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedSwitchRocksDBCheckpointsZookeeper() throws Exception {
+    void testExternalizedSwitchRocksDBCheckpointsZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             Configuration previousStateBackendConfig =
                     createRocksDBStateBackend(temporaryFolder, false);
@@ -279,8 +276,7 @@ class ResumeCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testExternalizedSwitchRocksDBCheckpointsWithLocalRecoveryZookeeper()
-            throws Exception {
+    void testExternalizedSwitchRocksDBCheckpointsWithLocalRecoveryZookeeper() throws Exception {
         try (TestingServer zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer()) {
             Configuration previousStateBackendConfig =
                     createRocksDBStateBackend(temporaryFolder, false);

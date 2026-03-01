@@ -276,7 +276,7 @@ class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     private UnalignedSettings settings;
 
     @BeforeEach
-    public void setupSettings() {
+    void setupSettings() {
         settings =
                 new UnalignedSettings(topology)
                         .setParallelism(parallelism)
@@ -292,7 +292,7 @@ class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     }
 
     @TestTemplate
-    public void execute(TestInfo testInfo) throws Exception {
+    void execute(TestInfo testInfo) throws Exception {
         // Phase 1: Run with WAIT_FOR_CHECKPOINT_AND_CANCEL to produce a checkpoint
         settings.setCheckpointGenerationMode(
                 CheckpointGenerationMode.WAIT_FOR_CHECKPOINT_AND_CANCEL);

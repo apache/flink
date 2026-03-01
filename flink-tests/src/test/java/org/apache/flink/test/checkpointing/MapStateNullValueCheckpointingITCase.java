@@ -102,7 +102,7 @@ class MapStateNullValueCheckpointingITCase {
     private MiniClusterWithClientResource cluster;
 
     @BeforeEach
-    public void before() throws Exception {
+    void before() throws Exception {
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -117,7 +117,7 @@ class MapStateNullValueCheckpointingITCase {
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -125,7 +125,7 @@ class MapStateNullValueCheckpointingITCase {
     }
 
     @TestTemplate
-    public void testMapStateWithNullValueCheckpointingAndRestore() throws Exception {
+    void testMapStateWithNullValueCheckpointingAndRestore() throws Exception {
         final String savepointPath = runJobAndTakeSnapshot();
         assertThat(savepointPath).isNotEmpty();
         restoreAndVerify(savepointPath);

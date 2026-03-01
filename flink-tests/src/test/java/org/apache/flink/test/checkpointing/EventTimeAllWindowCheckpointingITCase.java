@@ -78,7 +78,7 @@ class EventTimeAllWindowCheckpointingITCase {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testTumblingTimeWindow() throws Exception {
+    void testTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = 3000;
         final int windowSize = 100;
         final int numKeys = 1;
@@ -149,7 +149,7 @@ class EventTimeAllWindowCheckpointingITCase {
     }
 
     @Test
-    public void testSlidingTimeWindow() throws Exception {
+    void testSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = 3000;
         final int windowSize = 1000;
         final int windowSlide = 100;
@@ -223,7 +223,7 @@ class EventTimeAllWindowCheckpointingITCase {
     }
 
     @Test
-    public void testPreAggregatedTumblingTimeWindow() throws Exception {
+    void testPreAggregatedTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = 3000;
         final int windowSize = 100;
         final int numKeys = 1;
@@ -298,7 +298,7 @@ class EventTimeAllWindowCheckpointingITCase {
     }
 
     @Test
-    public void testPreAggregatedSlidingTimeWindow() throws Exception {
+    void testPreAggregatedSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = 3000;
         final int windowSize = 1000;
         final int windowSlide = 100;

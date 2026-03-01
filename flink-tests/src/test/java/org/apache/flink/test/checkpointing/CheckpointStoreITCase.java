@@ -77,14 +77,13 @@ class CheckpointStoreITCase {
                             .build());
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         BlockingHighAvailabilityServiceFactory.reset();
         FailingMapper.reset();
     }
 
     @Test
-    public void testJobClientRemainsResponsiveDuringCompletedCheckpointStoreRecovery()
-            throws Exception {
+    void testJobClientRemainsResponsiveDuringCompletedCheckpointStoreRecovery() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(

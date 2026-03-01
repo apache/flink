@@ -84,7 +84,7 @@ class LocalRecoveryITCase {
     }
 
     @TestTemplate
-    public final void executeTest(TestInfo testInfo) throws Exception {
+    final void executeTest(TestInfo testInfo) throws Exception {
         EventTimeWindowCheckpointingITCase windowChkITCase =
                 new EventTimeWindowCheckpointingITCaseInstance(
                         backendEnum, localBackupEnabled, localRecoveryEnabled);

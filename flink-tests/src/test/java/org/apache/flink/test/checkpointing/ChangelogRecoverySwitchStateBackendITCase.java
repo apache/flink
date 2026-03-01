@@ -50,7 +50,7 @@ class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecoverySwitchE
 
     @BeforeEach
     @Override
-    public void setup() throws Exception {
+    void setup() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
         // reduce file threshold to reproduce FLINK-28843
@@ -69,22 +69,22 @@ class ChangelogRecoverySwitchStateBackendITCase extends ChangelogRecoverySwitchE
     }
 
     @TestTemplate
-    public void testSwitchFromEnablingToDisabling() throws Exception {
+    void testSwitchFromEnablingToDisabling() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(true), getEnv(false));
     }
 
     @TestTemplate
-    public void testSwitchFromEnablingToDisablingWithRescalingOut() throws Exception {
+    void testSwitchFromEnablingToDisablingWithRescalingOut() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(true, NUM_SLOTS / 2), getEnv(false, NUM_SLOTS));
     }
 
     @TestTemplate
-    public void testSwitchFromEnablingToDisablingWithRescalingIn() throws Exception {
+    void testSwitchFromEnablingToDisablingWithRescalingIn() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(true, NUM_SLOTS), getEnv(false, NUM_SLOTS / 2));
     }
 
     @TestTemplate
-    public void testSwitchFromDisablingToEnablingInClaimMode() throws Exception {
+    void testSwitchFromDisablingToEnablingInClaimMode() throws Exception {
         File firstCheckpointFolder = TempDirUtils.newFolder(temporaryFolder.toPath());
         MiniCluster miniCluster = cluster.getMiniCluster();
         StreamExecutionEnvironment env1 = getEnv(firstCheckpointFolder, false, 100, -1);

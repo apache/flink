@@ -272,14 +272,14 @@ class EventTimeWindowCheckpointingITCase {
     }
 
     @BeforeEach
-    public void setupTestCluster(TestInfo testInfo) throws Exception {
+    void setupTestCluster(TestInfo testInfo) throws Exception {
         configuration = getConfigurationSafe(testInfo);
         miniClusterResource = getMiniClusterResource();
         miniClusterResource.before();
     }
 
     @AfterEach
-    public void stopTestCluster(TestInfo testInfo) throws IOException {
+    void stopTestCluster(TestInfo testInfo) throws IOException {
         if (miniClusterResource != null) {
             miniClusterResource.after();
             miniClusterResource = null;
@@ -304,7 +304,7 @@ class EventTimeWindowCheckpointingITCase {
     // ------------------------------------------------------------------------
 
     @TestTemplate
-    public void testTumblingTimeWindow() throws Exception {
+    void testTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
@@ -379,12 +379,12 @@ class EventTimeWindowCheckpointingITCase {
     }
 
     @TestTemplate
-    public void testTumblingTimeWindowWithKVStateMinMaxParallelism() throws Exception {
+    void testTumblingTimeWindowWithKVStateMinMaxParallelism() throws Exception {
         doTestTumblingTimeWindowWithKVState(PARALLELISM);
     }
 
     @TestTemplate
-    public void testTumblingTimeWindowWithKVStateMaxMaxParallelism() throws Exception {
+    void testTumblingTimeWindowWithKVStateMaxMaxParallelism() throws Exception {
         doTestTumblingTimeWindowWithKVState(1 << 15);
     }
 
@@ -470,7 +470,7 @@ class EventTimeWindowCheckpointingITCase {
     }
 
     @TestTemplate
-    public void testSlidingTimeWindow() throws Exception {
+    void testSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int windowSlide = windowSlide();
@@ -548,7 +548,7 @@ class EventTimeWindowCheckpointingITCase {
     }
 
     @TestTemplate
-    public void testPreAggregatedTumblingTimeWindow() throws Exception {
+    void testPreAggregatedTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
@@ -625,7 +625,7 @@ class EventTimeWindowCheckpointingITCase {
     }
 
     @TestTemplate
-    public void testPreAggregatedSlidingTimeWindow() throws Exception {
+    void testPreAggregatedSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int windowSlide = windowSlide();

@@ -110,7 +110,7 @@ class UnalignedCheckpointCompatibilityITCase {
 
     @TestTemplate
     @SuppressWarnings("unchecked")
-    public void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
+    void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         Tuple2<String, Map<String, Object>> pathAndAccumulators =
                 type.isSavepoint()
                         ? runAndTakeSavepoint(miniCluster)

@@ -123,7 +123,7 @@ class RescalingITCase {
     @TempDir private static Path temporaryFolder;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         Configuration config = new Configuration();
 
         final File checkpointDir = TempDirUtils.newFolder(temporaryFolder);
@@ -144,7 +144,7 @@ class RescalingITCase {
     }
 
     @AfterEach
-    public void shutDownExistingCluster() {
+    void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -152,22 +152,22 @@ class RescalingITCase {
     }
 
     @TestTemplate
-    public void testSavepointRescalingInKeyedState() throws Exception {
+    void testSavepointRescalingInKeyedState() throws Exception {
         testSavepointRescalingKeyedState(false, false);
     }
 
     @TestTemplate
-    public void testSavepointRescalingOutKeyedState() throws Exception {
+    void testSavepointRescalingOutKeyedState() throws Exception {
         testSavepointRescalingKeyedState(true, false);
     }
 
     @TestTemplate
-    public void testSavepointRescalingInKeyedStateDerivedMaxParallelism() throws Exception {
+    void testSavepointRescalingInKeyedStateDerivedMaxParallelism() throws Exception {
         testSavepointRescalingKeyedState(false, true);
     }
 
     @TestTemplate
-    public void testSavepointRescalingOutKeyedStateDerivedMaxParallelism() throws Exception {
+    void testSavepointRescalingOutKeyedStateDerivedMaxParallelism() throws Exception {
         testSavepointRescalingKeyedState(true, true);
     }
 
@@ -284,7 +284,7 @@ class RescalingITCase {
      * @throws Exception
      */
     @TestTemplate
-    public void testSavepointRescalingNonPartitionedStateCausesException() throws Exception {
+    void testSavepointRescalingNonPartitionedStateCausesException() throws Exception {
         final int parallelism = numSlots / 2;
         final int parallelism2 = numSlots;
         final int maxParallelism = 13;
@@ -350,7 +350,7 @@ class RescalingITCase {
      * @throws Exception
      */
     @TestTemplate
-    public void testSavepointRescalingWithKeyedAndNonPartitionedState() throws Exception {
+    void testSavepointRescalingWithKeyedAndNonPartitionedState() throws Exception {
         int numberKeys = 42;
         int numberElements = 1000;
         int numberElements2 = 500;
@@ -461,37 +461,37 @@ class RescalingITCase {
     }
 
     @TestTemplate
-    public void testSavepointRescalingInPartitionedOperatorState() throws Exception {
+    void testSavepointRescalingInPartitionedOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
     }
 
     @TestTemplate
-    public void testSavepointRescalingOutPartitionedOperatorState() throws Exception {
+    void testSavepointRescalingOutPartitionedOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
     }
 
     @TestTemplate
-    public void testSavepointRescalingInBroadcastOperatorState() throws Exception {
+    void testSavepointRescalingInBroadcastOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION_BROADCAST);
     }
 
     @TestTemplate
-    public void testSavepointRescalingOutBroadcastOperatorState() throws Exception {
+    void testSavepointRescalingOutBroadcastOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION_BROADCAST);
     }
 
     @TestTemplate
-    public void testSavepointRescalingInPartitionedOperatorStateList() throws Exception {
+    void testSavepointRescalingInPartitionedOperatorStateList() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.LIST_CHECKPOINTED);
     }
 
     @TestTemplate
-    public void testSavepointRescalingOutPartitionedOperatorStateList() throws Exception {
+    void testSavepointRescalingOutPartitionedOperatorStateList() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.LIST_CHECKPOINTED);
     }

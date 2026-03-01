@@ -85,12 +85,12 @@ class CheckpointIntervalDuringBacklogITCase {
                             .build());
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         CheckpointRecordingOperator.reset();
     }
 
     @Test
-    public void testCheckpoint() throws Exception {
+    void testCheckpoint() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
         configuration.set(
@@ -117,7 +117,7 @@ class CheckpointIntervalDuringBacklogITCase {
     }
 
     @Test
-    public void testDefaultCheckpointIntervalDuringBacklog() throws Exception {
+    void testDefaultCheckpointIntervalDuringBacklog() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
         final StreamExecutionEnvironment env =
@@ -141,7 +141,7 @@ class CheckpointIntervalDuringBacklogITCase {
 
     @Test
     @Disabled("FLINK-39018") // FLINK-39108
-    public void testNoCheckpointDuringBacklog() throws Exception {
+    void testNoCheckpointDuringBacklog() throws Exception {
         final int recordsBeforeSwitch = NUM_RECORDS / 2;
         Duration expectedSwitchTime = Duration.ofMillis(recordsBeforeSwitch * SLEEP_MS_PER_RECORD);
         // give as much time as possible to deploy both sources
@@ -170,7 +170,7 @@ class CheckpointIntervalDuringBacklogITCase {
     }
 
     @Test
-    public void testExcludeFinishedOperatorBacklogStatus() throws Exception {
+    void testExcludeFinishedOperatorBacklogStatus() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
         configuration.set(

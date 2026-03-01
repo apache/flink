@@ -69,7 +69,7 @@ class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
      * </pre>
      */
     @Test
-    public void testCoStreamCheckpointingProgram() throws Exception {
+    void testCoStreamCheckpointingProgram() throws Exception {
         assertThat(NUM_STRINGS % 40).as("Broken test setup").isEqualTo(0);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

@@ -135,7 +135,7 @@ class NotifyCheckpointAbortedITCase {
     @TempDir private java.nio.file.Path temporaryFolder;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
         configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
@@ -157,7 +157,7 @@ class NotifyCheckpointAbortedITCase {
     }
 
     @AfterEach
-    public void shutdown() {
+    void shutdown() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -175,7 +175,7 @@ class NotifyCheckpointAbortedITCase {
      */
     @TestTemplate
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
-    public void testNotifyCheckpointAborted() throws Exception {
+    void testNotifyCheckpointAborted() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().enableUnalignedCheckpoints(unalignedCheckpointEnabled);

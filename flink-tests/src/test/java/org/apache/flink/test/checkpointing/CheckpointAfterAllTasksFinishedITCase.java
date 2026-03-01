@@ -71,7 +71,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
     private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
         smallResult = sharedObjects.add(new CopyOnWriteArrayList<>());
@@ -81,7 +81,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testImmediateCheckpointing() throws Exception {
+    void testImmediateCheckpointing() throws Exception {
         RestartStrategyUtils.configureNoRestartStrategy(env);
         // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
         env.enableCheckpointing(
@@ -93,7 +93,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testRestoreAfterSomeTasksFinished() throws Exception {
+    void testRestoreAfterSomeTasksFinished() throws Exception {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .withRandomPorts()
@@ -152,7 +152,7 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
      * this time a full-strategy failover happens.
      */
     @Test
-    public void testFailoverAfterSomeTasksFinished() throws Exception {
+    void testFailoverAfterSomeTasksFinished() throws Exception {
         final Configuration config = new Configuration();
         config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 

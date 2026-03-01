@@ -119,7 +119,7 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
      * (UC-supported and UC-unsupported) exchanges.
      */
     @TestTemplate
-    public void testRescaleFromUnalignedCheckpoint(@InjectMiniCluster MiniCluster miniCluster)
+    void testRescaleFromUnalignedCheckpoint(@InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         // Step 1: Run the job with initial parallelism and take a checkpoint
         JobClient jobClient1 = executeJobViaEnv.executeJob(getUnalignedCheckpointEnv(null));

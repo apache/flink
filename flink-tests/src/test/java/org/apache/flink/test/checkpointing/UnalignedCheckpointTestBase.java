@@ -139,7 +139,7 @@ abstract class UnalignedCheckpointTestBase {
     @TempDir private Path temp;
 
     @BeforeAll
-    public static void beforeAll() {
+    static void beforeAll() {
         // set to some high enough number, it is recommended to have as many arenas as slots
         // If a single buffer pool is shared between all tms we should have tms * slots_per_tm
         // This should be the maximum across all tests run
@@ -147,7 +147,7 @@ abstract class UnalignedCheckpointTestBase {
     }
 
     @AfterAll
-    public static void afterAll() {
+    static void afterAll() {
         // safety precaution, make sure the buffer pool can be cleared by th GC
         SharedPoolNettyShuffleServiceFactory.clearBufferPool();
     }
