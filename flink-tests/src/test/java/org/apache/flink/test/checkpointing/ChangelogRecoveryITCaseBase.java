@@ -129,7 +129,7 @@ abstract class ChangelogRecoveryITCaseBase {
     }
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -142,7 +142,7 @@ abstract class ChangelogRecoveryITCaseBase {
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         cluster.after();
         // clear result in sink
         CollectionSink.clearExpectedResult();

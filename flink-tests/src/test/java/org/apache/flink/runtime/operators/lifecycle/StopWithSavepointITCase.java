@@ -111,7 +111,7 @@ class StopWithSavepointITCase extends AbstractTestBase {
     public TestingGraphBuilder graphBuilder;
 
     @TestTemplate
-    public void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
+    void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         TestJobWithDescription testJob =
                 graphBuilder.build(
                         sharedObjects,

@@ -77,7 +77,7 @@ class ApproximateLocalRecoveryDownstreamITCase {
      * <p>(map1/1) fails, (map1/1) and (sink1/1) restart
      */
     @Test
-    public void localTaskFailureRecoveryThreeTasks() throws Exception {
+    void localTaskFailureRecoveryThreeTasks() throws Exception {
         final int failAfterElements = 150;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1).setBufferTimeout(0).setMaxParallelism(128).disableOperatorChaining();
@@ -107,7 +107,7 @@ class ApproximateLocalRecoveryDownstreamITCase {
      * <p>(map1/2) fails, (map1/2) and (sink1/1) restart
      */
     @Test
-    public void localTaskFailureRecoveryTwoMapTasks() throws Exception {
+    void localTaskFailureRecoveryTwoMapTasks() throws Exception {
         final int failAfterElements = 20;
         final int keyByChannelNumber = 2;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

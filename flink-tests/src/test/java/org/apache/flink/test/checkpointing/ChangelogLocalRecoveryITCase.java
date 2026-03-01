@@ -92,7 +92,7 @@ class ChangelogLocalRecoveryITCase {
     private MiniClusterWithClientResource cluster;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         String workingDir = tempFolder.getAbsolutePath();
 
         Configuration configuration = new Configuration();
@@ -119,7 +119,7 @@ class ChangelogLocalRecoveryITCase {
     }
 
     @AfterEach
-    public void teardown() {
+    void teardown() {
         cluster.after();
     }
 
@@ -134,7 +134,7 @@ class ChangelogLocalRecoveryITCase {
     }
 
     @TestTemplate
-    public void testRestartTM() throws Exception {
+    void testRestartTM() throws Exception {
         File checkpointFolder = TempDirUtils.newFolder(tempFolder.toPath());
         MiniCluster miniCluster = cluster.getMiniCluster();
         StreamExecutionEnvironment env1 = getEnv(configuration, checkpointFolder, true, 200, 800);

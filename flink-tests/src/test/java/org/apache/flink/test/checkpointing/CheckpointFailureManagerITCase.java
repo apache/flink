@@ -99,7 +99,7 @@ class CheckpointFailureManagerITCase {
      * which should fail the job.
      */
     @Test
-    public void testFinalizationFailureCounted(@InjectClusterClient ClusterClient<?> clusterClient)
+    void testFinalizationFailureCounted(@InjectClusterClient ClusterClient<?> clusterClient)
             throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10);
@@ -123,7 +123,7 @@ class CheckpointFailureManagerITCase {
 
     @Test
     @Timeout(value = 20, unit = TimeUnit.SECONDS)
-    public void testAsyncCheckpointFailureTriggerJobFailed(
+    void testAsyncCheckpointFailureTriggerJobFailed(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500);

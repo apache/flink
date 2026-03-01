@@ -627,7 +627,7 @@ class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
      * and finishes after source generates all records.
      */
     @TestTemplate
-    public void shouldRescaleUnalignedCheckpoint(TestInfo testInfo) throws Exception {
+    void shouldRescaleUnalignedCheckpoint(TestInfo testInfo) throws Exception {
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)

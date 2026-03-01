@@ -142,7 +142,7 @@ class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigrationTestBas
     }
 
     @TestTemplate
-    public void testSavepoint() throws Exception {
+    void testSavepoint() throws Exception {
         testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec);
     }
 

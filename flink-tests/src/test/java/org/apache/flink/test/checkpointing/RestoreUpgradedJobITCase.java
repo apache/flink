@@ -143,8 +143,7 @@ class RestoreUpgradedJobITCase {
     }
 
     @TestTemplate
-    public void testRestoreUpgradedJob(@InjectMiniCluster MiniCluster miniCluster)
-            throws Exception {
+    void testRestoreUpgradedJob(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         setupSharedObjects();
 
         // when: Run original job.

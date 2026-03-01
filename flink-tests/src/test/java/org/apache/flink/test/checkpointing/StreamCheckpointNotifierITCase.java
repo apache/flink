@@ -79,7 +79,7 @@ class StreamCheckpointNotifierITCase extends AbstractTestBase {
      * </pre>
      */
     @Test
-    public void testProgram() throws Exception {
+    void testProgram() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         assertThat(env.getParallelism()).as("test setup broken").isEqualTo(PARALLELISM);
 

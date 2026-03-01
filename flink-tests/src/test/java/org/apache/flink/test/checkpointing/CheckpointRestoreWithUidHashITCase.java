@@ -86,13 +86,13 @@ class CheckpointRestoreWithUidHashITCase {
     private SharedReference<List<Integer>> result;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         startWaitingForCheckpointLatch = sharedObjects.add(new CountDownLatch(1));
         result = sharedObjects.add(new ArrayList<>());
     }
 
     @Test
-    public void testRestoreFromSavepointBySetUidHash(@InjectMiniCluster MiniCluster miniCluster)
+    void testRestoreFromSavepointBySetUidHash(@InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         final int maxNumber = 100;
 
@@ -141,7 +141,7 @@ class CheckpointRestoreWithUidHashITCase {
     }
 
     @Test
-    public void testRestoreCheckpointAfterFailoverWithUidHashSet(
+    void testRestoreCheckpointAfterFailoverWithUidHashSet(
             @InjectMiniCluster MiniCluster miniCluster) throws Exception {
         final int maxNumber = 100;
 

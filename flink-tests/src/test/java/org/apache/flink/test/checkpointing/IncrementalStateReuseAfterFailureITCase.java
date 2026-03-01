@@ -97,8 +97,7 @@ class IncrementalStateReuseAfterFailureITCase {
     }
 
     @Test
-    public void testChangelogStateReuse(@InjectMiniCluster MiniCluster miniCluster)
-            throws Exception {
+    void testChangelogStateReuse(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         TestJobExecutor.execute(createJob(), miniCluster)
                 .waitForAllRunning()
 

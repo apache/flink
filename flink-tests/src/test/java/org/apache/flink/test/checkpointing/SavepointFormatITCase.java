@@ -232,7 +232,7 @@ class SavepointFormatITCase {
 
     @ParameterizedTest(name = "[{index}] {0}, {1}")
     @MethodSource("parameters")
-    public void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath(
+    void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath(
             SavepointFormatType formatType, StateBackendConfig stateBackendConfig)
             throws Exception {
         final int numTaskManagers = 2;

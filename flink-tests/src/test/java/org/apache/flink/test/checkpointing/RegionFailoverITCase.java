@@ -121,7 +121,7 @@ class RegionFailoverITCase {
     private static boolean restoredState = false;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         jobFailedCnt.set(0);
         numCompletedCheckpoints.set(0);
     }
@@ -135,8 +135,7 @@ class RegionFailoverITCase {
      */
     @Test
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
-    public void testMultiRegionFailover(@InjectClusterClient ClusterClient<?> client)
-            throws Exception {
+    void testMultiRegionFailover(@InjectClusterClient ClusterClient<?> client) throws Exception {
         JobGraph jobGraph = createJobGraph();
         submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
         verifyAfterJobExecuted();

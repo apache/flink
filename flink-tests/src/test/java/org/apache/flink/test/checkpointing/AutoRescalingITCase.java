@@ -148,7 +148,7 @@ class AutoRescalingITCase {
     @TempDir static Path temporaryFolder;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         // detect parameter change
         if (!Objects.equals(currentBackend, backend)) {
             shutDownExistingCluster();
@@ -193,7 +193,7 @@ class AutoRescalingITCase {
     }
 
     @AfterAll
-    public static void shutDownExistingCluster() {
+    static void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -201,12 +201,12 @@ class AutoRescalingITCase {
     }
 
     @TestTemplate
-    public void testCheckpointRescalingInKeyedState() throws Exception {
+    void testCheckpointRescalingInKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(false);
     }
 
     @TestTemplate
-    public void testCheckpointRescalingOutKeyedState() throws Exception {
+    void testCheckpointRescalingOutKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(true);
     }
 
@@ -320,7 +320,7 @@ class AutoRescalingITCase {
      * rescaled operator has non-partitioned state.
      */
     @TestTemplate
-    public void testCheckpointRescalingNonPartitionedStateCausesException() throws Exception {
+    void testCheckpointRescalingNonPartitionedStateCausesException() throws Exception {
         final int parallelism = totalSlots / 2;
         final int parallelism2 = totalSlots;
         final int maxParallelism = 13;
@@ -370,7 +370,7 @@ class AutoRescalingITCase {
      * different parallelism if the operator with non-partitioned state are not rescaled.
      */
     @TestTemplate
-    public void testCheckpointRescalingWithKeyedAndNonPartitionedState() throws Exception {
+    void testCheckpointRescalingWithKeyedAndNonPartitionedState() throws Exception {
         int numberKeys = 42;
         int numberElements = 1000;
         int parallelism = totalSlots / 2;
@@ -473,25 +473,25 @@ class AutoRescalingITCase {
     }
 
     @TestTemplate
-    public void testCheckpointRescalingInPartitionedOperatorState() throws Exception {
+    void testCheckpointRescalingInPartitionedOperatorState() throws Exception {
         testCheckpointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
     }
 
     @TestTemplate
-    public void testCheckpointRescalingOutPartitionedOperatorState() throws Exception {
+    void testCheckpointRescalingOutPartitionedOperatorState() throws Exception {
         testCheckpointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
     }
 
     @TestTemplate
-    public void testCheckpointRescalingInBroadcastOperatorState() throws Exception {
+    void testCheckpointRescalingInBroadcastOperatorState() throws Exception {
         testCheckpointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION_BROADCAST);
     }
 
     @TestTemplate
-    public void testCheckpointRescalingOutBroadcastOperatorState() throws Exception {
+    void testCheckpointRescalingOutBroadcastOperatorState() throws Exception {
         testCheckpointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION_BROADCAST);
     }

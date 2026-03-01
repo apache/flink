@@ -78,7 +78,7 @@ class ProcessingTimeWindowCheckpointingITCase {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testTumblingProcessingTimeWindow() throws Exception {
+    void testTumblingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -133,7 +133,7 @@ class ProcessingTimeWindowCheckpointingITCase {
     }
 
     @Test
-    public void testSlidingProcessingTimeWindow() throws Exception {
+    void testSlidingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -188,7 +188,7 @@ class ProcessingTimeWindowCheckpointingITCase {
     }
 
     @Test
-    public void testAggregatingTumblingProcessingTimeWindow() throws Exception {
+    void testAggregatingTumblingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -226,7 +226,7 @@ class ProcessingTimeWindowCheckpointingITCase {
     }
 
     @Test
-    public void testAggregatingSlidingProcessingTimeWindow() throws Exception {
+    void testAggregatingSlidingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

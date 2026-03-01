@@ -82,7 +82,7 @@ class SnapshotFileMergingCompatibilityITCase {
 
     @ParameterizedTest(name = "RecoveryClaimMode = {0}, fileMergingAcrossBoundary = {1}")
     @MethodSource("parameters")
-    public void testSwitchFromDisablingToEnablingFileMerging(
+    void testSwitchFromDisablingToEnablingFileMerging(
             RecoveryClaimMode recoveryClaimMode,
             boolean fileMergingAcrossBoundary,
             @TempDir Path checkpointDir)
@@ -93,7 +93,7 @@ class SnapshotFileMergingCompatibilityITCase {
 
     @ParameterizedTest(name = "RecoveryClaimMode = {0}, fileMergingAcrossBoundary = {1}")
     @MethodSource("parameters")
-    public void testSwitchFromEnablingToDisablingFileMerging(
+    void testSwitchFromEnablingToDisablingFileMerging(
             RecoveryClaimMode recoveryClaimMode,
             boolean fileMergingAcrossBoundary,
             @TempDir Path checkpointDir)

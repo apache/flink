@@ -41,7 +41,7 @@ class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
 
     /** Recovery from checkpoint only containing non-materialized state. */
     @TestTemplate
-    public void testNonMaterialization() throws Exception {
+    void testNonMaterialization() throws Exception {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasMaterialization =
@@ -76,7 +76,7 @@ class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
 
     /** Recovery from checkpoint containing non-materialized state and materialized state. */
     @TestTemplate
-    public void testMaterialization() throws Exception {
+    void testMaterialization() throws Exception {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicInteger> currentCheckpointNum =
@@ -143,7 +143,7 @@ class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
     }
 
     @TestTemplate
-    public void testFailedMaterialization() throws Exception {
+    void testFailedMaterialization() throws Exception {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasFailed = sharedObjects.add(new AtomicBoolean());

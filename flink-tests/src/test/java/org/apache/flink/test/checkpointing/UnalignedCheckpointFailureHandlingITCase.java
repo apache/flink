@@ -100,7 +100,7 @@ class UnalignedCheckpointFailureHandlingITCase {
                             .build());
 
     @Test
-    public void testCheckpointSuccessAfterFailure(@InjectMiniCluster MiniCluster miniCluster)
+    void testCheckpointSuccessAfterFailure(@InjectMiniCluster MiniCluster miniCluster)
             throws Exception {
         SharedReference<AtomicBoolean> failOnCloseRef = sharedObjects.add(new AtomicBoolean(true));
 

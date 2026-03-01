@@ -114,7 +114,7 @@ class RescaleCheckpointManuallyITCase {
     }
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         Configuration config = new Configuration();
         config.set(StateBackendOptions.STATE_BACKEND, statebackendType);
         config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
@@ -130,7 +130,7 @@ class RescaleCheckpointManuallyITCase {
     }
 
     @AfterEach
-    public void shutDownExistingCluster() {
+    void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -138,12 +138,12 @@ class RescaleCheckpointManuallyITCase {
     }
 
     @TestTemplate
-    public void testCheckpointRescalingInKeyedState() throws Exception {
+    void testCheckpointRescalingInKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(false);
     }
 
     @TestTemplate
-    public void testCheckpointRescalingOutKeyedState() throws Exception {
+    void testCheckpointRescalingOutKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(true);
     }
 

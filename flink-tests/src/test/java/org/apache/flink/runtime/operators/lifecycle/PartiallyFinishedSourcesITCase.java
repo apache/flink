@@ -94,7 +94,7 @@ class PartiallyFinishedSourcesITCase {
     public String failoverStrategy;
 
     @BeforeEach
-    public void init() throws Exception {
+    void init() throws Exception {
         Configuration configuration = new Configuration();
         // set failover strategy on the cluster level
         // choose it from the parameter because it may affect the test
@@ -120,14 +120,14 @@ class PartiallyFinishedSourcesITCase {
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
     }
 
     @TestTemplate
-    public void test() throws Exception {
+    void test() throws Exception {
         TestJobWithDescription testJob = buildJob();
 
         // pick any source operator
