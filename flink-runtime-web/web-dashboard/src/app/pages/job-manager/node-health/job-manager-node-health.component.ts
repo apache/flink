@@ -16,27 +16,25 @@
  * limitations under the License.
  */
 
+import { DatePipe, NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { DatePipe, NgIf } from '@angular/common';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
-import { of } from 'rxjs';
-
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 import { BlockedNodeInfo } from '@flink-runtime-web/interfaces';
 import { JobManagerService } from '@flink-runtime-web/services';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-job-manager-node-health',
   templateUrl: './job-manager-node-health.component.html',
   styleUrls: ['./job-manager-node-health.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NzTagModule, NzSpinModule, NzEmptyModule, NzToolTipModule, DatePipe, NgIf]
+  imports: [NzTableModule, NzTagModule, NzSpinModule, NzEmptyModule, NzTooltipModule, DatePipe, NgForOf, NgIf]
 })
 export class JobManagerNodeHealthComponent implements OnInit, OnDestroy {
   blockedNodes: BlockedNodeInfo[] = [];
