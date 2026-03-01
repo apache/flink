@@ -74,23 +74,24 @@ public class SlotPoolUtils {
             SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles) {
-        return offerSlots(
-                slotPool,
-                mainThreadExecutor,
-                resourceProfiles,
-                new SimpleAckingTaskManagerGateway());
+        return CompletableFuture.supplyAsync(
+                        () -> offerSlotsFromMainThread(slotPool, resourceProfiles),
+                        mainThreadExecutor)
+                .join();
     }
 
     public static ResourceID tryOfferSlots(
             SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles) {
-        return offerSlots(
-                slotPool,
-                mainThreadExecutor,
-                resourceProfiles,
-                new SimpleAckingTaskManagerGateway(),
-                false);
+        return CompletableFuture.supplyAsync(
+                        () ->
+                                tryOfferSlotsFromMainThread(
+                                        slotPool,
+                                        resourceProfiles,
+                                        new SimpleAckingTaskManagerGateway()),
+                        mainThreadExecutor)
+                .join();
     }
 
     public static ResourceID offerSlots(
@@ -98,40 +99,81 @@ public class SlotPoolUtils {
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles,
             TaskManagerGateway taskManagerGateway) {
-        return offerSlots(slotPool, mainThreadExecutor, resourceProfiles, taskManagerGateway, true);
-    }
-
-    private static ResourceID offerSlots(
-            SlotPool slotPool,
-            ComponentMainThreadExecutor mainThreadExecutor,
-            List<ResourceProfile> resourceProfiles,
-            TaskManagerGateway taskManagerGateway,
-            boolean assertAllSlotsAreAccepted) {
-        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-        CompletableFuture.runAsync(
-                        () -> {
-                            slotPool.registerTaskManager(taskManagerLocation.getResourceID());
-
-                            final Collection<SlotOffer> slotOffers =
-                                    IntStream.range(0, resourceProfiles.size())
-                                            .mapToObj(
-                                                    i ->
-                                                            new SlotOffer(
-                                                                    new AllocationID(),
-                                                                    i,
-                                                                    resourceProfiles.get(i)))
-                                            .collect(Collectors.toList());
-
-                            final Collection<SlotOffer> acceptedOffers =
-                                    slotPool.offerSlots(
-                                            taskManagerLocation, taskManagerGateway, slotOffers);
-
-                            if (assertAllSlotsAreAccepted) {
-                                assertThat(acceptedOffers).isEqualTo(slotOffers);
-                            }
-                        },
+        return CompletableFuture.supplyAsync(
+                        () ->
+                                offerSlotsFromMainThread(
+                                        slotPool, resourceProfiles, taskManagerGateway),
                         mainThreadExecutor)
                 .join();
+    }
+
+    /**
+     * Offers slots directly on the slot pool. Must be called from the main thread (e.g. inside a
+     * {@code runInMainThread} block). All offered slots are expected to be accepted.
+     *
+     * @param slotPool the slot pool to offer slots to
+     * @param resourceProfiles the resource profiles of the slots to offer
+     * @return the resource ID of the registered task manager
+     */
+    public static ResourceID offerSlotsFromMainThread(
+            SlotPool slotPool, List<ResourceProfile> resourceProfiles) {
+        return offerSlotsFromMainThread(
+                slotPool, resourceProfiles, new SimpleAckingTaskManagerGateway());
+    }
+
+    /**
+     * Offers slots directly on the slot pool. Must be called from the main thread (e.g. inside a
+     * {@code runInMainThread} block). All offered slots are expected to be accepted.
+     *
+     * @param slotPool the slot pool to offer slots to
+     * @param resourceProfiles the resource profiles of the slots to offer
+     * @param taskManagerGateway the task manager gateway to use
+     * @return the resource ID of the registered task manager
+     */
+    public static ResourceID offerSlotsFromMainThread(
+            SlotPool slotPool,
+            List<ResourceProfile> resourceProfiles,
+            TaskManagerGateway taskManagerGateway) {
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+
+        final Collection<SlotOffer> slotOffers =
+                IntStream.range(0, resourceProfiles.size())
+                        .mapToObj(
+                                i -> new SlotOffer(new AllocationID(), i, resourceProfiles.get(i)))
+                        .collect(Collectors.toList());
+
+        final Collection<SlotOffer> acceptedOffers =
+                slotPool.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers);
+
+        assertThat(acceptedOffers).isEqualTo(slotOffers);
+
+        return taskManagerLocation.getResourceID();
+    }
+
+    /**
+     * Offers slots directly on the slot pool without asserting that all slots are accepted. Must be
+     * called from the main thread (e.g. inside a {@code runInMainThread} block).
+     *
+     * @param slotPool the slot pool to offer slots to
+     * @param resourceProfiles the resource profiles of the slots to offer
+     * @param taskManagerGateway the task manager gateway to use
+     * @return the resource ID of the registered task manager
+     */
+    public static ResourceID tryOfferSlotsFromMainThread(
+            SlotPool slotPool,
+            List<ResourceProfile> resourceProfiles,
+            TaskManagerGateway taskManagerGateway) {
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+
+        final Collection<SlotOffer> slotOffers =
+                IntStream.range(0, resourceProfiles.size())
+                        .mapToObj(
+                                i -> new SlotOffer(new AllocationID(), i, resourceProfiles.get(i)))
+                        .collect(Collectors.toList());
+
+        slotPool.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers);
 
         return taskManagerLocation.getResourceID();
     }
