@@ -61,8 +61,7 @@ class BufferTimeoutITCase extends AbstractTestBase {
      * guarantee that the unfinished buffers can not be flushed by another events.
      */
     @Test
-    public void testDisablingBufferTimeout(@InjectMiniCluster MiniCluster miniCluster)
-            throws Exception {
+    void testDisablingBufferTimeout(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setBufferTimeout(-1);

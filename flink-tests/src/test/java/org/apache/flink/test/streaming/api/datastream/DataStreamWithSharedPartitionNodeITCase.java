@@ -53,7 +53,7 @@ class DataStreamWithSharedPartitionNodeITCase {
                             .build());
 
     @Test
-    public void testJobWithSharePartitionNode() throws Exception {
+    void testJobWithSharePartitionNode() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         DataStream<Integer> source =

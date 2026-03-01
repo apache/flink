@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CollectITCase extends AbstractTestBase {
 
     @Test
-    public void testCollect() throws Exception {
+    void testCollect() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 

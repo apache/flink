@@ -73,13 +73,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * split assignments (operator events) fails from time to time.
  */
 @ExtendWith(TestLoggerExtension.class)
-public class OperatorEventSendingCheckpointITCase {
+class OperatorEventSendingCheckpointITCase {
 
     private static final int PARALLELISM = 1;
     private static MiniCluster flinkCluster;
 
     @BeforeAll
-    public static void setupMiniClusterAndEnv() throws Exception {
+    static void setupMiniClusterAndEnv() throws Exception {
         Configuration config = new Configuration();
         // uncomment to run test with adaptive scheduler
         // config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
@@ -89,7 +89,7 @@ public class OperatorEventSendingCheckpointITCase {
     }
 
     @AfterAll
-    public static void clearEnvAndStopMiniCluster() throws Exception {
+    static void clearEnvAndStopMiniCluster() throws Exception {
         TestStreamEnvironment.unsetAsContext();
         if (flinkCluster != null) {
             flinkCluster.close();
@@ -108,7 +108,7 @@ public class OperatorEventSendingCheckpointITCase {
      */
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void testOperatorEventLostNoReaderFailure(boolean pauseSources) throws Exception {
+    void testOperatorEventLostNoReaderFailure(boolean pauseSources) throws Exception {
         final int[] eventsToLose = new int[] {2, 4, 6};
 
         OpEventRpcInterceptor.currentHandler =
@@ -126,7 +126,7 @@ public class OperatorEventSendingCheckpointITCase {
      */
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void testOperatorEventLostWithReaderFailure(boolean pauseSources) throws Exception {
+    void testOperatorEventLostWithReaderFailure(boolean pauseSources) throws Exception {
         final int[] eventsToLose = new int[] {1, 3};
 
         OpEventRpcInterceptor.currentHandler =
@@ -147,7 +147,7 @@ public class OperatorEventSendingCheckpointITCase {
      */
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void testOperatorEventAckLost(boolean pauseSources) throws Exception {
+    void testOperatorEventAckLost(boolean pauseSources) throws Exception {
         final int[] eventsWithLostAck = new int[] {2, 4};
 
         OpEventRpcInterceptor.currentHandler =
@@ -172,7 +172,7 @@ public class OperatorEventSendingCheckpointITCase {
      */
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    public void testOperatorEventAckDelay(boolean pauseSources) throws Exception {
+    void testOperatorEventAckDelay(boolean pauseSources) throws Exception {
         final int[] eventsWithLateAck = new int[] {2, 4};
 
         OpEventRpcInterceptor.currentHandler =

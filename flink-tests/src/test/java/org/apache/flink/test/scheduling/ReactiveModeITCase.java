@@ -64,7 +64,7 @@ class ReactiveModeITCase {
     }
 
     @BeforeEach
-    public void startMiniCluster() throws Exception {
+    void startMiniCluster() throws Exception {
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -76,7 +76,7 @@ class ReactiveModeITCase {
     }
 
     @AfterEach
-    public void destroyMiniCluster() {
+    void destroyMiniCluster() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
@@ -87,7 +87,7 @@ class ReactiveModeITCase {
      * maxParallelism.
      */
     @Test
-    public void testScaleLimitByMaxParallelism() throws Exception {
+    void testScaleLimitByMaxParallelism() throws Exception {
         // test preparation: ensure we have 2 TaskManagers running
         startAdditionalTaskManager();
 
@@ -112,7 +112,7 @@ class ReactiveModeITCase {
 
     /** Test that a job scales up when a TaskManager gets added to the cluster. */
     @Test
-    public void testScaleUpOnAdditionalTaskManager() throws Exception {
+    void testScaleUpOnAdditionalTaskManager() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input =
                 env.fromSource(
@@ -139,7 +139,7 @@ class ReactiveModeITCase {
     }
 
     @Test
-    public void testJsonPlanParallelismAfterRescale() throws Exception {
+    void testJsonPlanParallelismAfterRescale() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input =
                 env.fromSource(
@@ -178,7 +178,7 @@ class ReactiveModeITCase {
     }
 
     @Test
-    public void testScaleDownOnTaskManagerLoss() throws Exception {
+    void testScaleDownOnTaskManagerLoss() throws Exception {
         // test preparation: ensure we have 2 TaskManagers running
         startAdditionalTaskManager();
 

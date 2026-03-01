@@ -53,7 +53,7 @@ class DataStreamPojoITCase extends AbstractTestBase {
 
     /** Test composite key on the Data POJO (with nested fields). */
     @Test
-    public void testCompositeKeyOnNestedPojo() throws Exception {
+    void testCompositeKeyOnNestedPojo() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.getConfig().disableObjectReuse();
         see.setParallelism(3);
@@ -109,7 +109,7 @@ class DataStreamPojoITCase extends AbstractTestBase {
 
     /** Test composite & nested key on the Data POJO. */
     @Test
-    public void testNestedKeyOnNestedPojo() throws Exception {
+    void testNestedKeyOnNestedPojo() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
@@ -168,7 +168,7 @@ class DataStreamPojoITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testNestedPojoFieldAccessor() throws Exception {
+    void testNestedPojoFieldAccessor() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
@@ -208,7 +208,7 @@ class DataStreamPojoITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFailOnNestedPojoFieldAccessor() throws Exception {
+    void testFailOnNestedPojoFieldAccessor() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Data> dataStream = see.fromData(elements);

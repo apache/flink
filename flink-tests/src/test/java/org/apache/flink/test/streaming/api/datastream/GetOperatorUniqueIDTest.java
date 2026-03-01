@@ -40,7 +40,7 @@ class GetOperatorUniqueIDTest {
      * {@link StreamingRuntimeContext#getOperatorUniqueID()} being stable between job submissions.
      */
     @Test
-    public void testGetOperatorUniqueID() throws Exception {
+    void testGetOperatorUniqueID() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
         env.fromData(1, 2, 3)

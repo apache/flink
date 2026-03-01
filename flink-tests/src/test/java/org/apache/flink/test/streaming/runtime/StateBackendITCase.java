@@ -52,7 +52,7 @@ class StateBackendITCase extends AbstractTestBase {
 
     /** Verify that the user-specified state backend is used even if checkpointing is disabled. */
     @Test
-    public void testStateBackendWithoutCheckpointing() throws Exception {
+    void testStateBackendWithoutCheckpointing() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(1);
 

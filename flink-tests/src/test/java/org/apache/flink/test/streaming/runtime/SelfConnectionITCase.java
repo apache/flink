@@ -38,7 +38,7 @@ class SelfConnectionITCase extends AbstractTestBase {
 
     /** We connect two different data streams in a chain to a CoMap. */
     @Test
-    public void differentDataStreamSameChain() throws Exception {
+    void differentDataStreamSameChain() throws Exception {
 
         TestListResultSink<String> resultSink = new TestListResultSink<>();
 
@@ -83,7 +83,7 @@ class SelfConnectionITCase extends AbstractTestBase {
      * self-connect.)
      */
     @Test
-    public void differentDataStreamDifferentChain() throws Exception {
+    void differentDataStreamDifferentChain() throws Exception {
 
         TestListResultSink<String> resultSink = new TestListResultSink<>();
 

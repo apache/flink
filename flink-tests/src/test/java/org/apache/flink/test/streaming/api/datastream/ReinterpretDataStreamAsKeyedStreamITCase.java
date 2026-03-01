@@ -80,7 +80,7 @@ class ReinterpretDataStreamAsKeyedStreamITCase {
      * know they have been partitioned in a keyBy from the first job.
      */
     @Test
-    public void testReinterpretAsKeyedStream() throws Exception {
+    void testReinterpretAsKeyedStream() throws Exception {
 
         final int maxParallelism = 8;
         final int numEventsPerInstance = 100;

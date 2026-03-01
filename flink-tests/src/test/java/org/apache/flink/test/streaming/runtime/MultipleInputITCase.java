@@ -53,12 +53,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MultipleInputITCase extends AbstractTestBase {
 
     @Test
-    public void testBasicProcessing() throws Exception {
+    void testBasicProcessing() throws Exception {
         testNonKeyed(false);
     }
 
     @Test
-    public void testUnion() throws Exception {
+    void testUnion() throws Exception {
         testNonKeyed(true);
     }
 
@@ -107,7 +107,7 @@ class MultipleInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testKeyedState() throws Exception {
+    void testKeyedState() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 

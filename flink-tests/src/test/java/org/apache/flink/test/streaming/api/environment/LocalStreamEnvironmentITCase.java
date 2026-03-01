@@ -37,7 +37,7 @@ class LocalStreamEnvironmentITCase {
      * multiple slots.
      */
     @Test
-    public void testRunIsolatedJob() throws Exception {
+    void testRunIsolatedJob() throws Exception {
         LocalStreamEnvironment env = new LocalStreamEnvironment();
         assertThat(env.getParallelism()).isEqualTo(1);
 
@@ -50,7 +50,7 @@ class LocalStreamEnvironmentITCase {
      * streaming jobs after one another.
      */
     @Test
-    public void testMultipleJobsAfterAnother() throws Exception {
+    void testMultipleJobsAfterAnother() throws Exception {
         LocalStreamEnvironment env = new LocalStreamEnvironment();
 
         addSmallBoundedJob(env, 3);

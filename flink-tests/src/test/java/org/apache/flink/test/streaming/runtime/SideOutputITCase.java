@@ -84,7 +84,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Verify that watermarks are forwarded to all side outputs. */
     @Test
-    public void testWatermarkForwarding() throws Exception {
+    void testWatermarkForwarding() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side") {};
 
@@ -216,7 +216,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testSideOutputWithMultipleConsumers() throws Exception {
+    void testSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
@@ -259,7 +259,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testSideOutputWithMultipleConsumersWithObjectReuse() throws Exception {
+    void testSideOutputWithMultipleConsumersWithObjectReuse() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
@@ -303,7 +303,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testDifferentSideOutputTypes() throws Exception {
+    void testDifferentSideOutputTypes() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("string") {};
         final OutputTag<Integer> sideOutputTag2 = new OutputTag<Integer>("int") {};
 
@@ -347,7 +347,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testSideOutputNameClash() throws Exception {
+    void testSideOutputNameClash() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side") {};
         final OutputTag<Integer> sideOutputTag2 = new OutputTag<Integer>("side") {};
 
@@ -386,7 +386,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test ProcessFunction side output. */
     @Test
-    public void testProcessFunctionSideOutput() throws Exception {
+    void testProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -424,7 +424,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test CoProcessFunction side output. */
     @Test
-    public void testCoProcessFunctionSideOutput() throws Exception {
+    void testCoProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -482,7 +482,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test CoProcessFunction side output with multiple consumers. */
     @Test
-    public void testCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+    void testCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2") {};
 
@@ -539,7 +539,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test keyed ProcessFunction side output. */
     @Test
-    public void testKeyedProcessFunctionSideOutput() throws Exception {
+    void testKeyedProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -588,7 +588,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test keyed CoProcessFunction side output. */
     @Test
-    public void testLegacyKeyedCoProcessFunctionSideOutput() throws Exception {
+    void testLegacyKeyedCoProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -647,7 +647,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test keyed KeyedCoProcessFunction side output. */
     @Test
-    public void testKeyedCoProcessFunctionSideOutput() throws Exception {
+    void testKeyedCoProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -712,7 +712,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test keyed CoProcessFunction side output with multiple consumers. */
     @Test
-    public void testLegacyKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+    void testLegacyKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2") {};
 
@@ -770,7 +770,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test keyed KeyedCoProcessFunction side output with multiple consumers. */
     @Test
-    public void testKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+    void testKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2") {};
 
@@ -834,7 +834,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test ProcessFunction side outputs with wrong {@code OutputTag}. */
     @Test
-    public void testProcessFunctionSideOutputWithWrongTag() throws Exception {
+    void testProcessFunctionSideOutputWithWrongTag() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side") {};
 
@@ -893,7 +893,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     /** Test window late arriving events stream. */
     @Test
-    public void testAllWindowLateArrivingEvents() throws Exception {
+    void testAllWindowLateArrivingEvents() throws Exception {
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -946,7 +946,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testKeyedWindowLateArrivingEvents() throws Exception {
+    void testKeyedWindowLateArrivingEvents() throws Exception {
         TestListResultSink<String> resultSink = new TestListResultSink<>();
         TestListResultSink<Integer> lateResultSink = new TestListResultSink<>();
 
@@ -997,7 +997,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testProcessdWindowFunctionSideOutput() throws Exception {
+    void testProcessdWindowFunctionSideOutput() throws Exception {
         TestListResultSink<Integer> resultSink = new TestListResultSink<>();
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
@@ -1043,7 +1043,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testProcessAllWindowFunctionSideOutput() throws Exception {
+    void testProcessAllWindowFunctionSideOutput() throws Exception {
         TestListResultSink<Integer> resultSink = new TestListResultSink<>();
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
@@ -1088,7 +1088,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     @Test
-    public void testUnionOfTwoSideOutputs() throws Exception {
+    void testUnionOfTwoSideOutputs() throws Exception {
         TestListResultSink<Integer> evensResultSink = new TestListResultSink<>();
         TestListResultSink<Integer> oddsResultSink = new TestListResultSink<>();
         TestListResultSink<Integer> oddsUEvensResultSink = new TestListResultSink<>();

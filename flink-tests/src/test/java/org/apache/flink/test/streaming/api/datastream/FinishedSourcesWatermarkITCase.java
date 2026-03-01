@@ -51,7 +51,7 @@ class FinishedSourcesWatermarkITCase {
     private static final AtomicBoolean DOWNSTREAM_CHECKPOINT_10_WATERMARK_ACK = new AtomicBoolean();
 
     @Test
-    public void testTwoConsecutiveFinishedTasksShouldPropagateMaxWatermark() throws Exception {
+    void testTwoConsecutiveFinishedTasksShouldPropagateMaxWatermark() throws Exception {
         Configuration conf = new Configuration();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 

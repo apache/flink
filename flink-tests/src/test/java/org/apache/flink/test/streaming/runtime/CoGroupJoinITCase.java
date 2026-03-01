@@ -55,7 +55,7 @@ class CoGroupJoinITCase extends AbstractTestBase {
     private static List<String> testResults;
 
     @Test
-    public void testCoGroup() throws Exception {
+    void testCoGroup() throws Exception {
 
         testResults = new ArrayList<>();
 
@@ -131,7 +131,7 @@ class CoGroupJoinITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testJoin() throws Exception {
+    void testJoin() throws Exception {
 
         testResults = new ArrayList<>();
 
@@ -207,7 +207,7 @@ class CoGroupJoinITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testSelfJoin() throws Exception {
+    void testSelfJoin() throws Exception {
 
         testResults = new ArrayList<>();
 
@@ -285,7 +285,7 @@ class CoGroupJoinITCase extends AbstractTestBase {
      * @see <a href="https://issues.apache.org/jira/browse/FLINK-6808">FLINK-6808</a>
      */
     @Test
-    public void testCoGroupOperatorWithCheckpoint() throws Exception {
+    void testCoGroupOperatorWithCheckpoint() throws Exception {
 
         // generate an operator for the co-group operation
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

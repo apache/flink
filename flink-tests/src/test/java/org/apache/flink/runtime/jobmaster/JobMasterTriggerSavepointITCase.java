@@ -186,7 +186,7 @@ class JobMasterTriggerSavepointITCase {
     }
 
     @Test
-    public void testStopJobAfterSavepoint(@InjectClusterClient ClusterClient<?> clusterClient)
+    void testStopJobAfterSavepoint(@InjectClusterClient ClusterClient<?> clusterClient)
             throws Exception {
         setUpWithCheckpointInterval(10L, clusterClient);
 
@@ -203,7 +203,7 @@ class JobMasterTriggerSavepointITCase {
     }
 
     @Test
-    public void testStopJobAfterSavepointWithDeactivatedPeriodicCheckpointing(
+    void testStopJobAfterSavepointWithDeactivatedPeriodicCheckpointing(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         // set checkpointInterval to Long.MAX_VALUE, which means deactivated checkpointing
         setUpWithCheckpointInterval(Long.MAX_VALUE, clusterClient);
@@ -223,8 +223,8 @@ class JobMasterTriggerSavepointITCase {
 
     @Test
     @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
-    public void testDoNotCancelJobIfSavepointFails(
-            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
+    void testDoNotCancelJobIfSavepointFails(@InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         setUpWithCheckpointInterval(10L, clusterClient);
 
         try {
@@ -330,7 +330,7 @@ class JobMasterTriggerSavepointITCase {
      * with a meaningful exception message.
      */
     @Test
-    public void testCancelWithSavepointWithoutConfiguredSavepointDirectory(
+    void testCancelWithSavepointWithoutConfiguredSavepointDirectory(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         setUpWithCheckpointInterval(10L, clusterClient);
 

@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GlobalAggregateITCase extends AbstractTestBase {
 
     @Test
-    public void testSuccessfulUpdateToGlobalAggregate() throws Exception {
+    void testSuccessfulUpdateToGlobalAggregate() throws Exception {
         StreamExecutionEnvironment streamExecutionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -49,7 +49,7 @@ class GlobalAggregateITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testExceptionThrowingAggregateFunction() throws Exception {
+    void testExceptionThrowingAggregateFunction() throws Exception {
         StreamExecutionEnvironment streamExecutionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 

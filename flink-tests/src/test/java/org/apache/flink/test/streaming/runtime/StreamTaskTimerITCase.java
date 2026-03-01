@@ -57,7 +57,7 @@ class StreamTaskTimerITCase extends AbstractTestBase {
      * synchronize in the source contexts.
      */
     @Test
-    public void testOperatorChainedToSource() throws Exception {
+    void testOperatorChainedToSource() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -89,7 +89,7 @@ class StreamTaskTimerITCase extends AbstractTestBase {
      * synchronize in the source contexts.
      */
     @Test
-    public void testOneInputOperatorWithoutChaining() throws Exception {
+    void testOneInputOperatorWithoutChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -105,7 +105,7 @@ class StreamTaskTimerITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTwoInputOperatorWithoutChaining() throws Exception {
+    void testTwoInputOperatorWithoutChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 

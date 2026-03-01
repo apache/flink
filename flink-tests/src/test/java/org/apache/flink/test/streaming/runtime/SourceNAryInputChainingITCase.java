@@ -74,7 +74,7 @@ class SourceNAryInputChainingITCase {
     // because those are the only ones where the runtime supports chaining at the moment.
 
     @Test
-    public void testDirectSourcesOnlyChainCreation() throws Exception {
+    void testDirectSourcesOnlyChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithSourcesOnly();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
@@ -82,7 +82,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testDirectSourcesOnlyExecution() throws Exception {
+    void testDirectSourcesOnlyExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithSourcesOnly();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");
@@ -91,7 +91,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testMixedInputsChainCreation() throws Exception {
+    void testMixedInputsChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithMixedInputs();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
@@ -99,7 +99,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testMixedInputsExecution() throws Exception {
+    void testMixedInputsExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithMixedInputs();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");
@@ -108,7 +108,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testMixedInputsWithUnionChainCreation() throws Exception {
+    void testMixedInputsWithUnionChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithUnionInput();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
@@ -116,7 +116,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testMixedInputsWithUnionExecution() throws Exception {
+    void testMixedInputsWithUnionExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithUnionInput();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");
@@ -125,7 +125,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testMixedInputsWithMultipleUnionsChainCreation() throws Exception {
+    void testMixedInputsWithMultipleUnionsChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithMultipleUnionInputs();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
@@ -133,7 +133,7 @@ class SourceNAryInputChainingITCase {
     }
 
     @Test
-    public void testMixedInputsWithMultipleUnionsExecution() throws Exception {
+    void testMixedInputsWithMultipleUnionsExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithMultipleUnionInputs();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");

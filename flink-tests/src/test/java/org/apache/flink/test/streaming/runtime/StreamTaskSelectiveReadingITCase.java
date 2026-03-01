@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for selective reading of {@code TwoInputStreamTask}. */
 class StreamTaskSelectiveReadingITCase {
     @Test
-    public void testSequentialReading() throws Exception {
+    void testSequentialReading() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
