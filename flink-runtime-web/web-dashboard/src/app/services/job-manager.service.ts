@@ -28,7 +28,8 @@ import {
   MetricMap,
   JobManagerLogDetail,
   ClusterConfiguration,
-  EnvironmentInfo
+  EnvironmentInfo,
+  BlocklistResponse
 } from '@flink-runtime-web/interfaces';
 import { ProfilingDetail, ProfilingList } from '@flink-runtime-web/interfaces/job-profiler';
 
@@ -148,5 +149,9 @@ export class JobManagerService {
           };
         })
       );
+  }
+
+  loadBlocklist(): Observable<BlocklistResponse> {
+    return this.httpClient.get<BlocklistResponse>(`${this.configService.BASE_URL}/cluster/blocklist`);
   }
 }
