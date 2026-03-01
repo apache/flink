@@ -60,7 +60,7 @@ EXIT_CODE=0
 
 # run with -T1 because our maven output parsers don't support multi-threaded builds
 $MVN clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence \
-    -Dmaven.javadoc.skip=true -U -DskipTests "${@}" -T1 | tee $MVN_CLEAN_COMPILE_OUT
+    -Dmaven.javadoc.skip=true -U -DskipTests -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG "${@}" -T1 | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
 
