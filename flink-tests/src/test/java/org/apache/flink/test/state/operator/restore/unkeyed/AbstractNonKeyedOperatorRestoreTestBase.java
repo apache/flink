@@ -35,7 +35,7 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
     @Override
-    public void createMigrationJob(StreamExecutionEnvironment env) {
+    protected void createMigrationJob(StreamExecutionEnvironment env) {
         /** Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3) */
         DataStream<Integer> source = createSource(env, ExecutionMode.MIGRATE);
 

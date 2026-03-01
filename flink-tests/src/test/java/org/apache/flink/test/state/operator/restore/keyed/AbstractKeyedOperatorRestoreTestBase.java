@@ -29,7 +29,7 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
     @Override
-    public void createMigrationJob(StreamExecutionEnvironment env) {
+    protected void createMigrationJob(StreamExecutionEnvironment env) {
         /** Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2) */
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> source =
                 KeyedJob.createIntegerTupleSource(env, ExecutionMode.MIGRATE);

@@ -100,15 +100,14 @@ class StreamOperatorSnapshotRestoreTest {
     /** Test restoring an operator from a snapshot (local recovery deactivated). */
     @ParameterizedTest
     @EnumSource(value = StateBackendEnum.class)
-    public void testOperatorStatesSnapshotRestore(StateBackendEnum stateBackendEnum)
-            throws Exception {
+    void testOperatorStatesSnapshotRestore(StateBackendEnum stateBackendEnum) throws Exception {
         testOperatorStatesSnapshotRestoreInternal(ONLY_JM_RECOVERY, stateBackendEnum);
     }
 
     /** Test restoring an operator from a snapshot (local recovery activated). */
     @ParameterizedTest
     @EnumSource(value = StateBackendEnum.class)
-    public void testOperatorStatesSnapshotRestoreWithLocalState(StateBackendEnum stateBackendEnum)
+    void testOperatorStatesSnapshotRestoreWithLocalState(StateBackendEnum stateBackendEnum)
             throws Exception {
         testOperatorStatesSnapshotRestoreInternal(TM_AND_JM_RECOVERY, stateBackendEnum);
     }
@@ -121,8 +120,8 @@ class StreamOperatorSnapshotRestoreTest {
      */
     @ParameterizedTest
     @EnumSource(value = StateBackendEnum.class)
-    public void testOperatorStatesSnapshotRestoreWithLocalStateDeletedJM(
-            StateBackendEnum stateBackendEnum) throws Exception {
+    void testOperatorStatesSnapshotRestoreWithLocalStateDeletedJM(StateBackendEnum stateBackendEnum)
+            throws Exception {
         testOperatorStatesSnapshotRestoreInternal(TM_REMOVE_JM_RECOVERY, stateBackendEnum);
     }
 
@@ -135,8 +134,8 @@ class StreamOperatorSnapshotRestoreTest {
      */
     @ParameterizedTest
     @EnumSource(value = StateBackendEnum.class)
-    public void testOperatorStatesSnapshotRestoreWithLocalStateDeletedTM(
-            StateBackendEnum stateBackendEnum) throws Exception {
+    void testOperatorStatesSnapshotRestoreWithLocalStateDeletedTM(StateBackendEnum stateBackendEnum)
+            throws Exception {
         testOperatorStatesSnapshotRestoreInternal(JM_REMOVE_TM_RECOVERY, stateBackendEnum);
     }
 
