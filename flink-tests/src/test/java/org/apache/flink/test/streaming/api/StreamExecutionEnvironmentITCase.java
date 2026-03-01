@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class StreamExecutionEnvironmentITCase {
 
     @RegisterExtension
-    public static final MiniClusterExtension MINI_CLUSTER =
+    private static final MiniClusterExtension MINI_CLUSTER =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)

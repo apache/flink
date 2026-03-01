@@ -62,7 +62,7 @@ class MultipleInputITCase extends AbstractTestBase {
         testNonKeyed(true);
     }
 
-    public void testNonKeyed(boolean withUnion) throws Exception {
+    private void testNonKeyed(boolean withUnion) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 

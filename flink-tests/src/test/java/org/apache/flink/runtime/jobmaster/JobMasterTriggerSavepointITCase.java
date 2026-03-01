@@ -101,35 +101,35 @@ class JobMasterTriggerSavepointITCase {
     @TempDir protected File temporaryFolder;
 
     @RegisterExtension
-    public final LoggerAuditingExtension standaloneResourceManagerLogging =
+    private final LoggerAuditingExtension standaloneResourceManagerLogging =
             new LoggerAuditingExtension(StandaloneResourceManager.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension adaptiveSchedulerLogging =
+    private final LoggerAuditingExtension adaptiveSchedulerLogging =
             new LoggerAuditingExtension(AdaptiveScheduler.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension defaultStateTransitionManagerLogging =
+    private final LoggerAuditingExtension defaultStateTransitionManagerLogging =
             new LoggerAuditingExtension(DefaultStateTransitionManager.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension defaultResourceTrackerLogging =
+    private final LoggerAuditingExtension defaultResourceTrackerLogging =
             new LoggerAuditingExtension(DefaultResourceTracker.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension defaultSlotStatusSyncerLogging =
+    private final LoggerAuditingExtension defaultSlotStatusSyncerLogging =
             new LoggerAuditingExtension(DefaultSlotStatusSyncer.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension fineGrainedTaskManagerTrackerLogging =
+    private final LoggerAuditingExtension fineGrainedTaskManagerTrackerLogging =
             new LoggerAuditingExtension(FineGrainedTaskManagerTracker.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension fineGrainedSlotManagerLogging =
+    private final LoggerAuditingExtension fineGrainedSlotManagerLogging =
             new LoggerAuditingExtension(FineGrainedSlotManager.class, TRACE);
 
     @RegisterExtension
-    public static MiniClusterExtension miniClusterResource =
+    private static MiniClusterExtension miniClusterResource =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
