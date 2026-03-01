@@ -63,7 +63,7 @@ class JobCancelingITCase {
                             .build());
 
     @Test
-    public void testCancelingWhileBackPressured(
+    void testCancelingWhileBackPressured(
             @InjectMiniCluster MiniCluster miniCluster,
             @InjectClusterClient ClusterClient<?> client)
             throws Exception {

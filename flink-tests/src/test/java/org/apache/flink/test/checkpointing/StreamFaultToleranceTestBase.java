@@ -76,7 +76,7 @@ abstract class StreamFaultToleranceTestBase {
     @TempDir public static File tempFolder;
 
     @BeforeEach
-    public void setup() throws Exception {
+    void setup() throws Exception {
         Configuration configuration = new Configuration();
         switch (failoverStrategy) {
             case RestartPipelinedRegionFailoverStrategy:
@@ -103,7 +103,7 @@ abstract class StreamFaultToleranceTestBase {
     }
 
     @AfterEach
-    public void shutDownExistingCluster() {
+    void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -124,7 +124,7 @@ abstract class StreamFaultToleranceTestBase {
      * #testProgram(StreamExecutionEnvironment)} followed by the checks in {@link #postSubmit}.
      */
     @TestTemplate
-    public void runCheckpointedProgram() throws Exception {
+    void runCheckpointedProgram() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(500);

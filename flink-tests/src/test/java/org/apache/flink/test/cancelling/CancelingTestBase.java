@@ -69,7 +69,7 @@ abstract class CancelingTestBase {
                             .build());
 
     @BeforeEach
-    public void getClusterClient(@InjectClusterClient ClusterClient<?> clusterClient) {
+    void getClusterClient(@InjectClusterClient ClusterClient<?> clusterClient) {
         this.clusterClient = clusterClient;
     }
 
