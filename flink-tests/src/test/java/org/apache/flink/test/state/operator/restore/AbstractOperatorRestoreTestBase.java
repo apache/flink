@@ -94,7 +94,7 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
     }
 
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private final ScheduledExecutor scheduledExecutor =
@@ -130,7 +130,7 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
     private ClusterClient<?> clusterClient;
 
     @BeforeEach
-    public void setClusterClient(@InjectClusterClient ClusterClient<?> clusterClient) {
+    void setClusterClient(@InjectClusterClient ClusterClient<?> clusterClient) {
         this.clusterClient = clusterClient;
     }
 
@@ -156,7 +156,7 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
     }
 
     @TestTemplate
-    public void testMigrationAndRestore() throws Throwable {
+    void testMigrationAndRestore() throws Throwable {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
         // submit job with old version savepoint and create a migrated savepoint in the new version

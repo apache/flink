@@ -37,7 +37,7 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 class ChainUnionTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
     @Override
-    public void createRestoredJob(StreamExecutionEnvironment env) {
+    protected void createRestoredJob(StreamExecutionEnvironment env) {
         /**
          * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
          * Modified job: Source -> CHAIN(StatefulMap1 -> StatefulMap2 -> Map -> StatefulMap3)
