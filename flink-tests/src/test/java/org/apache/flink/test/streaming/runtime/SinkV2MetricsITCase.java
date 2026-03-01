@@ -85,7 +85,7 @@ class SinkV2MetricsITCase {
                             .build());
 
     @Test
-    public void testMetrics() throws Exception {
+    void testMetrics() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         int numSplits = Math.max(1, env.getParallelism() - 2);
 
@@ -131,7 +131,7 @@ class SinkV2MetricsITCase {
     }
 
     @Test
-    public void testCommitterMetrics() throws Exception {
+    void testCommitterMetrics() throws Exception {
         final int numCommittables = 7;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 

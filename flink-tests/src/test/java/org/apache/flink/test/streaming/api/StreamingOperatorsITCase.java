@@ -63,7 +63,7 @@ class StreamingOperatorsITCase extends AbstractTestBase {
      * elements by doubling their value. This is tested in for the ordered and unordered mode.
      */
     @Test
-    public void testAsyncWaitOperator() throws Exception {
+    void testAsyncWaitOperator() throws Exception {
         final int numElements = 5;
         final long timeout = 1000L;
 
@@ -216,7 +216,7 @@ class StreamingOperatorsITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
+    void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
         DataStream<Integer> input = env.fromData(1, 2, 3);

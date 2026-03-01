@@ -61,7 +61,7 @@ class NumberSequenceSourceITCase {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testParallelSourceExecution() throws Exception {
+    void testParallelSourceExecution() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
 
@@ -78,7 +78,7 @@ class NumberSequenceSourceITCase {
     }
 
     @Test
-    public void testCheckpointingWithDelayedAssignment() throws Exception {
+    void testCheckpointingWithDelayedAssignment() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         RestartStrategyUtils.configureNoRestartStrategy(env);
@@ -99,7 +99,7 @@ class NumberSequenceSourceITCase {
     }
 
     @Test
-    public void testLessSplitsThanParallelism() throws Exception {
+    void testLessSplitsThanParallelism() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         int n = PARALLELISM - 2;

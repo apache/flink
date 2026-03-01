@@ -83,7 +83,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class SortingBoundedInputITCase extends AbstractTestBase {
 
     @Test
-    public void testOneInputOperator() throws Exception {
+    void testOneInputOperator() throws Exception {
         long numberOfRecords = 1_000_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -114,7 +114,7 @@ class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTwoInputOperator() throws Exception {
+    void testTwoInputOperator() throws Exception {
         long numberOfRecords = 500_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -153,7 +153,7 @@ class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testThreeInputOperator() throws Exception {
+    void testThreeInputOperator() throws Exception {
         long numberOfRecords = 500_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -208,7 +208,7 @@ class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBatchExecutionWithTimersOneInput() throws Exception {
+    void testBatchExecutionWithTimersOneInput() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // set parallelism to 1 to have consistent order of results
 
@@ -334,7 +334,7 @@ class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBatchExecutionWithTimersTwoInput() throws Exception {
+    void testBatchExecutionWithTimersTwoInput() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // set parallelism to 1 to have consistent order of results
 

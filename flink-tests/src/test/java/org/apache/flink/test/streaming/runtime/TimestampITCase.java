@@ -105,7 +105,7 @@ class TimestampITCase {
     }
 
     @BeforeEach
-    public void setupLatch() {
+    void setupLatch() {
         // ensure that we get a fresh latch for each test
         latch = new MultiShotLatch();
     }
@@ -121,7 +121,7 @@ class TimestampITCase {
      * behaviour.
      */
     @Test
-    public void testWatermarkPropagation() throws Exception {
+    void testWatermarkPropagation() throws Exception {
         final int numWatermarks = 10;
 
         long initialTime = 0L;
@@ -169,7 +169,7 @@ class TimestampITCase {
     }
 
     @Test
-    public void testSelfUnionWatermarkPropagation() throws Exception {
+    void testSelfUnionWatermarkPropagation() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         DataStream<Integer> dataStream1 = env.fromData(1, 2, 3);
@@ -188,7 +188,7 @@ class TimestampITCase {
     }
 
     @Test
-    public void testWatermarkPropagationNoFinalWatermarkOnStop(
+    void testWatermarkPropagationNoFinalWatermarkOnStop(
             @InjectClusterClient ClusterClient<?> clusterClient,
             @InjectClusterClient RestClusterClient<?> restClusterClient)
             throws Exception {
@@ -302,7 +302,7 @@ class TimestampITCase {
      * transmission and between chained operators when timestamps are enabled.
      */
     @Test
-    public void testTimestampHandling() throws Exception {
+    void testTimestampHandling() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -328,7 +328,7 @@ class TimestampITCase {
      * Verifies that we don't have timestamps when the source doesn't emit them with the records.
      */
     @Test
-    public void testDisabledTimestamps() throws Exception {
+    void testDisabledTimestamps() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -355,7 +355,7 @@ class TimestampITCase {
      * watermarks are also correctly forwarded from this with the auto watermark interval.
      */
     @Test
-    public void testTimestampExtractorWithAutoInterval() throws Exception {
+    void testTimestampExtractorWithAutoInterval() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -423,7 +423,7 @@ class TimestampITCase {
      * watermark are correctly forwarded from the custom watermark emit function.
      */
     @Test
-    public void testTimestampExtractorWithCustomWatermarkEmit() throws Exception {
+    void testTimestampExtractorWithCustomWatermarkEmit() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -499,7 +499,7 @@ class TimestampITCase {
 
     /** This test verifies that the timestamp extractor does not emit decreasing watermarks. */
     @Test
-    public void testTimestampExtractorWithDecreasingCustomWatermarkEmit() throws Exception {
+    void testTimestampExtractorWithDecreasingCustomWatermarkEmit() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -576,7 +576,7 @@ class TimestampITCase {
 
     /** This test verifies that the timestamp extractor forwards Long.MAX_VALUE watermarks. */
     @Test
-    public void testTimestampExtractorWithLongMaxWatermarkFromSource() throws Exception {
+    void testTimestampExtractorWithLongMaxWatermarkFromSource() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -626,7 +626,7 @@ class TimestampITCase {
      * <p>Same test as before, but using a different timestamp extractor.
      */
     @Test
-    public void testTimestampExtractorWithLongMaxWatermarkFromSource2() throws Exception {
+    void testTimestampExtractorWithLongMaxWatermarkFromSource2() throws Exception {
         final int numElements = 10;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -671,7 +671,7 @@ class TimestampITCase {
     }
 
     @Test
-    public void testErrorOnEventTimeOverProcessingTime() {
+    void testErrorOnEventTimeOverProcessingTime() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(2);
@@ -701,7 +701,7 @@ class TimestampITCase {
     }
 
     @Test
-    public void testErrorOnEventTimeWithoutTimestamps() {
+    void testErrorOnEventTimeWithoutTimestamps() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(2);

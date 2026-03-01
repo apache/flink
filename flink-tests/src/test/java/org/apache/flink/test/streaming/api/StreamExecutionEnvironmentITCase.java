@@ -51,7 +51,7 @@ class StreamExecutionEnvironmentITCase {
                             .build());
 
     @Test
-    public void executeThrowsProgramInvocationException() {
+    void executeThrowsProgramInvocationException() {
         Configuration config = new Configuration(MINI_CLUSTER.getClientConfiguration());
         config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
         config.set(DeploymentOptions.ATTACHED, true);

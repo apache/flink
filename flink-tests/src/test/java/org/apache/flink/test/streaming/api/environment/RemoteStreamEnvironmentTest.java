@@ -67,7 +67,7 @@ class RemoteStreamEnvironmentTest {
      * cluster.
      */
     @Test
-    public void testPortForwarding() throws Exception {
+    void testPortForwarding() throws Exception {
         String host = "fakeHost";
         int port = 99;
         JobID jobId = new JobID();
@@ -94,7 +94,7 @@ class RemoteStreamEnvironmentTest {
     }
 
     @Test
-    public void testRemoteExecutionWithSavepoint() throws Exception {
+    void testRemoteExecutionWithSavepoint() throws Exception {
         SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
         JobID jobID = new JobID();
 

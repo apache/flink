@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class JobMasterITCase {
 
     @Test
-    public void testRejectionOfEmptyJobGraphs() throws Exception {
+    void testRejectionOfEmptyJobGraphs() throws Exception {
         MiniClusterResource miniCluster =
                 new MiniClusterResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -75,7 +75,7 @@ class JobMasterITCase {
      * <p>TODO: This test relies on an internal error. Replace it with a more robust approach.
      */
     @Test
-    public void testJobManagerInitializationExceptionsAreForwardedToTheUser() {
+    void testJobManagerInitializationExceptionsAreForwardedToTheUser() {
         // we must use the LocalStreamEnvironment to reproduce this issue.
         // It passes with the TestStreamEnvironment (which is initialized by the
         // MiniClusterResource). The LocalStreamEnvironment is polling the JobManager for the job

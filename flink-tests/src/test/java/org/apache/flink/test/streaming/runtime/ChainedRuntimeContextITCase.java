@@ -35,7 +35,7 @@ class ChainedRuntimeContextITCase extends AbstractTestBase {
     private static RuntimeContext mapContext;
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 

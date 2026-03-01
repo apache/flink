@@ -109,7 +109,7 @@ class SinkV2ITCase extends AbstractTestBase {
     static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
 
     @Test
-    public void writerAndCommitterExecuteInStreamingMode() throws Exception {
+    void writerAndCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
@@ -131,7 +131,7 @@ class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndPrecommitToplogyAndCommitterExecuteInStreamingMode() throws Exception {
+    void writerAndPrecommitToplogyAndCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
@@ -162,7 +162,7 @@ class SinkV2ITCase extends AbstractTestBase {
 
     @ParameterizedTest
     @CsvSource({"1, 2", "2, 1", "1, 1"})
-    public void writerAndCommitterExecuteInStreamingModeWithScaling(
+    void writerAndCommitterExecuteInStreamingModeWithScaling(
             int initialParallelism,
             int scaledParallelism,
             @TempDir File checkpointDir,
@@ -204,7 +204,7 @@ class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndCommitterExecuteInBatchMode() throws Exception {
+    void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
@@ -231,7 +231,7 @@ class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndPrecommitToplogyAndCommitterExecuteInBatchMode() throws Exception {
+    void writerAndPrecommitToplogyAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());

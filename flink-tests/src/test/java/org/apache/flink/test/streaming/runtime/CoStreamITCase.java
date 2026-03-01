@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CoStreamITCase extends AbstractTestBase {
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);

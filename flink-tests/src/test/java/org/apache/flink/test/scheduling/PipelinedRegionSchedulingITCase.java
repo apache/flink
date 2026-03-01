@@ -67,13 +67,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PipelinedRegionSchedulingITCase {
 
     @Test
-    public void testSuccessWithSlotsNoFewerThanTheMaxRegionRequired() throws Exception {
+    void testSuccessWithSlotsNoFewerThanTheMaxRegionRequired() throws Exception {
         final JobResult jobResult = executeSchedulingTest(2);
         assertThat(jobResult.getSerializedThrowable()).isEmpty();
     }
 
     @Test
-    public void testFailsOnInsufficientSlots() throws Exception {
+    void testFailsOnInsufficientSlots() throws Exception {
         final JobResult jobResult = executeSchedulingTest(1);
         assertThat(jobResult.getSerializedThrowable()).isPresent();
 
@@ -91,7 +91,7 @@ class PipelinedRegionSchedulingITCase {
 
     @Test
     @Timeout(value = 2, unit = TimeUnit.MINUTES)
-    public void testRecoverFromPartitionException() throws Exception {
+    void testRecoverFromPartitionException() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);

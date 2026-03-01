@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BroadcastStateITCase extends AbstractTestBase {
 
     @Test
-    public void testKeyedWithBroadcastTranslation() throws Exception {
+    void testKeyedWithBroadcastTranslation() throws Exception {
 
         final MapStateDescriptor<Long, String> utterDescriptor =
                 new MapStateDescriptor<>(
@@ -107,7 +107,7 @@ class BroadcastStateITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBroadcastTranslation() throws Exception {
+    void testBroadcastTranslation() throws Exception {
 
         final MapStateDescriptor<Long, String> utterDescriptor =
                 new MapStateDescriptor<>(

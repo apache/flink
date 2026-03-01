@@ -61,7 +61,7 @@ class FileReadingWatermarkITCase {
      * <p>Before FLINK-19109, watermarks would not be emitted at this point.
      */
     @Test
-    public void testWatermarkEmissionWithChaining() throws Exception {
+    void testWatermarkEmissionWithChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
         env.getConfig().setAutoWatermarkInterval(WATERMARK_INTERVAL_MILLIS);
         SharedReference<CountDownLatch> latch =

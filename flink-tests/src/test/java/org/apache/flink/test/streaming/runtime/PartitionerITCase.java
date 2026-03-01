@@ -55,7 +55,7 @@ class PartitionerITCase extends AbstractTestBase {
     private static final List<String> INPUT = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
 
     @Test
-    public void testForwardFailsLowToHighParallelism() throws Exception {
+    void testForwardFailsLowToHighParallelism() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> src = env.fromData(1, 2, 3);
@@ -67,7 +67,7 @@ class PartitionerITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testForwardFailsHightToLowParallelism() throws Exception {
+    void testForwardFailsHightToLowParallelism() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // this does a rebalance that works
@@ -80,7 +80,7 @@ class PartitionerITCase extends AbstractTestBase {
     }
 
     @Test
-    public void partitionerTest() throws Exception {
+    void partitionerTest() throws Exception {
 
         TestListResultSink<Tuple2<Integer, String>> hashPartitionResultSink =
                 new TestListResultSink<Tuple2<Integer, String>>();

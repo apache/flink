@@ -45,7 +45,7 @@ class ContinuousFileReaderOperatorITCase {
 
     /** Tests https://issues.apache.org/jira/browse/FLINK-20888. */
     @Test
-    public void testChainedOperatorsAreNotPrematurelyClosed() throws Exception {
+    void testChainedOperatorsAreNotPrematurelyClosed() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         File input = TempDirUtils.newFile(tempDir);

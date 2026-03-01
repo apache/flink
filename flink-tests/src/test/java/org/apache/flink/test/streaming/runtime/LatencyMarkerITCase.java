@@ -43,7 +43,7 @@ class LatencyMarkerITCase {
      * with broadcast.
      */
     @Test
-    public void testBroadcast() throws Exception {
+    void testBroadcast() throws Exception {
         int inputCount = 100000;
         int parallelism = 4;
 

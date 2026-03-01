@@ -75,7 +75,7 @@ class SinkMetricsITCase {
                             .build());
 
     @Test
-    public void testMetrics() throws Exception {
+    void testMetrics() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         int numSplits = Math.max(1, env.getParallelism() - 2);
 

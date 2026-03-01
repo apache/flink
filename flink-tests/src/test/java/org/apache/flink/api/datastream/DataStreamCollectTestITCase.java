@@ -51,7 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DataStreamCollectTestITCase {
 
     @Test
-    public void testStreamingCollect() throws Exception {
+    void testStreamingCollect() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -66,7 +66,7 @@ class DataStreamCollectTestITCase {
     }
 
     @Test
-    public void testStreamingCollectAndLimit() throws Exception {
+    void testStreamingCollectAndLimit() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -79,7 +79,7 @@ class DataStreamCollectTestITCase {
     }
 
     @Test
-    public void testBoundedCollect() throws Exception {
+    void testBoundedCollect() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -98,7 +98,7 @@ class DataStreamCollectTestITCase {
     }
 
     @Test
-    public void testBoundedCollectAndLimit() throws Exception {
+    void testBoundedCollectAndLimit() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
@@ -115,7 +115,7 @@ class DataStreamCollectTestITCase {
     }
 
     @Test
-    public void testAsyncCollectWithSinkConfigs() {
+    void testAsyncCollectWithSinkConfigs() {
         Configuration configuration = new Configuration();
         configuration.set(CollectSinkOperatorFactory.SOCKET_TIMEOUT, Duration.ofMillis(2));
         configuration.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, new MemorySize(3));
@@ -140,7 +140,7 @@ class DataStreamCollectTestITCase {
     }
 
     @Test
-    public void testAsyncCollect() throws Exception {
+    void testAsyncCollect() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStream<Integer> stream1 = env.fromData(1, 2, 3, 4, 5);
@@ -163,7 +163,7 @@ class DataStreamCollectTestITCase {
     }
 
     @Test
-    public void testAsyncCollectWithCollector() throws Exception {
+    void testAsyncCollectWithCollector() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStream.Collector<Integer> collector1 = new DataStream.Collector<>();

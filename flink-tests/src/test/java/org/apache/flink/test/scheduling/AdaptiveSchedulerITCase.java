@@ -111,12 +111,12 @@ class AdaptiveSchedulerITCase {
     }
 
     @BeforeEach
-    public void ensureAdaptiveSchedulerEnabled() {
+    void ensureAdaptiveSchedulerEnabled() {
         assumeThat(ClusterOptions.isAdaptiveSchedulerEnabled(configuration)).isTrue();
     }
 
     @BeforeEach
-    public void createMiniCluster() throws Exception {
+    void createMiniCluster() throws Exception {
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -128,14 +128,14 @@ class AdaptiveSchedulerITCase {
     }
 
     @AfterEach
-    public void cancelRunningJobs() {
+    void cancelRunningJobs() {
         miniClusterResource.cancelAllJobsAndWaitUntilSlotsAreFreed();
         miniClusterResource.after();
     }
 
     /** Tests that the adaptive scheduler can recover stateful operators. */
     @Test
-    public void testGlobalFailoverCanRecoverState() throws Exception {
+    void testGlobalFailoverCanRecoverState() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
@@ -157,7 +157,7 @@ class AdaptiveSchedulerITCase {
     }
 
     @Test
-    public void testStopWithSavepointNoError() throws Exception {
+    void testStopWithSavepointNoError() throws Exception {
         StreamExecutionEnvironment env = getEnvWithSource(StopWithSavepointTestBehavior.NO_FAILURE);
 
         DummySource.resetForParallelism(PARALLELISM);
@@ -180,7 +180,7 @@ class AdaptiveSchedulerITCase {
     }
 
     @Test
-    public void testStopWithSavepointFailOnCheckpoint() throws Exception {
+    void testStopWithSavepointFailOnCheckpoint() throws Exception {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
@@ -206,7 +206,7 @@ class AdaptiveSchedulerITCase {
     }
 
     @Test
-    public void testStopWithSavepointFailOnStop() throws Throwable {
+    void testStopWithSavepointFailOnStop() throws Throwable {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
@@ -237,7 +237,7 @@ class AdaptiveSchedulerITCase {
     }
 
     @Test
-    public void testStopWithSavepointFailOnFirstSavepointSucceedOnSecond() throws Exception {
+    void testStopWithSavepointFailOnFirstSavepointSucceedOnSecond() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
@@ -282,7 +282,7 @@ class AdaptiveSchedulerITCase {
     }
 
     @Test
-    public void testExceptionHistoryIsRetrievableFromTheRestAPI() throws Exception {
+    void testExceptionHistoryIsRetrievableFromTheRestAPI() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
@@ -304,7 +304,7 @@ class AdaptiveSchedulerITCase {
     }
 
     @Test
-    public void testGlobalFailureOnRestart() throws Exception {
+    void testGlobalFailureOnRestart() throws Exception {
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
 
         final JobVertexID jobVertexId = new JobVertexID();

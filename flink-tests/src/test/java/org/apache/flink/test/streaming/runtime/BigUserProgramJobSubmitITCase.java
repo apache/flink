@@ -61,7 +61,7 @@ class BigUserProgramJobSubmitITCase {
 
     /** Use a map function that references a 100MB byte array. */
     @Test
-    public void bigDataInMap(@InjectClusterClient RestClusterClient<?> restClusterClient)
+    void bigDataInMap(@InjectClusterClient RestClusterClient<?> restClusterClient)
             throws Exception {
 
         final byte[] data = new byte[16 * 1024 * 1024]; // 16 MB

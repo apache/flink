@@ -91,7 +91,7 @@ class DataStreamBatchExecutionITCase {
      * that by suffixing the attempt number to records and asserting the correct number.
      */
     @Test
-    public void batchFailoverWithKeyByBarrier() throws Exception {
+    void batchFailoverWithKeyByBarrier() throws Exception {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
@@ -119,7 +119,7 @@ class DataStreamBatchExecutionITCase {
      * check that by suffixing the attempt number to records and asserting the correct number.
      */
     @Test
-    public void batchFailoverWithRebalanceBarrier() throws Exception {
+    void batchFailoverWithRebalanceBarrier() throws Exception {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
@@ -147,7 +147,7 @@ class DataStreamBatchExecutionITCase {
      * that by suffixing the attempt number to records and asserting the correct number.
      */
     @Test
-    public void batchFailoverWithRescaleBarrier() throws Exception {
+    void batchFailoverWithRescaleBarrier() throws Exception {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
@@ -173,7 +173,7 @@ class DataStreamBatchExecutionITCase {
     }
 
     @Test
-    public void batchReduceSingleResultPerKey() throws Exception {
+    void batchReduceSingleResultPerKey() throws Exception {
         StreamExecutionEnvironment env = getExecutionEnvironment();
         DataStreamSource<Long> numbers = env.fromSequence(0, 10);
 
@@ -188,7 +188,7 @@ class DataStreamBatchExecutionITCase {
     }
 
     @Test
-    public void batchSumSingleResultPerKey() throws Exception {
+    void batchSumSingleResultPerKey() throws Exception {
         StreamExecutionEnvironment env = getExecutionEnvironment();
         DataStreamSource<Long> numbers = env.fromSequence(0, 10);
 
@@ -208,7 +208,7 @@ class DataStreamBatchExecutionITCase {
      * <p>Here, the first input is keyed while the second input is not keyed.
      */
     @Test
-    public void batchKeyedNonKeyedTwoInputOperator() throws Exception {
+    void batchKeyedNonKeyedTwoInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -264,7 +264,7 @@ class DataStreamBatchExecutionITCase {
      * <p>Here, the first input is not keyed while the second input is keyed.
      */
     @Test
-    public void batchNonKeyedKeyedTwoInputOperator() throws Exception {
+    void batchNonKeyedKeyedTwoInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -315,7 +315,7 @@ class DataStreamBatchExecutionITCase {
 
     /** Verifies that all broadcast input is processed before keyed input. */
     @Test
-    public void batchKeyedBroadcastExecution() throws Exception {
+    void batchKeyedBroadcastExecution() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -371,7 +371,7 @@ class DataStreamBatchExecutionITCase {
 
     /** Verifies that all broadcast input is processed before regular input. */
     @Test
-    public void batchBroadcastExecution() throws Exception {
+    void batchBroadcastExecution() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -419,7 +419,7 @@ class DataStreamBatchExecutionITCase {
     }
 
     @Test
-    public void batchMixedKeyedAndNonKeyedTwoInputOperator() throws Exception {
+    void batchMixedKeyedAndNonKeyedTwoInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -476,7 +476,7 @@ class DataStreamBatchExecutionITCase {
     }
 
     @Test
-    public void batchMixedKeyedAndNonKeyedMultiInputOperator() throws Exception {
+    void batchMixedKeyedAndNonKeyedMultiInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
