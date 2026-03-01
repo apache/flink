@@ -105,6 +105,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -183,6 +185,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     private final AtomicReference<byte[]> latestTokens = new AtomicReference<>();
 
     private final NodeHealthManager nodeHealthManager;
+
+    /** Scheduled future for periodic cleanup of expired node health entries. */
+    @Nullable private ScheduledFuture<?> healthCleanupFuture;
 
     private final ResourceAllocator resourceAllocator;
 
@@ -299,6 +304,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
             delegationTokenManager.start(this);
 
+            healthCleanupFuture =
+                    getMainThreadExecutor()
+                            .scheduleAtFixedRate(
+                                    nodeHealthManager::cleanupExpired, 30, 30, TimeUnit.SECONDS);
+
             initialize();
         } catch (Exception e) {
             handleStartResourceManagerServicesException(e);
@@ -338,6 +348,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     private void stopResourceManagerServices() throws Exception {
         Exception exception = null;
+
+        if (healthCleanupFuture != null) {
+            healthCleanupFuture.cancel(false);
+            healthCleanupFuture = null;
+        }
 
         try {
             terminate();
