@@ -460,10 +460,22 @@ public class ExecutionJobVertex
         // serialize the task information!
         synchronized (stateMonitor) {
             if (taskInformationOrBlobKey == null) {
+                // check if JobVertex already has a cached key from a previous ExecutionGraph
+                PermanentBlobKey cachedKey = jobVertex.getTaskInformationBlobKey();
+                if (cachedKey != null) {
+                    taskInformationOrBlobKey = Either.Right(cachedKey);
+                    return taskInformationOrBlobKey;
+                }
+
                 final BlobWriter blobWriter = graph.getBlobWriter();
                 final TaskInformation taskInformation = getTaskInformation();
                 taskInformationOrBlobKey =
                         BlobWriter.serializeAndTryOffload(taskInformation, getJobId(), blobWriter);
+
+                // persist the key back to JobVertex so the next ExecutionGraph rebuild reuses it
+                if (taskInformationOrBlobKey.isRight()) {
+                    jobVertex.setTaskInformationBlobKey(taskInformationOrBlobKey.right());
+                }
             }
 
             return taskInformationOrBlobKey;

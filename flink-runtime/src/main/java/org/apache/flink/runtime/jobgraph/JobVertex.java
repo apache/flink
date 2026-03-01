@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -123,6 +124,13 @@ public class JobVertex implements java.io.Serializable {
 
     /** The group inside which the vertex subtasks share slots. */
     @Nullable private CoLocationGroupImpl coLocationGroup;
+
+    /**
+     * The blob key of the offloaded TaskInformation for this vertex. Stored here to enable reuse
+     * across ExecutionGraph rebuilds (e.g., during adaptive scheduler restarts), preventing
+     * unbounded accumulation of orphaned blobs in permanent storage.
+     */
+    @Nullable private PermanentBlobKey taskInformationBlobKey = null;
 
     /**
      * Optional, the name of the operator, such as 'Flat Map' or 'Join', to be included in the JSON
@@ -411,6 +419,15 @@ public class JobVertex implements java.io.Serializable {
 
     public List<SerializedValue<OperatorCoordinator.Provider>> getOperatorCoordinators() {
         return Collections.unmodifiableList(operatorCoordinators);
+    }
+
+    public void setTaskInformationBlobKey(@Nullable PermanentBlobKey key) {
+        this.taskInformationBlobKey = key;
+    }
+
+    @Nullable
+    public PermanentBlobKey getTaskInformationBlobKey() {
+        return taskInformationBlobKey;
     }
 
     public void addOperatorCoordinator(
