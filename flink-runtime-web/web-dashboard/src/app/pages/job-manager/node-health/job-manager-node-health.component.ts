@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { DatePipe, NgForOf, NgIf } from '@angular/common';
+import { NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import { catchError, takeUntil } from 'rxjs/operators';
@@ -34,7 +34,7 @@ import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
   templateUrl: './job-manager-node-health.component.html',
   styleUrls: ['./job-manager-node-health.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NzTagModule, NzSpinModule, NzEmptyModule, NzTooltipModule, DatePipe, NgForOf, NgIf]
+  imports: [NzTableModule, NzTagModule, NzSpinModule, NzEmptyModule, NzTooltipModule, NgForOf, NgIf]
 })
 export class JobManagerNodeHealthComponent implements OnInit, OnDestroy {
   blockedNodes: BlockedNodeInfo[] = [];
