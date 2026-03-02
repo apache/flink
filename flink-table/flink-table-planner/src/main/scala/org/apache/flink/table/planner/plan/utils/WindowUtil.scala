@@ -43,7 +43,6 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelVisitor}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeFamily
-import org.apache.calcite.sql.{SqlKind, SqlUtil}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
 
 import java.time.Duration
@@ -123,7 +122,7 @@ object WindowUtil {
       oldProgram: RexProgram,
       inputRowType: RelDataType,
       inputTimeAttributeIndex: Int,
-      windowColumns: Array[Int]): (RexProgram, Array[Int], Int, Boolean) = {
+      windowColumns: Array[Int]): (RexProgram, Array[Int], Integer, java.lang.Boolean) = {
     val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)
     // mapping from original field index to new field index
     var containsTimeAttribute = false
