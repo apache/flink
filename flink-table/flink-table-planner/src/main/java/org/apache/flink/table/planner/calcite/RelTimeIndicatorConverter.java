@@ -65,6 +65,7 @@ import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.logical.LogicalCalc;
 import org.apache.calcite.rel.logical.LogicalTableModify;
 import org.apache.calcite.rel.type.RelDataType;
@@ -78,6 +79,7 @@ import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -143,10 +145,11 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 || node instanceof FlinkLogicalDistribution
                 || node instanceof FlinkLogicalWatermarkAssigner
                 || node instanceof FlinkLogicalSort
-                || node instanceof FlinkLogicalOverAggregate
                 || node instanceof FlinkLogicalExpand
                 || node instanceof FlinkLogicalScriptTransform) {
             return visitSimpleRel(node);
+        } else if (node instanceof FlinkLogicalOverAggregate) {
+            return visitLogicalOverAggregate((FlinkLogicalOverAggregate) node);
         } else if (node instanceof FlinkLogicalWindowAggregate) {
             return visitWindowAggregate((FlinkLogicalWindowAggregate) node);
         } else if (node instanceof FlinkLogicalWindowTableAggregate) {
@@ -234,6 +237,54 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 match.getPartitionKeys(),
                 match.getOrderKeys(),
                 newInterval);
+    }
+
+    private RelNode visitLogicalOverAggregate(FlinkLogicalOverAggregate logical) {
+        final RelNode newInput = logical.getInput().accept(this);
+        final List<RelDataType> newDataTypeList =
+                new ArrayList<>(
+                        newInput.getRowType().getFieldList().stream()
+                                .map(RelDataTypeField::getType)
+                                .collect(Collectors.toList()));
+
+        final List<Window.Group> windowGroups = new ArrayList<>();
+        for (Window.Group group : logical.groups) {
+            final List<Window.RexWinAggCall> winCalls = new ArrayList<>();
+            for (Window.RexWinAggCall call : group.aggCalls) {
+                RelDataType callType;
+                if (isTimeIndicatorType(call.getType())) {
+                    callType =
+                            timestamp(
+                                    call.getType().isNullable(),
+                                    isTimestampLtzType(call.getType()));
+                } else {
+                    callType = call.getType();
+                }
+                winCalls.add(
+                        new Window.RexWinAggCall(
+                                (SqlAggFunction) call.op,
+                                callType,
+                                call.getOperands(),
+                                call.ordinal,
+                                call.distinct,
+                                call.ignoreNulls));
+                newDataTypeList.add(callType);
+            }
+            windowGroups.add(
+                    new Window.Group(
+                            group.keys,
+                            group.isRows,
+                            group.lowerBound,
+                            group.upperBound,
+                            group.orderKeys,
+                            winCalls));
+        }
+
+        final RelDataType newType =
+                logical.getCluster()
+                        .getTypeFactory()
+                        .createStructType(newDataTypeList, logical.getRowType().getFieldNames());
+        return logical.copy(logical.getTraitSet(), List.of(newInput), newType, windowGroups);
     }
 
     private RelNode visitCalc(FlinkLogicalCalc calc) {

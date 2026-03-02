@@ -526,6 +526,165 @@ Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTemporalJoinWithWatermarks">
+    <Resource name="sql">
+      <![CDATA[
+SELECT count(o.amount) OVER (PARTITION BY o.product_id) AS amount_count
+FROM orders AS o
+LEFT JOIN products FOR SYSTEM_TIME AS OF o.order_ts AS p
+ON o.product_id = p.product_id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount_count=[COUNT($1) OVER (PARTITION BY $0)])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[order_ts], watermark=[-($2, 5000:INTERVAL SECOND)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+   +- LogicalFilter(condition=[=($cor0.product_id, $0)])
+      +- LogicalSnapshot(period=[$cor0.order_ts])
+         +- LogicalWatermarkAssigner(rowtime=[mod_record_ts], watermark=[-($2, 60000:INTERVAL SECOND)])
+            +- LogicalProject(product_id=[$0], record_ts=[$1], mod_record_ts=[TO_TIMESTAMP($1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, products]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0])
++- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, COUNT(amount) AS w0$o0])
+   +- Exchange(distribution=[hash[product_id]])
+      +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
+         +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
+            :- Exchange(distribution=[hash[product_id]])
+            :  +- WatermarkAssigner(rowtime=[order_ts], watermark=[(order_ts - 5000:INTERVAL SECOND)])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[product_id, amount, order_ts])
+            +- Exchange(distribution=[hash[product_id]])
+               +- WatermarkAssigner(rowtime=[mod_record_ts], watermark=[(mod_record_ts - 60000:INTERVAL SECOND)])
+                  +- Calc(select=[product_id, record_ts, TO_TIMESTAMP(record_ts) AS mod_record_ts])
+                     +- TableSourceScan(table=[[default_catalog, default_database, products]], fields=[product_id, record_ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinWithWatermarksMix">
+    <Resource name="sql">
+      <![CDATA[
+SELECT first_value(o.order_ts) OVER (PARTITION BY o.product_id) AS first_order_ts,
+       min(o.order_ts) OVER (PARTITION BY o.product_id) AS min_order_ts,
+       max(o.amount) OVER (PARTITION BY o.product_id) AS max_amount
+FROM orders AS o
+LEFT JOIN products FOR SYSTEM_TIME AS OF o.order_ts AS p
+ON o.product_id = p.product_id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(first_order_ts=[FIRST_VALUE($2) OVER (PARTITION BY $0)], min_order_ts=[MIN($2) OVER (PARTITION BY $0)], max_amount=[MAX($1) OVER (PARTITION BY $0)])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[order_ts], watermark=[-($2, 5000:INTERVAL SECOND)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+   +- LogicalFilter(condition=[=($cor0.product_id, $0)])
+      +- LogicalSnapshot(period=[$cor0.order_ts])
+         +- LogicalWatermarkAssigner(rowtime=[mod_record_ts], watermark=[-($2, 60000:INTERVAL SECOND)])
+            +- LogicalProject(product_id=[$0], record_ts=[$1], mod_record_ts=[TO_TIMESTAMP($1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, products]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0, w0$o1 AS $1, w0$o2 AS $2])
++- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, FIRST_VALUE(order_ts) AS w0$o0, MIN(order_ts) AS w0$o1, MAX(amount) AS w0$o2])
+   +- Exchange(distribution=[hash[product_id]])
+      +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
+         +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
+            :- Exchange(distribution=[hash[product_id]])
+            :  +- WatermarkAssigner(rowtime=[order_ts], watermark=[(order_ts - 5000:INTERVAL SECOND)])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[product_id, amount, order_ts])
+            +- Exchange(distribution=[hash[product_id]])
+               +- WatermarkAssigner(rowtime=[mod_record_ts], watermark=[(mod_record_ts - 60000:INTERVAL SECOND)])
+                  +- Calc(select=[product_id, record_ts, TO_TIMESTAMP(record_ts) AS mod_record_ts])
+                     +- TableSourceScan(table=[[default_catalog, default_database, products]], fields=[product_id, record_ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinWithWatermarksSeveralFunctions">
+    <Resource name="sql">
+      <![CDATA[
+SELECT last_value(o.amount) OVER (PARTITION BY o.product_id ORDER BY o.order_ts) AS last_amount,
+       lag(o.amount) OVER (PARTITION BY o.product_id ORDER BY o.order_ts) AS prev_amount
+FROM orders AS o
+LEFT JOIN products FOR SYSTEM_TIME AS OF o.order_ts AS p
+ON o.product_id = p.product_id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(last_amount=[LAST_VALUE($1) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)], prev_amount=[LAG($1) OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[order_ts], watermark=[-($2, 5000:INTERVAL SECOND)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+   +- LogicalFilter(condition=[=($cor0.product_id, $0)])
+      +- LogicalSnapshot(period=[$cor0.order_ts])
+         +- LogicalWatermarkAssigner(rowtime=[mod_record_ts], watermark=[-($2, 60000:INTERVAL SECOND)])
+            +- LogicalProject(product_id=[$0], record_ts=[$1], mod_record_ts=[TO_TIMESTAMP($1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, products]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0, w0$o1 AS $1])
++- OverAggregate(partitionBy=[product_id], orderBy=[order_ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, LAST_VALUE(amount) AS w0$o0, LAG(amount) AS w0$o1])
+   +- Exchange(distribution=[hash[product_id]])
+      +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
+         +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
+            :- Exchange(distribution=[hash[product_id]])
+            :  +- WatermarkAssigner(rowtime=[order_ts], watermark=[(order_ts - 5000:INTERVAL SECOND)])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[product_id, amount, order_ts])
+            +- Exchange(distribution=[hash[product_id]])
+               +- WatermarkAssigner(rowtime=[mod_record_ts], watermark=[(mod_record_ts - 60000:INTERVAL SECOND)])
+                  +- Calc(select=[product_id, record_ts, TO_TIMESTAMP(record_ts) AS mod_record_ts])
+                     +- TableSourceScan(table=[[default_catalog, default_database, products]], fields=[product_id, record_ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinWithWatermarksWithMaterializedTimeArg">
+    <Resource name="sql">
+      <![CDATA[
+SELECT count(o.order_ts) OVER (PARTITION BY o.product_id) AS total_order_ts
+FROM orders AS o
+LEFT JOIN products FOR SYSTEM_TIME AS OF o.order_ts AS p
+ON o.product_id = p.product_id
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(total_order_ts=[COUNT($2) OVER (PARTITION BY $0)])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+   :- LogicalWatermarkAssigner(rowtime=[order_ts], watermark=[-($2, 5000:INTERVAL SECOND)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
+   +- LogicalFilter(condition=[=($cor0.product_id, $0)])
+      +- LogicalSnapshot(period=[$cor0.order_ts])
+         +- LogicalWatermarkAssigner(rowtime=[mod_record_ts], watermark=[-($2, 60000:INTERVAL SECOND)])
+            +- LogicalProject(product_id=[$0], record_ts=[$1], mod_record_ts=[TO_TIMESTAMP($1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, products]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0])
++- OverAggregate(partitionBy=[product_id], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts, COUNT(order_ts) AS w0$o0])
+   +- Exchange(distribution=[hash[product_id]])
+      +- Calc(select=[product_id, amount, order_ts, product_id0, record_ts, CAST(mod_record_ts AS TIMESTAMP(3)) AS mod_record_ts])
+         +- TemporalJoin(joinType=[LeftOuterJoin], where=[((product_id = product_id0) AND __TEMPORAL_JOIN_CONDITION(order_ts, mod_record_ts, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(product_id0), __TEMPORAL_JOIN_LEFT_KEY(product_id), __TEMPORAL_JOIN_RIGHT_KEY(product_id0)))], select=[product_id, amount, order_ts, product_id0, record_ts, mod_record_ts])
+            :- Exchange(distribution=[hash[product_id]])
+            :  +- WatermarkAssigner(rowtime=[order_ts], watermark=[(order_ts - 5000:INTERVAL SECOND)])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[product_id, amount, order_ts])
+            +- Exchange(distribution=[hash[product_id]])
+               +- WatermarkAssigner(rowtime=[mod_record_ts], watermark=[(mod_record_ts - 60000:INTERVAL SECOND)])
+                  +- Calc(select=[product_id, record_ts, TO_TIMESTAMP(record_ts) AS mod_record_ts])
+                     +- TableSourceScan(table=[[default_catalog, default_database, products]], fields=[product_id, record_ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWindowBoundaryWithSimplifiableExpressions[[1] expr=2 + 3]">
     <Resource name="sql">
       <![CDATA[
