@@ -271,6 +271,219 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
     }
   }, {
+    "url" : "/cluster/node-quarantine",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineListManagementResponseBody",
+      "properties" : {
+        "quarantinedNodes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineListManagementResponseBody:QuarantinedNodeInfo",
+            "properties" : {
+              "nodeId" : {
+                "type" : "string"
+              },
+              "cause" : {
+                "type" : "string"
+              },
+              "endTimestamp" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/cluster/node-quarantine",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineAddRequestBody",
+      "properties" : {
+        "nodeId" : {
+          "type" : "string"
+        },
+        "reason" : {
+          "type" : "string"
+        },
+        "duration" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineAddResponseBody",
+      "properties" : {
+        "message" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/cluster/node-quarantine/:nodeId",
+    "method" : "DELETE",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "nodeId"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineRemoveResponseBody",
+      "properties" : {
+        "message" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/cluster/nodes/quarantine",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineListResponseBody",
+      "properties" : {
+        "quarantinedNodes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineListResponseBody:NodeQuarantineInfo",
+            "properties" : {
+              "nodeId" : {
+                "type" : "string"
+              },
+              "hostname" : {
+                "type" : "string"
+              },
+              "reason" : {
+                "type" : "string"
+              },
+              "quarantineTimestamp" : {
+                "type" : "integer"
+              },
+              "expirationTimestamp" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/cluster/nodes/:nodeid/quarantine",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "nodeid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineRequestBody",
+      "properties" : {
+        "reason" : {
+          "type" : "string"
+        },
+        "duration" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineResponseBody",
+      "properties" : {
+        "success" : {
+          "type" : "boolean"
+        },
+        "message" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/cluster/nodes/:nodeid/quarantine",
+    "method" : "DELETE",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "nodeid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:cluster:NodeQuarantineResponseBody",
+      "properties" : {
+        "success" : {
+          "type" : "boolean"
+        },
+        "message" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
     "url" : "/config",
     "method" : "GET",
     "status-code" : "200 OK",
