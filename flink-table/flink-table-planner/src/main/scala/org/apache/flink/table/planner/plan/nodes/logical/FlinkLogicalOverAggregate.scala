@@ -52,15 +52,22 @@ class FlinkLogicalOverAggregate(
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: JList[RelNode]): RelNode = {
+    copy(traitSet, inputs, rowType, windowGroups)
+  }
+
+  def copy(
+      traitSet: RelTraitSet,
+      inputs: JList[RelNode],
+      rowType: RelDataType,
+      groups: JList[Window.Group]): RelNode = {
     new FlinkLogicalOverAggregate(
       cluster,
       traitSet,
       inputs.get(0),
       windowConstants,
-      getRowType,
-      windowGroups)
+      rowType,
+      groups)
   }
-
 }
 
 class FlinkLogicalOverAggregateConverter(config: Config) extends ConverterRule(config) {
