@@ -203,6 +203,9 @@ public class TaskManagerDisconnectOnShutdownITCase {
                     resourceManagerRuntimeServices.getSlotManager(),
                     ResourceManagerPartitionTrackerImpl::new,
                     BlocklistUtils.loadBlocklistHandlerFactory(configuration),
+                    org.apache.flink.runtime.management.nodequarantine.ManagementNodeQuarantineUtils
+                            .loadManagementNodeQuarantineHandlerFactory(
+                                    configuration, rpcService.getScheduledExecutor()),
                     resourceManagerRuntimeServices.getJobLeaderIdService(),
                     clusterInformation,
                     fatalErrorHandler,
