@@ -21,6 +21,8 @@ package org.apache.flink.model.openai;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -66,6 +68,12 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
 
     protected transient OpenAIClientAsync client;
 
+    // Inference metrics
+    private transient Counter inferenceRequests;
+    private transient Counter inferenceSuccess;
+    private transient Counter inferenceFailure;
+    private transient volatile long lastInferenceLatencyMs;
+
     private final ErrorHandlingStrategy errorHandlingStrategy;
     private final int numRetry;
     private final RetryFallbackStrategy retryFallbackStrategy;
@@ -107,6 +115,16 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         LOG.debug("Creating an OpenAI client.");
         this.client = OpenAIUtils.createAsyncClient(baseUrl, apiKey, numRetry);
         this.contextOverflowAction.initializeEncodingForContextLimit(model, maxContextSize);
+        registerMetrics(context.getMetricGroup());
+    }
+
+    private void registerMetrics(MetricGroup metricGroup) {
+        MetricGroup modelGroup = metricGroup.addGroup("model_inference");
+        this.inferenceRequests = modelGroup.counter("inference_requests");
+        this.inferenceSuccess = modelGroup.counter("inference_requests_success");
+        this.inferenceFailure = modelGroup.counter("inference_requests_failure");
+        this.lastInferenceLatencyMs = 0;
+        modelGroup.gauge("inference_latency_ms", () -> lastInferenceLatencyMs);
     }
 
     @Override
@@ -123,7 +141,18 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
 
-        return asyncPredictInternal(input);
+        inferenceRequests.inc();
+        final long startTime = System.currentTimeMillis();
+        return asyncPredictInternal(input)
+                .whenComplete(
+                        (result, throwable) -> {
+                            lastInferenceLatencyMs = System.currentTimeMillis() - startTime;
+                            if (throwable != null) {
+                                inferenceFailure.inc();
+                            } else {
+                                inferenceSuccess.inc();
+                            }
+                        });
     }
 
     @Override
