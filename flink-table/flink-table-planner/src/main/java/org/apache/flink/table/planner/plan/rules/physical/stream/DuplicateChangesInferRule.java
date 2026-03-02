@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalD
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntermediateTableScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacySink;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
@@ -39,6 +40,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalW
 import org.apache.flink.table.planner.plan.trait.DuplicateChanges;
 import org.apache.flink.table.planner.plan.trait.DuplicateChangesTrait;
 import org.apache.flink.table.planner.plan.trait.DuplicateChangesTraitDef;
+import org.apache.flink.table.planner.plan.trait.UpdateKind;
+import org.apache.flink.table.planner.plan.trait.UpdateKindTraitDef;
 import org.apache.flink.table.planner.plan.utils.DuplicateChangesUtils;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
@@ -55,6 +58,8 @@ import org.immutables.value.Value;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A rule that infers the {@link DuplicateChanges} for each {@link StreamPhysicalRel} node.
@@ -105,6 +110,16 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
                 requiredTrait = DuplicateChangesTrait.DISALLOW;
             } else {
                 requiredTrait = parentTrait;
+            }
+        } else if (rel instanceof StreamPhysicalJoin) {
+            // join with only update after can forward parent duplicate changes
+            UpdateKind updateKindTrait =
+                    requireNonNull(rel.getTraitSet().getTrait(UpdateKindTraitDef.INSTANCE()))
+                            .updateKind();
+            if (UpdateKind.ONLY_UPDATE_AFTER == updateKindTrait) {
+                requiredTrait = parentTrait;
+            } else {
+                requiredTrait = DuplicateChangesTrait.DISALLOW;
             }
         } else if (rel instanceof StreamPhysicalExchange
                 || rel instanceof StreamPhysicalMiniBatchAssigner
