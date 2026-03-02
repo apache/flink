@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.BlocklistListResponseBody;
@@ -31,6 +31,8 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler for retrieving the list of blocked nodes. */
@@ -45,11 +47,12 @@ public class BlocklistListHandler
 
     public BlocklistListHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
+            Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, BlocklistListResponseBody, EmptyMessageParameters>
                     messageHeaders,
             GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever) {
-        super(leaderRetriever, timeout, messageHeaders);
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
         this.resourceManagerRetriever = resourceManagerRetriever;
     }
 

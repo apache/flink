@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -32,6 +31,8 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler for removing nodes from the management blocklist. */
@@ -46,14 +47,15 @@ public class BlocklistRemoveHandler
 
     public BlocklistRemoveHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
+            Map<String, String> responseHeaders,
             MessageHeaders<
                             EmptyRequestBody,
                             BlocklistRemoveResponseBody,
                             BlocklistRemoveMessageParameters>
                     messageHeaders,
             GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever) {
-        super(leaderRetriever, timeout, messageHeaders);
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
         this.resourceManagerRetriever = resourceManagerRetriever;
     }
 
