@@ -95,10 +95,16 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
 
     @Before
     public void setup() throws Exception {
+        // MAX_RETAINED_CHECKPOINTS must be set at cluster level because
+        // StandaloneCompletedCheckpointStore reads it from the cluster config,
+        // not the per-job config. This prevents the picked checkpoint from being
+        // subsumed and deleted before the next job restores from it.
+        Configuration clusterConfig = new Configuration();
+        clusterConfig.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 50);
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(new Configuration())
+                                .setConfiguration(clusterConfig)
                                 .setNumberTaskManagers(NUM_TASK_MANAGERS)
                                 .setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
                                 .build());
@@ -181,8 +187,6 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
         // The smaller the buffer size means the fewer records are needed to be consumed during
         // aligned checkpoint.
         conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("1 kb"));
-        // To prevent the picked checkpoint is deleted
-        conf.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 50);
         if (recoveryPath != null) {
             conf.set(StateRecoveryOptions.SAVEPOINT_PATH, recoveryPath);
         }
