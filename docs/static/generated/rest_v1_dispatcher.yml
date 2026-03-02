@@ -978,6 +978,24 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/JobRescaleDetails"
+  /jobs/{jobid}/rescales/overview:
+    get:
+      description: Return job rescales overview.
+      operationId: getJobRescalesOverview
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescalesOverview"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2850,6 +2868,13 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/JobRescaleDetails"
+    JobRescalesOverview:
+      type: object
+      properties:
+        latest:
+          $ref: "#/components/schemas/LatestRescales"
+        rescalesCounts:
+          $ref: "#/components/schemas/RescalesCounts"
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -3011,6 +3036,15 @@ components:
           $ref: "#/components/schemas/RestoredCheckpointStatistics"
         savepoint:
           $ref: "#/components/schemas/CompletedCheckpointStatistics"
+    LatestRescales:
+      type: object
+      properties:
+        completed:
+          $ref: "#/components/schemas/JobRescaleDetails"
+        failed:
+          $ref: "#/components/schemas/JobRescaleDetails"
+        ignored:
+          $ref: "#/components/schemas/JobRescaleDetails"
     LogInfo:
       type: object
       properties:
@@ -3156,6 +3190,21 @@ components:
           type: integer
           format: int64
         upperPart:
+          type: integer
+          format: int64
+    RescalesCounts:
+      type: object
+      properties:
+        completed:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        ignored:
+          type: integer
+          format: int64
+        inProgress:
           type: integer
           format: int64
     ResourceID:
