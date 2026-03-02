@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management.blocklist;
+package org.apache.flink.runtime.management.nodequarantine;
 
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -37,19 +37,19 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Default implementation of {@link ManagementBlocklistHandler}. */
-public class DefaultManagementBlocklistHandler
-        implements ManagementBlocklistHandler, AutoCloseable {
+/** Default implementation of {@link ManagementNodeQuarantineHandler}. */
+public class DefaultManagementNodeQuarantineHandler
+        implements ManagementNodeQuarantineHandler, AutoCloseable {
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(DefaultManagementBlocklistHandler.class);
+            LoggerFactory.getLogger(DefaultManagementNodeQuarantineHandler.class);
 
-    private final Map<String, BlockedNode> blockedNodes = new HashMap<>();
+    private final Map<String, BlockedNode> quarantinedNodes = new HashMap<>();
     private final ScheduledExecutor scheduledExecutor;
     private final Duration cleanupInterval;
     private final ScheduledFuture<?> cleanupTask;
 
-    public DefaultManagementBlocklistHandler(
+    public DefaultManagementNodeQuarantineHandler(
             ScheduledExecutor scheduledExecutor, Duration cleanupInterval) {
         this.scheduledExecutor = checkNotNull(scheduledExecutor);
         this.cleanupInterval = checkNotNull(cleanupInterval);
@@ -63,59 +63,63 @@ public class DefaultManagementBlocklistHandler
                         TimeUnit.MILLISECONDS);
 
         LOG.info(
-                "Management blocklist handler initialized with cleanup interval: {}",
+                "Management node quarantine handler initialized with cleanup interval: {}",
                 cleanupInterval);
     }
 
     @Override
-    public synchronized void addBlockedNode(String nodeId, String reason, Duration duration) {
+    public synchronized void addQuarantinedNode(String nodeId, String reason, Duration duration) {
         checkNotNull(nodeId, "nodeId");
         checkNotNull(reason, "reason");
         checkNotNull(duration, "duration");
 
         Instant endTime = Instant.now().plus(duration);
-        BlockedNode blockedNode = new BlockedNode(nodeId, reason, endTime.toEpochMilli());
+        BlockedNode quarantinedNode = new BlockedNode(nodeId, reason, endTime.toEpochMilli());
 
-        BlockedNode existing = blockedNodes.put(nodeId, blockedNode);
+        BlockedNode existing = quarantinedNodes.put(nodeId, quarantinedNode);
         if (existing != null) {
-            LOG.info("Updated blocked node: {} (was: {}, now: {})", nodeId, existing, blockedNode);
+            LOG.info(
+                    "Updated quarantined node: {} (was: {}, now: {})",
+                    nodeId,
+                    existing,
+                    quarantinedNode);
         } else {
-            LOG.info("Added blocked node: {}", blockedNode);
+            LOG.info("Added quarantined node: {}", quarantinedNode);
         }
     }
 
     @Override
-    public synchronized boolean removeBlockedNode(String nodeId) {
+    public synchronized boolean removeQuarantinedNode(String nodeId) {
         checkNotNull(nodeId, "nodeId");
 
-        BlockedNode removed = blockedNodes.remove(nodeId);
+        BlockedNode removed = quarantinedNodes.remove(nodeId);
         if (removed != null) {
-            LOG.info("Removed blocked node: {}", removed);
+            LOG.info("Removed quarantined node: {}", removed);
             return true;
         } else {
-            LOG.debug("Attempted to remove non-existent blocked node: {}", nodeId);
+            LOG.debug("Attempted to remove non-existent quarantined node: {}", nodeId);
             return false;
         }
     }
 
     @Override
-    public synchronized Set<BlockedNode> getAllBlockedNodes() {
-        return new HashSet<>(blockedNodes.values());
+    public synchronized Set<BlockedNode> getAllQuarantinedNodes() {
+        return new HashSet<>(quarantinedNodes.values());
     }
 
     @Override
-    public synchronized boolean isNodeBlocked(String nodeId) {
+    public synchronized boolean isNodeQuarantined(String nodeId) {
         checkNotNull(nodeId, "nodeId");
 
-        BlockedNode blockedNode = blockedNodes.get(nodeId);
-        if (blockedNode == null) {
+        BlockedNode quarantinedNode = quarantinedNodes.get(nodeId);
+        if (quarantinedNode == null) {
             return false;
         }
 
         // Check if the node has expired
-        if (blockedNode.getEndTimestamp() < System.currentTimeMillis()) {
-            blockedNodes.remove(nodeId);
-            LOG.debug("Removed expired blocked node: {}", blockedNode);
+        if (quarantinedNode.getEndTimestamp() < System.currentTimeMillis()) {
+            quarantinedNodes.remove(nodeId);
+            LOG.debug("Removed expired quarantined node: {}", quarantinedNode);
             return false;
         }
 
@@ -124,28 +128,28 @@ public class DefaultManagementBlocklistHandler
 
     @Override
     public synchronized Collection<String> removeExpiredNodes() {
-        if (blockedNodes.isEmpty()) {
+        if (quarantinedNodes.isEmpty()) {
             return Collections.emptyList();
         }
 
         long now = System.currentTimeMillis();
         Set<String> expiredNodes = new HashSet<>();
 
-        blockedNodes
+        quarantinedNodes
                 .entrySet()
                 .removeIf(
                         entry -> {
                             BlockedNode node = entry.getValue();
                             if (node.getEndTimestamp() < now) {
                                 expiredNodes.add(entry.getKey());
-                                LOG.debug("Removed expired blocked node: {}", node);
+                                LOG.debug("Removed expired quarantined node: {}", node);
                                 return true;
                             }
                             return false;
                         });
 
         if (!expiredNodes.isEmpty()) {
-            LOG.info("Removed {} expired blocked nodes: {}", expiredNodes.size(), expiredNodes);
+            LOG.info("Removed {} expired quarantined nodes: {}", expiredNodes.size(), expiredNodes);
         }
 
         return expiredNodes;
@@ -156,11 +160,11 @@ public class DefaultManagementBlocklistHandler
         if (cleanupTask != null) {
             cleanupTask.cancel(false);
         }
-        LOG.info("Management blocklist handler closed");
+        LOG.info("Management node quarantine handler closed");
     }
 
-    /** Factory for creating {@link DefaultManagementBlocklistHandler} instances. */
-    public static class Factory implements ManagementBlocklistHandler.Factory {
+    /** Factory for creating {@link DefaultManagementNodeQuarantineHandler} instances. */
+    public static class Factory implements ManagementNodeQuarantineHandler.Factory {
 
         private final ScheduledExecutor scheduledExecutor;
         private final Duration cleanupInterval;
@@ -171,8 +175,8 @@ public class DefaultManagementBlocklistHandler
         }
 
         @Override
-        public ManagementBlocklistHandler create() {
-            return new DefaultManagementBlocklistHandler(scheduledExecutor, cleanupInterval);
+        public ManagementNodeQuarantineHandler create() {
+            return new DefaultManagementNodeQuarantineHandler(scheduledExecutor, cleanupInterval);
         }
     }
 }

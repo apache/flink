@@ -39,9 +39,6 @@ import org.apache.flink.runtime.rest.handler.application.ApplicationDetailsHandl
 import org.apache.flink.runtime.rest.handler.application.ApplicationExceptionsHandler;
 import org.apache.flink.runtime.rest.handler.application.ApplicationsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.application.JobManagerApplicationConfigurationHandler;
-import org.apache.flink.runtime.rest.handler.cluster.BlocklistAddHandler;
-import org.apache.flink.runtime.rest.handler.cluster.BlocklistListHandler;
-import org.apache.flink.runtime.rest.handler.cluster.BlocklistRemoveHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
@@ -53,8 +50,11 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingFileHand
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingListHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerThreadDumpHandler;
+import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineAddHandler;
 import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineHandler;
 import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineListManagementHandler;
+import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineRemoveHandler;
 import org.apache.flink.runtime.rest.handler.cluster.NodeRemoveQuarantineHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetDeleteHandlers;
@@ -152,9 +152,6 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeader
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddHeaders;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistListHeaders;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistRemoveHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
@@ -163,6 +160,9 @@ import org.apache.flink.runtime.rest.messages.cluster.JobManagerProfilingHeaders
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerProfilingListHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerStdoutFileHeader;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerThreadDumpHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineAddHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineListManagementHeaders;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineRemoveHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobManagerJobConfigurationHeaders;
@@ -1018,35 +1018,42 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         nodeQuarantineListHandler.getMessageHeaders(), nodeQuarantineListHandler));
 
-        // Blocklist handlers
-        BlocklistListHandler blocklistListHandler =
-                new BlocklistListHandler(
+        // Node quarantine management handlers
+        NodeQuarantineListManagementHandler nodeQuarantineListManagementHandler =
+                new NodeQuarantineListManagementHandler(
                         leaderRetriever,
                         timeout,
                         responseHeaders,
-                        BlocklistListHeaders.getInstance(),
+                        NodeQuarantineListManagementHeaders.getInstance(),
                         resourceManagerRetriever);
 
-        BlocklistAddHandler blocklistAddHandler =
-                new BlocklistAddHandler(
+        NodeQuarantineAddHandler nodeQuarantineAddHandler =
+                new NodeQuarantineAddHandler(
                         leaderRetriever,
                         timeout,
                         responseHeaders,
-                        BlocklistAddHeaders.getInstance(),
+                        NodeQuarantineAddHeaders.getInstance(),
                         resourceManagerRetriever,
                         clusterConfiguration);
 
-        BlocklistRemoveHandler blocklistRemoveHandler =
-                new BlocklistRemoveHandler(
+        NodeQuarantineRemoveHandler nodeQuarantineRemoveHandler =
+                new NodeQuarantineRemoveHandler(
                         leaderRetriever,
                         timeout,
                         responseHeaders,
-                        BlocklistRemoveHeaders.getInstance(),
+                        NodeQuarantineRemoveHeaders.getInstance(),
                         resourceManagerRetriever);
 
-        handlers.add(Tuple2.of(blocklistListHandler.getMessageHeaders(), blocklistListHandler));
-        handlers.add(Tuple2.of(blocklistAddHandler.getMessageHeaders(), blocklistAddHandler));
-        handlers.add(Tuple2.of(blocklistRemoveHandler.getMessageHeaders(), blocklistRemoveHandler));
+        handlers.add(
+                Tuple2.of(
+                        nodeQuarantineListManagementHandler.getMessageHeaders(),
+                        nodeQuarantineListManagementHandler));
+        handlers.add(
+                Tuple2.of(nodeQuarantineAddHandler.getMessageHeaders(), nodeQuarantineAddHandler));
+        handlers.add(
+                Tuple2.of(
+                        nodeQuarantineRemoveHandler.getMessageHeaders(),
+                        nodeQuarantineRemoveHandler));
 
         handlers.add(
                 Tuple2.of(

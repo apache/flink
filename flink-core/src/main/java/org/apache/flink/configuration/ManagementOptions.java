@@ -30,33 +30,33 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class ManagementOptions {
 
     @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
-    public static final ConfigOption<Boolean> BLOCKLIST_ENABLED =
-            key("cluster.management.blocklist.enabled")
+    public static final ConfigOption<Boolean> NODE_QUARANTINE_ENABLED =
+            key("cluster.management.node-quarantine.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "A flag to enable or disable the management blocklist functionality. "
-                                    + "When enabled, nodes can be manually added to a blocklist via REST API "
+                            "A flag to enable or disable the management node quarantine functionality. "
+                                    + "When enabled, nodes can be manually added to a quarantine list via REST API "
                                     + "to prevent new slots from being allocated on them. This is independent "
                                     + "of batch execution blocklist and speculative execution.");
 
     @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
-    public static final ConfigOption<Duration> BLOCKLIST_DEFAULT_DURATION =
-            key("cluster.management.blocklist.default-duration")
+    public static final ConfigOption<Duration> NODE_QUARANTINE_DEFAULT_DURATION =
+            key("cluster.management.node-quarantine.default-duration")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(10))
                     .withDescription(
-                            "The default duration for which a node should be blocked when added to the "
-                                    + "management blocklist without specifying an explicit duration.");
+                            "The default duration for which a node should be quarantined when added to the "
+                                    + "management node quarantine without specifying an explicit duration.");
 
     @Documentation.Section({Documentation.Sections.EXPERT_SCHEDULING})
-    public static final ConfigOption<Duration> BLOCKLIST_MAX_DURATION =
-            key("cluster.management.blocklist.max-duration")
+    public static final ConfigOption<Duration> NODE_QUARANTINE_MAX_DURATION =
+            key("cluster.management.node-quarantine.max-duration")
                     .durationType()
                     .defaultValue(Duration.ofHours(24))
                     .withDescription(
-                            "The maximum duration for which a node can be blocked in the management blocklist. "
-                                    + "This prevents accidentally blocking nodes for too long.");
+                            "The maximum duration for which a node can be quarantined in the management "
+                                    + "node quarantine. This prevents accidentally quarantining nodes for too long.");
 
     private ManagementOptions() {
         throw new UnsupportedOperationException("This class should never be instantiated.");

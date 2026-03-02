@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management.blocklist;
+package org.apache.flink.runtime.management.nodequarantine;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ManagementOptions;
@@ -24,33 +24,34 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.time.Duration;
 
-/** Utility class for management blocklist functionality. */
-public class ManagementBlocklistUtils {
+/** Utility class for management node quarantine functionality. */
+public class ManagementNodeQuarantineUtils {
 
     private static final Duration DEFAULT_CLEANUP_INTERVAL = Duration.ofMinutes(1);
 
-    public static ManagementBlocklistHandler.Factory loadManagementBlocklistHandlerFactory(
-            Configuration configuration, ScheduledExecutor scheduledExecutor) {
-        if (isManagementBlocklistEnabled(configuration)) {
-            return new DefaultManagementBlocklistHandler.Factory(
+    public static ManagementNodeQuarantineHandler.Factory
+            loadManagementNodeQuarantineHandlerFactory(
+                    Configuration configuration, ScheduledExecutor scheduledExecutor) {
+        if (isManagementNodeQuarantineEnabled(configuration)) {
+            return new DefaultManagementNodeQuarantineHandler.Factory(
                     scheduledExecutor, DEFAULT_CLEANUP_INTERVAL);
         } else {
-            return new NoOpManagementBlocklistHandler.Factory();
+            return new NoOpManagementNodeQuarantineHandler.Factory();
         }
     }
 
-    public static boolean isManagementBlocklistEnabled(Configuration configuration) {
-        return configuration.get(ManagementOptions.BLOCKLIST_ENABLED);
+    public static boolean isManagementNodeQuarantineEnabled(Configuration configuration) {
+        return configuration.get(ManagementOptions.NODE_QUARANTINE_ENABLED);
     }
 
-    public static Duration getDefaultBlocklistDuration(Configuration configuration) {
-        return configuration.get(ManagementOptions.BLOCKLIST_DEFAULT_DURATION);
+    public static Duration getDefaultNodeQuarantineDuration(Configuration configuration) {
+        return configuration.get(ManagementOptions.NODE_QUARANTINE_DEFAULT_DURATION);
     }
 
-    public static Duration getMaxBlocklistDuration(Configuration configuration) {
-        return configuration.get(ManagementOptions.BLOCKLIST_MAX_DURATION);
+    public static Duration getMaxNodeQuarantineDuration(Configuration configuration) {
+        return configuration.get(ManagementOptions.NODE_QUARANTINE_MAX_DURATION);
     }
 
     /** Private default constructor to avoid being instantiated. */
-    private ManagementBlocklistUtils() {}
+    private ManagementNodeQuarantineUtils() {}
 }

@@ -26,8 +26,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/** Response body for removing a node from the blocklist. */
-public class BlocklistRemoveResponseBody implements ResponseBody {
+/** Response body for adding a node to the node quarantine. */
+public class NodeQuarantineAddResponseBody implements ResponseBody {
 
     public static final String FIELD_NAME_MESSAGE = "message";
 
@@ -35,7 +35,7 @@ public class BlocklistRemoveResponseBody implements ResponseBody {
     private final String message;
 
     @JsonCreator
-    public BlocklistRemoveResponseBody(@JsonProperty(FIELD_NAME_MESSAGE) String message) {
+    public NodeQuarantineAddResponseBody(@JsonProperty(FIELD_NAME_MESSAGE) String message) {
         this.message = Preconditions.checkNotNull(message);
     }
 
@@ -51,7 +51,7 @@ public class BlocklistRemoveResponseBody implements ResponseBody {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        BlocklistRemoveResponseBody that = (BlocklistRemoveResponseBody) o;
+        NodeQuarantineAddResponseBody that = (NodeQuarantineAddResponseBody) o;
         return Objects.equals(message, that.message);
     }
 
@@ -62,6 +62,6 @@ public class BlocklistRemoveResponseBody implements ResponseBody {
 
     @Override
     public String toString() {
-        return "BlocklistRemoveResponseBody{" + "message='" + message + '\'' + '}';
+        return "NodeQuarantineAddResponseBody{" + "message='" + message + '\'' + '}';
     }
 }

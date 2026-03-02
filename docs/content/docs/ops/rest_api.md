@@ -80,15 +80,15 @@ The retry is only safe until the [async operation store duration]({{< ref "docs/
 The OpenAPI specification is still experimental.
 {{< /hint >}}
 
-#### Management Blocklist APIs
+#### Management Node Quarantine APIs
 
-The REST API includes endpoints for managing the cluster blocklist:
+The REST API includes endpoints for managing the cluster node quarantine:
 
-- `POST /cluster/blocklist` - Add a node to the blocklist
-- `DELETE /cluster/blocklist/{nodeId}` - Remove a node from the blocklist  
-- `GET /cluster/blocklist` - List all blocked nodes
+- `POST /cluster/node-quarantine` - Add a node to the quarantine list
+- `DELETE /cluster/node-quarantine/{nodeId}` - Remove a node from the quarantine list  
+- `GET /cluster/node-quarantine` - List all quarantined nodes
 
-For detailed information about the Management Blocklist feature, see [Management Blocklist]({{< ref "docs/ops/management_blocklist" >}}).
+For detailed information about the Management Node Quarantine feature, see [Management Node Quarantine]({{< ref "docs/ops/management_node_quarantine" >}}).
 
 #### API reference
 
