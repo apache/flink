@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -51,7 +50,7 @@ public class NodeQuarantineHandler
 
     public NodeQuarantineHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             GatewayRetriever<? extends ResourceManagerGateway> resourceManagerGatewayRetriever) {
         super(
