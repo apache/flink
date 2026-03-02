@@ -450,7 +450,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
             if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
                 throw SqlUtil.newContextException(
                     functionLanguagePos,
-                    ParserResource.RESOURCE.createFunctionUsingJarOrArtifact(functionLanguage));
+                    ParserResource.RESOURCE.createFunction(functionLanguage));
             }
             List<SqlNode> resourceList = new ArrayList<SqlNode>();
             SqlResource sqlResource = null;
