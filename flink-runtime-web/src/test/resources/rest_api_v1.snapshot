@@ -3424,6 +3424,89 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/rescales/summary",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescalesSummary",
+      "properties" : {
+        "rescalesCounts" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescalesOverview:RescalesCounts",
+          "properties" : {
+            "ignored" : {
+              "type" : "integer"
+            },
+            "inProgress" : {
+              "type" : "integer"
+            },
+            "completed" : {
+              "type" : "integer"
+            },
+            "failed" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "rescalesDurationStatsInMillis" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto",
+          "properties" : {
+            "min" : {
+              "type" : "integer"
+            },
+            "max" : {
+              "type" : "integer"
+            },
+            "avg" : {
+              "type" : "integer"
+            },
+            "p50" : {
+              "type" : "number"
+            },
+            "p90" : {
+              "type" : "number"
+            },
+            "p95" : {
+              "type" : "number"
+            },
+            "p99" : {
+              "type" : "number"
+            },
+            "p999" : {
+              "type" : "number"
+            }
+          }
+        },
+        "completedRescalesDurationStatsInMillis" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
+        },
+        "ignoredRescalesDurationStatsInMillis" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
+        },
+        "failedRescalesDurationStatsInMillis" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/rescaling",
     "method" : "PATCH",
     "status-code" : "200 OK",

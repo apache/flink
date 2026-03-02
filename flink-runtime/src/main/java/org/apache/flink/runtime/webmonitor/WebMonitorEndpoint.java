@@ -100,6 +100,7 @@ import org.apache.flink.runtime.rest.handler.job.rescales.JobRescaleConfigHandle
 import org.apache.flink.runtime.rest.handler.job.rescales.JobRescaleDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.rescales.JobRescalesHistoryHandler;
 import org.apache.flink.runtime.rest.handler.job.rescales.JobRescalesOverviewHandler;
+import org.apache.flink.runtime.rest.handler.job.rescales.JobRescalesSummaryHandler;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointDisposalHandlers;
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
@@ -170,6 +171,7 @@ import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleConfigHeade
 import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesHistoryHeaders;
 import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesSummaryHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
@@ -1241,6 +1243,18 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobRescalesOverviewHandler.getMessageHeaders(),
                         jobRescalesOverviewHandler));
+
+        final JobRescalesSummaryHandler jobRescalesSummaryHandler =
+                new JobRescalesSummaryHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JobRescalesSummaryHeaders.getInstance(),
+                        executionGraphCache,
+                        executor);
+        handlers.add(
+                Tuple2.of(
+                        jobRescalesSummaryHandler.getMessageHeaders(), jobRescalesSummaryHandler));
 
         final JobRescalesHistoryHandler jobRescalesHistoryHandler =
                 new JobRescalesHistoryHandler(

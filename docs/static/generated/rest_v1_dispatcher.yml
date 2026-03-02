@@ -996,6 +996,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobRescalesOverview"
+  /jobs/{jobid}/rescales/summary:
+    get:
+      description: Return job rescales summary.
+      operationId: getJobRescalesSummary
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescalesSummary"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2875,6 +2893,19 @@ components:
           $ref: "#/components/schemas/LatestRescales"
         rescalesCounts:
           $ref: "#/components/schemas/RescalesCounts"
+    JobRescalesSummary:
+      type: object
+      properties:
+        completedRescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
+        failedRescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
+        ignoredRescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
+        rescalesCounts:
+          $ref: "#/components/schemas/RescalesCounts"
+        rescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
