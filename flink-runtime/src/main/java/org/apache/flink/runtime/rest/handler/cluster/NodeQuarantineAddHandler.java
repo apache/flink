@@ -26,8 +26,8 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddRequestBody;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddResponseBody;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineAddRequestBody;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineAddResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -37,24 +37,24 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/** Handler for adding nodes to the management blocklist. */
-public class BlocklistAddHandler
+/** Handler for adding nodes to the management node quarantine. */
+public class NodeQuarantineAddHandler
         extends AbstractRestHandler<
                 RestfulGateway,
-                BlocklistAddRequestBody,
-                BlocklistAddResponseBody,
+                NodeQuarantineAddRequestBody,
+                NodeQuarantineAddResponseBody,
                 EmptyMessageParameters> {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
     private final Configuration configuration;
 
-    public BlocklistAddHandler(
+    public NodeQuarantineAddHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<
-                            BlocklistAddRequestBody,
-                            BlocklistAddResponseBody,
+                            NodeQuarantineAddRequestBody,
+                            NodeQuarantineAddResponseBody,
                             EmptyMessageParameters>
                     messageHeaders,
             GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
@@ -65,21 +65,22 @@ public class BlocklistAddHandler
     }
 
     @Override
-    protected CompletableFuture<BlocklistAddResponseBody> handleRequest(
-            @Nonnull HandlerRequest<BlocklistAddRequestBody> request,
+    protected CompletableFuture<NodeQuarantineAddResponseBody> handleRequest(
+            @Nonnull HandlerRequest<NodeQuarantineAddRequestBody> request,
             @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
 
-        final BlocklistAddRequestBody requestBody = request.getRequestBody();
+        final NodeQuarantineAddRequestBody requestBody = request.getRequestBody();
 
         // Use provided duration or default duration from configuration
         final Duration duration =
                 requestBody.getDuration() != null
                         ? requestBody.getDuration()
-                        : configuration.get(ManagementOptions.BLOCKLIST_DEFAULT_DURATION);
+                        : configuration.get(ManagementOptions.NODE_QUARANTINE_DEFAULT_DURATION);
 
         // Validate duration against maximum allowed
-        final Duration maxDuration = configuration.get(ManagementOptions.BLOCKLIST_MAX_DURATION);
+        final Duration maxDuration =
+                configuration.get(ManagementOptions.NODE_QUARANTINE_MAX_DURATION);
         if (duration.compareTo(maxDuration) > 0) {
             throw new RestHandlerException(
                     "Requested duration "
@@ -94,22 +95,22 @@ public class BlocklistAddHandler
                 .getFuture()
                 .thenCompose(
                         resourceManagerGateway ->
-                                resourceManagerGateway.addManagementBlockedNode(
+                                resourceManagerGateway.addManagementQuarantinedNode(
                                         requestBody.getNodeId(),
                                         requestBody.getReason(),
                                         duration,
                                         timeout))
                 .thenApply(
                         ignored ->
-                                new BlocklistAddResponseBody(
+                                new NodeQuarantineAddResponseBody(
                                         "Node "
                                                 + requestBody.getNodeId()
-                                                + " successfully added to management blocklist for "
+                                                + " successfully added to management node quarantine for "
                                                 + duration))
                 .exceptionally(
                         throwable -> {
                             throw new RuntimeException(
-                                    "Failed to add node to management blocklist: "
+                                    "Failed to add node to management node quarantine: "
                                             + throwable.getMessage(),
                                     throwable);
                         });

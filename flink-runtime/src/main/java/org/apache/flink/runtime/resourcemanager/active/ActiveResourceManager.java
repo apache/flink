@@ -139,8 +139,9 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
-            org.apache.flink.runtime.management.blocklist.ManagementBlocklistHandler.Factory
-                    managementBlocklistHandlerFactory,
+            org.apache.flink.runtime.management.nodequarantine.ManagementNodeQuarantineHandler
+                            .Factory
+                    managementNodeQuarantineHandlerFactory,
             JobLeaderIdService jobLeaderIdService,
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
@@ -159,7 +160,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 slotManager,
                 clusterPartitionTrackerFactory,
                 blocklistHandlerFactory,
-                managementBlocklistHandlerFactory,
+                managementNodeQuarantineHandlerFactory,
                 jobLeaderIdService,
                 clusterInformation,
                 fatalErrorHandler,

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management.blocklist;
+package org.apache.flink.runtime.management.nodequarantine;
 
 import org.apache.flink.runtime.blocklist.BlockedNode;
 
@@ -25,26 +25,26 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
-/** No-op implementation of {@link ManagementBlocklistHandler} that does nothing. */
-public class NoOpManagementBlocklistHandler implements ManagementBlocklistHandler {
+/** No-op implementation of {@link ManagementNodeQuarantineHandler} that does nothing. */
+public class NoOpManagementNodeQuarantineHandler implements ManagementNodeQuarantineHandler {
 
     @Override
-    public void addBlockedNode(String nodeId, String reason, Duration duration) {
+    public void addQuarantinedNode(String nodeId, String reason, Duration duration) {
         // No-op
     }
 
     @Override
-    public boolean removeBlockedNode(String nodeId) {
+    public boolean removeQuarantinedNode(String nodeId) {
         return false;
     }
 
     @Override
-    public Set<BlockedNode> getAllBlockedNodes() {
+    public Set<BlockedNode> getAllQuarantinedNodes() {
         return Collections.emptySet();
     }
 
     @Override
-    public boolean isNodeBlocked(String nodeId) {
+    public boolean isNodeQuarantined(String nodeId) {
         return false;
     }
 
@@ -53,12 +53,12 @@ public class NoOpManagementBlocklistHandler implements ManagementBlocklistHandle
         return Collections.emptyList();
     }
 
-    /** Factory for creating {@link NoOpManagementBlocklistHandler} instances. */
-    public static class Factory implements ManagementBlocklistHandler.Factory {
+    /** Factory for creating {@link NoOpManagementNodeQuarantineHandler} instances. */
+    public static class Factory implements ManagementNodeQuarantineHandler.Factory {
 
         @Override
-        public ManagementBlocklistHandler create() {
-            return new NoOpManagementBlocklistHandler();
+        public ManagementNodeQuarantineHandler create() {
+            return new NoOpManagementNodeQuarantineHandler();
         }
     }
 }

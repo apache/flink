@@ -145,8 +145,8 @@ class StandaloneResourceManagerTest {
                     slotManager,
                     NoOpResourceManagerPartitionTracker::get,
                     new NoOpBlocklistHandler.Factory(),
-                    new org.apache.flink.runtime.management.blocklist.NoOpManagementBlocklistHandler
-                            .Factory(),
+                    new org.apache.flink.runtime.management.nodequarantine
+                            .NoOpManagementNodeQuarantineHandler.Factory(),
                     jobLeaderIdService,
                     clusterInformation,
                     fatalErrorHandler,

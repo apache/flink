@@ -137,19 +137,19 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             notifyNewBlockedNodesFunction =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
-    // Management blocklist functions
+    // Management node quarantine functions
     private volatile java.util.function.Supplier<
                     CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>>
-            getAllManagementBlockedNodesSupplier =
+            getAllManagementQuarantinedNodesSupplier =
                     () -> CompletableFuture.completedFuture(Collections.emptyList());
 
     private volatile java.util.function.Function<
                     Tuple3<String, String, Duration>, CompletableFuture<Acknowledge>>
-            addManagementBlockedNodeFunction =
+            addManagementQuarantinedNodeFunction =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     private volatile java.util.function.Function<String, CompletableFuture<Acknowledge>>
-            removeManagementBlockedNodeFunction =
+            removeManagementQuarantinedNodeFunction =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     // Quarantine functions
@@ -311,25 +311,25 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.notifyNewBlockedNodesFunction = notifyNewBlockedNodesFunction;
     }
 
-    public void setGetAllManagementBlockedNodesSupplier(
+    public void setGetAllManagementQuarantinedNodesSupplier(
             java.util.function.Supplier<
                             CompletableFuture<
                                     Collection<org.apache.flink.runtime.blocklist.BlockedNode>>>
-                    getAllManagementBlockedNodesSupplier) {
-        this.getAllManagementBlockedNodesSupplier = getAllManagementBlockedNodesSupplier;
+                    getAllManagementQuarantinedNodesSupplier) {
+        this.getAllManagementQuarantinedNodesSupplier = getAllManagementQuarantinedNodesSupplier;
     }
 
-    public void setAddManagementBlockedNodeFunction(
+    public void setAddManagementQuarantinedNodeFunction(
             java.util.function.Function<
                             Tuple3<String, String, Duration>, CompletableFuture<Acknowledge>>
-                    addManagementBlockedNodeFunction) {
-        this.addManagementBlockedNodeFunction = addManagementBlockedNodeFunction;
+                    addManagementQuarantinedNodeFunction) {
+        this.addManagementQuarantinedNodeFunction = addManagementQuarantinedNodeFunction;
     }
 
-    public void setRemoveManagementBlockedNodeFunction(
+    public void setRemoveManagementQuarantinedNodeFunction(
             java.util.function.Function<String, CompletableFuture<Acknowledge>>
-                    removeManagementBlockedNodeFunction) {
-        this.removeManagementBlockedNodeFunction = removeManagementBlockedNodeFunction;
+                    removeManagementQuarantinedNodeFunction) {
+        this.removeManagementQuarantinedNodeFunction = removeManagementQuarantinedNodeFunction;
     }
 
     public void setQuarantineNodeFunction(
@@ -675,20 +675,21 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
-            getAllManagementBlockedNodes(Duration timeout) {
-        return getAllManagementBlockedNodesSupplier.get();
+            getAllManagementQuarantinedNodes(Duration timeout) {
+        return getAllManagementQuarantinedNodesSupplier.get();
     }
 
     @Override
-    public CompletableFuture<Void> addManagementBlockedNode(
+    public CompletableFuture<Void> addManagementQuarantinedNode(
             String nodeId, String reason, Duration duration, Duration timeout) {
-        addManagementBlockedNodeFunction.apply(Tuple3.of(nodeId, reason, duration));
+        addManagementQuarantinedNodeFunction.apply(Tuple3.of(nodeId, reason, duration));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Void> removeManagementBlockedNode(String nodeId, Duration timeout) {
-        removeManagementBlockedNodeFunction.apply(nodeId);
+    public CompletableFuture<Void> removeManagementQuarantinedNode(
+            String nodeId, Duration timeout) {
+        removeManagementQuarantinedNodeFunction.apply(nodeId);
         return CompletableFuture.completedFuture(null);
     }
 

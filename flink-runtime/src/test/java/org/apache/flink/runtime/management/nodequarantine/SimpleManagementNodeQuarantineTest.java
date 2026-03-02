@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management.blocklist;
+package org.apache.flink.runtime.management.nodequarantine;
 
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -31,41 +31,41 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Simple test for {@link DefaultManagementBlocklistHandler}. */
-class SimpleManagementBlocklistTest {
+/** Simple test for {@link DefaultManagementNodeQuarantineHandler}. */
+class SimpleManagementNodeQuarantineTest {
 
     @Test
     void testBasicFunctionality() {
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
 
-        try (DefaultManagementBlocklistHandler handler =
-                new DefaultManagementBlocklistHandler(executor, Duration.ofSeconds(1))) {
+        try (DefaultManagementNodeQuarantineHandler handler =
+                new DefaultManagementNodeQuarantineHandler(executor, Duration.ofSeconds(1))) {
 
-            assertThat(handler.getAllBlockedNodes()).isEmpty();
+            assertThat(handler.getAllQuarantinedNodes()).isEmpty();
 
-            // Add a blocked node
-            handler.addBlockedNode("node1", "Test reason", Duration.ofMinutes(10));
+            // Add a quarantined node
+            handler.addQuarantinedNode("node1", "Test reason", Duration.ofMinutes(10));
 
-            Set<BlockedNode> blockedNodes = handler.getAllBlockedNodes();
-            assertThat(blockedNodes).hasSize(1);
+            Set<BlockedNode> quarantinedNodes = handler.getAllQuarantinedNodes();
+            assertThat(quarantinedNodes).hasSize(1);
 
-            BlockedNode blockedNode = blockedNodes.iterator().next();
-            assertThat(blockedNode.getNodeId()).isEqualTo("node1");
-            assertThat(blockedNode.getCause()).isEqualTo("Test reason");
+            BlockedNode quarantinedNode = quarantinedNodes.iterator().next();
+            assertThat(quarantinedNode.getNodeId()).isEqualTo("node1");
+            assertThat(quarantinedNode.getCause()).isEqualTo("Test reason");
 
-            // Check if node is blocked
-            assertThat(handler.isNodeBlocked("node1")).isTrue();
-            assertThat(handler.isNodeBlocked("node2")).isFalse();
+            // Check if node is quarantined
+            assertThat(handler.isNodeQuarantined("node1")).isTrue();
+            assertThat(handler.isNodeQuarantined("node2")).isFalse();
 
-            // Remove the blocked node
-            boolean removed = handler.removeBlockedNode("node1");
+            // Remove the quarantined node
+            boolean removed = handler.removeQuarantinedNode("node1");
             assertThat(removed).isTrue();
-            assertThat(handler.isNodeBlocked("node1")).isFalse();
-            assertThat(handler.getAllBlockedNodes()).isEmpty();
+            assertThat(handler.isNodeQuarantined("node1")).isFalse();
+            assertThat(handler.getAllQuarantinedNodes()).isEmpty();
 
             // Try to remove non-existent node
-            boolean removedAgain = handler.removeBlockedNode("node1");
+            boolean removedAgain = handler.removeQuarantinedNode("node1");
             assertThat(removedAgain).isFalse();
 
         } finally {

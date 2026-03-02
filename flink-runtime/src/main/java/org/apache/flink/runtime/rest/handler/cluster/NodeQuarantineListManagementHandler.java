@@ -22,10 +22,10 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistRemoveMessageParameters;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistRemoveResponseBody;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineListManagementResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -35,24 +35,24 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/** Handler for removing nodes from the management blocklist. */
-public class BlocklistRemoveHandler
+/** Handler for retrieving the list of quarantined nodes. */
+public class NodeQuarantineListManagementHandler
         extends AbstractRestHandler<
                 RestfulGateway,
                 EmptyRequestBody,
-                BlocklistRemoveResponseBody,
-                BlocklistRemoveMessageParameters> {
+                NodeQuarantineListManagementResponseBody,
+                EmptyMessageParameters> {
 
     private final GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever;
 
-    public BlocklistRemoveHandler(
+    public NodeQuarantineListManagementHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<
                             EmptyRequestBody,
-                            BlocklistRemoveResponseBody,
-                            BlocklistRemoveMessageParameters>
+                            NodeQuarantineListManagementResponseBody,
+                            EmptyMessageParameters>
                     messageHeaders,
             GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
@@ -60,31 +60,15 @@ public class BlocklistRemoveHandler
     }
 
     @Override
-    protected CompletableFuture<BlocklistRemoveResponseBody> handleRequest(
+    protected CompletableFuture<NodeQuarantineListManagementResponseBody> handleRequest(
             @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
-
-        final String nodeId =
-                request.getPathParameter(
-                        BlocklistRemoveMessageParameters.NodeIdPathParameter.class);
 
         return resourceManagerRetriever
                 .getFuture()
                 .thenCompose(
                         resourceManagerGateway ->
-                                resourceManagerGateway.removeManagementBlockedNode(nodeId, timeout))
-                .thenApply(
-                        ignored ->
-                                new BlocklistRemoveResponseBody(
-                                        "Node "
-                                                + nodeId
-                                                + " successfully removed from management blocklist"))
-                .exceptionally(
-                        throwable -> {
-                            throw new RuntimeException(
-                                    "Failed to remove node from management blocklist: "
-                                            + throwable.getMessage(),
-                                    throwable);
-                        });
+                                resourceManagerGateway.getAllManagementQuarantinedNodes(timeout))
+                .thenApply(NodeQuarantineListManagementResponseBody::new);
     }
 }

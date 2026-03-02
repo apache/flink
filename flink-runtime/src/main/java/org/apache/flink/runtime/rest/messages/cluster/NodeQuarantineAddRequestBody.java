@@ -29,8 +29,8 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 
-/** Request body for adding a node to the management blocklist. */
-public class BlocklistAddRequestBody implements RequestBody {
+/** Request body for adding a node to the management node quarantine. */
+public class NodeQuarantineAddRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_NODE_ID = "nodeId";
     public static final String FIELD_NAME_REASON = "reason";
@@ -47,7 +47,7 @@ public class BlocklistAddRequestBody implements RequestBody {
     private final Duration duration;
 
     @JsonCreator
-    public BlocklistAddRequestBody(
+    public NodeQuarantineAddRequestBody(
             @JsonProperty(FIELD_NAME_NODE_ID) String nodeId,
             @JsonProperty(FIELD_NAME_REASON) String reason,
             @JsonProperty(FIELD_NAME_DURATION) @Nullable Duration duration) {
@@ -77,7 +77,7 @@ public class BlocklistAddRequestBody implements RequestBody {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        BlocklistAddRequestBody that = (BlocklistAddRequestBody) o;
+        NodeQuarantineAddRequestBody that = (NodeQuarantineAddRequestBody) o;
         return Objects.equals(nodeId, that.nodeId)
                 && Objects.equals(reason, that.reason)
                 && Objects.equals(duration, that.duration);
@@ -90,7 +90,7 @@ public class BlocklistAddRequestBody implements RequestBody {
 
     @Override
     public String toString() {
-        return "BlocklistAddRequestBody{"
+        return "NodeQuarantineAddRequestBody{"
                 + "nodeId='"
                 + nodeId
                 + '\''

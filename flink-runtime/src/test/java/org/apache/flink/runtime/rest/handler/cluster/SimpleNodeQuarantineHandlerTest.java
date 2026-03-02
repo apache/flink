@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.handler.cluster;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.rest.messages.cluster.BlocklistAddRequestBody;
+import org.apache.flink.runtime.rest.messages.cluster.NodeQuarantineAddRequestBody;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Simple tests for blocklist REST message classes and gateway methods. */
-public class SimpleBlocklistHandlerTest {
+/** Simple tests for node quarantine REST message classes and gateway methods. */
+public class SimpleNodeQuarantineHandlerTest {
 
     private TestingResourceManagerGateway resourceManagerGateway;
 
@@ -47,15 +47,15 @@ public class SimpleBlocklistHandlerTest {
     }
 
     @Test
-    public void testBlocklistAddRequestBody() throws Exception {
+    public void testNodeQuarantineAddRequestBody() throws Exception {
         // Test data
         final String nodeId = "test-node-1";
         final String reason = "test reason";
         final Duration duration = Duration.ofMinutes(30);
 
         // Create request body with duration
-        BlocklistAddRequestBody requestBodyWithDuration =
-                new BlocklistAddRequestBody(nodeId, reason, duration);
+        NodeQuarantineAddRequestBody requestBodyWithDuration =
+                new NodeQuarantineAddRequestBody(nodeId, reason, duration);
 
         // Verify request body
         assertNotNull(requestBodyWithDuration);
@@ -64,8 +64,8 @@ public class SimpleBlocklistHandlerTest {
         assertEquals(duration, requestBodyWithDuration.getDuration());
 
         // Create request body without duration (null)
-        BlocklistAddRequestBody requestBodyWithoutDuration =
-                new BlocklistAddRequestBody(nodeId, reason, null);
+        NodeQuarantineAddRequestBody requestBodyWithoutDuration =
+                new NodeQuarantineAddRequestBody(nodeId, reason, null);
 
         // Verify request body
         assertNotNull(requestBodyWithoutDuration);
@@ -86,15 +86,16 @@ public class SimpleBlocklistHandlerTest {
         final CompletableFuture<Tuple3<String, String, Duration>> capturedCall =
                 new CompletableFuture<>();
 
-        resourceManagerGateway.setAddManagementBlockedNodeFunction(
+        resourceManagerGateway.setAddManagementQuarantinedNodeFunction(
                 (tuple) -> {
                     capturedCall.complete(tuple);
                     return null; // Return null for Void
                 });
 
-        // Test addManagementBlockedNode
+        // Test addManagementQuarantinedNode
         CompletableFuture<Void> addFuture =
-                resourceManagerGateway.addManagementBlockedNode(nodeId, reason, duration, timeout);
+                resourceManagerGateway.addManagementQuarantinedNode(
+                        nodeId, reason, duration, timeout);
         assertNotNull(addFuture);
         assertNull(addFuture.get());
 
@@ -113,15 +114,15 @@ public class SimpleBlocklistHandlerTest {
         // Set up the resource manager gateway to capture the call
         final CompletableFuture<String> capturedNodeId = new CompletableFuture<>();
 
-        resourceManagerGateway.setRemoveManagementBlockedNodeFunction(
+        resourceManagerGateway.setRemoveManagementQuarantinedNodeFunction(
                 (removedNodeId) -> {
                     capturedNodeId.complete(removedNodeId);
                     return null; // Return null for Void
                 });
 
-        // Test removeManagementBlockedNode
+        // Test removeManagementQuarantinedNode
         CompletableFuture<Void> removeFuture =
-                resourceManagerGateway.removeManagementBlockedNode(nodeId, timeout);
+                resourceManagerGateway.removeManagementQuarantinedNode(nodeId, timeout);
         assertNotNull(removeFuture);
         assertNull(removeFuture.get());
 
@@ -139,12 +140,12 @@ public class SimpleBlocklistHandlerTest {
         final Duration timeout = Duration.ofSeconds(10);
 
         // Set up the resource manager gateway to return test data
-        resourceManagerGateway.setGetAllManagementBlockedNodesSupplier(
+        resourceManagerGateway.setGetAllManagementQuarantinedNodesSupplier(
                 () -> CompletableFuture.completedFuture(Arrays.asList(node1, node2)));
 
-        // Test getAllManagementBlockedNodes
+        // Test getAllManagementQuarantinedNodes
         CompletableFuture<Collection<BlockedNode>> getAllFuture =
-                resourceManagerGateway.getAllManagementBlockedNodes(timeout);
+                resourceManagerGateway.getAllManagementQuarantinedNodes(timeout);
         assertNotNull(getAllFuture);
 
         Collection<BlockedNode> result = getAllFuture.get();
@@ -158,22 +159,22 @@ public class SimpleBlocklistHandlerTest {
         // Test the default behavior without setting custom functions
         final Duration timeout = Duration.ofSeconds(10);
 
-        // Test getAllManagementBlockedNodes default
+        // Test getAllManagementQuarantinedNodes default
         CompletableFuture<Collection<BlockedNode>> getAllFuture =
-                resourceManagerGateway.getAllManagementBlockedNodes(timeout);
+                resourceManagerGateway.getAllManagementQuarantinedNodes(timeout);
         assertNotNull(getAllFuture);
         assertTrue(getAllFuture.get().isEmpty());
 
-        // Test addManagementBlockedNode default
+        // Test addManagementQuarantinedNode default
         CompletableFuture<Void> addFuture =
-                resourceManagerGateway.addManagementBlockedNode(
+                resourceManagerGateway.addManagementQuarantinedNode(
                         "node", "reason", Duration.ofMinutes(5), timeout);
         assertNotNull(addFuture);
         assertNull(addFuture.get());
 
-        // Test removeManagementBlockedNode default
+        // Test removeManagementQuarantinedNode default
         CompletableFuture<Void> removeFuture =
-                resourceManagerGateway.removeManagementBlockedNode("node", timeout);
+                resourceManagerGateway.removeManagementQuarantinedNode("node", timeout);
         assertNotNull(removeFuture);
         assertNull(removeFuture.get());
     }

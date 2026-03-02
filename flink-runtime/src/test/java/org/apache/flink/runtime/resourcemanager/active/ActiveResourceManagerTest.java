@@ -1165,8 +1165,8 @@ class ActiveResourceManagerTest {
                             rmServices.slotManager,
                             NoOpResourceManagerPartitionTracker::get,
                             new NoOpBlocklistHandler.Factory(),
-                            new org.apache.flink.runtime.management.blocklist
-                                    .NoOpManagementBlocklistHandler.Factory(),
+                            new org.apache.flink.runtime.management.nodequarantine
+                                    .NoOpManagementNodeQuarantineHandler.Factory(),
                             rmServices.jobLeaderIdService,
                             new ClusterInformation("localhost", 1234),
                             fatalErrorHandler,

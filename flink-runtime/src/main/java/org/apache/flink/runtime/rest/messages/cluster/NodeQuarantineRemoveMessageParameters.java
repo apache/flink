@@ -26,8 +26,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/** Message parameters for removing a node from the blocklist. */
-public class BlocklistRemoveMessageParameters extends MessageParameters {
+/** Message parameters for removing a node from the node quarantine. */
+public class NodeQuarantineRemoveMessageParameters extends MessageParameters {
 
     public final NodeIdPathParameter nodeIdPathParameter = new NodeIdPathParameter();
 
@@ -62,7 +62,7 @@ public class BlocklistRemoveMessageParameters extends MessageParameters {
 
         @Override
         public String getDescription() {
-            return "The ID of the node to remove from the blocklist.";
+            return "The ID of the node to remove from the quarantine list.";
         }
     }
 }
