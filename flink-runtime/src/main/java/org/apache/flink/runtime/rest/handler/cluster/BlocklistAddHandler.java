@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.cluster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ManagementOptions;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Handler for adding nodes to the management blocklist. */
@@ -50,7 +50,8 @@ public class BlocklistAddHandler
 
     public BlocklistAddHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
+            Map<String, String> responseHeaders,
             MessageHeaders<
                             BlocklistAddRequestBody,
                             BlocklistAddResponseBody,
@@ -58,7 +59,7 @@ public class BlocklistAddHandler
                     messageHeaders,
             GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
             Configuration configuration) {
-        super(leaderRetriever, timeout, messageHeaders);
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
         this.resourceManagerRetriever = resourceManagerRetriever;
         this.configuration = configuration;
     }

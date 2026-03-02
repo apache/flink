@@ -47,6 +47,7 @@ import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
@@ -149,6 +150,33 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     private volatile java.util.function.Function<String, CompletableFuture<Acknowledge>>
             removeManagementBlockedNodeFunction =
+                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+
+    // Quarantine functions
+    private volatile java.util.function.Function<
+                    Tuple3<ResourceID, String, Duration>, CompletableFuture<Void>>
+            quarantineNodeFunction = ignored -> CompletableFuture.completedFuture(null);
+
+    private volatile java.util.function.Function<ResourceID, CompletableFuture<Void>>
+            removeNodeQuarantineFunction = ignored -> CompletableFuture.completedFuture(null);
+
+    private volatile java.util.function.Supplier<
+                    CompletableFuture<
+                            Collection<
+                                    org.apache.flink.runtime.resourcemanager.health
+                                            .NodeHealthStatus>>>
+            listQuarantinedNodesSupplier =
+                    () -> CompletableFuture.completedFuture(Collections.emptyList());
+
+    // Batch execution blocklist functions
+    private volatile java.util.function.Supplier<
+                    CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>>
+            getAllBlockedNodesSupplier =
+                    () -> CompletableFuture.completedFuture(Collections.emptyList());
+
+    private volatile java.util.function.Function<
+                    Tuple2<String, Duration>, CompletableFuture<Acknowledge>>
+            removeBlockedNodeFunction =
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 
     public TestingResourceManagerGateway() {
@@ -302,6 +330,40 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             java.util.function.Function<String, CompletableFuture<Acknowledge>>
                     removeManagementBlockedNodeFunction) {
         this.removeManagementBlockedNodeFunction = removeManagementBlockedNodeFunction;
+    }
+
+    public void setQuarantineNodeFunction(
+            java.util.function.Function<
+                            Tuple3<ResourceID, String, Duration>, CompletableFuture<Void>>
+                    quarantineNodeFunction) {
+        this.quarantineNodeFunction = quarantineNodeFunction;
+    }
+
+    public void setRemoveNodeQuarantineFunction(
+            java.util.function.Function<ResourceID, CompletableFuture<Void>>
+                    removeNodeQuarantineFunction) {
+        this.removeNodeQuarantineFunction = removeNodeQuarantineFunction;
+    }
+
+    public void setListQuarantinedNodesSupplier(
+            java.util.function.Supplier<
+                            CompletableFuture<
+                                    Collection<
+                                            org.apache.flink.runtime.resourcemanager.health
+                                                    .NodeHealthStatus>>>
+                    listQuarantinedNodesSupplier) {
+        this.listQuarantinedNodesSupplier = listQuarantinedNodesSupplier;
+    }
+
+    public void setRemoveBlockedNodeFunction(
+            java.util.function.Function<Tuple2<String, Duration>, CompletableFuture<Acknowledge>>
+                    removeBlockedNodeFunction) {
+        this.removeBlockedNodeFunction = removeBlockedNodeFunction;
+    }
+
+    public java.util.function.Function<Tuple2<String, Duration>, CompletableFuture<Acknowledge>>
+            getRemoveBlockedNodeFunction() {
+        return removeBlockedNodeFunction;
     }
 
     @Override
@@ -628,5 +690,43 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     public CompletableFuture<Void> removeManagementBlockedNode(String nodeId, Duration timeout) {
         removeManagementBlockedNodeFunction.apply(nodeId);
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> quarantineNode(
+            ResourceID resourceID, String reason, Duration duration, @RpcTimeout Duration timeout) {
+        return quarantineNodeFunction.apply(Tuple3.of(resourceID, reason, duration));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeNodeQuarantine(
+            ResourceID resourceID, @RpcTimeout Duration timeout) {
+        return removeNodeQuarantineFunction.apply(resourceID);
+    }
+
+    @Override
+    public CompletableFuture<
+                    Collection<org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus>>
+            listQuarantinedNodes(@RpcTimeout Duration timeout) {
+        return listQuarantinedNodesSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllBlockedNodes(@RpcTimeout Duration timeout) {
+        return getAllBlockedNodesSupplier.get();
+    }
+
+    @Override
+    public CompletableFuture<Void> addBlockedNode(
+            String nodeId, String cause, long endTimestamp, @RpcTimeout Duration timeout) {
+        // For batch execution blocklist, we will need a new function field if needed
+        // For now, return a successful future for testing
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> removeBlockedNode(String nodeId, @RpcTimeout Duration timeout) {
+        return removeBlockedNodeFunction.apply(Tuple2.of(nodeId, timeout)).thenApply(ack -> null);
     }
 }

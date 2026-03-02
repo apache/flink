@@ -193,10 +193,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     protected void initialize() throws ResourceManagerException {
         try {
             resourceManagerDriver.initialize(
-                    this,
-                    new GatewayMainThreadExecutor(),
-                    ioExecutor,
-                    blocklistHandler::getAllBlockedNodeIds);
+                    this, new GatewayMainThreadExecutor(), ioExecutor, blocklistHandler);
         } catch (Exception e) {
             throw new ResourceManagerException("Cannot initialize resource provider.", e);
         }

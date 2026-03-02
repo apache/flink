@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -166,7 +168,18 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 
         private ResourceManagerDriver<WorkerType> driver;
         private ScheduledExecutor mainThreadExecutor;
-        private BlockedNodeRetriever blockedNodeRetriever = () -> Collections.emptySet();
+        private BlockedNodeRetriever blockedNodeRetriever =
+                new BlockedNodeRetriever() {
+                    @Override
+                    public Set<String> getAllBlockedNodeIds() {
+                        return Collections.emptySet();
+                    }
+
+                    @Override
+                    public Collection<BlockedNode> getAllBlockedNodes() {
+                        return Collections.emptyList();
+                    }
+                };
 
         protected ResourceManagerDriver<WorkerType> getDriver() {
             return driver;
