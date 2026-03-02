@@ -33,8 +33,11 @@ import { catchError, filter, map, mergeMap, takeUntil } from 'rxjs/operators';
 import { DagreComponent } from '@flink-runtime-web/components/dagre/dagre.component';
 import { ResizeComponent } from '@flink-runtime-web/components/resize/resize.component';
 import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
+import { TopNMetrics } from '@flink-runtime-web/interfaces/top-n-metrics';
 import { JobOverviewListComponent } from '@flink-runtime-web/pages/job/overview/list/job-overview-list.component';
+import { TopNMetricsComponent } from '@flink-runtime-web/pages/job/overview/top-n-metrics/top-n-metrics.component';
 import { JobService, MetricsService } from '@flink-runtime-web/services';
+import { TopNMetricsService } from '@flink-runtime-web/services/top-n-metrics.service';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 
@@ -45,7 +48,7 @@ import { JobLocalService } from '../job-local.service';
   templateUrl: './job-overview.component.html',
   styleUrls: ['./job-overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzAlertModule, NgIf, DagreComponent, RouterOutlet, JobOverviewListComponent, ResizeComponent]
+  imports: [NzAlertModule, NgIf, DagreComponent, RouterOutlet, JobOverviewListComponent, ResizeComponent, TopNMetricsComponent]
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];
@@ -55,6 +58,11 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   public pendingNodes: NodesItemCorrect[] = [];
   public pendingLinks: NodesItemLink[] = [];
   public selectedNode: NodesItemCorrect | null;
+  public topNMetrics: TopNMetrics = {
+    topCpuConsumers: [],
+    topBackpressureOperators: [],
+    topGcIntensiveTasks: []
+  };
   public top = 500;
   public jobId: string;
   public timeoutId: number;
@@ -71,7 +79,8 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     private readonly jobLocalService: JobLocalService,
     private readonly jobService: JobService,
     private readonly notificationService: NzNotificationService,
-    private readonly cdr: ChangeDetectorRef
+    private readonly cdr: ChangeDetectorRef,
+    private readonly topNMetricsService: TopNMetricsService
   ) {}
 
   public ngOnInit(): void {
@@ -91,6 +100,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
           this.updatePendingInfo();
           this.refreshGraph(this.dagreComponent.showPendingOperators);
           this.refreshNodesWithMetrics();
+          this.loadTopNMetrics();
         } else {
           this.nodes = data.plan.nodes;
           this.refreshNodesWithMetrics();
@@ -224,5 +234,24 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         });
       });
     return pendingLinks;
+  }
+
+  private loadTopNMetrics(): void {
+    this.topNMetricsService
+      .loadTopNMetrics(this.jobId)
+      .pipe(
+        catchError(() => {
+          return of({
+            topCpuConsumers: [],
+            topBackpressureOperators: [],
+            topGcIntensiveTasks: []
+          });
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(metrics => {
+        this.topNMetrics = metrics;
+        this.cdr.markForCheck();
+      });
   }
 }
