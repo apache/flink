@@ -9,6 +9,24 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>cluster.management.node-quarantine.default-duration</h5></td>
+            <td style="word-wrap: break-word;">10 min</td>
+            <td>Duration</td>
+            <td>The default duration for which a node should be quarantined when added to the management node quarantine without specifying an explicit duration.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.management.node-quarantine.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>A flag to enable or disable the management node quarantine functionality. When enabled, nodes can be manually added to a quarantine list via REST API to prevent new slots from being allocated on them. This is independent of batch execution blocklist and speculative execution.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.management.node-quarantine.max-duration</h5></td>
+            <td style="word-wrap: break-word;">1 d</td>
+            <td>Duration</td>
+            <td>The maximum duration for which a node can be quarantined in the management node quarantine. This prevents accidentally quarantining nodes for too long.</td>
+        </tr>
+        <tr>
             <td><h5>execution.batch.adaptive.auto-parallelism.avg-data-volume-per-task</h5></td>
             <td style="word-wrap: break-word;">16 mb</td>
             <td>MemorySize</td>
