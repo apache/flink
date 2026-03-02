@@ -24,16 +24,18 @@ import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/** Message headers for removing a node from the blocklist. */
-public class BlocklistRemoveHeaders
+/** Message headers for removing a node from the node quarantine. */
+public class NodeQuarantineRemoveHeaders
         implements RuntimeMessageHeaders<
-                EmptyRequestBody, BlocklistRemoveResponseBody, BlocklistRemoveMessageParameters> {
+                EmptyRequestBody,
+                NodeQuarantineRemoveResponseBody,
+                NodeQuarantineRemoveMessageParameters> {
 
-    private static final BlocklistRemoveHeaders INSTANCE = new BlocklistRemoveHeaders();
+    private static final NodeQuarantineRemoveHeaders INSTANCE = new NodeQuarantineRemoveHeaders();
 
-    public static final String URL = "/cluster/blocklist/:nodeId";
+    public static final String URL = "/cluster/node-quarantine/:nodeId";
 
-    private BlocklistRemoveHeaders() {}
+    private NodeQuarantineRemoveHeaders() {}
 
     @Override
     public Class<EmptyRequestBody> getRequestClass() {
@@ -41,8 +43,8 @@ public class BlocklistRemoveHeaders
     }
 
     @Override
-    public Class<BlocklistRemoveResponseBody> getResponseClass() {
-        return BlocklistRemoveResponseBody.class;
+    public Class<NodeQuarantineRemoveResponseBody> getResponseClass() {
+        return NodeQuarantineRemoveResponseBody.class;
     }
 
     @Override
@@ -51,8 +53,8 @@ public class BlocklistRemoveHeaders
     }
 
     @Override
-    public BlocklistRemoveMessageParameters getUnresolvedMessageParameters() {
-        return new BlocklistRemoveMessageParameters();
+    public NodeQuarantineRemoveMessageParameters getUnresolvedMessageParameters() {
+        return new NodeQuarantineRemoveMessageParameters();
     }
 
     @Override
@@ -65,12 +67,12 @@ public class BlocklistRemoveHeaders
         return URL;
     }
 
-    public static BlocklistRemoveHeaders getInstance() {
+    public static NodeQuarantineRemoveHeaders getInstance() {
         return INSTANCE;
     }
 
     @Override
     public String getDescription() {
-        return "Removes a node from the blocklist to allow new slots to be allocated on it.";
+        return "Removes a node from the quarantine list to allow new slots to be allocated on it.";
     }
 }

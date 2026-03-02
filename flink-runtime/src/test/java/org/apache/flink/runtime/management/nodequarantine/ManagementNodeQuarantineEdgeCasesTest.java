@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.management.blocklist;
+package org.apache.flink.runtime.management.nodequarantine;
 
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -35,17 +35,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Tests for edge cases and boundary conditions in management blocklist functionality. */
-public class ManagementBlocklistEdgeCasesTest {
+/** Tests for edge cases and boundary conditions in management node quarantine functionality. */
+public class ManagementNodeQuarantineEdgeCasesTest {
 
-    private DefaultManagementBlocklistHandler handler;
+    private DefaultManagementNodeQuarantineHandler handler;
     private ScheduledExecutorService executorService;
 
     @BeforeEach
     public void setUp() {
         executorService = Executors.newSingleThreadScheduledExecutor();
         handler =
-                new DefaultManagementBlocklistHandler(
+                new DefaultManagementNodeQuarantineHandler(
                         ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                                 executorService),
                         Duration.ofSeconds(1)); // 1 second cleanup interval
@@ -53,64 +53,57 @@ public class ManagementBlocklistEdgeCasesTest {
 
     @Test
     public void testAddNodeWithNullNodeId() {
-        // Test null nodeId
         assertThrows(
                 NullPointerException.class,
                 () -> {
-                    handler.addBlockedNode(null, "reason", Duration.ofMinutes(5));
+                    handler.addQuarantinedNode(null, "reason", Duration.ofMinutes(5));
                 });
     }
 
     @Test
     public void testAddNodeWithNullReason() {
-        // Test null reason
         assertThrows(
                 NullPointerException.class,
                 () -> {
-                    handler.addBlockedNode("node1", null, Duration.ofMinutes(5));
+                    handler.addQuarantinedNode("node1", null, Duration.ofMinutes(5));
                 });
     }
 
     @Test
     public void testAddNodeWithNullDuration() {
-        // Test null duration
         assertThrows(
                 NullPointerException.class,
                 () -> {
-                    handler.addBlockedNode("node1", "reason", null);
+                    handler.addQuarantinedNode("node1", "reason", null);
                 });
     }
 
     @Test
     public void testRemoveNodeWithNullNodeId() {
-        // Test null nodeId for removal
         assertThrows(
                 NullPointerException.class,
                 () -> {
-                    handler.removeBlockedNode(null);
+                    handler.removeQuarantinedNode(null);
                 });
     }
 
     @Test
     public void testRemoveNonExistentNode() {
-        // Test removing a node that doesn't exist
-        boolean result = handler.removeBlockedNode("non-existent-node");
+        boolean result = handler.removeQuarantinedNode("non-existent-node");
         assertFalse(result);
     }
 
     @Test
-    public void testIsBlockedWithNullNodeId() {
-        // Test null nodeId for isBlocked check
+    public void testIsQuarantinedWithNullNodeId() {
         assertThrows(
                 NullPointerException.class,
                 () -> {
-                    handler.isNodeBlocked(null);
+                    handler.isNodeQuarantined(null);
                 });
     }
 
     @Test
     public void testAddSameNodeMultipleTimes() {
-        // Test adding the same node multiple times
         String nodeId = "test-node";
         String reason1 = "first reason";
         String reason2 = "second reason";
@@ -118,15 +111,15 @@ public class ManagementBlocklistEdgeCasesTest {
         Duration duration2 = Duration.ofMinutes(20);
 
         // Add node first time
-        handler.addBlockedNode(nodeId, reason1, duration1);
-        assertTrue(handler.isNodeBlocked(nodeId));
+        handler.addQuarantinedNode(nodeId, reason1, duration1);
+        assertTrue(handler.isNodeQuarantined(nodeId));
 
         // Add same node second time (should update)
-        handler.addBlockedNode(nodeId, reason2, duration2);
-        assertTrue(handler.isNodeBlocked(nodeId));
+        handler.addQuarantinedNode(nodeId, reason2, duration2);
+        assertTrue(handler.isNodeQuarantined(nodeId));
 
         // Verify the node exists and has updated information
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertEquals(1, allNodes.size());
         BlockedNode node = allNodes.iterator().next();
         assertEquals(nodeId, node.getNodeId());
@@ -135,36 +128,31 @@ public class ManagementBlocklistEdgeCasesTest {
 
     @Test
     public void testVeryShortDuration() {
-        // Test with very short duration (10 milliseconds)
         String nodeId = "short-duration-node";
         Duration shortDuration = Duration.ofMillis(10);
 
-        handler.addBlockedNode(nodeId, "short test", shortDuration);
-        assertTrue(handler.isNodeBlocked(nodeId));
+        handler.addQuarantinedNode(nodeId, "short test", shortDuration);
+        assertTrue(handler.isNodeQuarantined(nodeId));
 
-        // Wait a bit and check if it's still blocked (might have expired)
         try {
             Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        // The node might have expired by now, but that's expected behavior
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
-        // We don't assert the result here because it depends on timing
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertNotNull(allNodes);
     }
 
     @Test
     public void testVeryLongDuration() {
-        // Test with very long duration
         String nodeId = "long-duration-node";
         Duration longDuration = Duration.ofDays(365); // 1 year
 
-        handler.addBlockedNode(nodeId, "long test", longDuration);
-        assertTrue(handler.isNodeBlocked(nodeId));
+        handler.addQuarantinedNode(nodeId, "long test", longDuration);
+        assertTrue(handler.isNodeQuarantined(nodeId));
 
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertEquals(1, allNodes.size());
         BlockedNode node = allNodes.iterator().next();
         assertEquals(nodeId, node.getNodeId());
@@ -175,28 +163,26 @@ public class ManagementBlocklistEdgeCasesTest {
 
     @Test
     public void testLargeNumberOfNodes() {
-        // Test adding a large number of nodes
-        int nodeCount = 100; // Reduced from 1000 to avoid test timeout
+        int nodeCount = 100;
         Duration duration = Duration.ofMinutes(30);
 
         for (int i = 0; i < nodeCount; i++) {
             String nodeId = "node-" + i;
-            handler.addBlockedNode(nodeId, "reason-" + i, duration);
+            handler.addQuarantinedNode(nodeId, "reason-" + i, duration);
         }
 
-        // Verify all nodes are blocked
         for (int i = 0; i < nodeCount; i++) {
             String nodeId = "node-" + i;
-            assertTrue(handler.isNodeBlocked(nodeId), "Node " + nodeId + " should be blocked");
+            assertTrue(
+                    handler.isNodeQuarantined(nodeId), "Node " + nodeId + " should be quarantined");
         }
 
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertEquals(nodeCount, allNodes.size());
     }
 
     @Test
     public void testSpecialCharactersInNodeId() {
-        // Test node IDs with special characters
         String[] specialNodeIds = {
             "node-with-dashes", "node_with_underscores", "node.with.dots", "node:with:colons"
         };
@@ -204,19 +190,18 @@ public class ManagementBlocklistEdgeCasesTest {
         Duration duration = Duration.ofMinutes(10);
 
         for (String nodeId : specialNodeIds) {
-            handler.addBlockedNode(nodeId, "special char test", duration);
+            handler.addQuarantinedNode(nodeId, "special char test", duration);
             assertTrue(
-                    handler.isNodeBlocked(nodeId),
-                    "Node with special chars should be blocked: " + nodeId);
+                    handler.isNodeQuarantined(nodeId),
+                    "Node with special chars should be quarantined: " + nodeId);
         }
 
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertEquals(specialNodeIds.length, allNodes.size());
     }
 
     @Test
     public void testSpecialCharactersInReason() {
-        // Test reasons with special characters
         String nodeId = "test-node";
         String[] specialReasons = {
             "Reason with spaces and punctuation!",
@@ -230,73 +215,68 @@ public class ManagementBlocklistEdgeCasesTest {
 
         for (int i = 0; i < specialReasons.length; i++) {
             String currentNodeId = nodeId + "-" + i;
-            handler.addBlockedNode(currentNodeId, specialReasons[i], duration);
-            assertTrue(handler.isNodeBlocked(currentNodeId));
+            handler.addQuarantinedNode(currentNodeId, specialReasons[i], duration);
+            assertTrue(handler.isNodeQuarantined(currentNodeId));
         }
 
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertEquals(specialReasons.length, allNodes.size());
     }
 
     @Test
     public void testBasicAddRemoveOperations() {
-        // Test basic add/remove operations
         String nodeId = "test-node";
         Duration duration = Duration.ofMinutes(30);
 
-        // Initially not blocked
-        assertFalse(handler.isNodeBlocked(nodeId));
+        // Initially not quarantined
+        assertFalse(handler.isNodeQuarantined(nodeId));
 
         // Add node
-        handler.addBlockedNode(nodeId, "test reason", duration);
-        assertTrue(handler.isNodeBlocked(nodeId));
+        handler.addQuarantinedNode(nodeId, "test reason", duration);
+        assertTrue(handler.isNodeQuarantined(nodeId));
 
         // Remove node
-        boolean removed = handler.removeBlockedNode(nodeId);
+        boolean removed = handler.removeQuarantinedNode(nodeId);
         assertTrue(removed);
-        assertFalse(handler.isNodeBlocked(nodeId));
+        assertFalse(handler.isNodeQuarantined(nodeId));
 
         // Try to remove again
-        boolean removedAgain = handler.removeBlockedNode(nodeId);
+        boolean removedAgain = handler.removeQuarantinedNode(nodeId);
         assertFalse(removedAgain);
     }
 
     @Test
-    public void testGetAllBlockedNodes() {
-        // Test getAllBlockedNodes method
-        assertTrue(handler.getAllBlockedNodes().isEmpty());
+    public void testGetAllQuarantinedNodes() {
+        assertTrue(handler.getAllQuarantinedNodes().isEmpty());
 
-        // Add some nodes
-        handler.addBlockedNode("node1", "reason1", Duration.ofMinutes(10));
-        handler.addBlockedNode("node2", "reason2", Duration.ofMinutes(20));
-        handler.addBlockedNode("node3", "reason3", Duration.ofMinutes(30));
+        handler.addQuarantinedNode("node1", "reason1", Duration.ofMinutes(10));
+        handler.addQuarantinedNode("node2", "reason2", Duration.ofMinutes(20));
+        handler.addQuarantinedNode("node3", "reason3", Duration.ofMinutes(30));
 
-        Set<BlockedNode> allNodes = handler.getAllBlockedNodes();
+        Set<BlockedNode> allNodes = handler.getAllQuarantinedNodes();
         assertEquals(3, allNodes.size());
 
-        // Remove one node
-        handler.removeBlockedNode("node2");
-        allNodes = handler.getAllBlockedNodes();
+        handler.removeQuarantinedNode("node2");
+        allNodes = handler.getAllQuarantinedNodes();
         assertEquals(2, allNodes.size());
     }
 
     @Test
     public void testExpiredNodeRemoval() throws InterruptedException {
-        // Test automatic removal of expired nodes
         String nodeId = "expiring-node";
         Duration shortDuration = Duration.ofMillis(100);
 
-        handler.addBlockedNode(nodeId, "expiring test", shortDuration);
-        assertTrue(handler.isNodeBlocked(nodeId));
+        handler.addQuarantinedNode(nodeId, "expiring test", shortDuration);
+        assertTrue(handler.isNodeQuarantined(nodeId));
 
         // Wait for expiration
         Thread.sleep(200);
 
-        // Manually trigger cleanup (since we can't wait for automatic cleanup)
+        // Manually trigger cleanup
         handler.removeExpiredNodes();
 
-        // Node should no longer be blocked
-        assertFalse(handler.isNodeBlocked(nodeId));
-        assertTrue(handler.getAllBlockedNodes().isEmpty());
+        // Node should no longer be quarantined
+        assertFalse(handler.isNodeQuarantined(nodeId));
+        assertTrue(handler.getAllQuarantinedNodes().isEmpty());
     }
 }
