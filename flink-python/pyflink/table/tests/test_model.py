@@ -15,9 +15,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ################################################################################
-
-import unittest
-
 from pyflink.common import Row
 from pyflink.table import ModelDescriptor, Schema, DataTypes
 from pyflink.table.catalog import ResolvedSchema
