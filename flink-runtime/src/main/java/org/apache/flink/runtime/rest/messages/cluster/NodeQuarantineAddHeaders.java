@@ -20,30 +20,31 @@ package org.apache.flink.runtime.rest.messages.cluster;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/** Message headers for retrieving the list of blocked nodes. */
-public class BlocklistListHeaders
+/** Message headers for adding a node to the node quarantine. */
+public class NodeQuarantineAddHeaders
         implements RuntimeMessageHeaders<
-                EmptyRequestBody, BlocklistListResponseBody, EmptyMessageParameters> {
+                NodeQuarantineAddRequestBody,
+                NodeQuarantineAddResponseBody,
+                EmptyMessageParameters> {
 
-    private static final BlocklistListHeaders INSTANCE = new BlocklistListHeaders();
+    private static final NodeQuarantineAddHeaders INSTANCE = new NodeQuarantineAddHeaders();
 
-    public static final String URL = "/cluster/blocklist";
+    public static final String URL = "/cluster/node-quarantine";
 
-    private BlocklistListHeaders() {}
+    private NodeQuarantineAddHeaders() {}
 
     @Override
-    public Class<EmptyRequestBody> getRequestClass() {
-        return EmptyRequestBody.class;
+    public Class<NodeQuarantineAddRequestBody> getRequestClass() {
+        return NodeQuarantineAddRequestBody.class;
     }
 
     @Override
-    public Class<BlocklistListResponseBody> getResponseClass() {
-        return BlocklistListResponseBody.class;
+    public Class<NodeQuarantineAddResponseBody> getResponseClass() {
+        return NodeQuarantineAddResponseBody.class;
     }
 
     @Override
@@ -58,7 +59,7 @@ public class BlocklistListHeaders
 
     @Override
     public HttpMethodWrapper getHttpMethod() {
-        return HttpMethodWrapper.GET;
+        return HttpMethodWrapper.POST;
     }
 
     @Override
@@ -66,12 +67,12 @@ public class BlocklistListHeaders
         return URL;
     }
 
-    public static BlocklistListHeaders getInstance() {
+    public static NodeQuarantineAddHeaders getInstance() {
         return INSTANCE;
     }
 
     @Override
     public String getDescription() {
-        return "Returns the list of blocked nodes in the cluster.";
+        return "Adds a node to the quarantine list to prevent new slots from being allocated on it.";
     }
 }

@@ -967,6 +967,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private boolean isBlockedTaskManager(ResourceID resourceID) {
         Preconditions.checkNotNull(blockedTaskManagerChecker);
-        return blockedTaskManagerChecker.isBlockedTaskManager(resourceID);
+        return blockedTaskManagerChecker.isBlockedTaskManager(resourceID)
+                || !nodeHealthManager.isHealthy(resourceID);
     }
 }

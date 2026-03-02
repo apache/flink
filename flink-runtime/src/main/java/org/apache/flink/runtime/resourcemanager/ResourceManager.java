@@ -176,8 +176,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     protected final BlocklistHandler blocklistHandler;
 
-    protected final org.apache.flink.runtime.management.blocklist.ManagementBlocklistHandler
-            managementBlocklistHandler;
+    protected final org.apache.flink.runtime.management.nodequarantine
+                    .ManagementNodeQuarantineHandler
+            managementNodeQuarantineHandler;
 
     private final AtomicReference<byte[]> latestTokens = new AtomicReference<>();
 
@@ -194,8 +195,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             SlotManager slotManager,
             ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
-            org.apache.flink.runtime.management.blocklist.ManagementBlocklistHandler.Factory
-                    managementBlocklistHandlerFactory,
+            org.apache.flink.runtime.management.nodequarantine.ManagementNodeQuarantineHandler
+                            .Factory
+                    managementNodeQuarantineHandlerFactory,
             JobLeaderIdService jobLeaderIdService,
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
@@ -227,7 +229,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         getMainThreadExecutor(),
                         log);
 
-        this.managementBlocklistHandler = managementBlocklistHandlerFactory.create();
+        this.managementNodeQuarantineHandler = managementNodeQuarantineHandlerFactory.create();
 
         this.jobManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
@@ -1021,19 +1023,19 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
-            getAllManagementBlockedNodes(Duration timeout) {
+            getAllManagementQuarantinedNodes(Duration timeout) {
         return CompletableFuture.completedFuture(
-                new HashSet<>(managementBlocklistHandler.getAllBlockedNodes()));
+                new HashSet<>(managementNodeQuarantineHandler.getAllQuarantinedNodes()));
     }
 
     @Override
-    public CompletableFuture<Void> addManagementBlockedNode(
+    public CompletableFuture<Void> addManagementQuarantinedNode(
             String nodeId, String reason, Duration duration, Duration timeout) {
         return CompletableFuture.runAsync(
                 () -> {
-                    managementBlocklistHandler.addBlockedNode(nodeId, reason, duration);
+                    managementNodeQuarantineHandler.addQuarantinedNode(nodeId, reason, duration);
                     log.info(
-                            "Node {} has been added to management blocklist for reason: {} (duration: {})",
+                            "Node {} has been added to management node quarantine for reason: {} (duration: {})",
                             nodeId,
                             reason,
                             duration);
@@ -1041,15 +1043,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public CompletableFuture<Void> removeManagementBlockedNode(String nodeId, Duration timeout) {
+    public CompletableFuture<Void> removeManagementQuarantinedNode(
+            String nodeId, Duration timeout) {
         return CompletableFuture.runAsync(
                 () -> {
-                    boolean removed = managementBlocklistHandler.removeBlockedNode(nodeId);
+                    boolean removed = managementNodeQuarantineHandler.removeQuarantinedNode(nodeId);
                     if (removed) {
-                        log.info("Node {} has been removed from management blocklist", nodeId);
+                        log.info(
+                                "Node {} has been removed from management node quarantine", nodeId);
                     } else {
                         log.warn(
-                                "Attempted to remove non-existent node {} from management blocklist",
+                                "Attempted to remove non-existent node {} from management node quarantine",
                                 nodeId);
                     }
                 });

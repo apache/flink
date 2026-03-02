@@ -30,25 +30,25 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-/** Response body for retrieving the list of blocked nodes. */
-public class BlocklistListResponseBody implements ResponseBody {
+/** Response body for retrieving the list of quarantined nodes. */
+public class NodeQuarantineListManagementResponseBody implements ResponseBody {
 
-    public static final String FIELD_NAME_BLOCKED_NODES = "blockedNodes";
+    public static final String FIELD_NAME_QUARANTINED_NODES = "quarantinedNodes";
 
-    @JsonProperty(FIELD_NAME_BLOCKED_NODES)
-    private final List<BlockedNodeInfo> blockedNodes;
+    @JsonProperty(FIELD_NAME_QUARANTINED_NODES)
+    private final List<QuarantinedNodeInfo> quarantinedNodes;
 
     @JsonCreator
-    public BlocklistListResponseBody(
-            @JsonProperty(FIELD_NAME_BLOCKED_NODES) Collection<BlockedNode> blockedNodes) {
-        this.blockedNodes =
-                Preconditions.checkNotNull(blockedNodes).stream()
-                        .map(BlockedNodeInfo::fromBlockedNode)
+    public NodeQuarantineListManagementResponseBody(
+            @JsonProperty(FIELD_NAME_QUARANTINED_NODES) Collection<BlockedNode> quarantinedNodes) {
+        this.quarantinedNodes =
+                Preconditions.checkNotNull(quarantinedNodes).stream()
+                        .map(QuarantinedNodeInfo::fromBlockedNode)
                         .collect(Collectors.toList());
     }
 
-    public List<BlockedNodeInfo> getBlockedNodes() {
-        return blockedNodes;
+    public List<QuarantinedNodeInfo> getQuarantinedNodes() {
+        return quarantinedNodes;
     }
 
     @Override
@@ -59,22 +59,26 @@ public class BlocklistListResponseBody implements ResponseBody {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        BlocklistListResponseBody that = (BlocklistListResponseBody) o;
-        return Objects.equals(blockedNodes, that.blockedNodes);
+        NodeQuarantineListManagementResponseBody that =
+                (NodeQuarantineListManagementResponseBody) o;
+        return Objects.equals(quarantinedNodes, that.quarantinedNodes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(blockedNodes);
+        return Objects.hash(quarantinedNodes);
     }
 
     @Override
     public String toString() {
-        return "BlocklistListResponseBody{" + "blockedNodes=" + blockedNodes + '}';
+        return "NodeQuarantineListManagementResponseBody{"
+                + "quarantinedNodes="
+                + quarantinedNodes
+                + '}';
     }
 
-    /** Information about a blocked node for JSON serialization. */
-    public static class BlockedNodeInfo {
+    /** Information about a quarantined node for JSON serialization. */
+    public static class QuarantinedNodeInfo {
         public static final String FIELD_NAME_NODE_ID = "nodeId";
         public static final String FIELD_NAME_CAUSE = "cause";
         public static final String FIELD_NAME_END_TIMESTAMP = "endTimestamp";
@@ -89,7 +93,7 @@ public class BlocklistListResponseBody implements ResponseBody {
         private final long endTimestamp;
 
         @JsonCreator
-        public BlockedNodeInfo(
+        public QuarantinedNodeInfo(
                 @JsonProperty(FIELD_NAME_NODE_ID) String nodeId,
                 @JsonProperty(FIELD_NAME_CAUSE) String cause,
                 @JsonProperty(FIELD_NAME_END_TIMESTAMP) long endTimestamp) {
@@ -98,8 +102,8 @@ public class BlocklistListResponseBody implements ResponseBody {
             this.endTimestamp = endTimestamp;
         }
 
-        public static BlockedNodeInfo fromBlockedNode(BlockedNode blockedNode) {
-            return new BlockedNodeInfo(
+        public static QuarantinedNodeInfo fromBlockedNode(BlockedNode blockedNode) {
+            return new QuarantinedNodeInfo(
                     blockedNode.getNodeId(), blockedNode.getCause(), blockedNode.getEndTimestamp());
         }
 
@@ -123,7 +127,7 @@ public class BlocklistListResponseBody implements ResponseBody {
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            BlockedNodeInfo that = (BlockedNodeInfo) o;
+            QuarantinedNodeInfo that = (QuarantinedNodeInfo) o;
             return endTimestamp == that.endTimestamp
                     && Objects.equals(nodeId, that.nodeId)
                     && Objects.equals(cause, that.cause);
@@ -136,7 +140,7 @@ public class BlocklistListResponseBody implements ResponseBody {
 
         @Override
         public String toString() {
-            return "BlockedNodeInfo{"
+            return "QuarantinedNodeInfo{"
                     + "nodeId='"
                     + nodeId
                     + '\''
