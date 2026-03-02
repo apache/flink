@@ -550,6 +550,10 @@ temporal:
   - sql: DAYOFMONTH
     description: |
       从 SQL 日期 date 返回一个月中的第几天（1 到 31 之间的整数）。相当于 EXTRACT(DAY FROM date)。
+      例如 `DAYOFMONTH(DATE '1994-09-27')` 返回 27。
+  - sql: DAYOFWEEK
+    description: |
+      从 SQL 日期 date 返回一个星期中的第几天（1 到 31 之间的整数）。相当于 EXTRACT(DAY FROM date)。
       例如 `DAYOFWEEK(DATE '1994-09-27')` 返回 3。
   - sql: HOUR(timestamp)
     description: |
