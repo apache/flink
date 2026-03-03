@@ -1162,7 +1162,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class SetOption implements CatalogTableChange {
+    class SetOption implements CatalogTableChange, MaterializedTableChange {
 
         private final String key;
         private final String value;
@@ -1215,7 +1215,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class ResetOption implements CatalogTableChange {
+    class ResetOption implements CatalogTableChange, MaterializedTableChange {
 
         private final String key;
 
