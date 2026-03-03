@@ -418,6 +418,77 @@ class NativeS3FileSystemFactoryTest {
     }
 
     @Test
+    void testCreateFileSystemWithAnonymousCredentialsProvider() throws Exception {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString(
+                "fs.s3.aws.credentials.provider",
+                "software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider");
+        config.setString("s3.region", "us-east-1");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testCreateFileSystemWithSimpleProviderClassName() throws Exception {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("fs.s3.aws.credentials.provider", "AnonymousCredentialsProvider");
+        config.setString("s3.region", "us-east-1");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testCreateFileSystemWithMultipleProviders() throws Exception {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString(
+                "fs.s3.aws.credentials.provider",
+                "DefaultCredentialsProvider,AnonymousCredentialsProvider");
+        config.setString("s3.region", "us-east-1");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testInvalidCredentialsProviderClassThrowsException() {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("fs.s3.aws.credentials.provider", "com.nonexistent.FakeProvider");
+        config.setString("s3.region", "us-east-1");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        assertThatThrownBy(() -> factory.create(fsUri))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not found");
+    }
+
+    @Test
     void testS3AWithSSEConfiguration() throws Exception {
         NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
         Configuration config = new Configuration();

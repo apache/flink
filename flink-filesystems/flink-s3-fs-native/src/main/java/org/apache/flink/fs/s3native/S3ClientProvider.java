@@ -48,8 +48,12 @@ import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -195,6 +199,9 @@ public class S3ClientProvider implements AutoCloseableAsync {
         // Encryption configuration
         private S3EncryptionConfig encryptionConfig;
 
+        // Custom credentials provider class names (comma-separated)
+        @Nullable private String credentialsProviderClasses;
+
         public Builder accessKey(@Nullable String accessKey) {
             this.accessKey = accessKey;
             return this;
@@ -269,6 +276,11 @@ public class S3ClientProvider implements AutoCloseableAsync {
 
         public Builder encryptionConfig(@Nullable S3EncryptionConfig encryptionConfig) {
             this.encryptionConfig = encryptionConfig;
+            return this;
+        }
+
+        public Builder credentialsProviderClasses(@Nullable String credentialsProviderClasses) {
+            this.credentialsProviderClasses = credentialsProviderClasses;
             return this;
         }
 
@@ -372,12 +384,101 @@ public class S3ClientProvider implements AutoCloseableAsync {
         }
 
         private AwsCredentialsProvider buildBaseCredentialsProvider() {
-            // The token provider returns null if credentials are not available,
-            // allowing the chain to proceed to the next provider (fallback).
+            if (credentialsProviderClasses != null
+                    && !credentialsProviderClasses.trim().isEmpty()) {
+                return buildCustomCredentialsProvider(credentialsProviderClasses);
+            }
+            // Default chain:
+            // 1. delegation tokens
+            // 2. static credentials (if configured)
+            // 3. DefaultCredentialsProvider.
             return AwsCredentialsProviderChain.builder()
                     .credentialsProviders(
                             new DynamicTemporaryAWSCredentialsProvider(), buildFallbackProvider())
                     .build();
+        }
+
+        private AwsCredentialsProvider buildCustomCredentialsProvider(String classNames) {
+            String[] names = classNames.split(",");
+            List<AwsCredentialsProvider> providers = new ArrayList<>();
+            for (String name : names) {
+                String trimmed = name.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                providers.add(instantiateCredentialsProvider(trimmed));
+            }
+            if (providers.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "fs.s3.aws.credentials.provider is set but contains no valid provider class names");
+            }
+            LOG.info(
+                    "Using custom credentials provider chain with {} provider(s): {}",
+                    providers.size(),
+                    classNames);
+            if (providers.size() == 1) {
+                return providers.get(0);
+            }
+            return AwsCredentialsProviderChain.builder().credentialsProviders(providers).build();
+        }
+
+        /**
+         * Instantiates an {@link AwsCredentialsProvider} from a class name. Accepts fully-qualified
+         * SDK v2 class names or simple names resolved from the {@code
+         * software.amazon.awssdk.auth.credentials} package (e.g. {@code
+         * AnonymousCredentialsProvider}).
+         */
+        private AwsCredentialsProvider instantiateCredentialsProvider(String className) {
+            String resolvedClassName = resolveProviderClassName(className);
+            try {
+                Class<?> clazz = Class.forName(resolvedClassName);
+                if (!AwsCredentialsProvider.class.isAssignableFrom(clazz)) {
+                    throw new IllegalArgumentException(
+                            "Class "
+                                    + resolvedClassName
+                                    + " does not implement AwsCredentialsProvider");
+                }
+
+                try {
+                    Method createMethod = clazz.getMethod("create");
+                    if (Modifier.isStatic(createMethod.getModifiers())
+                            && AwsCredentialsProvider.class.isAssignableFrom(
+                                    createMethod.getReturnType())) {
+                        return (AwsCredentialsProvider) createMethod.invoke(null);
+                    }
+                } catch (NoSuchMethodException ignored) {
+                }
+
+                return (AwsCredentialsProvider) clazz.getDeclaredConstructor().newInstance();
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(
+                        "Credentials provider class not found: "
+                                + resolvedClassName
+                                + " (original: "
+                                + className
+                                + ")",
+                        e);
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalArgumentException(
+                        "Failed to instantiate credentials provider: " + resolvedClassName, e);
+            }
+        }
+
+        /**
+         * If it doesn't contain a dot, assume it's a simple name from the SDK auth package it is
+         * assumed to be a simple name from the {@code software.amazon.awssdk.auth.credentials}
+         * package and is prefixed with {@code software.amazon.awssdk.auth.credentials.}.
+         *
+         * @param className the name of the credentials provider class
+         * @return the fully-qualified class name of the credentials provider
+         */
+        private static String resolveProviderClassName(String className) {
+            if (!className.contains(".")) {
+                return "software.amazon.awssdk.auth.credentials." + className;
+            }
+            return className;
         }
 
         private StsClient buildStsClient(AwsCredentialsProvider baseProvider, Region awsRegion) {
