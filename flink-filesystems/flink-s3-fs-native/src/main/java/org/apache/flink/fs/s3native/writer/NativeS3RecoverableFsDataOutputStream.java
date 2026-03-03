@@ -22,6 +22,9 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.File;
@@ -48,6 +51,9 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @NotThreadSafe
 public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(NativeS3RecoverableFsDataOutputStream.class);
 
     /** Lock to guard close/persist/commit paths against concurrent close() during cancellation. */
     private final ReentrantLock lock = new ReentrantLock();
@@ -250,7 +256,12 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
                 try {
                     s3AccessHelper.abortMultiPartUpload(key, uploadId);
                 } catch (IOException e) {
-                    // best-effort cleanup
+                    LOG.warn(
+                            "Multipart upload failed (key={}, uploadId={}). "
+                                    + "S3 lifecycle rules should eventually clean up the incomplete upload.",
+                            key,
+                            uploadId,
+                            e);
                 }
             }
         } finally {

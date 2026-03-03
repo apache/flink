@@ -436,12 +436,26 @@ public class NativeS3FileSystem extends FileSystem
                 clientProvider.getEncryptionConfig());
     }
 
+    /**
+     * Renames a single file from {@code src} to {@code dst}.
+     *
+     * <p><b>Directory rename is not supported.</b>
+     *
+     * @throws UnsupportedOperationException if {@code src} is a directory
+     */
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
         checkNotClosed();
         final String srcKey = NativeS3AccessHelper.extractKey(src);
         final String dstKey = NativeS3AccessHelper.extractKey(dst);
         final S3Client s3Client = clientProvider.getS3Client();
+
+        final FileStatus srcStatus = getFileStatus(src);
+        if (srcStatus.isDir()) {
+            throw new UnsupportedOperationException(
+                    "NativeS3FileSystem does not support renaming directories: " + src);
+        }
+
         try {
             final CopyObjectRequest copyRequest =
                     CopyObjectRequest.builder()

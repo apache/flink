@@ -189,6 +189,15 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .withDescription(
                             "Duration in seconds for the assumed role session (900-43200 seconds, default: 3600)");
 
+    public static final ConfigOption<Integer> MAX_RETRIES =
+            ConfigOptions.key("s3.retry.max-num-retries")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "Maximum number of retry attempts for failed S3 requests. "
+                                    + "Uses the AWS SDK's default retry strategy (exponential backoff with jitter). "
+                                    + "Set to 0 to disable retries.");
+
     private Configuration flinkConfig;
 
     @Override
@@ -239,6 +248,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .assumeRoleSessionName(config.get(ASSUME_ROLE_SESSION_NAME))
                         .assumeRoleSessionDurationSeconds(
                                 config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS))
+                        .maxRetries(config.get(MAX_RETRIES))
                         .encryptionConfig(encryptionConfig)
                         .build();
 
