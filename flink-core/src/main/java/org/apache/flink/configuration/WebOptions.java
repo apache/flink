@@ -141,6 +141,20 @@ public class WebOptions {
                     .withDescription(
                             "The maximum number of failures collected by the exception history per job.");
 
+    /** The maximum number of the adaptive scheduler rescale history. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Integer> MAX_ADAPTIVE_SCHEDULER_RESCALE_HISTORY_SIZE =
+            key("web.adaptive-scheduler.rescale-history.size")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The maximum number of the rescale records per job whose scheduler is %s. "
+                                                    + "The feature will be disabled when the configuration value is smaller or equals to 0.",
+                                            code("AdaptiveScheduler"))
+                                    .build());
+
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
     public static final ConfigOption<Duration> TIMEOUT =
             key("web.timeout")
