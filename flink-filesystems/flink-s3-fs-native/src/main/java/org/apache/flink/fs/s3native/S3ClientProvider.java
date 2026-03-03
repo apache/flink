@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3native;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3native.token.DynamicTemporaryAWSCredentialsProvider;
 import org.apache.flink.util.AutoCloseableAsync;
 
@@ -114,6 +115,11 @@ public class S3ClientProvider implements AutoCloseableAsync {
         return encryptionConfig;
     }
 
+    @VisibleForTesting
+    AwsCredentialsProvider getCredentialsProvider() {
+        return credentialsProvider;
+    }
+
     @Override
     public CompletableFuture<Void> closeAsync() {
         if (!closed.compareAndSet(false, true)) {
@@ -142,9 +148,9 @@ public class S3ClientProvider implements AutoCloseableAsync {
                                     LOG.warn("Error closing S3 sync client", e);
                                 }
                             }
-                            if (credentialsProvider instanceof SdkAutoCloseable) {
+                            if (getCredentialsProvider() instanceof SdkAutoCloseable) {
                                 try {
-                                    ((SdkAutoCloseable) credentialsProvider).close();
+                                    ((SdkAutoCloseable) getCredentialsProvider()).close();
                                 } catch (Exception e) {
                                     LOG.warn("Error closing credentials provider", e);
                                 }
@@ -386,40 +392,33 @@ public class S3ClientProvider implements AutoCloseableAsync {
         private AwsCredentialsProvider buildBaseCredentialsProvider() {
             if (credentialsProviderClasses != null
                     && !credentialsProviderClasses.trim().isEmpty()) {
-                return buildCustomCredentialsProvider(credentialsProviderClasses);
+                List<AwsCredentialsProvider> chain = new ArrayList<>();
+                for (String name : credentialsProviderClasses.split(",")) {
+                    String trimmed = name.trim();
+                    if (!trimmed.isEmpty()) {
+                        chain.add(instantiateCredentialsProvider(trimmed));
+                    }
+                }
+                if (chain.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "fs.s3.aws.credentials.provider is set but contains no valid provider class names");
+                }
+                LOG.info(
+                        "Using configured credentials provider chain: {}",
+                        credentialsProviderClasses);
+                return AwsCredentialsProviderChain.builder().credentialsProviders(chain).build();
             }
-            // Default chain:
-            // 1. delegation tokens
-            // 2. static credentials (if configured)
-            // 3. DefaultCredentialsProvider.
+
+            LOG.info(
+                    "Using default credentials provider chain: "
+                            + "DynamicTemporaryAWSCredentialsProvider -> {}",
+                    (accessKey != null && secretKey != null)
+                            ? "StaticCredentialsProvider"
+                            : "DefaultCredentialsProvider");
             return AwsCredentialsProviderChain.builder()
                     .credentialsProviders(
                             new DynamicTemporaryAWSCredentialsProvider(), buildFallbackProvider())
                     .build();
-        }
-
-        private AwsCredentialsProvider buildCustomCredentialsProvider(String classNames) {
-            String[] names = classNames.split(",");
-            List<AwsCredentialsProvider> providers = new ArrayList<>();
-            for (String name : names) {
-                String trimmed = name.trim();
-                if (trimmed.isEmpty()) {
-                    continue;
-                }
-                providers.add(instantiateCredentialsProvider(trimmed));
-            }
-            if (providers.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "fs.s3.aws.credentials.provider is set but contains no valid provider class names");
-            }
-            LOG.info(
-                    "Using custom credentials provider chain with {} provider(s): {}",
-                    providers.size(),
-                    classNames);
-            if (providers.size() == 1) {
-                return providers.get(0);
-            }
-            return AwsCredentialsProviderChain.builder().credentialsProviders(providers).build();
         }
 
         /**
@@ -450,30 +449,12 @@ public class S3ClientProvider implements AutoCloseableAsync {
                 }
 
                 return (AwsCredentialsProvider) clazz.getDeclaredConstructor().newInstance();
-            } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException(
-                        "Credentials provider class not found: "
-                                + resolvedClassName
-                                + " (original: "
-                                + className
-                                + ")",
-                        e);
-            } catch (IllegalArgumentException e) {
-                throw e;
             } catch (Exception e) {
                 throw new IllegalArgumentException(
                         "Failed to instantiate credentials provider: " + resolvedClassName, e);
             }
         }
 
-        /**
-         * If it doesn't contain a dot, assume it's a simple name from the SDK auth package it is
-         * assumed to be a simple name from the {@code software.amazon.awssdk.auth.credentials}
-         * package and is prefixed with {@code software.amazon.awssdk.auth.credentials.}.
-         *
-         * @param className the name of the credentials provider class
-         * @return the fully-qualified class name of the credentials provider
-         */
         private static String resolveProviderClassName(String className) {
             if (!className.contains(".")) {
                 return "software.amazon.awssdk.auth.credentials." + className;
