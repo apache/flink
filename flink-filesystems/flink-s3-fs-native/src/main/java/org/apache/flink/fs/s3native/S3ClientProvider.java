@@ -184,6 +184,7 @@ public class S3ClientProvider implements AutoCloseableAsync {
         private Duration connectionTimeout = Duration.ofSeconds(60);
         private Duration socketTimeout = Duration.ofSeconds(60);
         private boolean disableCertCheck = false;
+        private int maxRetries = 3;
 
         // AssumeRole configuration
         private String assumeRoleArn;
@@ -236,6 +237,11 @@ public class S3ClientProvider implements AutoCloseableAsync {
 
         public Builder disableCertCheck(boolean disableCertCheck) {
             this.disableCertCheck = disableCertCheck;
+            return this;
+        }
+
+        public Builder maxRetries(int maxRetries) {
+            this.maxRetries = maxRetries;
             return this;
         }
 
@@ -312,7 +318,7 @@ public class S3ClientProvider implements AutoCloseableAsync {
 
             ClientOverrideConfiguration overrideConfig =
                     ClientOverrideConfiguration.builder()
-                            .retryPolicy(RetryPolicy.builder().numRetries(3).build())
+                            .retryPolicy(RetryPolicy.builder().numRetries(maxRetries).build())
                             .build();
 
             ApacheHttpClient.Builder httpClientBuilder =
