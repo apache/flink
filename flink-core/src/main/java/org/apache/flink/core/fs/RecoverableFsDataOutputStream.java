@@ -46,13 +46,19 @@ public abstract class RecoverableFsDataOutputStream extends FSDataOutputStream {
     public abstract Committer closeForCommit() throws IOException;
 
     /**
-     * Closes this stream. Closing the steam releases the local resources that the stream uses, but
+     * Closes this stream. Closing the stream releases the local resources that the stream uses, but
      * does NOT result in durability of previously written data. This method should be interpreted
      * as a "close in order to dispose" or "close on failure".
      *
      * <p>In order to persist all previously written data, one needs to call the {@link
      * #closeForCommit()} method and call {@link Committer#commit()} on the returned committer
      * object.
+     *
+     * <p><b>Thread safety:</b> Unlike other methods on this stream, {@code close()} may be invoked
+     * from a different thread than the one performing writes (for example, during task cancellation
+     * or abort). Implementations must ensure that {@code close()} safely releases local resources
+     * (temp files, streams) without corrupting any already-persisted state, even when called
+     * concurrently with {@link #closeForCommit()} or {@link #persist()}.
      *
      * @throws IOException Thrown if an error occurred during closing.
      */
