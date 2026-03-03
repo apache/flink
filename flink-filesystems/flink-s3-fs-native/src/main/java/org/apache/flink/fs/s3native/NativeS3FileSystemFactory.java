@@ -77,13 +77,6 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .withFallbackKeys("s3.path.style.access")
                     .withDescription("Use path-style access for S3 (for S3-compatible storage)");
 
-    public static final ConfigOption<Boolean> USE_ANONYMOUS_CREDENTIALS =
-            ConfigOptions.key("s3.anonymous-credentials")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Use anonymous (unsigned) requests - useful for public buckets or MinIO testing");
-
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
                     .longType()
@@ -198,6 +191,20 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "Uses the AWS SDK's default retry strategy (exponential backoff with jitter). "
                                     + "Set to 0 to disable retries.");
 
+    public static final ConfigOption<String> AWS_CREDENTIALS_PROVIDER =
+            ConfigOptions.key("fs.s3.aws.credentials.provider")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Comma-separated list of AWS credentials provider class names. "
+                                    + "Providers are tried in order; the first one that returns credentials is used. "
+                                    + "Supports fully-qualified AWS SDK v2 class names "
+                                    + "(e.g. 'software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider') "
+                                    + "or simple names from the SDK auth package "
+                                    + "(e.g. 'AnonymousCredentialsProvider', 'DefaultCredentialsProvider'). "
+                                    + "When not set, the default chain is used: delegation tokens -> "
+                                    + "static credentials (if configured) -> DefaultCredentialsProvider.");
+
     private Configuration flinkConfig;
 
     @Override
@@ -249,6 +256,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .assumeRoleSessionDurationSeconds(
                                 config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS))
                         .maxRetries(config.get(MAX_RETRIES))
+                        .credentialsProviderClasses(config.get(AWS_CREDENTIALS_PROVIDER))
                         .encryptionConfig(encryptionConfig)
                         .build();
 
