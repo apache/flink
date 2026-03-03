@@ -272,11 +272,19 @@ public class ManagementNodeQuarantineEdgeCasesTest {
         // Wait for expiration
         Thread.sleep(200);
 
-        // Manually trigger cleanup
-        handler.removeExpiredNodes();
+        // Manually trigger cleanup and verify returned expired nodes
+        java.util.Collection<String> removedNodes = handler.removeExpiredNodes();
+        assertNotNull(removedNodes);
+        assertEquals(1, removedNodes.size());
+        assertTrue(removedNodes.contains(nodeId));
 
         // Node should no longer be quarantined
         assertFalse(handler.isNodeQuarantined(nodeId));
         assertTrue(handler.getAllQuarantinedNodes().isEmpty());
+
+        // Calling removeExpiredNodes again should return empty collection
+        java.util.Collection<String> removedAgain = handler.removeExpiredNodes();
+        assertNotNull(removedAgain);
+        assertTrue(removedAgain.isEmpty());
     }
 }
