@@ -111,27 +111,28 @@ public class MaterializedTableChangeHandler {
         }
     }
 
-    public static MaterializedTableChangeResult buildNewMaterializedTable(
+    public static CatalogMaterializedTable buildNewMaterializedTable(
             CatalogMaterializedTable oldTable, List<TableChange> tableChanges) {
         MaterializedTableChangeHandler context = new MaterializedTableChangeHandler(oldTable);
         context.applyTableChanges(tableChanges);
-        CatalogMaterializedTable materializedTable =
-                CatalogMaterializedTable.newBuilder()
-                        .schema(context.retrieveSchema())
-                        .comment(oldTable.getComment())
-                        .partitionKeys(oldTable.getPartitionKeys())
-                        .options(oldTable.getOptions())
-                        .originalQuery(context.originalQuery)
-                        .expandedQuery(context.expandedQuery)
-                        .distribution(context.distribution)
-                        .freshness(oldTable.getDefinitionFreshness())
-                        .logicalRefreshMode(oldTable.getLogicalRefreshMode())
-                        .refreshMode(oldTable.getRefreshMode())
-                        .refreshStatus(context.refreshStatus)
-                        .refreshHandlerDescription(context.refreshHandlerDesc)
-                        .serializedRefreshHandler(context.refreshHandlerBytes)
-                        .build();
-        return new MaterializedTableChangeResult(materializedTable, context.validationErrors);
+        if (!context.validationErrors.isEmpty()) {
+            throw new ValidationException(String.join("\n", context.validationErrors));
+        }
+        return CatalogMaterializedTable.newBuilder()
+                .schema(context.retrieveSchema())
+                .comment(oldTable.getComment())
+                .partitionKeys(oldTable.getPartitionKeys())
+                .options(oldTable.getOptions())
+                .originalQuery(context.originalQuery)
+                .expandedQuery(context.expandedQuery)
+                .distribution(context.distribution)
+                .freshness(oldTable.getDefinitionFreshness())
+                .logicalRefreshMode(oldTable.getLogicalRefreshMode())
+                .refreshMode(oldTable.getRefreshMode())
+                .refreshStatus(context.refreshStatus)
+                .refreshHandlerDescription(context.refreshHandlerDesc)
+                .serializedRefreshHandler(context.refreshHandlerBytes)
+                .build();
     }
 
     private static HandlerRegistry createHandlerRegistry() {
@@ -487,10 +488,10 @@ public class MaterializedTableChangeHandler {
     @Internal
     public static class MaterializedTableChangeResult {
         private final CatalogMaterializedTable newMaterializedTable;
-        private final List<String> validationErrors;
+        private final String validationErrors;
 
         public MaterializedTableChangeResult(
-                CatalogMaterializedTable newTable, List<String> validationErrors) {
+                CatalogMaterializedTable newTable, String validationErrors) {
             this.newMaterializedTable = newTable;
             this.validationErrors = validationErrors;
         }
@@ -499,7 +500,7 @@ public class MaterializedTableChangeHandler {
             return newMaterializedTable;
         }
 
-        public List<String> getValidationErrors() {
+        public String getValidationErrors() {
             return validationErrors;
         }
     }

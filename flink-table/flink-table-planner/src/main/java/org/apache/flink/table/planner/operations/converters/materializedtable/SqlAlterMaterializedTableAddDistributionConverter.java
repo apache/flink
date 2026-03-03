@@ -26,11 +26,11 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
-import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /** A converter for {@link SqlAlterMaterializedTableAddDistribution}. */
 public class SqlAlterMaterializedTableAddDistributionConverter
@@ -40,16 +40,23 @@ public class SqlAlterMaterializedTableAddDistributionConverter
             SqlAlterMaterializedTableAddDistribution sqlAddDistribution,
             ResolvedCatalogMaterializedTable oldTable,
             ConvertContext context) {
-        final TableDistribution distribution = getTableDistribution(sqlAddDistribution, oldTable);
-        final List<TableChange> tableChanges = List.of(TableChange.add(distribution));
-        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
-                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
+
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(sqlAddDistribution, context),
-                tableChanges,
-                oldTable,
-                result.getNewMaterializedTable(),
-                result.getValidationErrors());
+                gatherTableChanges(sqlAddDistribution, oldTable, context),
+                oldTable);
+    }
+
+    @Override
+    protected Supplier<List<TableChange>> gatherTableChanges(
+            SqlAlterMaterializedTableAddDistribution sqlAddDistribution,
+            ResolvedCatalogMaterializedTable oldTable,
+            ConvertContext context) {
+        return () -> {
+            final TableDistribution distribution =
+                    getTableDistribution(sqlAddDistribution, oldTable);
+            return List.of(TableChange.add(distribution));
+        };
     }
 
     private TableDistribution getTableDistribution(

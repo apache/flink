@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
+import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.type.SqlTypeFamily;
@@ -74,8 +75,7 @@ public class MaterializedTableUtils {
                     "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
         }
 
-        SqlIntervalLiteral.IntervalValue intervalValue =
-                sqlIntervalLiteral.getValueAs(SqlIntervalLiteral.IntervalValue.class);
+        IntervalValue intervalValue = sqlIntervalLiteral.getValueAs(IntervalValue.class);
         String interval = intervalValue.getIntervalLiteral();
         switch (intervalValue.getIntervalQualifier().typeName()) {
             case INTERVAL_DAY:
@@ -127,25 +127,18 @@ public class MaterializedTableUtils {
     // ALTER MATERIALIZED TABLE ... AS ...
     public static List<TableChange> buildSchemaTableChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema) {
-        final List<Column> oldColumns = oldSchema.getColumns();
-        // Schema retrieved from query doesn't count existing non persisted columns
-        final List<Column> newColumns =
-                enrichWithOldNonPersistedColumns(oldSchema, newSchema).getColumns();
+        if (!isSchemaChanged(oldSchema, newSchema)) {
+            return List.of();
+        }
 
-        final List<Column> oldPersistedColumns = new ArrayList<>();
+        final List<Column> oldColumns = oldSchema.getColumns();
         final Map<String, Tuple2<Column, Integer>> oldColumnSet = new HashMap<>();
         for (int i = 0; i < oldColumns.size(); i++) {
             Column column = oldColumns.get(i);
-            if (column.isPersisted()) {
-                oldPersistedColumns.add(oldColumns.get(i));
-            }
             oldColumnSet.put(column.getName(), Tuple2.of(oldColumns.get(i), i));
         }
-
-        if (oldPersistedColumns.equals(newSchema.getColumns())) {
-            // No changes for persisted columns
-            return new ArrayList<>();
-        }
+        // Schema retrieved from query doesn't count existing non persisted columns
+        final List<Column> newColumns = newSchema.getColumns();
 
         List<TableChange> changes = new ArrayList<>();
         for (int i = 0; i < newColumns.size(); i++) {
@@ -215,44 +208,31 @@ public class MaterializedTableUtils {
         return changes;
     }
 
-    private static ResolvedSchema enrichWithOldNonPersistedColumns(
-            ResolvedSchema oldSchema, ResolvedSchema newSchema) {
-        final List<Integer> nonPersistedColumnIndexes = getNonPersistedColumnIndexes(oldSchema);
-        if (nonPersistedColumnIndexes.isEmpty()) {
-            return newSchema;
+    // Since it is only for query change, then check only persisted columns which could be
+    // changed/added/dropped with such change
+    private static boolean isSchemaChanged(ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+        List<Column> oldPersistedColumns =
+                oldSchema.getColumns().stream()
+                        .filter(Column::isPersisted)
+                        .collect(Collectors.toList());
+        if (oldPersistedColumns.size() != newSchema.getColumnCount()) {
+            return true;
         }
-
-        final Column[] newColumns =
-                new Column[newSchema.getColumnCount() + nonPersistedColumnIndexes.size()];
-        int nextFreePosition = 0;
-
-        // Preserve initial positions of non persisted columns
-        // It will allow to not generate extra column position changes
-        for (int index : nonPersistedColumnIndexes) {
-            newColumns[index] = oldSchema.getColumn(index).get();
-            if (index == nextFreePosition) {
-                nextFreePosition++;
+        for (int i = 0; i < oldPersistedColumns.size(); i++) {
+            Column oldColumn = oldPersistedColumns.get(i);
+            Column newColumn = newSchema.getColumn(i).get();
+            if (!oldColumn.getName().equals(newColumn.getName())) {
+                return true;
+            }
+            if (!newColumn
+                    .getDataType()
+                    .getLogicalType()
+                    .equals(oldColumn.getDataType().getLogicalType())) {
+                return true;
             }
         }
 
-        for (int i = 0; i < newSchema.getColumnCount(); i++) {
-            newColumns[nextFreePosition] = newSchema.getColumn(i).get();
-            while (nextFreePosition < newColumns.length && newColumns[nextFreePosition] != null) {
-                nextFreePosition++;
-            }
-        }
-
-        return ResolvedSchema.of(newColumns);
-    }
-
-    private static List<Integer> getNonPersistedColumnIndexes(ResolvedSchema schema) {
-        final List<Integer> nonPersistedColumnIndexes = new ArrayList<>();
-        for (int i = 0; i < schema.getColumnCount(); i++) {
-            if (!schema.getColumn(i).get().isPersisted()) {
-                nonPersistedColumnIndexes.add(i);
-            }
-        }
-        return nonPersistedColumnIndexes;
+        return false;
     }
 
     private static void applyPositionChanges(

@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.TableChange;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Operation to describe an ALTER MATERIALIZED TABLE AS query operation. The operation is not
@@ -38,11 +39,9 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
 
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
-            List<TableChange> tableChanges,
-            CatalogMaterializedTable oldTable,
-            CatalogMaterializedTable newTable,
-            List<String> validationErrors) {
-        super(tableIdentifier, tableChanges, oldTable, newTable, validationErrors);
+            Supplier<List<TableChange>> tableChangesSuppler,
+            CatalogMaterializedTable oldTable) {
+        super(tableIdentifier, tableChangesSuppler, oldTable);
     }
 
     @Override

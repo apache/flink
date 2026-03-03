@@ -25,9 +25,9 @@ import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
-import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** A converter for {@link SqlAlterMaterializedTableDropDistribution}. */
 public class SqlAlterMaterializedTableDropDistributionConverter
@@ -45,14 +45,15 @@ public class SqlAlterMaterializedTableDropDistributionConverter
                             identifier));
         }
 
-        final List<TableChange> tableChanges = List.of(TableChange.dropDistribution());
-        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
-                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
         return new AlterMaterializedTableChangeOperation(
-                identifier,
-                tableChanges,
-                oldTable,
-                result.getNewMaterializedTable(),
-                result.getValidationErrors());
+                identifier, gatherTableChanges(sqlDropDistribution, oldTable, context), oldTable);
+    }
+
+    @Override
+    protected Supplier<List<TableChange>> gatherTableChanges(
+            SqlAlterMaterializedTableDropDistribution sqlAlterTable,
+            ResolvedCatalogMaterializedTable oldTable,
+            ConvertContext context) {
+        return () -> List.of(TableChange.dropDistribution());
     }
 }

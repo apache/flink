@@ -30,7 +30,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
-import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
@@ -39,6 +38,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -51,18 +51,11 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
     @Override
     protected Operation convertToOperation(
             T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
-        Set<String> columnsToDrop = getColumnsToDrop(alterTableSchema);
-        List<TableChange> tableChanges =
-                validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
 
-        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
-                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(alterTableSchema, context),
-                tableChanges,
-                oldTable,
-                result.getNewMaterializedTable(),
-                result.getValidationErrors());
+                gatherTableChanges(alterTableSchema, oldTable, context),
+                oldTable);
     }
 
     protected abstract List<TableChange> validateAndGatherDropChanges(
@@ -72,6 +65,15 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
             ConvertContext context);
 
     protected abstract Set<String> getColumnsToDrop(T alterTableSchema);
+
+    @Override
+    protected Supplier<List<TableChange>> gatherTableChanges(
+            T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
+        return () -> {
+            Set<String> columnsToDrop = getColumnsToDrop(alterTableSchema);
+            return validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
+        };
+    }
 
     /**
      * Convert {@code ALTER TABLE MATERIALIZED TABLE DROP PRIMARY KEY} to generate an updated

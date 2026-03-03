@@ -26,10 +26,10 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
-import org.apache.flink.table.operations.materializedtable.MaterializedTableChangeHandler;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** A converter for {@link SqlAlterMaterializedTableModifyDistribution}. */
 public class SqlAlterMaterializedTableModifyDistributionConverter
@@ -49,18 +49,18 @@ public class SqlAlterMaterializedTableModifyDistributionConverter
                             identifier));
         }
 
+        return new AlterMaterializedTableChangeOperation(
+                identifier, gatherTableChanges(sqlModifyDistribution, oldTable, context), oldTable);
+    }
+
+    @Override
+    protected Supplier<List<TableChange>> gatherTableChanges(
+            SqlAlterMaterializedTableModifyDistribution sqlModifyDistribution,
+            ResolvedCatalogMaterializedTable oldTable,
+            ConvertContext context) {
         final TableDistribution tableDistribution =
                 OperationConverterUtils.getDistributionFromSqlDistribution(
                         sqlModifyDistribution.getDistribution().get());
-
-        final List<TableChange> tableChanges = List.of(TableChange.modify(tableDistribution));
-        final MaterializedTableChangeHandler.MaterializedTableChangeResult result =
-                MaterializedTableChangeHandler.buildNewMaterializedTable(oldTable, tableChanges);
-        return new AlterMaterializedTableChangeOperation(
-                identifier,
-                tableChanges,
-                oldTable,
-                result.getNewMaterializedTable(),
-                result.getValidationErrors());
+        return () -> List.of(TableChange.modify(tableDistribution));
     }
 }
