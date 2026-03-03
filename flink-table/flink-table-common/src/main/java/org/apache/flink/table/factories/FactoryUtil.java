@@ -42,6 +42,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.module.Module;
+import org.apache.flink.table.secret.SecretStoreFactory;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
@@ -1387,6 +1388,41 @@ public final class FactoryUtil {
         private ClassLoader classLoader;
 
         public DefaultCatalogStoreContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
+    /** Default implementation of {@link SecretStoreFactory.Context}. */
+    @Internal
+    public static class DefaultSecretStoreContext implements SecretStoreFactory.Context {
+
+        private Map<String, String> options;
+
+        private ReadableConfig configuration;
+
+        private ClassLoader classLoader;
+
+        public DefaultSecretStoreContext(
                 Map<String, String> options,
                 ReadableConfig configuration,
                 ClassLoader classLoader) {

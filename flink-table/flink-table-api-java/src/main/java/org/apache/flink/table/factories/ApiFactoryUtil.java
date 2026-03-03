@@ -19,10 +19,14 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
+import org.apache.flink.table.secret.CommonSecretOptions;
+import org.apache.flink.table.secret.SecretStore;
+import org.apache.flink.table.secret.SecretStoreFactory;
 
 import javax.annotation.Nullable;
 
@@ -124,6 +128,103 @@ public class ApiFactoryUtil {
                 new DelegatingConfiguration(configuration, catalogStoreOptionPrefix).toMap();
         CatalogStoreFactory.Context context =
                 new FactoryUtil.DefaultCatalogStoreContext(options, configuration, classLoader);
+
+        return context;
+    }
+
+    /** Result holder for secret store and factory. */
+    @Internal
+    public static class SecretStoreResult {
+        private final SecretStore secretStore;
+        @Nullable private final SecretStoreFactory secretStoreFactory;
+
+        public SecretStoreResult(
+                SecretStore secretStore, @Nullable SecretStoreFactory secretStoreFactory) {
+            this.secretStore = secretStore;
+            this.secretStoreFactory = secretStoreFactory;
+        }
+
+        public SecretStore getSecretStore() {
+            return secretStore;
+        }
+
+        @Nullable
+        public SecretStoreFactory getSecretStoreFactory() {
+            return secretStoreFactory;
+        }
+    }
+
+    /**
+     * Gets or creates a {@link SecretStore}. If a secret store is provided in settings, it will be
+     * used directly. Otherwise, a new secret store will be created using the factory.
+     *
+     * @param providedSecretStore the secret store from settings, if present
+     * @param configuration the configuration
+     * @param classLoader the user classloader
+     * @return a result containing the secret store and factory (factory is null if store was
+     *     provided)
+     */
+    public static SecretStoreResult getOrCreateSecretStore(
+            Optional<SecretStore> providedSecretStore,
+            Configuration configuration,
+            ClassLoader classLoader) {
+        if (providedSecretStore.isPresent()) {
+            return new SecretStoreResult(providedSecretStore.get(), null);
+        } else {
+            SecretStoreFactory secretStoreFactory =
+                    findAndCreateSecretStoreFactory(configuration, classLoader);
+            SecretStoreFactory.Context secretStoreFactoryContext =
+                    buildSecretStoreFactoryContext(configuration, classLoader);
+            secretStoreFactory.open(secretStoreFactoryContext);
+            SecretStore secretStore = secretStoreFactory.createSecretStore();
+            return new SecretStoreResult(secretStore, secretStoreFactory);
+        }
+    }
+
+    /**
+     * Finds and creates a {@link SecretStoreFactory} using the provided {@link Configuration} and
+     * user classloader.
+     *
+     * <p>The configuration format should be as follows:
+     *
+     * <pre>{@code
+     * table.secret-store.kind: {identifier}
+     * table.secret-store.{identifier}.{param1}: xxx
+     * table.secret-store.{identifier}.{param2}: xxx
+     * }</pre>
+     */
+    @VisibleForTesting
+    static SecretStoreFactory findAndCreateSecretStoreFactory(
+            Configuration configuration, ClassLoader classLoader) {
+        String identifier = configuration.get(CommonSecretOptions.TABLE_SECRET_STORE_KIND);
+
+        SecretStoreFactory secretStoreFactory =
+                FactoryUtil.discoverFactory(classLoader, SecretStoreFactory.class, identifier);
+
+        return secretStoreFactory;
+    }
+
+    /**
+     * Build a {@link SecretStoreFactory.Context} for opening the {@link SecretStoreFactory}.
+     *
+     * <p>The configuration format should be as follows:
+     *
+     * <pre>{@code
+     * table.secret-store.kind: {identifier}
+     * table.secret-store.{identifier}.{param1}: xxx
+     * table.secret-store.{identifier}.{param2}: xxx
+     * }</pre>
+     */
+    @VisibleForTesting
+    static SecretStoreFactory.Context buildSecretStoreFactoryContext(
+            Configuration configuration, ClassLoader classLoader) {
+        String identifier = configuration.get(CommonSecretOptions.TABLE_SECRET_STORE_KIND);
+        String secretStoreOptionPrefix =
+                CommonSecretOptions.TABLE_SECRET_STORE_OPTION_PREFIX + identifier + ".";
+        Map<String, String> options =
+                new DelegatingConfiguration(configuration, secretStoreOptionPrefix).toMap();
+        SecretStoreFactory.Context context =
+                new FactoryUtil.DefaultSecretStoreContext(options, configuration, classLoader);
 
         return context;
     }
