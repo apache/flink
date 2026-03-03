@@ -46,6 +46,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -152,12 +153,15 @@ public class StreamExecWindowTableFunction extends CommonExecWindowTableFunction
                 TimeWindowUtil.getShiftTimeZone(
                         windowingStrategy.getTimeAttributeType(),
                         TableConfigUtils.getLocalTimeZone(config));
+        final int timestampPrecision =
+                LogicalTypeChecks.getPrecision(windowingStrategy.getTimeAttributeType());
 
         return new UnalignedWindowTableFunctionOperator(
                 windowAssigner,
                 windowAssigner.getWindowSerializer(new ExecutionConfig()),
                 new RowDataSerializer(inputRowType),
                 windowingStrategy.getTimeAttributeIndex(),
+                timestampPrecision,
                 shiftTimeZone);
     }
 }

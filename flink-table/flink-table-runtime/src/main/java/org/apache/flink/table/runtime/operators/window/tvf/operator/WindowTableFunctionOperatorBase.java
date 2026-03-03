@@ -58,6 +58,8 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
 
     protected final GroupWindowAssigner<TimeWindow> windowAssigner;
 
+    protected final int timestampPrecision;
+
     /** This is used for emitting elements with a given timestamp. */
     private transient TimestampedCollector<RowData> collector;
 
@@ -73,10 +75,12 @@ public abstract class WindowTableFunctionOperatorBase extends TableStreamOperato
     public WindowTableFunctionOperatorBase(
             GroupWindowAssigner<TimeWindow> windowAssigner,
             int rowtimeIndex,
+            int timestampPrecision,
             ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
         this.rowtimeIndex = rowtimeIndex;
         this.windowAssigner = windowAssigner;
+        this.timestampPrecision = timestampPrecision;
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
     }
 

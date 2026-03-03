@@ -563,6 +563,7 @@ class UnalignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperat
                 windowAssigner.getWindowSerializer(new ExecutionConfig()),
                 new RowDataSerializer(INPUT_ROW_TYPE),
                 rowTimeIndex,
+                DEFAULT_TIMESTAMP_PRECISION,
                 shiftTimeZone);
     }
 }
