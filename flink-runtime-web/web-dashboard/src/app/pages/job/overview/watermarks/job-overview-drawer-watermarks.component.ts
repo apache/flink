@@ -92,9 +92,13 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('[getBrowserTimezone] Error getting browser timezone, falling back to UTC:', error);
       // As a last resort, rely on runtime environment offset
-      const offset = -new Date().getTimezoneOffset();
-      const sign = offset >= 0 ? '+' : '-';
-      const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+      // Note: Etc/GMT uses POSIX-style signs (opposite of ISO-8601):
+      // - Etc/GMT-8 = UTC+8 (East of Greenwich)
+      // - Etc/GMT+8 = UTC-8 (West of Greenwich)
+      // Reference: https://github.com/eggert/tz/blob/main/etcetera
+      const offset = new Date().getTimezoneOffset();
+      const sign = offset > 0 ? '+' : '-';
+      const hours = String(Math.floor(Math.abs(offset) / 60));
       return `Etc/GMT${sign}${hours}`;
     }
   }
@@ -103,11 +107,13 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     // Use modern browser API to get all supported timezones
     // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/supportedValuesOf
     try {
-      if (typeof Intl.supportedValuesOf === 'function') {
-        const timezones = Intl.supportedValuesOf('timeZone');
+      // Cast to access supportedValuesOf which is available in modern browsers but not in ES2018 type definitions
+      const intl = Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] };
+      if (typeof intl.supportedValuesOf === 'function') {
+        const timezones: string[] = intl.supportedValuesOf('timeZone');
         this.timezoneOptions = timezones
-          .map(tz => ({ label: tz, value: tz }))
-          .sort((a, b) => a.label.localeCompare(b.label));
+          .map((tz: string) => ({ label: tz, value: tz }))
+          .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
       } else {
         // Fallback for browsers that don't support Intl.supportedValuesOf
         console.warn(
