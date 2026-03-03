@@ -36,24 +36,6 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.<br /><br />Possible values:<ul><li>"AUTO": Optimizer will try to use delta join first. If it fails, it will fallback to the regular join.</li><li>"FORCE": Use the delta join. If it fails, an exception will be thrown.</li><li>"NONE": Don't try to use delta join.</li></ul></td>
         </tr>
         <tr>
-            <td><h5>table.optimizer.dim-lookup-join.batch.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Whether to enable the dim table batch lookup join.</td>
-        </tr>
-        <tr>
-            <td><h5>table.optimizer.dim-lookup-join.batch.flush.millis</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">2000</td>
-            <td>Long</td>
-            <td>The flush interval of dim table lookup join in batch mode, in millis.</td>
-        </tr>
-        <tr>
-            <td><h5>table.optimizer.dim-lookup-join.batch.size</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">100</td>
-            <td>Integer</td>
-            <td>The batch size of dim table lookup join.</td>
-        </tr>
-        <tr>
             <td><h5>table.optimizer.distinct-agg.split.bucket-num</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>Integer</td>
