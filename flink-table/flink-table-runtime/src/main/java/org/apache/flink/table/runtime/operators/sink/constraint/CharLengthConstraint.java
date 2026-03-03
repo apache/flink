@@ -61,6 +61,9 @@ final class CharLengthConstraint implements Constraint {
 
         for (int i = 0; i < fieldIndices.length; i++) {
             final int fieldIdx = fieldIndices[i];
+            if (rowData.isNullAt(fieldIdx)) {
+                continue;
+            }
             final int expectedLength = fieldLengths[i];
             final BinaryStringData stringData = (BinaryStringData) rowData.getString(fieldIdx);
             final int actualLength = stringData.numChars();
