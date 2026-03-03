@@ -1037,3 +1037,163 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertEqual(1,
                          len(self.catalog.list_partitions(
                              self.path1, self.create_another_partition_spec_subset())))
+
+
+class ObjectPathTest(PyFlinkTestCase):
+    """Unit tests for ObjectPath covering construction, property
+    access, equality, hashing, string representation, comparison
+    operators and edge cases."""
+
+    def test_get_database_name(self):
+        path = ObjectPath("db", "table")
+        self.assertEqual("db", path.get_database_name())
+
+    def test_get_object_name(self):
+        path = ObjectPath("db", "table")
+        self.assertEqual("table", path.get_object_name())
+
+    def test_get_full_name(self):
+        path = ObjectPath("db", "table")
+        self.assertEqual("db.table", path.get_full_name())
+
+    def test_str(self):
+        path = ObjectPath("mydb", "mytable")
+        self.assertEqual("mydb.mytable", str(path))
+
+    def test_from_string(self):
+        path = ObjectPath.from_string("mydb.mytable")
+        self.assertEqual("mydb", path.get_database_name())
+        self.assertEqual("mytable", path.get_object_name())
+
+    # ---- __eq__ and __hash__ tests ----
+
+    def test_eq_same_path(self):
+        path1 = ObjectPath("db", "table")
+        path2 = ObjectPath("db", "table")
+        self.assertEqual(path1, path2)
+
+    def test_eq_different_database(self):
+        path1 = ObjectPath("db1", "table")
+        path2 = ObjectPath("db2", "table")
+        self.assertNotEqual(path1, path2)
+
+    def test_eq_different_object(self):
+        path1 = ObjectPath("db", "table1")
+        path2 = ObjectPath("db", "table2")
+        self.assertNotEqual(path1, path2)
+
+    def test_eq_non_object_path(self):
+        path = ObjectPath("db", "table")
+        self.assertNotEqual(path, "db.table")
+        self.assertNotEqual(path, 42)
+        self.assertNotEqual(path, None)
+
+    def test_hash_equal_objects(self):
+        path1 = ObjectPath("db", "table")
+        path2 = ObjectPath("db", "table")
+        self.assertEqual(hash(path1), hash(path2))
+
+    def test_hash_can_be_dict_key(self):
+        path1 = ObjectPath("db", "t1")
+        path2 = ObjectPath("db", "t2")
+        d = {path1: "value1", path2: "value2"}
+        self.assertEqual("value1", d[ObjectPath("db", "t1")])
+        self.assertEqual("value2", d[ObjectPath("db", "t2")])
+
+    def test_hash_can_be_in_set(self):
+        path1 = ObjectPath("db", "table")
+        path2 = ObjectPath("db", "table")
+        s = {path1, path2}
+        self.assertEqual(1, len(s))
+
+    # ---- Comparison operator tests (happy path) ----
+
+    def test_lt(self):
+        path_a = ObjectPath("a", "table")
+        path_b = ObjectPath("b", "table")
+        self.assertTrue(path_a < path_b)
+        self.assertFalse(path_b < path_a)
+
+    def test_lt_same(self):
+        path1 = ObjectPath("db", "table")
+        path2 = ObjectPath("db", "table")
+        self.assertFalse(path1 < path2)
+
+    def test_le(self):
+        path_a = ObjectPath("a", "table")
+        path_b = ObjectPath("b", "table")
+        path_a2 = ObjectPath("a", "table")
+        self.assertTrue(path_a <= path_b)
+        self.assertTrue(path_a <= path_a2)
+        self.assertFalse(path_b <= path_a)
+
+    def test_gt(self):
+        path_a = ObjectPath("a", "table")
+        path_b = ObjectPath("b", "table")
+        self.assertTrue(path_b > path_a)
+        self.assertFalse(path_a > path_b)
+
+    def test_gt_same(self):
+        path1 = ObjectPath("db", "table")
+        path2 = ObjectPath("db", "table")
+        self.assertFalse(path1 > path2)
+
+    def test_ge(self):
+        path_a = ObjectPath("a", "table")
+        path_b = ObjectPath("b", "table")
+        path_b2 = ObjectPath("b", "table")
+        self.assertTrue(path_b >= path_a)
+        self.assertTrue(path_b >= path_b2)
+        self.assertFalse(path_a >= path_b)
+
+    def test_compare_by_object_name(self):
+        """Within the same database, ordering is by object name."""
+        path1 = ObjectPath("db", "alpha")
+        path2 = ObjectPath("db", "beta")
+        self.assertTrue(path1 < path2)
+        self.assertTrue(path2 > path1)
+
+    def test_sorting(self):
+        """Verify that a list of ObjectPath instances can be correctly sorted."""
+        paths = [
+            ObjectPath("db2", "table"),
+            ObjectPath("db1", "table"),
+            ObjectPath("db1", "alpha"),
+        ]
+        sorted_paths = sorted(paths)
+        self.assertEqual("db1.alpha", str(sorted_paths[0]))
+        self.assertEqual("db1.table", str(sorted_paths[1]))
+        self.assertEqual("db2.table", str(sorted_paths[2]))
+
+    # ---- Comparison with non-ObjectPath objects (edge cases) ----
+
+    def test_lt_non_object_path_raises_type_error(self):
+        """Comparison with a non-ObjectPath object should raise TypeError."""
+        path = ObjectPath("db", "table")
+        with self.assertRaises(TypeError):
+            path < 42
+
+    def test_le_non_object_path_raises_type_error(self):
+        path = ObjectPath("db", "table")
+        with self.assertRaises(TypeError):
+            path <= "some_string"
+
+    def test_gt_non_object_path_raises_type_error(self):
+        path = ObjectPath("db", "table")
+        with self.assertRaises(TypeError):
+            path > 3.14
+
+    def test_ge_non_object_path_raises_type_error(self):
+        path = ObjectPath("db", "table")
+        with self.assertRaises(TypeError):
+            path >= None
+
+    def test_comparison_with_list_raises_type_error(self):
+        path = ObjectPath("db", "table")
+        with self.assertRaises(TypeError):
+            path < ["db", "table"]
+
+    def test_comparison_with_dict_raises_type_error(self):
+        path = ObjectPath("db", "table")
+        with self.assertRaises(TypeError):
+            path >= {"db": "table"}
