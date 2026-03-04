@@ -40,7 +40,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -55,7 +54,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -65,9 +63,10 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Test job classloader. */
 @ExtendWith(TestLoggerExtension.class)
@@ -252,12 +251,9 @@ class ClassLoaderITCase {
                 Collections.singleton(new Path(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH)),
                 Collections.emptyList());
 
-        try {
-            program.invokeInteractiveModeForExecution();
-            fail("exception should happen");
-        } catch (ProgramInvocationException e) {
-            assertThat(ExceptionUtils.findThrowable(e, SuccessException.class)).isPresent();
-        }
+        assertThatThrownBy(program::invokeInteractiveModeForExecution)
+                .isInstanceOf(ProgramInvocationException.class)
+                .hasRootCauseInstanceOf(SuccessException.class);
     }
 
     /** Tests disposal of a savepoint, which contains custom user code KvState. */
@@ -308,49 +304,26 @@ class ClassLoaderITCase {
         LOG.info("Starting program invoke thread");
         invokeThread.start();
 
-        // The job ID
-        JobID jobId = null;
-
         LOG.info("Waiting for job status running.");
 
         // Wait for running job
-        while (jobId == null && deadline.hasTimeLeft()) {
-
-            Collection<JobStatusMessage> jobs =
-                    clusterClient
-                            .listJobs()
-                            .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-            for (JobStatusMessage job : jobs) {
-                if (job.getJobState() == JobStatus.RUNNING) {
-                    jobId = job.getJobId();
-                    LOG.info("Job running. ID: " + jobId);
-                    break;
-                }
-            }
-
-            // Retry if job is not available yet
-            if (jobId == null) {
-                Thread.sleep(100L);
-            }
-        }
+        waitUntilCondition(
+                () ->
+                        clusterClient.listJobs().get().stream()
+                                .anyMatch(job -> job.getJobState() == JobStatus.RUNNING),
+                20);
+        JobID jobId =
+                clusterClient.listJobs().get().stream()
+                        .findFirst()
+                        .map(JobStatusMessage::getJobId)
+                        .orElseThrow();
 
         // Trigger savepoint
-        String savepointPath = null;
-        for (int i = 0; i < 20; i++) {
-            LOG.info("Triggering savepoint (" + (i + 1) + "/20).");
-            try {
-                savepointPath =
-                        clusterClient
-                                .triggerSavepoint(jobId, null, SavepointFormatType.CANONICAL)
-                                .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-            } catch (Exception cause) {
-                LOG.info("Failed to trigger savepoint. Retrying...", cause);
-                // This can fail if the operators are not opened yet
-                Thread.sleep(500);
-            }
-        }
-
-        assertThat(savepointPath).as("Failed to trigger savepoint").isNotNull();
+        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobId, false);
+        String savepointPath =
+                clusterClient
+                        .triggerSavepoint(jobId, null, SavepointFormatType.CANONICAL)
+                        .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         clusterClient.disposeSavepoint(savepointPath).get();
 

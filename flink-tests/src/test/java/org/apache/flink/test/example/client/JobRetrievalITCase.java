@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterEach;
@@ -43,11 +42,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests retrieval of a job from a running Flink cluster. */
 @ExtendWith(TestLoggerExtension.class)
@@ -106,17 +105,13 @@ class JobRetrievalITCase {
                 };
 
         // wait until the job is running
-        while (client.listJobs().get().isEmpty()) {
-            Thread.sleep(50);
-        }
+        waitUntilCondition(() -> !client.listJobs().get().isEmpty(), 20);
 
         // kick off resuming
         resumingThread.start();
 
         // wait for client to connect
-        while (resumingThread.getState() != Thread.State.WAITING) {
-            Thread.sleep(10);
-        }
+        waitUntilCondition(() -> resumingThread.getState() == Thread.State.WAITING, 20);
 
         // client has connected, we can release the lock
         lock.release();
@@ -125,25 +120,11 @@ class JobRetrievalITCase {
     }
 
     @Test
-    void testNonExistingJobRetrieval() throws Exception {
+    void testNonExistingJobRetrieval() {
         final JobID jobID = new JobID();
 
-        try {
-            client.requestJobResult(jobID).get();
-            fail();
-        } catch (Exception exception) {
-            Optional<Throwable> expectedCause =
-                    ExceptionUtils.findThrowable(
-                            exception,
-                            candidate ->
-                                    candidate.getMessage() != null
-                                            && candidate
-                                                    .getMessage()
-                                                    .contains("Could not find Flink job"));
-            if (expectedCause.isEmpty()) {
-                throw exception;
-            }
-        }
+        assertThatThrownBy(() -> client.requestJobResult(jobID).get())
+                .hasMessageContaining("Could not find Flink job");
     }
 
     /**
