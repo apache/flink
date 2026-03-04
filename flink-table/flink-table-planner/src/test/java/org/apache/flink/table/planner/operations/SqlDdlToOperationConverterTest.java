@@ -105,6 +105,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.planner.operations.SqlDdlToOperationConverterTest.TestItem.createTestItem;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
@@ -808,10 +809,10 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + " ROW<`tmstmp` TIMESTAMP(3)>.");
     }
 
-    @Test // TODO: tweak the tests when FLINK-13604 is fixed.
+    @Test
     void testCreateTableWithFullDataTypes() {
         final List<TestItem> testItems =
-                Arrays.asList(
+                List.of(
                         createTestItem("CHAR", DataTypes.CHAR(1)),
                         createTestItem("CHAR NOT NULL", DataTypes.CHAR(1).notNull()),
                         createTestItem("CHAR NULL", DataTypes.CHAR(1)),
@@ -2719,18 +2720,6 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
 
     // ~ Tool Methods ----------------------------------------------------------
 
-    private static TestItem createTestItem(Object... args) {
-        assertThat(args).hasSize(2);
-        final String testExpr = (String) args[0];
-        TestItem testItem = TestItem.fromTestExpr(testExpr);
-        if (args[1] instanceof String) {
-            testItem.withExpectedError((String) args[1]);
-        } else {
-            testItem.withExpectedType(args[1]);
-        }
-        return testItem;
-    }
-
     private CatalogTable prepareTable(boolean hasConstraint) throws Exception {
         return prepareTable("tb1", hasConstraint ? 1 : 0);
     }
@@ -2955,27 +2944,34 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
 
     // ~ Inner Classes ----------------------------------------------------------
 
-    private static class TestItem {
+    static class TestItem {
         private final String testExpr;
-        @Nullable private Object expectedType;
-        @Nullable private String expectedError;
+        @Nullable private final DataType expectedType;
+        @Nullable private final String expectedError;
 
-        private TestItem(String testExpr) {
+        private TestItem(
+                final String testExpr,
+                @Nullable final DataType expectedType,
+                @Nullable final String expectedError) {
             this.testExpr = testExpr;
-        }
-
-        static TestItem fromTestExpr(String testExpr) {
-            return new TestItem(testExpr);
-        }
-
-        TestItem withExpectedType(Object expectedType) {
             this.expectedType = expectedType;
-            return this;
+            this.expectedError = expectedError;
         }
 
-        TestItem withExpectedError(String expectedError) {
-            this.expectedError = expectedError;
-            return this;
+        private TestItem(final String testExpr, @Nullable final DataType expectedType) {
+            this(testExpr, expectedType, null);
+        }
+
+        private TestItem(final String testExpr, @Nullable final String expectedError) {
+            this(testExpr, null, expectedError);
+        }
+
+        static TestItem createTestItem(String testExpr, DataType dataType) {
+            return new TestItem(testExpr, dataType);
+        }
+
+        static TestItem createTestItem(String testExpr, String expectedError) {
+            return new TestItem(testExpr, expectedError);
         }
 
         @Override

@@ -724,8 +724,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "123:45", DateTimeException.class)
                         .failRuntime(STRING(), "2021-09-27", DateTimeException.class)
                         .failRuntime(STRING(), "2021-09-27 12:34:56", DateTimeException.class)
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
-                        // lost
                         .fromCase(STRING(), "23", LocalTime.of(23, 0, 0, 0))
                         .fromCase(STRING(), "23:45", LocalTime.of(23, 45, 0, 0))
                         .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
@@ -851,8 +849,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         //
                         .fromCase(DATE(), DEFAULT_DATE, LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0))
 
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
-                        // lost
                         // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
                         // date or use 0 for the year?
                         .fromCase(
@@ -931,8 +927,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 DEFAULT_DATE,
                                 fromLocalToUTC(LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0)))
 
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
-                        // lost
                         // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
                         // date or use 0 for the year?
                         .fromCase(

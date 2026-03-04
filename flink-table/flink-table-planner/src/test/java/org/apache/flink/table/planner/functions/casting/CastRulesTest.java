@@ -475,8 +475,6 @@ class CastRulesTest {
                                 STRING(),
                                 fromString("2021-09-27 12:34:56"),
                                 TableRuntimeException.class)
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
                         .fromCase(
                                 STRING(),
                                 fromString("12:34:56.123456789"),
@@ -536,8 +534,6 @@ class CastRulesTest {
                                 DATE(),
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
                                 timestampDataFromLocalDateTime(2022, 1, 4, 0, 0, 0, 0))
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
                         .fromCase(
                                 TIME(5),
                                 TIME,
@@ -613,8 +609,6 @@ class CastRulesTest {
                                 DATE(),
                                 DateTimeUtils.toInternal(LocalDate.of(2022, 1, 4)),
                                 timestampDataFromInstant(2022, 1, 4, 1, 0, 0, 0))
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
                         .fromCase(
                                 TIME(5),
                                 TIME,
