@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.functions.aggregate._
-import org.apache.flink.table.runtime.functions.aggregate.BatchApproxCountDistinctAggFunctions._
+import org.apache.flink.table.runtime.functions.aggregate.ApproxCountDistinctAggFunctions._
 import org.apache.flink.table.runtime.functions.aggregate.PercentileAggFunction.{MultiPercentileAggFunction, SinglePercentileAggFunction}
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -448,9 +448,14 @@ class AggFunctionFactory(
   private def createApproxCountDistinctAggFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
-    if (!isBounded) {
+    // APPROX_COUNT_DISTINCT now supports both batch and streaming modes.
+    // In streaming mode, it supports Window TVF (TUMBLE, HOP, CUMULATE) through merge().
+    // Note: Non-windowed streaming aggregation with retraction is NOT supported
+    // because HyperLogLog cannot remove elements once added.
+    if (!isBounded && aggCallNeedRetractions(index)) {
       throw new TableException(
-        s"APPROX_COUNT_DISTINCT aggregate function does not support yet for streaming.")
+        "APPROX_COUNT_DISTINCT aggregate function does not support retraction in streaming mode. " +
+          "Please use it with Window TVF (TUMBLE, HOP, CUMULATE) or in append-only streams.")
     }
     argTypes(0).getTypeRoot match {
       case TINYINT =>
