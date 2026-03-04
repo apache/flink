@@ -42,6 +42,8 @@ public class ConstraintEnforcerSemanticTests extends SemanticTestBase {
                 ConstraintEnforcerTestPrograms.LENGTH_ERROR_WITH_NESTED_ARRAYS,
                 ConstraintEnforcerTestPrograms.LENGTH_ERROR_WITH_NESTED_MAPS,
                 ConstraintEnforcerTestPrograms.CHAR_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS,
-                ConstraintEnforcerTestPrograms.BINARY_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS);
+                ConstraintEnforcerTestPrograms.BINARY_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS,
+                ConstraintEnforcerTestPrograms.CHAR_LENGTH_ERROR_WITH_NULLABLE_COLUMNS,
+                ConstraintEnforcerTestPrograms.BINARY_LENGTH_ERROR_WITH_NULLABLE_COLUMNS);
     }
 }
