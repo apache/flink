@@ -88,7 +88,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     TableEnvironment}.
      */
     static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-        return create(executionEnvironment, EnvironmentSettings.newInstance().build());
+        return create(
+                executionEnvironment,
+                EnvironmentSettings.newInstance()
+                        .withConfiguration(
+                                (org.apache.flink.configuration.Configuration)
+                                        executionEnvironment.getConfiguration())
+                        .build());
     }
 
     /**
