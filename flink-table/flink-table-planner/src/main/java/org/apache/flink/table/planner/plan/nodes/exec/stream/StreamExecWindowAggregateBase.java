@@ -162,6 +162,10 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
             if (offset != null) {
                 assigner = assigner.withOffset(offset);
             }
+            Boolean emitOnlyOnUpdate = ((CumulativeWindowSpec) windowSpec).getEmitOnlyOnUpdate();
+            if (emitOnlyOnUpdate != null && emitOnlyOnUpdate) {
+                assigner = assigner.withEmitOnlyOnUpdate(true);
+            }
             return assigner;
         } else {
             throw new UnsupportedOperationException(windowSpec + " is not supported yet.");
