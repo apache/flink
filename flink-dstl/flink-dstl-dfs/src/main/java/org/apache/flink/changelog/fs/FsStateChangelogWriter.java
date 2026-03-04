@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
@@ -43,9 +44,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -139,6 +142,12 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     @Nullable private Tuple2<SequenceNumber, Throwable> highestFailed;
 
     private boolean closed;
+
+    /**
+     * Handles pinned (retained) per checkpoint to prevent premature discard during truncation. Keyed
+     * by checkpointId, value is the list of handles that were retained for that checkpoint.
+     */
+    private final TreeMap<Long, List<StreamStateHandle>> checkpointPinnedHandles = new TreeMap<>();
 
     private final MailboxExecutor mailboxExecutor;
 
@@ -253,12 +262,13 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         if (range.size() == readyToReturn.size()) {
             checkState(toUpload.isEmpty());
             return CompletableFuture.completedFuture(
-                    buildSnapshotResult(keyGroupRange, readyToReturn, 0L));
+                    buildSnapshotResult(keyGroupRange, readyToReturn, 0L, checkpointId));
         } else {
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
                     new CompletableFuture<>();
             uploadCompletionListeners.add(
-                    new UploadCompletionListener(keyGroupRange, range, readyToReturn, future));
+                    new UploadCompletionListener(
+                            keyGroupRange, range, readyToReturn, future, checkpointId));
             if (!toUpload.isEmpty()) {
                 UploadTask uploadTask =
                         new UploadTask(
@@ -335,6 +345,10 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         activeChangeSetSize = 0;
         notUploaded.clear();
         uploaded.clear();
+        for (List<StreamStateHandle> handles : checkpointPinnedHandles.values()) {
+            handles.forEach(changelogRegistry::release);
+        }
+        checkpointPinnedHandles.clear();
     }
 
     @Override
@@ -380,6 +394,21 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 from,
                 to,
                 activeSequenceNumber);
+        // Unpin handles for this and all older checkpoints.
+        // Using stopTracking (not release) because JM has confirmed ownership.
+        NavigableMap<Long, List<StreamStateHandle>> toUnpin =
+                checkpointPinnedHandles.headMap(checkpointId, true);
+        if (!toUnpin.isEmpty()) {
+            LOG.debug(
+                    "Unpinning handles for {} checkpoint(s) up to {}",
+                    toUnpin.size(),
+                    checkpointId);
+        }
+        for (List<StreamStateHandle> handles : toUnpin.values()) {
+            handles.forEach(changelogRegistry::stopTracking);
+        }
+        toUnpin.clear();
+
         // it is possible that "uploaded" has already been truncated (after checkpoint subsumption)
         // so do not check that "uploaded" contains the specified range
         LOG.debug("Confirm [{}, {})", from, to);
@@ -400,6 +429,16 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     @Override
     public void reset(SequenceNumber from, SequenceNumber to, long checkpointId) {
+        // Release pinned handles for the aborted checkpoint only.
+        List<StreamStateHandle> pinned = checkpointPinnedHandles.remove(checkpointId);
+        if (pinned != null) {
+            LOG.debug(
+                    "Releasing {} pinned handles for aborted checkpoint {}",
+                    pinned.size(),
+                    checkpointId);
+            pinned.forEach(changelogRegistry::release);
+        }
+
         // delete all accumulated local dstl files when abort
         localChangelogRegistry.discardUpToCheckpoint(checkpointId + 1);
     }
@@ -407,7 +446,10 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     private SnapshotResult<ChangelogStateHandleStreamImpl> buildSnapshotResult(
             KeyGroupRange keyGroupRange,
             NavigableMap<SequenceNumber, UploadResult> results,
-            long incrementalSize) {
+            long incrementalSize,
+            long checkpointId) {
+        pinHandlesForCheckpoint(results, checkpointId);
+
         List<Tuple2<StreamStateHandle, Long>> tuples = new ArrayList<>();
         long size = 0;
         for (UploadResult uploadResult : results.values()) {
@@ -452,6 +494,33 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         return SnapshotResult.of(jmChangelogStateHandle);
     }
 
+    private void pinHandlesForCheckpoint(
+            NavigableMap<SequenceNumber, UploadResult> results, long checkpointId) {
+        if (checkpointId == DUMMY_PERSIST_CHECKPOINT) {
+            return;
+        }
+        Set<PhysicalStateHandleID> seen = new HashSet<>();
+        List<StreamStateHandle> pinned = new ArrayList<>();
+        for (UploadResult result : results.values()) {
+            StreamStateHandle handle = result.getStreamStateHandle();
+            if (seen.add(handle.getStreamStateHandleID())) {
+                changelogRegistry.retain(handle);
+                pinned.add(handle);
+            }
+            StreamStateHandle localHandle = result.getLocalStreamHandleStateHandle();
+            if (localHandle != null && seen.add(localHandle.getStreamStateHandleID())) {
+                changelogRegistry.retain(localHandle);
+                pinned.add(localHandle);
+            }
+        }
+        if (!pinned.isEmpty()) {
+            LOG.debug("Pinned {} handles for checkpoint {}", pinned.size(), checkpointId);
+            checkpointPinnedHandles
+                    .computeIfAbsent(checkpointId, k -> new ArrayList<>())
+                    .addAll(pinned);
+        }
+    }
+
     @VisibleForTesting
     SequenceNumber lastAppendedSqnUnsafe() {
         return activeSequenceNumber;
@@ -482,19 +551,22 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                 completionFuture;
         private final KeyGroupRange keyGroupRange;
         private final SequenceNumberRange changeRange;
+        private final long checkpointId;
 
         private UploadCompletionListener(
                 KeyGroupRange keyGroupRange,
                 SequenceNumberRange changeRange,
                 Map<SequenceNumber, UploadResult> uploaded,
                 CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>>
-                        completionFuture) {
+                        completionFuture,
+                long checkpointId) {
             checkArgument(
                     !changeRange.isEmpty(), "Empty change range not allowed: %s", changeRange);
             this.uploaded = new TreeMap<>(uploaded);
             this.completionFuture = completionFuture;
             this.keyGroupRange = keyGroupRange;
             this.changeRange = changeRange;
+            this.checkpointId = checkpointId;
         }
 
         public boolean onSuccess(List<UploadResult> uploadResults) {
@@ -505,7 +577,11 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                     incrementalSize += uploadResult.getSize();
                     if (uploaded.size() == changeRange.size()) {
                         completionFuture.complete(
-                                buildSnapshotResult(keyGroupRange, uploaded, incrementalSize));
+                                buildSnapshotResult(
+                                        keyGroupRange,
+                                        uploaded,
+                                        incrementalSize,
+                                        checkpointId));
                         return true;
                     }
                 }
