@@ -268,6 +268,27 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCountStartWithHaving">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src HAVING COUNT(*) > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 1)])
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0], where=[(EXPR$0 > 1)])
++- GroupAggregate(select=[COUNT(*) AS EXPR$0])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[0 AS $f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCountStartWithMetadata">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM src]]>

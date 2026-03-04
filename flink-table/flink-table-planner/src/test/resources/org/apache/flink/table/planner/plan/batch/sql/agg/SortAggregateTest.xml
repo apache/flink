@@ -536,6 +536,73 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCountStarWithHavingAndProjectPushDown[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(*) FROM src HAVING COUNT(*) > 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 1)]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]]), rowType=[RecordType(VARCHAR(2147483647) id, BIGINT cnt)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0], where=[>(EXPR$0, 1)]), rowType=[RecordType(BIGINT EXPR$0)]
++- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
+   +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0]), rowType=[RecordType(BIGINT count1$0)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStarWithHavingAndProjectPushDown[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(*) FROM src HAVING COUNT(*) > 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 1)]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]]), rowType=[RecordType(VARCHAR(2147483647) id, BIGINT cnt)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0], where=[>(EXPR$0, 1)]), rowType=[RecordType(BIGINT EXPR$0)]
++- SortAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
+   +- Exchange(distribution=[single]), rowType=[RecordType(INTEGER $f0)]
+      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id]), rowType=[RecordType(VARCHAR(2147483647) id)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStarWithHavingAndProjectPushDown[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(*) FROM src HAVING COUNT(*) > 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 1)]), rowType=[RecordType(BIGINT EXPR$0)]
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]]), rowType=[RecordType(VARCHAR(2147483647) id, BIGINT cnt)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0], where=[>(EXPR$0, 1)]), rowType=[RecordType(BIGINT EXPR$0)]
++- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
+   +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0]), rowType=[RecordType(BIGINT count1$0)]
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCountStartWithProjectPushDown[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM src]]>
