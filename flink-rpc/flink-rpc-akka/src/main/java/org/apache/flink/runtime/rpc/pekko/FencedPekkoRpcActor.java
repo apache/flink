@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcResponseFrameSizeObserver;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
 import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
@@ -48,6 +49,7 @@ public class FencedPekkoRpcActor<
             int version,
             final long maximumFramesize,
             final boolean forceSerialization,
+            final RpcResponseFrameSizeObserver rpcResponseFrameSizeObserver,
             ClassLoader flinkClassLoader,
             final Map<String, String> loggingContext) {
         super(
@@ -56,6 +58,7 @@ public class FencedPekkoRpcActor<
                 version,
                 maximumFramesize,
                 forceSerialization,
+                rpcResponseFrameSizeObserver,
                 flinkClassLoader,
                 loggingContext);
     }

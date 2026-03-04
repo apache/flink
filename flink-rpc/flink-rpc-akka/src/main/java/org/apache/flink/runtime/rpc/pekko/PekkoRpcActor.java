@@ -22,6 +22,7 @@ import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcResponseFrameSizeObserver;
 import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
 import org.apache.flink.runtime.rpc.exceptions.HandshakeException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
@@ -105,6 +106,7 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
 
     private final boolean forceSerialization;
     private final Map<String, String> loggingContext;
+    private final RpcResponseFrameSizeObserver rpcResponseFrameSizeObserver;
 
     private volatile RpcEndpointTerminationResult rpcEndpointTerminationResult;
 
@@ -116,6 +118,7 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             final int version,
             final long maximumFramesize,
             final boolean forceSerialization,
+            final RpcResponseFrameSizeObserver rpcResponseFrameSizeObserver,
             final ClassLoader flinkClassLoader,
             final Map<String, String> loggingContext) {
         this.loggingContext = loggingContext;
@@ -124,6 +127,7 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
         this.flinkClassLoader = checkNotNull(flinkClassLoader);
         this.forceSerialization = forceSerialization;
+        this.rpcResponseFrameSizeObserver = checkNotNull(rpcResponseFrameSizeObserver);
         this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
         this.terminationFuture = checkNotNull(terminationFuture);
         this.version = version;
@@ -405,7 +409,9 @@ class PekkoRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             RpcSerializedValue serializedResult = RpcSerializedValue.valueOf(result);
 
             long resultSize = serializedResult.getSerializedDataLength();
+            rpcResponseFrameSizeObserver.onSerializedResponseFrameSize(resultSize);
             if (resultSize > maximumFramesize) {
+                rpcResponseFrameSizeObserver.onOversizedResponse();
                 return Either.Right(
                         new RpcException(
                                 "The method "
