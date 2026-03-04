@@ -33,7 +33,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /** A converter for {@link SqlAlterMaterializedTableAsQuery}. */
 public class SqlAlterMaterializedTableAsQueryConverter
@@ -46,15 +46,13 @@ public class SqlAlterMaterializedTableAsQueryConverter
             ConvertContext context) {
         final ObjectIdentifier identifier = resolveIdentifier(sqlAlterTableAsQuery, context);
         return new AlterMaterializedTableAsQueryOperation(
-                identifier, gatherTableChanges(sqlAlterTableAsQuery, oldTable, context), oldTable);
+                identifier, gatherTableChanges(sqlAlterTableAsQuery, context), oldTable);
     }
 
     @Override
-    protected Supplier<List<TableChange>> gatherTableChanges(
-            SqlAlterMaterializedTableAsQuery sqlAlterTableAsQuery,
-            ResolvedCatalogMaterializedTable oldTable,
-            ConvertContext context) {
-        return () -> {
+    protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
+            SqlAlterMaterializedTableAsQuery sqlAlterTableAsQuery, ConvertContext context) {
+        return oldTable -> {
             // Validate and extract schema from query
             String originalQuery = context.toQuotedSqlString(sqlAlterTableAsQuery.getAsQuery());
             SqlNode validatedQuery =

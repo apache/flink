@@ -26,13 +26,13 @@ import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.IntervalFreshness;
-import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ColumnPosition;
@@ -317,7 +317,7 @@ public class MaterializedTableUtils {
     }
 
     public static ResolvedSchema getQueryOperationResolvedSchema(
-            ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
+            CatalogMaterializedTable oldTable, ConvertContext context) {
         final SqlNode originalQuery =
                 context.getFlinkPlanner().parser().parse(oldTable.getOriginalQuery());
         final SqlNode validateQuery = context.getSqlValidator().validate(originalQuery);
@@ -329,7 +329,7 @@ public class MaterializedTableUtils {
     }
 
     public static void validatePersistedColumnsUsedByQuery(
-            ResolvedCatalogMaterializedTable oldTable,
+            CatalogMaterializedTable oldTable,
             SqlAlterMaterializedTableSchema alterTableSchema,
             ConvertContext context) {
         final SqlNodeList sqlNodeList = alterTableSchema.getColumnPositions();

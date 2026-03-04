@@ -48,7 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * Abstract class for converting {@link SqlAlterMaterializedTableSchema} and its children for alter
@@ -62,14 +62,14 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
             T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(alterTableSchema, context),
-                gatherTableChanges(alterTableSchema, oldTable, context),
+                gatherTableChanges(alterTableSchema, context),
                 oldTable);
     }
 
     @Override
-    protected Supplier<List<TableChange>> gatherTableChanges(
-            T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
-        return () -> {
+    protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
+            T alterTableSchema, ConvertContext context) {
+        return oldTable -> {
             MaterializedTableUtils.validatePersistedColumnsUsedByQuery(
                     oldTable, alterTableSchema, context);
 
@@ -79,7 +79,8 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
             alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
             Schema schema = converter.convert();
 
-            validateChanges(oldTable.getResolvedSchema(), schema, context);
+            ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+            validateChanges(oldSchema, schema, context);
 
             return converter.getChangesCollector();
         };

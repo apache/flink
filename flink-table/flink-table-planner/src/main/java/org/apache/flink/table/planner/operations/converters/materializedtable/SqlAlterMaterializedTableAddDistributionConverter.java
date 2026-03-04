@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /** A converter for {@link SqlAlterMaterializedTableAddDistribution}. */
 public class SqlAlterMaterializedTableAddDistributionConverter
@@ -43,16 +43,14 @@ public class SqlAlterMaterializedTableAddDistributionConverter
 
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(sqlAddDistribution, context),
-                gatherTableChanges(sqlAddDistribution, oldTable, context),
+                gatherTableChanges(sqlAddDistribution, context),
                 oldTable);
     }
 
     @Override
-    protected Supplier<List<TableChange>> gatherTableChanges(
-            SqlAlterMaterializedTableAddDistribution sqlAddDistribution,
-            ResolvedCatalogMaterializedTable oldTable,
-            ConvertContext context) {
-        return () -> {
+    protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
+            SqlAlterMaterializedTableAddDistribution sqlAddDistribution, ConvertContext context) {
+        return oldTable -> {
             final TableDistribution distribution =
                     getTableDistribution(sqlAddDistribution, oldTable);
             return List.of(TableChange.add(distribution));

@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /** Abstract converter for {@link SqlAlterMaterializedTable}. */
 public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlterMaterializedTable>
@@ -45,8 +45,8 @@ public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlter
     protected abstract Operation convertToOperation(
             T sqlAlterTable, ResolvedCatalogMaterializedTable oldTable, ConvertContext context);
 
-    protected abstract Supplier<List<TableChange>> gatherTableChanges(
-            T sqlAlterTable, ResolvedCatalogMaterializedTable oldTable, ConvertContext context);
+    protected abstract Function<ResolvedCatalogMaterializedTable, List<TableChange>>
+            gatherTableChanges(T sqlAlterTable, ConvertContext context);
 
     @Override
     public final Operation convertSqlNode(T sqlAlterMaterializedTable, ConvertContext context) {

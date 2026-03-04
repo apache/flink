@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
 
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * Operation for CREATE OR ALTER MATERIALIZED TABLE ... in case materialized table is present and
@@ -35,9 +35,9 @@ public class FullAlterMaterializedTableOperation extends AlterMaterializedTableC
 
     public FullAlterMaterializedTableOperation(
             final ObjectIdentifier tableIdentifier,
-            final Supplier<List<TableChange>> tableChangeSupplier,
+            final Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable,
             final ResolvedCatalogMaterializedTable oldTable) {
-        super(tableIdentifier, tableChangeSupplier, oldTable);
+        super(tableIdentifier, tableChangeForTable, oldTable);
     }
 
     @Override

@@ -38,7 +38,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -54,7 +54,7 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
 
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(alterTableSchema, context),
-                gatherTableChanges(alterTableSchema, oldTable, context),
+                gatherTableChanges(alterTableSchema, context),
                 oldTable);
     }
 
@@ -67,9 +67,9 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
     protected abstract Set<String> getColumnsToDrop(T alterTableSchema);
 
     @Override
-    protected Supplier<List<TableChange>> gatherTableChanges(
-            T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
-        return () -> {
+    protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
+            T alterTableSchema, ConvertContext context) {
+        return oldTable -> {
             Set<String> columnsToDrop = getColumnsToDrop(alterTableSchema);
             return validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
         };
