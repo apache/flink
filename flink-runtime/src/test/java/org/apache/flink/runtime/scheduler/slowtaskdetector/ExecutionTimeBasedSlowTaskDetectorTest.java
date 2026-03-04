@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler.slowtaskdetector;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SlowTaskDetectorOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -52,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
@@ -71,7 +74,31 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
     void testNoFinishedTaskButRatioIsZero() throws Exception {
         final int parallelism = 3;
         final JobVertex jobVertex = createNoOpVertex(parallelism);
-        final ExecutionGraph executionGraph = createExecutionGraph(jobVertex);
+
+        // Create a future to wait for all vertices to be in RUNNING state
+        CompletableFuture<Void> allVerticesRunningFuture = new CompletableFuture<>();
+
+        // Create job status listener that completes the future when all vertices are running
+        JobStatusListener jobStatusListener =
+                (jobId, newJobStatus, timestamp) -> {
+                    if (newJobStatus == JobStatus.RUNNING) {
+                        allVerticesRunningFuture.complete(null);
+                    }
+                };
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertex);
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        EXECUTOR_RESOURCE.getExecutor(),
+                        jobStatusListener);
+
+        final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
+        scheduler.startScheduling();
+
+        // Wait for all vertices to naturally transition to RUNNING state
+        allVerticesRunningFuture.join();
 
         final ExecutionTimeBasedSlowTaskDetector slowTaskDetector = createSlowTaskDetector(0, 1, 0);
 
