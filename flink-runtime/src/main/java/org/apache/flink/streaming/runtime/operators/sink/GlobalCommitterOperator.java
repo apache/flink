@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.configuration.CommitFailureStrategy;
 import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
@@ -121,6 +122,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
     private SimpleVersionedSerializer<CommT> committableSerializer;
     private SinkCommitterMetricGroup metricGroup;
     private int maxRetries;
+    private CommitFailureStrategy failureStrategy;
 
     @Nullable private SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
     private List<GlobalCommT> sinkV1State = new ArrayList<>();
@@ -144,6 +146,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
         committableCollector = CommittableCollector.of(metricGroup);
         committableSerializer = committableSerializerFactory.get();
         maxRetries = config.getConfiguration().get(SinkOptions.COMMITTER_RETRIES);
+        failureStrategy = config.getConfiguration().get(SinkOptions.COMMITTER_FAILURE_STRATEGY);
     }
 
     @Override
@@ -211,7 +214,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
             if (!checkpointManager.hasGloballyReceivedAll()) {
                 return;
             }
-            checkpointManager.commit(committer, maxRetries);
+            checkpointManager.commit(committer, maxRetries, failureStrategy);
             committableCollector.remove(checkpointManager);
         }
     }

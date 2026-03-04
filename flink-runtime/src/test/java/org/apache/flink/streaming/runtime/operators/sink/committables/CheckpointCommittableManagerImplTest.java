@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.configuration.CommitFailureStrategy;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -120,6 +121,57 @@ class CheckpointCommittableManagerImplTest {
         assertThat(copy)
                 .returns(numberOfSubtasks, CheckpointCommittableManagerImpl::getNumberOfSubtasks)
                 .returns(checkpointId, CheckpointCommittableManagerImpl::getCheckpointId);
+    }
+
+    @Test
+    void testCommitWithWarnStrategySkipsUnknownFailures() throws IOException, InterruptedException {
+        final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
+                new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
+        checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0));
+        checkpointCommittables.addCommittable(new CommittableWithLineage<>(42, 1L, 1));
+
+        final Committer<Integer> failingCommitter = new FailWithUnknownReasonCommitter();
+        assertThatCode(
+                        () ->
+                                checkpointCommittables.commit(
+                                        failingCommitter,
+                                        MAX_RETRIES,
+                                        CommitFailureStrategy.WARN))
+                .doesNotThrowAnyException();
+        assertThat(checkpointCommittables.getSuccessfulCommittables()).isEmpty();
+        assertThat(checkpointCommittables.isFinished()).isTrue();
+    }
+
+    @Test
+    void testCommitWithFailStrategyThrowsOnUnknownFailures() {
+        final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
+                new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
+        checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0));
+        checkpointCommittables.addCommittable(new CommittableWithLineage<>(42, 1L, 1));
+
+        final Committer<Integer> failingCommitter = new FailWithUnknownReasonCommitter();
+        assertThatThrownBy(
+                        () ->
+                                checkpointCommittables.commit(
+                                        failingCommitter,
+                                        MAX_RETRIES,
+                                        CommitFailureStrategy.FAIL))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Failed to commit");
+    }
+
+    private static class FailWithUnknownReasonCommitter implements Committer<Integer> {
+
+        @Override
+        public void commit(Collection<CommitRequest<Integer>> committables) {
+            committables.forEach(
+                    c ->
+                            c.signalFailedWithUnknownReason(
+                                    new RuntimeException("Unknown failure")));
+        }
+
+        @Override
+        public void close() throws Exception {}
     }
 
     private static class NoOpCommitter implements Committer<Integer> {

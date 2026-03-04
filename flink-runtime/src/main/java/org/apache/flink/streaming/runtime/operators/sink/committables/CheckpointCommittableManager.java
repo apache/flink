@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.configuration.CommitFailureStrategy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -58,12 +59,26 @@ public interface CheckpointCommittableManager<CommT> {
 
     /**
      * Commits all due committables if all respective committables of the specific subtask and
-     * checkpoint have been received.
+     * checkpoint have been received. Uses {@link CommitFailureStrategy#FAIL} as the default
+     * strategy.
      *
      * @param committer used to commit to the external system
      * @param maxRetries
      */
-    void commit(Committer<CommT> committer, int maxRetries)
+    default void commit(Committer<CommT> committer, int maxRetries)
+            throws IOException, InterruptedException {
+        commit(committer, maxRetries, CommitFailureStrategy.FAIL);
+    }
+
+    /**
+     * Commits all due committables if all respective committables of the specific subtask and
+     * checkpoint have been received.
+     *
+     * @param committer used to commit to the external system
+     * @param maxRetries
+     * @param failureStrategy strategy for handling unknown commit failures
+     */
+    void commit(Committer<CommT> committer, int maxRetries, CommitFailureStrategy failureStrategy)
             throws IOException, InterruptedException;
 
     /**
