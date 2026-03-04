@@ -102,6 +102,34 @@ class FunctionITCase extends BatchTestBase {
     }
 
     @Test
+    void testUserDefinedTemporarySystemFunctionByUsingArtifact() throws Exception {
+        String functionDDL =
+                String.format(
+                        "create temporary system function lowerUdf as '%s' language java using artifact '%s'",
+                        udfClassName, jarPath);
+
+        String dropFunctionDDL = "drop temporary system function lowerUdf";
+        testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
+    }
+
+    @Test
+    void testCreateTemporarySystemFunctionByUsingArtifact() {
+        String ddl =
+                String.format(
+                        "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' LANGUAGE JAVA USING ARTIFACT '%s'",
+                        udfClassName, jarPath);
+        tEnv().executeSql(ddl);
+
+        List<String> functions = Arrays.asList(tEnv().listFunctions());
+        assertThat(functions).contains("f10");
+
+        tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
+
+        functions = Arrays.asList(tEnv().listFunctions());
+        assertThat(functions).doesNotContain("f10");
+    }
+
+    @Test
     void testOrderByScopeRawTypeCast() throws Exception {
         final List<Row> sourceData = List.of(Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
         TestCollectionTableFactory.reset();

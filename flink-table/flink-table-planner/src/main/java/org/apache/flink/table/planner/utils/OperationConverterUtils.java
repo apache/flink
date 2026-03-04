@@ -199,10 +199,13 @@ public class OperationConverterUtils {
                                 case ARCHIVE:
                                     resourceType = ResourceType.ARCHIVE;
                                     break;
+                                case ARTIFACT:
+                                    resourceType = ResourceType.ARTIFACT;
+                                    break;
                                 default:
                                     throw new ValidationException(
                                             String.format(
-                                                    "Unsupported resource type: .",
+                                                    "Unsupported resource type: %s.",
                                                     sqlResourceType));
                             }
                             // get resource path

@@ -2526,16 +2526,17 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
 
-        sql("create temporary function function1 as 'org.apache.flink.function.function1' language ^sql^ using jar 'file:///path/to/test.jar'")
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language sql using jar ^'file:///path/to/test.jar'^")
                 .fails("CREATE FUNCTION USING JAR syntax is not applicable to SQL language.");
 
-        sql("create temporary function function1 as 'org.apache.flink.function.function1' language ^python^ using jar 'file:///path/to/test.jar'")
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language python using jar ^'file:///path/to/test.jar'^")
                 .fails("CREATE FUNCTION USING JAR syntax is not applicable to PYTHON language.");
 
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language java using ^file^ 'file:///path/to/test'")
                 .fails(
                         "Encountered \"file\" at line 1, column 98.\n"
-                                + "Was expecting:\n"
+                                + "Was expecting one of:\n"
+                                + "    \"ARTIFACT\" ...\n"
                                 + "    \"JAR\" ...\n"
                                 + "    .*");
 
@@ -2552,6 +2553,52 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "  'k1' = 'v1',\n"
                                 + "  'k2' = 'v2'\n"
                                 + ")");
+
+        // test create function using artifact
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language java using artifact 'file:///path/to/test.artifact'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING ARTIFACT 'file:///path/to/test.artifact'");
+
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language scala using artifact '/path/to/test.artifact'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA USING ARTIFACT '/path/to/test.artifact'");
+
+        sql("create function function1 as 'org.apache.flink.function.function1' language java using artifact 'file:///path/to/test.artifact', artifact 'hdfs:///path/to/test2.artifact'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING ARTIFACT 'file:///path/to/test.artifact', ARTIFACT 'hdfs:///path/to/test2.artifact'");
+
+        // SQL language cannot use JAR but can use ARTIFACT
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language sql using jar ^'file:///path/to/test.jar'^")
+                .fails("CREATE FUNCTION USING JAR syntax is not applicable to SQL language.");
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language sql using artifact 'file:///path/to/test.artifact'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SQL USING ARTIFACT 'file:///path/to/test.artifact'");
+
+        // PYTHON language cannot use JAR but can use ARTIFACT
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language python using jar ^'file:///path/to/test.jar'^")
+                .fails("CREATE FUNCTION USING JAR syntax is not applicable to PYTHON language.");
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language python using artifact 'file:///path/to/test.artifact'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE PYTHON USING ARTIFACT 'file:///path/to/test.artifact'");
+
+        // Test ARTIFACT with SCALA language
+        sql("create temporary function function1 as 'org.apache.flink.function.function1' language scala using artifact 'file:///path/to/test.artifact'")
+                .ok(
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA USING ARTIFACT 'file:///path/to/test.artifact'");
+
+        sql("create function function1 as 'org.apache.flink.function.function1' language python using artifact 'file:///path/to/test.artifact', artifact 'hdfs:///path/to/dependency.artifact'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE PYTHON USING ARTIFACT 'file:///path/to/test.artifact', ARTIFACT 'hdfs:///path/to/dependency.artifact'");
+
+        // Test mixed JAR and ARTIFACT in the same USING clause
+        sql("create function function1 as 'org.apache.flink.function.function1' language java using jar 'file:///path/to/test.jar', artifact 'file:///path/to/test.artifact'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', ARTIFACT 'file:///path/to/test.artifact'");
+
+        // Test ARTIFACT with default (implicit) language
+        sql("create function function1 as 'org.apache.flink.function.function1' using artifact 'file:///path/to/test.artifact'")
+                .ok(
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' USING ARTIFACT 'file:///path/to/test.artifact'");
     }
 
     @Test

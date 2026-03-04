@@ -860,7 +860,7 @@ If the view already exists, nothing happens.
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON] 
-  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+  [USING {JAR|ARTIFACT} '<path_to_filename>' [, {JAR|ARTIFACT} '<path_to_filename>']* ]
   [WITH (key1=val1, key2=val2, ...)]
 ```
 
@@ -886,13 +886,13 @@ If the function already exists, nothing happens.
 
 **LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag to instruct Flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA. 
+Language tag to instruct Flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA.
 
 **USING**
 
-Specifies the list of jar resources that contain the implementation of the function along with its dependencies. The jar should be located in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}) such as hdfs/s3/oss which Flink current supports. 
-
-<span class="label label-danger">Attention</span> Currently only JAVA, SCALA language support USING clause.
+Specifies a list of resources that contain the implementation of the function along with its dependencies. Resources can be specified with the `JAR` or `ARTIFACT` keyword:
+- `JAR`: Only supported for JAVA and SCALA functions. The jar should be located in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}) such as hdfs/s3/oss which Flink currently supports.
+- `ARTIFACT`: Supported for all languages (JAVA, SCALA, and PYTHON). Provides a language-agnostic way to specify function dependencies.
 
 {{< top >}}
 

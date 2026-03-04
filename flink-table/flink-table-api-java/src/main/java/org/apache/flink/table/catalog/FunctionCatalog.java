@@ -141,12 +141,12 @@ public final class FunctionCatalog {
                             "Could not drop temporary system function. A function named '%s' doesn't exist.",
                             name));
         }
-        unregisterFunctionJarResources(function);
+        unregisterFunctionResources(function);
 
         return function != null;
     }
 
-    private void unregisterFunctionJarResources(@Nullable CatalogFunction function) {
+    private void unregisterFunctionResources(@Nullable CatalogFunction function) {
         if (function != null && function.getFunctionLanguage() == FunctionLanguage.JAVA) {
             resourceManager.unregisterFunctionResources(function.getFunctionResources());
         }
@@ -509,7 +509,7 @@ public final class FunctionCatalog {
                     .getTemporaryOperationListener(normalizedName)
                     .ifPresent(l -> l.onDropTemporaryFunction(normalizedName.toObjectPath()));
             tempCatalogFunctions.remove(normalizedName);
-            unregisterFunctionJarResources(fd);
+            unregisterFunctionResources(fd);
         } else if (!ignoreIfNotExist) {
             throw new ValidationException(
                     String.format("Temporary catalog function %s doesn't exist", identifier));
@@ -601,8 +601,7 @@ public final class FunctionCatalog {
         CatalogFunction potentialResult = tempCatalogFunctions.get(normalizedIdentifier);
 
         if (potentialResult != null) {
-            registerFunctionJarResources(
-                    oi.asSummaryString(), potentialResult.getFunctionResources());
+            registerFunctionResources(oi.asSummaryString(), potentialResult.getFunctionResources());
             return Optional.of(
                     ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(oi),
@@ -622,7 +621,7 @@ public final class FunctionCatalog {
                 FunctionDefinition fd;
                 if (catalog.getFunctionDefinitionFactory().isPresent()
                         && catalogFunction.getFunctionLanguage() != FunctionLanguage.PYTHON) {
-                    registerFunctionJarResources(
+                    registerFunctionResources(
                             oi.asSummaryString(), catalogFunction.getFunctionResources());
                     fd =
                             catalog.getFunctionDefinitionFactory()
@@ -656,7 +655,7 @@ public final class FunctionCatalog {
         String normalizedName = FunctionIdentifier.normalizeName(funcName);
         if (tempSystemFunctions.containsKey(normalizedName)) {
             CatalogFunction function = tempSystemFunctions.get(normalizedName);
-            registerFunctionJarResources(funcName, function.getFunctionResources());
+            registerFunctionResources(funcName, function.getFunctionResources());
             return Optional.of(
                     ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(funcName),
@@ -691,7 +690,7 @@ public final class FunctionCatalog {
             }
             // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
-            // If the jar resource of UDF used is not empty, register it to classloader before
+            // If the artifact resource of UDF used is not empty, register it to classloader before
             // validate.
             List<ResourceUri> resourceUris = function.getFunctionResources();
             try {
@@ -702,7 +701,7 @@ public final class FunctionCatalog {
             } catch (Exception e) {
                 throw new TableException(
                         String.format(
-                                "Failed to register function jar resource '%s' of function '%s'.",
+                                "Failed to register function artifact resource '%s' of function '%s'.",
                                 resourceUris, name),
                         e);
             }
@@ -730,9 +729,8 @@ public final class FunctionCatalog {
         if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
             resourceManager.registerPythonResources();
         }
-        // If the jar resource of UDF used is not empty, register it to classloader before
-        // validate.
-        registerFunctionJarResources(name, function.getFunctionResources());
+        // If the resource of UDF used is not empty, register it to classloader before validate.
+        registerFunctionResources(name, function.getFunctionResources());
 
         return UserDefinedFunctionHelper.instantiateFunction(
                 resourceManager.getUserClassLoader(),
@@ -742,15 +740,17 @@ public final class FunctionCatalog {
                 function);
     }
 
-    public void registerFunctionJarResources(String functionName, List<ResourceUri> resourceUris) {
+    public void registerFunctionResources(String functionName, List<ResourceUri> resourceUris) {
         try {
             if (!resourceUris.isEmpty()) {
-                resourceManager.registerJarResources(resourceUris);
+                // Use generic registerArtifactResources to support all resource types
+                // (JAR, ARTIFACT, ARCHIVE) instead of JAR-only registerJarResources
+                resourceManager.registerArtifactResources(resourceUris, true);
             }
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to register jar resource '%s' of function '%s'.",
+                            "Failed to register resource '%s' of function '%s'.",
                             resourceUris, functionName),
                     e);
         }

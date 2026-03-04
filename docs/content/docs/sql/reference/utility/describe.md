@@ -91,8 +91,11 @@ tableEnv.executeSql("DESCRIBE CATALOG cat2").print();
 // print the complete metadata
 tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print();
 
-// register a function named "MySum"
+// register a function named "MySum" using JAR
 tableEnv.executeSql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print();
+
+// register a function using ARTIFACT (recommended for new code)
+tableEnv.executeSql("CREATE FUNCTION MySum2 as 'org.example.SumScalarFunction' LANGUAGE JAVA USING ARTIFACT 'file://home/users/mysum-udf.jar';").print();
 
 // print the metadata
 tableEnv.executeSql("DESCRIBE FUNCTION MySum").print();
@@ -133,8 +136,11 @@ tableEnv.executeSql("DESCRIBE CATALOG cat2").print()
 tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print()
 
 
-// register a function named "MySum"
+// register a function named "MySum" using JAR
 tableEnv.executeSql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print()
+
+// register a function using ARTIFACT (recommended for new code)
+tableEnv.executeSql("CREATE FUNCTION MySum2 as 'org.example.SumScalarFunction' LANGUAGE JAVA USING ARTIFACT 'file://home/users/mysum-udf.jar';").print()
 
 // print the metadata
 tableEnv.executeSql("DESCRIBE FUNCTION MySum").print()
@@ -175,10 +181,13 @@ table_env.execute_sql("DESCRIBE CATALOG cat2").print()
 table_env.execute_sql("DESC CATALOG EXTENDED cat2").print()
 
 
-// register a function named "MySum"
+# register a function named "MySum" using JAR
 table_env.execute_sql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print()
 
-// print the metadata
+# register a Python function using ARTIFACT
+table_env.execute_sql("CREATE FUNCTION MyPyFunc as 'my_package.my_module.my_func' LANGUAGE PYTHON USING ARTIFACT 'file://home/users/my_package.zip';").print()
+
+# print the metadata
 table_env.execute_sql("DESCRIBE FUNCTION MySum").print()
 
 // print the complete metadata
@@ -212,6 +221,8 @@ Flink SQL> DESCRIBE CATALOG cat2;
 Flink SQL> DESC CATALOG EXTENDED cat2;
 
 Flink SQL> CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';
+
+Flink SQL> CREATE FUNCTION MySum2 as 'org.example.SumScalarFunction' LANGUAGE JAVA USING ARTIFACT 'file://home/users/mysum-udf.jar';
 
 Flink SQL> DESCRIBE FUNCTION MySum;
 
