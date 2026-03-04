@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -62,11 +66,19 @@ class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase
         // at this moment we expect the function to have some records in state
 
         testHarness.processWatermark(new Watermark(4000L));
-        // at this moment the function should have cleaned up states
+        // at this moment the function should have cleaned up states exclude lastTriggeringTsState
 
         assertThat(stateBackend.numKeyValueStateEntries())
                 .as("State has not been cleaned up")
-                .isEqualTo(0);
+                .isEqualTo(1);
+
+        ValueStateDescriptor<Long> lastTriggeringTsDescriptor =
+                new ValueStateDescriptor<>("lastTriggeringTsState", Types.LONG);
+        ValueState<Long> lastTriggeringTsState =
+                (ValueState<Long>)
+                        stateBackend.getOrCreateKeyedState(
+                                VoidNamespaceSerializer.INSTANCE, lastTriggeringTsDescriptor);
+        assertThat(lastTriggeringTsState.value()).isEqualTo(500L);
     }
 
     @Test
@@ -90,6 +102,36 @@ class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase
         testHarness.processElement(insertRecord("key", 1L, 500L));
 
         testHarness.processWatermark(new Watermark(500L));
+
+        // late record
+        testHarness.processElement(insertRecord("key", 1L, 400L));
+
+        assertThat(counter.getCount()).isEqualTo(1L);
+    }
+
+    @Test
+    void testProcessElementAfterCleanUpStates() throws Exception {
+        RowTimeRangeBoundedPrecedingFunction<RowData> function =
+                new RowTimeRangeBoundedPrecedingFunction<>(
+                        aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        Counter counter = function.getCounter();
+
+        // put some records
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 500L));
+
+        // process watermark and clean up states
+        testHarness.processWatermark(new Watermark(1000L));
+        testHarness.processWatermark(new Watermark(4000L));
 
         // late record
         testHarness.processElement(insertRecord("key", 1L, 400L));
