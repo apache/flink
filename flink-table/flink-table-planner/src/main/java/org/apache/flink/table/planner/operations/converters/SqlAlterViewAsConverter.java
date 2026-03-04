@@ -28,6 +28,7 @@ import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.toCatalogView;
 import static org.apache.flink.table.planner.operations.converters.SqlNodeConvertUtils.validateAlterView;
@@ -49,6 +50,7 @@ public class SqlAlterViewAsConverter implements SqlNodeConverter<SqlAlterViewAs>
                         Collections.emptyList(),
                         oldView.getOptions(),
                         oldView.getComment(),
+                        Optional.empty(),
                         context);
         return new AlterViewAsOperation(viewIdentifier, newView);
     }
