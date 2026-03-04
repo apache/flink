@@ -25,28 +25,28 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test job cancellation from within a MapFunction. */
-public class MapCancelingITCase extends CancelingTestBase {
+class MapCancelingITCase extends CancelingTestBase {
 
     @Test
-    public void testMapCancelling() throws Exception {
+    void testMapCancelling() throws Exception {
         executeTask(new IdentityMapper<Integer>());
     }
 
     @Test
-    public void testSlowMapCancelling() throws Exception {
+    void testSlowMapCancelling() throws Exception {
         executeTask(new DelayingIdentityMapper<Integer>());
     }
 
     @Test
-    public void testMapWithLongCancellingResponse() throws Exception {
+    void testMapWithLongCancellingResponse() throws Exception {
         executeTask(new LongCancelTimeIdentityMapper<Integer>());
     }
 
     @Test
-    public void testMapPriorToFirstRecordReading() throws Exception {
+    void testMapPriorToFirstRecordReading() throws Exception {
         executeTask(new StuckInOpenIdentityMapper<Integer>());
     }
 
