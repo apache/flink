@@ -492,6 +492,13 @@ string:
     description:
       Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme.
       If the input is NULL, or there is an issue with the decoding process(such as encountering an illegal escape pattern), or the encoding scheme is not supported, the function returns NULL.
+  - sql: URL_DECODE_RECURSIVE(string, boolean)
+    table: STRING.urlDecode(BOOLEAN)
+    description:
+      Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding scheme with optional recursive decoding.
+      If the recursive parameter is TRUE, performs recursive decoding until no further decoding is possible.
+      If the recursive parameter is FALSE or NULL, performs only a single decode operation.
+      If the input is NULL, or there is an issue with the decoding process(such as encountering an illegal escape pattern), or the encoding scheme is not supported, the function returns NULL.
   - sql: URL_ENCODE(string)
     table: STRING.urlEncode()
     description:
