@@ -38,10 +38,12 @@ import org.apache.flink.util.TestLoggerExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import java.io.File;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for the system behavior in multiple corner cases - when null records are passed through the
@@ -62,6 +64,8 @@ class MiscellaneousIssuesITCase {
                             .setNumberSlotsPerTaskManager(3)
                             .build());
 
+    @TempDir private File tempDir;
+
     @Test
     void testNullValues() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -77,15 +81,12 @@ class MiscellaneousIssuesITCase {
                                     }
                                 });
         data.sinkTo(
-                FileSink.forRowFormat(new Path("/tmp/myTest"), new SimpleStringEncoder<String>())
+                FileSink.forRowFormat(new Path(tempDir.toURI()), new SimpleStringEncoder<String>())
                         .build());
 
-        try {
-            env.execute();
-            fail("this should fail due to null values.");
-        } catch (JobExecutionException e) {
-            assertThat(findThrowable(e, NullPointerException.class)).isPresent();
-        }
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .hasRootCauseInstanceOf(NullPointerException.class);
     }
 
     @Test

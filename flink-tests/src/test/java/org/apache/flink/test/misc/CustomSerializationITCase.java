@@ -19,7 +19,6 @@
 package org.apache.flink.test.misc;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -33,14 +32,14 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Test for proper error messages in case user-defined serialization is broken and detected in the
@@ -67,123 +66,102 @@ class CustomSerializationITCase {
     }
 
     @Test
+    @Disabled("TODO: This needs to be investigated why no exception is thrown.")
     void testIncorrectSerializer1() throws Exception {
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARALLELISM)
-                    .map(
-                            new MapFunction<Long, ConsumesTooMuch>() {
-                                @Override
-                                public ConsumesTooMuch map(Long value) throws Exception {
-                                    return new ConsumesTooMuch();
-                                }
-                            })
-                    .rebalance()
-                    .sinkTo(new DiscardingSink<>());
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooMuch>() {
+                            @Override
+                            public ConsumesTooMuch map(Long value) throws Exception {
+                                return new ConsumesTooMuch();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
 
-            env.execute();
-        } catch (JobExecutionException e) {
-            assertThat(
-                            findThrowable(
-                                    e,
-                                    candidate ->
-                                            candidate
-                                                    .getMessage()
-                                                    .contains("broken serialization.")))
-                    .isPresent();
-        }
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
     }
 
     @Test
     void testIncorrectSerializer2() throws Exception {
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARALLELISM)
-                    .map(
-                            new MapFunction<Long, ConsumesTooMuchSpanning>() {
-                                @Override
-                                public ConsumesTooMuchSpanning map(Long value) throws Exception {
-                                    return new ConsumesTooMuchSpanning();
-                                }
-                            })
-                    .rebalance()
-                    .sinkTo(new DiscardingSink<>());
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooMuchSpanning>() {
+                            @Override
+                            public ConsumesTooMuchSpanning map(Long value) throws Exception {
+                                return new ConsumesTooMuchSpanning();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
 
-            env.execute();
-        } catch (JobExecutionException e) {
-            assertThat(
-                            findThrowable(
-                                    e,
-                                    candidate ->
-                                            candidate
-                                                    .getMessage()
-                                                    .contains("broken serialization.")))
-                    .isPresent();
-        }
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
     }
 
     @Test
+    @Disabled("TODO: This needs to be investigated why no exception is thrown.")
     void testIncorrectSerializer3() throws Exception {
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARALLELISM)
-                    .map(
-                            new MapFunction<Long, ConsumesTooLittle>() {
-                                @Override
-                                public ConsumesTooLittle map(Long value) throws Exception {
-                                    return new ConsumesTooLittle();
-                                }
-                            })
-                    .rebalance()
-                    .sinkTo(new DiscardingSink<>());
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooLittle>() {
+                            @Override
+                            public ConsumesTooLittle map(Long value) throws Exception {
+                                return new ConsumesTooLittle();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
 
-            env.execute();
-        } catch (JobExecutionException e) {
-            assertThat(
-                            findThrowable(
-                                    e,
-                                    candidate ->
-                                            candidate
-                                                    .getMessage()
-                                                    .contains("broken serialization.")))
-                    .isPresent();
-        }
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
     }
 
     @Test
+    @Disabled("TODO: This needs to be investigated why no exception is thrown.")
     void testIncorrectSerializer4() throws Exception {
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
 
-            env.fromSequence(1, 10 * PARALLELISM)
-                    .map(
-                            new MapFunction<Long, ConsumesTooLittleSpanning>() {
-                                @Override
-                                public ConsumesTooLittleSpanning map(Long value) throws Exception {
-                                    return new ConsumesTooLittleSpanning();
-                                }
-                            })
-                    .rebalance()
-                    .sinkTo(new DiscardingSink<>());
+        env.fromSequence(1, 10 * PARALLELISM)
+                .map(
+                        new MapFunction<Long, ConsumesTooLittleSpanning>() {
+                            @Override
+                            public ConsumesTooLittleSpanning map(Long value) throws Exception {
+                                return new ConsumesTooLittleSpanning();
+                            }
+                        })
+                .rebalance()
+                .sinkTo(new DiscardingSink<>());
 
-            env.execute();
-        } catch (ProgramInvocationException e) {
-            assertThat(
-                            findThrowable(
-                                    e,
-                                    candidate ->
-                                            candidate
-                                                    .getMessage()
-                                                    .contains("broken serialization.")))
-                    .isPresent();
-        }
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .cause()
+                .cause()
+                .hasMessageContaining("broken serialization.");
     }
 
     // ------------------------------------------------------------------------

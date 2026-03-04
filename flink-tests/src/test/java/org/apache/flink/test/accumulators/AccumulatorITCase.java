@@ -48,7 +48,7 @@ import java.util.Set;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Test for the basic functionality of accumulators. We cannot test all different kinds of plans
@@ -82,10 +82,10 @@ class AccumulatorITCase extends JavaProgramTestBase {
         JobExecutionResult res = this.result;
         System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
-        assertThat(res.<Integer>getAccumulatorResult("num-lines")).isEqualTo(Integer.valueOf(3));
+        assertThat(res.<Integer>getAccumulatorResult("num-lines")).isEqualTo(3);
 
         assertThat(res.<Double>getAccumulatorResult("open-close-counter"))
-                .isEqualTo(Double.valueOf(getParallelism()));
+                .isEqualTo(getParallelism());
 
         // Test histogram (words per line distribution)
         assertThat(res.<Map<Integer, Integer>>getAccumulatorResult("words-per-line"))
@@ -169,17 +169,8 @@ class AccumulatorITCase extends JavaProgramTestBase {
             assertThat(simpleCounter2.getLocalValue()).isEqualTo(simpleCounter.getLocalValue());
 
             // Should fail if we request it with different type
-            try {
-                @SuppressWarnings("unused")
-                DoubleCounter simpleCounter3 =
-                        getRuntimeContext().getDoubleCounter("simple-counter");
-                // DoubleSumAggregator longAggregator3 = (DoubleSumAggregator)
-                // getRuntimeContext().getAggregator("custom",
-                // DoubleSumAggregator.class);
-                fail("Should not be able to obtain previously created counter with different type");
-            } catch (UnsupportedOperationException ex) {
-                // expected!
-            }
+            assertThatThrownBy(() -> getRuntimeContext().getDoubleCounter("simple-counter"))
+                    .isInstanceOf(UnsupportedOperationException.class);
 
             // Test counter used in open() and closed()
             this.openCloseCounter.add(0.5);
