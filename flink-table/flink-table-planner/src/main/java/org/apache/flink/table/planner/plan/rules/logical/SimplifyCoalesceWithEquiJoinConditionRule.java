@@ -20,8 +20,11 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
@@ -176,7 +179,11 @@ public class SimplifyCoalesceWithEquiJoinConditionRule
             simplified = true;
 
             // Handle potential type mismatch by adding a CAST if needed
-            if (call.getType().equals(preservedRef.getType())) {
+            final LogicalType preservedLogicalType =
+                    FlinkTypeFactory.toLogicalType(preservedRef.getType());
+            final LogicalType coalesceLogicalType = FlinkTypeFactory.toLogicalType(call.getType());
+
+            if (LogicalTypeCasts.supportsImplicitCast(preservedLogicalType, coalesceLogicalType)) {
                 return preservedRef;
             } else {
                 return rexBuilder.makeCast(call.getType(), preservedRef);
