@@ -210,11 +210,14 @@ class RelTreeWriterImpl(
       s.append(", rowType=[").append(rel.getRowType.toString).append("]")
     }
 
-    if (explainLevel == SqlExplainLevel.ALL_ATTRIBUTES) {
+    if (explainLevel == SqlExplainLevel.ALL_ATTRIBUTES || explainLevel == SqlExplainLevel.EXPPLAN_ATTRIBUTES) {
+      val rowCount = mq.getRowCount(rel)
+      val cost = mq.getCumulativeCost(rel)
+      
       s.append(": rowcount = ")
-        .append(mq.getRowCount(rel))
+        .append(if (rowCount != null) rowCount else "unknown")
         .append(", cumulative cost = ")
-        .append(mq.getCumulativeCost(rel))
+        .append(if (cost != null) cost else "unknown")
     }
     pw.println(s)
 
