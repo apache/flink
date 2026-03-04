@@ -25,19 +25,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 /** Base class for all keyed operator restore tests. */
-@RunWith(Parameterized.class)
-public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
-
-    public AbstractKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
+abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
     @Override
-    public void createMigrationJob(StreamExecutionEnvironment env) {
+    protected void createMigrationJob(StreamExecutionEnvironment env) {
         /** Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2) */
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> source =
                 KeyedJob.createIntegerTupleSource(env, ExecutionMode.MIGRATE);

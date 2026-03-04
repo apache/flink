@@ -64,25 +64,23 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collection;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamOperator} snapshot restoration. */
-@RunWith(Parameterized.class)
-public class StreamOperatorSnapshotRestoreTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class StreamOperatorSnapshotRestoreTest {
 
     private static final int ONLY_JM_RECOVERY = 0;
     private static final int TM_AND_JM_RECOVERY = 1;
@@ -91,42 +89,27 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
     private static final int MAX_PARALLELISM = 10;
 
-    protected static TemporaryFolder temporaryFolder;
+    @TempDir static File temporaryFolder;
 
-    @Parameterized.Parameter public StateBackendEnum stateBackendEnum;
-
-    enum StateBackendEnum {
+    public enum StateBackendEnum {
         FILE,
         ROCKSDB_FULLY_ASYNC,
         ROCKSDB_INCREMENTAL
     }
 
-    @Parameterized.Parameters(name = "statebackend type ={0}")
-    public static Collection<StateBackendEnum> parameter() {
-        return Arrays.asList(StateBackendEnum.values());
-    }
-
-    @BeforeClass
-    public static void beforeClass() throws IOException {
-        temporaryFolder = new TemporaryFolder();
-        temporaryFolder.create();
-    }
-
-    @AfterClass
-    public static void afterClass() {
-        temporaryFolder.delete();
-    }
-
     /** Test restoring an operator from a snapshot (local recovery deactivated). */
-    @Test
-    public void testOperatorStatesSnapshotRestore() throws Exception {
-        testOperatorStatesSnapshotRestoreInternal(ONLY_JM_RECOVERY);
+    @ParameterizedTest
+    @EnumSource(value = StateBackendEnum.class)
+    void testOperatorStatesSnapshotRestore(StateBackendEnum stateBackendEnum) throws Exception {
+        testOperatorStatesSnapshotRestoreInternal(ONLY_JM_RECOVERY, stateBackendEnum);
     }
 
     /** Test restoring an operator from a snapshot (local recovery activated). */
-    @Test
-    public void testOperatorStatesSnapshotRestoreWithLocalState() throws Exception {
-        testOperatorStatesSnapshotRestoreInternal(TM_AND_JM_RECOVERY);
+    @ParameterizedTest
+    @EnumSource(value = StateBackendEnum.class)
+    void testOperatorStatesSnapshotRestoreWithLocalState(StateBackendEnum stateBackendEnum)
+            throws Exception {
+        testOperatorStatesSnapshotRestoreInternal(TM_AND_JM_RECOVERY, stateBackendEnum);
     }
 
     /**
@@ -135,9 +118,11 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
      * <p>This case does not really simulate a practical scenario, but we make sure that restore
      * happens from the local state here because we discard the JM state.
      */
-    @Test
-    public void testOperatorStatesSnapshotRestoreWithLocalStateDeletedJM() throws Exception {
-        testOperatorStatesSnapshotRestoreInternal(TM_REMOVE_JM_RECOVERY);
+    @ParameterizedTest
+    @EnumSource(value = StateBackendEnum.class)
+    void testOperatorStatesSnapshotRestoreWithLocalStateDeletedJM(StateBackendEnum stateBackendEnum)
+            throws Exception {
+        testOperatorStatesSnapshotRestoreInternal(TM_REMOVE_JM_RECOVERY, stateBackendEnum);
     }
 
     /**
@@ -147,12 +132,15 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
      * <p>This tests discards the local state, to simulate corruption and checks that we still
      * recover from the fallback JM state.
      */
-    @Test
-    public void testOperatorStatesSnapshotRestoreWithLocalStateDeletedTM() throws Exception {
-        testOperatorStatesSnapshotRestoreInternal(JM_REMOVE_TM_RECOVERY);
+    @ParameterizedTest
+    @EnumSource(value = StateBackendEnum.class)
+    void testOperatorStatesSnapshotRestoreWithLocalStateDeletedTM(StateBackendEnum stateBackendEnum)
+            throws Exception {
+        testOperatorStatesSnapshotRestoreInternal(JM_REMOVE_TM_RECOVERY, stateBackendEnum);
     }
 
-    private void testOperatorStatesSnapshotRestoreInternal(final int mode) throws Exception {
+    private void testOperatorStatesSnapshotRestoreInternal(
+            final int mode, StateBackendEnum stateBackendEnum) throws Exception {
 
         // -------------------------------------------------------------------------- snapshot
 
@@ -183,7 +171,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 mode == ONLY_JM_RECOVERY
                         ? null
                         : new LocalSnapshotDirectoryProviderImpl(
-                                temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
+                                temporaryFolder, jobID, jobVertexID, subtaskIdx);
 
         LocalRecoveryConfig localRecoveryConfig =
                 (directoryProvider == null)
@@ -259,8 +247,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         OperatorSubtaskState taskLocalState = snapshotWithLocalState.getTaskLocalState();
 
         // We check if local state was created when we enabled local recovery
-        Assert.assertTrue(
-                mode > ONLY_JM_RECOVERY == (taskLocalState != null && taskLocalState.hasState()));
+        assertThat(taskLocalState != null && taskLocalState.hasState())
+                .isEqualTo(mode > ONLY_JM_RECOVERY);
 
         if (mode == TM_REMOVE_JM_RECOVERY) {
             jobManagerOwnedState.getManagedKeyedState().discardState();
@@ -302,7 +290,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 // check restored managed keyed state
                 long exp = element.getValue() + 1;
                 long act = keyedState.value();
-                Assert.assertEquals(exp, act);
+                assertThat(act).isEqualTo(exp);
             } else {
                 // write managed keyed state that goes into snapshot
                 keyedState.update(element.getValue() + 1);
@@ -328,7 +316,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 ++count;
             }
 
-            Assert.assertEquals(MAX_PARALLELISM, count);
+            assertThat(count).isEqualTo(MAX_PARALLELISM);
 
             // write raw operator state that goes into snapshot
             OperatorStateCheckpointOutputStream outOp = context.getRawOperatorStateOutput();
@@ -342,7 +330,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         @Override
         public void initializeState(StateInitializationContext context) throws Exception {
 
-            Assert.assertEquals(verifyRestore, context.isRestored());
+            assertThat(context.isRestored()).isEqualTo(verifyRestore);
 
             keyedState =
                     context.getKeyedStateStore()
@@ -362,11 +350,11 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                         context.getRawKeyedStateInputs()) {
                     try (InputStream in = streamProvider.getStream()) {
                         DataInputView div = new DataInputViewStreamWrapper(in);
-                        Assert.assertEquals(streamProvider.getKeyGroupId() + 2, div.readInt());
+                        assertThat(div.readInt()).isEqualTo(streamProvider.getKeyGroupId() + 2);
                         ++count;
                     }
                 }
-                Assert.assertEquals(MAX_PARALLELISM, count);
+                assertThat(count).isEqualTo(MAX_PARALLELISM);
 
                 // check restored managed operator state
                 BitSet check = new BitSet(10);
@@ -374,7 +362,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                     check.set(v);
                 }
 
-                Assert.assertEquals(10, check.cardinality());
+                assertThat(check.cardinality()).isEqualTo(10);
 
                 // check restored raw operator state
                 check = new BitSet(13);
@@ -385,7 +373,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                         check.set(div.readInt() - 42);
                     }
                 }
-                Assert.assertEquals(13, check.cardinality());
+                assertThat(check.cardinality()).isEqualTo(13);
             }
         }
     }
