@@ -49,6 +49,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -133,12 +134,14 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
     @Override
     public void put(UK userKey, UV userValue) throws IOException, RocksDBException {
-
+        // Key still uses byte[] (SerializedCompositeKeyBuilder already copies)
+        // Value uses ByteBuffer to avoid additional copy
         byte[] rawKeyBytes =
                 serializeCurrentKeyWithGroupAndNamespacePlusUserKey(userKey, userKeySerializer);
-        byte[] rawValueBytes = serializeValueNullSensitive(userValue, userValueSerializer);
+        ByteBuffer rawValueBuffer =
+                serializeValueNullSensitiveToByteBuffer(userValue, userValueSerializer);
 
-        backend.db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
+        backend.db.put(columnFamily, writeOptions, ByteBuffer.wrap(rawKeyBytes), rawValueBuffer);
     }
 
     @Override
@@ -539,6 +542,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
             try {
                 userValue = value;
+                // NOTE: Must use getCopyOfBuffer() here because rawValueBytes is stored
+                // and accessed later by getValue(). Cannot use shared buffer approach.
                 rawValueBytes = serializeValueNullSensitive(value, valueSerializer);
 
                 db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
