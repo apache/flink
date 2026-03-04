@@ -2393,6 +2393,8 @@ SqlAlterView SqlAlterView() :
   SqlIdentifier viewName;
   SqlIdentifier newViewName;
   SqlNode newQuery;
+  SqlIdentifier rowtimeColumn;
+  SqlNode watermarkExpression;
 }
 {
   <ALTER> <VIEW> { startPos = getPos(); }
@@ -2408,6 +2410,14 @@ SqlAlterView SqlAlterView() :
       newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
       {
         return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+      }
+  |
+      <SET> <WATERMARK> <FOR>
+      rowtimeColumn = SimpleIdentifier()
+      <AS>
+      watermarkExpression = Expression(ExprContext.ACCEPT_SUB_QUERY)
+      {
+        return new SqlAlterViewSetWatermark(startPos.plus(getPos()), viewName, rowtimeColumn, watermarkExpression);
       }
   )
 }
