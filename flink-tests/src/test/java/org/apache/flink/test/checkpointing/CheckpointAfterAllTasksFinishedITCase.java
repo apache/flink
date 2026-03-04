@@ -38,7 +38,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests an immediate checkpoint should be triggered right after all tasks reached the end of data.
  */
-public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit4 {
+class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     private static final int SMALL_SOURCE_NUM_RECORDS = 20;
     private static final int BIG_SOURCE_NUM_RECORDS = 100;
 
@@ -71,7 +71,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit
     private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
         smallResult = sharedObjects.add(new CopyOnWriteArrayList<>());
@@ -81,7 +81,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit
     }
 
     @Test
-    public void testImmediateCheckpointing() throws Exception {
+    void testImmediateCheckpointing() throws Exception {
         RestartStrategyUtils.configureNoRestartStrategy(env);
         // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
         env.enableCheckpointing(
@@ -93,7 +93,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit
     }
 
     @Test
-    public void testRestoreAfterSomeTasksFinished() throws Exception {
+    void testRestoreAfterSomeTasksFinished() throws Exception {
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
                         .withRandomPorts()
@@ -152,7 +152,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit
      * this time a full-strategy failover happens.
      */
     @Test
-    public void testFailoverAfterSomeTasksFinished() throws Exception {
+    void testFailoverAfterSomeTasksFinished() throws Exception {
         final Configuration config = new Configuration();
         config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
 

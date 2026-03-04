@@ -48,12 +48,15 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.BitSet;
@@ -62,16 +65,25 @@ import java.util.Collections;
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /** Integration test for performing rescale of unaligned checkpoint. */
-@RunWith(Parameterized.class)
-public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
-    public static final int NUM_GROUPS = 100;
-    private final Topology topology;
-    private final int oldParallelism;
-    private final int newParallelism;
-    private final long sourceSleepMs;
+@ExtendWith(ParameterizedTestExtension.class)
+class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
+    private static final int NUM_GROUPS = 100;
+    @Parameter private String desc;
+
+    @Parameter(1)
+    private Topology topology;
+
+    @Parameter(2)
+    private int oldParallelism;
+
+    @Parameter(3)
+    private int newParallelism;
+
+    @Parameter(4)
+    private long sourceSleepMs;
 
     enum Topology implements DagCreator {
         PIPELINE {
@@ -543,7 +555,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         }
     }
 
-    @Parameterized.Parameters(name = "{0} {1} from {2} to {3}, sourceSleepMs = {4}")
+    @Parameters(name = "{0} {1} from {2} to {3}, sourceSleepMs = {4}")
     public static Object[][] getScaleFactors() {
         // We use `sourceSleepMs` > 0 to test rescaling without backpressure and only very few
         // captured in-flight records, see FLINK-31963.
@@ -605,18 +617,6 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 .toArray(Object[][]::new);
     }
 
-    public UnalignedCheckpointRescaleITCase(
-            String desc,
-            Topology topology,
-            int oldParallelism,
-            int newParallelism,
-            long sourceSleepMs) {
-        this.topology = topology;
-        this.oldParallelism = oldParallelism;
-        this.newParallelism = newParallelism;
-        this.sourceSleepMs = sourceSleepMs;
-    }
-
     /**
      * Tests unaligned checkpoint rescaling behavior.
      *
@@ -626,8 +626,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
      * <p>Postscale phase: Job restores from checkpoint with different parallelism, failovers once,
      * and finishes after source generates all records.
      */
-    @Test
-    public void shouldRescaleUnalignedCheckpoint() throws Exception {
+    @TestTemplate
+    void shouldRescaleUnalignedCheckpoint(TestInfo testInfo) throws Exception {
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
@@ -635,7 +635,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                         .setSourceSleepMs(sourceSleepMs)
                         .setExpectedFinalJobStatus(JobStatus.FAILED);
         prescaleSettings.setGenerateCheckpoint(true);
-        final String checkpointDir = super.execute(prescaleSettings);
+        final String checkpointDir = super.execute(prescaleSettings, testInfo);
         assertThat(checkpointDir)
                 .as("First job must generate a checkpoint for rescale test to be valid.")
                 .isNotNull();
@@ -646,20 +646,22 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                         .setExpectedFailures(1)
                         .setExpectedFinalJobStatus(JobStatus.FINISHED);
         postscaleSettings.setRestoreCheckpoint(checkpointDir);
-        super.execute(postscaleSettings);
+        super.execute(postscaleSettings, testInfo);
     }
 
     protected void checkCounters(JobExecutionResult result) {
-        collector.checkThat(
-                "NUM_OUTPUTS = NUM_INPUTS",
-                result.<Long>getAccumulatorResult(NUM_OUTPUTS),
-                equalTo(result.getAccumulatorResult(NUM_INPUTS)));
-        if (!topology.equals(Topology.CUSTOM_PARTITIONER)) {
-            collector.checkThat(
-                    "NUM_DUPLICATES",
-                    result.<Long>getAccumulatorResult(NUM_DUPLICATES),
-                    equalTo(0L));
-        }
+        assertAll(
+                () ->
+                        assertThat(result.<Long>getAccumulatorResult(NUM_OUTPUTS))
+                                .as("NUM_OUTPUTS = NUM_INPUTS")
+                                .isEqualTo(result.getAccumulatorResult(NUM_INPUTS)),
+                () -> {
+                    if (!topology.equals(Topology.CUSTOM_PARTITIONER)) {
+                        assertThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES))
+                                .as("NUM_DUPLICATES")
+                                .isEqualTo(0L);
+                    }
+                });
     }
 
     /**

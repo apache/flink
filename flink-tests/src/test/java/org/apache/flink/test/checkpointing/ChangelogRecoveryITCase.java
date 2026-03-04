@@ -19,7 +19,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackendTestUtils;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
@@ -27,9 +26,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
-import java.io.File;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,21 +37,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This verifies that checkpointing works correctly for Changelog state backend with materialized
  * state / non-materialized state.
  */
-public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
-
-    public ChangelogRecoveryITCase(AbstractStateBackend delegatedStateBackend) {
-        super(delegatedStateBackend);
-    }
+class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
 
     /** Recovery from checkpoint only containing non-materialized state. */
-    @Test
-    public void testNonMaterialization() throws Exception {
-        File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+    @TestTemplate
+    void testNonMaterialization() throws Exception {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
-        StreamExecutionEnvironment env = getEnv(checkpointFolder, 1000, 1, 10, 0);
+        StreamExecutionEnvironment env = getEnv(temporaryFolder, 1000, 1, 10, 0);
         env.getConfig().enablePeriodicMaterialize(false);
         waitAndAssert(
                 buildJobGraph(
@@ -82,16 +75,15 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
     }
 
     /** Recovery from checkpoint containing non-materialized state and materialized state. */
-    @Test
-    public void testMaterialization() throws Exception {
-        File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+    @TestTemplate
+    void testMaterialization() throws Exception {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicInteger> currentCheckpointNum =
                 sharedObjects.add(new AtomicInteger());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 2, 200, 0);
+        StreamExecutionEnvironment env = getEnv(temporaryFolder, 100, 2, 200, 0);
         waitAndAssert(
                 buildJobGraph(
                         delegatedStateBackend,
@@ -150,15 +142,14 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                         jobID.get()));
     }
 
-    @Test
-    public void testFailedMaterialization() throws Exception {
-        File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+    @TestTemplate
+    void testFailedMaterialization() throws Exception {
         SharedReference<JobID> jobID = sharedObjects.add(generateJobID());
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasFailed = sharedObjects.add(new AtomicBoolean());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 0, 10, 1);
+        StreamExecutionEnvironment env = getEnv(temporaryFolder, 100, 0, 10, 1);
 
         env.setParallelism(1);
         waitAndAssert(

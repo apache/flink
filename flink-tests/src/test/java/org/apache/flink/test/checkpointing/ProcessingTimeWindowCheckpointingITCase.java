@@ -36,33 +36,33 @@ import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.Map;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This test uses a custom non-serializable data type to ensure that state serializability is
  * handled correctly.
  */
-@SuppressWarnings("serial")
-public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ProcessingTimeWindowCheckpointingITCase {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(2)
@@ -78,7 +78,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testTumblingProcessingTimeWindow() throws Exception {
+    void testTumblingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -102,11 +102,11 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                             }
 
@@ -118,10 +118,10 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple2<Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 for (Tuple2<Long, IntType> value : values) {
-                                    assertEquals(value.f0.intValue(), value.f1.value);
+                                    assertThat(value.f1.value).isEqualTo(value.f0.intValue());
                                     out.collect(new Tuple2<>(value.f0, new IntType(1)));
                                 }
                             }
@@ -133,7 +133,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
     }
 
     @Test
-    public void testSlidingProcessingTimeWindow() throws Exception {
+    void testSlidingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -157,11 +157,11 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                             }
 
@@ -173,10 +173,10 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple2<Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 for (Tuple2<Long, IntType> value : values) {
-                                    assertEquals(value.f0.intValue(), value.f1.value);
+                                    assertThat(value.f1.value).isEqualTo(value.f0.intValue());
                                     out.collect(new Tuple2<>(value.f0, new IntType(1)));
                                 }
                             }
@@ -188,7 +188,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
     }
 
     @Test
-    public void testAggregatingTumblingProcessingTimeWindow() throws Exception {
+    void testAggregatingTumblingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -226,7 +226,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
     }
 
     @Test
-    public void testAggregatingSlidingProcessingTimeWindow() throws Exception {
+    void testAggregatingSlidingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

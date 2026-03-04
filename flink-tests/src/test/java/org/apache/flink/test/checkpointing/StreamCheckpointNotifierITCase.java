@@ -34,10 +34,11 @@ import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,10 +50,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test for the {@link CheckpointListener} interface. The test ensures that {@link
@@ -67,8 +65,7 @@ import static org.junit.Assert.assertTrue;
  * {@link CheckpointListener#notifyCheckpointComplete(long)} is called for every successfully
  * completed checkpoint.
  */
-@SuppressWarnings("serial")
-public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
+class StreamCheckpointNotifierITCase extends AbstractTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamCheckpointNotifierITCase.class);
 
@@ -82,9 +79,9 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
      * </pre>
      */
     @Test
-    public void testProgram() throws Exception {
+    void testProgram() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        assertEquals("test setup broken", PARALLELISM, env.getParallelism());
+        assertThat(env.getParallelism()).as("test setup broken").isEqualTo(PARALLELISM);
 
         env.enableCheckpointing(500);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
@@ -116,7 +113,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
         env.execute();
 
         final long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
-        assertNotEquals(0L, failureCheckpointID);
+        assertThat(failureCheckpointID).isNotEqualTo(0L);
 
         List<List<Long>[]> allLists =
                 Arrays.asList(
@@ -129,19 +126,22 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
         for (List<Long>[] parallelNotifications : allLists) {
             for (List<Long> notifications : parallelNotifications) {
 
-                assertTrue("No checkpoint notification was received.", notifications.size() > 0);
+                assertThat(notifications)
+                        .as("No checkpoint notification was received.")
+                        .hasSizeGreaterThan(0);
 
-                assertFalse(
-                        "Failure checkpoint was marked as completed.",
-                        notifications.contains(failureCheckpointID));
+                assertThat(notifications)
+                        .as("Failure checkpoint was marked as completed.")
+                        .doesNotContain(failureCheckpointID);
 
-                assertFalse(
-                        "No checkpoint received after failure.",
-                        notifications.get(notifications.size() - 1) == failureCheckpointID);
+                assertThat(notifications)
+                        .as("No checkpoint received after failure.")
+                        .last(InstanceOfAssertFactories.LONG)
+                        .isNotEqualTo(failureCheckpointID);
 
-                assertTrue(
-                        "Checkpoint notification was received multiple times",
-                        notifications.size() == new HashSet<Long>(notifications).size());
+                assertThat(notifications)
+                        .as("Checkpoint notification was received multiple times")
+                        .hasSize(new HashSet<>(notifications).size());
             }
         }
     }

@@ -26,24 +26,25 @@ import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEve
 import org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.TestingGraphBuilder;
 import org.apache.flink.runtime.operators.lifecycle.validation.DrainingValidator;
 import org.apache.flink.runtime.operators.lifecycle.validation.FinishingValidator;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -70,19 +71,30 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  * StopWithSavepointITCase#withDrain withDrain} except that the final checkpoint doesn't have to be
  * the same.
  */
-@RunWith(Parameterized.class)
-public class PartiallyFinishedSourcesITCase extends TestLogger {
+@ExtendWith({ParameterizedTestExtension.class, TestLoggerExtension.class})
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
+class PartiallyFinishedSourcesITCase {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.MINUTES);
+    private MiniClusterResource miniClusterResource;
 
-    private MiniClusterWithClientResource miniClusterResource;
+    @Parameter private TestingGraphBuilder graphBuilder;
 
-    @Before
-    public void init() throws Exception {
+    @Parameter(1)
+    private TestCommandScope subtaskScope;
+
+    @Parameter(2)
+    private boolean failover;
+
+    @Parameter(3)
+    private String failoverStrategy;
+
+    @BeforeEach
+    void init() throws Exception {
         Configuration configuration = new Configuration();
         // set failover strategy on the cluster level
         // choose it from the parameter because it may affect the test
@@ -95,10 +107,10 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         // The randomization currently happens on the job level (environment); while this factory
         // can only be set on the cluster level; so we do it unconditionally here.
         FsStateChangelogStorageFactory.configure(
-                configuration, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
+                configuration, temporaryFolder.toFile(), Duration.ofMinutes(1), 10);
 
         miniClusterResource =
-                new MiniClusterWithClientResource(
+                new MiniClusterResource(
                         new MiniClusterResourceConfiguration.Builder()
                                 .setConfiguration(configuration)
                                 .setNumberTaskManagers(1)
@@ -107,27 +119,15 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         miniClusterResource.before();
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
     }
 
-    @Parameter(0)
-    public TestingGraphBuilder graphBuilder;
-
-    @Parameter(1)
-    public TestCommandScope subtaskScope;
-
-    @Parameter(2)
-    public boolean failover;
-
-    @Parameter(3)
-    public String failoverStrategy;
-
-    @Test
-    public void test() throws Exception {
+    @TestTemplate
+    void test() throws Exception {
         TestJobWithDescription testJob = buildJob();
 
         // pick any source operator
@@ -136,7 +136,7 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         JobVertexID finishingVertexID = findJobVertexID(testJob, finishingOperatorID);
 
         TestJobExecutor executor =
-                TestJobExecutor.execute(testJob, miniClusterResource)
+                TestJobExecutor.execute(testJob, miniClusterResource.getMiniCluster())
                         .waitForEvent(CheckpointCompletedEvent.class)
                         .sendOperatorCommand(finishingOperatorID, FINISH_SOURCES, subtaskScope)
                         .waitForSubtasksToFinish(finishingVertexID, subtaskScope)
@@ -179,7 +179,7 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                     // with unaligned checkpoints state size can grow beyond the default
                     // limits of in-memory storage
                     CheckpointStorageUtils.configureFileSystemCheckpointStorage(
-                            env, TEMPORARY_FOLDER.newFolder().toURI());
+                            env, temporaryFolder.toUri());
                 });
     }
 
@@ -202,7 +202,7 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                 .equals(operatorID);
     }
 
-    @Parameterized.Parameters(name = "{0} {1}, failover: {2}, strategy: {3}")
+    @Parameters(name = "{0} {1}, failover: {2}, strategy: {3}")
     public static List<Object[]> parameters() {
         List<String> failoverStrategies = asList("full", "region");
         List<List<Object>> rest =

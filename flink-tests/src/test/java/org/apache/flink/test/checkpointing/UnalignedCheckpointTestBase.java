@@ -63,24 +63,23 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
-import org.assertj.core.api.Fail;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.experimental.categories.Category;
-import org.junit.rules.ErrorCollector;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +87,9 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -105,6 +106,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Base class for tests related to unaligned checkpoints.
@@ -115,8 +117,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * resulting in the test running forever. This is why this test suite is disabled for the {@link
  * org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler}.
  */
-@Category(FailsWithAdaptiveScheduler.class)
-public abstract class UnalignedCheckpointTestBase extends TestLogger {
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
+@ExtendWith(TestLoggerExtension.class)
+abstract class UnalignedCheckpointTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(UnalignedCheckpointTestBase.class);
     protected static final String NUM_INPUTS = "inputs_";
     protected static final String NUM_OUTPUTS = "outputs";
@@ -131,41 +134,38 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     private static final long HEADER = 0xABCDEAFCL << 32;
     private static final long HEADER_MASK = 0xFFFFFFFFL << 32;
 
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+    @TempDir private Path temp;
 
-    @Rule public ErrorCollector collector = new ErrorCollector();
-
-    @Rule public TestName name = new TestName();
-
-    @BeforeClass
-    public static void beforeAll() {
+    @BeforeAll
+    static void beforeAll() {
         // set to some high enough number, it is recommended to have as many arenas as slots
         // If a single buffer pool is shared between all tms we should have tms * slots_per_tm
         // This should be the maximum across all tests run
         SharedPoolNettyShuffleServiceFactory.resetBufferPool(60);
     }
 
-    @AfterClass
-    public static void afterAll() {
+    @AfterAll
+    static void afterAll() {
         // safety precaution, make sure the buffer pool can be cleared by th GC
         SharedPoolNettyShuffleServiceFactory.clearBufferPool();
     }
 
     @Nullable
-    protected String execute(UnalignedSettings settings) throws Exception {
-        final File checkpointDir = temp.newFolder();
+    protected String execute(UnalignedSettings settings, TestInfo testInfo) throws Exception {
+        final File checkpointDir = TempDirUtils.newFolder(temp);
         Configuration conf = settings.getConfiguration(checkpointDir);
 
         // Configure DFS DSTL for this test as it might produce too much GC pressure if
         // ChangelogStateBackend is used.
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
-        FsStateChangelogStorageFactory.configure(conf, temp.newFolder(), Duration.ofMinutes(1), 10);
+        FsStateChangelogStorageFactory.configure(
+                conf, TempDirUtils.newFolder(temp), Duration.ofMinutes(1), 10);
 
         final StreamGraph streamGraph = getStreamGraph(settings, conf);
         final int requiredSlots =
                 streamGraph.getStreamNodes().stream()
-                        .mapToInt(node -> node.getParallelism())
+                        .mapToInt(StreamNode::getParallelism)
                         .reduce(0, settings.channelType.slotSharing ? Integer::max : Integer::sum);
         int numberTaskmanagers = settings.channelType.slotsToTaskManagers.apply(requiredSlots);
 
@@ -185,7 +185,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         try {
             // print the test parameters to help debugging when the case is stuck
             System.out.println(
-                    "Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+                    "Starting "
+                            + getClass().getCanonicalName()
+                            + "#"
+                            + testInfo.getTestMethod().map(Method::getName).orElse("unknown")
+                            + ".");
             final CompletableFuture<JobSubmissionResult> result =
                     miniCluster.getMiniCluster().submitJob(streamGraph.getJobGraph());
 
@@ -202,11 +206,15 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         .isEqualTo(settings.expectedFinalJobStatus);
             }
             System.out.println(
-                    "Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+                    "Finished "
+                            + getClass().getCanonicalName()
+                            + "#"
+                            + testInfo.getTestMethod().map(Method::getName).orElse("unknown")
+                            + ".");
             if (settings.generateCheckpoint) {
                 return CommonTestUtils.getLatestCompletedCheckpointPath(
                                 jobID, miniCluster.getMiniCluster())
-                        .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
+                        .orElseGet(() -> fail("Could not generate checkpoint"));
             }
         } catch (Exception e) {
             if (ExceptionUtils.findThrowable(e, TestException.class).isEmpty()) {
@@ -215,7 +223,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             if (settings.generateCheckpoint) {
                 return CommonTestUtils.getLatestCompletedCheckpointPath(
                                 jobID, miniCluster.getMiniCluster())
-                        .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
+                        .orElseGet(() -> fail("Could not generate checkpoint"));
             }
         } finally {
             miniCluster.after();
