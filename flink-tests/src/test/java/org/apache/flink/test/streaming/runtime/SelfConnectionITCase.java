@@ -22,24 +22,23 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for connected streams. */
-@SuppressWarnings("serial")
-public class SelfConnectionITCase extends AbstractTestBaseJUnit4 {
+class SelfConnectionITCase extends AbstractTestBase {
 
     /** We connect two different data streams in a chain to a CoMap. */
     @Test
-    public void differentDataStreamSameChain() throws Exception {
+    void differentDataStreamSameChain() throws Exception {
 
         TestListResultSink<String> resultSink = new TestListResultSink<>();
 
@@ -76,7 +75,7 @@ public class SelfConnectionITCase extends AbstractTestBaseJUnit4 {
         Collections.sort(expected);
         Collections.sort(result);
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 
     /**
@@ -84,7 +83,7 @@ public class SelfConnectionITCase extends AbstractTestBaseJUnit4 {
      * self-connect.)
      */
     @Test
-    public void differentDataStreamDifferentChain() throws Exception {
+    void differentDataStreamDifferentChain() throws Exception {
 
         TestListResultSink<String> resultSink = new TestListResultSink<>();
 
@@ -132,6 +131,6 @@ public class SelfConnectionITCase extends AbstractTestBaseJUnit4 {
         Collections.sort(expected);
         Collections.sort(result);
 
-        assertEquals(expected, result);
+        assertThat(result).isEqualTo(expected);
     }
 }

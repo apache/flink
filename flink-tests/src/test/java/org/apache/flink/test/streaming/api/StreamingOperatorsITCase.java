@@ -36,11 +36,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -54,15 +53,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Integration tests for streaming operators. */
-public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
+class StreamingOperatorsITCase extends AbstractTestBase {
 
     /**
      * Tests the basic functionality of the AsyncWaitOperator: Processing a limited stream of
      * elements by doubling their value. This is tested in for the ordered and unordered mode.
      */
     @Test
-    public void testAsyncWaitOperator() throws Exception {
+    void testAsyncWaitOperator() throws Exception {
         final int numElements = 5;
         final long timeout = 1000L;
 
@@ -148,10 +149,10 @@ public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
 
         env.execute();
 
-        Assert.assertEquals(expected, actualResult1);
+        assertThat(actualResult1).isEqualTo(expected);
 
         Collections.sort(actualResult2);
-        Assert.assertEquals(expected, actualResult2);
+        assertThat(actualResult2).isEqualTo(expected);
 
         MemorySinkFunction.clear();
     }
@@ -215,7 +216,7 @@ public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
+    void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
         DataStream<Integer> input = env.fromData(1, 2, 3);

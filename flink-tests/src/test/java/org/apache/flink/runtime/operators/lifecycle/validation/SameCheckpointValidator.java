@@ -25,8 +25,7 @@ import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
 import java.util.List;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Checks that all subtasks have received the same last checkpoint. */
 public class SameCheckpointValidator implements TestOperatorLifecycleValidator {
@@ -49,33 +48,37 @@ public class SameCheckpointValidator implements TestOperatorLifecycleValidator {
         for (TestEvent ev : operatorEvents) {
             if (ev instanceof CheckpointStartedEvent) {
                 if (lastCheckpointID == ((CheckpointStartedEvent) ev).checkpointID) {
-                    assertFalse(
-                            format(
-                                    "Operator %s[%d] started checkpoint %d twice",
-                                    operatorId, subtaskIndex, lastCheckpointID),
-                            started);
+                    assertThat(started)
+                            .as(
+                                    format(
+                                            "Operator %s[%d] started checkpoint %d twice",
+                                            operatorId, subtaskIndex, lastCheckpointID))
+                            .isFalse();
                     started = true;
                 }
             } else if (ev instanceof CheckpointCompletedEvent) {
                 if (lastCheckpointID == ((CheckpointCompletedEvent) ev).checkpointID) {
-                    assertTrue(
-                            format(
-                                    "Operator %s[%d] finished checkpoint %d before starting",
-                                    operatorId, subtaskIndex, lastCheckpointID),
-                            started);
-                    assertFalse(
-                            format(
-                                    "Operator %s[%d] finished checkpoint %d twice",
-                                    operatorId, subtaskIndex, lastCheckpointID),
-                            finished);
+                    assertThat(started)
+                            .as(
+                                    format(
+                                            "Operator %s[%d] finished checkpoint %d before starting",
+                                            operatorId, subtaskIndex, lastCheckpointID))
+                            .isTrue();
+                    assertThat(finished)
+                            .as(
+                                    format(
+                                            "Operator %s[%d] finished checkpoint %d twice",
+                                            operatorId, subtaskIndex, lastCheckpointID))
+                            .isFalse();
                     finished = true;
                 }
             }
         }
-        assertTrue(
-                format(
-                        "Operator %s[%d] didn't finish checkpoint %d (events: %s)",
-                        operatorId, subtaskIndex, lastCheckpointID, operatorEvents),
-                finished);
+        assertThat(finished)
+                .as(
+                        format(
+                                "Operator %s[%d] didn't finish checkpoint %d (events: %s)",
+                                operatorId, subtaskIndex, lastCheckpointID, operatorEvents))
+                .isTrue();
     }
 }

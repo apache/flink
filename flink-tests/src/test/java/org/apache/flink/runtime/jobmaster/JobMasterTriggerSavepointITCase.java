@@ -54,7 +54,6 @@ import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MdcUtils;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -80,6 +79,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER;
 import static org.apache.flink.util.JobIDLoggingUtil.assertKeyPresent;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -92,7 +92,7 @@ import static org.slf4j.event.Level.TRACE;
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
-public class JobMasterTriggerSavepointITCase {
+class JobMasterTriggerSavepointITCase {
 
     private static CountDownLatch invokeLatch;
 
@@ -101,35 +101,35 @@ public class JobMasterTriggerSavepointITCase {
     @TempDir protected File temporaryFolder;
 
     @RegisterExtension
-    public final LoggerAuditingExtension standaloneResourceManagerLogging =
+    private final LoggerAuditingExtension standaloneResourceManagerLogging =
             new LoggerAuditingExtension(StandaloneResourceManager.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension adaptiveSchedulerLogging =
+    private final LoggerAuditingExtension adaptiveSchedulerLogging =
             new LoggerAuditingExtension(AdaptiveScheduler.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension defaultStateTransitionManagerLogging =
+    private final LoggerAuditingExtension defaultStateTransitionManagerLogging =
             new LoggerAuditingExtension(DefaultStateTransitionManager.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension defaultResourceTrackerLogging =
+    private final LoggerAuditingExtension defaultResourceTrackerLogging =
             new LoggerAuditingExtension(DefaultResourceTracker.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension defaultSlotStatusSyncerLogging =
+    private final LoggerAuditingExtension defaultSlotStatusSyncerLogging =
             new LoggerAuditingExtension(DefaultSlotStatusSyncer.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension fineGrainedTaskManagerTrackerLogging =
+    private final LoggerAuditingExtension fineGrainedTaskManagerTrackerLogging =
             new LoggerAuditingExtension(FineGrainedTaskManagerTracker.class, TRACE);
 
     @RegisterExtension
-    public final LoggerAuditingExtension fineGrainedSlotManagerLogging =
+    private final LoggerAuditingExtension fineGrainedSlotManagerLogging =
             new LoggerAuditingExtension(FineGrainedSlotManager.class, TRACE);
 
     @RegisterExtension
-    public static MiniClusterExtension miniClusterResource =
+    private static MiniClusterExtension miniClusterResource =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
@@ -181,12 +181,12 @@ public class JobMasterTriggerSavepointITCase {
                         .build();
 
         clusterClient.submitJob(jobGraph).get();
-        Assertions.assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
+        assertThat(invokeLatch.await(60, TimeUnit.SECONDS)).isTrue();
         waitForJob(clusterClient);
     }
 
     @Test
-    public void testStopJobAfterSavepoint(@InjectClusterClient ClusterClient<?> clusterClient)
+    void testStopJobAfterSavepoint(@InjectClusterClient ClusterClient<?> clusterClient)
             throws Exception {
         setUpWithCheckpointInterval(10L, clusterClient);
 
@@ -203,7 +203,7 @@ public class JobMasterTriggerSavepointITCase {
     }
 
     @Test
-    public void testStopJobAfterSavepointWithDeactivatedPeriodicCheckpointing(
+    void testStopJobAfterSavepointWithDeactivatedPeriodicCheckpointing(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         // set checkpointInterval to Long.MAX_VALUE, which means deactivated checkpointing
         setUpWithCheckpointInterval(Long.MAX_VALUE, clusterClient);
@@ -223,8 +223,8 @@ public class JobMasterTriggerSavepointITCase {
 
     @Test
     @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
-    public void testDoNotCancelJobIfSavepointFails(
-            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
+    void testDoNotCancelJobIfSavepointFails(@InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         setUpWithCheckpointInterval(10L, clusterClient);
 
         try {
@@ -330,7 +330,7 @@ public class JobMasterTriggerSavepointITCase {
      * with a meaningful exception message.
      */
     @Test
-    public void testCancelWithSavepointWithoutConfiguredSavepointDirectory(
+    void testCancelWithSavepointWithoutConfiguredSavepointDirectory(
             @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         setUpWithCheckpointInterval(10L, clusterClient);
 

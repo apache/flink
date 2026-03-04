@@ -30,27 +30,23 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}. */
-public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class BroadcastStateITCase extends AbstractTestBase {
 
     @Test
-    public void testKeyedWithBroadcastTranslation() throws Exception {
+    void testKeyedWithBroadcastTranslation() throws Exception {
 
         final MapStateDescriptor<Long, String> utterDescriptor =
                 new MapStateDescriptor<>(
@@ -111,7 +107,7 @@ public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testBroadcastTranslation() throws Exception {
+    void testBroadcastTranslation() throws Exception {
 
         final MapStateDescriptor<Long, String> utterDescriptor =
                 new MapStateDescriptor<>(
@@ -192,7 +188,7 @@ public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
             super.close();
 
             // make sure that all the timers fired
-            assertEquals(expectedOutputCounter, outputCounter);
+            assertThat(outputCounter).isEqualTo(expectedOutputCounter);
         }
     }
 
@@ -262,7 +258,7 @@ public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
                 throws Exception {
-            assertEquals(timerToExpectedKey.get(timestamp), ctx.getCurrentKey());
+            assertThat(ctx.getCurrentKey()).isEqualTo(timerToExpectedKey.get(timestamp));
 
             Map<Long, String> map = new HashMap<>();
             for (Map.Entry<Long, String> entry :
@@ -270,7 +266,7 @@ public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
                 map.put(entry.getKey(), entry.getValue());
             }
 
-            assertEquals(expectedState, map);
+            assertThat(map).isEqualTo(expectedState);
 
             out.collect(Long.toString(timestamp));
         }

@@ -32,16 +32,17 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TimerException;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for the timer service of {@code StreamTask}.
@@ -49,14 +50,14 @@ import static org.junit.Assert.assertTrue;
  * <p>These tests ensure that exceptions are properly forwarded from the timer thread to the task
  * thread and that operator methods are not invoked concurrently.
  */
-public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
+class StreamTaskTimerITCase extends AbstractTestBase {
 
     /**
      * Note: this test fails if we don't check for exceptions in the source contexts and do not
      * synchronize in the source contexts.
      */
     @Test
-    public void testOperatorChainedToSource() throws Exception {
+    void testOperatorChainedToSource() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -75,17 +76,12 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
     private void verifyJobExecutionException(JobExecutionException e) throws JobExecutionException {
         final Optional<TimerException> optionalTimerException =
                 ExceptionUtils.findThrowable(e, TimerException.class);
-        assertTrue(optionalTimerException.isPresent());
-
-        TimerException te = optionalTimerException.get();
-        if (te.getCause() instanceof RuntimeException) {
-            RuntimeException re = (RuntimeException) te.getCause();
-            if (!re.getMessage().equals("TEST SUCCESS")) {
-                throw e;
-            }
-        } else {
-            throw e;
-        }
+        assertThat(optionalTimerException)
+                .isPresent()
+                .get(InstanceOfAssertFactories.THROWABLE)
+                .cause()
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("TEST SUCCESS");
     }
 
     /**
@@ -93,7 +89,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
      * synchronize in the source contexts.
      */
     @Test
-    public void testOneInputOperatorWithoutChaining() throws Exception {
+    void testOneInputOperatorWithoutChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -109,7 +105,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testTwoInputOperatorWithoutChaining() throws Exception {
+    void testTwoInputOperatorWithoutChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -144,7 +140,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void processElement(StreamRecord<String> element) throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of operator functions.");
+                fail("Concurrent invocation of operator functions.");
             }
 
             if (first) {
@@ -159,7 +155,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void onProcessingTime(long time) throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of operator functions.");
+                fail("Concurrent invocation of operator functions.");
             }
 
             try {
@@ -180,7 +176,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void processWatermark(Watermark mark) throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of operator functions.");
+                fail("Concurrent invocation of operator functions.");
             }
             semaphore.release();
         }
@@ -202,7 +198,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void processElement1(StreamRecord<String> element) throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of operator functions.");
+                fail("Concurrent invocation of operator functions.");
             }
 
             if (first) {
@@ -217,7 +213,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void processElement2(StreamRecord<String> element) throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of operator functions.");
+                fail("Concurrent invocation of operator functions.");
             }
 
             if (first) {
@@ -232,7 +228,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void onProcessingTime(long time) throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of operator functions.");
+                fail("Concurrent invocation of operator functions.");
             }
 
             try {

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -30,6 +29,7 @@ import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -38,33 +38,24 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for Reactive Mode (FLIP-159). */
-public class ReactiveModeITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ReactiveModeITCase {
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 2;
     private static final int INITIAL_NUMBER_TASK_MANAGERS = 1;
 
-    private static final Configuration configuration = getReactiveModeConfiguration();
-
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Rule
-    public final MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(configuration)
-                            .setNumberTaskManagers(INITIAL_NUMBER_TASK_MANAGERS)
-                            .setNumberSlotsPerTaskManager(NUMBER_SLOTS_PER_TASK_MANAGER)
-                            .build());
+    private MiniClusterWithClientResource miniClusterResource;
 
     private static Configuration getReactiveModeConfiguration() {
         final Configuration conf = new Configuration();
@@ -72,12 +63,31 @@ public class ReactiveModeITCase extends TestLogger {
         return conf;
     }
 
+    @BeforeEach
+    void startMiniCluster() throws Exception {
+        miniClusterResource =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(getReactiveModeConfiguration())
+                                .setNumberTaskManagers(INITIAL_NUMBER_TASK_MANAGERS)
+                                .setNumberSlotsPerTaskManager(NUMBER_SLOTS_PER_TASK_MANAGER)
+                                .build());
+        miniClusterResource.before();
+    }
+
+    @AfterEach
+    void destroyMiniCluster() {
+        if (miniClusterResource != null) {
+            miniClusterResource.after();
+        }
+    }
+
     /**
      * Users can set maxParallelism and reactive mode must not run with a parallelism higher than
      * maxParallelism.
      */
     @Test
-    public void testScaleLimitByMaxParallelism() throws Exception {
+    void testScaleLimitByMaxParallelism() throws Exception {
         // test preparation: ensure we have 2 TaskManagers running
         startAdditionalTaskManager();
 
@@ -97,13 +107,12 @@ public class ReactiveModeITCase extends TestLogger {
 
         final JobClient jobClient = env.executeAsync();
 
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
+        waitUntilParallelismForVertexReached(jobClient.getJobID(), 1);
     }
 
     /** Test that a job scales up when a TaskManager gets added to the cluster. */
     @Test
-    public void testScaleUpOnAdditionalTaskManager() throws Exception {
+    void testScaleUpOnAdditionalTaskManager() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input =
                 env.fromSource(
@@ -119,21 +128,18 @@ public class ReactiveModeITCase extends TestLogger {
         final JobClient jobClient = env.executeAsync();
 
         waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(),
-                jobClient.getJobID(),
-                NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS);
+                jobClient.getJobID(), NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS);
 
         // scale up to 2 TaskManagers:
         miniClusterResource.getMiniCluster().startTaskManager();
 
         waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(),
                 jobClient.getJobID(),
                 NUMBER_SLOTS_PER_TASK_MANAGER * (INITIAL_NUMBER_TASK_MANAGERS + 1));
     }
 
     @Test
-    public void testJsonPlanParallelismAfterRescale() throws Exception {
+    void testJsonPlanParallelismAfterRescale() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<String> input =
                 env.fromSource(
@@ -149,44 +155,30 @@ public class ReactiveModeITCase extends TestLogger {
         final JobClient jobClient = env.executeAsync();
 
         int initialParallelism = NUMBER_SLOTS_PER_TASK_MANAGER * INITIAL_NUMBER_TASK_MANAGERS;
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(),
-                jobClient.getJobID(),
-                initialParallelism);
+        waitUntilParallelismForVertexReached(jobClient.getJobID(), initialParallelism);
 
+        MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         ArchivedExecutionGraph archivedExecutionGraph =
-                miniClusterResource
-                        .getMiniCluster()
-                        .getArchivedExecutionGraph(jobClient.getJobID())
-                        .get();
+                miniCluster.getArchivedExecutionGraph(jobClient.getJobID()).get();
 
-        assertThat(
-                archivedExecutionGraph.getPlan().getNodes().stream()
-                        .allMatch(n -> n.getParallelism() == (long) initialParallelism));
+        assertThat(archivedExecutionGraph.getPlan().getNodes())
+                .allMatch(n -> n.getParallelism() == (long) initialParallelism);
 
         // scale up to 2 TaskManagers:
-        miniClusterResource.getMiniCluster().startTaskManager();
+        miniCluster.startTaskManager();
 
         int rescaledParallelism =
                 NUMBER_SLOTS_PER_TASK_MANAGER * (INITIAL_NUMBER_TASK_MANAGERS + 1);
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(),
-                jobClient.getJobID(),
-                rescaledParallelism);
+        waitUntilParallelismForVertexReached(jobClient.getJobID(), rescaledParallelism);
 
-        archivedExecutionGraph =
-                miniClusterResource
-                        .getMiniCluster()
-                        .getArchivedExecutionGraph(jobClient.getJobID())
-                        .get();
+        archivedExecutionGraph = miniCluster.getArchivedExecutionGraph(jobClient.getJobID()).get();
 
-        assertThat(
-                archivedExecutionGraph.getPlan().getNodes().stream()
-                        .allMatch(n -> n.getParallelism() == (long) rescaledParallelism));
+        assertThat(archivedExecutionGraph.getPlan().getNodes())
+                .allMatch(n -> n.getParallelism() == (long) rescaledParallelism);
     }
 
     @Test
-    public void testScaleDownOnTaskManagerLoss() throws Exception {
+    void testScaleDownOnTaskManagerLoss() throws Exception {
         // test preparation: ensure we have 2 TaskManagers running
         startAdditionalTaskManager();
 
@@ -207,7 +199,6 @@ public class ReactiveModeITCase extends TestLogger {
         final JobClient jobClient = env.executeAsync();
 
         waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(),
                 jobClient.getJobID(),
                 NUMBER_SLOTS_PER_TASK_MANAGER * (INITIAL_NUMBER_TASK_MANAGERS + 1));
 
@@ -215,7 +206,6 @@ public class ReactiveModeITCase extends TestLogger {
         miniClusterResource.getMiniCluster().terminateTaskManager(0).get();
 
         waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(),
                 jobClient.getJobID(),
                 NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_SLOTS_PER_TASK_MANAGER);
     }
@@ -233,13 +223,13 @@ public class ReactiveModeITCase extends TestLogger {
         CommonTestUtils.waitUntilCondition(() -> getNumberOfConnectedTaskManagers() == 2);
     }
 
-    public static void waitUntilParallelismForVertexReached(
-            RestClusterClient<?> restClusterClient, JobID jobId, int targetParallelism)
+    public void waitUntilParallelismForVertexReached(JobID jobId, int targetParallelism)
             throws Exception {
 
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    JobDetailsInfo detailsInfo = restClusterClient.getJobDetails(jobId).get();
+                    JobDetailsInfo detailsInfo =
+                            miniClusterResource.getRestClusterClient().getJobDetails(jobId).get();
 
                     for (JobDetailsInfo.JobVertexDetailsInfo jobVertexInfo :
                             detailsInfo.getJobVertexInfos()) {
