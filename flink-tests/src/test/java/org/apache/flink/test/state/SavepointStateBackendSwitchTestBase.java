@@ -317,11 +317,11 @@ abstract class SavepointStateBackendSwitchTestBase {
                                 keyedBackend.getKeySerializer(), IntSerializer.INSTANCE));
 
         assertThat(priorityQueue.size()).isEqualTo(3);
-        assertThat(priorityQueue.poll())
-                .isEqualTo(new TimerHeapInternalTimer<>(1234L, "mno", namespace3));
-        assertThat(priorityQueue.poll())
-                .isEqualTo(new TimerHeapInternalTimer<>(2345L, "mno", namespace2));
-        assertThat(priorityQueue.poll())
-                .isEqualTo(new TimerHeapInternalTimer<>(3456L, "mno", namespace3));
+        assertThat(priorityQueue.iterator())
+                .toIterable()
+                .containsExactly(
+                        new TimerHeapInternalTimer<>(1234L, "mno", namespace3),
+                        new TimerHeapInternalTimer<>(2345L, "mno", namespace2),
+                        new TimerHeapInternalTimer<>(3456L, "mno", namespace3));
     }
 }

@@ -33,7 +33,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -76,7 +75,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the state migration behaviour when the underlying POJO type changes and one tries to
@@ -193,32 +192,16 @@ class PojoSerializerUpgradeTest {
 
     /** Changing field types of a POJO as keyed state should require a state migration. */
     @TestTemplate
-    void testChangedFieldTypesWithKeyedState() throws Exception {
-        try {
-            testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, true);
-            fail("Expected a state migration exception.");
-        } catch (Exception e) {
-            if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-                // StateMigrationException expected
-            } else {
-                throw e;
-            }
-        }
+    void testChangedFieldTypesWithKeyedState() {
+        assertThatThrownBy(() -> testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, true))
+                .hasRootCauseInstanceOf(StateMigrationException.class);
     }
 
     /** Changing field types of a POJO as operator state should require a state migration. */
     @TestTemplate
-    void testChangedFieldTypesWithOperatorState() throws Exception {
-        try {
-            testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, false);
-            fail("Expected a state migration exception.");
-        } catch (Exception e) {
-            if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-                // StateMigrationException expected
-            } else {
-                throw e;
-            }
-        }
+    void testChangedFieldTypesWithOperatorState() {
+        assertThatThrownBy(() -> testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, false))
+                .isInstanceOf(StateMigrationException.class);
     }
 
     /** Adding fields to a POJO as keyed state should succeed. */

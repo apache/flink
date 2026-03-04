@@ -31,6 +31,7 @@ import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.core.execution.JobStatusChangedListenerFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -150,7 +151,8 @@ class JobStatusChangedListenerITCase {
             JobGraph jobGraph = streamGraph.getJobGraph();
 
             JobID jobID = client.submitJob(jobGraph).get();
-            while (!client.getJobStatus(jobID).get().equals(JobStatus.FAILED)) {}
+            CommonTestUtils.waitUntilCondition(
+                    () -> client.getJobStatus(jobID).get() == JobStatus.FAILED);
         } catch (Exception e) {
             // Expected failure due to exception.
         }
@@ -191,7 +193,8 @@ class JobStatusChangedListenerITCase {
 
             Thread.sleep(100);
             client.cancel(jobID).get();
-            while (!client.getJobStatus(jobID).get().equals(JobStatus.CANCELED)) {}
+            CommonTestUtils.waitUntilCondition(
+                    () -> client.getJobStatus(jobID).get() == JobStatus.CANCELED);
         }
 
         verifyEventMetaData();
@@ -209,43 +212,54 @@ class JobStatusChangedListenerITCase {
 
                     if (event instanceof JobCreatedEvent) {
                         LineageGraph lineageGraph = ((JobCreatedEvent) event).lineageGraph();
-                        assertThat(lineageGraph.sources().size()).isEqualTo(1);
-                        assertThat(lineageGraph.sinks().size()).isEqualTo(1);
+                        assertThat(lineageGraph.sources()).hasSize(1);
+                        assertThat(lineageGraph.sinks()).hasSize(1);
                     }
                 });
     }
 
     void verifyLineageGraph(LineageGraph lineageGraph) {
-        assertThat(lineageGraph.sources().size()).isEqualTo(1);
-        assertThat(lineageGraph.sources().get(0).boundedness())
-                .isEqualTo(Boundedness.CONTINUOUS_UNBOUNDED);
-        assertThat(lineageGraph.sources().get(0).datasets().size()).isEqualTo(1);
-        assertThat(lineageGraph.sources().get(0).datasets().get(0).name())
-                .isEqualTo(SOURCE_DATASET_NAME);
-        assertThat(lineageGraph.sources().get(0).datasets().get(0).namespace())
-                .isEqualTo(SOURCE_DATASET_NAMESPACE);
+        assertThat(lineageGraph.sources())
+                .satisfiesExactly(
+                        vertex -> {
+                            assertThat(vertex.boundedness())
+                                    .isEqualTo(Boundedness.CONTINUOUS_UNBOUNDED);
+                            assertThat(vertex.datasets())
+                                    .satisfiesExactly(
+                                            dataset -> {
+                                                assertThat(dataset.name())
+                                                        .isEqualTo(SOURCE_DATASET_NAME);
+                                                assertThat(dataset.namespace())
+                                                        .isEqualTo(SOURCE_DATASET_NAMESPACE);
+                                            });
+                        });
 
-        assertThat(lineageGraph.sinks().size()).isEqualTo(1);
-        assertThat(lineageGraph.sinks().get(0).datasets().size()).isEqualTo(1);
-        assertThat(lineageGraph.sinks().get(0).datasets().get(0).name())
-                .isEqualTo(SINK_DATASET_NAME);
-        assertThat(lineageGraph.sinks().get(0).datasets().get(0).namespace())
-                .isEqualTo(SINK_DATASET_NAMESPACE);
+        assertThat(lineageGraph.sinks())
+                .satisfiesExactly(
+                        vertex -> {
+                            assertThat(vertex.datasets())
+                                    .satisfiesExactly(
+                                            dataset -> {
+                                                assertThat(dataset.name())
+                                                        .isEqualTo(SINK_DATASET_NAME);
+                                                assertThat(dataset.namespace())
+                                                        .isEqualTo(SINK_DATASET_NAMESPACE);
+                                            });
+                        });
 
-        assertThat(lineageGraph.relations().size()).isEqualTo(1);
+        assertThat(lineageGraph.relations()).hasSize(1);
     }
 
     void verifyEventMetaData() {
-        assertThat(statusChangedEvents.size()).isEqualTo(3);
-        assertThat(statusChangedEvents.get(0).jobId())
-                .isEqualTo(statusChangedEvents.get(1).jobId());
-        assertThat(statusChangedEvents.get(0).jobName())
-                .isEqualTo(statusChangedEvents.get(1).jobName());
+        assertThat(statusChangedEvents).hasSize(3);
 
-        assertThat(statusChangedEvents.get(1).jobId())
-                .isEqualTo(statusChangedEvents.get(2).jobId());
-        assertThat(statusChangedEvents.get(1).jobName())
-                .isEqualTo(statusChangedEvents.get(2).jobName());
+        assertThat(statusChangedEvents)
+                .extracting(JobStatusChangedEvent::jobId)
+                .containsOnly(statusChangedEvents.get(0).jobId());
+
+        assertThat(statusChangedEvents)
+                .extracting(JobStatusChangedEvent::jobName)
+                .containsOnly(statusChangedEvents.get(0).jobName());
     }
 
     /** Testing job status changed listener factory. */

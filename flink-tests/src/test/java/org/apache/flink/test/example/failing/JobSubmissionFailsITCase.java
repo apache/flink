@@ -31,7 +31,6 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -41,10 +40,11 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.function.Predicate;
+import java.util.function.Consumer;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for failing job submissions. */
 @ExtendWith(TestLoggerExtension.class)
@@ -90,12 +90,7 @@ class JobSubmissionFailsITCase {
         runJobSubmissionTest(
                 clusterClient,
                 failingJobGraph,
-                e ->
-                        ExceptionUtils.findThrowable(
-                                        e,
-                                        candidate ->
-                                                "Test exception.".equals(candidate.getMessage()))
-                                .isPresent());
+                e -> assertThat(e).hasRootCauseMessage("Test exception."));
     }
 
     @Test
@@ -105,13 +100,7 @@ class JobSubmissionFailsITCase {
         runJobSubmissionTest(
                 clusterClient,
                 jobGraph,
-                e ->
-                        ExceptionUtils.findThrowable(
-                                        e,
-                                        throwable ->
-                                                throwable.getMessage() != null
-                                                        && throwable.getMessage().contains("empty"))
-                                .isPresent());
+                e -> assertThat(e).rootCause().hasMessageContaining("empty"));
     }
 
     @Test
@@ -120,22 +109,17 @@ class JobSubmissionFailsITCase {
         runJobSubmissionTest(
                 clusterClient,
                 jobGraph,
-                e -> ExceptionUtils.findThrowable(e, IOException.class).isPresent());
+                e -> assertThat(e).hasRootCauseInstanceOf(IOException.class));
     }
 
     private void runJobSubmissionTest(
-            ClusterClient<?> clusterClient,
-            JobGraph jobGraph,
-            Predicate<Exception> failurePredicate)
+            ClusterClient<?> clusterClient, JobGraph jobGraph, Consumer<Throwable> assertion)
             throws Exception {
-        try {
-            submitJobAndWaitForResult(clusterClient, jobGraph, getClass().getClassLoader());
-            fail("Job submission should have thrown an exception.");
-        } catch (Exception e) {
-            if (!failurePredicate.test(e)) {
-                throw e;
-            }
-        }
+        assertThatThrownBy(
+                        () ->
+                                submitJobAndWaitForResult(
+                                        clusterClient, jobGraph, getClass().getClassLoader()))
+                .satisfies(assertion);
 
         submitJobAndWaitForResult(clusterClient, getWorkingJobGraph(), getClass().getClassLoader());
     }

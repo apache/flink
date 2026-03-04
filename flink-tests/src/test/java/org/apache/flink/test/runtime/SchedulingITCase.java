@@ -123,7 +123,7 @@ class SchedulingITCase {
 
             JobResult jobResult = resultFuture.get();
 
-            assertThat(jobResult.getSerializedThrowable().isPresent()).isFalse();
+            assertThat(jobResult.getSerializedThrowable()).isEmpty();
         }
     }
 
