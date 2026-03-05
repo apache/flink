@@ -122,6 +122,19 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     @Override
     public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
         CompletableFuture<Collection<RowData>> future = new CompletableFuture<>();
+        asyncPredictWithRetry(rowData, future, 0);
+        return future;
+    }
+
+    /**
+     * Executes inference request with retry logic and default value fallback.
+     *
+     * @param rowData Input data for inference
+     * @param future The future to complete with result or exception
+     * @param attemptNumber Current attempt number (0-indexed)
+     */
+    private void asyncPredictWithRetry(
+            RowData rowData, CompletableFuture<Collection<RowData>> future, int attemptNumber) {
 
         try {
             String requestBody = buildInferenceRequest(rowData);
@@ -168,8 +181,10 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                 @Override
                                 public void onFailure(Call call, IOException e) {
                                     LOG.error(
-                                            "Triton inference request failed due to network error",
-                                            e);
+                                            "Triton inference request failed (attempt {}/{}) due to network error: {}",
+                                            attemptNumber + 1,
+                                            getMaxRetries() + 1,
+                                            e.getMessage());
 
                                     // Wrap IOException in TritonNetworkException
                                     TritonNetworkException networkException =
@@ -180,7 +195,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                             url, e.getMessage()),
                                                     e);
 
-                                    future.completeExceptionally(networkException);
+                                    handleFailureWithRetry(
+                                            rowData, future, attemptNumber, networkException);
                                 }
 
                                 @Override
@@ -188,7 +204,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         throws IOException {
                                     try {
                                         if (!response.isSuccessful()) {
-                                            handleErrorResponse(response, future);
+                                            handleErrorResponseWithRetry(
+                                                    response, rowData, future, attemptNumber, url);
                                             return;
                                         }
 
@@ -198,15 +215,17 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         future.complete(result);
                                     } catch (JsonProcessingException e) {
                                         LOG.error("Failed to parse Triton inference response", e);
-                                        future.completeExceptionally(
+                                        TritonClientException parseException =
                                                 new TritonClientException(
                                                         "Failed to parse Triton response JSON: "
                                                                 + e.getMessage()
                                                                 + ". This may indicate an incompatible response format.",
-                                                        400));
+                                                        400);
+                                        handleFailureWithRetry(
+                                                rowData, future, attemptNumber, parseException);
                                     } catch (Exception e) {
                                         LOG.error("Failed to process Triton inference response", e);
-                                        future.completeExceptionally(e);
+                                        handleFailureWithRetry(rowData, future, attemptNumber, e);
                                     } finally {
                                         response.close();
                                     }
@@ -215,25 +234,101 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
 
         } catch (Exception e) {
             LOG.error("Failed to build Triton inference request", e);
-            future.completeExceptionally(e);
+            handleFailureWithRetry(rowData, future, attemptNumber, e);
         }
-
-        return future;
     }
 
     /**
-     * Handles HTTP error responses and creates appropriate typed exceptions.
+     * Handles request failure with retry logic or default value fallback.
      *
-     * @param response The HTTP response with error status
-     * @param future The future to complete exceptionally
-     * @throws IOException If reading response body fails
+     * @param rowData Input data for inference
+     * @param future The future to complete
+     * @param attemptNumber Current attempt number
+     * @param error The error that caused the failure
      */
-    private void handleErrorResponse(
-            Response response, CompletableFuture<Collection<RowData>> future) throws IOException {
+    private void handleFailureWithRetry(
+            RowData rowData,
+            CompletableFuture<Collection<RowData>> future,
+            int attemptNumber,
+            Throwable error) {
+
+        if (attemptNumber < getMaxRetries()) {
+            // Calculate exponential backoff delay
+            long delayMs = getRetryBackoff().toMillis() * (1L << attemptNumber);
+
+            LOG.info(
+                    "Retrying Triton inference request (attempt {}/{}) after {} ms",
+                    attemptNumber + 2,
+                    getMaxRetries() + 1,
+                    delayMs);
+
+            // Schedule retry with exponential backoff
+            CompletableFuture.delayedExecutor(delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    .execute(() -> asyncPredictWithRetry(rowData, future, attemptNumber + 1));
+        } else {
+            // All retries exhausted
+            if (getDefaultValue() != null) {
+                LOG.warn(
+                        "All {} retry attempts failed. Returning configured default value. Original error: {}",
+                        getMaxRetries() + 1,
+                        error.getMessage(),
+                        error);
+
+                try {
+                    Collection<RowData> defaultResult = parseDefaultValue();
+                    future.complete(defaultResult);
+                } catch (Exception e) {
+                    LOG.error("Failed to parse default value", e);
+                    // Chain both the original inference error and the parse error
+                    IllegalArgumentException parseException =
+                            new IllegalArgumentException(
+                                    String.format(
+                                            "Failed to parse default-value after %d retry attempts. "
+                                                    + "Original inference error: %s. Parse error: %s",
+                                            getMaxRetries() + 1,
+                                            error.getMessage(),
+                                            e.getMessage()),
+                                    e);
+                    parseException.addSuppressed(error);
+                    future.completeExceptionally(parseException);
+                }
+            } else {
+                LOG.error(
+                        "All {} retry attempts failed. No default value configured.",
+                        getMaxRetries() + 1);
+                future.completeExceptionally(error);
+            }
+        }
+    }
+
+    /**
+     * Handles HTTP error response with retry logic.
+     *
+     * @param response The HTTP response
+     * @param rowData Input data for inference
+     * @param future The future to complete
+     * @param attemptNumber Current attempt number
+     * @param url Request URL
+     * @throws IOException If reading response fails
+     */
+    private void handleErrorResponseWithRetry(
+            Response response,
+            RowData rowData,
+            CompletableFuture<Collection<RowData>> future,
+            int attemptNumber,
+            String url)
+            throws IOException {
 
         String errorBody =
                 response.body() != null ? response.body().string() : "No error details provided";
         int statusCode = response.code();
+
+        LOG.error(
+                "Triton inference failed (attempt {}/{}) with HTTP {}: {}",
+                attemptNumber + 1,
+                getMaxRetries() + 1,
+                statusCode,
+                errorBody);
 
         // Build detailed error message with context
         StringBuilder errorMsg = new StringBuilder();
@@ -255,6 +350,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                 errorBody.toLowerCase().contains("shape")
                         || errorBody.toLowerCase().contains("dimension");
 
+        Throwable exception;
+
         if (statusCode >= 400 && statusCode < 500) {
             // Client error - user configuration issue
             errorMsg.append("\n=== Troubleshooting (Client Error) ===\n");
@@ -267,13 +364,13 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                         "  • Try flatten-batch-dim=true if model expects [N] but gets [1,N]\n");
 
                 if (isShapeMismatch) {
-                    // Create schema exception for shape mismatches
-                    future.completeExceptionally(
+                    exception =
                             new TritonSchemaException(
                                     errorMsg.toString(),
                                     "See Triton model config.pbtxt",
-                                    String.format("Flink type: %s", inputType)));
-                    return;
+                                    String.format("Flink type: %s", inputType));
+                } else {
+                    exception = new TritonClientException(errorMsg.toString(), statusCode);
                 }
             } else if (statusCode == 404) {
                 errorMsg.append("  • Verify model-name: ").append(getModelName()).append("\n");
@@ -283,16 +380,43 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                 errorMsg.append("  • Check model is loaded: GET ")
                         .append(getEndpoint())
                         .append("\n");
+                exception = new TritonClientException(errorMsg.toString(), statusCode);
             } else if (statusCode == 401 || statusCode == 403) {
                 errorMsg.append("  • Check auth-token configuration\n");
                 errorMsg.append("  • Verify server authentication requirements\n");
+                exception = new TritonClientException(errorMsg.toString(), statusCode);
+            } else {
+                exception = new TritonClientException(errorMsg.toString(), statusCode);
             }
 
-            future.completeExceptionally(
-                    new TritonClientException(errorMsg.toString(), statusCode));
+            // Client errors are not retryable - fail immediately
+            if (getDefaultValue() != null) {
+                LOG.warn(
+                        "Client error (HTTP {}). Returning default value. Original error: {}",
+                        statusCode,
+                        exception.getMessage(),
+                        exception);
+                try {
+                    Collection<RowData> defaultResult = parseDefaultValue();
+                    future.complete(defaultResult);
+                } catch (Exception e) {
+                    LOG.error("Failed to parse default value", e);
+                    IllegalArgumentException parseException =
+                            new IllegalArgumentException(
+                                    String.format(
+                                            "Failed to parse default-value after client error (HTTP %d). "
+                                                    + "Original error: %s. Parse error: %s",
+                                            statusCode, exception.getMessage(), e.getMessage()),
+                                    e);
+                    parseException.addSuppressed(exception);
+                    future.completeExceptionally(parseException);
+                }
+            } else {
+                future.completeExceptionally(exception);
+            }
 
         } else if (statusCode >= 500 && statusCode < 600) {
-            // Server error - Triton service issue
+            // Server error - Triton service issue - retryable
             errorMsg.append("\n=== Troubleshooting (Server Error) ===\n");
 
             if (statusCode == 500) {
@@ -309,8 +433,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                 errorMsg.append("  • Consider increasing timeout configuration\n");
             }
 
-            future.completeExceptionally(
-                    new TritonServerException(errorMsg.toString(), statusCode));
+            exception = new TritonServerException(errorMsg.toString(), statusCode);
+            handleFailureWithRetry(rowData, future, attemptNumber, exception);
 
         } else {
             // Unexpected status code
@@ -318,9 +442,34 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             errorMsg.append("  • This status code is not standard for Triton\n");
             errorMsg.append("  • Check if proxy/load balancer is involved\n");
 
-            future.completeExceptionally(
-                    new TritonClientException(errorMsg.toString(), statusCode));
+            exception = new TritonClientException(errorMsg.toString(), statusCode);
+            handleFailureWithRetry(rowData, future, attemptNumber, exception);
         }
+    }
+
+    /**
+     * Parses the configured default value string into RowData collection.
+     *
+     * @return Collection containing single RowData with default value
+     * @throws JsonProcessingException If parsing JSON default value fails
+     */
+    private Collection<RowData> parseDefaultValue() throws JsonProcessingException {
+        List<RowData> results = new ArrayList<>();
+        String defaultValueStr = getDefaultValue();
+
+        Object deserializedData;
+
+        if (outputType instanceof VarCharType) {
+            // String type - use value directly
+            deserializedData = BinaryStringData.fromString(defaultValueStr);
+        } else {
+            // Array and other scalar types - parse JSON
+            JsonNode jsonNode = objectMapper.readTree(defaultValueStr);
+            deserializedData = TritonTypeMapper.deserializeFromJson(jsonNode, outputType);
+        }
+
+        results.add(GenericRowData.of(deserializedData));
+        return results;
     }
 
     private String buildInferenceRequest(RowData rowData) throws JsonProcessingException {

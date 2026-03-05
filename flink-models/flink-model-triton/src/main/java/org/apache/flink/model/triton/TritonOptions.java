@@ -165,4 +165,38 @@ public class TritonOptions {
                                                     + "Example: %s",
                                             code("'X-Custom-Header:value,X-Another:value2'"))
                                     .build());
+
+    public static final ConfigOption<Integer> MAX_RETRIES =
+            ConfigOptions.key("max-retries")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Maximum number of retries for failed inference requests. "
+                                    + "When set to 0 (default), no retry is performed. "
+                                    + "After consecutive failures exceeding this limit, the configured default-value will be returned instead of throwing an exception.");
+
+    public static final ConfigOption<Duration> RETRY_BACKOFF =
+            ConfigOptions.key("retry-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription(
+                            "Initial backoff duration between retry attempts. "
+                                    + "Uses exponential backoff strategy: first retry waits this duration, "
+                                    + "second retry waits 2x, third waits 4x, etc. Defaults to 100ms.");
+
+    public static final ConfigOption<String> DEFAULT_VALUE =
+            ConfigOptions.key("default-value")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Default value to return when all retry attempts fail. "
+                                                    + "This allows downstream processing to distinguish between successful and failed predictions. "
+                                                    + "Format depends on output type: for STRING use plain text (e.g., %s), "
+                                                    + "for numeric types use string representation (e.g., %s), "
+                                                    + "for ARRAY types use JSON array format (e.g., %s). "
+                                                    + "If not specified, exceptions will be thrown on failure.",
+                                            code("'FAILED'"), code("'-1'"), code("'[0.0, 0.0]'"))
+                                    .build());
 }
