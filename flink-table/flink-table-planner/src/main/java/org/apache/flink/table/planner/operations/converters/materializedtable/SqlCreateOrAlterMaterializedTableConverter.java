@@ -146,8 +146,8 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
         final List<TableChange> changes = new ArrayList<>();
         for (Map.Entry<String, String> option : newOptions.entrySet()) {
-            if (oldOptions.get(option.getKey()) == null
-                    || !oldOptions.get(option.getKey()).equals(option.getValue())) {
+            final String oldValue = oldOptions.get(option.getKey());
+            if (oldValue == null || !oldValue.equals(option.getValue())) {
                 changes.add(TableChange.set(option.getKey(), option.getValue()));
             }
         }
