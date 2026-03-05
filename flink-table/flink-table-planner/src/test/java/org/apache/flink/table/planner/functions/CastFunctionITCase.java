@@ -851,6 +851,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         //
                         .fromCase(DATE(), DEFAULT_DATE, LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0))
 
+                        // https://issues.apache.org/jira/browse/FLINK-39214
+                        // Fractional seconds below milliseconds are lost
                         // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
                         // date or use 0 for the year?
                         .fromCase(

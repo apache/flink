@@ -957,7 +957,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         Operation operation = convert.get();
         ResolvedSchema schema =
                 ((CreateTableOperation) operation).getCatalogTable().getResolvedSchema();
-        List<Object> expectedDataTypes =
+        List<DataType> expectedDataTypes =
                 testItems.stream().map(item -> item.expectedType).collect(Collectors.toList());
         assertThat(schema.getColumnDataTypes()).isEqualTo(expectedDataTypes);
     }
