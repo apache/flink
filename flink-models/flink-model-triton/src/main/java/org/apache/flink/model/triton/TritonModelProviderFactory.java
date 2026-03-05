@@ -70,6 +70,12 @@ public class TritonModelProviderFactory implements ModelProviderFactory {
         set.add(TritonOptions.COMPRESSION);
         set.add(TritonOptions.AUTH_TOKEN);
         set.add(TritonOptions.CUSTOM_HEADERS);
+        set.add(TritonOptions.CONNECTION_POOL_MAX_IDLE);
+        set.add(TritonOptions.CONNECTION_POOL_KEEP_ALIVE);
+        set.add(TritonOptions.CONNECTION_POOL_MAX_TOTAL);
+        set.add(TritonOptions.CONNECTION_TIMEOUT);
+        set.add(TritonOptions.CONNECTION_REUSE_ENABLED);
+        set.add(TritonOptions.CONNECTION_POOL_MONITORING_ENABLED);
         return set;
     }
 
