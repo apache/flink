@@ -23,12 +23,7 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateOrAlterMateria
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
-import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
-import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
-import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -136,48 +131,34 @@ public class SqlCreateOrAlterMaterializedTableConverter
                         mergeContext.getMergedOriginalQuery(),
                         mergeContext.getMergedExpandedQuery()));
 
+        changes.addAll(
+                calculateOptionsChange(
+                        oldTable.getOptions(), mergeContext.getMergedTableOptions()));
+
         return changes;
     }
 
-    private CatalogMaterializedTable buildNewCatalogMaterializedTableFromOldTable(
-            final ResolvedCatalogMaterializedTable oldTable,
-            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
-            final MergeContext mergeContext) {
-        final Schema.Builder schemaBuilder =
-                Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
+    public static List<TableChange> calculateOptionsChange(
+            Map<String, String> oldOptions, Map<String, String> newOptions) {
+        if (oldOptions.equals(newOptions)) {
+            return List.of();
+        }
 
-        // Add new columns if this is an alter operation
-        final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
-        final List<Column> newColumns =
-                MaterializedTableUtils.validateAndExtractNewColumns(
-                        oldSchema, mergeContext.getMergedQuerySchema());
-        newColumns.forEach(col -> schemaBuilder.column(col.getName(), col.getDataType()));
+        final List<TableChange> changes = new ArrayList<>();
+        for (Map.Entry<String, String> option : newOptions.entrySet()) {
+            final String oldValue = oldOptions.get(option.getKey());
+            if (oldValue == null || !oldValue.equals(option.getValue())) {
+                changes.add(TableChange.set(option.getKey(), option.getValue()));
+            }
+        }
 
-        final String comment = sqlCreateOrAlterTable.getComment();
-        final IntervalFreshness freshness = getDerivedFreshness(sqlCreateOrAlterTable);
-        final LogicalRefreshMode logicalRefreshMode =
-                getDerivedLogicalRefreshMode(sqlCreateOrAlterTable);
-        final RefreshMode refreshMode = getDerivedRefreshMode(logicalRefreshMode);
+        for (Map.Entry<String, String> option : oldOptions.entrySet()) {
+            if (newOptions.get(option.getKey()) == null) {
+                changes.add(TableChange.reset(option.getKey()));
+            }
+        }
 
-        CatalogMaterializedTable.Builder builder =
-                CatalogMaterializedTable.newBuilder()
-                        .schema(schemaBuilder.build())
-                        .comment(comment)
-                        .distribution(mergeContext.getMergedTableDistribution().orElse(null))
-                        .partitionKeys(mergeContext.getMergedPartitionKeys())
-                        .options(mergeContext.getMergedTableOptions())
-                        .originalQuery(mergeContext.getMergedOriginalQuery())
-                        .expandedQuery(mergeContext.getMergedExpandedQuery())
-                        .freshness(freshness)
-                        .logicalRefreshMode(logicalRefreshMode)
-                        .refreshMode(refreshMode)
-                        .refreshStatus(RefreshStatus.INITIALIZING);
-
-        // Preserve refresh handler from old materialized table
-        oldTable.getRefreshHandlerDescription().ifPresent(builder::refreshHandlerDescription);
-        builder.serializedRefreshHandler(oldTable.getSerializedRefreshHandler());
-
-        return builder.build();
+        return changes;
     }
 
     @Override

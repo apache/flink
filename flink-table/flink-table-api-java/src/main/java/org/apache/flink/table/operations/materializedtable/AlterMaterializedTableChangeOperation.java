@@ -130,7 +130,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                         .schema(changeContext.retrieveSchema())
                         .comment(oldTable.getComment())
                         .partitionKeys(oldTable.getPartitionKeys())
-                        .options(oldTable.getOptions())
+                        .options(changeContext.options)
                         .originalQuery(changeContext.originalQuery)
                         .expandedQuery(changeContext.expandedQuery)
                         .distribution(changeContext.distribution)
@@ -201,6 +201,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         private int droppedPersistedCnt = 0;
         private String originalQuery;
         private String expandedQuery;
+        private final Map<String, String> options;
 
         public ChangeContext(CatalogMaterializedTable oldTable) {
             this.distribution = oldTable.getDistribution().orElse(null);
@@ -218,6 +219,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             originalQuery = oldTable.getOriginalQuery();
             expandedQuery = oldTable.getExpandedQuery();
             this.oldTable = oldTable;
+            this.options = new HashMap<>(oldTable.getOptions());
         }
 
         private static final class HandlerRegistry {
@@ -283,6 +285,10 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             registry.register(AddDistribution.class, ChangeContext::addDistribution);
             registry.register(ModifyDistribution.class, ChangeContext::modifyDistribution);
             registry.register(DropDistribution.class, ChangeContext::dropDistribution);
+
+            // Options
+            registry.register(TableChange.SetOption.class, ChangeContext::setTableOption);
+            registry.register(TableChange.ResetOption.class, ChangeContext::resetTableOption);
 
             return registry;
         }
@@ -447,6 +453,14 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
 
         private void dropDistribution(DropDistribution dropDistribution) {
             distribution = null;
+        }
+
+        private void setTableOption(TableChange.SetOption option) {
+            options.put(option.getKey(), option.getValue());
+        }
+
+        private void resetTableOption(TableChange.ResetOption option) {
+            options.remove(option.getKey());
         }
 
         private UnresolvedColumn toUnresolvedColumn(Column column) {
