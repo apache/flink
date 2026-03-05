@@ -29,17 +29,11 @@ import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
 import org.assertj.core.api.Condition;
-import org.junit.jupiter.api.Disabled;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link VariantSerializerSnapshot}. The test is
- * disabled because Variant is introduced in Flink 2.1. We should restore the test when there is a
- * Flink 2.2 which should test compatibility with Flink 2.1
- */
-@Disabled("FLINK-37951")
+/** A {@link TypeSerializerUpgradeTestBase} for {@link VariantSerializerSnapshot}. */
 class VariantSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Variant, Variant> {
 
     private static final String SPEC_NAME = "variant-serializer";
