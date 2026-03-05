@@ -485,4 +485,17 @@ class AggregateTest extends TableTestBase {
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src")
   }
+
+  @Test
+  def testCountStartWithHaving(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src HAVING COUNT(*) > 1")
+  }
 }
