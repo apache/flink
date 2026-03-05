@@ -820,7 +820,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     jobName,
                     jobId,
                     application.getApplicationId());
-            application.addJob(jobId);
         } else {
             // This can only occur in tests for submitJob that submit jobs without an application
             log.warn("Submitting job '{}' ({}) without associated application.", jobName, jobId);
@@ -840,6 +839,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                 // job is done processing, whether failed or finished
                                 submittedAndWaitingTerminationJobIDs.remove(
                                         executionPlan.getJobID()));
+    }
+
+    private void associateJobWithApplication(JobID jobId, ApplicationID applicationId) {
+        checkNotNull(applicationId);
+        checkState(applications.containsKey(applicationId));
+
+        applications.get(applicationId).addJob(jobId);
     }
 
     private Optional<AbstractApplication> getApplicationForJob(ExecutionPlan executionPlan) {
@@ -887,7 +893,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private void persistAndRunJob(ExecutionPlan executionPlan) throws Exception {
         executionPlanWriter.putExecutionPlan(executionPlan);
         initJobClientExpiredTime(executionPlan);
-        runJob(createJobMasterRunner(executionPlan), ExecutionType.SUBMISSION);
+        runJob(
+                createJobMasterRunner(executionPlan),
+                ExecutionType.SUBMISSION,
+                executionPlan.getApplicationId().orElse(null));
     }
 
     private JobManagerRunner createJobMasterRunner(ExecutionPlan executionPlan) throws Exception {
@@ -928,12 +937,24 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void runJob(JobManagerRunner jobManagerRunner, ExecutionType executionType)
             throws Exception {
+        runJob(jobManagerRunner, executionType, null);
+    }
+
+    private void runJob(
+            JobManagerRunner jobManagerRunner,
+            ExecutionType executionType,
+            @Nullable ApplicationID applicationId)
+            throws Exception {
         jobManagerRunner.start();
         jobManagerRunnerRegistry.register(jobManagerRunner);
 
         final JobID jobId = jobManagerRunner.getJobID();
 
         partialExecutionGraphInfoStore.put(jobId, new CompletableFuture<>());
+
+        if (applicationId != null) {
+            associateJobWithApplication(jobId, applicationId);
+        }
 
         final CompletableFuture<CleanupJobState> cleanupJobStateFuture =
                 jobManagerRunner
