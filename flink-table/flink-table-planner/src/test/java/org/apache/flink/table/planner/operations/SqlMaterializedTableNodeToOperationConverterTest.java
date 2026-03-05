@@ -53,7 +53,6 @@ import org.apache.flink.table.operations.materializedtable.DropMaterializedTable
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
 import org.apache.flink.table.planner.utils.TableFunc0;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -400,7 +399,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
     @ParameterizedTest
     @MethodSource("testDataForCreateAlterMaterializedTableFailedCase")
     void createAlterMaterializedTableFailedCase(TestSpec spec) {
-        Assertions.setMaxStackTraceElementsDisplayed(20);
         assertThatThrownBy(
                         () -> {
                             AlterMaterializedTableChangeOperation operation =
@@ -686,7 +684,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "  ADD `e` STRING ,\n"
                                 + "  ADD `f` STRING ,\n"
                                 + " MODIFY DEFINITION QUERY TO 'SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
-                                + "FROM `builtin`.`default`.`t3` AS `t3`'");
+                                + "FROM `builtin`.`default`.`t3` AS `t3`',\n"
+                                + "  SET 'format' = 'json2',\n"
+                                + "  RESET 'connector'");
 
         // new table only difference schema & definition query with old table.
         CatalogMaterializedTable oldTable =

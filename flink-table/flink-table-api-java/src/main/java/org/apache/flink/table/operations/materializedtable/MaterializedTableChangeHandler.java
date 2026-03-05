@@ -46,6 +46,8 @@ import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshStatus;
 import org.apache.flink.table.catalog.TableChange.ModifyUniqueConstraint;
 import org.apache.flink.table.catalog.TableChange.ModifyWatermark;
+import org.apache.flink.table.catalog.TableChange.ResetOption;
+import org.apache.flink.table.catalog.TableChange.SetOption;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -82,6 +84,7 @@ public class MaterializedTableChangeHandler {
     private int droppedPersistedCnt = 0;
     private String originalQuery;
     private String expandedQuery;
+    private final Map<String, String> options;
     private final List<String> validationErrors = new ArrayList<>();
 
     public MaterializedTableChangeHandler(CatalogMaterializedTable oldTable) {
@@ -100,6 +103,7 @@ public class MaterializedTableChangeHandler {
         originalQuery = oldTable.getOriginalQuery();
         expandedQuery = oldTable.getExpandedQuery();
         this.oldTable = oldTable;
+        this.options = new HashMap<>(oldTable.getOptions());
     }
 
     private static final class HandlerRegistry {
@@ -156,7 +160,7 @@ public class MaterializedTableChangeHandler {
                 .schema(context.retrieveSchema())
                 .comment(oldTable.getComment())
                 .partitionKeys(oldTable.getPartitionKeys())
-                .options(oldTable.getOptions())
+                .options(context.getOptions())
                 .originalQuery(context.getOriginalQuery())
                 .expandedQuery(context.getExpandedQuery())
                 .distribution(context.getDistribution())
@@ -214,6 +218,10 @@ public class MaterializedTableChangeHandler {
                 ModifyDistribution.class, MaterializedTableChangeHandler::modifyDistribution);
         registry.register(DropDistribution.class, MaterializedTableChangeHandler::dropDistribution);
 
+        // Options
+        registry.register(SetOption.class, MaterializedTableChangeHandler::setTableOption);
+        registry.register(ResetOption.class, MaterializedTableChangeHandler::resetTableOption);
+
         return registry;
     }
 
@@ -261,6 +269,10 @@ public class MaterializedTableChangeHandler {
 
     public String getOriginalQuery() {
         return originalQuery;
+    }
+
+    public Map<String, String> getOptions() {
+        return options;
     }
 
     @Nullable
@@ -407,6 +419,14 @@ public class MaterializedTableChangeHandler {
 
     private void dropDistribution(DropDistribution dropDistribution) {
         distribution = null;
+    }
+
+    private void setTableOption(SetOption option) {
+        options.put(option.getKey(), option.getValue());
+    }
+
+    private void resetTableOption(ResetOption option) {
+        options.remove(option.getKey());
     }
 
     private UnresolvedColumn toUnresolvedColumn(Column column) {

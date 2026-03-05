@@ -134,11 +134,11 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final Map<String, String> oldOptions = oldTable.getOptions();
             final Map<String, String> newOptions = mergeContext.getMergedTableOptions();
 
-            for (Map.Entry<String, String> newOptionEntry: newOptions.entrySet()) {
+            for (Map.Entry<String, String> newOptionEntry : newOptions.entrySet()) {
                 changes.add(TableChange.set(newOptionEntry.getKey(), newOptionEntry.getValue()));
             }
 
-            for (Map.Entry<String, String> oldOptionEntry: oldOptions.entrySet()){
+            for (Map.Entry<String, String> oldOptionEntry : oldOptions.entrySet()) {
                 if (newOptions.get(oldOptionEntry.getKey()) == null) {
                     changes.add(TableChange.reset(oldOptionEntry.getKey()));
                 }
