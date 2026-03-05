@@ -133,13 +133,24 @@ public class MaterializedTableChangeHandler {
         }
     }
 
-    public static CatalogMaterializedTable buildNewMaterializedTable(
+    public List<String> getValidationErrors() {
+        return List.copyOf(validationErrors);
+    }
+
+    public static MaterializedTableChangeHandler getHandlerWithChanges(
             CatalogMaterializedTable oldTable, List<TableChange> tableChanges) {
-        MaterializedTableChangeHandler context = new MaterializedTableChangeHandler(oldTable);
-        context.applyTableChanges(tableChanges);
+        MaterializedTableChangeHandler handler = new MaterializedTableChangeHandler(oldTable);
+        handler.applyTableChanges(tableChanges);
+        return handler;
+    }
+
+    public static CatalogMaterializedTable buildNewMaterializedTable(
+            MaterializedTableChangeHandler context) {
         if (!context.validationErrors.isEmpty()) {
             throw new ValidationException(String.join("\n", context.validationErrors));
         }
+
+        final CatalogMaterializedTable oldTable = context.oldTable;
         return CatalogMaterializedTable.newBuilder()
                 .schema(context.retrieveSchema())
                 .comment(oldTable.getComment())
@@ -254,8 +265,8 @@ public class MaterializedTableChangeHandler {
         Column column = modifyColumn.getOldColumn();
         Column newColumn = modifyColumn.getNewColumn();
         int index = getColumnIndex(column.getName());
-        UnresolvedColumn newColumn1 = toUnresolvedColumn(newColumn);
-        columns.set(index, newColumn1);
+        UnresolvedColumn newUnresolvedColumn = toUnresolvedColumn(newColumn);
+        columns.set(index, newUnresolvedColumn);
     }
 
     private void dropColumn(TableChange.DropColumn dropColumn) {
