@@ -75,6 +75,12 @@
             <td>The SSL protocol version to be supported for the ssl transport. Note that it doesn’t support comma separated list.</td>
         </tr>
         <tr>
+            <td><h5>security.ssl.reload</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabled, the application will monitor the keystore and truststore files for any changes. When a change is detected, internal network components (like Netty, Pekko, or BlobServer) will automatically reload the keystore/truststore certificates.</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.rest.authentication-enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
