@@ -165,4 +165,70 @@ public class TritonOptions {
                                                     + "Example: %s",
                                             code("'X-Custom-Header:value,X-Another:value2'"))
                                     .build());
+
+    // ==================== Health Check and Circuit Breaker Options ====================
+
+    public static final ConfigOption<Boolean> HEALTH_CHECK_ENABLED =
+            ConfigOptions.key("health-check-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to enable periodic health checks for the Triton server. "
+                                                    + "When enabled, the health checker will periodically call %s endpoint "
+                                                    + "to verify server availability. Defaults to false.",
+                                            code("/v2/health/live"))
+                                    .build());
+
+    public static final ConfigOption<Duration> HEALTH_CHECK_INTERVAL =
+            ConfigOptions.key("health-check-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDescription(
+                            "Interval between health check requests. "
+                                    + "Shorter intervals provide faster failure detection but increase server load. "
+                                    + "Defaults to 30 seconds. Only effective when health-check-enabled is true.");
+
+    public static final ConfigOption<Boolean> CIRCUIT_BREAKER_ENABLED =
+            ConfigOptions.key("circuit-breaker-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to enable circuit breaker protection. "
+                                                    + "When enabled, the circuit breaker will automatically fail fast when the server "
+                                                    + "is unhealthy, preventing cascading failures and reducing load on the failing server. "
+                                                    + "The circuit breaker implements a three-state model: CLOSED (normal), OPEN (failing fast), "
+                                                    + "and HALF_OPEN (testing recovery). Defaults to false.")
+                                    .build());
+
+    public static final ConfigOption<Double> CIRCUIT_BREAKER_FAILURE_THRESHOLD =
+            ConfigOptions.key("circuit-breaker-failure-threshold")
+                    .doubleType()
+                    .defaultValue(0.5)
+                    .withDescription(
+                            "Failure rate threshold (0.0-1.0) that triggers the circuit breaker to open. "
+                                    + "For example, 0.5 means the circuit will open when 50% of recent requests fail. "
+                                    + "Requires a minimum of 10 requests before evaluation. Defaults to 0.5 (50%). "
+                                    + "Only effective when circuit-breaker-enabled is true.");
+
+    public static final ConfigOption<Duration> CIRCUIT_BREAKER_TIMEOUT =
+            ConfigOptions.key("circuit-breaker-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(60))
+                    .withDescription(
+                            "Duration to keep the circuit breaker in OPEN state before transitioning to HALF_OPEN. "
+                                    + "In HALF_OPEN state, limited requests are allowed to probe if the server has recovered. "
+                                    + "Defaults to 60 seconds. Only effective when circuit-breaker-enabled is true.");
+
+    public static final ConfigOption<Integer> CIRCUIT_BREAKER_HALF_OPEN_REQUESTS =
+            ConfigOptions.key("circuit-breaker-half-open-requests")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "Number of successful test requests required in HALF_OPEN state to close the circuit. "
+                                    + "If any request fails in HALF_OPEN state, the circuit immediately reopens. "
+                                    + "Defaults to 3 requests. Only effective when circuit-breaker-enabled is true.");
 }
