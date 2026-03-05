@@ -146,25 +146,26 @@ public class MaterializedTableChangeHandler {
 
     public static CatalogMaterializedTable buildNewMaterializedTable(
             MaterializedTableChangeHandler context) {
-        if (!context.validationErrors.isEmpty()) {
-            throw new ValidationException(String.join("\n", context.validationErrors));
+        final List<String> validationErrors = context.getValidationErrors();
+        if (!validationErrors.isEmpty()) {
+            throw new ValidationException(String.join("\n", validationErrors));
         }
 
-        final CatalogMaterializedTable oldTable = context.oldTable;
+        final CatalogMaterializedTable oldTable = context.getOldTable();
         return CatalogMaterializedTable.newBuilder()
                 .schema(context.retrieveSchema())
                 .comment(oldTable.getComment())
                 .partitionKeys(oldTable.getPartitionKeys())
                 .options(oldTable.getOptions())
-                .originalQuery(context.originalQuery)
-                .expandedQuery(context.expandedQuery)
-                .distribution(context.distribution)
+                .originalQuery(context.getOriginalQuery())
+                .expandedQuery(context.getExpandedQuery())
+                .distribution(context.getDistribution())
                 .freshness(oldTable.getDefinitionFreshness())
                 .logicalRefreshMode(oldTable.getLogicalRefreshMode())
                 .refreshMode(oldTable.getRefreshMode())
-                .refreshStatus(context.refreshStatus)
-                .refreshHandlerDescription(context.refreshHandlerDesc)
-                .serializedRefreshHandler(context.refreshHandlerBytes)
+                .refreshStatus(context.getRefreshStatus())
+                .refreshHandlerDescription(context.getRefreshHandlerDesc())
+                .serializedRefreshHandler(context.getRefreshHandlerBytes())
                 .build();
     }
 
@@ -238,7 +239,7 @@ public class MaterializedTableChangeHandler {
         }
     }
 
-    Schema retrieveSchema() {
+    public Schema retrieveSchema() {
         Schema.Builder schemaToApply = Schema.newBuilder().fromColumns(columns);
         if (primaryKeyColumns != null) {
             if (primaryKeyName == null) {
@@ -252,6 +253,36 @@ public class MaterializedTableChangeHandler {
             schemaToApply.watermark(spec.getColumnName(), spec.getWatermarkExpression());
         }
         return schemaToApply.build();
+    }
+
+    public String getExpandedQuery() {
+        return expandedQuery;
+    }
+
+    public String getOriginalQuery() {
+        return originalQuery;
+    }
+
+    @Nullable
+    public TableDistribution getDistribution() {
+        return distribution;
+    }
+
+    public byte[] getRefreshHandlerBytes() {
+        return refreshHandlerBytes;
+    }
+
+    @Nullable
+    public String getRefreshHandlerDesc() {
+        return refreshHandlerDesc;
+    }
+
+    public CatalogMaterializedTable.RefreshStatus getRefreshStatus() {
+        return refreshStatus;
+    }
+
+    public CatalogMaterializedTable getOldTable() {
+        return oldTable;
     }
 
     private void addColumn(AddColumn addColumn) {
