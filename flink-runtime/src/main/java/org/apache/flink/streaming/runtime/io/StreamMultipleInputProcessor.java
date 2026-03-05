@@ -147,11 +147,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     private void fullCheckAndSetAvailable() {
         for (int i = 0; i < inputProcessors.length; i++) {
             StreamOneInputProcessor<?> inputProcessor = inputProcessors[i];
-            // TODO: isAvailable() can be a costly operation (checking volatile). If one of
-            // the input is constantly available and another is not, we will be checking this
-            // volatile
-            // once per every record. This might be optimized to only check once per processed
-            // NetworkBuffer
             if (inputProcessor.isApproximatelyAvailable() || inputProcessor.isAvailable()) {
                 inputSelectionHandler.setAvailableInput(i);
             }
