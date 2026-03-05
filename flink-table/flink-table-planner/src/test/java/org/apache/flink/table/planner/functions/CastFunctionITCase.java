@@ -726,6 +726,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "2021-09-27 12:34:56", DateTimeException.class)
                         .fromCase(STRING(), "23", LocalTime.of(23, 0, 0, 0))
                         .fromCase(STRING(), "23:45", LocalTime.of(23, 45, 0, 0))
+                        // https://issues.apache.org/jira/browse/FLINK-39214
+                        // Fractional seconds below milliseconds are lost
                         .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
                         .failRuntime(
                                 STRING(), "2021-09-27 12:34:56.123456789", DateTimeException.class)
