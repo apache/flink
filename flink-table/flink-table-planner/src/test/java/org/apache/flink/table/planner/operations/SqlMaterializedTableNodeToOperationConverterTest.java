@@ -53,6 +53,7 @@ import org.apache.flink.table.operations.materializedtable.DropMaterializedTable
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
 import org.apache.flink.table.planner.utils.TableFunc0;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -399,6 +400,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
     @ParameterizedTest
     @MethodSource("testDataForCreateAlterMaterializedTableFailedCase")
     void createAlterMaterializedTableFailedCase(TestSpec spec) {
+        Assertions.setMaxStackTraceElementsDisplayed(20);
         assertThatThrownBy(
                         () -> {
                             AlterMaterializedTableChangeOperation operation =
