@@ -138,6 +138,14 @@ public class HighAvailabilityOptions {
                             "high-availability.zookeeper.path.jobgraphs")
                     .withDescription("ZooKeeper root path (ZNode) for execution plans");
 
+    /** ZooKeeper root path (ZNode) for applications. */
+    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
+    public static final ConfigOption<String> HA_ZOOKEEPER_APPLICATIONS_PATH =
+            key("high-availability.zookeeper.path.applications")
+                    .stringType()
+                    .defaultValue("/applications")
+                    .withDescription("ZooKeeper root path (ZNode) for applications");
+
     // ------------------------------------------------------------------------
     //  ZooKeeper Client Settings
     // ------------------------------------------------------------------------
