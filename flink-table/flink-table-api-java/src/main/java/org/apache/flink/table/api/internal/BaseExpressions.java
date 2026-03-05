@@ -109,6 +109,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INET_ATON;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INET_NTOA;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_CAP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
@@ -1417,6 +1419,55 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType urlEncode() {
         return toApiSpecificExpression(unresolvedCall(URL_ENCODE, toExpr()));
+    }
+
+    /**
+     * Converts an IPv4 address string to its numeric representation. This function follows MySQL
+     * INET_ATON behavior.
+     *
+     * <p>The conversion formula is: A * 256^3 + B * 256^2 + C * 256 + D for an IP address A.B.C.D
+     *
+     * <p>Supports MySQL-compatible short-form addresses:
+     *
+     * <ul>
+     *   <li>a.b is interpreted as a.0.0.b
+     *   <li>a.b.c is interpreted as a.b.0.c
+     * </ul>
+     *
+     * <p>Leading zeros in octets are parsed as decimal (not octal), consistent with MySQL.
+     *
+     * <p>Examples:
+     *
+     * <ul>
+     *   <li>INET_ATON('127.0.0.1') returns 2130706433
+     *   <li>INET_ATON('127.1') returns 2130706433 (short-form)
+     *   <li>INET_ATON('0.0.0.0') returns 0
+     * </ul>
+     *
+     * @return the numeric representation of the IP address, or null if the input is null or invalid
+     */
+    public OutType inetAton() {
+        return toApiSpecificExpression(unresolvedCall(INET_ATON, toExpr()));
+    }
+
+    /**
+     * Converts a numeric IPv4 address representation back to its string format. This function
+     * follows MySQL INET_NTOA behavior.
+     *
+     * <p>Accepts BIGINT or INT input. The input must be in the valid IPv4 range [0, 4294967295].
+     *
+     * <p>Examples:
+     *
+     * <ul>
+     *   <li>INET_NTOA(2130706433) returns '127.0.0.1'
+     *   <li>INET_NTOA(0) returns '0.0.0.0'
+     * </ul>
+     *
+     * @return the IPv4 address string in dotted-decimal notation, or null if the input is null or
+     *     out of valid range
+     */
+    public OutType inetNtoa() {
+        return toApiSpecificExpression(unresolvedCall(INET_NTOA, toExpr()));
     }
 
     /**
