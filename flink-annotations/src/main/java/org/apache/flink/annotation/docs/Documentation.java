@@ -68,6 +68,8 @@ public final class Documentation {
                 "common_high_availability_zk";
         public static final String COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE =
                 "common_high_availability_jrs";
+        public static final String COMMON_HIGH_AVAILABILITY_APPLICATION_RESULT_STORE =
+                "common_high_availability_ars";
         public static final String COMMON_MEMORY = "common_memory";
         public static final String COMMON_MISCELLANEOUS = "common_miscellaneous";
 

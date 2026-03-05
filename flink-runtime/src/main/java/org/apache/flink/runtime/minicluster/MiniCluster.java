@@ -20,6 +20,8 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -35,6 +37,7 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -1180,6 +1183,18 @@ public class MiniCluster implements AutoCloseableAsync {
                                                                 blobServerAddress.getHostName(),
                                                                 blobServerPort)))
                 .thenCompose(Function.identity());
+    }
+
+    // ------------------------------------------------------------------------
+    //  Accessing applications
+    // ------------------------------------------------------------------------
+
+    public CompletableFuture<ApplicationState> getApplicationStatus(ApplicationID applicationId) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway
+                                .requestApplication(applicationId, rpcTimeout)
+                                .thenApply(ArchivedApplication::getApplicationStatus));
     }
 
     // ------------------------------------------------------------------------

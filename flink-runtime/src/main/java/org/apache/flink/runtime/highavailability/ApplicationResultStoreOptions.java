@@ -26,23 +26,24 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
-/** The set of configuration options relating to the Job Result Store. */
+/** The set of configuration options relating to the Application Result Store. */
 @PublicEvolving
-public class JobResultStoreOptions {
-    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
+public class ApplicationResultStoreOptions {
+
+    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_APPLICATION_RESULT_STORE)
     public static final ConfigOption<String> STORAGE_PATH =
-            ConfigOptions.key("job-result-store.storage-path")
+            ConfigOptions.key("application-result-store.storage-path")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Defines where job results should be stored. This should be an "
+                                            "Defines where application results should be stored. This should be an "
                                                     + "underlying file-system that provides read-after-write consistency. By "
                                                     + "default, this is %s.",
                                             TextElement.code(
-                                                    FileSystemJobResultStore
-                                                            .createDefaultJobResultStorePath(
+                                                    FileSystemApplicationResultStore
+                                                            .createDefaultApplicationResultStorePath(
                                                                     String.format(
                                                                             "{%s}",
                                                                             HighAvailabilityOptions
@@ -55,19 +56,15 @@ public class JobResultStoreOptions {
                                                                                     .key()))))
                                     .build());
 
-    /**
-     * @deprecated Use {@link ApplicationResultStoreOptions#DELETE_ON_COMMIT}
-     */
-    @Deprecated
-    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_APPLICATION_RESULT_STORE)
     public static final ConfigOption<Boolean> DELETE_ON_COMMIT =
-            ConfigOptions.key("job-result-store.delete-on-commit")
+            ConfigOptions.key("application-result-store.delete-on-commit")
                     .booleanType()
                     .defaultValue(Boolean.TRUE)
                     .withDescription(
-                            "Determines whether job results should be automatically removed "
-                                    + "from the underlying job result store when the corresponding entity "
-                                    + "transitions into a clean state. If false, the cleaned job results "
+                            "Determines whether application results should be automatically removed "
+                                    + "from the underlying application result store when the corresponding entity "
+                                    + "transitions into a clean state. If false, the cleaned application results "
                                     + "are, instead, marked as clean to indicate their state. In this "
                                     + "case, Flink no longer has ownership and the resources need to "
                                     + "be cleaned up by the user.");
