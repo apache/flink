@@ -26,13 +26,13 @@ import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.IntervalFreshness;
-import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ColumnPosition;
@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
+import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.type.SqlTypeFamily;
@@ -74,8 +75,7 @@ public class MaterializedTableUtils {
                     "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
         }
 
-        SqlIntervalLiteral.IntervalValue intervalValue =
-                sqlIntervalLiteral.getValueAs(SqlIntervalLiteral.IntervalValue.class);
+        IntervalValue intervalValue = sqlIntervalLiteral.getValueAs(IntervalValue.class);
         String interval = intervalValue.getIntervalLiteral();
         switch (intervalValue.getIntervalQualifier().typeName()) {
             case INTERVAL_DAY:
@@ -127,17 +127,18 @@ public class MaterializedTableUtils {
     // ALTER MATERIALIZED TABLE ... AS ...
     public static List<TableChange> buildSchemaTableChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+        if (!isSchemaChanged(oldSchema, newSchema)) {
+            return List.of();
+        }
+
         final List<Column> oldColumns = oldSchema.getColumns();
-        final List<Column> newColumns = newSchema.getColumns();
-        int persistedColumnOffset = 0;
         final Map<String, Tuple2<Column, Integer>> oldColumnSet = new HashMap<>();
         for (int i = 0; i < oldColumns.size(); i++) {
             Column column = oldColumns.get(i);
-            if (!column.isPersisted()) {
-                persistedColumnOffset++;
-            }
             oldColumnSet.put(column.getName(), Tuple2.of(oldColumns.get(i), i));
         }
+        // Schema retrieved from query doesn't count existing non persisted columns
+        final List<Column> newColumns = newSchema.getColumns();
 
         List<TableChange> changes = new ArrayList<>();
         for (int i = 0; i < newColumns.size(); i++) {
@@ -150,8 +151,7 @@ public class MaterializedTableUtils {
             }
 
             // Check if position changed
-            applyPositionChanges(
-                    newColumns, oldColumnToPosition, i + persistedColumnOffset, changes);
+            applyPositionChanges(newColumns, oldColumnToPosition, i, changes);
 
             Column oldColumn = oldColumnToPosition.f0;
             // Check if column changed
@@ -206,6 +206,33 @@ public class MaterializedTableUtils {
         }
 
         return changes;
+    }
+
+    // Since it is only for query change, then check only persisted columns which could be
+    // changed/added/dropped with such change
+    private static boolean isSchemaChanged(ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+        List<Column> oldPersistedColumns =
+                oldSchema.getColumns().stream()
+                        .filter(Column::isPersisted)
+                        .collect(Collectors.toList());
+        if (oldPersistedColumns.size() != newSchema.getColumnCount()) {
+            return true;
+        }
+        for (int i = 0; i < oldPersistedColumns.size(); i++) {
+            Column oldColumn = oldPersistedColumns.get(i);
+            Column newColumn = newSchema.getColumn(i).get();
+            if (!oldColumn.getName().equals(newColumn.getName())) {
+                return true;
+            }
+            if (!newColumn
+                    .getDataType()
+                    .getLogicalType()
+                    .equals(oldColumn.getDataType().getLogicalType())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void applyPositionChanges(
@@ -290,7 +317,7 @@ public class MaterializedTableUtils {
     }
 
     public static ResolvedSchema getQueryOperationResolvedSchema(
-            ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
+            CatalogMaterializedTable oldTable, ConvertContext context) {
         final SqlNode originalQuery =
                 context.getFlinkPlanner().parser().parse(oldTable.getOriginalQuery());
         final SqlNode validateQuery = context.getSqlValidator().validate(originalQuery);
@@ -302,7 +329,7 @@ public class MaterializedTableUtils {
     }
 
     public static void validatePersistedColumnsUsedByQuery(
-            ResolvedCatalogMaterializedTable oldTable,
+            CatalogMaterializedTable oldTable,
             SqlAlterMaterializedTableSchema alterTableSchema,
             ConvertContext context) {
         final SqlNodeList sqlNodeList = alterTableSchema.getColumnPositions();

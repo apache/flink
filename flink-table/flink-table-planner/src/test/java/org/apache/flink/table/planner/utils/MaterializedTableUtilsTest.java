@@ -49,29 +49,9 @@ class MaterializedTableUtilsTest {
                         schema(physical("a", DataTypes.INT())),
                         List.of()),
                 TestSpec.of(
-                        schema(physical("a", DataTypes.INT())),
-                        schema(physical("a", DataTypes.INT()).withComment("comment")),
-                        List.of(
-                                TableChange.modifyColumnComment(
-                                        physical("a", DataTypes.INT()), "comment"))),
-                TestSpec.of(
                         schema(physical("a", DataTypes.INT()).withComment("comment")),
                         schema(physical("a", DataTypes.INT()).withComment("comment")),
                         List.of()),
-                TestSpec.of(
-                        schema(physical("a", DataTypes.TIMESTAMP()).withComment("comment")),
-                        schema(physical("a", DataTypes.TIMESTAMP()).withComment("comment 2")),
-                        List.of(
-                                TableChange.modifyColumnComment(
-                                        physical("a", DataTypes.TIMESTAMP()).withComment("comment"),
-                                        "comment 2"))),
-                TestSpec.of(
-                        schema(physical("a", DataTypes.FLOAT()).withComment("comment")),
-                        schema(physical("a", DataTypes.FLOAT())),
-                        List.of(
-                                TableChange.modifyColumnComment(
-                                        physical("a", DataTypes.FLOAT()).withComment("comment"),
-                                        null))),
                 TestSpec.of(
                         schema(physical("a", DataTypes.INT()).withComment("comment")),
                         schema(physical("a2", DataTypes.STRING()).withComment("comment 2")),

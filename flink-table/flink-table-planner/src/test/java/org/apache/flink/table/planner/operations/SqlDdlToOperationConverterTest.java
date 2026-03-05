@@ -1553,9 +1553,13 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 "tb2", false, 1, TableDistribution.of(Kind.HASH, 1, List.of("a")), "SELECT 1");
 
         assertThatThrownBy(
-                        () ->
-                                parse(
-                                        "alter materialized table cat1.db1.tb2 add distribution into 3 buckets"))
+                        () -> {
+                            AlterMaterializedTableChangeOperation tableChangeOperation =
+                                    (AlterMaterializedTableChangeOperation)
+                                            parse(
+                                                    "alter materialized table cat1.db1.tb2 add distribution into 3 buckets");
+                            tableChangeOperation.getTableChanges();
+                        })
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "The current materialized table has already defined the distribution "

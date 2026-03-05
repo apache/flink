@@ -20,11 +20,12 @@ package org.apache.flink.table.operations.materializedtable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Operation to describe an ALTER MATERIALIZED TABLE AS query operation. The operation is not
@@ -38,9 +39,9 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
 
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
-            List<TableChange> tableChanges,
-            CatalogMaterializedTable oldTable) {
-        super(tableIdentifier, tableChanges, oldTable);
+            Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangesForTable,
+            ResolvedCatalogMaterializedTable oldTable) {
+        super(tableIdentifier, tableChangesForTable, oldTable);
     }
 
     @Override
@@ -53,7 +54,6 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
     public String asSummaryString() {
         return String.format(
                 "ALTER MATERIALIZED TABLE %s AS %s",
-                tableIdentifier.asSummaryString(),
-                getMaterializedTableWithAppliedChanges().getExpandedQuery());
+                tableIdentifier.asSummaryString(), getNewTable().getExpandedQuery());
     }
 }

@@ -50,6 +50,7 @@ import org.apache.flink.table.operations.materializedtable.AlterMaterializedTabl
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
 import org.apache.flink.table.planner.utils.TableFunc0;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -178,6 +179,19 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "AS SELECT 1";
 
         createMaterializedTableInCatalog(sqlWithNonPersisted, "base_mtbl_with_non_persisted");
+
+        // MATERIALIZED TABLE with non persisted columns last
+        final String sqlWithNonPersistedLast =
+                "CREATE MATERIALIZED TABLE base_mtbl_with_non_persisted_last (\n"
+                        + "   a INT NOT NULL,"
+                        + "   c AS UPPER(CAST(a AS STRING))"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT 1 as a";
+
+        createMaterializedTableInCatalog(
+                sqlWithNonPersistedLast, "base_mtbl_with_non_persisted_last");
     }
 
     @Test
@@ -389,7 +403,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         () -> {
                             AlterMaterializedTableChangeOperation operation =
                                     (AlterMaterializedTableChangeOperation) parse(spec.sql);
-                            operation.getMaterializedTableWithAppliedChanges();
+                            operation.getNewTable();
                         })
                 .as(spec.sql)
                 .isInstanceOf(spec.expectedException)
@@ -408,8 +422,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
     void createAlterTableSuccessCase(TestSpec testSpec) {
         AlterMaterializedTableChangeOperation operation =
                 (AlterMaterializedTableChangeOperation) parse(testSpec.sql);
-        CatalogMaterializedTable catalogMaterializedTable =
-                operation.getMaterializedTableWithAppliedChanges();
+        CatalogMaterializedTable catalogMaterializedTable = operation.getNewTable();
         assertThat(catalogMaterializedTable.getUnresolvedSchema())
                 .hasToString(testSpec.expectedSchema);
     }
@@ -538,7 +551,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getMaterializedTableWithAppliedChanges();
+        CatalogMaterializedTable newTable = op.getNewTable();
 
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
         assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
@@ -652,10 +665,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
         Operation operation = parse(sql);
 
-        assertThat(operation).isInstanceOf(AlterMaterializedTableAsQueryOperation.class);
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
 
-        AlterMaterializedTableAsQueryOperation op =
-                (AlterMaterializedTableAsQueryOperation) operation;
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
         assertThat(op.getTableChanges())
                 .containsExactly(
                         TableChange.add(Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
@@ -668,15 +680,20 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         TableChange.reset("connector"));
         assertThat(operation.asSummaryString())
                 .isEqualTo(
-                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl AS SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
-                                + "FROM `builtin`.`default`.`t3` AS `t3`");
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
+                                + "  ADD `e` STRING ,\n"
+                                + "  ADD `f` STRING ,\n"
+                                + " MODIFY DEFINITION QUERY TO 'SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
+                                + "FROM `builtin`.`default`.`t3` AS `t3`',\n"
+                                + "  SET 'format' = 'json2',\n"
+                                + "  RESET 'connector'");
 
         // new table only difference schema & definition query with old table.
         CatalogMaterializedTable oldTable =
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getMaterializedTableWithAppliedChanges();
+        CatalogMaterializedTable newTable = op.getNewTable();
 
         assertThat(newTable.getOptions()).containsExactly(Map.entry("format", "json2"));
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
@@ -748,6 +765,11 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "renaming, and reordering columns are not supported.\n"
                                 + "Column mismatch at position 3: Original column is [`d` STRING], "
                                 + "but new column is [`d` STRING NOT NULL]."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT '123'",
+                        "ALTER query for MATERIALIZED TABLE "
+                                + "with schema containing non persisted columns is not supported, "
+                                + "consider using CREATE OR ALTER MATERIALIZED TABLE instead"),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE t1 AS SELECT * FROM t1",
                         "ALTER MATERIALIZED TABLE for a table is not allowed"));
@@ -1200,7 +1222,23 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         list.add(
                 TestSpec.withExpectedSchema(
-                        "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 1",
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted_last AS SELECT 1 as a",
+                        "(\n"
+                                + "  `c` AS [UPPER(CAST(`a` AS STRING))],\n"
+                                + "  `a` INT NOT NULL\n"
+                                + ")"));
+
+        list.add(
+                TestSpec.withExpectedSchema(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted_last AS SELECT 1 as a",
+                        "(\n"
+                                + "  `c` AS [UPPER(CAST(`a` AS STRING))],\n"
+                                + "  `a` INT NOT NULL\n"
+                                + ")"));
+
+        list.add(
+                TestSpec.withExpectedSchema(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 1",
                         "(\n"
                                 + "  `m` STRING METADATA VIRTUAL,\n"
                                 + "  `calc` AS ['a' || 'b'],\n"
@@ -1209,7 +1247,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         list.add(
                 TestSpec.withExpectedSchema(
-                        "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 2, 'a' AS sec",
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 2, 'a' AS sec",
                         "(\n"
                                 + "  `m` STRING METADATA VIRTUAL,\n"
                                 + "  `calc` AS ['a' || 'b'],\n"
@@ -1225,6 +1263,15 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "  `calc` AS ['a' || 'b'],\n"
                                 + "  `EXPR$0` INT NOT NULL,\n"
                                 + "  `sec` CHAR(1)\n"
+                                + ")"));
+
+        list.add(
+                TestSpec.withExpectedSchema(
+                        // Schema doesn't change, so should be ok
+                        "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted_last AS SELECT 123 as a",
+                        "(\n"
+                                + "  `c` AS [UPPER(CAST(`a` AS STRING))],\n"
+                                + "  `a` INT NOT NULL\n"
                                 + ")"));
         return list;
     }
