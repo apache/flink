@@ -128,9 +128,24 @@ class SimplifyCoalesceWithEquiJoinConditionRuleTest extends TableTestBase {
     }
 
     @Test
-    void testNestedCoalesceInExpression() {
+    void testCoalesceWrappedInCast() {
         util.verifyRelPlan(
                 "SELECT CAST(COALESCE(b.order_id, a.order_id) AS STRING) AS order_id_str "
                         + "FROM orders a LEFT JOIN order_details b ON a.order_id = b.order_id");
+    }
+
+    @Test
+    void testCoalesceOnNestedRowScalarField() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE order_details_row ("
+                                + "  r ROW<order_id BIGINT NOT NULL, order_name STRING NOT NULL> NOT NULL, "
+                                + "  detail STRING,"
+                                + "  PRIMARY KEY (r) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values')");
+
+        util.verifyRelPlan(
+                "SELECT CAST(COALESCE(b.r.order_id, a.order_id) AS STRING) AS order_id_str "
+                        + "FROM orders a LEFT JOIN order_details_row b ON a.order_id = b.r.order_id");
     }
 }
