@@ -52,11 +52,11 @@ class S3ClientProviderTest {
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
-        assertThat(chain).hasSize(2);
-        assertThat(chain.get(0)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
-        AwsCredentials creds = chain.get(1).resolveCredentials();
+        assertThat(chain).hasSize(3);
+        AwsCredentials creds = chain.get(0).resolveCredentials();
         assertThat(creds.accessKeyId()).isEqualTo("test-key");
         assertThat(creds.secretAccessKey()).isEqualTo("test-secret");
+        assertThat(chain.get(1)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
     }
 
     @Test
@@ -86,14 +86,15 @@ class S3ClientProviderTest {
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
-        assertThat(chain).hasSize(2);
-        AwsCredentials creds = chain.get(1).resolveCredentials();
+        assertThat(chain).hasSize(3);
+        AwsCredentials creds = chain.get(0).resolveCredentials();
         assertThat(creds).isInstanceOf(AwsBasicCredentials.class);
         assertThat(creds.accessKeyId()).isEqualTo("my-access");
+        assertThat(chain.get(1)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
     }
 
     @Test
-    void testCustomProviderReplacesDefaultChain() throws Exception {
+    void testCustomProviderPrependedToChain() throws Exception {
         S3ClientProvider provider =
                 S3ClientProvider.builder()
                         .endpoint(DUMMY_ENDPOINT)
@@ -103,8 +104,9 @@ class S3ClientProviderTest {
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
-        assertThat(chain).hasSize(1);
+        assertThat(chain).hasSize(3);
         assertThat(chain.get(0)).isInstanceOf(AnonymousCredentialsProvider.class);
+        assertThat(chain.get(1)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
     }
 
     @Test
@@ -119,12 +121,13 @@ class S3ClientProviderTest {
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
-        assertThat(chain).hasSize(2);
+        assertThat(chain).hasSize(4);
         assertThat(chain.get(0)).isInstanceOf(AnonymousCredentialsProvider.class);
+        assertThat(chain.get(2)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
     }
 
     @Test
-    void testCustomProviderDoesNotIncludeTokenProvider() throws Exception {
+    void testCustomProviderChainAlwaysIncludesTokenProvider() throws Exception {
         S3ClientProvider provider =
                 S3ClientProvider.builder()
                         .endpoint(DUMMY_ENDPOINT)
@@ -134,7 +137,7 @@ class S3ClientProviderTest {
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
-        assertThat(chain).noneMatch(p -> p instanceof DynamicTemporaryAWSCredentialsProvider);
+        assertThat(chain).anyMatch(p -> p instanceof DynamicTemporaryAWSCredentialsProvider);
     }
 
     @Test

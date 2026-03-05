@@ -291,12 +291,6 @@ public class S3ClientProvider implements AutoCloseableAsync {
         }
 
         public S3ClientProvider build() {
-            if (accessKey == null) {
-                accessKey = System.getProperty("aws.accessKeyId");
-            }
-            if (secretKey == null) {
-                secretKey = System.getProperty("aws.secretAccessKey");
-            }
             if (endpoint == null) {
                 endpoint = System.getProperty("s3.endpoint");
             }
@@ -390,9 +384,10 @@ public class S3ClientProvider implements AutoCloseableAsync {
         }
 
         private AwsCredentialsProvider buildBaseCredentialsProvider() {
+            List<AwsCredentialsProvider> chain = new ArrayList<>();
+
             if (credentialsProviderClasses != null
                     && !credentialsProviderClasses.trim().isEmpty()) {
-                List<AwsCredentialsProvider> chain = new ArrayList<>();
                 for (String name : credentialsProviderClasses.split(",")) {
                     String trimmed = name.trim();
                     if (!trimmed.isEmpty()) {
@@ -403,22 +398,28 @@ public class S3ClientProvider implements AutoCloseableAsync {
                     throw new IllegalArgumentException(
                             "fs.s3.aws.credentials.provider is set but contains no valid provider class names");
                 }
-                LOG.info(
-                        "Using configured credentials provider chain: {}",
-                        credentialsProviderClasses);
-                return AwsCredentialsProviderChain.builder().credentialsProviders(chain).build();
             }
 
+            if (accessKey != null && secretKey != null) {
+                chain.add(
+                        StaticCredentialsProvider.create(
+                                AwsBasicCredentials.create(accessKey, secretKey)));
+            }
+
+            chain.add(new DynamicTemporaryAWSCredentialsProvider());
+            chain.add(DefaultCredentialsProvider.builder().build());
+
             LOG.info(
-                    "Using default credentials provider chain: "
-                            + "DynamicTemporaryAWSCredentialsProvider -> {}",
+                    "Using credentials provider chain: {}{}DynamicTemporaryAWSCredentialsProvider -> DefaultCredentialsProvider",
+                    credentialsProviderClasses != null
+                                    && !credentialsProviderClasses.trim().isEmpty()
+                            ? credentialsProviderClasses.trim() + " -> "
+                            : "",
                     (accessKey != null && secretKey != null)
-                            ? "StaticCredentialsProvider"
-                            : "DefaultCredentialsProvider");
-            return AwsCredentialsProviderChain.builder()
-                    .credentialsProviders(
-                            new DynamicTemporaryAWSCredentialsProvider(), buildFallbackProvider())
-                    .build();
+                            ? "StaticCredentialsProvider -> "
+                            : "");
+
+            return AwsCredentialsProviderChain.builder().credentialsProviders(chain).build();
         }
 
         /**
@@ -481,14 +482,6 @@ public class S3ClientProvider implements AutoCloseableAsync {
                     .stsClient(stsClient)
                     .refreshRequest(requestBuilder.build())
                     .build();
-        }
-
-        private AwsCredentialsProvider buildFallbackProvider() {
-            if (accessKey != null && secretKey != null) {
-                return StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey));
-            }
-            return DefaultCredentialsProvider.create();
         }
 
         private Region resolveRegion(@Nullable String explicitRegion) {
