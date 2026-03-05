@@ -586,6 +586,84 @@ public class KubernetesConfigOptions {
                             "The node label whose value is the same as the node name. "
                                     + "Currently, this will only be used to set the node affinity of TM pods to avoid being scheduled on blocked nodes.");
 
+    /**
+     * The user-specified PersistentVolumeClaims (PVCs) that will be mounted into Flink containers.
+     *
+     * <p>The value should be in the form of {@code pvc-name:/mount/path} separated by commas.
+     * Multiple PVCs can be specified by separating them with commas.
+     *
+     * <p>Example: {@code checkpoint-pvc:/opt/flink/checkpoints,data-pvc:/opt/flink/data}
+     *
+     * <p>Prerequisites:
+     *
+     * <ul>
+     *   <li>The PVCs must exist in the same namespace as the Flink cluster before deployment
+     *   <li>The PVCs must have appropriate access modes:
+     *       <ul>
+     *         <li>ReadWriteOnce (RWO): For single pod access
+     *         <li>ReadWriteMany (RWX): For multiple pods (recommended for HA setups)
+     *         <li>ReadOnlyMany (ROX): For read-only access from multiple pods
+     *       </ul>
+     * </ul>
+     *
+     * <p>Common use cases:
+     *
+     * <ul>
+     *   <li>Checkpoint storage: Mount a shared PVC for storing checkpoints
+     *   <li>Savepoint storage: Mount a PVC for savepoint data
+     *   <li>Shared data: Mount read-only PVCs containing reference data
+     *   <li>Job artifacts: Mount PVCs containing job JARs or dependencies
+     * </ul>
+     */
+    public static final ConfigOption<Map<String, String>> KUBERNETES_PERSISTENT_VOLUME_CLAIMS =
+            key("kubernetes.persistent-volume-claims")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The user-specified %s that will be mounted into Flink containers. "
+                                                    + "The value should be in the form of %s. "
+                                                    + "Multiple PVCs can be specified, for example: %s. "
+                                                    + "The PVCs must exist in the same namespace as the Flink cluster before deployment. "
+                                                    + "For HA setups with multiple JobManagers or TaskManagers accessing the same storage, "
+                                                    + "use PVCs with ReadWriteMany (RWX) or ReadOnlyMany (ROX) access modes.",
+                                            link(
+                                                    "https://kubernetes.io/docs/concepts/storage/persistent-volumes/",
+                                                    "PersistentVolumeClaims (PVCs)"),
+                                            code("pvc-name:/mount/path"),
+                                            code(
+                                                    "checkpoint-pvc:/opt/flink/checkpoints,data-pvc:/opt/flink/data"))
+                                    .build());
+
+    /**
+     * Whether to mount PersistentVolumeClaims (PVCs) as read-only.
+     *
+     * <p>When set to true, all PVCs configured via {@link #KUBERNETES_PERSISTENT_VOLUME_CLAIMS}
+     * will be mounted as read-only. This is useful when the PVC contains shared data that should
+     * not be modified by Flink, such as reference datasets or pre-trained models.
+     *
+     * <p>Note: This setting applies globally to all PVCs configured via {@link
+     * #KUBERNETES_PERSISTENT_VOLUME_CLAIMS}. If you need different access modes for different PVCs,
+     * consider using pod templates instead.
+     *
+     * <p>Default: false (read-write mode)
+     */
+    public static final ConfigOption<Boolean> KUBERNETES_PERSISTENT_VOLUME_CLAIM_READ_ONLY =
+            key("kubernetes.persistent-volume-claims.read-only")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to mount PersistentVolumeClaims (PVCs) as read-only. "
+                                                    + "When set to true, all PVCs configured via '%s' will be mounted as read-only. "
+                                                    + "This is useful for shared data that should not be modified by Flink, "
+                                                    + "such as reference datasets or pre-trained models. "
+                                                    + "Note: This setting applies globally to all configured PVCs.",
+                                            text(KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key()))
+                                    .build());
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.

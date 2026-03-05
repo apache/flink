@@ -338,6 +338,116 @@ $ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\
 The env variable `SECRET_USERNAME` contains the username and the env variable `SECRET_PASSWORD` contains the password of the secret `mysecret`.
 For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables).
 
+### 挂载持久卷声明（PVC）
+
+[Kubernetes PersistentVolumeClaims (PVCs)](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) 提供了一种在 Kubernetes 中请求和使用持久存储的方式。
+Flink on Kubernetes 支持通过配置选项直接将 PVC 挂载到 JobManager 和 TaskManager Pod 中。
+
+#### 配置选项
+
+Flink 提供了两个用于挂载 PVC 的配置选项：
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 30%">配置选项</th>
+            <th class="text-left" style="width: 15%">类型</th>
+            <th class="text-left" style="width: 15%">默认值</th>
+            <th class="text-left" style="width: 40%">描述</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>kubernetes.persistent-volume-claims</code></td>
+            <td>Map&lt;String, String&gt;</td>
+            <td>(无)</td>
+            <td>用户指定的 PersistentVolumeClaims，将被挂载到 Flink 容器中。
+                值的格式为 <code>pvc-name:/mount/path</code>。
+                多个 PVC 可以用逗号分隔。</td>
+        </tr>
+        <tr>
+            <td><code>kubernetes.persistent-volume-claims.read-only</code></td>
+            <td>Boolean</td>
+            <td>false</td>
+            <td>是否以只读模式挂载 PersistentVolumeClaims。
+                设置为 true 时，所有 PVC 将以只读方式挂载。</td>
+        </tr>
+    </tbody>
+</table>
+
+#### 使用示例
+
+以下命令将 PVC `checkpoint-pvc` 挂载到启动 Pod 的 `/opt/flink/checkpoints` 路径：
+
+```bash
+$ ./bin/kubernetes-session.sh \
+    -Dkubernetes.cluster-id=my-session-cluster \
+    -Dkubernetes.persistent-volume-claims=checkpoint-pvc:/opt/flink/checkpoints
+```
+
+您可以通过逗号分隔来挂载多个 PVC：
+
+```bash
+$ ./bin/kubernetes-session.sh \
+    -Dkubernetes.cluster-id=my-session-cluster \
+    -Dkubernetes.persistent-volume-claims=checkpoint-pvc:/opt/flink/checkpoints,data-pvc:/opt/flink/data
+```
+
+以只读模式挂载 PVC（适用于共享参考数据）：
+
+```bash
+$ ./bin/kubernetes-session.sh \
+    -Dkubernetes.cluster-id=my-session-cluster \
+    -Dkubernetes.persistent-volume-claims=shared-data:/opt/flink/shared \
+    -Dkubernetes.persistent-volume-claims.read-only=true
+```
+
+#### 示例：使用 PVC 进行 Checkpoint 存储
+
+一个常见的用例是使用 PVC 存储 checkpoint。首先，在 Kubernetes 集群中创建一个 PVC：
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flink-checkpoints-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+```
+
+然后启动一个挂载 PVC 用于 checkpoint 存储的 Flink 集群：
+
+```bash
+$ ./bin/flink run \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-checkpoint-cluster \
+    -Dkubernetes.container.image=flink:latest \
+    -Dkubernetes.persistent-volume-claims=flink-checkpoints-pvc:/opt/flink/checkpoints \
+    -Dstate.checkpoints.dir=file:///opt/flink/checkpoints \
+    local:///opt/flink/usrlib/my-flink-job.jar
+```
+
+#### 前提条件
+
+- PVC 必须在 Flink 集群部署之前存在于同一命名空间中。
+- PVC 必须具有适当的访问模式：
+  - **ReadWriteOnce (RWO)**：单个 Pod 访问。适用于独立的 JobManager 部署。
+  - **ReadWriteMany (RWX)**：多个 Pod 访问同一存储。推荐用于高可用（HA）配置或当 JobManager 和 TaskManager 都需要写入同一存储时。
+  - **ReadOnlyMany (ROX)**：多个 Pod 只读访问。适用于共享参考数据。
+
+{{< hint warning >}}
+对于具有多个 JobManager 的高可用（HA）配置，或当 JobManager 和 TaskManager 都需要对同一存储进行写入访问时，请确保您的 PVC 支持 ReadWriteMany (RWX) 访问模式。在此类场景下使用 ReadWriteOnce (RWO) 可能会导致挂载失败或 I/O 错误。
+{{< /hint >}}
+
+{{< hint info >}}
+`kubernetes.persistent-volume-claims.read-only` 选项会全局应用于所有配置的 PVC。如果您需要为不同的 PVC 设置不同的访问模式（例如：checkpoint 使用读写模式，而参考数据使用只读模式），请使用 [Pod 模板]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#pod-template) 来定义细粒度的卷配置。
+{{< /hint >}}
+
 ### High-Availability on Kubernetes
 
 For high availability on Kubernetes, you can use the [existing high availability services]({{< ref "docs/deployment/ha/overview" >}}).
