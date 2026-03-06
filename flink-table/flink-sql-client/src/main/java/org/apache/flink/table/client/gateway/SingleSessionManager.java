@@ -221,7 +221,8 @@ public class SingleSessionManager implements SessionManager {
         protected ResultFetcher callRemoveJar(OperationHandle operationHandle, String jarPath) {
             URL jarURL =
                     ((ClientResourceManager) sessionContext.getSessionState().resourceManager)
-                            .unregisterResource(jarPath);
+                            .unregisterResource(
+                                    jarPath, List.of(ResourceType.JAR, ResourceType.ARTIFACT));
             if (jarURL != null) {
                 ((ClientWrapperClassLoader)
                                 sessionContext
