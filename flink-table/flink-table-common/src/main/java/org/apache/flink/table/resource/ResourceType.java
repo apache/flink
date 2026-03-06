@@ -25,5 +25,6 @@ import org.apache.flink.annotation.PublicEvolving;
 public enum ResourceType {
     FILE,
     JAR,
-    ARCHIVE
+    ARCHIVE,
+    ARTIFACT
 }
