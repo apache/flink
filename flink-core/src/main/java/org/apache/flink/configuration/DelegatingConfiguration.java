@@ -109,7 +109,7 @@ public final class DelegatingConfiguration extends Configuration {
                     String keyWithoutPrefix =
                             entry.getKey().substring(prefix.length(), entry.getKey().length());
 
-                    props.put(keyWithoutPrefix, entry.getValue());
+                    props.put(keyWithoutPrefix, entry.getValue().toString());
                 } else {
                     // don't add stuff that doesn't have our prefix
                 }

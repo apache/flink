@@ -216,4 +216,24 @@ class DelegatingConfigurationTest {
         delegatingConf.removeKey(integerOption.key());
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
     }
+
+    @Test
+    void testAddAllToPropertiesConvertsNumericValuesToStrings() {
+        Configuration config = new Configuration();
+        config.set(
+                ConfigOptions.key("metrics.reporter.prom.port").intType().noDefaultValue(), 9269);
+        config.set(
+                ConfigOptions.key("metrics.reporter.prom.factory.class")
+                        .stringType()
+                        .noDefaultValue(),
+                "SomeFactory");
+
+        DelegatingConfiguration delegatingConfig =
+                new DelegatingConfiguration(config, "metrics.reporter.prom.");
+
+        Properties props = new Properties();
+        delegatingConfig.addAllToProperties(props);
+        assertThat(props.getProperty("port")).isEqualTo("9269");
+        assertThat(props.getProperty("factory.class")).isEqualTo("SomeFactory");
+    }
 }

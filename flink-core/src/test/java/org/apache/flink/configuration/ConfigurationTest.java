@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
@@ -564,6 +565,23 @@ class ConfigurationTest {
         // stringOption1 is changed.
         conf.set(stringOption1, "e");
         assertThat(conf.get(stringOption1, "d")).isEqualTo("e");
+    }
+
+    @Test
+    void testAddAllToPropertiesConvertsNumericValuesToStrings() {
+        Configuration config = new Configuration();
+        config.set(
+                ConfigOptions.key("metrics.reporter.prom.port").intType().noDefaultValue(), 9269);
+        config.set(
+                ConfigOptions.key("metrics.reporter.prom.factory.class")
+                        .stringType()
+                        .noDefaultValue(),
+                "SomeFactory");
+        Properties props = new Properties();
+        config.addAllToProperties(props);
+        assertThat(props.getProperty("metrics.reporter.prom.port")).isEqualTo("9269");
+        assertThat(props.getProperty("metrics.reporter.prom.factory.class"))
+                .isEqualTo("SomeFactory");
     }
 
     // --------------------------------------------------------------------------------------------
