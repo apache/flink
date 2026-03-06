@@ -36,9 +36,10 @@ import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Modifier;
@@ -47,13 +48,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Scans the class path for type information and checks if there is a test for it. */
-public class TypeInfoTestCoverageTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class TypeInfoTestCoverageTest {
 
     @Test
-    public void testTypeInfoTestCoverage() {
+    void testTypeInfoTestCoverage() {
         Reflections reflections = new Reflections("org.apache.flink");
 
         Set<Class<? extends TypeInformation>> typeInfos =

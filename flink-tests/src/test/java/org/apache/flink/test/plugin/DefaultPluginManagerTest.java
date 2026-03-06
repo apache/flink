@@ -28,10 +28,9 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -44,20 +43,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DefaultPluginManager}. */
-public class DefaultPluginManagerTest extends PluginTestBase {
+class DefaultPluginManagerTest extends PluginTestBase {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private File temporaryFolder;
 
     private Collection<PluginDescriptor> descriptors;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         /*
          * We setup a plugin directory hierarchy and utilize DirectoryBasedPluginFinder to create the
          * descriptors:
@@ -71,10 +67,9 @@ public class DefaultPluginManagerTest extends PluginTestBase {
          *                        |-plugin-b.jar
          * </pre>
          */
-        final File pluginRootFolder = temporaryFolder.newFolder();
-        final Path pluginRootFolderPath = pluginRootFolder.toPath();
-        final File pluginAFolder = new File(pluginRootFolder, "A");
-        final File pluginBFolder = new File(pluginRootFolder, "B");
+        final Path pluginRootFolderPath = temporaryFolder.toPath();
+        final File pluginAFolder = new File(temporaryFolder, "A");
+        final File pluginBFolder = new File(temporaryFolder, "B");
         Preconditions.checkState(pluginAFolder.mkdirs());
         Preconditions.checkState(pluginBFolder.mkdirs());
         Files.copy(locateJarFile(PLUGIN_A).toPath(), Paths.get(pluginAFolder.toString(), PLUGIN_A));
@@ -86,51 +81,49 @@ public class DefaultPluginManagerTest extends PluginTestBase {
     }
 
     @Test
-    public void testPluginLoading() {
-
+    void testPluginLoading() {
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
         final PluginManager pluginManager =
                 new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
         final List<TestSpi> serviceImplList = Lists.newArrayList(pluginManager.load(TestSpi.class));
-        assertEquals(2, serviceImplList.size());
+        assertThat(serviceImplList).hasSize(2);
 
         // check that all impl have unique classloader
         final Set<ClassLoader> classLoaders = Collections.newSetFromMap(new IdentityHashMap<>(3));
         classLoaders.add(PARENT_CLASS_LOADER);
         for (TestSpi testSpi : serviceImplList) {
-            assertNotNull(testSpi.testMethod());
-            assertTrue(classLoaders.add(testSpi.getClass().getClassLoader()));
+            assertThat(testSpi.testMethod()).isNotNull();
+            assertThat(classLoaders.add(testSpi.getClass().getClassLoader())).isTrue();
         }
 
         final List<OtherTestSpi> otherServiceImplList =
                 Lists.newArrayList(pluginManager.load(OtherTestSpi.class));
-        assertEquals(1, otherServiceImplList.size());
+        assertThat(otherServiceImplList).hasSize(1);
         for (OtherTestSpi otherTestSpi : otherServiceImplList) {
-            assertNotNull(otherTestSpi.otherTestMethod());
-            assertFalse(classLoaders.add(otherTestSpi.getClass().getClassLoader()));
+            assertThat(otherTestSpi.otherTestMethod()).isNotNull();
+            assertThat(classLoaders.add(otherTestSpi.getClass().getClassLoader())).isFalse();
         }
     }
 
     @Test
-    public void classLoaderMustBeTheSameInsideAPlugin() {
+    void classLoaderMustBeTheSameInsideAPlugin() {
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
         final PluginManager pluginManager =
                 new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
         final List<TestSpi> serviceImplList = Lists.newArrayList(pluginManager.load(TestSpi.class));
-        assertEquals(2, serviceImplList.size());
+        assertThat(serviceImplList).hasSize(2);
 
         final List<OtherTestSpi> otherServiceImplList =
                 Lists.newArrayList(pluginManager.load(OtherTestSpi.class));
-        assertEquals(1, otherServiceImplList.size());
+        assertThat(otherServiceImplList).hasSize(1);
 
         // instanceof with multiple classloaders works only this way
         final List<TestSpi> serviceBImplList =
                 serviceImplList.stream()
                         .filter(s -> s.getClass().getName().equals(TestServiceB.class.getName()))
                         .collect(Collectors.toList());
-        assertEquals(1, serviceBImplList.size());
-        assertEquals(
-                otherServiceImplList.get(0).getClass().getClassLoader(),
-                serviceBImplList.get(0).getClass().getClassLoader());
+        assertThat(serviceBImplList).hasSize(1);
+        assertThat(serviceBImplList.get(0).getClass().getClassLoader())
+                .isSameAs(otherServiceImplList.get(0).getClass().getClassLoader());
     }
 }

@@ -36,22 +36,25 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.LongValue;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests network shuffle when data compression is enabled. */
-@RunWith(Parameterized.class)
-public class ShuffleCompressionITCase {
+@ExtendWith(ParameterizedTestExtension.class)
+class ShuffleCompressionITCase {
 
     private static final int NUM_BUFFERS_TO_SEND = 1000;
 
@@ -74,15 +77,15 @@ public class ShuffleCompressionITCase {
 
     private static final LongValue RECORD_TO_SEND = new LongValue(4387942071694473832L);
 
-    @Parameterized.Parameter public static boolean useBroadcastPartitioner = false;
+    @Parameter private static Boolean useBroadcastPartitioner;
 
-    @Parameterized.Parameters(name = "useBroadcastPartitioner = {0}")
-    public static Boolean[] params() {
-        return new Boolean[] {true, false};
+    @Parameters(name = "useBroadcastPartitioner = {0}")
+    public static Collection<Boolean> params() {
+        return Arrays.asList(true, false);
     }
 
-    @Test
-    public void testNoDataCompressionForSortMergeBlockingShuffle() throws Exception {
+    @TestTemplate
+    void testNoDataCompressionForSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(
                 NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC,
@@ -158,7 +161,7 @@ public class ShuffleCompressionITCase {
             LongValue value = new LongValue();
             for (int i = 0; i < PARALLELISM * NUM_RECORDS_TO_SEND; ++i) {
                 reader.next(value);
-                assertEquals(RECORD_TO_SEND.getValue(), value.getValue());
+                assertThat(value.getValue()).isEqualTo(RECORD_TO_SEND.getValue());
             }
         }
     }

@@ -19,7 +19,9 @@
 package org.apache.flink.test.plugin;
 
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -29,7 +31,8 @@ import java.net.URL;
  * Base class for some tests related to the plugin mechanism. Provides access to some common test
  * resources.
  */
-abstract class PluginTestBase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+abstract class PluginTestBase {
 
     /** Optional prefix to the jar folder if run from an IDE. */
     private static final String OPT_PREFIX = "target/";

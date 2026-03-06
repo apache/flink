@@ -29,30 +29,33 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.function.Predicate;
+import java.util.function.Consumer;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for failing job submissions. */
-public class JobSubmissionFailsITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class JobSubmissionFailsITCase {
 
     private static final int NUM_TM = 2;
     private static final int NUM_SLOTS = 20;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(NUM_TM)
@@ -77,57 +80,48 @@ public class JobSubmissionFailsITCase extends TestLogger {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testExceptionInInitializeOnMaster() throws Exception {
+    void testExceptionInInitializeOnMaster(@InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         final JobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
         failingJobVertex.setInvokableClass(NoOpInvokable.class);
         failingJobVertex.setParallelism(1);
 
         final JobGraph failingJobGraph = JobGraphTestUtils.streamingJobGraph(failingJobVertex);
         runJobSubmissionTest(
+                clusterClient,
                 failingJobGraph,
-                e ->
-                        ExceptionUtils.findThrowable(
-                                        e,
-                                        candidate ->
-                                                "Test exception.".equals(candidate.getMessage()))
-                                .isPresent());
+                e -> assertThat(e).hasRootCauseMessage("Test exception."));
     }
 
     @Test
-    public void testSubmitEmptyJobGraph() throws Exception {
+    void testSubmitEmptyJobGraph(@InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
         runJobSubmissionTest(
+                clusterClient,
                 jobGraph,
-                e ->
-                        ExceptionUtils.findThrowable(
-                                        e,
-                                        throwable ->
-                                                throwable.getMessage() != null
-                                                        && throwable.getMessage().contains("empty"))
-                                .isPresent());
+                e -> assertThat(e).rootCause().hasMessageContaining("empty"));
     }
 
     @Test
-    public void testMissingJarBlob() throws Exception {
+    void testMissingJarBlob(@InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         final JobGraph jobGraph = getJobGraphWithMissingBlobKey();
         runJobSubmissionTest(
-                jobGraph, e -> ExceptionUtils.findThrowable(e, IOException.class).isPresent());
+                clusterClient,
+                jobGraph,
+                e -> assertThat(e).hasRootCauseInstanceOf(IOException.class));
     }
 
-    private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate)
+    private void runJobSubmissionTest(
+            ClusterClient<?> clusterClient, JobGraph jobGraph, Consumer<Throwable> assertion)
             throws Exception {
-        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
+        assertThatThrownBy(
+                        () ->
+                                submitJobAndWaitForResult(
+                                        clusterClient, jobGraph, getClass().getClassLoader()))
+                .satisfies(assertion);
 
-        try {
-            submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
-            fail("Job submission should have thrown an exception.");
-        } catch (Exception e) {
-            if (!failurePredicate.test(e)) {
-                throw e;
-            }
-        }
-
-        submitJobAndWaitForResult(client, getWorkingJobGraph(), getClass().getClassLoader());
+        submitJobAndWaitForResult(clusterClient, getWorkingJobGraph(), getClass().getClassLoader());
     }
 
     @Nonnull
