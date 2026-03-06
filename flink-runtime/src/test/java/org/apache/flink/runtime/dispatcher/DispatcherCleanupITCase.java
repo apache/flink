@@ -17,18 +17,27 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.dispatcher.cleanup.DispatcherApplicationResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultEntry;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
+import org.apache.flink.runtime.highavailability.EmbeddedApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
@@ -37,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -44,11 +54,14 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
+import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.TestingApplicationResultStore;
+import org.apache.flink.runtime.testutils.TestingApplicationStore;
 import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
@@ -201,6 +214,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     public void testCleanupNotCancellable() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
+        final ApplicationID applicationId = ApplicationID.fromHexString(jobId.toHexString());
 
         final JobResultStore jobResultStore = new EmbeddedJobResultStore();
         jobResultStore
@@ -208,6 +222,15 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                         new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)))
                 .get();
         haServices.setJobResultStore(jobResultStore);
+
+        final ApplicationResultStore applicationResultStore = new EmbeddedApplicationResultStore();
+        applicationResultStore
+                .createDirtyResultAsync(
+                        new ApplicationResultEntry(
+                                TestingApplicationResultStore.createSuccessfulApplicationResult(
+                                        applicationId)))
+                .get();
+        haServices.setApplicationResultStore(applicationResultStore);
 
         // Instantiates JobManagerRunner
         final CompletableFuture<Void> jobManagerRunnerCleanupFuture = new CompletableFuture<>();
@@ -247,6 +270,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     public void testCleanupAfterLeadershipChange() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final JobID jobId = jobGraph.getJobID();
+        final ApplicationID applicationId = ApplicationID.fromHexString(jobId.toHexString());
 
         // Construct execution plan store.
         final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
@@ -311,11 +335,19 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 .collect(Collectors.toSet()))
                 .as("The JobResultStore should have this job marked as dirty.")
                 .containsExactly(jobId);
+        assertThat(
+                        haServices.getApplicationResultStore().getDirtyResults().stream()
+                                .map(ApplicationResult::getApplicationId)
+                                .collect(Collectors.toSet()))
+                .as("The ApplicationResultStore should have this application marked as dirty.")
+                .containsExactly(applicationId);
 
         // Run a second dispatcher, that restores our finished job.
         final Dispatcher secondDispatcher =
                 createTestingDispatcherBuilder()
                         .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
+                        .setRecoveredDirtyApplications(
+                                haServices.getApplicationResultStore().getDirtyResults())
                         .build(rpcService);
         secondDispatcher.start();
 
@@ -333,6 +365,200 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 .isTrue();
 
         assertThat(successfulJobGraphCleanup.get()).isEqualTo(jobId);
+
+        assertThat(actualGlobalCleanupCallCount.get()).isEqualTo(2);
+    }
+
+    @Test
+    public void testApplicationCleanupThroughRetries() throws Exception {
+        final ApplicationID applicationId = new ApplicationID();
+        final AbstractApplication application =
+                TestingApplication.builder().setApplicationId(applicationId).build();
+
+        final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
+        final OneShotLatch successfulCleanupLatch = new OneShotLatch();
+        final int numberOfErrors = 5;
+        final RuntimeException temporaryError =
+                new RuntimeException("Expected RuntimeException: Unable to clean application.");
+        final AtomicInteger failureCount = new AtomicInteger(numberOfErrors);
+        final ApplicationStore applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setGlobalCleanupFunction(
+                                (ignoredId, ignoredExecutor) -> {
+                                    actualGlobalCleanupCallCount.incrementAndGet();
+
+                                    if (failureCount.getAndDecrement() > 0) {
+                                        return FutureUtils.completedExceptionally(temporaryError);
+                                    }
+
+                                    successfulCleanupLatch.trigger();
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .build();
+
+        applicationStore.start();
+        haServices.setApplicationStore(applicationStore);
+
+        // start the dispatcher with enough retries on cleanup
+        final TestingDispatcher dispatcher =
+                createTestingDispatcherBuilder()
+                        .setApplicationResourceCleanerFactory(
+                                new DispatcherApplicationResourceCleanerFactory(
+                                        ForkJoinPool.commonPool(),
+                                        TestingRetryStrategies.createWithNumberOfRetries(
+                                                numberOfErrors),
+                                        haServices.getApplicationStore(),
+                                        blobServer))
+                        .build(rpcService);
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        toTerminate.add(dispatcher);
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcherGateway.submitApplication(application, TIMEOUT).get();
+        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+
+        successfulCleanupLatch.await();
+
+        assertThat(actualGlobalCleanupCallCount.get()).isEqualTo(numberOfErrors + 1);
+
+        assertThat(haServices.getApplicationStore().getApplicationIds()).isEmpty();
+
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        haServices
+                                .getApplicationResultStore()
+                                .hasApplicationResultEntryAsync(applicationId)
+                                .get());
+    }
+
+    @Test
+    public void testApplicationCleanupNotCancellable() throws Exception {
+        final ApplicationID applicationId = new ApplicationID();
+
+        final ApplicationResultStore applicationResultStore = new EmbeddedApplicationResultStore();
+        applicationResultStore
+                .createDirtyResultAsync(
+                        new ApplicationResultEntry(
+                                TestingApplicationResultStore.createSuccessfulApplicationResult(
+                                        applicationId)))
+                .get();
+        haServices.setApplicationResultStore(applicationResultStore);
+
+        assertThat(
+                        haServices
+                                .getApplicationResultStore()
+                                .hasDirtyApplicationResultEntryAsync(applicationId)
+                                .get())
+                .isTrue();
+
+        final TestingDispatcher dispatcher = createTestingDispatcherBuilder().build(rpcService);
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        toTerminate.add(dispatcher);
+
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        ArchivedApplication application =
+                dispatcherGateway.requestApplication(applicationId, TIMEOUT).get();
+
+        assertThat(application.getApplicationId()).isEqualTo(applicationId);
+        assertThat(application.getApplicationStatus()).isEqualTo(ApplicationState.FINISHED);
+
+        assertThatThrownBy(() -> dispatcherGateway.cancelApplication(applicationId, TIMEOUT).get())
+                .hasCauseInstanceOf(FlinkApplicationNotFoundException.class);
+
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        haServices
+                                .getApplicationResultStore()
+                                .hasCleanApplicationResultEntryAsync(applicationId)
+                                .get());
+    }
+
+    @Test
+    public void testApplicationCleanupAfterLeadershipChange() throws Exception {
+        final ApplicationID applicationId = new ApplicationID();
+        final AbstractApplication application =
+                TestingApplication.builder().setApplicationId(applicationId).build();
+
+        // Construct application store.
+        final AtomicInteger actualGlobalCleanupCallCount = new AtomicInteger();
+        final OneShotLatch firstCleanupTriggered = new OneShotLatch();
+        final CompletableFuture<ApplicationID> successfulApplicationCleanup =
+                new CompletableFuture<>();
+        final ApplicationStore applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setGlobalCleanupFunction(
+                                (actualId, ignoredExecutor) -> {
+                                    final int callCount =
+                                            actualGlobalCleanupCallCount.getAndIncrement();
+                                    firstCleanupTriggered.trigger();
+
+                                    if (callCount < 1) {
+                                        return FutureUtils.completedExceptionally(
+                                                new RuntimeException(
+                                                        "Expected RuntimeException: Unable to remove application."));
+                                    }
+
+                                    successfulApplicationCleanup.complete(actualId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .build();
+
+        applicationStore.start();
+        haServices.setApplicationStore(applicationStore);
+
+        // start the dispatcher with no retries on cleanup
+        configuration.set(
+                CleanupOptions.CLEANUP_STRATEGY,
+                CleanupOptions.NONE_PARAM_VALUES.iterator().next());
+        final TestingDispatcher dispatcher = createTestingDispatcherBuilder().build(rpcService);
+        dispatcher.start();
+        dispatcher.waitUntilStarted();
+
+        toTerminate.add(dispatcher);
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcherGateway.submitApplication(application, TIMEOUT).get();
+        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+
+        firstCleanupTriggered.await();
+
+        assertThat(actualGlobalCleanupCallCount.get()).isOne();
+        assertThat(successfulApplicationCleanup.isDone()).isFalse();
+
+        assertThat(
+                        haServices.getApplicationResultStore().getDirtyResults().stream()
+                                .map(ApplicationResult::getApplicationId)
+                                .collect(Collectors.toSet()))
+                .containsExactly(applicationId);
+
+        // Run a second dispatcher, that restores our finished application.
+        final Dispatcher secondDispatcher =
+                createTestingDispatcherBuilder()
+                        .setRecoveredDirtyApplications(
+                                haServices.getApplicationResultStore().getDirtyResults())
+                        .build(rpcService);
+        secondDispatcher.start();
+
+        toTerminate.add(secondDispatcher);
+
+        CommonTestUtils.waitUntilCondition(
+                () -> haServices.getApplicationResultStore().getDirtyResults().isEmpty());
+
+        assertThat(haServices.getApplicationStore().getApplicationIds()).isEmpty();
+        assertThat(
+                        haServices
+                                .getApplicationResultStore()
+                                .hasCleanApplicationResultEntryAsync(applicationId)
+                                .get())
+                .isTrue();
+
+        assertThat(successfulApplicationCleanup.get()).isEqualTo(applicationId);
 
         assertThat(actualGlobalCleanupCallCount.get()).isEqualTo(2);
     }

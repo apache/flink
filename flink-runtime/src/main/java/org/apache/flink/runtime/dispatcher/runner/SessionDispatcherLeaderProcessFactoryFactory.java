@@ -20,7 +20,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.PersistenceComponentFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -38,7 +38,7 @@ public class SessionDispatcherLeaderProcessFactoryFactory
 
     @Override
     public DispatcherLeaderProcessFactory createFactory(
-            JobPersistenceComponentFactory jobPersistenceComponentFactory,
+            PersistenceComponentFactory persistenceComponentFactory,
             Executor ioExecutor,
             RpcService rpcService,
             PartialDispatcherServices partialDispatcherServices,
@@ -50,7 +50,8 @@ public class SessionDispatcherLeaderProcessFactoryFactory
 
         return new SessionDispatcherLeaderProcessFactory(
                 dispatcherGatewayServiceFactory,
-                jobPersistenceComponentFactory,
+                persistenceComponentFactory,
+                partialDispatcherServices.getBlobServer(),
                 ioExecutor,
                 fatalErrorHandler);
     }

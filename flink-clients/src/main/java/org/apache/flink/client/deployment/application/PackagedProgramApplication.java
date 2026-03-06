@@ -34,9 +34,11 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -47,6 +49,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -95,6 +99,8 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     private final boolean shutDownOnFinish;
 
+    @Nullable private final PermanentBlobKey userJarBlobKey;
+
     private transient PackagedProgram program;
 
     private transient CompletableFuture<Void> applicationCompletionFuture;
@@ -128,6 +134,28 @@ public class PackagedProgramApplication extends AbstractApplication {
     public PackagedProgramApplication(
             final ApplicationID applicationId,
             final PackagedProgram program,
+            final Configuration configuration,
+            final boolean handleFatalError,
+            final boolean enforceSingleJobExecution,
+            final boolean submitFailedJobOnApplicationError,
+            final boolean shutDownOnFinish,
+            final @Nullable PermanentBlobKey userJarBlobKey) {
+        this(
+                applicationId,
+                program,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                configuration,
+                handleFatalError,
+                enforceSingleJobExecution,
+                submitFailedJobOnApplicationError,
+                shutDownOnFinish,
+                userJarBlobKey);
+    }
+
+    public PackagedProgramApplication(
+            final ApplicationID applicationId,
+            final PackagedProgram program,
             final Collection<JobInfo> recoveredJobInfos,
             final Collection<JobInfo> recoveredTerminalJobInfos,
             final Configuration configuration,
@@ -135,6 +163,30 @@ public class PackagedProgramApplication extends AbstractApplication {
             final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish) {
+        this(
+                applicationId,
+                program,
+                recoveredJobInfos,
+                recoveredTerminalJobInfos,
+                configuration,
+                handleFatalError,
+                enforceSingleJobExecution,
+                submitFailedJobOnApplicationError,
+                shutDownOnFinish,
+                null);
+    }
+
+    public PackagedProgramApplication(
+            final ApplicationID applicationId,
+            final PackagedProgram program,
+            final Collection<JobInfo> recoveredJobInfos,
+            final Collection<JobInfo> recoveredTerminalJobInfos,
+            final Configuration configuration,
+            final boolean handleFatalError,
+            final boolean enforceSingleJobExecution,
+            final boolean submitFailedJobOnApplicationError,
+            final boolean shutDownOnFinish,
+            final @Nullable PermanentBlobKey userJarBlobKey) {
         super(applicationId);
         this.program = checkNotNull(program);
         this.recoveredJobInfos = checkNotNull(recoveredJobInfos);
@@ -144,6 +196,7 @@ public class PackagedProgramApplication extends AbstractApplication {
         this.enforceSingleJobExecution = enforceSingleJobExecution;
         this.submitFailedJobOnApplicationError = submitFailedJobOnApplicationError;
         this.shutDownOnFinish = shutDownOnFinish;
+        this.userJarBlobKey = userJarBlobKey;
         this.programDescriptor = program.getDescriptor();
     }
 
@@ -318,6 +371,25 @@ public class PackagedProgramApplication extends AbstractApplication {
     @Override
     public String getName() {
         return programDescriptor.getMainClassName();
+    }
+
+    @Override
+    public Optional<ApplicationStoreEntry> getApplicationStoreEntry() {
+        if (userJarBlobKey == null) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                new PackagedProgramApplicationEntry(
+                        configuration,
+                        userJarBlobKey,
+                        programDescriptor.getMainClassName(),
+                        programDescriptor.getProgramArgs(),
+                        getApplicationId(),
+                        getName(),
+                        handleFatalError,
+                        enforceSingleJobExecution,
+                        submitFailedJobOnApplicationError,
+                        shutDownOnFinish));
     }
 
     @VisibleForTesting

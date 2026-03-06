@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
@@ -33,8 +35,10 @@ public interface DispatcherFactory {
             DispatcherId fencingToken,
             Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobResults,
+            Collection<AbstractApplication> recoveredApplications,
+            Collection<ApplicationResult> recoveredDirtyApplicationResults,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            PartialDispatcherServicesWithJobPersistenceComponents
-                    partialDispatcherServicesWithJobPersistenceComponents)
+            PartialDispatcherServicesWithPersistenceComponents
+                    partialDispatcherServicesWithPersistenceComponents)
             throws Exception;
 }

@@ -26,15 +26,19 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.dispatcher.ApplicationBootstrap;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithPersistenceComponents;
 import org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherGatewayService;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -90,8 +94,12 @@ public class ApplicationDispatcherGatewayServiceFactory
             DispatcherId fencingToken,
             Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobResults,
+            Collection<AbstractApplication> recoveredApplications,
+            Collection<ApplicationResult> recoveredDirtyApplicationResults,
             ExecutionPlanWriter executionPlanWriter,
-            JobResultStore jobResultStore) {
+            JobResultStore jobResultStore,
+            ApplicationStore applicationStore,
+            ApplicationResultStore applicationResultStore) {
 
         final List<JobInfo> recoveredJobInfos = getRecoveredJobInfos(recoveredJobs);
         final List<JobInfo> recoveredTerminalJobInfos =
@@ -126,12 +134,16 @@ public class ApplicationDispatcherGatewayServiceFactory
                             fencingToken,
                             recoveredJobs,
                             recoveredDirtyJobResults,
+                            recoveredApplications,
+                            recoveredDirtyApplicationResults,
                             (dispatcherGateway, scheduledExecutor, errorHandler) ->
                                     new ApplicationBootstrap(bootstrapApplication),
-                            PartialDispatcherServicesWithJobPersistenceComponents.from(
+                            PartialDispatcherServicesWithPersistenceComponents.from(
                                     partialDispatcherServices,
                                     executionPlanWriter,
-                                    jobResultStore));
+                                    jobResultStore,
+                                    applicationStore,
+                                    applicationResultStore));
         } catch (Exception e) {
             throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
         }

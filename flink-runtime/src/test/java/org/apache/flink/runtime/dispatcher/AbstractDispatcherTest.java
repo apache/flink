@@ -26,8 +26,10 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
+import org.apache.flink.runtime.highavailability.EmbeddedApplicationResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
+import org.apache.flink.runtime.jobmanager.StandaloneApplicationStore;
 import org.apache.flink.runtime.jobmanager.StandaloneExecutionPlanStore;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -97,6 +99,8 @@ public class AbstractDispatcherTest extends TestLogger {
         haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
         haServices.setExecutionPlanStore(new StandaloneExecutionPlanStore());
         haServices.setJobResultStore(new EmbeddedJobResultStore());
+        haServices.setApplicationStore(new StandaloneApplicationStore());
+        haServices.setApplicationResultStore(new EmbeddedApplicationResultStore());
 
         configuration = new Configuration();
         blobServer =
@@ -110,6 +114,8 @@ public class AbstractDispatcherTest extends TestLogger {
                 .setHighAvailabilityServices(haServices)
                 .setExecutionPlanWriter(haServices.getExecutionPlanStore())
                 .setJobResultStore(haServices.getJobResultStore())
+                .setApplicationWriter(haServices.getApplicationStore())
+                .setApplicationResultStore(haServices.getApplicationResultStore())
                 .setJobManagerRunnerFactory(JobMasterServiceLeadershipRunnerFactory.INSTANCE)
                 .setCleanupRunnerFactory(CheckpointResourcesCleanupRunnerFactory.INSTANCE)
                 .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
