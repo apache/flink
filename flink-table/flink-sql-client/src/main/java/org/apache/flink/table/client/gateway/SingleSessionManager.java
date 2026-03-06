@@ -188,7 +188,7 @@ public class SingleSessionManager implements SessionManager {
             ClientResourceManager resourceManager =
                     new ClientResourceManager(configuration, userClassLoader);
             try {
-                resourceManager.registerJarResources(
+                resourceManager.registerResources(
                         dependencies.stream()
                                 .map(uri -> new ResourceUri(ResourceType.JAR, uri.toString()))
                                 .collect(Collectors.toList()));
@@ -221,7 +221,7 @@ public class SingleSessionManager implements SessionManager {
         protected ResultFetcher callRemoveJar(OperationHandle operationHandle, String jarPath) {
             URL jarURL =
                     ((ClientResourceManager) sessionContext.getSessionState().resourceManager)
-                            .unregisterJarResource(jarPath);
+                            .unregisterResource(jarPath);
             if (jarURL != null) {
                 ((ClientWrapperClassLoader)
                                 sessionContext

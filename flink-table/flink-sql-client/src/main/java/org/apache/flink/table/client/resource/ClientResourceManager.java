@@ -48,15 +48,27 @@ public class ClientResourceManager extends ResourceManager {
     }
 
     @Nullable
-    public URL unregisterJarResource(String jarPath) {
-        Path path = new Path(jarPath);
+    public URL unregisterResource(String resourcePath) {
+        Path path = new Path(resourcePath);
         try {
-            checkPath(path, ResourceType.JAR);
-            return resourceInfos.remove(
-                    new ResourceUri(ResourceType.JAR, getURLFromPath(path).getPath()));
+            String urlPath = getURLFromPath(path).getPath();
+
+            // Check if it exists as JAR first
+            ResourceUri jarUri = new ResourceUri(ResourceType.JAR, urlPath);
+            if (resourceInfos.containsKey(jarUri)) {
+                checkPath(path, ResourceType.JAR);
+                return resourceInfos.remove(jarUri);
+            }
+
+            // Check if it exists as ARTIFACT
+            ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, urlPath);
+            if (resourceInfos.containsKey(artifactUri)) {
+                checkPath(path, ResourceType.ARTIFACT);
+                return resourceInfos.remove(artifactUri);
+            }
         } catch (IOException e) {
             throw new SqlExecutionException(
-                    String.format("Failed to unregister the jar resource [%s]", jarPath), e);
+                    String.format("Failed to unregister the resource [%s]", resourcePath), e);
         }
     }
 }

@@ -118,20 +118,21 @@ public class ResourceManager implements Closeable {
      * Due to anyone of the resource in list maybe fail during register, so we should stage it
      * before actual register to guarantee transaction process. If all the resources are available,
      * register them into the {@link ResourceManager}.
+     *
+     * <p>Accepts both JAR and ARTIFACT resources.
      */
-    public void registerJarResources(List<ResourceUri> resourceUris) throws IOException {
+    public void registerResources(List<ResourceUri> resourceUris) throws IOException {
         registerResources(
                 prepareStagingResources(
                         resourceUris,
-                        ResourceType.JAR,
+                        List.of(ResourceType.JAR, ResourceType.ARTIFACT),
                         true,
                         url -> {
                             try {
                                 JarUtils.checkJarFile(url);
                             } catch (IOException e) {
                                 throw new ValidationException(
-                                        String.format("Failed to register jar resource [%s]", url),
-                                        e);
+                                        String.format("Failed to register resource [%s]", url), e);
                             }
                         },
                         false),
@@ -171,7 +172,7 @@ public class ResourceManager implements Closeable {
     public void declareFunctionResources(Set<ResourceUri> resourceUris) throws IOException {
         prepareStagingResources(
                 resourceUris,
-                ResourceType.JAR,
+                List.of(ResourceType.JAR, ResourceType.ARTIFACT),
                 true,
                 url -> {
                     try {
@@ -235,7 +236,11 @@ public class ResourceManager implements Closeable {
      */
     public Set<URL> getLocalJarResources() {
         return resourceInfos.entrySet().stream()
-                .filter(entry -> ResourceType.JAR.equals(entry.getKey().getResourceType()))
+                .filter(
+                        entry ->
+                                ResourceType.JAR.equals(entry.getKey().getResourceType())
+                                        || ResourceType.ARTIFACT.equals(
+                                                entry.getKey().getResourceType()))
                 .map(Map.Entry::getValue)
                 .collect(Collectors.toSet());
     }
@@ -340,23 +345,36 @@ public class ResourceManager implements Closeable {
     // ------------------------------------------------------------------------
 
     protected void checkPath(Path path, ResourceType expectedType) throws IOException {
+        checkPath(path, Collections.singletonList(expectedType));
+    }
+
+    protected void checkPath(Path path, List<ResourceType> expectedTypes) throws IOException {
         FileSystem fs = FileSystem.getUnguardedFileSystem(path.toUri());
         // check resource exists firstly
         if (!fs.exists(path)) {
             throw new FileNotFoundException(
                     String.format(
                             "%s resource [%s] not found.",
-                            expectedType.name().toLowerCase(), path));
+                            expectedTypes.stream()
+                                    .map(ResourceType::name)
+                                    .map(String::toLowerCase)
+                                    .collect(Collectors.joining(" or ")),
+                            path));
         }
         // register directory is not allowed for resource
         if (fs.getFileStatus(path).isDir()) {
             throw new ValidationException(
                     String.format(
                             "The registering or unregistering %s resource [%s] is a directory that is not allowed.",
-                            expectedType.name().toLowerCase(), path));
+                            expectedTypes.stream()
+                                    .map(ResourceType::name)
+                                    .map(String::toLowerCase)
+                                    .collect(Collectors.joining(" or ")),
+                            path));
         }
 
-        if (expectedType == ResourceType.JAR) {
+        if (expectedTypes.contains(ResourceType.JAR)
+                || expectedTypes.contains(ResourceType.ARTIFACT)) {
             // file name should end with .jar suffix
             String fileExtension = Files.getFileExtension(path.getName());
             if (!fileExtension.toLowerCase().endsWith(JAR_SUFFIX)) {
@@ -457,19 +475,24 @@ public class ResourceManager implements Closeable {
         return Collections.emptyMap();
     }
 
-    private void checkResources(Collection<ResourceUri> resourceUris, ResourceType expectedType)
+    private void checkResources(
+            Collection<ResourceUri> resourceUris, List<ResourceType> expectedTypes)
             throws IOException {
-        // check the resource type
+        // check the resource types
         if (resourceUris.stream()
-                .anyMatch(resourceUri -> expectedType != resourceUri.getResourceType())) {
+                .anyMatch(resourceUri -> !expectedTypes.contains(resourceUri.getResourceType()))) {
             throw new ValidationException(
                     String.format(
                             "Expect the resource type to be %s, but encounter a resource %s.",
-                            expectedType.name().toLowerCase(),
+                            expectedTypes.stream()
+                                    .map(ResourceType::name)
+                                    .map(String::toLowerCase)
+                                    .collect(Collectors.joining(" or ")),
                             resourceUris.stream()
                                     .filter(
                                             resourceUri ->
-                                                    expectedType != resourceUri.getResourceType())
+                                                    !expectedTypes.contains(
+                                                            resourceUri.getResourceType()))
                                     .findFirst()
                                     .map(
                                             resourceUri ->
@@ -485,7 +508,7 @@ public class ResourceManager implements Closeable {
 
         // check the resource path
         for (ResourceUri resourceUri : resourceUris) {
-            checkPath(new Path(resourceUri.getUri()), expectedType);
+            checkPath(new Path(resourceUri.getUri()), expectedTypes);
         }
     }
 
@@ -496,7 +519,22 @@ public class ResourceManager implements Closeable {
             Consumer<URL> resourceChecker,
             boolean declareFunctionResource)
             throws IOException {
-        checkResources(resourceUris, expectedType);
+        return prepareStagingResources(
+                resourceUris,
+                Collections.singletonList(expectedType),
+                executable,
+                resourceChecker,
+                declareFunctionResource);
+    }
+
+    private Map<ResourceUri, URL> prepareStagingResources(
+            Collection<ResourceUri> resourceUris,
+            List<ResourceType> expectedTypes,
+            boolean executable,
+            Consumer<URL> resourceChecker,
+            boolean declareFunctionResource)
+            throws IOException {
+        checkResources(resourceUris, expectedTypes);
 
         Map<ResourceUri, URL> stagingResourceLocalURLs = new HashMap<>();
         boolean supportOverwrite = !executable;
@@ -514,7 +552,8 @@ public class ResourceManager implements Closeable {
 
             URL localUrl;
             ResourceUri localResourceUri = resourceUri;
-            if (expectedType == ResourceType.JAR
+            if ((expectedTypes.contains(ResourceType.JAR)
+                            || expectedTypes.contains(ResourceType.ARTIFACT))
                     && functionResourceInfos.containsKey(resourceUri)) {
                 // Get local url from function resource infos.
                 localUrl = functionResourceInfos.get(resourceUri).url;
@@ -532,7 +571,8 @@ public class ResourceManager implements Closeable {
                     localUrl = getURLFromPath(path);
                     // if the local resource is a relative path, here convert it to an absolute path
                     // before register
-                    localResourceUri = new ResourceUri(expectedType, localUrl.getPath());
+                    localResourceUri =
+                            new ResourceUri(resourceUri.getResourceType(), localUrl.getPath());
                 }
 
                 // check the local file

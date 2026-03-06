@@ -2510,31 +2510,39 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "system functions can only be registered as temporary "
                                 + "functions, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
 
-        // test creating functiosn with either jar or artifact
+        // test creating functions with either jar or artifact
         for (String usageType : List.of("JAR", "ARTIFACT")) {
             sql("create temporary function function1 as 'org.apache.flink.function.function1' language java using "
                             + usageType
                             + " 'file:///path/to/test.jar'")
                     .ok(
-                            "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'");
+                            "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING "
+                                    + usageType
+                                    + " 'file:///path/to/test.jar'");
 
             sql("create temporary function function1 as 'org.apache.flink.function.function1' language scala using "
                             + usageType
                             + " '/path/to/test.jar'")
                     .ok(
-                            "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+                            "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA USING "
+                                    + usageType
+                                    + " '/path/to/test.jar'");
 
             sql("create temporary system function function1 as 'org.apache.flink.function.function1' language scala using "
                             + usageType
                             + " '/path/to/test.jar'")
                     .ok(
-                            "CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA USING JAR '/path/to/test.jar'");
+                            "CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SCALA USING "
+                                    + usageType
+                                    + " '/path/to/test.jar'");
 
             sql("create function function1 as 'org.apache.flink.function.function1' language java using "
                             + usageType
                             + " 'file:///path/to/test.jar', jar 'hdfs:///path/to/test2.jar'")
                     .ok(
-                            "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
+                            "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING "
+                                    + usageType
+                                    + " 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
 
             sql("create temporary function function1 as 'org.apache.flink.function.function1' language ^sql^ using "
                             + usageType
@@ -2552,7 +2560,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                             + usageType
                             + " 'file:///path/to/test.jar' WITH ('k1' = 'v1', 'k2' = 'v2')")
                     .ok(
-                            "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'\nWITH (\n"
+                            "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING "
+                                    + usageType
+                                    + " 'file:///path/to/test.jar'\nWITH (\n"
                                     + "  'k1' = 'v1',\n"
                                     + "  'k2' = 'v2'\n"
                                     + ")");
@@ -2561,7 +2571,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                             + usageType
                             + " 'file:///path/to/test.jar' WITH ('k1' = 'v1', 'k2' = 'v2')")
                     .ok(
-                            "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'\nWITH (\n"
+                            "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING "
+                                    + usageType
+                                    + " 'file:///path/to/test.jar'\nWITH (\n"
                                     + "  'k1' = 'v1',\n"
                                     + "  'k2' = 'v2'\n"
                                     + ")");
@@ -2570,11 +2582,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         // test mixing jar and artifact keywords
         sql("create function function1 as 'org.apache.flink.function.function1' language java using jar 'file:///path/to/test.jar', artifact 'hdfs:///path/to/test2.jar'")
                 .ok(
-                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', ARTIFACT 'hdfs:///path/to/test2.jar'");
 
         sql("create function function1 as 'org.apache.flink.function.function1' language java using artifact 'file:///path/to/test.jar', jar 'hdfs:///path/to/test2.jar'")
                 .ok(
-                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING ARTIFACT 'file:///path/to/test.jar', JAR 'hdfs:///path/to/test2.jar'");
 
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language java using ^file^ 'file:///path/to/test'")
                 .fails(
