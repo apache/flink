@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 
@@ -30,12 +31,23 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-/** Implementation of {@link BuiltInFunctionDefinitions#URL_DECODE}. */
+/**
+ * Implementation of {@link BuiltInFunctionDefinitions#URL_DECODE} and {@link
+ * BuiltInFunctionDefinitions#URL_DECODE_RECURSIVE}.
+ */
 @Internal
 public class UrlDecodeFunction extends BuiltInScalarFunction {
 
     public UrlDecodeFunction(SpecializedFunction.SpecializedContext context) {
-        super(BuiltInFunctionDefinitions.URL_DECODE, context);
+        super(resolveDefinition(context), context);
+    }
+
+    private static BuiltInFunctionDefinition resolveDefinition(
+            SpecializedFunction.SpecializedContext context) {
+        if (context.getCallContext().getArgumentDataTypes().size() == 2) {
+            return BuiltInFunctionDefinitions.URL_DECODE_RECURSIVE;
+        }
+        return BuiltInFunctionDefinitions.URL_DECODE;
     }
 
     public @Nullable StringData eval(StringData value) {
@@ -46,6 +58,58 @@ public class UrlDecodeFunction extends BuiltInScalarFunction {
         try {
             return StringData.fromString(URLDecoder.decode(value.toString(), charset.name()));
         } catch (UnsupportedEncodingException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Decodes a URL-encoded string with optional recursive decoding.
+     *
+     * @param value the URL-encoded string to decode, can be null
+     * @param recursive if true, performs recursive decoding until no further decoding is possible;
+     *     if false or null, performs only a single decode operation
+     * @return the decoded string as StringData, or null if input is null or decoding fails
+     */
+    public @Nullable StringData eval(StringData value, Boolean recursive) {
+        if (value == null) {
+            return null;
+        }
+
+        final Charset charset = StandardCharsets.UTF_8;
+
+        // If recursive is false or null, perform only one decode
+        if (recursive == null || !recursive) {
+            try {
+                return StringData.fromString(URLDecoder.decode(value.toString(), charset.name()));
+            } catch (UnsupportedEncodingException | RuntimeException e) {
+                return null;
+            }
+        }
+
+        // If recursive is true, perform cascading decode until no further decoding is possible
+        String currentValue = value.toString();
+        String previousValue = currentValue;
+        int maxIterations = 10; // Prevent infinite loops
+        int iteration = 0;
+
+        try {
+            do {
+                previousValue = currentValue;
+                currentValue = URLDecoder.decode(currentValue, charset.name());
+                iteration++;
+
+                // Stop if we reach max iterations or if decoding produces the same result
+                if (iteration >= maxIterations || currentValue.equals(previousValue)) {
+                    break;
+                }
+            } while (true);
+
+            return StringData.fromString(currentValue);
+        } catch (UnsupportedEncodingException | RuntimeException e) {
+            // If we successfully decoded at least once, return the last successful result
+            if (iteration > 0) {
+                return StringData.fromString(previousValue);
+            }
             return null;
         }
     }

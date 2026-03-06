@@ -210,6 +210,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CA
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE_RECURSIVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
@@ -1401,13 +1402,25 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding
-     * scheme. If the input is null, or there is an issue with the decoding process(such as
-     * encountering an illegal escape pattern), or the encoding scheme is not supported, will return
-     * null.
+     * Translates a string from 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme. If the input is null, or there is an issue with the decoding process, or the encoding
+     * scheme is not supported, will return null.
      */
     public OutType urlDecode() {
         return toApiSpecificExpression(unresolvedCall(URL_DECODE, toExpr()));
+    }
+
+    /**
+     * Translates a string from 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme with optional recursive decoding. If the input is null, or there is an issue with the
+     * decoding process, or the encoding scheme is not supported, will return null.
+     *
+     * @param recursive if true, performs recursive decoding until no further decoding is possible;
+     *     if false, performs only a single decode operation
+     */
+    public OutType urlDecode(boolean recursive) {
+        return toApiSpecificExpression(
+                unresolvedCall(URL_DECODE_RECURSIVE, toExpr(), valueLiteral(recursive)));
     }
 
     /**
