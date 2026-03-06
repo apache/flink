@@ -118,6 +118,8 @@ from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expression import Expression
+from pyflink.table.model import Model
+from pyflink.table.model_descriptor import ModelDescriptor
 from pyflink.table.module import Module, ModuleEntry
 from pyflink.table.plan_reference import PlanReference
 from pyflink.table.result_kind import ResultKind
@@ -159,6 +161,8 @@ __all__ = [
     'TableDescriptor',
     'FormatDescriptor',
     'Schema',
+    'Model',
+    'ModelDescriptor',
     'Module',
     'ModuleEntry',
     'SqlDialect',
