@@ -339,6 +339,12 @@ By default no operator is disabled.</td>
             <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle. Default value is 0, which means detecting source idleness is not enabled.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.source.rowtime-null-handling</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">FAIL</td>
+            <td><p>Enum</p></td>
+            <td>Specifies the behavior when the rowtime field is null during watermark generation.<br /><br />Possible values:<ul><li>"FAIL" (default, recommended): Throw a runtime exception when encountering null rowtime. A null rowtime typically indicates that the source is receiving unexpected null values in a column that should not be null, which suggests the data flow needs to be cleaned up.</li><li>"DROP": Drop the record silently and increment the 'numNullRowtimeRecordsDropped' metric. Note that this may result in data loss.</li><li>"SKIP_WATERMARK": Forward the record without advancing the watermark and increment the 'numNullRowtimeRecordsSkipped' metric. Note that this may cause issues in downstream operators if they expect valid rowtime values.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.spill-compression.block-size</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">64 kb</td>
             <td>MemorySize</td>
