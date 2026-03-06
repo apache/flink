@@ -233,7 +233,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     public void addAllToProperties(Properties props) {
         synchronized (this.confData) {
             for (Map.Entry<String, Object> entry : this.confData.entrySet()) {
-                props.put(entry.getKey(), entry.getValue());
+                props.put(entry.getKey(), entry.getValue().toString());
             }
         }
     }
