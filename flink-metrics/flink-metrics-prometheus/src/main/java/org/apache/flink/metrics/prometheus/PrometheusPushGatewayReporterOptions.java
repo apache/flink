@@ -45,13 +45,6 @@ public class PrometheusPushGatewayReporterOptions {
                     .defaultValue("")
                     .withDescription("The job name under which metrics will be pushed");
 
-    public static final ConfigOption<Boolean> RANDOM_JOB_NAME_SUFFIX =
-            ConfigOptions.key("randomJobNameSuffix")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            "Specifies whether a random suffix should be appended to the job name.");
-
     public static final ConfigOption<Boolean> DELETE_ON_SHUTDOWN =
             ConfigOptions.key("deleteOnShutdown")
                     .booleanType()

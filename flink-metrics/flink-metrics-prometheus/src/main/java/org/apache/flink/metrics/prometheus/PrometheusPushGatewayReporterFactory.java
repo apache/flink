@@ -20,7 +20,6 @@ package org.apache.flink.metrics.prometheus;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -38,7 +37,6 @@ import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterO
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
-import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.USERNAME;
 
 /** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
@@ -51,9 +49,6 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
     public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
         MetricConfig metricConfig = (MetricConfig) properties;
         String configuredJobName = metricConfig.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
-        boolean randomSuffix =
-                metricConfig.getBoolean(
-                        RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
         boolean deleteOnShutdown =
                 metricConfig.getBoolean(
                         DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
@@ -68,10 +63,6 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         }
 
         String jobName = configuredJobName;
-        if (randomSuffix) {
-            jobName = configuredJobName + new AbstractID();
-        }
-
         String username = metricConfig.getString(USERNAME.key(), USERNAME.defaultValue());
         String password = metricConfig.getString(PASSWORD.key(), PASSWORD.defaultValue());
 
@@ -93,10 +84,9 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                             password);
 
             LOG.info(
-                    "Configured PrometheusPushGatewayReporter with {hostUrl:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}, basicAuth:{}}",
+                    "Configured PrometheusPushGatewayReporter with {hostUrl:{}, jobName:{}, deleteOnShutdown:{}, groupingKey:{}, basicAuth:{}}",
                     hostUrl,
                     jobName,
-                    randomSuffix,
                     deleteOnShutdown,
                     groupingKey,
                     reporter.basicAuthEnabled);

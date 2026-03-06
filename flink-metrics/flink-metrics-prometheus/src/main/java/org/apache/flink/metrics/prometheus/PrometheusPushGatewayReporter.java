@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
 
 import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
@@ -32,13 +33,20 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.AbstractMap;
+import java.util.AbstractSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus {@link PushGateway}.
  */
 @PublicEvolving
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
+    public static final String REPORTER_ID_GROUPPING_KEY =
+            "flink_prometheus_push_gateway_reporter_id";
 
     private final PushGateway pushGateway;
     private final String jobName;
@@ -64,7 +72,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             this.basicAuthEnabled = false;
         }
         this.jobName = Preconditions.checkNotNull(jobName);
-        this.groupingKey = Preconditions.checkNotNull(groupingKey);
+        this.groupingKey = new GroupingKeyMap(Preconditions.checkNotNull(groupingKey));
         this.deleteOnShutdown = deleteOnShutdown;
     }
 
@@ -95,5 +103,69 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             }
         }
         super.close();
+    }
+
+    /**
+     * (FLINK-21309) Put "flink_prometheus_push_gateway_reporter_id" as the last entry of the
+     * grouping keys, so that each taskmanger instance and jobmanager will not collide their metrics
+     * in the PushGateway.
+     */
+    static class GroupingKeyMap extends AbstractMap<String, String> {
+        private final Map<String, String> customGroupingKeys;
+        private final String reporterId = new AbstractID().toString();
+        private final Set<Entry<String, String>> entrySet = new GroupingKeySet();
+
+        GroupingKeyMap(Map<String, String> customGroupingKeys) {
+            if (customGroupingKeys.containsKey(REPORTER_ID_GROUPPING_KEY)) {
+                throw new IllegalArgumentException(
+                        "Grouping keys must not contain the reserved key: "
+                                + REPORTER_ID_GROUPPING_KEY);
+            }
+            this.customGroupingKeys = customGroupingKeys;
+        }
+
+        @Override
+        public Set<Entry<String, String>> entrySet() {
+            return entrySet;
+        }
+
+        private class GroupingKeySet extends AbstractSet<Map.Entry<String, String>> {
+            @Override
+            public Iterator<Entry<String, String>> iterator() {
+
+                return new Iterator<>() {
+                    private Iterator<Entry<String, String>> customEntryIterator =
+                            customGroupingKeys.entrySet().iterator();
+                    private boolean consumedLast = false;
+
+                    @Override
+                    public boolean hasNext() {
+                        return customEntryIterator.hasNext() || !consumedLast;
+                    }
+
+                    @Override
+                    public Entry<String, String> next() {
+                        if (customEntryIterator.hasNext()) {
+                            return customEntryIterator.next();
+                        }
+                        if (!consumedLast) {
+                            consumedLast = true;
+                            return new AbstractMap.SimpleEntry<>(
+                                    REPORTER_ID_GROUPPING_KEY, reporterId);
+                        }
+                        throw new NoSuchElementException();
+                    }
+                };
+            }
+
+            @Override
+            public int size() {
+                return customGroupingKeys.size() + 1;
+            }
+        }
+
+        String reporterId() {
+            return reporterId;
+        }
     }
 }
