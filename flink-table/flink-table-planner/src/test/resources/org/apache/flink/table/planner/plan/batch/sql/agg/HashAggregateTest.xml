@@ -698,6 +698,63 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUN
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGlobalAggOverEmptyInputReplacedByValues[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), SUM(`int`), AVG(`int`) FROM MyTable WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[SUM($0)], EXPR$2=[AVG($0)])
++- LogicalProject(int=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, CASE(($f2 = 0), null:INTEGER, EXPR$1) AS EXPR$1, CAST(($f3 / $f2) AS INTEGER) AS EXPR$2])
++- Values(tuples=[[{ 0, 0, 0, null }]], values=[EXPR$0, EXPR$1, $f2, $f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGlobalAggOverEmptyInputReplacedByValues[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), SUM(`int`), AVG(`int`) FROM MyTable WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[SUM($0)], EXPR$2=[AVG($0)])
++- LogicalProject(int=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, CASE(($f2 = 0), null:INTEGER, EXPR$1) AS EXPR$1, CAST(($f3 / $f2) AS INTEGER) AS EXPR$2])
++- Values(tuples=[[{ 0, 0, 0, null }]], values=[EXPR$0, EXPR$1, $f2, $f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGlobalAggOverEmptyInputReplacedByValues[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), SUM(`int`), AVG(`int`) FROM MyTable WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[SUM($0)], EXPR$2=[AVG($0)])
++- LogicalProject(int=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, CASE(($f2 = 0), null:INTEGER, EXPR$1) AS EXPR$1, CAST(($f3 / $f2) AS INTEGER) AS EXPR$2])
++- Values(tuples=[[{ 0, 0, 0, null }]], values=[EXPR$0, EXPR$1, $f2, $f3])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupAggregateWithFilter[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a]]>
