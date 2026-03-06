@@ -60,6 +60,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
+import org.apache.flink.runtime.scheduler.ParallelismOverrideUtil;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
@@ -122,11 +123,13 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
-        ExecutionConfig executionConfig;
+        final ExecutionConfig executionConfig;
 
         if (executionPlan instanceof JobGraph) {
             executionConfig =
                     executionPlan.getSerializedExecutionConfig().deserializeValue(userCodeLoader);
+            ParallelismOverrideUtil.applyParallelismOverrides(
+                    (JobGraph) executionPlan, jobMasterConfiguration);
         } else if (executionPlan instanceof StreamGraph) {
             executionConfig = ((StreamGraph) executionPlan).getExecutionConfig();
         } else {
@@ -285,7 +288,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         executionPlan,
                         jobRecoveryHandler instanceof DefaultBatchJobRecoveryHandler,
                         userCodeLoader,
-                        futureExecutor);
+                        futureExecutor,
+                        jobMasterConfiguration);
 
         return new AdaptiveBatchScheduler(
                 log,
