@@ -30,8 +30,6 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.application.AbstractApplication;
-import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -39,7 +37,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.client.DuplicateApplicationSubmissionException;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -49,6 +46,8 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultEntry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -79,7 +78,6 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.FlinkApplicationTerminatedWithoutCancellationException;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -99,6 +97,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.TestingApplicationResultStore;
 import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -156,8 +155,6 @@ import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
 
 /** Test for the {@link Dispatcher} component. */
 public class DispatcherTest extends AbstractDispatcherTest {
@@ -186,14 +183,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Nonnull
     private TestingDispatcher createAndStartDispatcher(
-            HeartbeatServices heartbeatServices, TestingHighAvailabilityServices haServices)
-            throws Exception {
-        return createAndStartDispatcher(
-                heartbeatServices, haServices, new JobManagerRunnerWithBlockingJobMasterFactory());
-    }
-
-    @Nonnull
-    private TestingDispatcher createAndStartDispatcher(
             HeartbeatServices heartbeatServices,
             TestingHighAvailabilityServices haServices,
             JobManagerRunnerFactory jobManagerRunnerFactory)
@@ -205,6 +194,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
                         .setExecutionPlanWriter(haServices.getExecutionPlanStore())
                         .setJobResultStore(haServices.getJobResultStore())
+                        .setApplicationResultStore(haServices.getApplicationResultStore())
                         .build(rpcService);
         dispatcher.start();
         return dispatcher;
@@ -245,8 +235,17 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testDuplicateJobSubmissionWithGloballyTerminatedButDirtyJob() throws Exception {
         final JobResult jobResult =
-                TestingJobResultStore.createJobResult(jobGraph.getJobID(), JobStatus.FINISHED);
+                TestingJobResultStore.createJobResult(jobId, JobStatus.FINISHED);
         haServices.getJobResultStore().createDirtyResultAsync(new JobResultEntry(jobResult)).get();
+
+        // job result must have a corresponding application result
+        final ApplicationResult applicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(applicationId);
+        haServices
+                .getApplicationResultStore()
+                .createDirtyResultAsync(new ApplicationResultEntry(applicationResult))
+                .get();
+
         assertDuplicateJobSubmission();
     }
 
@@ -611,74 +610,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(archiveAttemptFuture).isNotDone();
     }
 
-    @Test
-    public void testApplicationStatusChange_ArchiveNotCalledForNonTerminalStatus()
-            throws Exception {
-        final CompletableFuture<Void> archiveApplicationFuture = new CompletableFuture<>();
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setHistoryServerArchivist(
-                                TestingHistoryServerArchivist.builder()
-                                        .setArchiveApplicationFunction(
-                                                archivedApplication -> {
-                                                    archiveApplicationFuture.complete(null);
-                                                    return CompletableFuture.completedFuture(null);
-                                                })
-                                        .build())
-                        .build(rpcService);
-        dispatcher.start();
-        submitApplicationAndMockApplicationStatusChange(ApplicationState.RUNNING);
-        // verify that archive application is not called
-        assertFalse(archiveApplicationFuture.isDone());
-        assertFalse(dispatcher.getApplicationTerminationFuture(applicationId).isDone());
-    }
-
-    @Test
-    public void testApplicationStatusChange_ArchiveCalledForTerminalStatus() throws Exception {
-        final CompletableFuture<ApplicationID> archiveApplicationFuture = new CompletableFuture<>();
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setHistoryServerArchivist(
-                                TestingHistoryServerArchivist.builder()
-                                        .setArchiveApplicationFunction(
-                                                archivedApplication -> {
-                                                    archiveApplicationFuture.complete(
-                                                            archivedApplication.getApplicationId());
-                                                    return CompletableFuture.completedFuture(null);
-                                                })
-                                        .build())
-                        .build(rpcService);
-        dispatcher.start();
-        submitApplicationAndMockApplicationStatusChange(ApplicationState.FINISHED);
-        // verify that archive application is called with the application id
-        assertEquals(applicationId, archiveApplicationFuture.get());
-        dispatcher
-                .getApplicationTerminationFuture(applicationId)
-                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    @Test
-    public void testApplicationStatusChange_ThrowsIfDuplicateTerminalStatus() throws Exception {
-        dispatcher = createTestingDispatcherBuilder().build(rpcService);
-        dispatcher.start();
-        submitApplicationAndMockApplicationStatusChange(ApplicationState.FINISHED);
-        // wait for archive to complete
-        dispatcher
-                .getApplicationTerminationFuture(applicationId)
-                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        assertThrows(
-                IllegalStateException.class,
-                () ->
-                        dispatcher.notifyApplicationStatusChange(
-                                applicationId, ApplicationState.FAILED));
-    }
-
-    private void submitApplicationAndMockApplicationStatusChange(ApplicationState targetState)
-            throws Exception {
-        submitApplication();
-        mockApplicationStatusChange(targetState);
-    }
-
     private void submitApplication() throws Exception {
         dispatcher
                 .submitApplication(
@@ -1038,10 +969,15 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
 
         final OneShotLatch dispatcherBootstrapLatch = new OneShotLatch();
+        // job result must have a corresponding application result
         dispatcher =
                 createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
                         .setCleanupRunnerFactory(cleanupRunnerFactory)
+                        .setRecoveredDirtyApplications(
+                                Collections.singleton(
+                                        TestingApplicationResultStore
+                                                .createSuccessfulApplicationResult(applicationId)))
                         .setRecoveredDirtyJobs(
                                 Collections.singleton(
                                         new JobResult.Builder()
@@ -1072,479 +1008,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(jobManagerRunnerFactory.getQueueSize())
                 .as("No JobMaster should have been started.")
                 .isZero();
-    }
-
-    @Test
-    public void testApplicationBootstrap() throws Exception {
-        final OneShotLatch bootstrapLatch = new OneShotLatch();
-        final AbstractApplication application =
-                TestingApplication.builder()
-                        .setApplicationId(applicationId)
-                        .setExecuteFunction(
-                                ignored -> {
-                                    bootstrapLatch.trigger();
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
-                                })
-                        .build();
-
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setDispatcherBootstrapFactory(
-                                (ignoredDispatcherGateway,
-                                        ignoredScheduledExecutor,
-                                        ignoredFatalErrorHandler) ->
-                                        new ApplicationBootstrap(application))
-                        .setJobManagerRunnerFactory(
-                                new TestingJobMasterServiceLeadershipRunnerFactory())
-                        .build(rpcService);
-
-        dispatcher.start();
-
-        // ensure that the application execution is triggered
-        bootstrapLatch.await();
-
-        assertThat(dispatcher.getApplications().size()).isEqualTo(1);
-        assertThat(dispatcher.getApplications().keySet()).contains(applicationId);
-
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-
-        assertThat(application.getJobs().size()).isEqualTo(1);
-        assertThat(application.getJobs()).contains(jobId);
-    }
-
-    @Test
-    public void testApplicationSubmission() throws Exception {
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
-        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        final CompletableFuture<ApplicationID> submittedApplicationFuture =
-                new CompletableFuture<>();
-        final AbstractApplication application =
-                TestingApplication.builder()
-                        .setApplicationId(applicationId)
-                        .setExecuteFunction(
-                                ignored -> {
-                                    submittedApplicationFuture.complete(applicationId);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
-                                })
-                        .build();
-
-        dispatcherGateway.submitApplication(application, TIMEOUT).get();
-
-        // ensure that the application execution is triggered
-        assertThat(submittedApplicationFuture).isCompletedWithValue(applicationId);
-
-        ArchivedApplication archivedApplication =
-                dispatcher.requestApplication(applicationId, TIMEOUT).get();
-        assertThat(archivedApplication.getApplicationId()).isEqualTo(applicationId);
-    }
-
-    @Test
-    public void testDuplicateApplicationSubmission() throws Exception {
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        final AbstractApplication application =
-                TestingApplication.builder().setApplicationId(applicationId).build();
-        // submit application
-        dispatcherGateway.submitApplication(application, TIMEOUT).get();
-
-        // duplicate submission
-        final CompletableFuture<Acknowledge> submitFuture =
-                dispatcherGateway.submitApplication(application, TIMEOUT);
-        assertThatThrownBy(submitFuture::get)
-                .hasCauseInstanceOf(DuplicateApplicationSubmissionException.class);
-    }
-
-    @Test
-    public void testDuplicateApplicationSubmissionIsDetectedOnSimultaneousSubmission()
-            throws Exception {
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        final AbstractApplication application =
-                TestingApplication.builder().setApplicationId(applicationId).build();
-
-        final int numThreads = 5;
-        final CountDownLatch prepareLatch = new CountDownLatch(numThreads);
-        final OneShotLatch startLatch = new OneShotLatch();
-
-        final Collection<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
-        final Collection<Thread> threads = new ArrayList<>();
-        for (int x = 0; x < numThreads; x++) {
-            threads.add(
-                    new Thread(
-                            () -> {
-                                try {
-                                    prepareLatch.countDown();
-                                    startLatch.awaitQuietly();
-                                    dispatcherGateway
-                                            .submitApplication(application, TIMEOUT)
-                                            .join();
-                                } catch (Throwable t) {
-                                    exceptions.add(t);
-                                }
-                            }));
-        }
-
-        // start worker threads and trigger submissions
-        threads.forEach(Thread::start);
-        prepareLatch.await();
-        startLatch.trigger();
-
-        // wait for the submissions to happen
-        for (Thread thread : threads) {
-            thread.join();
-        }
-
-        // verify the application was actually submitted
-        ArchivedApplication archivedApplication =
-                dispatcher.requestApplication(applicationId, TIMEOUT).get();
-        assertThat(archivedApplication.getApplicationId()).isEqualTo(applicationId);
-
-        // verify that all but one submission failed as duplicates
-        assertThat(exceptions)
-                .hasSize(numThreads - 1)
-                .allSatisfy(
-                        t ->
-                                assertThat(t)
-                                        .hasCauseInstanceOf(
-                                                DuplicateApplicationSubmissionException.class));
-    }
-
-    @Test
-    public void testRecoverJobSuccessfully() throws Exception {
-        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
-                new TestingJobMasterServiceLeadershipRunnerFactory();
-
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setRecoveredJobs(Collections.singleton(jobGraph))
-                        .setDispatcherBootstrapFactory(
-                                (ignoredDispatcherGateway,
-                                        ignoredScheduledExecutor,
-                                        ignoredFatalErrorHandler) ->
-                                        new ApplicationBootstrap(
-                                                TestingApplication.builder()
-                                                        .setApplicationId(applicationId)
-                                                        .build()))
-                        .build(rpcService);
-
-        dispatcher.start();
-        dispatcher.waitUntilStarted();
-
-        // verify that the recovered job is NOT recovered immediately
-        assertThat(jobManagerRunnerFactory.getQueueSize()).isZero();
-        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isTrue();
-        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
-                .isTrue();
-
-        // call recoverJob RPC
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.recoverJob(jobId, TIMEOUT).get();
-
-        // verify that the job is now recovered
-        final TestingJobManagerRunner jobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        assertThat(jobManagerRunner.getJobID()).isEqualTo(jobId);
-        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isFalse();
-        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
-                .isFalse();
-    }
-
-    @Test
-    public void testRecoverJobFailsWhenJobNotFound() throws Exception {
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setRecoveredJobs(Collections.singleton(jobGraph))
-                        .setDispatcherBootstrapFactory(
-                                (ignoredDispatcherGateway,
-                                        ignoredScheduledExecutor,
-                                        ignoredFatalErrorHandler) ->
-                                        new ApplicationBootstrap(
-                                                TestingApplication.builder()
-                                                        .setApplicationId(applicationId)
-                                                        .build()))
-                        .build(rpcService);
-
-        dispatcher.start();
-        dispatcher.waitUntilStarted();
-
-        // try to recover a job that doesn't exist
-        final JobID unknownJobId = new JobID();
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-        final CompletableFuture<Acknowledge> recoverFuture =
-                dispatcherGateway.recoverJob(unknownJobId, TIMEOUT);
-
-        assertThatThrownBy(recoverFuture::get)
-                .hasCauseInstanceOf(JobSubmissionException.class)
-                .hasMessageContaining("Cannot find the recovered job");
-    }
-
-    @Test
-    public void testRemainingRecoveredJobsCleanedWhenApplicationReachesTerminalState()
-            throws Exception {
-        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
-                new TestingJobMasterServiceLeadershipRunnerFactory();
-        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
-
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setCleanupRunnerFactory(cleanupRunnerFactory)
-                        .setRecoveredJobs(Collections.singleton(jobGraph))
-                        .setDispatcherBootstrapFactory(
-                                (ignoredDispatcherGateway,
-                                        ignoredScheduledExecutor,
-                                        ignoredFatalErrorHandler) ->
-                                        new ApplicationBootstrap(
-                                                TestingApplication.builder()
-                                                        .setApplicationId(applicationId)
-                                                        .build()))
-                        .build(rpcService);
-
-        dispatcher.start();
-        dispatcher.waitUntilStarted();
-
-        // verify that the recovered job exists
-        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isTrue();
-        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
-                .isTrue();
-
-        // complete the application - this should trigger cleanup of the remaining recovered job
-        dispatcher
-                .callAsyncInMainThread(
-                        () -> {
-                            dispatcher.notifyApplicationStatusChange(
-                                    applicationId, ApplicationState.FINISHED);
-                            return CompletableFuture.completedFuture(Acknowledge.get());
-                        })
-                .get();
-
-        // verify that no jobs are recovered
-        assertThat(jobManagerRunnerFactory.getQueueSize()).isZero();
-
-        // verify that the remaining recovered job is cleaned up
-        final TestingJobManagerRunner cleanupRunner =
-                cleanupRunnerFactory.takeCreatedJobManagerRunner();
-        assertThat(cleanupRunner.getJobID()).isEqualTo(jobId);
-        assertThat(dispatcher.getSuspendedJobs().containsKey(jobId)).isFalse();
-        assertThat(dispatcher.getSuspendedJobIdsByApplicationId().containsKey(applicationId))
-                .isFalse();
-    }
-
-    @Test
-    public void testJobResultNotMarkedCleanUntilApplicationTerminates() throws Exception {
-        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
-                new TestingJobMasterServiceLeadershipRunnerFactory();
-
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setDispatcherBootstrapFactory(
-                                (ignoredDispatcherGateway,
-                                        ignoredScheduledExecutor,
-                                        ignoredFatalErrorHandler) ->
-                                        new ApplicationBootstrap(
-                                                TestingApplication.builder()
-                                                        .setApplicationId(applicationId)
-                                                        .build()))
-                        .build(rpcService);
-
-        dispatcher.start();
-        dispatcher.waitUntilStarted();
-
-        // submit a job
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-
-        // complete the job
-        final TestingJobManagerRunner jobManagerRunner =
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        final ExecutionGraphInfo completedExecutionGraphInfo =
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder()
-                                .setJobID(jobId)
-                                .setState(JobStatus.FINISHED)
-                                .setApplicationId(applicationId)
-                                .build());
-        jobManagerRunner.completeResultFuture(completedExecutionGraphInfo);
-
-        // job termination future should not be completed
-        assertThatThrownBy(
-                        () ->
-                                dispatcher
-                                        .getJobTerminationFuture(jobId, TIMEOUT)
-                                        .get(10L, TimeUnit.MILLISECONDS))
-                .isInstanceOf(TimeoutException.class);
-
-        // verify that the job result is NOT marked clean yet
-        assertThat(
-                        haServices.getJobResultStore().getDirtyResults().stream()
-                                .anyMatch(r -> r.getJobId().equals(jobId)))
-                .isTrue();
-
-        // complete the application
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
-
-        // wait for application termination
-        dispatcher
-                .getApplicationTerminationFuture(applicationId)
-                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-
-        // wait for job termination
-        dispatcher
-                .getJobTerminationFuture(jobId, TIMEOUT)
-                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-
-        // verify that the job result is now marked clean
-        assertThat(
-                        haServices.getJobResultStore().getDirtyResults().stream()
-                                .noneMatch(r -> r.getJobId().equals(jobId)))
-                .isTrue();
-    }
-
-    @Test
-    public void testRecoveredDirtyJobResultsCleanedOnApplicationSubmission() throws Exception {
-        // create a dirty job result
-        final JobResult jobResult =
-                new JobResult.Builder()
-                        .jobId(jobId)
-                        .jobStatus(JobStatus.FINISHED)
-                        .netRuntime(1)
-                        .applicationId(applicationId)
-                        .build();
-
-        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
-
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setCleanupRunnerFactory(cleanupRunnerFactory)
-                        .setRecoveredDirtyJobs(Collections.singleton(jobResult))
-                        .setDispatcherBootstrapFactory(
-                                (ignoredDispatcherGateway,
-                                        ignoredScheduledExecutor,
-                                        ignoredFatalErrorHandler) ->
-                                        new ApplicationBootstrap(
-                                                TestingApplication.builder()
-                                                        .setApplicationId(applicationId)
-                                                        .build()))
-                        .build(rpcService);
-
-        // verify that the dirty job result exists
-        assertThat(
-                        dispatcher
-                                .getRecoveredDirtyJobResultsByApplicationId()
-                                .containsKey(applicationId))
-                .isTrue();
-
-        // start application - this should trigger the cleanup of dirty job results
-        dispatcher.start();
-        dispatcher.waitUntilStarted();
-
-        // verify that the dirty job result was cleaned up
-        final TestingJobManagerRunner cleanupRunner =
-                cleanupRunnerFactory.takeCreatedJobManagerRunner();
-        assertThat(cleanupRunner.getJobID()).isEqualTo(jobId);
-        assertThat(
-                        dispatcher
-                                .getRecoveredDirtyJobResultsByApplicationId()
-                                .containsKey(applicationId))
-                .isFalse();
-    }
-
-    @Test
-    public void testApplicationCancellation() throws Exception {
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        final CompletableFuture<Void> canceledApplicationFuture = new CompletableFuture<>();
-        final AbstractApplication application =
-                TestingApplication.builder()
-                        .setApplicationId(applicationId)
-                        .setCancelFunction(
-                                ignored -> {
-                                    canceledApplicationFuture.complete(null);
-                                    return null;
-                                })
-                        .build();
-
-        dispatcherGateway.submitApplication(application, TIMEOUT).get();
-
-        // verify the application was actually submitted
-        ArchivedApplication archivedApplication =
-                dispatcher.requestApplication(applicationId, TIMEOUT).get();
-        assertThat(archivedApplication.getApplicationId()).isEqualTo(applicationId);
-
-        // submission has succeeded, now cancel the application
-        dispatcherGateway.cancelApplication(applicationId, TIMEOUT).get();
-
-        assertThatFuture(canceledApplicationFuture).isDone();
-    }
-
-    @Test
-    public void testApplicationCancellationOfCanceledTerminalDoesNotThrowException()
-            throws Exception {
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        final AbstractApplication application =
-                TestingApplication.builder()
-                        .setApplicationId(applicationId)
-                        .setGetApplicationStatusFunction(ignored -> ApplicationState.CANCELED)
-                        .build();
-
-        dispatcherGateway.submitApplication(application, TIMEOUT).get();
-
-        // verify the application was actually submitted
-        ArchivedApplication archivedApplication =
-                dispatcher.requestApplication(applicationId, TIMEOUT).get();
-        assertThat(archivedApplication.getApplicationId()).isEqualTo(applicationId);
-        assertThat(archivedApplication.getApplicationStatus()).isEqualTo(ApplicationState.CANCELED);
-
-        // cancel the application should not throw
-        dispatcherGateway.cancelApplication(applicationId, TIMEOUT).get();
-    }
-
-    @Test
-    public void testApplicationCancellationOfNonCanceledTerminalFailsWithAppropriateException()
-            throws Exception {
-
-        dispatcher = createAndStartDispatcher(heartbeatServices, haServices);
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        final AbstractApplication application =
-                TestingApplication.builder()
-                        .setApplicationId(applicationId)
-                        .setGetApplicationStatusFunction(ignored -> ApplicationState.FINISHED)
-                        .build();
-
-        dispatcherGateway.submitApplication(application, TIMEOUT).get();
-
-        // verify the application was actually submitted
-        ArchivedApplication archivedApplication =
-                dispatcher.requestApplication(applicationId, TIMEOUT).get();
-        assertThat(archivedApplication.getApplicationId()).isEqualTo(applicationId);
-        assertThat(archivedApplication.getApplicationStatus()).isEqualTo(ApplicationState.FINISHED);
-
-        // cancel the application should throw
-        final CompletableFuture<Acknowledge> cancelFuture =
-                dispatcherGateway.cancelApplication(applicationId, TIMEOUT);
-
-        FlinkAssertions.assertThatFuture(cancelFuture)
-                .eventuallyFails()
-                .withCauseOfType(FlinkApplicationTerminatedWithoutCancellationException.class);
     }
 
     @Test
@@ -1679,33 +1142,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 .isInstanceOf(TimeoutException.class);
 
         jobTerminationFuture.complete(null);
-
-        dispatcher.getShutDownFuture().get();
-    }
-
-    @Test
-    public void testShutDownFutureCompletesAfterApplicationArchivingFutures() throws Exception {
-        final CompletableFuture<Acknowledge> archiveApplicationFuture = new CompletableFuture<>();
-        dispatcher =
-                createTestingDispatcherBuilder()
-                        .setHistoryServerArchivist(
-                                TestingHistoryServerArchivist.builder()
-                                        .setArchiveApplicationFunction(
-                                                archivedApplication -> archiveApplicationFuture)
-                                        .build())
-                        .build(rpcService);
-        dispatcher.start();
-
-        submitApplicationAndMockApplicationStatusChange(ApplicationState.FINISHED);
-
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-
-        dispatcherGateway.shutDownCluster(ApplicationStatus.SUCCEEDED).get();
-        assertThatThrownBy(() -> dispatcher.getShutDownFuture().get(100L, TimeUnit.MILLISECONDS))
-                .isInstanceOf(TimeoutException.class);
-
-        archiveApplicationFuture.complete(null);
 
         dispatcher.getShutDownFuture().get();
     }
