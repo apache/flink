@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.avro.SchemaBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -78,6 +79,7 @@ class AvroFormatFactoryTest {
                         ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), encoding);
 
         final Map<String, String> options = getAllOptions(true);
+        options.put("avro.encoding", encoding.toString());
 
         final DynamicTableSource actualSource = FactoryMocks.createTableSource(SCHEMA, options);
         assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
@@ -102,6 +104,40 @@ class AvroFormatFactoryTest {
                 sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
 
         assertThat(actualSer).isEqualTo(expectedSer);
+    }
+
+    @Test
+    void testFastReadAndWriterSchemaOptions() {
+        final Map<String, String> options = getAllOptions(true);
+        options.put("avro.fast-read.enabled", "true");
+        final String writerSchema =
+                SchemaBuilder.record("Writer")
+                        .fields()
+                        .requiredInt("a")
+                        .requiredInt("b")
+                        .endRecord()
+                        .toString();
+        options.put("avro.writer.schemaString", writerSchema);
+
+        final DynamicTableSource actualSource = FactoryMocks.createTableSource(SCHEMA, options);
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
+
+        final AvroRowDataDeserializationSchema expectedDeser =
+                new AvroRowDataDeserializationSchema(
+                        ROW_TYPE,
+                        ROW_TYPE,
+                        InternalTypeInfo.of(ROW_TYPE),
+                        AvroEncoding.BINARY,
+                        true,
+                        true,
+                        writerSchema);
+
+        assertThat(actualDeser).isEqualTo(expectedDeser);
     }
 
     @Test
