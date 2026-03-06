@@ -130,6 +130,7 @@ under the License.
 		<flink.shaded.version>21.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.20.1</flink.shaded.jackson.version>
 		<flink.shaded.jsonpath.version>2.10.0</flink.shaded.jsonpath.version>
+		<flink.connector.kafka.version>4.0.1-2.0</flink.connector.kafka.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
