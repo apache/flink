@@ -84,7 +84,9 @@ object FlinkStreamRuleSets {
     RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
     RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
     RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE,
+    SimplifyCoalesceWithEquiJoinConditionRule.PROJECT_INSTANCE,
+    SimplifyCoalesceWithEquiJoinConditionRule.CALC_INSTANCE
   )
 
   /** RuleSet to simplify predicate expressions in filters and joins */
