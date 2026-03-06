@@ -41,7 +41,11 @@ import org.testcontainers.containers.output.BaseConsumer;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
+import javax.annotation.Nonnull;
+
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -115,6 +119,43 @@ public class OpenTelemetryTestBase {
                                         return null;
                                     });
                 });
+    }
+
+    public static void eventuallyConsumeAllJson(
+            final ThrowingConsumer<List<JsonNode>, Exception> jsonConsumer) throws Exception {
+        eventually(
+                () -> {
+                    getOtelContainer()
+                            .copyFileFromContainer(
+                                    getOtelContainer().getOutputLogPath().toString(),
+                                    inputStream -> {
+                                        final List<String> rawLines = readRawLines(inputStream);
+
+                                        final ObjectMapper mapper = new ObjectMapper();
+                                        final List<JsonNode> jsonLines = new ArrayList<>();
+                                        for (final String rawLine : rawLines) {
+                                            jsonLines.add(
+                                                    mapper.readValue(rawLine, JsonNode.class));
+                                        }
+                                        try {
+                                            jsonConsumer.accept(jsonLines);
+                                        } catch (Throwable t) {
+                                            throw new ConsumeDataLogException(t, rawLines);
+                                        }
+                                        return null;
+                                    });
+                });
+    }
+
+    private static @Nonnull List<String> readRawLines(final InputStream inputStream)
+            throws IOException {
+        final List<String> rawLines = new ArrayList<>();
+        final BufferedReader input = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        while ((line = input.readLine()) != null) {
+            rawLines.add(line);
+        }
+        return rawLines;
     }
 
     public static void eventually(ThrowingRunnable<Exception> runnable) throws Exception {

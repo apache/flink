@@ -51,6 +51,12 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
 		<!-- OpenTelemetry -->
 
 		<dependency>

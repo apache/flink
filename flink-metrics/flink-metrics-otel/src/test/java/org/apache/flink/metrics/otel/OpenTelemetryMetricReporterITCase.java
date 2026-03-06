@@ -266,6 +266,61 @@ public class OpenTelemetryMetricReporterITCase extends OpenTelemetryTestBase {
                 });
     }
 
+    @Test
+    public void testReportWithBatching() throws Exception {
+        MetricConfig metricConfig = createMetricConfig();
+        metricConfig.setProperty(OpenTelemetryReporterOptions.BATCH_SIZE.key(), String.valueOf(2));
+        MetricGroup group = new TestMetricGroup();
+
+        reporter.open(metricConfig);
+
+        SimpleCounter counter1 = new SimpleCounter();
+        SimpleCounter counter2 = new SimpleCounter();
+        SimpleCounter counter3 = new SimpleCounter();
+        reporter.notifyOfAddedMetric(counter1, "batch.counter1", group);
+        reporter.notifyOfAddedMetric(counter2, "batch.counter2", group);
+        reporter.notifyOfAddedMetric(counter3, "batch.counter3", group);
+
+        reporter.report();
+        reporter.waitForLastReportToComplete();
+        reporter.close();
+
+        // With batching, each batch produces a separate output line in the collector.
+        // Verify that we get exactly 2 batches (sizes 2+1) containing all 3 metrics.
+        eventuallyConsumeAllJson(
+                jsonLines -> {
+                    final List<List<String>> batches =
+                            jsonLines.stream()
+                                    .map(OpenTelemetryTestBase::extractMetricNames)
+                                    .filter(names -> !names.isEmpty())
+                                    .filter(
+                                            names ->
+                                                    names.stream()
+                                                            .anyMatch(
+                                                                    n ->
+                                                                            n.contains(
+                                                                                    "batch.counter")))
+                                    .collect(Collectors.toList());
+
+                    assertThat(batches).hasSize(2);
+                    assertThat(batches.stream().mapToInt(List::size).sum()).isEqualTo(3);
+                    assertThat(
+                                    batches.stream()
+                                            .map(List::size)
+                                            .sorted()
+                                            .collect(Collectors.toList()))
+                            .containsExactly(1, 2);
+
+                    final List<String> allNames =
+                            batches.stream().flatMap(List::stream).collect(Collectors.toList());
+                    assertThat(allNames)
+                            .containsExactlyInAnyOrder(
+                                    "flink.logical.scope.batch.counter1",
+                                    "flink.logical.scope.batch.counter2",
+                                    "flink.logical.scope.batch.counter3");
+                });
+    }
+
     static class TestMetricGroup extends UnregisteredMetricsGroup implements LogicalScopeProvider {
 
         @Override

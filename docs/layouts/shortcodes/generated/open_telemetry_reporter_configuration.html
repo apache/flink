@@ -9,6 +9,18 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>metrics.reporter.OpenTelemetry.batch.size</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Number of metrics per export batch. Values &lt;= 0 disable batching and all metrics are exported in a single request.</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.OpenTelemetry.export-completion-timeout-millis</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>Long</td>
+            <td>Timeout in milliseconds for waiting on async export completion.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.reporter.OpenTelemetry.exporter.compression</h5></td>
             <td style="word-wrap: break-word;">"none"</td>
             <td>String</td>
