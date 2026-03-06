@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.NoCommonJoinKeyException;
@@ -64,13 +65,20 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
     // leftKeyExtractorsMap: extractors that read the left side (joined row so far)
     //   using the same attribute order as in joinAttributeMap.
     private final Map<Integer, List<KeyExtractor>> leftKeyExtractorsMap;
+    // RowData serializers for left key.
+    private final Map<Integer, RowDataSerializer> leftKeySerializersMap;
     // rightKeyExtractorsMap: extractors to extract the right-side key from each input.
     private final Map<Integer, List<KeyExtractor>> rightKeyExtractorsMap;
+    // RowData serializers for right key.
+    private final Map<Integer, RowDataSerializer> rightKeySerializersMap;
 
     // Data structures for the "common join key" shared by all inputs.
     // Input 0 provides the canonical order and defines commonJoinKeyType.
     private final Map<Integer, List<KeyExtractor>> commonJoinKeyExtractors;
+    // RowData serializers for common join key.
+    private final Map<Integer, RowDataSerializer> commonJoinKeySerializersMap;
     private RowType commonJoinKeyType;
+    private boolean requiresKeyDeepCopy;
 
     /**
      * Creates an AttributeBasedJoinKeyExtractor.
@@ -87,8 +95,12 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         this.joinAttributeMap = joinAttributeMap;
         this.inputTypes = inputTypes;
         this.leftKeyExtractorsMap = new HashMap<>();
+        this.leftKeySerializersMap = new HashMap<>();
         this.rightKeyExtractorsMap = new HashMap<>();
+        this.rightKeySerializersMap = new HashMap<>();
         this.commonJoinKeyExtractors = new HashMap<>();
+        this.commonJoinKeySerializersMap = new HashMap<>();
+        this.requiresKeyDeepCopy = false;
 
         initializeCaches();
         initializeCommonJoinKeyStructures();
@@ -113,7 +125,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
             return null;
         }
 
-        return buildKeyRowFromSourceRow(row, keyExtractors);
+        return buildKeyRowFromSourceRow(row, keyExtractors, rightKeySerializersMap.get(inputId));
     }
 
     @Override
@@ -127,7 +139,8 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
             return null;
         }
 
-        return buildKeyRowFromJoinedRow(keyExtractors, joinedRowData);
+        return buildKeyRowFromJoinedRow(
+                keyExtractors, joinedRowData, leftKeySerializersMap.get(depth));
     }
 
     @Override
@@ -168,7 +181,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
             return null;
         }
 
-        return buildKeyRowFromSourceRow(row, extractors);
+        return buildKeyRowFromSourceRow(row, extractors, commonJoinKeySerializersMap.get(inputId));
     }
 
     @Override
@@ -181,13 +194,23 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         return extractors.stream().mapToInt(KeyExtractor::getFieldIndexInSourceRow).toArray();
     }
 
+    @Override
+    public void requiresKeyDeepCopy() {
+        this.requiresKeyDeepCopy = true;
+    }
+
     // ==================== Initialization Methods ====================
 
     private void initializeCaches() {
         if (this.inputTypes != null) {
             for (int i = 0; i < this.inputTypes.size(); i++) {
-                this.leftKeyExtractorsMap.put(i, createLeftJoinKeyFieldExtractors(i));
-                this.rightKeyExtractorsMap.put(i, createRightJoinKeyExtractors(i));
+                List<KeyExtractor> leftJoinKeyExtractors = createLeftJoinKeyFieldExtractors(i);
+                this.leftKeyExtractorsMap.put(i, leftJoinKeyExtractors);
+                this.leftKeySerializersMap.put(i, createJoinKeySerializer(leftJoinKeyExtractors));
+
+                List<KeyExtractor> rightJoinKeyExtractors = createRightJoinKeyExtractors(i);
+                this.rightKeyExtractorsMap.put(i, rightJoinKeyExtractors);
+                this.rightKeySerializersMap.put(i, createJoinKeySerializer(rightJoinKeyExtractors));
             }
         }
     }
@@ -224,6 +247,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         }
 
         return keyExtractors;
+    }
+
+    private RowDataSerializer createJoinKeySerializer(List<KeyExtractor> keyExtractors) {
+        return new RowDataSerializer(
+                keyExtractors.stream().map(e -> e.fieldType).toArray(LogicalType[]::new));
     }
 
     private static AttributeRef getLeftAttributeRef(
@@ -279,7 +307,9 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
     // ==================== Key Building Methods ====================
 
     private RowData buildKeyRowFromJoinedRow(
-            final List<KeyExtractor> keyExtractors, final RowData joinedRowData) {
+            final List<KeyExtractor> keyExtractors,
+            final RowData joinedRowData,
+            RowDataSerializer keySerializer) {
         if (keyExtractors.isEmpty()) {
             return null;
         }
@@ -288,11 +318,17 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         for (int i = 0; i < keyExtractors.size(); i++) {
             keyRow.setField(i, keyExtractors.get(i).getLeftSideKey(joinedRowData));
         }
-        return keyRow;
+        if (requiresKeyDeepCopy) {
+            return keySerializer.toBinaryRow(keyRow, true);
+        } else {
+            return keyRow;
+        }
     }
 
-    private GenericRowData buildKeyRowFromSourceRow(
-            final RowData sourceRow, final List<KeyExtractor> keyExtractors) {
+    private RowData buildKeyRowFromSourceRow(
+            final RowData sourceRow,
+            final List<KeyExtractor> keyExtractors,
+            RowDataSerializer keySerializer) {
         if (keyExtractors.isEmpty()) {
             return null;
         }
@@ -301,7 +337,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         for (int i = 0; i < keyExtractors.size(); i++) {
             keyRow.setField(i, keyExtractors.get(i).getRightSideKey(sourceRow));
         }
-        return keyRow;
+        if (requiresKeyDeepCopy) {
+            return keySerializer.toBinaryRow(keyRow, true);
+        } else {
+            return keyRow;
+        }
     }
 
     private RowType buildJoinKeyType(final int inputId, final List<KeyExtractor> keyExtractors) {
@@ -608,6 +648,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
 
         final LogicalType[] keyFieldTypes =
                 extractors.stream().map(e -> e.fieldType).toArray(LogicalType[]::new);
+        this.commonJoinKeySerializersMap.put(currentInputId, new RowDataSerializer(keyFieldTypes));
         if (currentInputId == 0 && !extractors.isEmpty()) {
             this.commonJoinKeyType = RowType.of(keyFieldTypes, keyFieldNames);
         }
