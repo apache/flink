@@ -63,6 +63,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nullable;
 
@@ -276,7 +277,7 @@ class HistoryServerTest {
     }
 
     private void startHistoryServerWithSizeLimit(int maxHistorySize)
-            throws IOException, FlinkException, InterruptedException {
+            throws IOException, FlinkException, InterruptedException, RocksDBException {
         Configuration historyServerConfig =
                 createTestConfiguration(
                         HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
