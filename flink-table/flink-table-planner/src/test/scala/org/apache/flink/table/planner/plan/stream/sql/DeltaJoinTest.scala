@@ -697,7 +697,8 @@ class DeltaJoinTest extends TableTestBase {
         .build()
     )
 
-    // could not optimize into delta join because there is a calc between join and source
+    // could not optimize into delta join because there is a watermark assigner
+    // between join and source
     util.verifyRelPlanInsert(
       "insert into tmp_sink select * from wm_source join src2 " +
         "on wm_source.a1 = src2.b2")
@@ -716,7 +717,8 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testConstantConditionInIndex(): Unit = {
-    // could not optimize into delta join because there is a calc between join and source
+    // could not optimize into delta join because currently, we do not support
+    // using constant fields as join keys
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = 1.1 " +
@@ -726,11 +728,32 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testComputeIndexKeyOnJoinCondition(): Unit = {
-    // could not optimize into delta join because there is a calc between join and source
+    // could not optimize into delta join because the index fields has been computed
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = TRIM(src2.b2) " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFuncBeforeJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select a0, a1, a2, a3, b0, b2, b1 from (" +
+        "  select a0, a1, a2, cast(RAND() * a3 AS int) as a3 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFuncAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk " +
+        "select cast(a0 + RAND() as int), a1, a2, a3, b0, b2, b1 from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
         "on conflict do deduplicate")
   }
 
