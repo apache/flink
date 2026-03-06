@@ -63,6 +63,10 @@ public interface Printer extends Closeable {
         return HelpCommandPrinter.INSTANCE;
     }
 
+    static HistoryCommandPrinter createHistoryCommandPrinter(java.nio.file.Path historyFilePath) {
+        return new HistoryCommandPrinter(historyFilePath);
+    }
+
     static StatementResultPrinter createStatementCommandPrinter(
             StatementResult result, ReadableConfig sessionConfig, long startTime) {
         return new StatementResultPrinter(result, sessionConfig, startTime);
@@ -90,6 +94,56 @@ public interface Printer extends Closeable {
         public void print(Terminal terminal) {
             terminal.writer().println(CliStrings.MESSAGE_HELP);
             terminal.flush();
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    /** Printer to print the SQL execution history. */
+    class HistoryCommandPrinter implements Printer {
+
+        private final java.nio.file.Path historyFilePath;
+
+        public HistoryCommandPrinter(java.nio.file.Path historyFilePath) {
+            this.historyFilePath = historyFilePath;
+        }
+
+        @Override
+        public boolean isQuitCommand() {
+            return false;
+        }
+
+        @Override
+        public void print(Terminal terminal) {
+            if (historyFilePath == null || !java.nio.file.Files.exists(historyFilePath)) {
+                terminal.writer().println("No history file found.");
+                terminal.flush();
+                return;
+            }
+
+            try {
+                java.util.List<String> lines = java.nio.file.Files.readAllLines(historyFilePath);
+                if (lines.isEmpty()) {
+                    terminal.writer().println("History is empty.");
+                } else {
+                    terminal.writer().println("SQL Execution History:");
+                    terminal.writer().println("========================");
+                    for (int i = 0; i < lines.size(); i++) {
+                        String line = lines.get(i);
+                        // Filter out non-SQL lines (like timestamps)
+                        if (!line.isEmpty() && !line.startsWith("#")) {
+                            terminal.writer().println(String.format("%4d  %s", i + 1, line));
+                        }
+                    }
+                    terminal.writer().println("========================");
+                    terminal.writer().println(String.format("Total: %d statements", lines.size()));
+                }
+                terminal.flush();
+            } catch (java.io.IOException e) {
+                terminal.writer().println("Error reading history file: " + e.getMessage());
+                terminal.flush();
+            }
         }
 
         @Override
