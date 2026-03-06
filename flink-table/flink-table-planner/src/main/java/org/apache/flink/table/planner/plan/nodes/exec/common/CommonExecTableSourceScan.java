@@ -183,6 +183,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                             .getTransformation();
             metadata.fill(sourceTransform);
         } else if (provider instanceof DataStreamScanProvider) {
+            lineageVertex = TableLineageUtils.extractLineageDataset(provider);
             sourceTransform =
                     ((DataStreamScanProvider) provider)
                             .produceDataStream(createProviderContext(metadata, config), env)
