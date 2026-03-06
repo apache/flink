@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
@@ -59,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -662,6 +665,158 @@ class LocalInputChannelTest {
 
         // then: Buffers in use should show correct value.
         assertThat(localChannel.getBuffersInUseCount()).isEqualTo(3);
+    }
+
+    @Test
+    void testGetBuffersInUseCountIncludesToBeConsumedBuffers() throws Exception {
+        // given: Local input channel with recovered buffers in toBeConsumedBuffers
+        ResultSubpartitionView subpartitionView =
+                InputChannelTestUtils.createResultSubpartitionView(
+                        createFilledFinishedBufferConsumer(4096),
+                        createFilledFinishedBufferConsumer(4096));
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+        final SingleInputGate inputGate = createSingleInputGate(1);
+
+        // Create 3 recovered buffers
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(32));
+
+        final LocalInputChannel localChannel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        partitionManager,
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        ChannelStateWriter.NO_OP,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(localChannel);
+
+        // then: Before requesting subpartitions, buffers in use should include recovered buffers
+        assertThat(localChannel.getBuffersInUseCount()).isEqualTo(3);
+        assertThat(localChannel.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(3);
+
+        // when: The subpartition view is initialized (adds 2 more buffers from the view)
+        localChannel.requestSubpartitions();
+
+        // then: Buffers in use should include both recovered and subpartition view buffers
+        assertThat(localChannel.getBuffersInUseCount()).isEqualTo(5);
+        assertThat(localChannel.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(5);
+    }
+
+    @Test
+    void testCheckpointStartedPersistsRecoveredBuffers() throws Exception {
+        // given: Local input channel with recovered buffers
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(30));
+
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        stateWriter,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+
+        // when: Checkpoint is started
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        stateWriter.start(1L, options);
+        CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, options);
+        channel.checkpointStarted(barrier);
+
+        // then: All 3 recovered buffers should be persisted as inflight data
+        List<Buffer> persistedBuffers = stateWriter.getAddedInput().get(channel.getChannelInfo());
+        assertThat(persistedBuffers).isNotNull().hasSize(3);
+        assertThat(persistedBuffers.stream().mapToInt(Buffer::getSize).toArray())
+                .containsExactly(10, 20, 30);
+    }
+
+    @Test
+    void testPriorityEventConsumedBeforeRecoveredBuffers() throws Exception {
+        // given: Local input channel with recovered buffers AND a subpartition with a barrier
+        SingleInputGate inputGate = new SingleInputGateBuilder().build();
+
+        PipelinedResultPartition parent =
+                (PipelinedResultPartition)
+                        PartitionTestUtils.createPartition(
+                                ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
+        ResultSubpartition subpartition = parent.getAllPartitions()[0];
+        ResultSubpartitionView subpartitionView =
+                subpartition.createReadView((ResultSubpartitionView view) -> {});
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+
+        // Create recovered buffers
+        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
+        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
+        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+
+        RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
+
+        LocalInputChannel channel =
+                new LocalInputChannel(
+                        inputGate,
+                        0,
+                        parent.getPartitionId(),
+                        new ResultSubpartitionIndexSet(0),
+                        partitionManager,
+                        new TaskEventDispatcher(),
+                        0,
+                        0,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        stateWriter,
+                        recoveredBuffers);
+
+        inputGate.setInputChannels(channel);
+        channel.requestSubpartitions();
+
+        // when: A priority event (barrier) arrives while recovered buffers are still pending
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault());
+        CheckpointBarrier barrier = new CheckpointBarrier(1L, 0L, options);
+        subpartition.add(EventSerializer.toBufferConsumer(barrier, true));
+
+        // Notify that priority event is available
+        channel.notifyPriorityEvent(0);
+
+        // then: The first buffer returned should be the priority event (barrier), not recovered
+        // data
+        Optional<InputChannel.BufferAndAvailability> firstResult = channel.getNextBuffer();
+        assertThat(firstResult).isPresent();
+        assertThat(firstResult.get().buffer().getDataType().hasPriority()).isTrue();
+
+        // And the next buffers should be the recovered data
+        Optional<InputChannel.BufferAndAvailability> secondResult = channel.getNextBuffer();
+        assertThat(secondResult).isPresent();
+        assertThat(secondResult.get().buffer().isBuffer()).isTrue();
+        assertThat(secondResult.get().buffer().getSize()).isEqualTo(10);
     }
 
     // ---------------------------------------------------------------------------------------------

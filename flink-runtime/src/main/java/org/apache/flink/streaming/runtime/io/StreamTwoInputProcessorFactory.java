@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
@@ -84,6 +85,10 @@ public class StreamTwoInputProcessorFactory {
         checkNotNull(operatorChain);
 
         taskIOMetricGroup.reuseRecordsInputCounter(numRecordsIn);
+
+        boolean unalignedDuringRecoveryEnabled =
+                CheckpointingOptions.isUnalignedDuringRecoveryEnabled(jobConfig);
+
         TypeSerializer<IN1> typeSerializer1 = streamConfig.getTypeSerializerIn(0, userClassloader);
         StreamTaskInput<IN1> input1 =
                 StreamTaskNetworkInputFactory.create(
@@ -96,7 +101,8 @@ public class StreamTwoInputProcessorFactory {
                         gatePartitioners,
                         taskInfo,
                         canEmitBatchOfRecords,
-                        streamConfig.getWatermarkDeclarations(userClassloader));
+                        streamConfig.getWatermarkDeclarations(userClassloader),
+                        unalignedDuringRecoveryEnabled);
         TypeSerializer<IN2> typeSerializer2 = streamConfig.getTypeSerializerIn(1, userClassloader);
         StreamTaskInput<IN2> input2 =
                 StreamTaskNetworkInputFactory.create(
@@ -109,7 +115,8 @@ public class StreamTwoInputProcessorFactory {
                         gatePartitioners,
                         taskInfo,
                         canEmitBatchOfRecords,
-                        streamConfig.getWatermarkDeclarations(userClassloader));
+                        streamConfig.getWatermarkDeclarations(userClassloader),
+                        unalignedDuringRecoveryEnabled);
 
         InputSelectable inputSelectable =
                 streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -75,10 +76,24 @@ class InputChannelRecoveredStateHandler
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
+    /**
+     * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
+     * performed during recovery in the channel-state-unspilling thread.
+     */
+    @Nullable private final ChannelStateFilteringHandler filteringHandler;
+
     InputChannelRecoveredStateHandler(
             InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
+        this(inputGates, channelMapping, null);
+    }
+
+    InputChannelRecoveredStateHandler(
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            @Nullable ChannelStateFilteringHandler filteringHandler) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
+        this.filteringHandler = filteringHandler;
     }
 
     @Override
@@ -100,15 +115,78 @@ class InputChannelRecoveredStateHandler
         try {
             if (buffer.readableBytes() > 0) {
                 RecoveredInputChannel channel = getMappedChannels(channelInfo);
-                channel.onRecoveredStateBuffer(
-                        EventSerializer.toBuffer(
-                                new SubtaskConnectionDescriptor(
-                                        oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                false));
-                channel.onRecoveredStateBuffer(buffer.retainBuffer());
+
+                if (filteringHandler != null) {
+                    // Filtering mode: filter records and rewrite to new buffers
+                    recoverWithFiltering(channel, channelInfo, oldSubtaskIndex, buffer);
+                } else {
+                    // Non-filtering mode: pass through original buffer with descriptor
+                    recoverWithoutFiltering(channel, channelInfo, oldSubtaskIndex, buffer);
+                }
             }
         } finally {
             buffer.recycleBuffer();
+        }
+    }
+
+    /**
+     * Recovers buffer without filtering (original behavior). Sends SubtaskConnectionDescriptor
+     * event followed by the original buffer.
+     */
+    private void recoverWithoutFiltering(
+            RecoveredInputChannel channel,
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            Buffer buffer)
+            throws IOException {
+        channel.onRecoveredStateBuffer(
+                EventSerializer.toBuffer(
+                        new SubtaskConnectionDescriptor(
+                                oldSubtaskIndex, channelInfo.getInputChannelIdx()),
+                        false));
+        channel.onRecoveredStateBuffer(buffer.retainBuffer());
+    }
+
+    /**
+     * Recovers buffer with filtering. Filters records using ChannelStateFilteringHandler and sends
+     * filtered buffers directly without SubtaskConnectionDescriptor (since filtering is already
+     * done).
+     */
+    private void recoverWithFiltering(
+            RecoveredInputChannel channel,
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            Buffer buffer)
+            throws IOException {
+        // Retain buffer because the deserializer will release it after consumption.
+        // The caller's finally block will also release it, so we need an extra reference.
+        buffer.retainBuffer();
+        boolean success = false;
+        try {
+            // Use the filtering handler to filter and rewrite the buffer.
+            // Pass gateIndex to use the correct serializer for this input gate.
+            List<Buffer> filteredBuffers =
+                    filteringHandler.filterAndRewrite(
+                            channelInfo.getGateIdx(),
+                            oldSubtaskIndex,
+                            channelInfo.getInputChannelIdx(),
+                            buffer,
+                            () -> channel.requestBufferBlocking());
+
+            // Send filtered buffers to the channel (no descriptor needed since already filtered)
+            for (Buffer filteredBuffer : filteredBuffers) {
+                channel.onRecoveredStateBuffer(filteredBuffer);
+            }
+            success = true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while filtering recovered buffer", e);
+        } finally {
+            if (!success) {
+                // Release the extra reference on error to prevent buffer leak.
+                // On the happy path, filterAndRewrite consumes the buffer internally.
+                buffer.recycleBuffer();
+            }
         }
     }
 

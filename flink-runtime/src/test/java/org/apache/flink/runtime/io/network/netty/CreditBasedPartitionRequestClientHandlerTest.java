@@ -951,7 +951,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
                     2,
                     new SimpleCounter(),
                     new SimpleCounter(),
-                    ChannelStateWriter.NO_OP);
+                    ChannelStateWriter.NO_OP,
+                    null);
             this.expectedMessage = expectedMessage;
         }
 

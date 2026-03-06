@@ -17,48 +17,38 @@
 
 package org.apache.flink.streaming.runtime.io.recovery;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.util.function.Predicate;
-
 /**
- * Filters records for ambiguous channel mappings.
+ * A filter interface for determining whether a record should be processed.
  *
- * <p>For example, when the downstream node of a keyed exchange is scaled from 1 to 2, the state of
- * the output side on te upstream node needs to be replicated to both channels. This filter then
- * checks the deserialized records on both downstream subtasks and filters out the irrelevant
- * records.
+ * <p>This interface is used during recovery to filter records for ambiguous channel mappings. For
+ * example, when the downstream node of a keyed exchange is scaled from 1 to 2, the state of the
+ * output side on the upstream node needs to be replicated to both channels. The filter then checks
+ * the deserialized records on both downstream subtasks and filters out the irrelevant records.
  *
- * @param <T>
+ * @param <T> The type of the record value.
  */
-class RecordFilter<T> implements Predicate<StreamRecord<T>> {
-    private final ChannelSelector<SerializationDelegate<StreamRecord<T>>> partitioner;
+@FunctionalInterface
+@Internal
+public interface RecordFilter<T> {
 
-    private final SerializationDelegate<StreamRecord<T>> delegate;
+    /**
+     * Tests whether the given record should be accepted.
+     *
+     * @param record The stream record to test.
+     * @return {@code true} if the record should be accepted, {@code false} otherwise.
+     */
+    boolean filter(StreamRecord<T> record);
 
-    private final int subtaskIndex;
-
-    public RecordFilter(
-            ChannelSelector<SerializationDelegate<StreamRecord<T>>> partitioner,
-            TypeSerializer<T> inputSerializer,
-            int subtaskIndex) {
-        this.partitioner = partitioner;
-        delegate = new SerializationDelegate<>(new StreamElementSerializer(inputSerializer));
-        this.subtaskIndex = subtaskIndex;
-    }
-
-    public static <T> Predicate<StreamRecord<T>> all() {
+    /**
+     * Returns a filter that accepts all records.
+     *
+     * @param <T> The type of the record value.
+     * @return A filter that always returns {@code true}.
+     */
+    static <T> RecordFilter<T> acceptAll() {
         return record -> true;
-    }
-
-    @Override
-    public boolean test(StreamRecord<T> streamRecord) {
-        delegate.setInstance(streamRecord);
-        // check if record would have arrived at this subtask if it had been partitioned upstream
-        return partitioner.selectChannel(delegate) == subtaskIndex;
     }
 }
