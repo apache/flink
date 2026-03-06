@@ -37,7 +37,7 @@ import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobmanager.HaServicesJobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.HaServicesPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -226,7 +226,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                     dispatcherRunnerFactory.createDispatcherRunner(
                             highAvailabilityServices.getDispatcherLeaderElection(),
                             fatalErrorHandler,
-                            new HaServicesJobPersistenceComponentFactory(highAvailabilityServices),
+                            new HaServicesPersistenceComponentFactory(highAvailabilityServices),
                             ioExecutor,
                             rpcService,
                             partialDispatcherServices);

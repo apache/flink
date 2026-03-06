@@ -16,24 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
+import org.apache.flink.runtime.jobmanager.ApplicationWriter;
 
-/** Factory for components that are responsible for persisting a job for recovery. */
-public interface JobPersistenceComponentFactory {
+/** Testing implementation of {@link ApplicationWriter} which does nothing. */
+public enum NoOpApplicationWriter implements ApplicationWriter {
+    INSTANCE;
 
-    /**
-     * Creates a {@link ExecutionPlanStore}.
-     *
-     * @return a {@code ExecutionPlanStore} instance
-     */
-    ExecutionPlanStore createExecutionPlanStore();
-
-    /**
-     * Creates {@link JobResultStore} instances.
-     *
-     * @return a {@code JobResultStore} instance.
-     */
-    JobResultStore createJobResultStore();
+    @Override
+    public void putApplication(ApplicationStoreEntry application) {
+        // No-op.
+    }
 }

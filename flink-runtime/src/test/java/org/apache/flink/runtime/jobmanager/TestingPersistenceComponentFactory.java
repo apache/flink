@@ -18,22 +18,35 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.util.Preconditions;
 
 /**
- * {@code TestingJobPersistenceComponentFactory} implements {@link JobPersistenceComponentFactory}
- * for a given {@link ExecutionPlanStore} and {@link JobResultStore}.
+ * {@code TestingPersistenceComponentFactory} implements {@link PersistenceComponentFactory} for a
+ * given {@link ExecutionPlanStore} and {@link JobResultStore}.
  */
-public class TestingJobPersistenceComponentFactory implements JobPersistenceComponentFactory {
+public class TestingPersistenceComponentFactory implements PersistenceComponentFactory {
 
     private final ExecutionPlanStore executionPlanStore;
     private final JobResultStore jobResultStore;
+    private final ApplicationStore applicationStore;
+    private final ApplicationResultStore applicationResultStore;
 
-    public TestingJobPersistenceComponentFactory(
+    public TestingPersistenceComponentFactory(
             ExecutionPlanStore executionPlanStore, JobResultStore jobResultStore) {
+        this(executionPlanStore, jobResultStore, null, null);
+    }
+
+    public TestingPersistenceComponentFactory(
+            ExecutionPlanStore executionPlanStore,
+            JobResultStore jobResultStore,
+            ApplicationStore applicationStore,
+            ApplicationResultStore applicationResultStore) {
         this.executionPlanStore = Preconditions.checkNotNull(executionPlanStore);
         this.jobResultStore = Preconditions.checkNotNull(jobResultStore);
+        this.applicationStore = applicationStore;
+        this.applicationResultStore = applicationResultStore;
     }
 
     @Override
@@ -44,5 +57,15 @@ public class TestingJobPersistenceComponentFactory implements JobPersistenceComp
     @Override
     public JobResultStore createJobResultStore() {
         return jobResultStore;
+    }
+
+    @Override
+    public ApplicationStore createApplicationStore() {
+        return applicationStore;
+    }
+
+    @Override
+    public ApplicationResultStore createApplicationResultStore() {
+        return applicationResultStore;
     }
 }

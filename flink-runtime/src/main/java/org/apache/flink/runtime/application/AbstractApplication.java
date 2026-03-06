@@ -23,6 +23,8 @@ import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -40,6 +42,7 @@ import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -167,6 +170,17 @@ public abstract class AbstractApplication implements Serializable {
             statusListeners = new ArrayList<>();
         }
         return statusListeners;
+    }
+
+    /**
+     * Converts the application to an {@link ApplicationStoreEntry} that can be persisted by the
+     * {@link ApplicationStore}.
+     *
+     * @return the application store entry or {@link Optional#empty()} if the application should not
+     *     be persisted.
+     */
+    public Optional<ApplicationStoreEntry> getApplicationStoreEntry() {
+        return Optional.empty();
     }
 
     // ------------------------------------------------------------------------
