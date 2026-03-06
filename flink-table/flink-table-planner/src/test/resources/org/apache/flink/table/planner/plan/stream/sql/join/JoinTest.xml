@@ -777,6 +777,190 @@ Values(tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinUpsertKeyEnrichmentInnerJoinBasic">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- LogicalProject(a1=[$0], b2=[$3], x1=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1], changelogMode=[NONE])
++- Calc(select=[a1, b2, x1], changelogMode=[I,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2], metadata=[]]], fields=[a2, b2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- Calc(select=[a1, b2, x1])
+   +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1])
+      +- Exchange(distribution=[hash[a2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2], metadata=[]]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinUpsertKeyEnrichmentInnerJoinReverse">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a2, b1, x1])
++- LogicalProject(a2=[$3], b1=[$1], x1=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a2, b1, x1], changelogMode=[NONE])
++- Calc(select=[a2, b1, x1], changelogMode=[I,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, x1, a2], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, b1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2], metadata=[]]], fields=[a2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a2, b1, x1])
++- Calc(select=[a2, b1, x1])
+   +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, x1, a2], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, b1, x1])
+      +- Exchange(distribution=[hash[a2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinUpsertKeyEnrichmentLeftJoin">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- LogicalProject(a1=[$0], b2=[$3], x1=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1], changelogMode=[NONE])
++- Calc(select=[a1, b2, x1], changelogMode=[I,UA,D])
+   +- Join(joinType=[LeftOuterJoin], where=[=(a1, a2)], select=[a1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2], metadata=[]]], fields=[a2, b2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- Calc(select=[a1, b2, x1])
+   +- Join(joinType=[LeftOuterJoin], where=[(a1 = a2)], select=[a1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1])
+      +- Exchange(distribution=[hash[a2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2], metadata=[]]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinUpsertKeyEnrichmentMultipleEquiConditions">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- LogicalProject(a1=[$0], b2=[$4], x1=[$2])
+   +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1], changelogMode=[NONE])
++- Calc(select=[a1, b2, x1], changelogMode=[I,UA,D])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, a2), =(b1, b2))], select=[a1, b1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[a1, b1]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, b1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2, b2]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2], metadata=[]]], fields=[a2, b2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, b2, x1])
++- Calc(select=[a1, b2, x1])
+   +- Join(joinType=[InnerJoin], where=[((a1 = a2) AND (b1 = b2))], select=[a1, b1, x1, a2, b2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[a1, b1]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, b1, x1])
+      +- Exchange(distribution=[hash[a2, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2, b2], metadata=[]]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinUpsertKeyEnrichmentNegativeCase">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a1, c2, x1])
++- LogicalProject(a1=[$0], c2=[$4], x1=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, c2, x1], upsertMaterialize=[true], changelogMode=[NONE])
++- Calc(select=[a1, c2, x1], changelogMode=[I,UB,UA,D])
+   +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, x1, a2, c2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UB,UA,D])
+      :- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA,D])
+      :  +- ChangelogNormalize(key=[a1], changelogMode=[I,UB,UA,D])
+      :     +- Exchange(distribution=[hash[a1]], changelogMode=[I,UA,D])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2]], changelogMode=[I,UB,UA,D])
+         +- Calc(select=[a2, c2], changelogMode=[I,UB,UA,D])
+            +- ChangelogNormalize(key=[a2, b2], changelogMode=[I,UB,UA,D])
+               +- Exchange(distribution=[hash[a2, b2]], changelogMode=[I,UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[a2, b2, c2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a1, c2, x1], upsertMaterialize=[true])
++- Calc(select=[a1, c2, x1])
+   +- Join(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, x1, a2, c2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- ChangelogNormalize(key=[a1])
+      :     +- Exchange(distribution=[hash[a1]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, x1])
+      +- Exchange(distribution=[hash[a2]])
+         +- Calc(select=[a2, c2])
+            +- ChangelogNormalize(key=[a2, b2])
+               +- Exchange(distribution=[hash[a2, b2]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinUpsertKeyEnrichmentRightJoin">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a2, b1, x1])
++- LogicalProject(a2=[$3], b1=[$1], x1=[$2])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a2, b1, x1], changelogMode=[NONE])
++- Calc(select=[a2, b1, x1], changelogMode=[I,UA,D])
+   +- Join(joinType=[RightOuterJoin], where=[=(a1, a2)], select=[a1, b1, x1, a2], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[a1]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, b1, x1], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[a2]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2], metadata=[]]], fields=[a2], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[a2, b1, x1])
++- Calc(select=[a2, b1, x1])
+   +- Join(joinType=[RightOuterJoin], where=[(a1 = a2)], select=[a1, b1, x1, a2], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[a1]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a1, b1, x1])
+      +- Exchange(distribution=[hash[a2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[a2], metadata=[]]], fields=[a2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithSort">
     <Resource name="sql">
       <![CDATA[
