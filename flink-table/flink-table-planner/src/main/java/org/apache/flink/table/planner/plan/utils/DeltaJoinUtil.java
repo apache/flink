@@ -281,20 +281,21 @@ public class DeltaJoinUtil {
     /**
      * Try to build lookup chain for delta join to do lookup.
      *
-     * <p>Take the follow join tree as example.
+     * <p>Take the following join tree as example. Each leaf table has columns named with its
+     * lowercase letter and a number, e.g., A(a0, a1), B(b0, b1, b2), C(c0, c1), D(d0, d1, d2).
      *
      * <pre>{@code
-     *                      Top
-     *   (Set1.a1 = Set2.c1 and Set1.b2 = Set2.d2)
-     *        /                                  \
-     *    Bottom1                               Bottom2
-     * (A.a0 = B.b0)                          (C.c0 = D.d0)
-     *     /   \                                  /   \
-     *    A     B                                C     D
+     *                     Top
+     *            (a1 = c1 and b2 = d2)
+     *            /                       \
+     *       Bottom1                      Bottom2
+     *      (a0 = b0)                    (c0 = d0)
+     *    /         \                    /       \
+     * A(a0,a1)  B(b0,b1,b2)        C(c0,c1)  D(d0,d1,d2)
      *
      * }</pre>
      *
-     * <p>If bottom1 is treated as stream side and bottom2 is treated as lookup side, the lookup
+     * <p>If Bottom1 is treated as stream side and Bottom2 is treated as lookup side, the lookup
      * chain will be like this:
      *
      * <p>use A + B to lookup C with (a1 = c1) -> use C to lookup D with (c0 = d0).
@@ -395,16 +396,17 @@ public class DeltaJoinUtil {
      * <p>If the lookup side has multi calc between top join and scan, the returned join keys will
      * transpose all these calc.
      *
-     * <p>Take the follow join tree as example.
+     * <p>Take the following join tree as example. Each leaf table has columns named with its
+     * lowercase letter and a number, e.g., A(a0, a1), B(b0, b1, b2), C(c0, c1), D(d0, d1, d2).
      *
      * <pre>{@code
-     *                      Top
-     *   (Set1.a1 = Set2.c1 and Set1.b2 = Set2.d2)
-     *        /                                  \
-     *    Bottom1                               Bottom2
-     * (A.a0 = B.b0)                          (C.c0 = D.d0)
-     *     /   \                                  /   \
-     *    A     B                                C     D
+     *                    Top
+     *            (a1 = c1 and b2 = d2)
+     *         /                        \
+     *       Bottom1                   Bottom2
+     *      (a0 = b0)                  (c0 = d0)
+     *     /       \                    /      \
+     * A(a0,a1)  B(b0,b1,b2)        C(c0,c1)  D(d0,d1,d2)
      *
      * }</pre>
      *
@@ -541,21 +543,22 @@ public class DeltaJoinUtil {
     /**
      * Build the delta join spec for stream side to picked lookup binary input.
      *
-     * <p>Take the follow join tree as example.
+     * <p>Take the following join tree as example. Each leaf table has columns named with its
+     * lowercase letter and a number, e.g., A(a0, a1), B(b0, b1, b2), C(c0, c1), D(d0, d1, d2).
      *
      * <pre>{@code
-     *                      Top
-     *   (Set1.a1 = Set2.c1 and Set1.b2 = Set2.d2)
-     *        /                                  \
-     *    Bottom1                               Bottom2
-     * (A.a0 = B.b0)                          (C.c0 = D.d0)
-     *     /   \                                  /   \
-     *    A     B                                C     D
+     *                       Top
+     *              (a1 = c1 and b2 = d2)
+     *              /                      \
+     *        Bottom1                     Bottom2
+     *      (a0 = b0)                    (c0 = d0)
+     *    /         \                    /      \
+     * A(a0,a1)  B(b0,b1,b2)        C(c0,c1)  D(d0,d1,d2)
      *
      * }</pre>
      *
      * <p>If Bottom1 is stream side, and choose to lookup C first. Then this function is used to
-     * build the delta join spec for bottom1 to lookup C.
+     * build the delta join spec for Bottom1 to lookup C.
      */
     private static DeltaJoinSpec buildDeltaJoinSpecForStreamSide2PickedLookupBinaryInput(
             JoinSpec topJoinSpec,
@@ -734,7 +737,9 @@ public class DeltaJoinUtil {
         // sort them to get a stable result
         List<Map.Entry<Set<Integer>, Map<Integer, DeltaJoinAssociation.Association>>>
                 orderedEachCompositeJoinAssociations =
-                        deltaJoinAssociation.getCompositeBinary2BinaryJoinAssociation().entrySet()
+                        deltaJoinAssociation
+                                .getCompositeBinary2BinaryJoinAssociation()
+                                .entrySet()
                                 .stream()
                                 .sorted(Comparator.comparing(e -> e.getKey().toString()))
                                 .collect(Collectors.toList());

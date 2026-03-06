@@ -358,9 +358,7 @@ public class DeltaJoinAssociation {
                                             e.getKey().stream()
                                                     .sorted()
                                                     .map(String::valueOf)
-                                                    .collect(
-                                                            Collectors.joining(
-                                                                    ", ", "[", "]"));
+                                                    .collect(Collectors.joining(", ", "[", "]"));
                                     return e.getValue().keySet().stream()
                                             .sorted()
                                             .map(t -> sources + "->" + t);
@@ -433,12 +431,15 @@ public class DeltaJoinAssociation {
 
         @Override
         public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            BinaryInputInfo that = (BinaryInputInfo) o;
-            return Objects.equals(tableScan, that.tableScan)
-                    && Objects.equals(calcOnTable, that.calcOnTable);
+            BinaryInputInfo inputInfo = (BinaryInputInfo) o;
+            return Objects.equals(tableScan, inputInfo.tableScan)
+                    && Objects.equals(calcOnTable, inputInfo.calcOnTable);
         }
 
         @Override

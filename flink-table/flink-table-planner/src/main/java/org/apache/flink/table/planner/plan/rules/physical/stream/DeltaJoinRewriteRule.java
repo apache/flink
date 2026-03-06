@@ -239,17 +239,17 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
         RexProgram calcOnRightBottomDeltaJoin =
                 getRexProgramBetweenJoinAndDeltaJoin(topJoin.getRight()).orElse(null);
 
-        // Take the following sql as example for bushy tree:
-        // (A join B on A.a0 = B.b0) Set1 join (C join D on C.c0 = D.d0) Set2
-        //   on Set1.a1 = Set2.c1 and Set1.b2 = Set2.d2
+        // Take the following sql as example for bushy tree.
+        // Each table has columns: A(a0, a1), B(b0, b1, b2), C(c0, c1), D(d0, d1, d2).
+        // SQL: (A join B on a0 = b0) join (C join D on c0 = d0) on a1 = c1 and b2 = d2
         //
-        //                              Top
-        //      (Bottom1.a1 = Bottom2.c1 and Bottom1.b2 = Bottom2.d2)
-        //          /                                            \
-        //       Bottom1                                       Bottom2
-        //    (A.a0 = B.b0)                                 (C.c0 = D.d0)
-        //       /   \                                          /   \
-        //      A     B                                        C     D
+        //                            Top
+        //                   (a1 = c1 and b2 = d2)
+        //          /                                    \
+        //       Bottom1                                Bottom2
+        //      (a0 = b0)                              (c0 = d0)
+        //       /       \                              /     \
+        //   A(a0,a1)  B(b0,b1,b2)                C(c0,c1)   D(d0,d1,d2)
         DeltaJoinAssociation joinAssociationOnLeft = leftBottomDeltaJoin.getDeltaJoinAssociation();
         DeltaJoinAssociation joinAssociationOnRight =
                 rightBottomDeltaJoin.getDeltaJoinAssociation();
@@ -324,27 +324,29 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
             StreamPhysicalJoin topJoin, StreamPhysicalDeltaJoin bottomDeltaJoin, boolean isLHS) {
         FlinkTypeFactory typeFactory = unwrapTypeFactory(topJoin);
 
-        // Take '(A join B on A.a0 = B.b0) Set join C on Set.a1 = C.c1 and Set.b2 = C.c2' as
-        // example for LHS
+        // Take the following sql as example for LHS and RHS tree
+        // Each table has columns: A(a0, a1), B(b0, b1, b2), C(c0, c1), D(d0, d1, d2).
+        // LHS SQL: (A join B on a0 = b0) join C on a1 = c1 and b2 = c2
         //
         //                      Top
-        //       (Bottom.a1 = C.c1 and Bottom.b2 = C.c2)
-        //          /                        \
-        //        Bottom                      C
-        //    (A.a0 = B.b0)
-        //        /   \
-        //       A     B
+        //              (a1 = c1 and b2 = c2)
+        //            /                        \
+        //          Bottom                      C
+        //         (a0 = b0)               C(c0,c1,c2)
+        //        /        \
+        //       A          B
+        //    A(a0,a1)  B(b0,b1,b2)
         //
-        // Take 'C join (A join B on A.a0 = B.b0) Set on C.c1 = Set.a1 and C.c2 = Set.b2' as
-        // example for RHS
+        // RHS SQL: C join (A join B on a0 = b0) on c1 = a1 and c2 = b2
         //
         //                      Top
         //       (C.c1 = Bottom.a1 and C.c2 = Bottom.b2)
         //          /                        \
         //          C                       Bottom
-        //                                (A.a0 = B.b0)
-        //                                   /   \
-        //                                  A     B
+        //      C(c0,c1,c2)                (a0 = b0)
+        //                                  /     \
+        //                                 A       B
+        //                             A(a0,a1)  B(b0,b1,b2)
         RexProgram calcOnBottomDeltaJoin =
                 isLHS
                         ? getRexProgramBetweenJoinAndDeltaJoin(topJoin.getLeft()).orElse(null)
