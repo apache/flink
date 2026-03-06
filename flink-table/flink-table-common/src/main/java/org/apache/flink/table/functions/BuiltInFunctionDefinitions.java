@@ -443,6 +443,20 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.SplitFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition REGEXP_SPLIT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("REGEXP_SPLIT")
+                    .sqlName("REGEXP_SPLIT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.ARRAY(STRING()))))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.RegexpSplitFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition URL_DECODE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("URL_DECODE")

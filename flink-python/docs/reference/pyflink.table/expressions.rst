@@ -189,6 +189,7 @@ string functions
     Expression.regexp_extract_all
     Expression.regexp_instr
     Expression.regexp_substr
+    Expression.regexp_split
     Expression.from_base64
     Expression.to_base64
     Expression.ascii

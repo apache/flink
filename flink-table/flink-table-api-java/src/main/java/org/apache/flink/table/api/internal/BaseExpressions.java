@@ -169,6 +169,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_EXTRACT_ALL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_REPLACE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_SPLIT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REGEXP_SUBSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPEAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.REPLACE;
@@ -1851,6 +1852,32 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType split(InType delimiter) {
         return toApiSpecificExpression(
                 unresolvedCall(SPLIT, toExpr(), objectToExpression(delimiter)));
+    }
+
+    /**
+     * Returns an array of substrings by splitting the input string based on a regular expression
+     * pattern.
+     *
+     * <p>If the pattern is not found in the string, the original string is returned as the only
+     * element in the array. If the pattern is empty, every character in the string is split. If the
+     * string or pattern is null, a null value is returned. If the pattern is found at the beginning
+     * or end of the string, or there are contiguous matches, then an empty string is added to the
+     * array.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("Hello123World456").regexpSplit("[0-9]+") // ["Hello", "World", ""]
+     * lit("a,b;c").regexpSplit("[,;]") // ["a", "b", "c"]
+     * lit("one  two   three").regexpSplit("\\s+") // ["one", "two", "three"]
+     * }</pre>
+     *
+     * @param regex The regular expression pattern to split by.
+     * @return An array of substrings.
+     */
+    public OutType regexpSplit(InType regex) {
+        return toApiSpecificExpression(
+                unresolvedCall(REGEXP_SPLIT, toExpr(), objectToExpression(regex)));
     }
 
     /** Returns the keys of the map as an array. */

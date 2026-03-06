@@ -432,6 +432,16 @@ string:
       `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
       
       Returns an `STRING` representation of the first matched substring. `NULL` if any of the arguments are `NULL` or regex if invalid or pattern is not found.
+  - sql: REGEXP_SPLIT(str, regex)
+    table: str.regexpSplit(regex)
+    description: |
+      Splits str by the regular expression regex and returns an array of strings.
+      
+      E.g., REGEXP_SPLIT('Hello123World456', '[0-9]+') returns ['Hello', 'World', ''].
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `ARRAY<STRING>` of split substrings. `NULL` if any of the arguments are `NULL` or regex is invalid.
   - sql: TRANSLATE(expr, fromStr, toStr)
     table: expr.translate(fromStr, toStr)
     description: |
