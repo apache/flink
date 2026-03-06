@@ -276,7 +276,7 @@ jobs:
 
       - name: "Upload build artifacts"
         uses: actions/upload-artifact@v4
-        if: ${{ failure() && steps.test-run.outputs.debug-files-output-dir }} != ''
+        if: ${{ failure() && steps.test-run.outputs.debug-files-output-dir != '' }}
         with:
           name: logs-test-${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}-${{ matrix.stringified-module-name }}-${{ steps.test-run.outputs.debug-files-name }}
           path: ${{ steps.test-run.outputs.debug-files-output-dir }}

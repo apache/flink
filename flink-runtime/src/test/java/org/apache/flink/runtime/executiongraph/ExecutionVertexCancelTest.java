@@ -34,6 +34,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -48,6 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for cancelling {@link ExecutionVertex ExecutionVertices}. */
+@Isolated("Uses shared executor that can cause interference with parallel tests")
 class ExecutionVertexCancelTest {
 
     @RegisterExtension
