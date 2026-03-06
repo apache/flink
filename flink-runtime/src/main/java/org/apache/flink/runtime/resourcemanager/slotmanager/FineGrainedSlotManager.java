@@ -32,6 +32,7 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.resourcemanager.health.NodeHealthManager;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -126,6 +127,9 @@ public class FineGrainedSlotManager implements SlotManager {
     /** Blocked task manager checker. */
     @Nullable private BlockedTaskManagerChecker blockedTaskManagerChecker;
 
+    /** Node health manager for checking quarantined nodes. */
+    private final NodeHealthManager nodeHealthManager;
+
     /** True iff the component has been started. */
     private boolean started;
 
@@ -141,7 +145,8 @@ public class FineGrainedSlotManager implements SlotManager {
             ResourceTracker resourceTracker,
             TaskManagerTracker taskManagerTracker,
             SlotStatusSyncer slotStatusSyncer,
-            ResourceAllocationStrategy resourceAllocationStrategy) {
+            ResourceAllocationStrategy resourceAllocationStrategy,
+            NodeHealthManager nodeHealthManager) {
 
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 
@@ -159,6 +164,7 @@ public class FineGrainedSlotManager implements SlotManager {
         this.taskManagerTracker = Preconditions.checkNotNull(taskManagerTracker);
         this.slotStatusSyncer = Preconditions.checkNotNull(slotStatusSyncer);
         this.resourceAllocationStrategy = Preconditions.checkNotNull(resourceAllocationStrategy);
+        this.nodeHealthManager = Preconditions.checkNotNull(nodeHealthManager);
 
         this.maxTotalCpu = Preconditions.checkNotNull(slotManagerConfiguration.getMaxTotalCpu());
         this.maxTotalMem = Preconditions.checkNotNull(slotManagerConfiguration.getMaxTotalMem());
@@ -744,6 +750,21 @@ public class FineGrainedSlotManager implements SlotManager {
             final JobID jobID = jobEntry.getKey();
             for (Map.Entry<InstanceID, ResourceCounter> tmEntry : jobEntry.getValue().entrySet()) {
                 final InstanceID instanceID = tmEntry.getKey();
+
+                // Check if the task manager is healthy before allocating slots
+                final Optional<TaskManagerInfo> taskManagerInfo =
+                        taskManagerTracker.getRegisteredTaskManager(instanceID);
+                if (taskManagerInfo.isPresent()) {
+                    final ResourceID resourceID =
+                            taskManagerInfo.get().getTaskExecutorConnection().getResourceID();
+
+                    // Filter out quarantined nodes
+                    if (!nodeHealthManager.isHealthy(resourceID)) {
+                        LOG.debug("Skipping slot allocation on quarantined node: {}", resourceID);
+                        continue;
+                    }
+                }
+
                 for (Map.Entry<ResourceProfile, Integer> slotEntry :
                         tmEntry.getValue().getResourcesWithCount()) {
                     for (int i = 0; i < slotEntry.getValue(); ++i) {
