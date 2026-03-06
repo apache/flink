@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalE
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntermediateTableScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacySink;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacyTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSink;
@@ -113,7 +114,8 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
                 || rel instanceof StreamPhysicalTableSourceScan
                 || rel instanceof StreamPhysicalDataStreamScan
                 || rel instanceof StreamPhysicalLegacyTableSourceScan
-                || rel instanceof StreamPhysicalIntermediateTableScan) {
+                || rel instanceof StreamPhysicalIntermediateTableScan
+                || rel instanceof StreamPhysicalLookupJoin) {
             // forward parent requirement
             requiredTrait = parentTrait;
         } else {
