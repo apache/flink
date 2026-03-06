@@ -383,6 +383,25 @@ GroupAggregate(select=[SUM_RETRACT(uv) FILTER $f1 AS all_uv])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGlobalAggOverEmptyInputReplacedByValues">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), SUM(a), AVG(a) FROM T WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[SUM($0)], EXPR$2=[AVG($0)])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, CASE(($f2 = 0), null:INTEGER, EXPR$1) AS EXPR$1, CAST(($f3 / $f2) AS INTEGER) AS EXPR$2])
++- Values(tuples=[[{ 0, 0, 0, null }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupByWithConstantKey">
     <Resource name="sql">
       <![CDATA[
