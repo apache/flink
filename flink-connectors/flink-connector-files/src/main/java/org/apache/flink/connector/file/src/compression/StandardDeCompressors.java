@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFact
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
+import org.apache.flink.api.common.io.compression.ZStandardInputStreamFactory;
 
 import javax.annotation.Nullable;
 
@@ -43,7 +44,8 @@ public final class StandardDeCompressors {
                     DeflateInflaterInputStreamFactory.getInstance(),
                     GzipInflaterInputStreamFactory.getInstance(),
                     Bzip2InputStreamFactory.getInstance(),
-                    XZInputStreamFactory.getInstance());
+                    XZInputStreamFactory.getInstance(),
+                    ZStandardInputStreamFactory.getInstance());
 
     /** All common file extensions of supported file compression formats. */
     private static final Collection<String> COMMON_SUFFIXES =
