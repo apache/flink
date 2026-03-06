@@ -105,20 +105,28 @@ public class JarRunApplicationHandler
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
 
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
-        PackagedProgramApplication application =
-                new PackagedProgramApplication(
-                        applicationId, program, effectiveConfiguration, false, true, false, false);
 
-        // TODO upload user jar to blob in HA mode once application resource cleanup is supported
+        // upload user jar to blob in HA mode
         final boolean isHaEnabled =
                 HighAvailabilityMode.isHighAvailabilityModeActivated(configuration);
         CompletableFuture<PermanentBlobKey> jarUploadFuture =
-                CompletableFuture.completedFuture(null);
+                isHaEnabled
+                        ? uploadJarFile(gateway, context, applicationId)
+                        : CompletableFuture.completedFuture(null);
 
         return jarUploadFuture
                 .thenCompose(
                         blobKey -> {
-                            // TODO record blob key in the application for HA recovery
+                            PackagedProgramApplication application =
+                                    new PackagedProgramApplication(
+                                            applicationId,
+                                            program,
+                                            effectiveConfiguration,
+                                            false,
+                                            true,
+                                            false,
+                                            false,
+                                            blobKey);
                             return gateway.submitApplication(application, timeout);
                         })
                 .handle(

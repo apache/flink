@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrapFactory;
@@ -30,19 +31,20 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithPersistenceComponents;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobMasterServiceLeadershipRunnerFactory;
 import org.apache.flink.runtime.dispatcher.TestingPartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
-import org.apache.flink.runtime.jobmanager.TestingJobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.TestingPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
@@ -257,18 +259,22 @@ class DefaultDispatcherRunnerITCase {
                 DispatcherId fencingToken,
                 Collection<ExecutionPlan> recoveredJobs,
                 Collection<JobResult> recoveredDirtyJobResults,
+                Collection<AbstractApplication> recoveredApplications,
+                Collection<ApplicationResult> recoveredDirtyApplicationResults,
                 DispatcherBootstrapFactory dispatcherBootstrapFactory,
-                PartialDispatcherServicesWithJobPersistenceComponents
-                        partialDispatcherServicesWithJobPersistenceComponents)
+                PartialDispatcherServicesWithPersistenceComponents
+                        partialDispatcherServicesWithPersistenceComponents)
                 throws Exception {
             return new StandaloneDispatcher(
                     rpcService,
                     fencingToken,
                     recoveredJobs,
                     recoveredDirtyJobResults,
+                    recoveredApplications,
+                    recoveredDirtyApplicationResults,
                     dispatcherBootstrapFactory,
                     DispatcherServices.from(
-                            partialDispatcherServicesWithJobPersistenceComponents,
+                            partialDispatcherServicesWithPersistenceComponents,
                             jobManagerRunnerFactory,
                             cleanupRunnerFactory));
         }
@@ -282,7 +288,7 @@ class DefaultDispatcherRunnerITCase {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElection,
                 fatalErrorHandler,
-                new TestingJobPersistenceComponentFactory(executionPlanStore, jobResultStore),
+                new TestingPersistenceComponentFactory(executionPlanStore, jobResultStore),
                 EXECUTOR_RESOURCE.getExecutor(),
                 rpcServiceExtensionWrapper.getCustomExtension().getTestingRpcService(),
                 partialDispatcherServices);

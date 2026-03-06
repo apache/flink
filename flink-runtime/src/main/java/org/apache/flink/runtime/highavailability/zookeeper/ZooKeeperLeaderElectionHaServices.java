@@ -24,7 +24,9 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
+import org.apache.flink.runtime.highavailability.FileSystemApplicationResultStore;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -77,7 +79,8 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
                                 ZooKeeperUtils.getLeaderPath())),
                 executor,
                 blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(configuration, executor));
+                FileSystemJobResultStore.fromConfiguration(configuration, executor),
+                FileSystemApplicationResultStore.fromConfiguration(configuration, executor));
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
     }
 
@@ -93,6 +96,12 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
     @Override
     public ExecutionPlanStore createExecutionPlanStore() throws Exception {
         return ZooKeeperUtils.createExecutionPlans(
+                curatorFrameworkWrapper.asCuratorFramework(), configuration);
+    }
+
+    @Override
+    public ApplicationStore createApplicationStore() throws Exception {
+        return ZooKeeperUtils.createApplicationStore(
                 curatorFrameworkWrapper.asCuratorFramework(), configuration);
     }
 
