@@ -25,6 +25,7 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -49,6 +50,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -105,20 +107,34 @@ public class JarRunApplicationHandler
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
 
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
-        PackagedProgramApplication application =
-                new PackagedProgramApplication(
-                        applicationId, program, effectiveConfiguration, false, true, false, false);
 
-        // TODO upload user jar to blob in HA mode once application resource cleanup is supported
         final boolean isHaEnabled =
                 HighAvailabilityMode.isHighAvailabilityModeActivated(configuration);
-        CompletableFuture<PermanentBlobKey> jarUploadFuture =
-                CompletableFuture.completedFuture(null);
+        final CompletableFuture<PermanentBlobKey> jarUploadFuture;
+        if (isHaEnabled) {
+            // In HA mode, a fixed job id is required to ensure consistency across failovers.
+            // The job id is derived from the application id if not configured.
+            maybeFixJobId(effectiveConfiguration, applicationId);
+
+            // upload user jar file to blob server for HA recovery
+            jarUploadFuture = uploadJarFile(gateway, context, applicationId);
+        } else {
+            jarUploadFuture = CompletableFuture.completedFuture(null);
+        }
 
         return jarUploadFuture
                 .thenCompose(
                         blobKey -> {
-                            // TODO record blob key in the application for HA recovery
+                            PackagedProgramApplication application =
+                                    new PackagedProgramApplication(
+                                            applicationId,
+                                            program,
+                                            effectiveConfiguration,
+                                            false,
+                                            true,
+                                            false,
+                                            false,
+                                            blobKey);
                             return gateway.submitApplication(application, timeout);
                         })
                 .handle(
@@ -132,6 +148,16 @@ public class JarRunApplicationHandler
                             }
                             return new JarRunApplicationResponseBody(applicationId);
                         });
+    }
+
+    private void maybeFixJobId(
+            final Configuration configuration, final ApplicationID applicationId) {
+        final Optional<String> configuredJobId =
+                configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
+        if (configuredJobId.isEmpty()) {
+            configuration.set(
+                    PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, applicationId.toHexString());
+        }
     }
 
     private CompletableFuture<PermanentBlobKey> uploadJarFile(

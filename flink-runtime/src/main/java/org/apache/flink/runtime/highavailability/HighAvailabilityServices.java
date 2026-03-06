@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -167,6 +168,22 @@ public interface HighAvailabilityServices
      * @throws Exception if job result store could not be created
      */
     JobResultStore getJobResultStore() throws Exception;
+
+    /**
+     * Gets the submitted application store for the job manager.
+     *
+     * @return Submitted application store
+     * @throws Exception if the submitted application store could not be created
+     */
+    ApplicationStore getApplicationStore() throws Exception;
+
+    /**
+     * Gets the store that holds information about the state of finished applications.
+     *
+     * @return Store of finished application results
+     * @throws Exception if application result store could not be created
+     */
+    ApplicationResultStore getApplicationResultStore() throws Exception;
 
     /**
      * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /** {@link ApplicationStoreEntry} implementation for testing purposes. */
@@ -30,10 +32,18 @@ public class TestingApplicationStoreEntry implements ApplicationStoreEntry {
 
     private final ApplicationID applicationId;
     private final String name;
+    @Nullable private final AbstractApplication application;
 
     public TestingApplicationStoreEntry(ApplicationID applicationId, String name) {
         this.applicationId = applicationId;
         this.name = name;
+        this.application = null;
+    }
+
+    public TestingApplicationStoreEntry(AbstractApplication application) {
+        this.applicationId = application.getApplicationId();
+        this.name = application.getName();
+        this.application = application;
     }
 
     @Override
@@ -41,6 +51,9 @@ public class TestingApplicationStoreEntry implements ApplicationStoreEntry {
             PermanentBlobService blobService,
             Collection<JobInfo> recoveredJobInfos,
             Collection<JobInfo> recoveredTerminalJobInfos) {
+        if (application != null) {
+            return application;
+        }
         throw new UnsupportedOperationException();
     }
 
@@ -62,6 +75,7 @@ public class TestingApplicationStoreEntry implements ApplicationStoreEntry {
     public static class Builder {
         private ApplicationID applicationId = new ApplicationID();
         private String name = "TestingApplication";
+        private AbstractApplication application;
 
         public Builder setApplicationId(ApplicationID applicationId) {
             this.applicationId = applicationId;
@@ -73,7 +87,15 @@ public class TestingApplicationStoreEntry implements ApplicationStoreEntry {
             return this;
         }
 
+        public Builder setApplication(AbstractApplication application) {
+            this.application = application;
+            return this;
+        }
+
         public TestingApplicationStoreEntry build() {
+            if (application != null) {
+                return new TestingApplicationStoreEntry(application);
+            }
             return new TestingApplicationStoreEntry(applicationId, name);
         }
     }

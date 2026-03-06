@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
@@ -399,6 +400,29 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.getStreamGraphJson(),
                 executionGraph.getPendingOperatorCount(),
                 executionGraph.getApplicationId().orElse(null));
+    }
+
+    /**
+     * Create a sparse {@link ArchivedExecutionGraph} from the given {@link JobResult}.
+     *
+     * @param jobResult to create the ArchivedExecutionGraph from
+     * @param initializationTimestamp optionally overrides the initialization timestamp if the
+     *     jobResult does not have a valid one
+     * @return a sparse ArchivedExecutionGraph where most fields are empty; only basic job
+     *     information such as status and error-related fields are set
+     */
+    public static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
+            JobResult jobResult, long initializationTimestamp) {
+        return createSparseArchivedExecutionGraph(
+                jobResult.getJobId(),
+                jobResult.getJobName(),
+                jobResult.getJobStatus().orElseThrow(),
+                null,
+                jobResult.getSerializedThrowable().orElse(null),
+                null,
+                jobResult.getStartTime() < 0 ? initializationTimestamp : jobResult.getStartTime(),
+                jobResult.getEndTime(),
+                jobResult.getApplicationId().orElse(null));
     }
 
     /**

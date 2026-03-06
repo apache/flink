@@ -219,16 +219,6 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
             JobResult jobResult, long initializationTimestamp) {
         return new ExecutionGraphInfo(
                 ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                        jobResult.getJobId(),
-                        jobResult.getJobName(),
-                        getJobStatus(jobResult),
-                        null,
-                        jobResult.getSerializedThrowable().orElse(null),
-                        null,
-                        jobResult.getStartTime() < 0
-                                ? initializationTimestamp
-                                : jobResult.getStartTime(),
-                        jobResult.getEndTime(),
-                        jobResult.getApplicationId().orElse(null)));
+                        jobResult, initializationTimestamp));
     }
 }

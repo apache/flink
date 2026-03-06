@@ -18,17 +18,29 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.SingleJobApplication;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.dispatcher.TestingApplication;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
+import org.apache.flink.runtime.jobmanager.TestingApplicationStoreEntry;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
+import org.apache.flink.runtime.testutils.TestingApplicationResultStore;
+import org.apache.flink.runtime.testutils.TestingApplicationStore;
 import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -75,6 +87,10 @@ class SessionDispatcherLeaderProcessTest {
 
     private static ExecutorService ioExecutor;
 
+    private static ApplicationStoreEntry applicationStoreEntry;
+
+    private static AbstractApplication application;
+
     private final UUID leaderSessionId = UUID.randomUUID();
 
     private TestingFatalErrorHandler fatalErrorHandler;
@@ -82,12 +98,24 @@ class SessionDispatcherLeaderProcessTest {
     private ExecutionPlanStore executionPlanStore;
     private JobResultStore jobResultStore;
 
+    private ApplicationStore applicationStore;
+    private ApplicationResultStore applicationResultStore;
+
+    private BlobServer blobServer;
+
     private AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
             dispatcherServiceFactory;
 
     @BeforeAll
     static void setupClass() {
         ioExecutor = Executors.newSingleThreadExecutor();
+
+        ApplicationID applicationId =
+                ApplicationID.fromHexString(JOB_GRAPH.getJobID().toHexString());
+        application = TestingApplication.builder().setApplicationId(applicationId).build();
+        applicationStoreEntry =
+                TestingApplicationStoreEntry.newBuilder().setApplication(application).build();
+        JOB_GRAPH.setApplicationId(applicationId);
     }
 
     @BeforeEach
@@ -95,6 +123,8 @@ class SessionDispatcherLeaderProcessTest {
         fatalErrorHandler = new TestingFatalErrorHandler();
         executionPlanStore = TestingExecutionPlanStore.newBuilder().build();
         jobResultStore = TestingJobResultStore.builder().build();
+        applicationStore = TestingApplicationStore.newBuilder().build();
+        applicationResultStore = TestingApplicationResultStore.builder().build();
         dispatcherServiceFactory =
                 createFactoryBasedOnGenericSupplier(
                         () -> TestingDispatcherGatewayService.newBuilder().build());
@@ -175,6 +205,7 @@ class SessionDispatcherLeaderProcessTest {
         final JobResult matchingDirtyJobResult =
                 TestingJobResultStore.createSuccessfulJobResult(JOB_GRAPH.getJobID());
         final ExecutionPlan otherExecutionPlan = JobGraphTestUtils.emptyJobGraph();
+        otherExecutionPlan.setApplicationId(JOB_GRAPH.getApplicationId().get());
 
         testJobRecovery(
                 Arrays.asList(otherExecutionPlan, JOB_GRAPH),
@@ -229,8 +260,12 @@ class SessionDispatcherLeaderProcessTest {
                 (ignoredDispatcherId,
                         recoveredJobs,
                         recoveredDirtyJobResults,
+                        ignoredRecoveredApplications,
+                        ignoredRecoveredDirtyApplicationResults,
                         ignoredExecutionPlanWriter,
-                        ignoredJobResultStore) -> {
+                        ignoredJobResultStore,
+                        ignoredApplicationStore,
+                        ignoredApplicationResultStore) -> {
                     recoveredExecutionPlansFuture.complete(recoveredJobs);
                     recoveredDirtyJobResultsFuture.complete(recoveredDirtyJobResults);
                     return TestingDispatcherGatewayService.newBuilder().build();
@@ -242,6 +277,122 @@ class SessionDispatcherLeaderProcessTest {
 
             recoveredExecutionPlanAssertion.accept(recoveredExecutionPlansFuture.get());
             recoveredDirtyJobResultAssertion.accept(recoveredDirtyJobResultsFuture.get());
+        }
+    }
+
+    @Test
+    void testApplicationRecoveryWithApplicationButNoDirtyApplicationResult() throws Exception {
+        testApplicationRecovery(
+                Collections.singleton(applicationStoreEntry),
+                Collections.emptySet(),
+                actualRecoveredApplications ->
+                        assertThat(actualRecoveredApplications)
+                                .singleElement()
+                                .isEqualTo(application),
+                actualRecoveredDirtyApplicationResults ->
+                        assertThat(actualRecoveredDirtyApplicationResults).isEmpty());
+    }
+
+    @Test
+    void testApplicationRecoveryWithApplicationAndMatchingDirtyApplicationResult()
+            throws Exception {
+        final ApplicationResult matchingDirtyApplicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(
+                        application.getApplicationId());
+
+        testApplicationRecovery(
+                Collections.singleton(applicationStoreEntry),
+                Collections.singleton(matchingDirtyApplicationResult),
+                actualRecoveredApplications -> assertThat(actualRecoveredApplications).isEmpty(),
+                actualRecoveredDirtyApplicationResults ->
+                        assertThat(actualRecoveredDirtyApplicationResults)
+                                .singleElement()
+                                .isEqualTo(matchingDirtyApplicationResult));
+    }
+
+    @Test
+    void testApplicationRecoveryWithMultipleApplicationsAndOneMatchingDirtyApplicationResult()
+            throws Exception {
+        final ApplicationResult matchingDirtyApplicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(
+                        application.getApplicationId());
+        final AbstractApplication otherApplication =
+                TestingApplication.builder().setApplicationId(new ApplicationID()).build();
+        final ApplicationStoreEntry otherApplicationEntry =
+                TestingApplicationStoreEntry.newBuilder().setApplication(otherApplication).build();
+
+        testApplicationRecovery(
+                Arrays.asList(otherApplicationEntry, applicationStoreEntry),
+                Collections.singleton(matchingDirtyApplicationResult),
+                actualRecoveredApplications ->
+                        assertThat(actualRecoveredApplications)
+                                .singleElement()
+                                .isEqualTo(otherApplication),
+                actualRecoveredDirtyApplicationResults ->
+                        assertThat(actualRecoveredDirtyApplicationResults)
+                                .singleElement()
+                                .isEqualTo(matchingDirtyApplicationResult));
+    }
+
+    @Test
+    void testApplicationRecoveryWithoutApplicationButDirtyApplicationResult() throws Exception {
+        final ApplicationResult dirtyApplicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(
+                        new ApplicationID());
+
+        testApplicationRecovery(
+                Collections.emptyList(),
+                Collections.singleton(dirtyApplicationResult),
+                actualRecoveredApplications -> assertThat(actualRecoveredApplications).isEmpty(),
+                actualRecoveredDirtyApplicationResults ->
+                        assertThat(actualRecoveredDirtyApplicationResults)
+                                .singleElement()
+                                .isEqualTo(dirtyApplicationResult));
+    }
+
+    private void testApplicationRecovery(
+            Collection<ApplicationStoreEntry> applicationsToRecover,
+            Set<ApplicationResult> dirtyApplicationResults,
+            Consumer<Collection<AbstractApplication>> recoveredApplicationAssertion,
+            Consumer<Collection<ApplicationResult>> recoveredDirtyApplicationResultAssertion)
+            throws Exception {
+        applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setInitialApplications(applicationsToRecover)
+                        .build();
+
+        applicationResultStore =
+                TestingApplicationResultStore.builder()
+                        .withGetDirtyResultsSupplier(() -> dirtyApplicationResults)
+                        .build();
+
+        final CompletableFuture<Collection<AbstractApplication>> recoveredApplicationsFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<ApplicationResult>>
+                recoveredDirtyApplicationResultsFuture = new CompletableFuture<>();
+        dispatcherServiceFactory =
+                (ignoredDispatcherId,
+                        ignoredRecoveredJobs,
+                        ignoredRecoveredDirtyJobResults,
+                        recoveredApplications,
+                        recoveredDirtyApplicationResults,
+                        ignoredExecutionPlanWriter,
+                        ignoredJobResultStore,
+                        ignoredApplicationStore,
+                        ignoredApplicationResultStore) -> {
+                    recoveredApplicationsFuture.complete(recoveredApplications);
+                    recoveredDirtyApplicationResultsFuture.complete(
+                            recoveredDirtyApplicationResults);
+                    return TestingDispatcherGatewayService.newBuilder().build();
+                };
+
+        try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
+                createDispatcherLeaderProcess()) {
+            dispatcherLeaderProcess.start();
+
+            recoveredApplicationAssertion.accept(recoveredApplicationsFuture.get());
+            recoveredDirtyApplicationResultAssertion.accept(
+                    recoveredDirtyApplicationResultsFuture.get());
         }
     }
 
@@ -282,8 +433,12 @@ class SessionDispatcherLeaderProcessTest {
                 (ignoredDispatcherId,
                         recoveredJobs,
                         recoveredDirtyJobResults,
+                        ignoredRecoveredApplications,
+                        ignoredRecoveredDirtyApplicationResults,
                         ignoredExecutionPlanWriter,
-                        ignoredJobResultStore) -> {
+                        ignoredJobResultStore,
+                        ignoredApplicationStore,
+                        ignoredApplicationResultStore) -> {
                     recoveredExecutionPlansFuture.complete(recoveredJobs);
                     recoveredDirtyJobResultsFuture.complete(recoveredDirtyJobResults);
                     return TestingDispatcherGatewayService.newBuilder().build();
@@ -313,11 +468,17 @@ class SessionDispatcherLeaderProcessTest {
     }
 
     @Test
-    void closeAsync_stopsExecutionPlanStoreAndDispatcher() throws Exception {
-        final CompletableFuture<Void> jobGraphStopFuture = new CompletableFuture<>();
+    void closeAsync_stopsServicesAndDispatcher() throws Exception {
+        final CompletableFuture<Void> executionPlanStoreStopFuture = new CompletableFuture<>();
         executionPlanStore =
                 TestingExecutionPlanStore.newBuilder()
-                        .setStopRunnable(() -> jobGraphStopFuture.complete(null))
+                        .setStopRunnable(() -> executionPlanStoreStopFuture.complete(null))
+                        .build();
+
+        final CompletableFuture<Void> applicationStoreStopFuture = new CompletableFuture<>();
+        applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setStopRunnable(() -> applicationStoreStopFuture.complete(null))
                         .build();
 
         final CompletableFuture<Void> dispatcherServiceTerminationFuture =
@@ -339,13 +500,17 @@ class SessionDispatcherLeaderProcessTest {
 
             final CompletableFuture<Void> terminationFuture = dispatcherLeaderProcess.closeAsync();
 
-            assertThat(jobGraphStopFuture).isNotDone();
+            assertThat(executionPlanStoreStopFuture).isNotDone();
+            assertThat(applicationStoreStopFuture).isNotDone();
             assertThat(terminationFuture).isNotDone();
 
             dispatcherServiceTerminationFuture.complete(null);
 
             // verify that we shut down the ExecutionPlanStore
-            jobGraphStopFuture.get();
+            executionPlanStoreStopFuture.get();
+
+            // verify that we shut down the ApplicationStore
+            applicationStoreStopFuture.get();
 
             // verify that we completed the dispatcher leader process shut down
             terminationFuture.get();
@@ -477,6 +642,46 @@ class SessionDispatcherLeaderProcessTest {
     }
 
     @Test
+    void closeAsync_duringApplicationRecovery_preventsDispatcherServiceCreation() throws Exception {
+        final OneShotLatch applicationRecoveryStartedLatch = new OneShotLatch();
+        final OneShotLatch completeApplicationRecoveryLatch = new OneShotLatch();
+        final OneShotLatch createDispatcherServiceLatch = new OneShotLatch();
+
+        this.applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setApplicationIdsFunction(
+                                storedApplications -> {
+                                    applicationRecoveryStartedLatch.trigger();
+                                    completeApplicationRecoveryLatch.await();
+                                    return storedApplications;
+                                })
+                        .build();
+
+        this.dispatcherServiceFactory =
+                createFactoryBasedOnGenericSupplier(
+                        () -> {
+                            createDispatcherServiceLatch.trigger();
+                            return TestingDispatcherGatewayService.newBuilder().build();
+                        });
+
+        try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
+                createDispatcherLeaderProcess()) {
+            dispatcherLeaderProcess.start();
+
+            applicationRecoveryStartedLatch.await();
+
+            dispatcherLeaderProcess.closeAsync();
+
+            completeApplicationRecoveryLatch.trigger();
+
+            assertThatThrownBy(
+                            () -> createDispatcherServiceLatch.await(10L, TimeUnit.MILLISECONDS),
+                            "No dispatcher service should be created after the process has been stopped.")
+                    .isInstanceOf(TimeoutException.class);
+        }
+    }
+
+    @Test
     void onRemovedExecutionPlan_terminatesRunningJob() throws Exception {
         executionPlanStore =
                 TestingExecutionPlanStore.newBuilder()
@@ -550,11 +755,27 @@ class SessionDispatcherLeaderProcessTest {
         final CompletableFuture<ExecutionPlan> submittedJobFuture = new CompletableFuture<>();
         final TestingDispatcherGateway testingDispatcherGateway =
                 TestingDispatcherGateway.newBuilder()
-                        .setSubmitFunction(
-                                submittedJob -> {
-                                    submittedJobFuture.complete(submittedJob);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                        .setRequestApplicationFunction(
+                                applicationId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkApplicationNotFoundException(
+                                                        applicationId)))
+                        .setSubmitApplicationFunction(
+                                application -> {
+                                    if (application instanceof SingleJobApplication) {
+                                        ExecutionPlan submittedJob =
+                                                ((SingleJobApplication) application)
+                                                        .getExecutionPlan();
+                                        submittedJobFuture.complete(submittedJob);
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    }
+                                    return FutureUtils.completedExceptionally(
+                                            new UnsupportedOperationException());
                                 })
+                        .setSubmitFunction(
+                                ignored ->
+                                        FutureUtils.completedExceptionally(
+                                                new UnsupportedOperationException()))
                         .build();
 
         dispatcherServiceFactory =
@@ -658,7 +879,7 @@ class SessionDispatcherLeaderProcessTest {
                         .setInitialExecutionPlans(Collections.singleton(JOB_GRAPH))
                         .build();
 
-        runJobRecoveryFailureTest(testException);
+        runRecoveryFailureTest(testException);
     }
 
     @Test
@@ -672,10 +893,39 @@ class SessionDispatcherLeaderProcessTest {
                                 })
                         .build();
 
-        runJobRecoveryFailureTest(testException);
+        runRecoveryFailureTest(testException);
     }
 
-    private void runJobRecoveryFailureTest(FlinkException testException) throws Exception {
+    @Test
+    void recoverApplications_withRecoveryFailure_failsFatally() throws Exception {
+        final FlinkException testException = new FlinkException("Test exception");
+        applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setRecoverApplicationFunction(
+                                (ignoredA, ignoredB) -> {
+                                    throw testException;
+                                })
+                        .setInitialApplications(Collections.singletonList(applicationStoreEntry))
+                        .build();
+
+        runRecoveryFailureTest(testException);
+    }
+
+    @Test
+    void recoverApplications_withApplicationIdRecoveryFailure_failsFatally() throws Exception {
+        final FlinkException testException = new FlinkException("Test exception");
+        applicationStore =
+                TestingApplicationStore.newBuilder()
+                        .setApplicationIdsFunction(
+                                ignored -> {
+                                    throw testException;
+                                })
+                        .build();
+
+        runRecoveryFailureTest(testException);
+    }
+
+    private void runRecoveryFailureTest(FlinkException testException) throws Exception {
         try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
                 createDispatcherLeaderProcess()) {
             dispatcherLeaderProcess.start();
@@ -699,11 +949,20 @@ class SessionDispatcherLeaderProcessTest {
     void onAddedExecutionPlan_failingRecoveredJobSubmission_failsFatally() throws Exception {
         final TestingDispatcherGateway dispatcherGateway =
                 TestingDispatcherGateway.newBuilder()
-                        .setSubmitFunction(
-                                jobGraph ->
+                        .setRequestApplicationFunction(
+                                applicationId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkApplicationNotFoundException(
+                                                        applicationId)))
+                        .setSubmitApplicationFunction(
+                                application ->
                                         FutureUtils.completedExceptionally(
                                                 new JobSubmissionException(
-                                                        jobGraph.getJobID(), "test exception")))
+                                                        JOB_GRAPH.getJobID(), "test exception")))
+                        .setSubmitFunction(
+                                ignored ->
+                                        FutureUtils.completedExceptionally(
+                                                new UnsupportedOperationException()))
                         .build();
 
         runOnAddedExecutionPlanTest(
@@ -724,13 +983,10 @@ class SessionDispatcherLeaderProcessTest {
     @Test
     void onAddedExecutionPlan_duplicateJobSubmissionDueToFalsePositive_willBeIgnored()
             throws Exception {
+        // duplicate job submission due to false positive should associate with an application
         final TestingDispatcherGateway dispatcherGateway =
                 TestingDispatcherGateway.newBuilder()
-                        .setSubmitFunction(
-                                jobGraph ->
-                                        FutureUtils.completedExceptionally(
-                                                DuplicateJobSubmissionException.of(
-                                                        jobGraph.getJobID())))
+                        .setRequestApplicationFunction(applicationId -> new CompletableFuture<>())
                         .build();
 
         runOnAddedExecutionPlanTest(
@@ -776,8 +1032,12 @@ class SessionDispatcherLeaderProcessTest {
         return (ignoredDispatcherId,
                 recoveredJobs,
                 ignoredRecoveredDirtyJobResults,
+                ignoredRecoveredApplications,
+                ignoredRecoveredDirtyApplicationResults,
                 ignoredExecutionPlanWriter,
-                ignoredJobResultStore) -> createFunction.apply(recoveredJobs);
+                ignoredJobResultStore,
+                ignoredApplicationStore,
+                ignoredApplicationResultStore) -> createFunction.apply(recoveredJobs);
     }
 
     private AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
@@ -786,8 +1046,12 @@ class SessionDispatcherLeaderProcessTest {
         return (ignoredDispatcherId,
                 ignoredRecoveredJobs,
                 ignoredRecoveredDirtyJobResults,
+                ignoredRecoveredApplications,
+                ignoredRecoveredDirtyApplicationResults,
                 ignoredExecutionPlanWriter,
-                ignoredJobResultStore) -> supplier.get();
+                ignoredJobResultStore,
+                ignoredApplicationStore,
+                ignoredApplicationResultStore) -> supplier.get();
     }
 
     private void verifyOnAddedExecutionPlanResultDidNotFail(
@@ -804,6 +1068,9 @@ class SessionDispatcherLeaderProcessTest {
                 dispatcherServiceFactory,
                 executionPlanStore,
                 jobResultStore,
+                applicationStore,
+                applicationResultStore,
+                blobServer,
                 ioExecutor,
                 fatalErrorHandler);
     }
