@@ -39,10 +39,12 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.EOFException;
 import java.util.Iterator;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base test class for {@link BytesMultiMap} and {@link WindowBytesMultiMap}. */
 public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
@@ -125,6 +127,51 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
                 assertThat(values[i++]).isEqualTo(valueIter.next());
             }
         }
+    }
+
+    /**
+     * Tests that EOFException is thrown when the map exceeds its capacity.
+     *
+     * <p>This test verifies the fix for FLINK-38539: when the record area offset exceeds
+     * Integer.MAX_VALUE (~2GB), the code throws EOFException instead of IndexOutOfBoundsException
+     * caused by integer overflow when casting long to int.
+     *
+     * <p>Note on boundary testing: The actual Integer.MAX_VALUE (~2GB) boundary cannot be
+     * practically tested in a unit test due to memory constraints. The exact boundary checking
+     * logic at Integer.MAX_VALUE is verified in {@link AbstractBytesMultiMapBoundaryTest} using
+     * simulated offsets. This test verifies the EOFException handling path works correctly when the
+     * map is filled to its configured capacity.
+     *
+     * @see AbstractBytesMultiMapBoundaryTest for exact boundary tests at Integer.MAX_VALUE
+     */
+    @Test
+    void testThrowsEOFExceptionWhenFull() throws Exception {
+        // Use just over the minimum required memory (1MB + a bit) to quickly fill the map
+        // INIT_BUCKET_MEMORY_IN_BYTES is 1MB, so we need more than that
+        int memorySize = 1024 * 1024 + 64 * 1024; // ~1.06 MB
+        MemoryManager memoryManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
+
+        AbstractBytesMultiMap<K> table =
+                createBytesMultiMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
+
+        K[] keys = generateRandomKeys(NUM_ENTRIES);
+        BinaryRowData[] values = genValues(NUM_VALUE_PER_KEY);
+
+        // Fill the map until it throws EOFException (not IndexOutOfBoundsException)
+        assertThatThrownBy(
+                        () -> {
+                            for (K key : keys) {
+                                for (BinaryRowData value : values) {
+                                    BytesMap.LookupInfo<K, Iterator<RowData>> lookupInfo =
+                                            table.lookup(key);
+                                    table.append(lookupInfo, value);
+                                }
+                            }
+                        })
+                .isInstanceOf(EOFException.class);
+
+        table.free();
     }
 
     private BinaryRowData[] genValues(int num) {
