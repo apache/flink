@@ -88,6 +88,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "   OVERWRITING OPTIONS\n"
                                 + ")");
 
+        util.tableEnv().executeSql("CREATE TABLE retract_src2 LIKE retract_src");
+
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE upsert_src (\n"
@@ -342,11 +344,39 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     }
 
     @TestTemplate
-    void testJoin() {
+    void testJoinWithInsertOnly() {
         String sql =
                 String.format(
                         "insert into %s select T1.a, T2.b, T1.c "
                                 + "from append_src1 T1 join append_src2 T2 "
+                                + "on T1.a = T2.a "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
+        verifyRelPlanInsert(sql);
+    }
+
+    @TestTemplate
+    void testJoinWithUpdateBefore() {
+        assumeTrue(testSinkWithPk);
+
+        String sql =
+                String.format(
+                        "insert into %s select T1.a, T2.b, T1.c "
+                                + "from retract_src T1 join retract_src2 T2 "
+                                + "on T1.a = T2.a and T1.b = T2.b "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
+        verifyRelPlanInsert(sql);
+    }
+
+    @TestTemplate
+    void testUpsertJoinWithOnlyUpdateAfter() {
+        assumeTrue(testSinkWithPk);
+
+        String sql =
+                String.format(
+                        "insert into %s select T1.a, T2.b, T1.c "
+                                + "from retract_src T1 join retract_src2 T2 "
                                 + "on T1.a = T2.a "
                                 + "%s",
                         getSinkTableName(), getOnConflictIfSinkWithPk());
