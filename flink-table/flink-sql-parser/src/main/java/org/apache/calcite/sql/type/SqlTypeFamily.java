@@ -45,8 +45,10 @@ import java.util.Map;
  * categorization. It is used in type strategies for more specific or more general categorization
  * than the primary families. Secondary families are never returned by RelDataType.getFamily().
  *
- * <p>This class was copied over from Calcite to support variant type(CALCITE-4918). When upgrading
- * to Calcite 1.39.0 version, please remove the entire class.
+ * <p>This class was copied over from Calcite to support variant type(CALCITE-4918) and bitmap type.
+ * When upgrading to Calcite 1.39.0 version, please update the variant part.
+ *
+ * <p>Lines 84, 96, 225 ~ 226, 285 ~ 286, Flink introduces new type BITMAP.
  */
 public enum SqlTypeFamily implements RelDataTypeFamily {
     // Primary families.
@@ -78,6 +80,9 @@ public enum SqlTypeFamily implements RelDataTypeFamily {
     COLUMN_LIST,
     GEO,
     VARIANT,
+    // ----- FLINK MODIFICATION BEGIN -----
+    BITMAP,
+    // ----- FLINK MODIFICATION END -----
     /** Like ANY, but do not even validate the operand. It may not be an expression. */
     IGNORE;
 
@@ -87,6 +92,9 @@ public enum SqlTypeFamily implements RelDataTypeFamily {
                     // SqlTypeName.MULTISET shares Types.ARRAY with SqlTypeName.ARRAY;
                     // SqlTypeName.MAP has no corresponding JDBC type
                     // SqlTypeName.COLUMN_LIST has no corresponding JDBC type
+                    // ----- FLINK MODIFICATION BEGIN -----
+                    // SqlTypeName.BITMAP has no corresponding JDBC type
+                    // ----- FLINK MODIFICATION END -----
                     .put(Types.BIT, NUMERIC)
                     .put(Types.TINYINT, NUMERIC)
                     .put(Types.SMALLINT, NUMERIC)
@@ -213,6 +221,10 @@ public enum SqlTypeFamily implements RelDataTypeFamily {
                 return ImmutableList.of(SqlTypeName.COLUMN_LIST);
             case VARIANT:
                 return ImmutableList.of(SqlTypeName.VARIANT);
+            // ----- FLINK MODIFICATION BEGIN -----
+            case BITMAP:
+                return ImmutableList.of(SqlTypeName.BITMAP);
+            // ----- FLINK MODIFICATION END -----
             default:
                 throw new IllegalArgumentException();
         }
@@ -269,6 +281,10 @@ public enum SqlTypeFamily implements RelDataTypeFamily {
                 return factory.createSqlType(SqlTypeName.CURSOR);
             case COLUMN_LIST:
                 return factory.createSqlType(SqlTypeName.COLUMN_LIST);
+            // ----- FLINK MODIFICATION BEGIN -----
+            case BITMAP:
+                return factory.createSqlType(SqlTypeName.BITMAP);
+            // ----- FLINK MODIFICATION END -----
             default:
                 return null;
         }

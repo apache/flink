@@ -49,8 +49,10 @@ import java.util.Set;
  *       precision and scale.
  * </ul>
  *
- * <p>This class was copied over from Calcite to support variant type(CALCITE-4918). When upgrading
- * to Calcite 1.39.0 version, please remove the entire class.
+ * <p>This class was copied over from Calcite to support variant type(CALCITE-4918) and bitmap type.
+ * When upgrading to Calcite 1.39.0 version, please update the variant part.
+ *
+ * <p>Lines 170 ~ 171, 239, Flink introduces new type BITMAP.
  */
 public enum SqlTypeName {
     BOOLEAN(PrecScale.NO_NO, false, Types.BOOLEAN, SqlTypeFamily.BOOLEAN),
@@ -163,7 +165,11 @@ public enum SqlTypeName {
      * VARIANT data type, a dynamically-typed value that can have at runtime any of the other data
      * types in this table.
      */
-    VARIANT(PrecScale.NO_NO, false, Types.OTHER, SqlTypeFamily.VARIANT);
+    VARIANT(PrecScale.NO_NO, false, Types.OTHER, SqlTypeFamily.VARIANT),
+    // ----- FLINK MODIFICATION BEGIN -----
+    /** BITMAP data type, a compressed data structure for storing sets of 32-bit integers. */
+    BITMAP(PrecScale.NO_NO, false, Types.OTHER, SqlTypeFamily.BITMAP);
+    // ----- FLINK MODIFICATION END -----
 
     public static final int MAX_DATETIME_PRECISION = 3;
 
@@ -228,7 +234,11 @@ public enum SqlTypeName {
                     ROW,
                     CURSOR,
                     COLUMN_LIST,
-                    VARIANT);
+                    VARIANT,
+                    // ----- FLINK MODIFICATION BEGIN -----
+                    BITMAP
+                    // ----- FLINK MODIFICATION END -----
+                    );
 
     public static final List<SqlTypeName> BOOLEAN_TYPES = ImmutableList.of(BOOLEAN);
 

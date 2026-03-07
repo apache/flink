@@ -2552,6 +2552,17 @@ SqlTypeNameSpec SqlRawTypeName() :
     }
 }
 
+/** Parses BITMAP type. */
+SqlTypeNameSpec SqlBitmapTypeName() :
+{
+}
+{
+    <BITMAP>
+    {
+        return new SqlBasicTypeNameSpec(SqlTypeName.BITMAP, getPos());
+    }
+}
+
 /**
 * Parse a "name1 type1 [ NULL | NOT NULL] [ comment ]
 * [, name2 type2 [ NULL | NOT NULL] [ comment ] ]* ..." list.
