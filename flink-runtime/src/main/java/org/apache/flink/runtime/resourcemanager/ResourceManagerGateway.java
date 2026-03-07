@@ -299,4 +299,96 @@ public interface ResourceManagerGateway
             int duration,
             ProfilingInfo.ProfilingMode mode,
             @RpcTimeout Duration timeout);
+
+    /**
+     * Quarantine a node to prevent new slots from being allocated on it.
+     *
+     * @param resourceID the resource ID of the node to quarantine
+     * @param reason the reason for quarantining the node
+     * @param duration the duration for which the node should be quarantined
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is quarantined
+     */
+    CompletableFuture<Void> quarantineNode(
+            ResourceID resourceID, String reason, Duration duration, @RpcTimeout Duration timeout);
+
+    /**
+     * Remove quarantine from a node to allow new slots to be allocated on it.
+     *
+     * @param resourceID the resource ID of the node to remove quarantine from
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the quarantine is removed
+     */
+    CompletableFuture<Void> removeNodeQuarantine(
+            ResourceID resourceID, @RpcTimeout Duration timeout);
+
+    /**
+     * List all quarantined nodes.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the collection of quarantined node health statuses
+     */
+    CompletableFuture<Collection<org.apache.flink.runtime.resourcemanager.health.NodeHealthStatus>>
+            listQuarantinedNodes(@RpcTimeout Duration timeout);
+
+    /**
+     * Get all blocked nodes from the batch execution blocklist.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the collection of blocked nodes
+     */
+    CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllBlockedNodes(@RpcTimeout Duration timeout);
+
+    /**
+     * Add nodes to the batch execution blocklist.
+     *
+     * @param nodeId the ID of the node to add to blocklist
+     * @param cause the cause for blocking the node
+     * @param endTimestamp the timestamp when the block should end
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is added to blocklist
+     */
+    CompletableFuture<Void> addBlockedNode(
+            String nodeId, String cause, long endTimestamp, @RpcTimeout Duration timeout);
+
+    /**
+     * Remove nodes from the batch execution blocklist.
+     *
+     * @param nodeId the ID of the node to remove from blocklist
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is removed from blocklist
+     */
+    CompletableFuture<Void> removeBlockedNode(String nodeId, @RpcTimeout Duration timeout);
+
+    /**
+     * Get all quarantined nodes from the management node quarantine.
+     *
+     * @param timeout timeout of the asynchronous operation
+     * @return Future containing the collection of quarantined nodes
+     */
+    CompletableFuture<Collection<org.apache.flink.runtime.blocklist.BlockedNode>>
+            getAllManagementQuarantinedNodes(@RpcTimeout Duration timeout);
+
+    /**
+     * Add a node to the management node quarantine.
+     *
+     * @param nodeId the ID of the node to add to management node quarantine
+     * @param reason the reason for quarantining the node
+     * @param duration the duration for which the node should be quarantined
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is added to management node quarantine
+     */
+    CompletableFuture<Void> addManagementQuarantinedNode(
+            String nodeId, String reason, Duration duration, @RpcTimeout Duration timeout);
+
+    /**
+     * Remove a node from the management node quarantine.
+     *
+     * @param nodeId the ID of the node to remove from management node quarantine
+     * @param timeout timeout of the asynchronous operation
+     * @return Future that completes when the node is removed from management node quarantine
+     */
+    CompletableFuture<Void> removeManagementQuarantinedNode(
+            String nodeId, @RpcTimeout Duration timeout);
 }
