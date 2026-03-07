@@ -73,6 +73,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
                 slotManager,
                 clusterPartitionTrackerFactory,
                 blocklistHandlerFactory,
+                new org.apache.flink.runtime.management.nodequarantine
+                        .NoOpManagementNodeQuarantineHandler.Factory(),
                 jobLeaderIdService,
                 new ClusterInformation("localhost", 1234),
                 fatalErrorHandler,

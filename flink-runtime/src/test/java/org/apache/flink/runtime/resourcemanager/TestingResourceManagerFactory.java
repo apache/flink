@@ -195,6 +195,8 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                     slotManager,
                     clusterPartitionTrackerFactory,
                     blocklistHandlerFactory,
+                    new org.apache.flink.runtime.management.nodequarantine
+                            .NoOpManagementNodeQuarantineHandler.Factory(),
                     jobLeaderIdService,
                     clusterInformation,
                     fatalErrorHandler,
