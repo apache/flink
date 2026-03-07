@@ -248,10 +248,10 @@ public class JobDetailsHandler
                         counts.getAccumulateIdleTime(),
                         counts.getAccumulateBusyTime());
 
-        // Get slot sharing group name, default to "default" if not set
+        // Get slot sharing group name, use slot sharing group ID as fallback if name is not set
         String slotSharingGroupName = ejv.getSlotSharingGroup().getSlotSharingGroupName();
         if (slotSharingGroupName == null || slotSharingGroupName.isEmpty()) {
-            slotSharingGroupName = "default";
+            slotSharingGroupName = ejv.getSlotSharingGroup().getSlotSharingGroupId().toString();
         }
 
         return new JobDetailsInfo.JobVertexDetailsInfo(
