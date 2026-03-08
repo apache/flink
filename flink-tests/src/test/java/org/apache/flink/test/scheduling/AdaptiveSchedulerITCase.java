@@ -655,8 +655,7 @@ class AdaptiveSchedulerITCase {
         overrides.put(vertex.getID().toHexString(), "2");
         jobGraph.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
 
-        final RestClusterClient<?> restClusterClient =
-                miniClusterResource.getRestClusterClient();
+        var restClusterClient = miniClusterResource.getRestClusterClient();
         restClusterClient.submitJob(jobGraph).join();
         JobID jobId = jobGraph.getJobID();
 
