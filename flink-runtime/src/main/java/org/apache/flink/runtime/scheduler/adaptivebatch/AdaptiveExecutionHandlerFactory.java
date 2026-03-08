@@ -73,7 +73,10 @@ public class AdaptiveExecutionHandlerFactory {
                 return new NonAdaptiveExecutionHandler(jobGraph);
             } else {
                 return new DefaultAdaptiveExecutionHandler(
-                        userClassLoader, (StreamGraph) executionPlan, serializationExecutor);
+                        userClassLoader,
+                        (StreamGraph) executionPlan,
+                        serializationExecutor,
+                        jobMasterConfiguration);
             }
         }
     }

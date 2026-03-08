@@ -123,22 +123,19 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
-        final JobGraph jobGraph;
         final ExecutionConfig executionConfig;
 
         if (executionPlan instanceof JobGraph) {
-            jobGraph = (JobGraph) executionPlan;
             executionConfig =
                     executionPlan.getSerializedExecutionConfig().deserializeValue(userCodeLoader);
+            ParallelismOverrideUtil.applyParallelismOverrides(
+                    (JobGraph) executionPlan, jobMasterConfiguration);
         } else if (executionPlan instanceof StreamGraph) {
-            jobGraph = ((StreamGraph) executionPlan).getJobGraph(userCodeLoader);
             executionConfig = ((StreamGraph) executionPlan).getExecutionConfig();
         } else {
             throw new FlinkException(
                     "Unsupported execution plan " + executionPlan.getClass().getCanonicalName());
         }
-
-        ParallelismOverrideUtil.applyParallelismOverrides(jobGraph, jobMasterConfiguration);
 
         final SlotPool slotPool =
                 slotPoolService
@@ -181,7 +178,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         return createScheduler(
                 log,
-                jobGraph,
+                executionPlan,
                 executionConfig,
                 ioExecutor,
                 jobMasterConfiguration,
