@@ -24,14 +24,14 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
 import com.google.protobuf.ByteString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test parse proto with unknown fields. */
-public class ParseProtoWithUnknownFieldsTest {
+class ParseProtoWithUnknownFieldsTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         MapTest.InnerMessageTest innerMessageTest =
                 MapTest.InnerMessageTest.newBuilder().setA(1).setB(2).build();
         MapTest mapTest =
@@ -47,23 +47,23 @@ public class ParseProtoWithUnknownFieldsTest {
                 ProtobufTestHelper.pbBytesToRow(MapTestTruncated.class, mapTest.toByteArray());
 
         // map3 is unknown in MapTestTruncated
-        assertEquals(3, row.getArity());
+        assertThat(row.getArity()).isEqualTo(3);
 
         // inspect field a
-        assertEquals(1, row.getInt(0));
+        assertThat(row.getInt(0)).isEqualTo(1);
 
         // inspect field map1
         MapData map1 = row.getMap(1);
-        assertEquals("a", map1.keyArray().getString(0).toString());
-        assertEquals("b", map1.valueArray().getString(0).toString());
-        assertEquals("c", map1.keyArray().getString(1).toString());
-        assertEquals("d", map1.valueArray().getString(1).toString());
+        assertThat(map1.keyArray().getString(0).toString()).isEqualTo("a");
+        assertThat(map1.valueArray().getString(0).toString()).isEqualTo("b");
+        assertThat(map1.keyArray().getString(1).toString()).isEqualTo("c");
+        assertThat(map1.valueArray().getString(1).toString()).isEqualTo("d");
 
         // inspect field map2
         MapData map2 = row.getMap(2);
-        assertEquals("f", map2.keyArray().getString(0).toString());
+        assertThat(map2.keyArray().getString(0).toString()).isEqualTo("f");
         RowData rowData2 = map2.valueArray().getRow(0, 2);
-        assertEquals(1, rowData2.getInt(0));
-        assertEquals(2L, rowData2.getLong(1));
+        assertThat(rowData2.getInt(0)).isEqualTo(1);
+        assertThat(rowData2.getLong(1)).isEqualTo(2L);
     }
 }
