@@ -30,6 +30,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter.REPORTER_ID_GROUPPING_KEY;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.USERNAME;
@@ -78,6 +79,21 @@ class PrometheusPushGatewayReporterTest {
                 .isEqualTo(
                         new AbstractMap.SimpleEntry(
                                 REPORTER_ID_GROUPPING_KEY, groupingKey.reporterId()));
+    }
+
+    @Test
+    void testRejectReporterIdInUserGroupingKey() {
+        MetricConfig metricConfig = new MetricConfig();
+        metricConfig.setProperty(HOST_URL.key(), "http://localhost:8080");
+        metricConfig.setProperty(GROUPING_KEY.key(), "k1=v1;" + REPORTER_ID_GROUPPING_KEY + "=123");
+        assertThatThrownBy(
+                        () ->
+                                new PrometheusPushGatewayReporterFactory()
+                                        .createMetricReporter(metricConfig))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Grouping keys must not contain the reserved key: "
+                                + REPORTER_ID_GROUPPING_KEY);
     }
 
     @Test

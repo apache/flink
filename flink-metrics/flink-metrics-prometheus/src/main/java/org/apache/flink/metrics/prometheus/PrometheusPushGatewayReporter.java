@@ -45,7 +45,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
-    public static final String REPORTER_ID_GROUPPING_KEY =
+    public static final String REPORTER_ID_GROUPING_KEY =
             "flink_prometheus_push_gateway_reporter_id";
 
     private final PushGateway pushGateway;
@@ -58,6 +58,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     PrometheusPushGatewayReporter(
             URL hostUrl,
             String jobName,
+            boolean metricsGroupingByReporter,
             Map<String, String> groupingKey,
             final boolean deleteOnShutdown,
             @Nullable String username,
@@ -72,7 +73,10 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             this.basicAuthEnabled = false;
         }
         this.jobName = Preconditions.checkNotNull(jobName);
-        this.groupingKey = new GroupingKeyMap(Preconditions.checkNotNull(groupingKey));
+        this.groupingKey =
+                metricsGroupingByReporter
+                        ? new GroupingKeyMap(Preconditions.checkNotNull(groupingKey))
+                        : Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
     }
 
