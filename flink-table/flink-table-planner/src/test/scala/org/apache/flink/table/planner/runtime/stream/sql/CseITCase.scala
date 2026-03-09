@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.runtime.utils.CseTestFunctions._
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.Assertions.assertEquals
 
 /**
  * Integration test for Common Sub-expression Elimination (CSE) optimization in Flink SQL.

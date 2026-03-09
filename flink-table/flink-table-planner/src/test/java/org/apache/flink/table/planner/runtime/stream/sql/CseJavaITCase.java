@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -140,8 +137,7 @@ class CseJavaITCase {
         tEnv.createTemporarySystemFunction("testcse4", TestCse4Func.class);
 
         TypeInformation<Row> typeInfo = new RowTypeInfo(Types.STRING());
-        DataStream<Row> ds =
-                env.fromCollection(Arrays.asList(Row.of("a"), Row.of("b")), typeInfo);
+        DataStream<Row> ds = env.fromCollection(Arrays.asList(Row.of("a"), Row.of("b")), typeInfo);
 
         Table t = tEnv.fromDataStream(ds).as("c");
         tEnv.createTemporaryView("input", t);
@@ -184,8 +180,7 @@ class CseJavaITCase {
 
         TypeInformation<Row> typeInfo = new RowTypeInfo(Types.STRING(), Types.STRING());
         DataStream<Row> ds =
-                env.fromCollection(
-                        Collections.singletonList(Row.of("hello", "world")), typeInfo);
+                env.fromCollection(Collections.singletonList(Row.of("hello", "world")), typeInfo);
 
         Table t = tEnv.fromDataStream(ds).as("a", "b");
         tEnv.createTemporaryView("input", t);
@@ -216,8 +211,7 @@ class CseJavaITCase {
 
         TypeInformation<Row> typeInfo = new RowTypeInfo(Types.STRING());
         DataStream<Row> ds =
-                env.fromCollection(
-                        Arrays.asList(Row.of("hello"), Row.of((String) null)), typeInfo);
+                env.fromCollection(Arrays.asList(Row.of("hello"), Row.of((String) null)), typeInfo);
 
         Table t = tEnv.fromDataStream(ds).as("c");
         tEnv.createTemporaryView("input", t);
@@ -251,8 +245,7 @@ class CseJavaITCase {
         tEnv.createTemporarySystemFunction("testcse3", TestCse3Func.class);
 
         TypeInformation<Row> typeInfo = new RowTypeInfo(Types.STRING());
-        DataStream<Row> ds =
-                env.fromCollection(Collections.singletonList(Row.of("hi")), typeInfo);
+        DataStream<Row> ds = env.fromCollection(Collections.singletonList(Row.of("hi")), typeInfo);
 
         Table t = tEnv.fromDataStream(ds).as("c");
         tEnv.createTemporaryView("input", t);
