@@ -80,6 +80,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     private final String sequenceId;
 
+    private final boolean sequenceIdAutoIncrement;
     private final boolean sequenceStart;
     private final boolean sequenceEnd;
     private final String compression;
@@ -95,11 +96,19 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.flattenBatchDim = config.get(TritonOptions.FLATTEN_BATCH_DIM);
         this.priority = config.get(TritonOptions.PRIORITY);
         this.sequenceId = config.get(TritonOptions.SEQUENCE_ID);
+        this.sequenceIdAutoIncrement = config.get(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT);
         this.sequenceStart = config.get(TritonOptions.SEQUENCE_START);
         this.sequenceEnd = config.get(TritonOptions.SEQUENCE_END);
         this.compression = config.get(TritonOptions.COMPRESSION);
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
+
+        // Validate sequence-id-auto-increment requires sequence-id
+        if (this.sequenceIdAutoIncrement && this.sequenceId == null) {
+            throw new IllegalArgumentException(
+                    "sequence-id-auto-increment requires sequence-id to be configured. "
+                            + "Please provide a base sequence-id value.");
+        }
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
@@ -298,6 +307,10 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected String getSequenceId() {
         return sequenceId;
+    }
+
+    protected boolean isSequenceIdAutoIncrement() {
+        return sequenceIdAutoIncrement;
     }
 
     protected boolean isSequenceStart() {
