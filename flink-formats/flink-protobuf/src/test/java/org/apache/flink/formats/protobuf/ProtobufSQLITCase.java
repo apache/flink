@@ -33,14 +33,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
 
 /** Integration SQL test for protobuf. */
-public class ProtobufSQLITCase extends BatchTestBase {
+class ProtobufSQLITCase extends BatchTestBase {
 
     private MapTest getProtoTestObject() {
         MapTest.InnerMessageTest innerMessageTest =
@@ -56,7 +53,7 @@ public class ProtobufSQLITCase extends BatchTestBase {
     }
 
     @Test
-    public void testSource() {
+    void testSource() {
         TestProtobufTestStore.sourcePbInputs.clear();
         TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
 
@@ -74,18 +71,18 @@ public class ProtobufSQLITCase extends BatchTestBase {
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         Row row = result.collect().next();
-        assertEquals(1, (int) row.getField(0));
+        assertThat((int) row.getField(0)).isEqualTo(1);
         Map<String, String> map1 = (Map<String, String>) row.getField(1);
-        assertEquals("b", map1.get("a"));
-        assertEquals("d", map1.get("c"));
+        assertThat(map1.get("a")).isEqualTo("b");
+        assertThat(map1.get("c")).isEqualTo("d");
         Map<String, Row> map2 = (Map<String, Row>) row.getField(2);
         Row innerRow = map2.get("f");
-        assertEquals(1, innerRow.getField(0));
-        assertEquals(2L, innerRow.getField(1));
+        assertThat(innerRow.getField(0)).isEqualTo(1);
+        assertThat(innerRow.getField(1)).isEqualTo(2L);
     }
 
     @Test
-    public void testSourceNotIgnoreParseError() throws InterruptedException {
+    void testSourceNotIgnoreParseError() throws InterruptedException {
         TestProtobufTestStore.sourcePbInputs.clear();
         // pass an incompatible bytes
         TestProtobufTestStore.sourcePbInputs.add(new byte[] {127, 127, 127, 127, 127});
@@ -108,11 +105,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
         } catch (Exception ex) {
             return;
         }
-        fail("executeSql should raise exception");
+        assertThat(false).withFailMessage("executeSql should raise exception").isTrue();
     }
 
     @Test
-    public void testSourceIgnoreParseError() throws InterruptedException, ExecutionException {
+    void testSourceIgnoreParseError() throws InterruptedException, ExecutionException {
         TestProtobufTestStore.sourcePbInputs.clear();
         // pass an incompatible bytes
         TestProtobufTestStore.sourcePbInputs.add(new byte[] {127, 127, 127, 127, 127});
@@ -132,11 +129,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         CloseableIterator<Row> iterator = result.collect();
-        assertFalse(iterator.hasNext());
+        assertThat(iterator.hasNext()).isFalse();
     }
 
     @Test
-    public void testSourceWithDefaultValueOfPb2WhenTrue() {
+    void testSourceWithDefaultValueOfPb2WhenTrue() {
         MapTest mapTest = MapTest.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
@@ -157,11 +154,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         Row row = result.collect().next();
-        assertEquals(0, (int) row.getField(0));
+        assertThat((int) row.getField(0)).isEqualTo(0);
     }
 
     @Test
-    public void testSourceWithDefaultValueOfPb2WhenFalse() {
+    void testSourceWithDefaultValueOfPb2WhenFalse() {
         MapTest mapTest = MapTest.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
@@ -182,11 +179,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         Row row = result.collect().next();
-        assertNull(row.getField(0));
+        assertThat(row.getField(0)).isNull();
     }
 
     @Test
-    public void testSourceWithDefaultValueOfPb3WhenTrue() {
+    void testSourceWithDefaultValueOfPb3WhenTrue() {
         Pb3Test pb3Test = Pb3Test.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
@@ -207,11 +204,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         Row row = result.collect().next();
-        assertEquals(0, (int) row.getField(0));
+        assertThat((int) row.getField(0)).isEqualTo(0);
     }
 
     @Test
-    public void testSourceWithDefaultValueOfPb3WhenFalse() {
+    void testSourceWithDefaultValueOfPb3WhenFalse() {
         Pb3Test pb3Test = Pb3Test.newBuilder().build();
 
         TestProtobufTestStore.sourcePbInputs.clear();
@@ -232,11 +229,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
         tEnv().executeSql(sql);
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         Row row = result.collect().next();
-        assertEquals(0, (int) row.getField(0));
+        assertThat((int) row.getField(0)).isEqualTo(0);
     }
 
     @Test
-    public void testSink() throws Exception {
+    void testSink() throws Exception {
         TestProtobufTestStore.sourcePbInputs.clear();
         TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
         TestProtobufTestStore.sinkResults.clear();
@@ -260,16 +257,16 @@ public class ProtobufSQLITCase extends BatchTestBase {
 
         byte[] bytes = TestProtobufTestStore.sinkResults.get(0);
         MapTest mapTest = MapTest.parseFrom(bytes);
-        assertEquals(1, mapTest.getA());
-        assertEquals("b", mapTest.getMap1Map().get("a"));
-        assertEquals("d", mapTest.getMap1Map().get("c"));
+        assertThat(mapTest.getA()).isEqualTo(1);
+        assertThat(mapTest.getMap1Map().get("a")).isEqualTo("b");
+        assertThat(mapTest.getMap1Map().get("c")).isEqualTo("d");
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("f");
-        assertEquals(1, innerMessageTest.getA());
-        assertEquals(2L, innerMessageTest.getB());
+        assertThat(innerMessageTest.getA()).isEqualTo(1);
+        assertThat(innerMessageTest.getB()).isEqualTo(2L);
     }
 
     @Test
-    public void testSinkWithNullLiteral() throws Exception {
+    void testSinkWithNullLiteral() throws Exception {
         TestProtobufTestStore.sourcePbInputs.clear();
         TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
         TestProtobufTestStore.sinkResults.clear();
@@ -294,14 +291,14 @@ public class ProtobufSQLITCase extends BatchTestBase {
 
         byte[] bytes = TestProtobufTestStore.sinkResults.get(0);
         MapTest mapTest = MapTest.parseFrom(bytes);
-        assertEquals(1, mapTest.getA());
-        assertEquals("NULL", mapTest.getMap1Map().get("a"));
+        assertThat(mapTest.getA()).isEqualTo(1);
+        assertThat(mapTest.getMap1Map().get("a")).isEqualTo("NULL");
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("b");
-        assertEquals(MapTest.InnerMessageTest.getDefaultInstance(), innerMessageTest);
+        assertThat(innerMessageTest).isEqualTo(MapTest.InnerMessageTest.getDefaultInstance());
     }
 
     @Test
-    public void testSinkWithNullLiteralWithEscape() throws Exception {
+    void testSinkWithNullLiteralWithEscape() throws Exception {
         TestProtobufTestStore.sourcePbInputs.clear();
         TestProtobufTestStore.sourcePbInputs.add(getProtoTestObject().toByteArray());
         TestProtobufTestStore.sinkResults.clear();
@@ -326,14 +323,14 @@ public class ProtobufSQLITCase extends BatchTestBase {
 
         byte[] bytes = TestProtobufTestStore.sinkResults.get(0);
         MapTest mapTest = MapTest.parseFrom(bytes);
-        assertEquals(1, mapTest.getA());
-        assertEquals("\"NULL\"", mapTest.getMap1Map().get("a"));
+        assertThat(mapTest.getA()).isEqualTo(1);
+        assertThat(mapTest.getMap1Map().get("a")).isEqualTo("\"NULL\"");
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("b");
-        assertEquals(MapTest.InnerMessageTest.getDefaultInstance(), innerMessageTest);
+        assertThat(innerMessageTest).isEqualTo(MapTest.InnerMessageTest.getDefaultInstance());
     }
 
     @Test
-    public void testUnsupportedBulkFilesystemSink() {
+    void testUnsupportedBulkFilesystemSink() {
         env().setParallelism(1);
         String sql =
                 "create table bigdata_sink ( "

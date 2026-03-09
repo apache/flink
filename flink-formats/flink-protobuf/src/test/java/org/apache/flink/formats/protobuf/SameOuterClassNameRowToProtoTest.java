@@ -23,14 +23,14 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal primitive data to same outer class name proto data. */
-public class SameOuterClassNameRowToProtoTest {
+class SameOuterClassNameRowToProtoTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row = GenericRowData.of(1, StringData.fromString("BAR"));
 
         byte[] bytes =
@@ -38,12 +38,13 @@ public class SameOuterClassNameRowToProtoTest {
                         row, TestSameOuterClassNameOuterClass.TestSameOuterClassName.class);
         TestSameOuterClassNameOuterClass.TestSameOuterClassName testSameOuterClassName =
                 TestSameOuterClassNameOuterClass.TestSameOuterClassName.parseFrom(bytes);
-        assertEquals(1, testSameOuterClassName.getA());
-        assertEquals(TestSameOuterClassNameOuterClass.FooBar.BAR, testSameOuterClassName.getB());
+        assertThat(testSameOuterClassName.getA()).isEqualTo(1);
+        assertThat(testSameOuterClassName.getB())
+                .isEqualTo(TestSameOuterClassNameOuterClass.FooBar.BAR);
     }
 
     @Test
-    public void testEnumAsInt() throws Exception {
+    void testEnumAsInt() throws Exception {
         RowData row = GenericRowData.of(1, 1);
 
         byte[] bytes =
@@ -51,6 +52,7 @@ public class SameOuterClassNameRowToProtoTest {
                         row, TestSameOuterClassNameOuterClass.TestSameOuterClassName.class, true);
         TestSameOuterClassNameOuterClass.TestSameOuterClassName testSameOuterClassName =
                 TestSameOuterClassNameOuterClass.TestSameOuterClassName.parseFrom(bytes);
-        assertEquals(TestSameOuterClassNameOuterClass.FooBar.BAR, testSameOuterClassName.getB());
+        assertThat(testSameOuterClassName.getB())
+                .isEqualTo(TestSameOuterClassNameOuterClass.FooBar.BAR);
     }
 }

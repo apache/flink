@@ -25,17 +25,17 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
 import com.google.protobuf.ByteString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal map data to proto data. */
-public class MapRowToProtoTest {
+class MapRowToProtoTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         Map<StringData, StringData> map1 = new HashMap<>();
         map1.put(StringData.fromString("a"), StringData.fromString("b"));
         Map<StringData, RowData> map2 = new HashMap<>();
@@ -52,20 +52,21 @@ public class MapRowToProtoTest {
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, MapTest.class);
 
         MapTest mapTest = MapTest.parseFrom(bytes);
-        assertEquals(1, mapTest.getA());
-        assertEquals("b", mapTest.getMap1Map().get("a"));
+        assertThat(mapTest.getA()).isEqualTo(1);
+        assertThat(mapTest.getMap1Map().get("a")).isEqualTo("b");
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("c");
-        assertEquals(1, innerMessageTest.getA());
-        assertEquals(2L, innerMessageTest.getB());
-        assertEquals(ByteString.copyFrom(new byte[] {1, 2, 3}), mapTest.getMap3Map().get("e"));
+        assertThat(innerMessageTest.getA()).isEqualTo(1);
+        assertThat(innerMessageTest.getB()).isEqualTo(2L);
+        assertThat(mapTest.getMap3Map().get("e"))
+                .isEqualTo(ByteString.copyFrom(new byte[] {1, 2, 3}));
     }
 
     @Test
-    public void testNull() throws Exception {
+    void testNull() throws Exception {
         RowData row = GenericRowData.of(1, null, null, null);
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, MapTest.class);
         MapTest mapTest = MapTest.parseFrom(bytes);
         Map<String, String> map = mapTest.getMap1Map();
-        assertEquals(0, map.size());
+        assertThat(map.size()).isEqualTo(0);
     }
 }
