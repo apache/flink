@@ -112,7 +112,7 @@ SELECT * FROM ML_PREDICT(
 
 如果配置中未设置 `async`，系统将选择同步或异步模型提供者，如果两者都存在，则优先使用异步模型提供者。
 
-### 错误处理
+### 异常处理
 
 在以下情况下，函数将抛出异常：
 - 模型中不存在于目录中
@@ -130,5 +130,12 @@ SELECT * FROM ML_PREDICT(
 
 - [模型创建]({{< ref "docs/sql/reference/ddl/create#create-model" >}})
 - [模型修改]({{< ref "docs/sql/reference/ddl/alter#alter-model" >}})
+
+### 支持的模型提供者
+
+Flink 目前支持以下模型提供者：
+
+- **OpenAI**：用于调用 OpenAI API 服务。详情请参见 [OpenAI 模型文档]({{< ref "docs/connectors/models/openai" >}})。
+- **Triton**：用于调用 NVIDIA Triton 推理服务器。详情请参见 [Triton 模型文档]({{< ref "docs/connectors/models/triton" >}})。
 
 {{< top >}}
