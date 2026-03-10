@@ -85,6 +85,9 @@ under the License.
 									<include>com.github.vladimir-bukhtoyarov:bucket4j-core</include>
 								</includes>
 							</artifactSet>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
