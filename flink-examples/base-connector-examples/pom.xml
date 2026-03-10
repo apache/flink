@@ -77,9 +77,9 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.2.4</version>
 				<executions>
 					<execution>
+						<id>shade-flink</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
@@ -87,9 +87,25 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>com.github.vladimir-bukhtoyarov:bucket4j-core</include>
+									<include>*:*</include>
 								</includes>
+								<excludes>
+									<exclude>org.apache.flink:flink-shaded-force-shading</exclude>
+									<exclude>com.google.code.findbugs:jsr305</exclude>
+									<exclude>org.slf4j:*</exclude>
+									<exclude>org.apache.logging.log4j:*</exclude>
+								</excludes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
