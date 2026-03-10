@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators.join.deltajoin;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -50,6 +53,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.TableAbstractCoUdfStreamOperator;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.AecRecord;
@@ -68,6 +72,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -100,6 +105,10 @@ public class StreamingDeltaJoinOperator
     private static final String METRIC_DELTA_JOIN_OP_TOTAL_IN_FLIGHT_NUM =
             "deltaJoinOpTotalInFlightNum";
     private static final String METRIC_DELTA_JOIN_ASYNC_IO_TIME = "deltaJoinAsyncIOTime";
+
+    // <input ordinal, lookup func>
+    private final Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>>
+            generatedLookupFunctions;
 
     private final StreamRecord<RowData> leftEmptyStreamRecord;
     private final StreamRecord<RowData> rightEmptyStreamRecord;
@@ -142,8 +151,6 @@ public class StreamingDeltaJoinOperator
     private transient TableAsyncExecutionController<RowData, RowData, RowData>
             asyncExecutionController;
 
-    private transient DeltaJoinCache cache;
-
     /** Mailbox executor used to yield while waiting for buffers to empty. */
     private final transient MailboxExecutor mailboxExecutor;
 
@@ -169,9 +176,13 @@ public class StreamingDeltaJoinOperator
      */
     private transient List<ReusableKeyedResultHandler> allResultHandlers;
 
+    private transient Map<Integer, AsyncFunction<RowData, Object>> lookupFunctions;
+
     public StreamingDeltaJoinOperator(
-            AsyncDeltaJoinRunner rightLookupTableAsyncFunction,
-            AsyncDeltaJoinRunner leftLookupTableAsyncFunction,
+            AsyncDeltaJoinRunner left2RightAsyncRunner,
+            AsyncDeltaJoinRunner right2LeftAsyncRunner,
+            Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>>
+                    generatedLookupFunctions,
             RowDataKeySelector leftJoinKeySelector,
             RowDataKeySelector rightJoinKeySelector,
             long timeout,
@@ -182,9 +193,10 @@ public class StreamingDeltaJoinOperator
             long rightSideCacheSize,
             RowType leftStreamType,
             RowType rightStreamType) {
-        // rightLookupTableAsyncFunction is an udx used for left records
-        // leftLookupTableAsyncFunction is an udx used for right records
-        super(rightLookupTableAsyncFunction, leftLookupTableAsyncFunction);
+        // left2RightAsyncRunner is an udx used for left records
+        // right2LeftAsyncRunner is an udx used for right records
+        super(left2RightAsyncRunner, right2LeftAsyncRunner);
+        this.generatedLookupFunctions = generatedLookupFunctions;
         this.leftJoinKeySelector = leftJoinKeySelector;
         this.rightJoinKeySelector = rightJoinKeySelector;
         this.timeout = timeout;
@@ -234,11 +246,6 @@ public class StreamingDeltaJoinOperator
                                     isLeft(inputIndex) ? leftJoinKeySelector : rightJoinKeySelector;
                             return keySelector.getKey(record.getValue());
                         });
-
-        this.cache = new DeltaJoinCache(leftSideCacheSize, rightSideCacheSize);
-
-        leftTriggeredUserFunction.setCache(cache);
-        rightTriggeredUserFunction.setCache(cache);
     }
 
     @Override
@@ -276,7 +283,21 @@ public class StreamingDeltaJoinOperator
 
     @Override
     public void open() throws Exception {
-        super.open();
+        lookupFunctions = new HashMap<>();
+        for (Map.Entry<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>> entry :
+                generatedLookupFunctions.entrySet()) {
+            AsyncFunction<RowData, Object> lookupFunc =
+                    entry.getValue().newInstance(getUserCodeClassloader());
+            FunctionUtils.setFunctionRuntimeContext(lookupFunc, getRuntimeContext());
+            FunctionUtils.openFunction(lookupFunc, DefaultOpenContext.INSTANCE);
+            lookupFunctions.put(entry.getKey(), lookupFunc);
+        }
+        DeltaJoinCache cache = new DeltaJoinCache(leftSideCacheSize, rightSideCacheSize);
+
+        DeltaJoinOpenContext openContext =
+                new DeltaJoinOpenContext(cache, mailboxExecutor, lookupFunctions);
+
+        super.open(openContext);
 
         this.needDeepCopy = getExecutionConfig().isObjectReuseEnabled() && !config.isChainStart();
 
@@ -483,6 +504,11 @@ public class StreamingDeltaJoinOperator
         if (allResultHandlers != null) {
             for (ReusableKeyedResultHandler handler : allResultHandlers) {
                 handler.close();
+            }
+        }
+        if (lookupFunctions != null) {
+            for (AsyncFunction<RowData, Object> func : lookupFunctions.values()) {
+                FunctionUtils.closeFunction(func);
             }
         }
     }

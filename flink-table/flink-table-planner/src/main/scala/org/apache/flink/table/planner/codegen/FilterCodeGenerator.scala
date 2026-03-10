@@ -35,6 +35,21 @@ object FilterCodeGenerator {
       classLoader: ClassLoader,
       filterCondition: RexNode,
       inputType: LogicalType): GeneratedFilterCondition = {
+    generateFilterCondition(
+      tableConfig,
+      classLoader,
+      filterCondition,
+      inputType,
+      "PreFilterCondition")
+  }
+
+  /** Generates filter condition runner. */
+  def generateFilterCondition(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      filterCondition: RexNode,
+      inputType: LogicalType,
+      name: String): GeneratedFilterCondition = {
     val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     // should consider null fields
     val exprGenerator =
@@ -50,6 +65,6 @@ object FilterCodeGenerator {
          |""".stripMargin
     }
 
-    FunctionCodeGenerator.generateFilterCondition(ctx, "PreFilterCondition", bodyCode)
+    FunctionCodeGenerator.generateFilterCondition(ctx, name, bodyCode)
   }
 }

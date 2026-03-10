@@ -19,22 +19,19 @@
 package org.apache.flink.table.runtime.operators.join.deltajoin;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.utils.JoinedRowData;
-import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
-import org.apache.flink.table.runtime.generated.GeneratedFunction;
-import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
+import org.apache.flink.table.runtime.generated.FilterCondition;
+import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.lookup.CalcCollectionCollector;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -47,11 +44,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-/** The async join runner to look up the dimension table in delta join. */
+/** The async join runner to look up one or multi dimension tables in delta join. */
 public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncDeltaJoinRunner.class);
@@ -61,20 +60,6 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
             "deltaJoinLeftCallAsyncFetchCostTime";
     private static final String METRIC_DELTA_JOIN_RIGHT_CALL_ASYNC_FETCH_COST_TIME =
             "deltaJoinRightCallAsyncFetchCostTime";
-    private final GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher;
-    private final DataStructureConverter<RowData, Object> fetcherConverter;
-    private final @Nullable GeneratedFunction<FlatMapFunction<RowData, RowData>>
-            lookupSideGeneratedCalc;
-    private final GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture;
-    private final int asyncBufferCapacity;
-
-    private transient AsyncFunction<RowData, Object> fetcher;
-
-    protected final RowDataSerializer lookupSideRowSerializer;
-
-    private final boolean treatRightAsLookupTable;
-
-    private final boolean enableCache;
 
     /** Selector to get join key from left input. */
     private final RowDataKeySelector leftJoinKeySelector;
@@ -88,101 +73,118 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
     /** Selector to get upsert key from right input. */
     private final RowDataKeySelector rightUpsertKeySelector;
 
+    private final int[] eachBinaryInputFieldSize;
+    private final @Nullable GeneratedFilterCondition generatedRemainingJoinCondition;
+    private final DeltaJoinHandlerChain handlerChainTemplate;
+    private final DeltaJoinRuntimeTree joinTreeTemplate;
+    private final Set<Set<Integer>> allDrivenInputsWhenLookup;
+
+    private final boolean lookupRight;
+    private final int asyncBufferCapacity;
+    private final boolean enableCache;
+
     private transient DeltaJoinCache cache;
 
     /**
-     * Buffers {@link ResultFuture} to avoid newInstance cost when processing elements every time.
-     * We use {@link BlockingQueue} to make sure the head {@link ResultFuture}s are available.
+     * Buffers {@link DeltaJoinProcessor} to avoid newInstance cost when processing elements every
+     * time. We use {@link BlockingQueue} to make sure the head {@link DeltaJoinProcessor}s are
+     * available.
      */
-    private transient BlockingQueue<JoinedRowResultFuture> resultFutureBuffer;
+    private transient BlockingQueue<DeltaJoinProcessor> processorBuffer;
 
     /**
-     * A Collection contains all ResultFutures in the runner which is used to invoke {@code close()}
-     * on every ResultFuture. {@link #resultFutureBuffer} may not contain all the ResultFutures
-     * because ResultFutures will be polled from the buffer when processing.
+     * A Collection contains all DeltaJoinProcessors in the runner which is used to invoke {@code
+     * close()} on every {@link DeltaJoinProcessor}. {@link #processorBuffer} may not contain all
+     * the DeltaJoinProcessors because DeltaJoinProcessors will be polled from the buffer when
+     * processing.
      */
-    private transient List<JoinedRowResultFuture> allResultFutures;
+    private transient List<DeltaJoinProcessor> allProcessors;
 
     // metrics
     private transient long callAsyncFetchCostTime = 0L;
 
     public AsyncDeltaJoinRunner(
-            GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher,
-            DataStructureConverter<RowData, Object> fetcherConverter,
-            @Nullable GeneratedFunction<FlatMapFunction<RowData, RowData>> lookupSideGeneratedCalc,
-            GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
-            RowDataSerializer lookupSideRowSerializer,
+            int[] eachBinaryInputFieldSize,
+            @Nullable GeneratedFilterCondition generatedRemainingJoinCondition,
             RowDataKeySelector leftJoinKeySelector,
             RowDataKeySelector leftUpsertKeySelector,
             RowDataKeySelector rightJoinKeySelector,
             RowDataKeySelector rightUpsertKeySelector,
+            DeltaJoinHandlerChain handlerChainTemplate,
+            DeltaJoinRuntimeTree joinTreeTemplate,
+            Set<Set<Integer>> allDrivenInputsWhenLookup,
+            boolean lookupRight,
             int asyncBufferCapacity,
-            boolean treatRightAsLookupTable,
             boolean enableCache) {
-        this.generatedFetcher = generatedFetcher;
-        this.fetcherConverter = fetcherConverter;
-        this.lookupSideGeneratedCalc = lookupSideGeneratedCalc;
-        this.generatedResultFuture = generatedResultFuture;
-        this.lookupSideRowSerializer = lookupSideRowSerializer;
+        this.eachBinaryInputFieldSize = eachBinaryInputFieldSize;
+        this.generatedRemainingJoinCondition = generatedRemainingJoinCondition;
+
         this.leftJoinKeySelector = leftJoinKeySelector;
         this.leftUpsertKeySelector = leftUpsertKeySelector;
         this.rightJoinKeySelector = rightJoinKeySelector;
         this.rightUpsertKeySelector = rightUpsertKeySelector;
-        this.asyncBufferCapacity = asyncBufferCapacity;
-        this.treatRightAsLookupTable = treatRightAsLookupTable;
-        this.enableCache = enableCache;
-    }
 
-    public void setCache(DeltaJoinCache cache) {
-        this.cache = cache;
+        this.handlerChainTemplate = handlerChainTemplate;
+        this.joinTreeTemplate = joinTreeTemplate;
+        this.allDrivenInputsWhenLookup = allDrivenInputsWhenLookup;
+
+        this.asyncBufferCapacity = asyncBufferCapacity;
+        this.lookupRight = lookupRight;
+        this.enableCache = enableCache;
     }
 
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
 
-        this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, openContext);
+        DeltaJoinOpenContext deltaJoinOpenContext = (DeltaJoinOpenContext) openContext;
+        this.cache = deltaJoinOpenContext.getCache();
 
-        // try to compile the generated Calc and ResultFuture, fail fast if the code is corrupt.
-        if (lookupSideGeneratedCalc != null) {
-            lookupSideGeneratedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
-        }
-        generatedResultFuture.compile(getRuntimeContext().getUserCodeClassLoader());
-
-        fetcherConverter.open(getRuntimeContext().getUserCodeClassLoader());
+        RuntimeContext runtimeContext = getRuntimeContext();
+        ClassLoader cl = runtimeContext.getUserCodeClassLoader();
 
         // asyncBufferCapacity + 1 as the queue size in order to avoid
         // blocking on the queue when taking a collector.
-        this.resultFutureBuffer = new ArrayBlockingQueue<>(asyncBufferCapacity + 1);
-        this.allResultFutures = new ArrayList<>();
-        LOG.info(
-                "Begin to initialize reusable result futures with size {}",
-                asyncBufferCapacity + 1);
+        this.processorBuffer = new ArrayBlockingQueue<>(asyncBufferCapacity + 1);
+        this.allProcessors = new ArrayList<>();
+        LOG.info("Begin to initialize reusable processors with size {}", asyncBufferCapacity + 1);
         for (int i = 0; i < asyncBufferCapacity + 1; i++) {
-            JoinedRowResultFuture rf =
-                    new JoinedRowResultFuture(
-                            resultFutureBuffer,
-                            createCalcFunction(openContext),
-                            createFetcherResultFuture(openContext),
-                            fetcherConverter,
-                            treatRightAsLookupTable,
-                            leftUpsertKeySelector,
-                            rightUpsertKeySelector,
-                            lookupSideRowSerializer,
+            DeltaJoinRuntimeTree joinRuntimeTree = joinTreeTemplate.copy();
+            MultiInputRowDataBuffer multiInputRowDataBuffer =
+                    new MultiInputRowDataBuffer(
+                            eachBinaryInputFieldSize, joinRuntimeTree, allDrivenInputsWhenLookup);
+            DeltaJoinHandlerChain chain = handlerChainTemplate.copy();
+
+            FilterCondition remainingJoinCondition =
+                    Optional.ofNullable(this.generatedRemainingJoinCondition)
+                            .map(c -> c.newInstance(cl))
+                            .orElse(null);
+
+            DeltaJoinProcessor processor =
+                    new DeltaJoinProcessor(
+                            processorBuffer,
+                            multiInputRowDataBuffer,
+                            chain,
+                            remainingJoinCondition,
                             enableCache,
-                            cache);
+                            cache,
+                            lookupRight,
+                            leftUpsertKeySelector.copy(),
+                            rightUpsertKeySelector.copy(),
+                            runtimeContext);
+
+            processor.open(deltaJoinOpenContext);
+
             // add will throw exception immediately if the queue is full which should never happen
-            resultFutureBuffer.add(rf);
-            allResultFutures.add(rf);
+            processorBuffer.add(processor);
+            allProcessors.add(processor);
         }
-        LOG.info("Finish initializing reusable result futures");
+        LOG.info("Finish initializing reusable processors");
 
         getRuntimeContext()
                 .getMetricGroup()
                 .gauge(
-                        treatRightAsLookupTable
+                        lookupRight
                                 ? METRIC_DELTA_JOIN_LEFT_CALL_ASYNC_FETCH_COST_TIME
                                 : METRIC_DELTA_JOIN_RIGHT_CALL_ASYNC_FETCH_COST_TIME,
                         () -> callAsyncFetchCostTime);
@@ -190,11 +192,11 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
     @Override
     public void asyncInvoke(RowData input, ResultFuture<RowData> resultFuture) throws Exception {
-        JoinedRowResultFuture outResultFuture = resultFutureBuffer.take();
+        DeltaJoinProcessor deltaJoinProcessor = processorBuffer.take();
 
         RowData streamJoinKey = null;
         if (enableCache) {
-            if (treatRightAsLookupTable) {
+            if (lookupRight) {
                 streamJoinKey = leftJoinKeySelector.getKey(input);
                 cache.requestRightCache();
             } else {
@@ -204,61 +206,30 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         }
 
         // the input row is copied when object reuse in StreamDeltaJoinOperator
-        outResultFuture.reset(streamJoinKey, input, resultFuture);
+        deltaJoinProcessor.reset(streamJoinKey, input, resultFuture);
 
         if (enableCache) {
-            Optional<Collection<Object>> dataFromCache = tryGetDataFromCache(streamJoinKey);
+            Optional<Collection<RowData>> dataFromCache = tryGetDataFromCache(streamJoinKey);
             if (dataFromCache.isPresent()) {
-                outResultFuture.complete(dataFromCache.get(), true);
+                deltaJoinProcessor.complete(dataFromCache.get());
                 return;
             }
         }
 
         long startTime = System.currentTimeMillis();
         // fetcher has copied the input field when object reuse is enabled
-        fetcher.asyncInvoke(input, outResultFuture);
+        deltaJoinProcessor.asyncHandle(input);
         callAsyncFetchCostTime = System.currentTimeMillis() - startTime;
-    }
-
-    @Nullable
-    private FlatMapFunction<RowData, RowData> createCalcFunction(OpenContext openContext)
-            throws Exception {
-        FlatMapFunction<RowData, RowData> calc = null;
-        if (lookupSideGeneratedCalc != null) {
-            calc =
-                    lookupSideGeneratedCalc.newInstance(
-                            getRuntimeContext().getUserCodeClassLoader());
-            FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
-            FunctionUtils.openFunction(calc, openContext);
-        }
-        return calc;
-    }
-
-    public TableFunctionResultFuture<RowData> createFetcherResultFuture(OpenContext openContext)
-            throws Exception {
-        TableFunctionResultFuture<RowData> resultFuture =
-                generatedResultFuture.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        FunctionUtils.setFunctionRuntimeContext(resultFuture, getRuntimeContext());
-        FunctionUtils.openFunction(resultFuture, openContext);
-        return resultFuture;
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        if (fetcher != null) {
-            FunctionUtils.closeFunction(fetcher);
-        }
-        if (allResultFutures != null) {
-            for (JoinedRowResultFuture rf : allResultFutures) {
-                rf.close();
+        if (allProcessors != null) {
+            for (DeltaJoinProcessor processor : allProcessors) {
+                processor.close();
             }
         }
-    }
-
-    @VisibleForTesting
-    public AsyncFunction<RowData, Object> getFetcher() {
-        return fetcher;
     }
 
     @VisibleForTesting
@@ -266,17 +237,17 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         return cache;
     }
 
-    private Optional<Collection<Object>> tryGetDataFromCache(RowData joinKey) {
+    private Optional<Collection<RowData>> tryGetDataFromCache(RowData joinKey) {
         Preconditions.checkState(enableCache);
 
-        if (treatRightAsLookupTable) {
-            LinkedHashMap<RowData, Object> rightRows = cache.getData(joinKey, true);
+        if (lookupRight) {
+            LinkedHashMap<RowData, RowData> rightRows = cache.getData(joinKey, true);
             if (rightRows != null) {
                 cache.hitRightCache();
                 return Optional.of(rightRows.values());
             }
         } else {
-            LinkedHashMap<RowData, Object> leftRows = cache.getData(joinKey, false);
+            LinkedHashMap<RowData, RowData> leftRows = cache.getData(joinKey, false);
             if (leftRows != null) {
                 cache.hitLeftCache();
                 return Optional.of(leftRows.values());
@@ -286,26 +257,32 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
     }
 
     /**
-     * The {@link JoinedRowResultFuture} is used to combine left {@link RowData} and right {@link
-     * RowData} into {@link JoinedRowData}.
+     * The processor to handle the inputs of the delta join runner.
      *
-     * <p>There are 3 phases in this collector similar with {@see
-     * AsyncLookupJoinRunner#JoinedRowResultFuture}. Furthermore, this {@link JoinedRowResultFuture}
-     * also handles logic about bidirectional lookup join processing.
+     * <p>It mainly does the following things:
+     *
+     * <ol>
+     *   <li>Trigger to lookup by invoking {@link DeltaJoinHandlerChain#asyncHandle} and get all
+     *       lookup results back.
+     *   <li>Build and update the cache if necessary.
+     *   <li>Do the final filter for each lookup result.
+     * </ol>
      */
     @VisibleForTesting
-    public static final class JoinedRowResultFuture implements ResultFuture<Object> {
-        private final BlockingQueue<JoinedRowResultFuture> resultFutureBuffer;
-        private final @Nullable FlatMapFunction<RowData, RowData> calcFunction;
-        private final CalcCollectionCollector calcCollector;
-        private final TableFunctionResultFuture<RowData> joinConditionResultFuture;
-        private final DataStructureConverter<RowData, Object> resultConverter;
+    public static final class DeltaJoinProcessor implements ResultFuture<RowData> {
+
+        private static final Logger LOG = LoggerFactory.getLogger(DeltaJoinProcessor.class);
+
+        private final BlockingQueue<DeltaJoinProcessor> processorBuffer;
+
+        private final DeltaJoinHandlerChain handlerChain;
+        private final MultiInputRowDataBuffer multiInputRowDataBuffer;
+        private final @Nullable FilterCondition remainingJoinCondition;
 
         private final boolean enableCache;
         private final DeltaJoinCache cache;
-
-        private final DelegateResultFuture delegate;
-        private final boolean treatRightAsLookupTable;
+        private final boolean lookupRight;
+        private final RuntimeContext runtimeContext;
 
         private final RowDataKeySelector leftUpsertKeySelector;
         private final RowDataKeySelector rightUpsertKeySelector;
@@ -314,28 +291,55 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         private RowData streamRow;
         private ResultFuture<RowData> realOutput;
 
-        private JoinedRowResultFuture(
-                BlockingQueue<JoinedRowResultFuture> resultFutureBuffer,
-                @Nullable FlatMapFunction<RowData, RowData> calcFunction,
-                TableFunctionResultFuture<RowData> joinConditionResultFuture,
-                DataStructureConverter<RowData, Object> resultConverter,
-                boolean treatRightAsLookupTable,
+        private DeltaJoinProcessor(
+                BlockingQueue<DeltaJoinProcessor> processorBuffer,
+                MultiInputRowDataBuffer multiInputRowDataBuffer,
+                DeltaJoinHandlerChain handlerChain,
+                @Nullable FilterCondition remainingJoinCondition,
+                boolean enableCache,
+                DeltaJoinCache cache,
+                boolean lookupRight,
                 RowDataKeySelector leftUpsertKeySelector,
                 RowDataKeySelector rightUpsertKeySelector,
-                RowDataSerializer lookupSideRowSerializer,
-                boolean enableCache,
-                DeltaJoinCache cache) {
-            this.resultFutureBuffer = resultFutureBuffer;
-            this.calcFunction = calcFunction;
-            this.calcCollector = new CalcCollectionCollector(lookupSideRowSerializer);
-            this.joinConditionResultFuture = joinConditionResultFuture;
-            this.resultConverter = resultConverter;
+                RuntimeContext runtimeContext) {
+            this.processorBuffer = processorBuffer;
+            this.multiInputRowDataBuffer = multiInputRowDataBuffer;
+            this.handlerChain = handlerChain;
+            this.remainingJoinCondition = remainingJoinCondition;
             this.enableCache = enableCache;
             this.cache = cache;
-            this.delegate = new DelegateResultFuture();
-            this.treatRightAsLookupTable = treatRightAsLookupTable;
+            this.lookupRight = lookupRight;
             this.leftUpsertKeySelector = leftUpsertKeySelector;
             this.rightUpsertKeySelector = rightUpsertKeySelector;
+            this.runtimeContext = runtimeContext;
+        }
+
+        public void open(DeltaJoinOpenContext openContext) throws Exception {
+            multiInputRowDataBuffer.open(openContext, runtimeContext);
+
+            HandlerChainContextImpl context =
+                    HandlerChainContextImpl.create(
+                            multiInputRowDataBuffer,
+                            this,
+                            runtimeContext,
+                            openContext.getMailboxExecutor(),
+                            openContext.getLookupFunctions(),
+                            lookupRight);
+            handlerChain.open(openContext, context);
+
+            if (remainingJoinCondition != null) {
+                FunctionUtils.setFunctionRuntimeContext(remainingJoinCondition, runtimeContext);
+                FunctionUtils.openFunction(remainingJoinCondition, openContext);
+            }
+        }
+
+        public void close() throws Exception {
+            multiInputRowDataBuffer.close();
+            handlerChain.close();
+
+            if (remainingJoinCondition != null) {
+                remainingJoinCondition.close();
+            }
         }
 
         public void reset(
@@ -346,75 +350,56 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
             this.streamJoinKey = joinKey;
             this.streamRow = row;
 
-            joinConditionResultFuture.setInput(row);
-            joinConditionResultFuture.setResultFuture(delegate);
-            delegate.reset();
-            calcCollector.reset();
+            this.multiInputRowDataBuffer.reset();
+            this.handlerChain.reset();
+        }
+
+        public void asyncHandle(RowData input) throws Exception {
+            handlerChain.asyncHandle(input);
         }
 
         @Override
-        public void complete(Collection<Object> result) {
-            complete(result, false);
-        }
-
-        public void complete(Collection<Object> result, boolean fromCache) {
-            if (result == null) {
-                result = Collections.emptyList();
+        public void complete(Collection<RowData> lookupRows) {
+            if (lookupRows == null) {
+                lookupRows = Collections.emptyList();
             }
 
-            Collection<RowData> rowDataCollection = convertToInternalData(result);
-
-            Collection<RowData> lookupRowsAfterCalc = rowDataCollection;
-            if (!fromCache && calcFunction != null && rowDataCollection != null) {
-                for (RowData row : rowDataCollection) {
-                    try {
-                        calcFunction.flatMap(row, calcCollector);
-                    } catch (Exception e) {
-                        completeExceptionally(e);
-                    }
-                }
-                lookupRowsAfterCalc = calcCollector.getCollection();
-            }
-
-            // now we have received the rows from the lookup table, try to set them to the cache
+            // now we have received the rows from the lookup tables,
+            // try to set them to the cache
             try {
-                updateCacheIfNecessary(lookupRowsAfterCalc);
+                updateCacheIfNecessary(lookupRows);
             } catch (Throwable t) {
                 LOG.info("Failed to update the cache", t);
                 completeExceptionally(t);
                 return;
             }
 
-            // call join condition collector,
-            // the filtered result will be routed to the delegateCollector
-            try {
-                joinConditionResultFuture.complete(lookupRowsAfterCalc);
-            } catch (Throwable t) {
-                // we should catch the exception here to let the framework know
-                completeExceptionally(t);
-                return;
-            }
-
-            Collection<RowData> lookupRowsAfterJoin = delegate.collection;
-            if (lookupRowsAfterJoin == null || lookupRowsAfterJoin.isEmpty()) {
-                realOutput.complete(Collections.emptyList());
+            List<RowData> outRows;
+            if (lookupRows.isEmpty()) {
+                outRows = Collections.emptyList();
             } else {
-                List<RowData> outRows = new ArrayList<>();
-                for (RowData lookupRow : lookupRowsAfterJoin) {
-                    RowData outRow;
-                    if (treatRightAsLookupTable) {
-                        outRow = new JoinedRowData(streamRow.getRowKind(), streamRow, lookupRow);
-                    } else {
-                        outRow = new JoinedRowData(streamRow.getRowKind(), lookupRow, streamRow);
+                outRows = new ArrayList<>();
+                for (RowData lookupRow : lookupRows) {
+                    JoinedRowData outRow =
+                            lookupRight
+                                    ? new JoinedRowData(
+                                            streamRow.getRowKind(), streamRow, lookupRow)
+                                    : new JoinedRowData(
+                                            streamRow.getRowKind(), lookupRow, streamRow);
+                    if (remainingJoinCondition != null
+                            && !remainingJoinCondition.apply(
+                                    FilterCondition.Context.INVALID_CONTEXT, outRow)) {
+                        continue;
                     }
                     outRows.add(outRow);
                 }
-                realOutput.complete(outRows);
             }
+
+            realOutput.complete(outRows);
             try {
                 // put this collector to the queue to avoid this collector is used
                 // again before outRows in the collector is not consumed.
-                resultFutureBuffer.put(this);
+                processorBuffer.put(this);
             } catch (InterruptedException e) {
                 completeExceptionally(e);
             }
@@ -430,12 +415,8 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
          * the mailbox to invoke from the caller thread.
          */
         @Override
-        public void complete(CollectionSupplier<Object> supplier) {
+        public void complete(CollectionSupplier<RowData> supplier) {
             throw new UnsupportedOperationException();
-        }
-
-        public void close() throws Exception {
-            joinConditionResultFuture.close();
         }
 
         private void updateCacheIfNecessary(Collection<RowData> lookupRows) throws Exception {
@@ -445,12 +426,12 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
             // 1. build the cache in lookup side if not exists
             // 2. update the cache in stream side if exists
-            if (treatRightAsLookupTable) {
+            if (lookupRight) {
                 if (cache.getData(streamJoinKey, true) == null) {
                     cache.buildCache(streamJoinKey, buildMapWithUkAsKeys(lookupRows, true), true);
                 }
 
-                LinkedHashMap<RowData, Object> leftCacheData = cache.getData(streamJoinKey, false);
+                LinkedHashMap<RowData, RowData> leftCacheData = cache.getData(streamJoinKey, false);
                 if (leftCacheData != null) {
                     RowData uk = leftUpsertKeySelector.getKey(streamRow);
                     cache.upsertCache(streamJoinKey, uk, streamRow, false);
@@ -460,7 +441,7 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
                     cache.buildCache(streamJoinKey, buildMapWithUkAsKeys(lookupRows, false), false);
                 }
 
-                LinkedHashMap<RowData, Object> rightCacheData = cache.getData(streamJoinKey, true);
+                LinkedHashMap<RowData, RowData> rightCacheData = cache.getData(streamJoinKey, true);
                 if (rightCacheData != null) {
                     RowData uk = rightUpsertKeySelector.getKey(streamRow);
                     cache.upsertCache(streamJoinKey, uk, streamRow, true);
@@ -468,70 +449,97 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
             }
         }
 
-        private LinkedHashMap<RowData, Object> buildMapWithUkAsKeys(
+        private LinkedHashMap<RowData, RowData> buildMapWithUkAsKeys(
                 Collection<RowData> lookupRows, boolean treatRightAsLookupTable) throws Exception {
-            LinkedHashMap<RowData, Object> map = new LinkedHashMap<>();
-            for (Object lookupRow : lookupRows) {
-                RowData rowData = convertToInternalData(lookupRow);
+            LinkedHashMap<RowData, RowData> map = new LinkedHashMap<>();
+            for (RowData lookupRow : lookupRows) {
                 RowData uk;
                 if (treatRightAsLookupTable) {
-                    uk = rightUpsertKeySelector.getKey(rowData);
+                    uk = rightUpsertKeySelector.getKey(lookupRow);
                     map.put(uk, lookupRow);
                 } else {
-                    uk = leftUpsertKeySelector.getKey(rowData);
+                    uk = leftUpsertKeySelector.getKey(lookupRow);
                     map.put(uk, lookupRow);
                 }
             }
             return map;
         }
+    }
 
-        private RowData convertToInternalData(Object data) {
-            if (resultConverter.isIdentityConversion()) {
-                return (RowData) data;
-            } else {
-                return resultConverter.toInternal(data);
-            }
+    /**
+     * A {@link DeltaJoinHandlerBase.DeltaJoinHandlerContext} that exposes some context for the
+     * lookup chain.
+     */
+    private static class HandlerChainContextImpl
+            implements DeltaJoinHandlerBase.DeltaJoinHandlerContext {
+
+        private final MultiInputRowDataBuffer sharedMultiInputRowDataBuffer;
+        private final ResultFuture<RowData> realOutput;
+        private final RuntimeContext runtimeContext;
+        private final MailboxExecutor mailboxExecutor;
+        private final Map<Integer, AsyncFunction<RowData, Object>> lookupFunctions;
+        private final boolean inLeft2RightLookupChain;
+
+        private HandlerChainContextImpl(
+                MultiInputRowDataBuffer sharedMultiInputRowDataBuffer,
+                ResultFuture<RowData> realOutput,
+                RuntimeContext runtimeContext,
+                MailboxExecutor mailboxExecutor,
+                Map<Integer, AsyncFunction<RowData, Object>> lookupFunctions,
+                boolean inLeft2RightLookupChain) {
+            this.sharedMultiInputRowDataBuffer = sharedMultiInputRowDataBuffer;
+            this.realOutput = realOutput;
+            this.runtimeContext = runtimeContext;
+            this.mailboxExecutor = mailboxExecutor;
+            this.lookupFunctions = lookupFunctions;
+            this.inLeft2RightLookupChain = inLeft2RightLookupChain;
         }
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        private Collection<RowData> convertToInternalData(Collection<Object> data) {
-            if (resultConverter.isIdentityConversion()) {
-                return (Collection) data;
-            } else {
-                Collection<RowData> result = new ArrayList<>(data.size());
-                for (Object element : data) {
-                    result.add(resultConverter.toInternal(element));
-                }
-                return result;
-            }
+        public static HandlerChainContextImpl create(
+                MultiInputRowDataBuffer sharedMultiInputRowDataBuffer,
+                ResultFuture<RowData> realOutput,
+                RuntimeContext runtimeContext,
+                MailboxExecutor mailboxExecutor,
+                Map<Integer, AsyncFunction<RowData, Object>> lookupFunctions,
+                boolean inLeft2RightLookupChain) {
+            return new HandlerChainContextImpl(
+                    sharedMultiInputRowDataBuffer,
+                    realOutput,
+                    runtimeContext,
+                    mailboxExecutor,
+                    lookupFunctions,
+                    inLeft2RightLookupChain);
         }
 
-        private final class DelegateResultFuture implements ResultFuture<RowData> {
+        @Override
+        public MultiInputRowDataBuffer getSharedMultiInputRowDataBuffer() {
+            return sharedMultiInputRowDataBuffer;
+        }
 
-            private Collection<RowData> collection;
+        @Override
+        public ResultFuture<RowData> getRealOutputResultFuture() {
+            return realOutput;
+        }
 
-            public void reset() {
-                this.collection = null;
-            }
+        @Override
+        public RuntimeContext getRuntimeContext() {
+            return runtimeContext;
+        }
 
-            @Override
-            public void complete(Collection<RowData> result) {
-                this.collection = result;
-            }
+        @Override
+        public MailboxExecutor getMailboxExecutor() {
+            return mailboxExecutor;
+        }
 
-            @Override
-            public void completeExceptionally(Throwable error) {
-                JoinedRowResultFuture.this.completeExceptionally(error);
-            }
+        @Override
+        public AsyncFunction<RowData, Object> getLookupFunction(int lookupOrdinal) {
+            Preconditions.checkArgument(lookupFunctions.containsKey(lookupOrdinal));
+            return lookupFunctions.get(lookupOrdinal);
+        }
 
-            /**
-             * Unsupported, because the containing classes are AsyncFunctions which don't have
-             * access to the mailbox to invoke from the caller thread.
-             */
-            @Override
-            public void complete(CollectionSupplier<RowData> supplier) {
-                throw new UnsupportedOperationException();
-            }
+        @Override
+        public boolean inLeft2RightLookupChain() {
+            return inLeft2RightLookupChain;
         }
     }
 }

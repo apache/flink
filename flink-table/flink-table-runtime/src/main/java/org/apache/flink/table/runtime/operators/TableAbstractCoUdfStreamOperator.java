@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -116,10 +117,13 @@ public abstract class TableAbstractCoUdfStreamOperator<
 
     @Override
     public void open() throws Exception {
+        this.open(DefaultOpenContext.INSTANCE);
+    }
+
+    public void open(OpenContext openContext) throws Exception {
         super.open();
-        super.open();
-        FunctionUtils.openFunction(leftTriggeredUserFunction, DefaultOpenContext.INSTANCE);
-        FunctionUtils.openFunction(rightTriggeredUserFunction, DefaultOpenContext.INSTANCE);
+        FunctionUtils.openFunction(leftTriggeredUserFunction, openContext);
+        FunctionUtils.openFunction(rightTriggeredUserFunction, openContext);
     }
 
     @Override

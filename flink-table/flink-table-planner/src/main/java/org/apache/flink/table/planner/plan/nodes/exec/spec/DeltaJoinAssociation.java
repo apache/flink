@@ -319,6 +319,15 @@ public class DeltaJoinAssociation {
                 .collect(Collectors.toList());
     }
 
+    public List<TemporalTableSourceSpec> getAllBinaryInputTableSourceSpecs() {
+        return IntStream.range(0, binaryInputInfos.size())
+                .mapToObj(
+                        i ->
+                                new TemporalTableSourceSpec(
+                                        binaryInputInfos.get(i).tableScan.getTable()))
+                .collect(Collectors.toList());
+    }
+
     /**
      * Returns a concise summary of all source-to-target association pairs in both {@link
      * #binary2BinaryJoinAssociation} and {@link #compositeBinary2BinaryJoinAssociation}.
