@@ -87,7 +87,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>*:*</include>
+									<include>com.github.vladimir-bukhtoyarov:bucket4j-core</include>
 								</includes>
 							</artifactSet>
 						</configuration>
