@@ -63,6 +63,7 @@ under the License.
 			<groupId>com.github.vladimir-bukhtoyarov</groupId>
 			<artifactId>bucket4j-core</artifactId>
 			<version>7.6.0</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 	</dependencies>
 
