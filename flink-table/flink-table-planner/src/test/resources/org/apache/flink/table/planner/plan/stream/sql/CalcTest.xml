@@ -109,7 +109,7 @@ Calc(select=[a], where=[>(random_udf(b), 10)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(field2=[$1], transactionId=[COALESCE($0.data.nested.trId)])
+LogicalProject(field2=[$1], transactionId=[CAST($0.data.nested.trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
 +- LogicalProject(field1=[$0], field2=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, testCastOfTestToSameType]])
 ]]>
@@ -127,7 +127,7 @@ Calc(select=[field1 AS field2, COALESCE(field1.data.nested.trId) AS transactionI
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(field2=[$1], transactionId=[COALESCE(ITEM($0.data, 0).nested.trId)])
+LogicalProject(field2=[$1], transactionId=[CAST(ITEM($0.data, 0).nested.trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
 +- LogicalProject(field1=[$0], field2=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithArray]])
 ]]>
@@ -145,14 +145,14 @@ Calc(select=[field1 AS field2, COALESCE(ITEM(field1.data, 0).nested.trId) AS tra
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(field2=[$1], transactionId=[COALESCE($0.data.nested.trId)])
+LogicalProject(field2=[$1], transactionId=[$0.data.nested.trId])
 +- LogicalProject(field1=[$0], field2=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithNullableNestedType]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[field1 AS field2, COALESCE(field1.data.nested.trId) AS transactionId])
+Calc(select=[field1 AS field2, field1.data.nested.trId AS transactionId])
 +- TableSourceScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithNullableNestedType]], fields=[field1])
 ]]>
     </Resource>

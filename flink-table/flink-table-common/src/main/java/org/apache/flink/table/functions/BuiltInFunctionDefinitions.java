@@ -241,8 +241,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(varyingSequence(COMMON_ARG_NULLABLE, COMMON_ARG_NULLABLE))
                     .outputTypeStrategy(nullableIfAllArgs(COMMON))
-                    .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
+                    .runtimeDeferred()
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_APPEND =
