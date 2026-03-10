@@ -68,6 +68,11 @@ under the License.
 	</dependencies>
 
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -85,9 +90,6 @@ under the License.
 									<include>com.github.vladimir-bukhtoyarov:bucket4j-core</include>
 								</includes>
 							</artifactSet>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
-							</transformers>
 						</configuration>
 					</execution>
 				</executions>
