@@ -84,8 +84,6 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
     private final DeltaJoinLookupChain right2LeftLookupChain;
     private final DeltaJoinAssociation deltaJoinAssociation;
 
-    private final DeltaJoinPattern deltaJoinPattern;
-
     public StreamPhysicalDeltaJoin(
             RelOptCluster cluster,
             RelTraitSet traitSet,
@@ -116,13 +114,16 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
         this.deltaJoinAssociation = deltaJoinAssociation;
         this.rowType = rowType;
 
-        this.deltaJoinPattern = inferDeltaJoinPattern();
+        Preconditions.checkArgument(
+                left2RightLookupChain.size() == rightAllBinaryInputOrdinals.size());
+        Preconditions.checkArgument(
+                right2LeftLookupChain.size() == leftAllBinaryInputOrdinals.size());
     }
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        if (DeltaJoinPattern.BINARY != deltaJoinPattern) {
-            throw new UnsupportedOperationException("Support later");
+        if (!isBinaryDeltaJoin()) {
+            throw new UnsupportedOperationException("Support cascaded delta join later");
         }
 
         TableConfig config = unwrapTableConfig(this);
@@ -213,53 +214,18 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
                                         RelExplainUtil.preferExpressionFormat(pw),
                                         RelExplainUtil.preferExpressionDetail(pw)));
 
-        switch (deltaJoinPattern) {
-            case BINARY:
-                break;
-            case LHS:
-            case RHS:
-                pw = enrichExplainTermsForLRHSDeltaJoin(pw);
-                break;
-            case BUSHY:
-                pw = enrichExplainTermsForBushyDeltaJoin(pw);
-                break;
-            default:
-                throw new IllegalStateException("Unknown delta join pattern: " + deltaJoinPattern);
-        }
+        String leftToRight =
+                rightAllBinaryInputOrdinals.size() == 1
+                        ? "Binary"
+                        : lookupChainDetailToString(left2RightLookupChain, pw.getDetailLevel());
+        String rightToLeft =
+                leftAllBinaryInputOrdinals.size() == 1
+                        ? "Binary"
+                        : lookupChainDetailToString(right2LeftLookupChain, pw.getDetailLevel());
 
-        return pw.item("select", String.join(", ", rowType.getFieldNames()));
-    }
-
-    private RelWriter enrichExplainTermsForLRHSDeltaJoin(RelWriter pw) {
-        Preconditions.checkState(
-                DeltaJoinPattern.LHS == deltaJoinPattern
-                        || DeltaJoinPattern.RHS == deltaJoinPattern);
-
-        boolean isLHS = deltaJoinPattern == DeltaJoinPattern.LHS;
-        DeltaJoinLookupChain binary2PreDeltaJoinInputLookupChain =
-                isLHS ? right2LeftLookupChain : left2RightLookupChain;
-
-        String binaryInput2PreDeltaJoinLookupDetail =
-                lookupChainDetailToString(binary2PreDeltaJoinInputLookupChain, pw.getDetailLevel());
-
-        if (isLHS) {
-            return pw.item("leftToRight", "Binary")
-                    .item("rightToLeft", binaryInput2PreDeltaJoinLookupDetail);
-        } else {
-            return pw.item("leftToRight", binaryInput2PreDeltaJoinLookupDetail)
-                    .item("rightToLeft", "Binary");
-        }
-    }
-
-    private RelWriter enrichExplainTermsForBushyDeltaJoin(RelWriter pw) {
-        Preconditions.checkState(DeltaJoinPattern.BUSHY == deltaJoinPattern);
-
-        return pw.item(
-                        "leftToRight",
-                        lookupChainDetailToString(left2RightLookupChain, pw.getDetailLevel()))
-                .item(
-                        "rightToLeft",
-                        lookupChainDetailToString(right2LeftLookupChain, pw.getDetailLevel()));
+        return pw.item("leftToRight", leftToRight)
+                .item("rightToLeft", rightToLeft)
+                .item("select", String.join(", ", rowType.getFieldNames()));
     }
 
     private String lookupChainDetailToString(
@@ -414,41 +380,8 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
                 sqlExplainLevel);
     }
 
-    private DeltaJoinPattern inferDeltaJoinPattern() {
-        int leftBinaryInputSize = leftAllBinaryInputOrdinals.size();
-        int rightBinaryInputSize = rightAllBinaryInputOrdinals.size();
-
-        Preconditions.checkArgument(leftBinaryInputSize > 0);
-        Preconditions.checkArgument(rightBinaryInputSize > 0);
-        Preconditions.checkArgument(left2RightLookupChain.size() == rightBinaryInputSize);
-        Preconditions.checkArgument(right2LeftLookupChain.size() == leftBinaryInputSize);
-
-        if (leftBinaryInputSize == 1 && rightBinaryInputSize == 1) {
-            return DeltaJoinPattern.BINARY;
-        } else if (leftBinaryInputSize == 1) {
-            return DeltaJoinPattern.RHS;
-        } else if (rightBinaryInputSize == 1) {
-            return DeltaJoinPattern.LHS;
-        } else {
-            return DeltaJoinPattern.BUSHY;
-        }
-    }
-
-    private enum DeltaJoinPattern {
-        /** Binary delta join means that its both inputs come directly from sources. */
-        BINARY,
-        /**
-         * LHS delta join means that its left input comes from the upstream delta join, and right
-         * input comes directly from sources.
-         */
-        LHS,
-        /**
-         * RHS delta join means that its right input comes from the upstream delta join, and left
-         * input comes directly from sources.
-         */
-        RHS,
-        /** Bushy delta join means that its both inputs come from the upstream delta join. */
-        BUSHY
+    private boolean isBinaryDeltaJoin() {
+        return left2RightLookupChain.size() == 1 && right2LeftLookupChain.size() == 1;
     }
 
     private static class CascadedLookupDetail {

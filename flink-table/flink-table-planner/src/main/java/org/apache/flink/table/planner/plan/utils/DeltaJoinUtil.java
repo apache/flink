@@ -571,10 +571,8 @@ public class DeltaJoinUtil {
         //  2. support Constant functionParam
         Optional<RexNode> nonEquivCondition = topJoinSpec.getNonEquiCondition();
 
-        // ignore non-equiv conditions for cascaded lookup here and do final filter
-        // in operator later
-        // TODO split the non-equiv deterministic conditions on each inputs by
-        //  RelOptUtil.classifyFilters
+        // TODO push down the non-equiv deterministic conditions on each inputs by
+        //  RelOptUtil.classifyFilters to get less data for subsequent cascading lookups
         Optional<RexNode> remainingCondition =
                 totalLookupCount == 1 && nonEquivCondition.isPresent()
                         ? nonEquivCondition
