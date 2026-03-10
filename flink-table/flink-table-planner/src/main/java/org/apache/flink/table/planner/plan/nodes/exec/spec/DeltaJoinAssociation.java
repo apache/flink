@@ -293,14 +293,7 @@ public class DeltaJoinAssociation {
             return;
         }
         compositeBinary2BinaryJoinAssociation
-                .compute(
-                        sourceOrdinals,
-                        (sources, dest) -> {
-                            if (dest == null) {
-                                dest = new HashMap<>();
-                            }
-                            return dest;
-                        })
+                .computeIfAbsent(sourceOrdinals, k -> new HashMap<>())
                 .put(destOrdinal, association);
     }
 

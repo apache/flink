@@ -1613,6 +1613,41 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
+  def testTopJoinCouldNotBeConvertedIntoDeltaJoin2(): Unit = {
+    //       Regular Join
+    //         /     \
+    //       DT       D
+    //     /    \
+    //    DT     C
+    //  /    \
+    // A      B
+    // the top join could not be converted into the delta join
+    // because it is an outer join
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, d0, c0, c2, c1 from tmp_abc
+        |    left join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
   def testBottomJoinCouldNotBeConvertedIntoDeltaJoin(): Unit = {
     //                Regular Join
     //                /          \
@@ -1621,7 +1656,7 @@ class DeltaJoinTest extends TableTestBase {
     //    Regular Join      C
     //       /    \
     //      A      B
-    // the bottom join could not be converted into the delta join
+    // all joins could not be converted into delta joins
     // because there are no indexes in table B
     replaceTable("no_delete_src2", "no_delete_src2", Collections.emptyMap(), dropIndexes = true)
 
@@ -1643,6 +1678,41 @@ class DeltaJoinTest extends TableTestBase {
       """
         |insert into snk_for_cdc_src
         |  select a0, a1, a2, a3, c0, c2, c1 from tmp_abc
+        |    join no_delete_src4 D
+        |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
+        |""".stripMargin
+    )
+  }
+
+  @Test
+  def testBottomJoinCouldNotBeConvertedIntoDeltaJoin2(): Unit = {
+    //                Regular Join
+    //                /          \
+    //          Regular Join       D
+    //           /         \
+    //    Regular Join      C
+    //       /    \
+    //      A      B
+    // all joins could not be converted into delta joins
+    // because the bottom join is an outer join
+    tEnv.executeSql("""
+                      |create temporary view tmp_ab as
+                      |  select B.*, A.*
+                      |  from no_delete_src1 A
+                      |    left join no_delete_src2 B
+                      |     on a1 = b1 and a2 = b2 and a0 <> cast(b1 as int)
+                      |""".stripMargin)
+    tEnv.executeSql("""
+                      |create temporary view tmp_abc as
+                      |  select C.*, tmp_ab.*
+                      |  from tmp_ab
+                      |    join no_delete_src3 C
+                      |     on a1 = c1 and a2 = c2 and c1 <> cast(a2 as double)
+                      |""".stripMargin)
+    util.verifyRelPlanInsert(
+      """
+        |insert into snk_for_cdc_src
+        |  select a0, a1, a2, b0, c0, c2, c1 from tmp_abc
         |    join no_delete_src4 D
         |     on c1 = d1 and c2 = d2 and d1 <> cast(c2 as double)
         |""".stripMargin

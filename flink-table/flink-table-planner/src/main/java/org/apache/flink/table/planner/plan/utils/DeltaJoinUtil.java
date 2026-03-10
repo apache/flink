@@ -568,7 +568,7 @@ public class DeltaJoinUtil {
 
         // TODO:
         //  1. split remaining join condition into the pre-filter and remaining parts
-        //  2. supported Constant functionParam
+        //  2. support Constant functionParam
         Optional<RexNode> nonEquivCondition = topJoinSpec.getNonEquiCondition();
 
         // ignore non-equiv conditions for cascaded lookup here and do final filter
