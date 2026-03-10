@@ -54,14 +54,14 @@ class ParseProtoWithUnknownFieldsTest {
 
         // inspect field map1
         MapData map1 = row.getMap(1);
-        assertThat(map1.keyArray().getString(0).toString()).isEqualTo("a");
-        assertThat(map1.valueArray().getString(0).toString()).isEqualTo("b");
-        assertThat(map1.keyArray().getString(1).toString()).isEqualTo("c");
-        assertThat(map1.valueArray().getString(1).toString()).isEqualTo("d");
+        assertThat(map1.keyArray().getString(0)).hasToString("a");
+        assertThat(map1.valueArray().getString(0)).hasToString("b");
+        assertThat(map1.keyArray().getString(1)).hasToString("c");
+        assertThat(map1.valueArray().getString(1)).hasToString("d");
 
         // inspect field map2
         MapData map2 = row.getMap(2);
-        assertThat(map2.keyArray().getString(0).toString()).isEqualTo("f");
+        assertThat(map2.keyArray().getString(0)).hasToString("f");
         RowData rowData2 = map2.valueArray().getRow(0, 2);
         assertThat(rowData2.getInt(0)).isEqualTo(1);
         assertThat(rowData2.getLong(1)).isEqualTo(2L);
