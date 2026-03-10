@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * Provider for S3 clients (sync and async). Handles credential management, delegation tokens, and
@@ -410,14 +411,10 @@ public class S3ClientProvider implements AutoCloseableAsync {
             chain.add(DefaultCredentialsProvider.builder().build());
 
             LOG.info(
-                    "Using credentials provider chain: {}{}DynamicTemporaryAWSCredentialsProvider -> DefaultCredentialsProvider",
-                    credentialsProviderClasses != null
-                                    && !credentialsProviderClasses.trim().isEmpty()
-                            ? credentialsProviderClasses.trim() + " -> "
-                            : "",
-                    (accessKey != null && secretKey != null)
-                            ? "StaticCredentialsProvider -> "
-                            : "");
+                    "Using credentials provider chain: {}",
+                    chain.stream()
+                            .map(p -> p.getClass().getSimpleName())
+                            .collect(Collectors.joining(" -> ")));
 
             return AwsCredentialsProviderChain.builder().credentialsProviders(chain).build();
         }

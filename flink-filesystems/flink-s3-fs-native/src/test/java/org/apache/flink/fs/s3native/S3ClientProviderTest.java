@@ -26,6 +26,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProviderChain;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.lang.reflect.Field;
@@ -41,45 +42,23 @@ class S3ClientProviderTest {
     private static final String DUMMY_REGION = "us-east-1";
 
     @Test
-    void testDefaultChainIncludesTokenAndFallback() throws Exception {
+    void testMinimalChainWithoutStaticOrCustom() throws Exception {
         S3ClientProvider provider =
-                S3ClientProvider.builder()
-                        .accessKey("test-key")
-                        .secretKey("test-secret")
-                        .endpoint(DUMMY_ENDPOINT)
-                        .region(DUMMY_REGION)
-                        .build();
+                S3ClientProvider.builder().endpoint(DUMMY_ENDPOINT).region(DUMMY_REGION).build();
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
-        assertThat(chain).hasSize(3);
-        AwsCredentials creds = chain.get(0).resolveCredentials();
-        assertThat(creds.accessKeyId()).isEqualTo("test-key");
-        assertThat(creds.secretAccessKey()).isEqualTo("test-secret");
-        assertThat(chain.get(1)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
+        assertThat(chain).hasSize(2);
+        assertThat(chain.get(0)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
+        assertThat(chain.get(1)).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
-    void testAssumeRoleWrapsBaseChain() {
+    void testChainWithStaticCredentials() throws Exception {
         S3ClientProvider provider =
                 S3ClientProvider.builder()
                         .accessKey("test-key")
                         .secretKey("test-secret")
-                        .endpoint(DUMMY_ENDPOINT)
-                        .region(DUMMY_REGION)
-                        .assumeRoleArn("arn:aws:iam::123456789012:role/TestRole")
-                        .build();
-
-        assertThat(provider.getCredentialsProvider())
-                .isInstanceOf(StsAssumeRoleCredentialsProvider.class);
-    }
-
-    @Test
-    void testStaticCredentialsInDefaultChain() throws Exception {
-        S3ClientProvider provider =
-                S3ClientProvider.builder()
-                        .accessKey("my-access")
-                        .secretKey("my-secret")
                         .endpoint(DUMMY_ENDPOINT)
                         .region(DUMMY_REGION)
                         .build();
@@ -89,8 +68,10 @@ class S3ClientProviderTest {
         assertThat(chain).hasSize(3);
         AwsCredentials creds = chain.get(0).resolveCredentials();
         assertThat(creds).isInstanceOf(AwsBasicCredentials.class);
-        assertThat(creds.accessKeyId()).isEqualTo("my-access");
+        assertThat(creds.accessKeyId()).isEqualTo("test-key");
+        assertThat(creds.secretAccessKey()).isEqualTo("test-secret");
         assertThat(chain.get(1)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
+        assertThat(chain.get(2)).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
@@ -107,27 +88,67 @@ class S3ClientProviderTest {
         assertThat(chain).hasSize(3);
         assertThat(chain.get(0)).isInstanceOf(AnonymousCredentialsProvider.class);
         assertThat(chain.get(1)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
+        assertThat(chain.get(2)).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
-    void testCustomProviderChainWithMultipleProviders() throws Exception {
+    void testAllFourTiersActive() throws Exception {
         S3ClientProvider provider =
                 S3ClientProvider.builder()
+                        .accessKey("my-key")
+                        .secretKey("my-secret")
                         .endpoint(DUMMY_ENDPOINT)
                         .region(DUMMY_REGION)
-                        .credentialsProviderClasses(
-                                "AnonymousCredentialsProvider,DefaultCredentialsProvider")
+                        .credentialsProviderClasses("AnonymousCredentialsProvider")
                         .build();
 
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
         assertThat(chain).hasSize(4);
         assertThat(chain.get(0)).isInstanceOf(AnonymousCredentialsProvider.class);
+        AwsCredentials creds = chain.get(1).resolveCredentials();
+        assertThat(creds.accessKeyId()).isEqualTo("my-key");
         assertThat(chain.get(2)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
+        assertThat(chain.get(3)).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
-    void testCustomProviderChainAlwaysIncludesTokenProvider() throws Exception {
+    void testCustomProviderChainWithMultipleEntries() throws Exception {
+        S3ClientProvider provider =
+                S3ClientProvider.builder()
+                        .endpoint(DUMMY_ENDPOINT)
+                        .region(DUMMY_REGION)
+                        .credentialsProviderClasses(
+                                "AnonymousCredentialsProvider,EnvironmentVariableCredentialsProvider")
+                        .build();
+
+        List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
+
+        assertThat(chain).hasSize(4);
+        assertThat(chain.get(0)).isInstanceOf(AnonymousCredentialsProvider.class);
+        assertThat(chain.get(1).getClass().getSimpleName())
+                .isEqualTo("EnvironmentVariableCredentialsProvider");
+        assertThat(chain.get(2)).isInstanceOf(DynamicTemporaryAWSCredentialsProvider.class);
+        assertThat(chain.get(3)).isInstanceOf(DefaultCredentialsProvider.class);
+    }
+
+    @Test
+    void testAssumeRoleWrapsChain() {
+        S3ClientProvider provider =
+                S3ClientProvider.builder()
+                        .accessKey("test-key")
+                        .secretKey("test-secret")
+                        .endpoint(DUMMY_ENDPOINT)
+                        .region(DUMMY_REGION)
+                        .assumeRoleArn("arn:aws:iam::123456789012:role/TestRole")
+                        .build();
+
+        assertThat(provider.getCredentialsProvider())
+                .isInstanceOf(StsAssumeRoleCredentialsProvider.class);
+    }
+
+    @Test
+    void testTokenProviderAlwaysPresentWithCustomConfig() throws Exception {
         S3ClientProvider provider =
                 S3ClientProvider.builder()
                         .endpoint(DUMMY_ENDPOINT)
@@ -138,6 +159,22 @@ class S3ClientProviderTest {
         List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
 
         assertThat(chain).anyMatch(p -> p instanceof DynamicTemporaryAWSCredentialsProvider);
+    }
+
+    @Test
+    void testDefaultProviderAlwaysTail() throws Exception {
+        S3ClientProvider provider =
+                S3ClientProvider.builder()
+                        .accessKey("key")
+                        .secretKey("secret")
+                        .endpoint(DUMMY_ENDPOINT)
+                        .region(DUMMY_REGION)
+                        .credentialsProviderClasses("AnonymousCredentialsProvider")
+                        .build();
+
+        List<AwsCredentialsProvider> chain = extractChain(provider.getCredentialsProvider());
+
+        assertThat(chain.get(chain.size() - 1)).isInstanceOf(DefaultCredentialsProvider.class);
     }
 
     @Test
