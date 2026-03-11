@@ -813,7 +813,7 @@ temporal:
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
   - sql: TO_TIMESTAMP_LTZ(numeric[, precision])
     table: toTimestampLtz(NUMERIC, PRECISION)
-    description: Converts an epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3). If no precision is provided, the default precision is 3. If any input is null, the function will return null.
+    description: Converts a numeric epoch value to a TIMESTAMP_LTZ. The precision parameter (0-9) specifies the unit of the epoch value, where 0 represents seconds, 3 represents milliseconds, 6 represents microseconds, and 9 represents nanoseconds. Other values between 0 and 9 are also supported, representing 10^(-precision) seconds. If no precision is provided, the default precision is 3 (milliseconds). If any input is null, the function will return null.
   - sql: TO_TIMESTAMP_LTZ(string1[, string2[, string3]])
     table: toTimestampLtz(STRING1[, STRING2[, STRING3]])
     description: Converts a timestamp string string1 with format string2 (by default 'yyyy-MM-dd HH:mm:ss.SSS') in time zone string3 (by default 'UTC') to a TIMESTAMP_LTZ. If any input is null, the function will return null.

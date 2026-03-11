@@ -24,10 +24,12 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.Preconditions;
@@ -283,11 +285,10 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         localDateTime.toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 final Instant instant = getValueAs(Instant.class).get();
-                if (instant.getNano() % 1_000_000 != 0) {
-                    throw new TableException(
-                            "Maximum precision for TIMESTAMP_WITH_LOCAL_TIME_ZONE literals is '3'");
-                }
-                return String.format("TO_TIMESTAMP_LTZ(%d, %d)", instant.toEpochMilli(), 3);
+                final int precision =
+                        ((LocalZonedTimestampType) dataType.getLogicalType()).getPrecision();
+                long epochValue = DateTimeUtils.toEpochValue(instant, precision);
+                return String.format("TO_TIMESTAMP_LTZ(%d, %d)", epochValue, precision);
             case INTERVAL_YEAR_MONTH:
                 final Period period = getValueAs(Period.class).get().normalized();
                 return String.format(
