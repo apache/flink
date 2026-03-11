@@ -27,6 +27,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutorServiceLoader;
+import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -34,7 +35,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.application.AbstractApplication;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -99,7 +99,7 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     private final boolean shutDownOnFinish;
 
-    @Nullable private final PermanentBlobKey userJarBlobKey;
+    @Nullable private final JarInfo userJarInfo;
 
     private transient PackagedProgram program;
 
@@ -139,7 +139,7 @@ public class PackagedProgramApplication extends AbstractApplication {
             final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish,
-            final @Nullable PermanentBlobKey userJarBlobKey) {
+            final @Nullable JarInfo userJarInfo) {
         this(
                 applicationId,
                 program,
@@ -150,7 +150,7 @@ public class PackagedProgramApplication extends AbstractApplication {
                 enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
                 shutDownOnFinish,
-                userJarBlobKey);
+                userJarInfo);
     }
 
     public PackagedProgramApplication(
@@ -186,7 +186,7 @@ public class PackagedProgramApplication extends AbstractApplication {
             final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish,
-            final @Nullable PermanentBlobKey userJarBlobKey) {
+            final @Nullable JarInfo userJarInfo) {
         super(applicationId);
         this.program = checkNotNull(program);
         this.recoveredJobInfos = checkNotNull(recoveredJobInfos);
@@ -196,7 +196,7 @@ public class PackagedProgramApplication extends AbstractApplication {
         this.enforceSingleJobExecution = enforceSingleJobExecution;
         this.submitFailedJobOnApplicationError = submitFailedJobOnApplicationError;
         this.shutDownOnFinish = shutDownOnFinish;
-        this.userJarBlobKey = userJarBlobKey;
+        this.userJarInfo = userJarInfo;
         this.programDescriptor = program.getDescriptor();
     }
 
@@ -375,13 +375,13 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     @Override
     public Optional<ApplicationStoreEntry> getApplicationStoreEntry() {
-        if (userJarBlobKey == null) {
+        if (userJarInfo == null) {
             return Optional.empty();
         }
         return Optional.of(
                 new PackagedProgramApplicationEntry(
                         configuration,
-                        userJarBlobKey,
+                        userJarInfo,
                         programDescriptor.getMainClassName(),
                         programDescriptor.getProgramArgs(),
                         getApplicationId(),
@@ -393,8 +393,8 @@ public class PackagedProgramApplication extends AbstractApplication {
     }
 
     @VisibleForTesting
-    PermanentBlobKey getUserJarBlobKey() {
-        return userJarBlobKey;
+    JarInfo getUserJarInfo() {
+        return userJarInfo;
     }
 
     @VisibleForTesting
@@ -694,6 +694,7 @@ public class PackagedProgramApplication extends AbstractApplication {
                     enforceSingleJobExecution,
                     true /* suppress sysout */,
                     getApplicationId(),
+                    userJarInfo,
                     getAllRecoveredJobInfos());
 
             if (applicationJobIds.isEmpty()) {

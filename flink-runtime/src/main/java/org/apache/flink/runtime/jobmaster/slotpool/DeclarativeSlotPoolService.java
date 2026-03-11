@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -57,6 +58,8 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
     private final JobID jobId;
 
+    private final ApplicationID applicationId;
+
     private final Duration rpcTimeout;
 
     private final DeclarativeSlotPool declarativeSlotPool;
@@ -80,6 +83,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
     public DeclarativeSlotPoolService(
             JobID jobId,
+            ApplicationID applicationId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             Clock clock,
             Duration idleSlotTimeout,
@@ -87,6 +91,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
             Duration slotRequestMaxInterval,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.jobId = jobId;
+        this.applicationId = applicationId;
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
         this.registeredTaskManagers = new HashSet<>();
@@ -307,7 +312,8 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         assertHasBeenStarted();
 
         resourceRequirementServiceConnectionManager.declareResourceRequirements(
-                ResourceRequirements.create(jobId, jobManagerAddress, resourceRequirements));
+                ResourceRequirements.create(
+                        jobId, applicationId, jobManagerAddress, resourceRequirements));
     }
 
     @Override

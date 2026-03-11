@@ -17,8 +17,9 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -154,19 +155,22 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
             throws Exception {
         final ResourceID resourceID = ResourceID.generate();
         final JobID jobId = new JobID();
+        final ApplicationID applicationId = new ApplicationID();
         final SlotID slotId = SlotID.getDynamicSlotID(resourceID);
         final String targetAddress = "localhost";
         final ResourceRequirements requirements =
                 ResourceRequirements.create(
                         jobId,
+                        applicationId,
                         targetAddress,
                         Collections.singleton(
                                 ResourceRequirement.create(DEFAULT_SLOT_RESOURCE_PROFILE, 1)));
 
         final CompletableFuture<
-                        Tuple6<
+                        Tuple7<
                                 SlotID,
                                 JobID,
+                                ApplicationID,
                                 AllocationID,
                                 ResourceProfile,
                                 String,
@@ -176,8 +180,8 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    requestFuture.complete(tuple6);
+                                tuple7 -> {
+                                    requestFuture.complete(tuple7);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();
@@ -222,10 +226,11 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
 
                             assertThat(assertFutureCompleteAndReturn(requestFuture))
                                     .isEqualTo(
-                                            Tuple6.of(
+                                            Tuple7.of(
                                                     slotId,
                                                     jobId,
-                                                    assertFutureCompleteAndReturn(requestFuture).f2,
+                                                    applicationId,
+                                                    assertFutureCompleteAndReturn(requestFuture).f3,
                                                     DEFAULT_SLOT_RESOURCE_PROFILE,
                                                     targetAddress,
                                                     getResourceManagerId()));
@@ -233,10 +238,10 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                             final TaskManagerSlotInformation slot =
                                     getTaskManagerTracker()
                                             .getAllocatedOrPendingSlot(
-                                                    assertFutureCompleteAndReturn(requestFuture).f2)
+                                                    assertFutureCompleteAndReturn(requestFuture).f3)
                                             .get();
 
-                            assertThat(assertFutureCompleteAndReturn(requestFuture).f2)
+                            assertThat(assertFutureCompleteAndReturn(requestFuture).f3)
                                     .as(
                                             "The slot has not been allocated to the expected allocation id.")
                                     .isEqualTo(slot.getAllocationId());
@@ -368,11 +373,11 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
+                                tuple7 -> {
                                     if (!allocationIdFuture1.isDone()) {
-                                        allocationIdFuture1.complete(tuple6.f2);
+                                        allocationIdFuture1.complete(tuple7.f3);
                                     } else {
-                                        allocationIdFuture2.complete(tuple6.f2);
+                                        allocationIdFuture2.complete(tuple7.f3);
                                     }
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
@@ -467,8 +472,8 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    allocationIdFuture.complete(tuple6.f2);
+                                tuple7 -> {
+                                    allocationIdFuture.complete(tuple7.f3);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();
@@ -524,8 +529,8 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    allocationIdFuture.complete(tuple6.f2);
+                                tuple7 -> {
+                                    allocationIdFuture.complete(tuple7.f3);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();
@@ -551,6 +556,8 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                                                 .processResourceRequirements(
                                                         ResourceRequirements.empty(
                                                                 resourceRequirements.getJobId(),
+                                                                resourceRequirements
+                                                                        .getApplicationId(),
                                                                 resourceRequirements
                                                                         .getTargetAddress()));
                                         getSlotManager()
@@ -655,7 +662,7 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                         .setRequestSlotFunction(
                                 FunctionUtils.uncheckedFunction(
                                         requestSlotParameters -> {
-                                            allocationIds.put(requestSlotParameters.f2);
+                                            allocationIds.put(requestSlotParameters.f3);
                                             return slotRequestFutureIterator.next();
                                         }))
                         .createTestingTaskExecutorGateway();
@@ -783,8 +790,8 @@ abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSlotManag
                         // it is important that the returned future is already completed
                         // otherwise it will be cancelled when the task executor is unregistered
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    allocationIdFuture.complete(tuple6.f2);
+                                tuple7 -> {
+                                    allocationIdFuture.complete(tuple7.f3);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();

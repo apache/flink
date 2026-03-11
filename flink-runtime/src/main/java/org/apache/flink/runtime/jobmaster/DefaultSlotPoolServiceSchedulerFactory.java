@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -93,10 +94,11 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     @Override
     public SlotPoolService createSlotPoolService(
             JobID jid,
+            ApplicationID applicationId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return slotPoolServiceFactory.createSlotPoolService(
-                jid, declarativeSlotPoolFactory, componentMainThreadExecutor);
+                jid, applicationId, declarativeSlotPoolFactory, componentMainThreadExecutor);
     }
 
     @Override

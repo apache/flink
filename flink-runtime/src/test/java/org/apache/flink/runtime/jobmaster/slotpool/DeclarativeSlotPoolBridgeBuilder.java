@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -40,6 +41,7 @@ import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorSer
 public class DeclarativeSlotPoolBridgeBuilder {
 
     private JobID jobId = new JobID();
+    private ApplicationID applicationId = new ApplicationID();
     private Duration batchSlotTimeout = JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue();
     private Duration idleSlotTimeout = TestingUtils.infiniteDuration();
     private Clock clock = SystemClock.getInstance();
@@ -105,6 +107,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
     public DeclarativeSlotPoolBridge build() {
         return new DeclarativeSlotPoolBridge(
                 jobId,
+                applicationId,
                 new DefaultDeclarativeSlotPoolFactory(),
                 clock,
                 TestingUtils.infiniteDuration(),
@@ -120,6 +123,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
         final DeclarativeSlotPoolBridge slotPool =
                 new DeclarativeSlotPoolBridge(
                         jobId,
+                        applicationId,
                         new DefaultDeclarativeSlotPoolFactory(),
                         clock,
                         TestingUtils.infiniteDuration(),

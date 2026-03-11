@@ -190,16 +190,23 @@ public final class TestingBlobHelpers {
      *
      * @param expectedCount number of expected files in the blob service for the given application
      * @param applicationId ID of an application
-     * @param blobServer BLOB server to use
+     * @param blobService BLOB store to use
      */
     public static void checkFileCountForApplication(
-            int expectedCount, ApplicationID applicationId, BlobServer blobServer)
+            int expectedCount, ApplicationID applicationId, PermanentBlobService blobService)
             throws IOException {
 
-        final File applicationDir =
-                blobServer
-                        .getStorageLocation(applicationId, new PermanentBlobKey())
-                        .getParentFile();
+        final File applicationDir;
+        if (blobService instanceof BlobServer) {
+            BlobServer server = (BlobServer) blobService;
+            applicationDir =
+                    server.getStorageLocation(applicationId, new PermanentBlobKey())
+                            .getParentFile();
+        } else {
+            PermanentBlobCache cache = (PermanentBlobCache) blobService;
+            applicationDir =
+                    cache.getStorageLocation(applicationId, new PermanentBlobKey()).getParentFile();
+        }
         File[] blobsForApplication = applicationDir.listFiles();
         if (blobsForApplication == null) {
             if (expectedCount != 0) {

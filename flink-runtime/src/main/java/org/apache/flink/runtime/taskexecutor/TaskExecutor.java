@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
@@ -1188,6 +1189,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> requestSlot(
             final SlotID slotId,
             final JobID jobId,
+            final ApplicationID applicationId,
             final AllocationID allocationId,
             final ResourceProfile resourceProfile,
             final String targetAddress,
@@ -1214,12 +1216,22 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             tryPersistAllocationSnapshot(
                     new SlotAllocationSnapshot(
-                            slotId, jobId, targetAddress, allocationId, resourceProfile));
+                            slotId,
+                            jobId,
+                            applicationId,
+                            targetAddress,
+                            allocationId,
+                            resourceProfile));
 
             try {
                 final boolean isConnected =
                         allocateSlotForJob(
-                                jobId, slotId, allocationId, resourceProfile, targetAddress);
+                                jobId,
+                                applicationId,
+                                slotId,
+                                allocationId,
+                                resourceProfile,
+                                targetAddress);
 
                 if (isConnected) {
                     offerSlotsToJobManager(jobId);
@@ -1235,6 +1247,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private boolean allocateSlotForJob(
             JobID jobId,
+            ApplicationID applicationId,
             SlotID slotId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
@@ -1247,7 +1260,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         try {
             job =
                     jobTable.getOrCreateJob(
-                            jobId, () -> registerNewJobAndCreateServices(jobId, targetAddress));
+                            jobId,
+                            () ->
+                                    registerNewJobAndCreateServices(
+                                            jobId, applicationId, targetAddress));
         } catch (Exception e) {
             // free the allocated slot
             try {
@@ -1273,15 +1289,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private TaskExecutorJobServices registerNewJobAndCreateServices(
-            JobID jobId, String targetAddress) throws Exception {
+            JobID jobId, ApplicationID applicationId, String targetAddress) throws Exception {
         jobLeaderService.addJob(jobId, targetAddress);
         final JobPermanentBlobService permanentBlobService =
                 taskExecutorBlobService.getPermanentBlobService();
-        permanentBlobService.registerJob(jobId);
+        permanentBlobService.registerJob(jobId, applicationId);
 
         return TaskExecutorJobServices.create(
-                libraryCacheManager.registerClassLoaderLease(jobId),
-                () -> permanentBlobService.releaseJob(jobId));
+                libraryCacheManager.registerClassLoaderLease(jobId, applicationId),
+                () -> permanentBlobService.releaseJob(jobId, applicationId));
     }
 
     private void allocateSlot(
@@ -2341,6 +2357,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             try {
                 allocateSlotForJob(
                         slotAllocationSnapshot.getJobId(),
+                        slotAllocationSnapshot.getApplicationId(),
                         slotAllocationSnapshot.getSlotID(),
                         slotAllocationSnapshot.getAllocationId(),
                         slotAllocationSnapshot.getResourceProfile(),

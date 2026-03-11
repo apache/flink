@@ -17,9 +17,10 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -354,9 +355,10 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
     @Test
     void testSlotAllocationAccordingToStrategyResult() throws Exception {
         final CompletableFuture<
-                        Tuple6<
+                        Tuple7<
                                 SlotID,
                                 JobID,
+                                ApplicationID,
                                 AllocationID,
                                 ResourceProfile,
                                 String,
@@ -365,8 +367,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    requestSlotFuture.complete(tuple6);
+                                tuple7 -> {
+                                    requestSlotFuture.complete(tuple7);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();
@@ -398,16 +400,17 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                 .processResourceRequirements(
                                                         createResourceRequirements(jobId, 1));
                                     });
-                            final Tuple6<
+                            final Tuple7<
                                             SlotID,
                                             JobID,
+                                            ApplicationID,
                                             AllocationID,
                                             ResourceProfile,
                                             String,
                                             ResourceManagerId>
                                     requestSlot = assertFutureCompleteAndReturn(requestSlotFuture);
                             assertThat(requestSlot.f1).isEqualTo(jobId);
-                            assertThat(requestSlot.f3).isEqualTo(DEFAULT_SLOT_RESOURCE_PROFILE);
+                            assertThat(requestSlot.f4).isEqualTo(DEFAULT_SLOT_RESOURCE_PROFILE);
                         });
             }
         };
@@ -466,9 +469,10 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 new PendingTaskManager(
                         DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
         final CompletableFuture<
-                        Tuple6<
+                        Tuple7<
                                 SlotID,
                                 JobID,
+                                ApplicationID,
                                 AllocationID,
                                 ResourceProfile,
                                 String,
@@ -477,8 +481,8 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    requestSlotFuture.complete(tuple6);
+                                tuple7 -> {
+                                    requestSlotFuture.complete(tuple7);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();
@@ -517,16 +521,17 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                             new SlotReport(),
                                                             DEFAULT_TOTAL_RESOURCE_PROFILE,
                                                             DEFAULT_SLOT_RESOURCE_PROFILE));
-                            final Tuple6<
+                            final Tuple7<
                                             SlotID,
                                             JobID,
+                                            ApplicationID,
                                             AllocationID,
                                             ResourceProfile,
                                             String,
                                             ResourceManagerId>
                                     requestSlot = assertFutureCompleteAndReturn(requestSlotFuture);
                             assertThat(requestSlot.f1).isEqualTo(jobId);
-                            assertThat(requestSlot.f3).isEqualTo(DEFAULT_SLOT_RESOURCE_PROFILE);
+                            assertThat(requestSlot.f4).isEqualTo(DEFAULT_SLOT_RESOURCE_PROFILE);
                         });
             }
         };
@@ -940,6 +945,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     new CompletableFuture<>();
 
                             final JobID jobId = new JobID();
+                            final ApplicationID applicationId = new ApplicationID();
                             final TestingTaskExecutorGateway taskExecutorGateway =
                                     new TestingTaskExecutorGatewayBuilder()
                                             .setFreeInactiveSlotsConsumer(
@@ -981,7 +987,9 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             getSlotManager()
                                                     .processResourceRequirements(
                                                             ResourceRequirements.empty(
-                                                                    jobId, "foobar")));
+                                                                    jobId,
+                                                                    applicationId,
+                                                                    "foobar")));
                             assertFutureNotComplete(freeInactiveSlotsJobIdFuture);
 
                             // clear requirements, which should trigger slots being reclaimed
@@ -1000,6 +1008,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         new Context() {
             {
                 final JobID jobId = new JobID();
+                final ApplicationID applicationId = new ApplicationID();
                 final CompletableFuture<Void> allocateResourceFuture = new CompletableFuture<>();
 
                 resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
@@ -1042,7 +1051,9 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             getSlotManager()
                                                     .processResourceRequirements(
                                                             ResourceRequirements.empty(
-                                                                    jobId, "foobar")));
+                                                                    jobId,
+                                                                    applicationId,
+                                                                    "foobar")));
 
                             // disconnect to job master,will trigger
                             // PendingTaskManager#clearPendingAllocationsOfJob again

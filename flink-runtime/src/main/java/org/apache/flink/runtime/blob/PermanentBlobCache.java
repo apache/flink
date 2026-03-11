@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -59,14 +61,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PermanentBlobCache extends AbstractBlobCache implements JobPermanentBlobService {
 
-    /** Job reference counters with a time-to-live (TTL). */
+    /** Object reference counters with a time-to-live (TTL). */
     @VisibleForTesting
     static class RefCount {
-        /** Number of references to a job. */
+        /** Number of references to an object. */
         public int references = 0;
 
         /**
-         * Timestamp in milliseconds when any job data should be cleaned up (no cleanup for
+         * Timestamp in milliseconds when any object data should be cleaned up (no cleanup for
          * non-positive values).
          */
         public long keepUntil = -1;
@@ -76,6 +78,12 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
 
     /** Map to store the number of references to a specific job. */
     private final Map<JobID, RefCount> jobRefCounters = new HashMap<>();
+
+    /** Map to store the number of references to a specific application. */
+    private final Map<ApplicationID, RefCount> applicationRefCounters = new HashMap<>();
+
+    /** Lock object for protecting both jobRefCounters and applicationRefCounters. */
+    private final Object refCountersLock = new Object();
 
     /** Time interval (ms) to run the cleanup task; also used as the default TTL. */
     private final long cleanupInterval;
@@ -161,6 +169,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         this.blobCacheSizeTracker = blobCacheSizeTracker;
 
         registerDetectedJobs();
+        registerDetectedApplications();
     }
 
     private void registerDetectedJobs() throws IOException {
@@ -177,9 +186,32 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
 
     private void registerJobWithExpiry(JobID jobId, long expiryTimeout) {
         checkNotNull(jobId);
-        synchronized (jobRefCounters) {
+        synchronized (refCountersLock) {
             final RefCount refCount =
                     jobRefCounters.computeIfAbsent(jobId, ignored -> new RefCount());
+
+            refCount.keepUntil = expiryTimeout;
+        }
+    }
+
+    private void registerDetectedApplications() throws IOException {
+        if (storageDir.deref().exists()) {
+            final Collection<ApplicationID> applicationIds =
+                    BlobUtils.listExistingApplications(storageDir.deref().toPath());
+
+            final long expiryTimeout = System.currentTimeMillis() + cleanupInterval;
+            for (ApplicationID applicationId : applicationIds) {
+                registerApplicationWithExpiry(applicationId, expiryTimeout);
+            }
+        }
+    }
+
+    private void registerApplicationWithExpiry(ApplicationID applicationId, long expiryTimeout) {
+        checkNotNull(applicationId);
+        synchronized (refCountersLock) {
+            final RefCount refCount =
+                    applicationRefCounters.computeIfAbsent(
+                            applicationId, ignored -> new RefCount());
 
             refCount.keepUntil = expiryTimeout;
         }
@@ -189,16 +221,16 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
      * Registers use of job-related BLOBs.
      *
      * <p>Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within calls
-     * to <tt>registerJob(JobID)</tt> and {@link #releaseJob(JobID)}.
+     * to <tt>registerJob(JobID)</tt> and {@link #releaseJob(JobID, ApplicationID)}.
      *
      * @param jobId ID of the job this blob belongs to
-     * @see #releaseJob(JobID)
+     * @see #releaseJob(JobID, ApplicationID)
      */
     @Override
-    public void registerJob(JobID jobId) {
+    public void registerJob(JobID jobId, ApplicationID applicationId) {
         checkNotNull(jobId);
 
-        synchronized (jobRefCounters) {
+        synchronized (refCountersLock) {
             RefCount ref = jobRefCounters.get(jobId);
             if (ref == null) {
                 ref = new RefCount();
@@ -208,6 +240,17 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
                 ref.keepUntil = -1;
             }
             ++ref.references;
+
+            // also register under application because the job may use application-level blobs
+            RefCount applicationRef = applicationRefCounters.get(applicationId);
+            if (applicationRef == null) {
+                applicationRef = new RefCount();
+                applicationRefCounters.put(applicationId, applicationRef);
+            } else {
+                // reset cleanup timeout
+                applicationRef.keepUntil = -1;
+            }
+            ++applicationRef.references;
         }
     }
 
@@ -215,19 +258,21 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
      * Unregisters use of job-related BLOBs and allow them to be released.
      *
      * @param jobId ID of the job this blob belongs to
-     * @see #registerJob(JobID)
+     * @see #registerJob(JobID, ApplicationID)
      */
     @Override
-    public void releaseJob(JobID jobId) {
+    public void releaseJob(JobID jobId, ApplicationID applicationId) {
         checkNotNull(jobId);
 
-        synchronized (jobRefCounters) {
+        synchronized (refCountersLock) {
+            String warning =
+                    "improper use of releaseJob() without a matching number of registerJob() calls for jobId "
+                            + jobId;
+
             RefCount ref = jobRefCounters.get(jobId);
 
             if (ref == null || ref.references == 0) {
-                log.warn(
-                        "improper use of releaseJob() without a matching number of registerJob() calls for jobId "
-                                + jobId);
+                log.warn(warning);
                 return;
             }
 
@@ -235,13 +280,29 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
             if (ref.references == 0) {
                 ref.keepUntil = System.currentTimeMillis() + cleanupInterval;
             }
+
+            // make sure application related data can be cleaned up
+            RefCount applicationRef = applicationRefCounters.get(applicationId);
+
+            if (applicationRef == null || applicationRef.references == 0) {
+                log.warn(
+                        "Cache reference count mismatch for application {}, which indicates {}.",
+                        applicationId,
+                        warning);
+                return;
+            }
+
+            --applicationRef.references;
+            if (applicationRef.references == 0) {
+                applicationRef.keepUntil = System.currentTimeMillis() + cleanupInterval;
+            }
         }
     }
 
     public int getNumberOfReferenceHolders(JobID jobId) {
         checkNotNull(jobId);
 
-        synchronized (jobRefCounters) {
+        synchronized (refCountersLock) {
             RefCount ref = jobRefCounters.get(jobId);
             if (ref == null) {
                 return 0;
@@ -440,6 +501,21 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
     }
 
     /**
+     * Returns a file handle to the file associated with the given blob key on the blob server.
+     *
+     * @param applicationId ID of the application this blob belongs to (or <tt>null</tt> if
+     *     job-unrelated)
+     * @param key identifying the file
+     * @return file handle to the file
+     * @throws IOException if creating the directory fails
+     */
+    @VisibleForTesting
+    public File getStorageLocation(ApplicationID applicationId, BlobKey key) throws IOException {
+        checkNotNull(applicationId);
+        return BlobUtils.getStorageLocation(storageDir.deref(), applicationId, key);
+    }
+
+    /**
      * Returns the job reference counters - for testing purposes only!
      *
      * @return job reference counters (internal state!)
@@ -457,53 +533,88 @@ public class PermanentBlobCache extends AbstractBlobCache implements JobPermanen
         /** Cleans up BLOBs which are not referenced anymore. */
         @Override
         public void run() {
-            synchronized (jobRefCounters) {
-                Iterator<Map.Entry<JobID, RefCount>> entryIter =
-                        jobRefCounters.entrySet().iterator();
-                final long currentTimeMillis = System.currentTimeMillis();
-
-                while (entryIter.hasNext()) {
-                    Map.Entry<JobID, RefCount> entry = entryIter.next();
-                    RefCount ref = entry.getValue();
-
-                    if (ref.references <= 0
-                            && ref.keepUntil > 0
-                            && currentTimeMillis >= ref.keepUntil) {
-                        JobID jobId = entry.getKey();
-
-                        final File localFile =
+            synchronized (refCountersLock) {
+                // Clean up job blobs
+                cleanupRefCounters(
+                        jobRefCounters.entrySet().iterator(),
+                        jobId ->
                                 new File(
                                         BlobUtils.getStorageLocationPath(
-                                                storageDir.deref().getAbsolutePath(), jobId));
+                                                storageDir.deref().getAbsolutePath(), jobId)),
+                        blobCacheSizeTracker::untrackAll,
+                        "job");
 
-                        /*
-                         * NOTE: normally it is not required to acquire the write lock to delete the job's
-                         *       storage directory since there should be no one accessing it with the ref
-                         *       counter being 0 - acquire it just in case, to always be on the safe side
-                         */
-                        readWriteLock.writeLock().lock();
+                // Clean up application blobs
+                /*
+                 * NOTE: We do not need to call blobCacheSizeTracker.untrackAll here because
+                 * blobCacheSizeTracker currently only tracks and manages a subset of job-level
+                 * blobs (e.g., ShuffleDescriptors, see FLINK-23354). Application-level blobs are
+                 * not tracked by the size tracker.
+                 */
+                cleanupRefCounters(
+                        applicationRefCounters.entrySet().iterator(),
+                        applicationId ->
+                                new File(
+                                        BlobUtils.getStorageLocationPath(
+                                                storageDir.deref().getAbsolutePath(),
+                                                applicationId)),
+                        applicationId -> {},
+                        "application");
+            }
+        }
+    }
 
-                        boolean success = false;
-                        try {
-                            blobCacheSizeTracker.untrackAll(jobId);
-                            FileUtils.deleteDirectory(localFile);
-                            success = true;
-                        } catch (Throwable t) {
-                            log.warn(
-                                    "Failed to locally delete job directory "
-                                            + localFile.getAbsolutePath(),
-                                    t);
-                        } finally {
-                            readWriteLock.writeLock().unlock();
-                        }
+    /**
+     * Generic method to clean up BLOBs for both job and application ref-counters.
+     *
+     * @param entryIter iterator over the ref-count entries to process
+     * @param getStorageLocation function to get the storage location for an entity ID
+     * @param beforeDelete action to perform before deleting the directory (e.g., untracking)
+     * @param entityType type description for logging (e.g., "job", "application")
+     * @param <ID> type of the entity ID (JobID or ApplicationID)
+     */
+    private <ID> void cleanupRefCounters(
+            Iterator<Map.Entry<ID, RefCount>> entryIter,
+            Function<ID, File> getStorageLocation,
+            Consumer<ID> beforeDelete,
+            String entityType) {
 
-                        // let's only remove this directory from cleanup if the cleanup was
-                        // successful
-                        // (does not need the write lock)
-                        if (success) {
-                            entryIter.remove();
-                        }
-                    }
+        final long currentTimeMillis = System.currentTimeMillis();
+
+        while (entryIter.hasNext()) {
+            Map.Entry<ID, RefCount> entry = entryIter.next();
+            RefCount ref = entry.getValue();
+
+            if (ref.references <= 0 && ref.keepUntil > 0 && currentTimeMillis >= ref.keepUntil) {
+                ID id = entry.getKey();
+                final File localFile = getStorageLocation.apply(id);
+
+                /*
+                 * NOTE: normally it is not required to acquire the write lock to delete the storage
+                 *       directory since there should be no one accessing it with the ref counter
+                 *       being 0 - acquire it just in case, to always be on the safe side
+                 */
+                readWriteLock.writeLock().lock();
+
+                boolean success = false;
+                try {
+                    beforeDelete.accept(id);
+                    FileUtils.deleteDirectory(localFile);
+                    success = true;
+                } catch (Throwable t) {
+                    log.warn(
+                            "Failed to locally delete {} directory {}",
+                            entityType,
+                            localFile.getAbsolutePath(),
+                            t);
+                } finally {
+                    readWriteLock.writeLock().unlock();
+                }
+
+                // let's only remove this directory from cleanup if the cleanup was successful
+                // (does not need the write lock)
+                if (success) {
+                    entryIter.remove();
                 }
             }
         }

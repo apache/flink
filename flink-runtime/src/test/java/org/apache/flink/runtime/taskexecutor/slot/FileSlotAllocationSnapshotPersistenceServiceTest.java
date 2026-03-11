@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -144,6 +145,7 @@ class FileSlotAllocationSnapshotPersistenceServiceTest {
                     new SlotAllocationSnapshot(
                             new SlotID(resourceId, slotIndex),
                             new JobID(),
+                            new ApplicationID(),
                             "foobar",
                             new AllocationID(),
                             ResourceProfile.UNKNOWN));

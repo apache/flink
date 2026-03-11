@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
+import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.testjar.MultiExecuteJob;
 import org.apache.flink.configuration.Configuration;
@@ -103,9 +104,10 @@ class PackagedProgramApplicationEntryTest {
             blobKey = blobServer.putPermanent(applicationId, is);
         }
 
+        JarInfo userJarInfo = new JarInfo(jarFile.getName(), blobKey);
         PackagedProgramApplication application =
                 new PackagedProgramApplication(
-                        applicationId, program, config, true, false, false, true, blobKey);
+                        applicationId, program, config, true, false, false, true, userJarInfo);
         ApplicationStoreEntry entry = application.getApplicationStoreEntry().orElse(null);
 
         assertInstanceOf(PackagedProgramApplicationEntry.class, entry);
@@ -125,7 +127,7 @@ class PackagedProgramApplicationEntryTest {
         PackagedProgramApplication packagedProgramApplication =
                 (PackagedProgramApplication) reconstructed;
 
-        assertEquals(blobKey, packagedProgramApplication.getUserJarBlobKey());
+        assertEquals(blobKey, packagedProgramApplication.getUserJarInfo().getJarBlobKey());
         assertThat(
                         packagedProgramApplication.getRecoveredJobInfos().stream()
                                 .map(JobInfo::getJobId)
@@ -171,7 +173,7 @@ class PackagedProgramApplicationEntryTest {
     private PackagedProgramApplicationEntry createEntryWithJarBlob(PermanentBlobKey blobKey) {
         return new PackagedProgramApplicationEntry(
                 config,
-                blobKey,
+                new JarInfo(jarFile.getName(), blobKey),
                 entryClass,
                 programArgs,
                 applicationId,
