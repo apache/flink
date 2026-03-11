@@ -68,6 +68,14 @@ class SimplifyCoalesceWithEquiJoinConditionRuleTest extends TableTestBase {
                                 + "  info STRING,"
                                 + "  PRIMARY KEY (k1, k2) NOT ENFORCED"
                                 + ") WITH ('connector' = 'values')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE order_details_row ("
+                                + "  r ROW<order_id BIGINT NOT NULL, order_name STRING NOT NULL> NOT NULL, "
+                                + "  detail STRING,"
+                                + "  PRIMARY KEY (r) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values')");
     }
 
     @Test
@@ -136,14 +144,6 @@ class SimplifyCoalesceWithEquiJoinConditionRuleTest extends TableTestBase {
 
     @Test
     void testCoalesceOnNestedRowScalarField() {
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE order_details_row ("
-                                + "  r ROW<order_id BIGINT NOT NULL, order_name STRING NOT NULL> NOT NULL, "
-                                + "  detail STRING,"
-                                + "  PRIMARY KEY (r) NOT ENFORCED"
-                                + ") WITH ('connector' = 'values')");
-
         util.verifyRelPlan(
                 "SELECT CAST(COALESCE(b.r.order_id, a.order_id) AS STRING) AS order_id_str "
                         + "FROM orders a LEFT JOIN order_details_row b ON a.order_id = b.r.order_id");
