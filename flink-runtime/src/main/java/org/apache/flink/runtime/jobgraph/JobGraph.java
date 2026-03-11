@@ -153,7 +153,7 @@ public class JobGraph implements ExecutionPlan {
     public JobGraph(@Nullable JobID jobId, @Nullable ApplicationID applicationId, String jobName) {
         this.jobID = jobId == null ? new JobID() : jobId;
         this.jobName = jobName == null ? "(unnamed job)" : jobName;
-        this.applicationId = applicationId;
+        this.applicationId = applicationId == null ? new ApplicationID() : applicationId;
 
         try {
             setExecutionConfig(new ExecutionConfig());

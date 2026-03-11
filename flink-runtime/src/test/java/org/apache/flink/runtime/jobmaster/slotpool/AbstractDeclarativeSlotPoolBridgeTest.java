@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -43,6 +44,7 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
 
     protected static final Duration RPC_TIMEOUT = Duration.ofSeconds(20);
     protected static final JobID JOB_ID = new JobID();
+    protected static final ApplicationID APPLICATION_ID = new ApplicationID();
     protected static final JobMasterId JOB_MASTER_ID = JobMasterId.generate();
     protected final ComponentMainThreadExecutor componentMainThreadExecutor = forMainThread();
 
@@ -106,6 +108,7 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
             ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new DeclarativeSlotPoolBridge(
                 JOB_ID,
+                APPLICATION_ID,
                 declarativeSlotPoolFactory,
                 SystemClock.getInstance(),
                 RPC_TIMEOUT,

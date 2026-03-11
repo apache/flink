@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 
 import java.io.File;
@@ -30,12 +31,12 @@ public class NoOpJobPermanentBlobService implements JobPermanentBlobService {
     private NoOpJobPermanentBlobService() {}
 
     @Override
-    public void registerJob(JobID jobId) {
+    public void registerJob(JobID jobId, ApplicationID applicationId) {
         // no-op
     }
 
     @Override
-    public void releaseJob(JobID jobId) {
+    public void releaseJob(JobID jobId, ApplicationID applicationId) {
         // no-op
     }
 

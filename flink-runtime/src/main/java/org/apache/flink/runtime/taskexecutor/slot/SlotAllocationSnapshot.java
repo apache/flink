@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -32,6 +33,7 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
 
     private final SlotID slotID;
     private final JobID jobId;
+    private final ApplicationID applicationId;
     private final String jobTargetAddress;
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
@@ -39,11 +41,13 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
     public SlotAllocationSnapshot(
             SlotID slotID,
             JobID jobId,
+            ApplicationID applicationId,
             String jobTargetAddress,
             AllocationID allocationId,
             ResourceProfile resourceProfile) {
         this.slotID = slotID;
         this.jobId = jobId;
+        this.applicationId = applicationId;
         this.jobTargetAddress = jobTargetAddress;
         this.allocationId = allocationId;
         this.resourceProfile = resourceProfile;
@@ -55,6 +59,10 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
 
     public JobID getJobId() {
         return jobId;
+    }
+
+    public ApplicationID getApplicationId() {
+        return applicationId;
     }
 
     public String getJobTargetAddress() {
@@ -80,6 +88,8 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
                 + slotID
                 + ", jobId="
                 + jobId
+                + ", applicationId="
+                + applicationId
                 + ", jobTargetAddress='"
                 + jobTargetAddress
                 + '\''
@@ -101,6 +111,7 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
         SlotAllocationSnapshot that = (SlotAllocationSnapshot) o;
         return slotID.equals(that.slotID)
                 && jobId.equals(that.jobId)
+                && applicationId.equals(that.applicationId)
                 && jobTargetAddress.equals(that.jobTargetAddress)
                 && allocationId.equals(that.allocationId)
                 && resourceProfile.equals(that.resourceProfile);
@@ -108,6 +119,7 @@ public class SlotAllocationSnapshot implements java.io.Serializable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(slotID, jobId, jobTargetAddress, allocationId, resourceProfile);
+        return Objects.hash(
+                slotID, jobId, applicationId, jobTargetAddress, allocationId, resourceProfile);
     }
 }

@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -76,7 +77,14 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             submitTaskConsumer;
 
     private final Function<
-                    Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
+                    Tuple7<
+                            SlotID,
+                            JobID,
+                            ApplicationID,
+                            AllocationID,
+                            ResourceProfile,
+                            String,
+                            ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
             requestSlotFunction;
 
@@ -134,9 +142,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
                     submitTaskConsumer,
             Function<
-                            Tuple6<
+                            Tuple7<
                                     SlotID,
                                     JobID,
+                                    ApplicationID,
                                     AllocationID,
                                     ResourceProfile,
                                     String,
@@ -203,15 +212,17 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> requestSlot(
             SlotID slotId,
             JobID jobId,
+            ApplicationID applicationId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
             String targetAddress,
             ResourceManagerId resourceManagerId,
             Duration timeout) {
         return requestSlotFunction.apply(
-                Tuple6.of(
+                Tuple7.of(
                         slotId,
                         jobId,
+                        applicationId,
                         allocationId,
                         resourceProfile,
                         targetAddress,

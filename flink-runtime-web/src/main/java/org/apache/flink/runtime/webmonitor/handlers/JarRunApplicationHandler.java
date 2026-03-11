@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.client.deployment.application.PackagedProgramApplication;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
+import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -110,7 +111,7 @@ public class JarRunApplicationHandler
 
         final boolean isHaEnabled =
                 HighAvailabilityMode.isHighAvailabilityModeActivated(configuration);
-        final CompletableFuture<PermanentBlobKey> jarUploadFuture;
+        final CompletableFuture<JarInfo> jarUploadFuture;
         if (isHaEnabled) {
             // In HA mode, a fixed job id is required to ensure consistency across failovers.
             // The job id is derived from the application id if not configured.
@@ -124,7 +125,7 @@ public class JarRunApplicationHandler
 
         return jarUploadFuture
                 .thenCompose(
-                        blobKey -> {
+                        jarInfo -> {
                             PackagedProgramApplication application =
                                     new PackagedProgramApplication(
                                             applicationId,
@@ -134,7 +135,7 @@ public class JarRunApplicationHandler
                                             true,
                                             false,
                                             false,
-                                            blobKey);
+                                            jarInfo);
                             return gateway.submitApplication(application, timeout);
                         })
                 .handle(
@@ -160,7 +161,7 @@ public class JarRunApplicationHandler
         }
     }
 
-    private CompletableFuture<PermanentBlobKey> uploadJarFile(
+    private CompletableFuture<JarInfo> uploadJarFile(
             final DispatcherGateway gateway,
             final JarHandlerContext context,
             final ApplicationID applicationId) {
@@ -177,12 +178,11 @@ public class JarRunApplicationHandler
                 .thenApply(
                         blobSocketAddress -> {
                             try {
-                                org.apache.flink.core.fs.Path jarPath =
-                                        new org.apache.flink.core.fs.Path(
-                                                context.getJarFile().toString());
+                                Path jarPath = context.getJarFile();
                                 PermanentBlobKey blobKey =
                                         ClientUtils.uploadUserJarForApplication(
-                                                jarPath,
+                                                new org.apache.flink.core.fs.Path(
+                                                        jarPath.toString()),
                                                 applicationId,
                                                 () ->
                                                         new BlobClient(
@@ -191,7 +191,7 @@ public class JarRunApplicationHandler
                                         "Uploaded user jar for application {} to blob server with blob key {}.",
                                         applicationId,
                                         blobKey);
-                                return blobKey;
+                                return new JarInfo(jarPath.getFileName().toString(), blobKey);
                             } catch (Exception e) {
                                 throw new CompletionException(
                                         new RestHandlerException(

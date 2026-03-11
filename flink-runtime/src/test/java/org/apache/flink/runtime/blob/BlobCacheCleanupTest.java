@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -63,9 +64,11 @@ class BlobCacheCleanupTest {
 
     private final Random rnd = new Random();
 
+    private final ApplicationID applicationId = new ApplicationID();
+
     /**
      * Tests that {@link PermanentBlobCache} cleans up after calling {@link
-     * PermanentBlobCache#releaseJob(JobID)}.
+     * PermanentBlobCache#releaseJob(JobID, ApplicationID)}.
      */
     @Test
     void testPermanentBlobCleanup() throws IOException, InterruptedException {
@@ -95,7 +98,7 @@ class BlobCacheCleanupTest {
             checkFileCountForJob(0, jobId, cache);
 
             // register once
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
 
             checkFileCountForJob(2, jobId, server);
             checkFileCountForJob(0, jobId, cache);
@@ -105,7 +108,7 @@ class BlobCacheCleanupTest {
             }
 
             // register again (let's say, from another thread or so)
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
             for (PermanentBlobKey key : keys) {
                 cache.getFile(jobId, key);
             }
@@ -115,14 +118,14 @@ class BlobCacheCleanupTest {
             checkFileCountForJob(2, jobId, cache);
 
             // after releasing once, nothing should change
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
 
             assertThat(checkFilesExist(jobId, keys, cache, true)).isEqualTo(2);
             checkFileCountForJob(2, jobId, server);
             checkFileCountForJob(2, jobId, cache);
 
             // after releasing the second time, the job is up for deferred cleanup
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
             verifyJobCleanup(cache, jobId, keys);
             // server should be unaffected
             checkFileCountForJob(2, jobId, server);
@@ -160,37 +163,37 @@ class BlobCacheCleanupTest {
                 TestingBlobUtils.createPermanentCache(tempDir, config, serverAddress)) {
 
             // register once
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isOne();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil).isEqualTo(-1);
 
             // register a second time
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isEqualTo(2);
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil).isEqualTo(-1);
 
             // release once
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isOne();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil).isEqualTo(-1);
 
             // release a second time
             long cleanupLowerBound =
                     System.currentTimeMillis() + config.get(BlobServerOptions.CLEANUP_INTERVAL);
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isZero();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil)
                     .isGreaterThanOrEqualTo(cleanupLowerBound);
 
             // register again
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isOne();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil).isEqualTo(-1);
 
             // finally release the job
             cleanupLowerBound =
                     System.currentTimeMillis() + config.get(BlobServerOptions.CLEANUP_INTERVAL);
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isZero();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil)
                     .isGreaterThanOrEqualTo(cleanupLowerBound);
@@ -199,8 +202,8 @@ class BlobCacheCleanupTest {
 
     /**
      * Tests the deferred cleanup of {@link PermanentBlobCache}, i.e. after calling {@link
-     * PermanentBlobCache#releaseJob(JobID)} the file should be preserved a bit longer and then
-     * cleaned up.
+     * PermanentBlobCache#releaseJob(JobID, ApplicationID)} the file should be preserved a bit
+     * longer and then cleaned up.
      */
     @Test
     @Disabled(
@@ -238,7 +241,7 @@ class BlobCacheCleanupTest {
             checkBlobCacheSizeTracker(tracker, jobId, 0);
 
             // register once
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
 
             checkFileCountForJob(2, jobId, server);
             checkFileCountForJob(0, jobId, cache);
@@ -249,7 +252,7 @@ class BlobCacheCleanupTest {
             }
 
             // register again (let's say, from another thread or so)
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
             for (PermanentBlobKey key : keys) {
                 cache.readFile(jobId, key);
             }
@@ -260,7 +263,7 @@ class BlobCacheCleanupTest {
             checkBlobCacheSizeTracker(tracker, jobId, 2);
 
             // after releasing once, nothing should change
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
 
             assertThat(checkFilesExist(jobId, keys, cache, true)).isEqualTo(2);
             checkFileCountForJob(2, jobId, server);
@@ -268,7 +271,7 @@ class BlobCacheCleanupTest {
             checkBlobCacheSizeTracker(tracker, jobId, 2);
 
             // after releasing the second time, the job is up for deferred cleanup
-            cache.releaseJob(jobId);
+            cache.releaseJob(jobId, applicationId);
 
             // files should still be accessible for now
             assertThat(checkFilesExist(jobId, keys, cache, true)).isEqualTo(2);
@@ -414,8 +417,8 @@ class BlobCacheCleanupTest {
 
     /**
      * Checks that BLOBs for the given <tt>jobId</tt> are cleaned up eventually (after calling
-     * {@link PermanentBlobCache#releaseJob(JobID)}, which is not done by this method!) (waits at
-     * most 30s).
+     * {@link PermanentBlobCache#releaseJob(JobID, ApplicationID)}, which is not done by this
+     * method!) (waits at most 30s).
      *
      * @param cache BLOB server
      * @param jobId job ID or <tt>null</tt> if job-unrelated

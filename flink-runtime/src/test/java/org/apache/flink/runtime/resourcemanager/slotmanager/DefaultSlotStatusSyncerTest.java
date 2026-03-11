@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -94,6 +95,7 @@ class DefaultSlotStatusSyncerTest {
                 taskExecutorConnection, ResourceProfile.ANY, ResourceProfile.ANY);
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
         final JobID jobId = new JobID();
+        final ApplicationID applicationId = new ApplicationID();
         final SlotStatusSyncer slotStatusSyncer =
                 new DefaultSlotStatusSyncer(TASK_MANAGER_REQUEST_TIMEOUT);
         slotStatusSyncer.initialize(
@@ -106,6 +108,7 @@ class DefaultSlotStatusSyncerTest {
                 slotStatusSyncer.allocateSlot(
                         taskExecutorConnection.getInstanceID(),
                         jobId,
+                        applicationId,
                         "address",
                         ResourceProfile.ANY);
 
@@ -188,6 +191,7 @@ class DefaultSlotStatusSyncerTest {
         final TaskExecutorConnection taskExecutorConnection =
                 new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
         final JobID jobId = new JobID();
+        final ApplicationID applicationId = new ApplicationID();
         final AllocationID allocationId1 = new AllocationID();
         final AllocationID allocationId2 = new AllocationID();
         final SlotID slotId1 = new SlotID(taskExecutorConnection.getResourceID(), 0);
@@ -222,7 +226,7 @@ class DefaultSlotStatusSyncerTest {
         assertThat(taskManagerTracker.getAllocatedOrPendingSlot(allocationId2)).isPresent();
 
         slotStatusSyncer.allocateSlot(
-                taskExecutorConnection.getInstanceID(), jobId, "address", resource);
+                taskExecutorConnection.getInstanceID(), jobId, applicationId, "address", resource);
         assertThat(resourceTracker.getAcquiredResources(jobId))
                 .contains(ResourceRequirement.create(resource, 3));
         assertThat(
@@ -279,8 +283,8 @@ class DefaultSlotStatusSyncerTest {
         final TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setRequestSlotFunction(
-                                tuple6 -> {
-                                    requestFuture.complete(tuple6.f2);
+                                tuple7 -> {
+                                    requestFuture.complete(tuple7.f3);
                                     return responseFuture;
                                 })
                         .createTestingTaskExecutorGateway();
@@ -290,6 +294,7 @@ class DefaultSlotStatusSyncerTest {
                 taskExecutorConnection, ResourceProfile.ANY, ResourceProfile.ANY);
         final ResourceTracker resourceTracker = new DefaultResourceTracker();
         final JobID jobId = new JobID();
+        final ApplicationID applicationId = new ApplicationID();
         final SlotStatusSyncer slotStatusSyncer =
                 new DefaultSlotStatusSyncer(TASK_MANAGER_REQUEST_TIMEOUT);
         slotStatusSyncer.initialize(
@@ -302,6 +307,7 @@ class DefaultSlotStatusSyncerTest {
                 slotStatusSyncer.allocateSlot(
                         taskExecutorConnection.getInstanceID(),
                         jobId,
+                        applicationId,
                         "address",
                         ResourceProfile.ANY);
         final AllocationID allocationId = requestFuture.get();

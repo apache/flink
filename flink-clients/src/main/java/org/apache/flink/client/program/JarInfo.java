@@ -16,21 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.ApplicationID;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 
-import javax.annotation.Nonnull;
+import java.io.Serializable;
 
-/** Factory interface for {@link SlotPoolService}. */
-public interface SlotPoolServiceFactory {
+/** Info about a jar. */
+public class JarInfo implements Serializable {
 
-    @Nonnull
-    SlotPoolService createSlotPoolService(
-            @Nonnull JobID jobId,
-            @Nonnull ApplicationID applicationId,
-            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
-            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor);
+    private static final long serialVersionUID = 1L;
+    public final String jarName;
+    public final PermanentBlobKey jarBlobKey;
+
+    public JarInfo(String jarName, PermanentBlobKey jarBlobKey) {
+        this.jarName = jarName;
+        this.jarBlobKey = jarBlobKey;
+    }
+
+    public String getJarName() {
+        return jarName;
+    }
+
+    public PermanentBlobKey getJarBlobKey() {
+        return jarBlobKey;
+    }
 }
