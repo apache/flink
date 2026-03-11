@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -210,6 +211,8 @@ class TaskExecutorTest {
     private JobID jobId;
     private JobID jobId2;
 
+    private ApplicationID applicationId;
+
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
     private TestingHighAvailabilityServices haServices;
@@ -231,6 +234,7 @@ class TaskExecutorTest {
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
         jobId = new JobID();
         jobId2 = new JobID();
+        applicationId = new ApplicationID();
 
         testingFatalErrorHandler = new TestingFatalErrorHandler();
 
@@ -1846,6 +1850,7 @@ class TaskExecutorTest {
                     taskExecutorGateway.requestSlot(
                             new SlotID(resourceId, 0),
                             jobId,
+                            applicationId,
                             new AllocationID(),
                             ResourceProfile.ZERO,
                             "foobar",
@@ -2336,6 +2341,7 @@ class TaskExecutorTest {
             taskExecutorGateway.requestSlot(
                     new SlotID(taskExecutor.getResourceID(), 0),
                     jobId,
+                    applicationId,
                     allocationIdInBoth,
                     ResourceProfile.ZERO,
                     "foobar",
@@ -2344,6 +2350,7 @@ class TaskExecutorTest {
             taskExecutorGateway.requestSlot(
                     new SlotID(taskExecutor.getResourceID(), 1),
                     jobId,
+                    applicationId,
                     allocationIdOnlyInTM,
                     ResourceProfile.ZERO,
                     "foobar",
@@ -2462,6 +2469,7 @@ class TaskExecutorTest {
                     .requestSlot(
                             new SlotID(taskExecutorResourceId, 0),
                             jobId,
+                            applicationId,
                             new AllocationID(),
                             ResourceProfile.ZERO,
                             "foobar",
@@ -3003,7 +3011,16 @@ class TaskExecutorTest {
             String address,
             ResourceManagerId token)
             throws InterruptedException, ExecutionException {
-        gateway.requestSlot(slotId, jobId, allocationId, profile, address, token, timeout).get();
+        gateway.requestSlot(
+                        slotId,
+                        jobId,
+                        applicationId,
+                        allocationId,
+                        profile,
+                        address,
+                        token,
+                        timeout)
+                .get();
     }
 
     private SlotID buildSlotID(int slotIndex) {

@@ -20,12 +20,12 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.application.AbstractApplication;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
 
@@ -40,7 +40,7 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
 
     private final Configuration configuration;
 
-    private final PermanentBlobKey userJarBlobKey;
+    private final JarInfo userJarInfo;
 
     private final String entryClass;
 
@@ -60,7 +60,7 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
 
     public PackagedProgramApplicationEntry(
             Configuration configuration,
-            PermanentBlobKey userJarBlobKey,
+            JarInfo userJarInfo,
             String entryClass,
             String[] programArgs,
             ApplicationID applicationId,
@@ -70,7 +70,7 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
             boolean submitFailedJobOnApplicationError,
             boolean shutDownOnFinish) {
         this.configuration = configuration;
-        this.userJarBlobKey = userJarBlobKey;
+        this.userJarInfo = userJarInfo;
         this.entryClass = entryClass;
         this.programArgs = programArgs;
         this.applicationId = applicationId;
@@ -88,7 +88,7 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
             Collection<JobInfo> recoveredTerminalJobInfos) {
         File jarFile;
         try {
-            jarFile = blobService.getFile(applicationId, userJarBlobKey);
+            jarFile = blobService.getFile(applicationId, userJarInfo.getJarBlobKey());
         } catch (Exception e) {
             throw new RuntimeException("Failed to get user jar file from blob", e);
         }
@@ -124,7 +124,7 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
                 enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
                 shutDownOnFinish,
-                userJarBlobKey);
+                userJarInfo);
     }
 
     private List<URL> getClasspaths() {

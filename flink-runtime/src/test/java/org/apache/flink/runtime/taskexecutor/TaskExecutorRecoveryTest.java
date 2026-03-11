@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
@@ -115,6 +116,7 @@ class TaskExecutorRecoveryTest {
                 testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 
         final JobID jobId = new JobID();
+        final ApplicationID applicationId = new ApplicationID();
 
         final TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -160,6 +162,7 @@ class TaskExecutorRecoveryTest {
                 .requestSlot(
                         allocatedSlotID,
                         jobId,
+                        applicationId,
                         allocationId,
                         slotStatus.getResourceProfile(),
                         "localhost",
