@@ -327,76 +327,50 @@ public class DateTimeUtils {
     // Numeric -> Timestamp conversion
     // --------------------------------------------------------------------------------------------
 
-    public static TimestampData toTimestampData(long v, int precision) {
-        switch (precision) {
-            case 0:
-                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
-                    return timestampDataFromEpochMills(v * MILLIS_PER_SECOND);
-                } else {
-                    return null;
-                }
-            case 3:
-                return timestampDataFromEpochMills(v);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
-        }
+    /**
+     * Converts a numeric epoch value to {@link TimestampData}. The precision specifies the unit of
+     * the epoch value: 0 for seconds, 3 for milliseconds, 6 for microseconds, 9 for nanoseconds,
+     * and any value in between. Returns {@code null} if the value is out of the valid timestamp
+     * range.
+     */
+    public static TimestampData toTimestampData(long epoch, int precision) {
+        return epochToTimestampData(epoch, precision);
     }
 
-    public static TimestampData toTimestampData(double v, int precision) {
-        switch (precision) {
-            case 0:
-                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
-                    return timestampDataFromEpochMills((long) (v * MILLIS_PER_SECOND));
-                } else {
-                    return null;
-                }
-            case 3:
-                return timestampDataFromEpochMills((long) v);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
-        }
+    /** See {@link #toTimestampData(long, int)}. The double value is truncated to a long. */
+    public static TimestampData toTimestampData(double epoch, int precision) {
+        return epochToTimestampData((long) epoch, precision);
     }
 
-    public static TimestampData toTimestampData(DecimalData v, int precision) {
-        long epochMills;
-        switch (precision) {
-            case 0:
-                epochMills =
-                        v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue()
-                                * MILLIS_PER_SECOND;
-                return timestampDataFromEpochMills(epochMills);
-            case 3:
-                epochMills = toMillis(v);
-                return timestampDataFromEpochMills(epochMills);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
-        }
+    /** See {@link #toTimestampData(long, int)}. The decimal value is truncated to a long. */
+    public static TimestampData toTimestampData(DecimalData epoch, int precision) {
+        long epochValue = epoch.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
+        return epochToTimestampData(epochValue, precision);
     }
 
-    private static TimestampData timestampDataFromEpochMills(long epochMills) {
-        if (MIN_EPOCH_MILLS <= epochMills && epochMills <= MAX_EPOCH_MILLS) {
-            return TimestampData.fromEpochMillis(epochMills);
+    private static TimestampData epochToTimestampData(long epoch, int precision) {
+        long factor = (long) Math.pow(10, precision);
+        long epochSeconds = epoch / factor;
+
+        if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
+            return null;
         }
-        return null;
+
+        long remainder = Math.floorMod(epoch, factor);
+        long nanoMultiplier = (long) Math.pow(10, 9 - precision);
+        long nanoAdjustment = remainder * nanoMultiplier;
+
+        return TimestampData.fromInstant(Instant.ofEpochSecond(epochSeconds, nanoAdjustment));
     }
 
-    private static long toMillis(DecimalData v) {
-        return v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
+    /**
+     * Converts an {@link Instant} to an epoch value at the given precision. This is the inverse of
+     * {@link #toTimestampData(long, int)}.
+     */
+    public static long toEpochValue(Instant instant, int precision) {
+        long factor = (long) Math.pow(10, precision);
+        long nanoDivisor = (long) Math.pow(10, 9 - precision);
+        return (instant.getEpochSecond() * factor) + (instant.getNano() / nanoDivisor);
     }
 
     // --------------------------------------------------------------------------------------------

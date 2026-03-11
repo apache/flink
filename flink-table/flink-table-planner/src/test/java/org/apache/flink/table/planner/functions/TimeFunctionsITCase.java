@@ -815,11 +815,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ)
                         .onFieldsWithData(
-                                100,
-                                1234,
-                                -100,
+                                100.0d,
+                                1234L,
+                                -100L,
                                 DecimalDataUtils.castFrom(-Double.MAX_VALUE, 38, 18),
-                                100.01,
+                                100.01f,
                                 "unparsable",
                                 null)
                         .andDataTypes(
@@ -850,12 +850,17 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(1969, 12, 31, 23, 58, 20)
                                         .atZone(ZoneOffset.UTC)
                                         .toInstant(),
-                                TIMESTAMP_LTZ(3).nullable())
+                                TIMESTAMP_LTZ(0).nullable())
                         .testResult(
                                 toTimestampLtz($("f3"), literal(0)),
+                                "TO_TIMESTAMP_LTZ(f3, 0)",
+                                null,
+                                TIMESTAMP_LTZ(0).nullable())
+                        .testResult(
+                                toTimestampLtz(-Double.MAX_VALUE, literal(0)),
                                 "TO_TIMESTAMP_LTZ(-" + Double.MAX_VALUE + ", 0)",
                                 null,
-                                TIMESTAMP_LTZ(3).nullable())
+                                TIMESTAMP_LTZ(0).nullable())
                         .testResult(
                                 toTimestampLtz($("f4"), literal(3)),
                                 "TO_TIMESTAMP_LTZ(f4, 3)",
@@ -1037,6 +1042,30 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 toTimestampLtz(null),
                                 "TO_TIMESTAMP_LTZ(NULL)",
                                 null,
-                                TIMESTAMP_LTZ(3).nullable()));
+                                TIMESTAMP_LTZ(3).nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ)
+                        .onFieldsWithData(1234567890123456L, 1234567890123456789L, 123000000000L)
+                        .andDataTypes(BIGINT(), BIGINT(), BIGINT())
+                        .testResult(
+                                toTimestampLtz($("f0"), literal(6)),
+                                "TO_TIMESTAMP_LTZ(f0, 6)",
+                                LocalDateTime.of(2009, 2, 13, 23, 31, 30, 123456000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(6).nullable())
+                        .testResult(
+                                toTimestampLtz($("f1"), literal(9)),
+                                "TO_TIMESTAMP_LTZ(f1, 9)",
+                                LocalDateTime.of(2009, 2, 13, 23, 31, 30, 123456789)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(9).nullable())
+                        .testResult(
+                                toTimestampLtz($("f2"), literal(9)),
+                                "TO_TIMESTAMP_LTZ(f2, 9)",
+                                LocalDateTime.of(1970, 1, 1, 0, 2, 3, 0)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(9).nullable()));
     }
 }
