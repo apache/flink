@@ -93,7 +93,9 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     private final boolean handleFatalError;
 
-    private final boolean enforceSingleJobExecution;
+    private final int jobCountLimit;
+
+    private final int streamingJobCountLimit;
 
     private final boolean submitFailedJobOnApplicationError;
 
@@ -115,8 +117,9 @@ public class PackagedProgramApplication extends AbstractApplication {
             final ApplicationID applicationId,
             final PackagedProgram program,
             final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean handleFatalError,
-            final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish) {
         this(
@@ -125,8 +128,9 @@ public class PackagedProgramApplication extends AbstractApplication {
                 Collections.emptyList(),
                 Collections.emptyList(),
                 configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
                 handleFatalError,
-                enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
                 shutDownOnFinish);
     }
@@ -135,8 +139,9 @@ public class PackagedProgramApplication extends AbstractApplication {
             final ApplicationID applicationId,
             final PackagedProgram program,
             final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean handleFatalError,
-            final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish,
             final @Nullable JarInfo userJarInfo) {
@@ -146,8 +151,9 @@ public class PackagedProgramApplication extends AbstractApplication {
                 Collections.emptyList(),
                 Collections.emptyList(),
                 configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
                 handleFatalError,
-                enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
                 shutDownOnFinish,
                 userJarInfo);
@@ -159,8 +165,9 @@ public class PackagedProgramApplication extends AbstractApplication {
             final Collection<JobInfo> recoveredJobInfos,
             final Collection<JobInfo> recoveredTerminalJobInfos,
             final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean handleFatalError,
-            final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish) {
         this(
@@ -169,8 +176,9 @@ public class PackagedProgramApplication extends AbstractApplication {
                 recoveredJobInfos,
                 recoveredTerminalJobInfos,
                 configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
                 handleFatalError,
-                enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
                 shutDownOnFinish,
                 null);
@@ -182,8 +190,9 @@ public class PackagedProgramApplication extends AbstractApplication {
             final Collection<JobInfo> recoveredJobInfos,
             final Collection<JobInfo> recoveredTerminalJobInfos,
             final Configuration configuration,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean handleFatalError,
-            final boolean enforceSingleJobExecution,
             final boolean submitFailedJobOnApplicationError,
             final boolean shutDownOnFinish,
             final @Nullable JarInfo userJarInfo) {
@@ -192,8 +201,9 @@ public class PackagedProgramApplication extends AbstractApplication {
         this.recoveredJobInfos = checkNotNull(recoveredJobInfos);
         this.recoveredTerminalJobInfos = checkNotNull(recoveredTerminalJobInfos);
         this.configuration = checkNotNull(configuration);
+        this.jobCountLimit = jobCountLimit;
+        this.streamingJobCountLimit = streamingJobCountLimit;
         this.handleFatalError = handleFatalError;
-        this.enforceSingleJobExecution = enforceSingleJobExecution;
         this.submitFailedJobOnApplicationError = submitFailedJobOnApplicationError;
         this.shutDownOnFinish = shutDownOnFinish;
         this.userJarInfo = userJarInfo;
@@ -386,8 +396,9 @@ public class PackagedProgramApplication extends AbstractApplication {
                         programDescriptor.getProgramArgs(),
                         getApplicationId(),
                         getName(),
+                        jobCountLimit,
+                        streamingJobCountLimit,
                         handleFatalError,
-                        enforceSingleJobExecution,
                         submitFailedJobOnApplicationError,
                         shutDownOnFinish));
     }
@@ -649,15 +660,6 @@ public class PackagedProgramApplication extends AbstractApplication {
             final Set<JobID> tolerateMissingResult,
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor scheduledExecutor) {
-        if (submitFailedJobOnApplicationError && !enforceSingleJobExecution) {
-            jobIdsFuture.completeExceptionally(
-                    new ApplicationExecutionException(
-                            String.format(
-                                    "Submission of failed job in case of an application error ('%s') is not supported in non-HA setups.",
-                                    DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR
-                                            .key())));
-            return;
-        }
 
         // applicationJobIds should contain all jobs involved in the current application execution
         // after ClientUtils.executeProgram completes, including:
@@ -691,7 +693,8 @@ public class PackagedProgramApplication extends AbstractApplication {
                     executorServiceLoader,
                     configuration,
                     program,
-                    enforceSingleJobExecution,
+                    jobCountLimit,
+                    streamingJobCountLimit,
                     true /* suppress sysout */,
                     getApplicationId(),
                     userJarInfo,
@@ -709,7 +712,7 @@ public class PackagedProgramApplication extends AbstractApplication {
             // of an already finished a success.
             final Optional<DuplicateJobSubmissionException> maybeDuplicate =
                     ExceptionUtils.findThrowable(t, DuplicateJobSubmissionException.class);
-            if (enforceSingleJobExecution
+            if (jobCountLimit == 1
                     && maybeDuplicate.isPresent()
                     && maybeDuplicate.get().isGloballyTerminated()) {
                 final JobID jobId = maybeDuplicate.get().getJobID();

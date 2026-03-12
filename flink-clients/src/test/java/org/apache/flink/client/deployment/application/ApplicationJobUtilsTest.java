@@ -18,10 +18,11 @@
 
 package org.apache.flink.client.deployment.application;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -38,10 +39,8 @@ import javax.annotation.Nullable;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ApplicationJobUtils}. */
 public class ApplicationJobUtilsTest {
@@ -367,33 +366,34 @@ public class ApplicationJobUtilsTest {
     }
 
     @Test
-    void testAllowExecuteMultipleJobs_HADisabled_NoFixedJobId() {
+    void testGetJobCountLimits_SubmitFailedJobEnabled() {
+        configuration.set(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR, true);
+
+        assertEquals(new Tuple2<>(1, 1), ApplicationJobUtils.getJobCountLimits(configuration));
+    }
+
+    @Test
+    void testGetJobCountLimits_HADisabled() {
         assertEquals(
                 HighAvailabilityMode.NONE.name(),
                 configuration.get(HighAvailabilityOptions.HA_MODE));
         assertNull(configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID));
 
-        assertTrue(ApplicationJobUtils.allowExecuteMultipleJobs(configuration));
+        assertEquals(
+                new Tuple2<>(Integer.MAX_VALUE, Integer.MAX_VALUE),
+                ApplicationJobUtils.getJobCountLimits(configuration));
     }
 
     @Test
-    void testAllowExecuteMultipleJobs_HAEnabled_NoFixedJobId() {
+    void testGetJobCountLimits_HAEnabled() {
         final String clusterId = "cluster";
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
         assertNull(configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID));
 
-        assertFalse(ApplicationJobUtils.allowExecuteMultipleJobs(configuration));
-    }
-
-    @Test
-    void testAllowExecuteMultipleJobs_HAEnabled_FixedJobIdSet() {
-        final String clusterId = "cluster";
-        final JobID testJobID = new JobID(0, 2);
-        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
-        configuration.set(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
-        configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobID.toHexString());
-
-        assertFalse(ApplicationJobUtils.allowExecuteMultipleJobs(configuration));
+        // support multiple batch job execution
+        assertEquals(
+                new Tuple2<>(Integer.MAX_VALUE, 1),
+                ApplicationJobUtils.getJobCountLimits(configuration));
     }
 }

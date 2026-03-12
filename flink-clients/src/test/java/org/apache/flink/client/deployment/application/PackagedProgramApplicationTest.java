@@ -73,7 +73,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -98,11 +97,60 @@ public class PackagedProgramApplicationTest {
     void testOnlyOneJobIsAllowedWhenEnforceSingleJobExecution() throws Throwable {
         final PackagedProgramApplication application =
                 createAndExecuteApplication(
-                        2, getConfiguration(), finishedJobGatewayBuilder().build(), true);
+                        2, getConfiguration(), finishedJobGatewayBuilder().build(), 1, 1);
 
         assertException(application.getApplicationCompletionFuture(), FlinkRuntimeException.class);
         application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertApplicationFailed(application);
+    }
+
+    @Test
+    void testOnlyOneStreamingJobIsAllowedWhenEnforceSingleStreamingJobExecution() throws Throwable {
+        final PackagedProgramApplication application =
+                createAndExecuteApplication(
+                        2,
+                        getConfiguration(),
+                        finishedJobGatewayBuilder().build(),
+                        Integer.MAX_VALUE,
+                        1);
+
+        assertException(application.getApplicationCompletionFuture(), FlinkRuntimeException.class);
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFailed(application);
+    }
+
+    @Test
+    void testMultiBatchJobIsAllowedWhenEnableMultiBatchJobExecution() throws Throwable {
+        final List<JobID> submittedJobIds = new ArrayList<>();
+
+        final PackagedProgram program = getProgram(2, true);
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        program,
+                        getConfiguration(),
+                        Integer.MAX_VALUE,
+                        1,
+                        true,
+                        false,
+                        true);
+
+        DispatcherGateway dispatcherGateway =
+                finishedJobGatewayBuilder()
+                        .setSubmitFunction(
+                                executionPlan -> {
+                                    submittedJobIds.add(executionPlan.getJobID());
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+
+        executeApplication(application, dispatcherGateway, scheduledExecutor, exception -> {});
+
+        application.getApplicationCompletionFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFinished(application);
+
+        assertThat(submittedJobIds.size()).isEqualTo(2);
     }
 
     @Test
@@ -180,8 +228,9 @@ public class PackagedProgramApplicationTest {
                         new ApplicationID(),
                         getProgram(2),
                         getConfiguration(),
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         true,
-                        false,
                         false,
                         true);
 
@@ -272,8 +321,9 @@ public class PackagedProgramApplicationTest {
                         new ApplicationID(),
                         getProgram(2),
                         getConfiguration(),
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         true,
-                        false,
                         false,
                         true);
 
@@ -483,8 +533,9 @@ public class PackagedProgramApplicationTest {
                         new ApplicationID(),
                         getProgram(1),
                         getConfiguration(),
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         true,
-                        false,
                         false,
                         true);
 
@@ -861,7 +912,8 @@ public class PackagedProgramApplicationTest {
                         dispatcherBuilder.build(),
                         scheduledExecutor,
                         exception -> errorHandlerCalled.set(true),
-                        false,
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         false,
                         true);
 
@@ -896,7 +948,7 @@ public class PackagedProgramApplicationTest {
 
         final PackagedProgramApplication application =
                 createAndExecuteApplication(
-                        1, configurationUnderTest, dispatcherBuilder.build(), true);
+                        1, configurationUnderTest, dispatcherBuilder.build(), 1, 1);
 
         application.getApplicationCompletionFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
@@ -934,7 +986,7 @@ public class PackagedProgramApplicationTest {
 
         final PackagedProgramApplication application =
                 createAndExecuteApplication(
-                        1, configurationUnderTest, dispatcherBuilder.build(), true);
+                        1, configurationUnderTest, dispatcherBuilder.build(), 1, 1);
 
         application.getApplicationCompletionFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
@@ -994,8 +1046,9 @@ public class PackagedProgramApplicationTest {
                         dispatcherGateway,
                         scheduledExecutor,
                         exception -> {},
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         true,
-                        false,
                         false);
 
         // Wait until application is finished to make sure cluster shutdown isn't called
@@ -1050,47 +1103,15 @@ public class PackagedProgramApplicationTest {
                         new ApplicationID(),
                         FailingJob.getProgram(),
                         configuration,
+                        1,
+                        1,
                         true,
-                        true /* enforceSingleJobExecution */,
                         true /* submitFailedJobOnApplicationError */,
                         true);
 
         executeApplication(application, dispatcherGateway, scheduledExecutor, exception -> {});
 
         application.getFinishApplicationFuture().get();
-        assertApplicationFailed(application);
-    }
-
-    @Test
-    void testSubmitFailedJobOnApplicationErrorWhenNotEnforceSingleJobExecution() throws Exception {
-        final PackagedProgramApplication application =
-                new PackagedProgramApplication(
-                        new ApplicationID(),
-                        FailingJob.getProgram(),
-                        getConfiguration(),
-                        true,
-                        false /* enforceSingleJobExecution */,
-                        true /* submitFailedJobOnApplicationError */,
-                        true);
-
-        executeApplication(
-                application,
-                TestingDispatcherGateway.newBuilder().build(),
-                scheduledExecutor,
-                exception -> {});
-
-        assertThatFuture(application.getApplicationCompletionFuture())
-                .eventuallyFailsWith(ExecutionException.class)
-                .extracting(Throwable::getCause)
-                .satisfies(
-                        e ->
-                                assertThat(e)
-                                        .hasMessageContaining(
-                                                DeploymentOptions
-                                                        .SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR
-                                                        .key()));
-
-        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertApplicationFailed(application);
     }
 
@@ -1193,8 +1214,9 @@ public class PackagedProgramApplicationTest {
                         Collections.emptyList(),
                         Collections.singletonList(recoveredTerminalJobInfo),
                         configuration,
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         true,
-                        false,
                         false,
                         true);
 
@@ -1243,8 +1265,9 @@ public class PackagedProgramApplicationTest {
                         Collections.singletonList(recoveredRunningJobInfo),
                         Collections.emptyList(),
                         configuration,
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
                         true,
-                        false,
                         false,
                         true);
 
@@ -1300,14 +1323,16 @@ public class PackagedProgramApplicationTest {
             final Configuration configuration,
             final DispatcherGateway dispatcherGateway)
             throws FlinkException {
-        return createAndExecuteApplication(numJobs, configuration, dispatcherGateway, false);
+        return createAndExecuteApplication(
+                numJobs, configuration, dispatcherGateway, Integer.MAX_VALUE, Integer.MAX_VALUE);
     }
 
     private PackagedProgramApplication createAndExecuteApplication(
             final int numJobs,
             final Configuration configuration,
             final DispatcherGateway dispatcherGateway,
-            final boolean enforceSingleJobExecution)
+            final int jobCountLimit,
+            final int streamingJobCountLimit)
             throws FlinkException {
         return createAndExecuteApplication(
                 numJobs,
@@ -1315,8 +1340,9 @@ public class PackagedProgramApplicationTest {
                 dispatcherGateway,
                 scheduledExecutor,
                 exception -> {},
+                jobCountLimit,
+                streamingJobCountLimit,
                 true,
-                enforceSingleJobExecution,
                 true);
     }
 
@@ -1343,8 +1369,9 @@ public class PackagedProgramApplicationTest {
                 dispatcherGateway,
                 scheduledExecutor,
                 errorHandler,
+                Integer.MAX_VALUE,
+                Integer.MAX_VALUE,
                 true,
-                false,
                 true);
     }
 
@@ -1354,8 +1381,9 @@ public class PackagedProgramApplicationTest {
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor scheduledExecutor,
             final FatalErrorHandler errorHandler,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             boolean handleFatalError,
-            boolean enforceSingleJobExecution,
             boolean shutDownOnFinish)
             throws FlinkException {
 
@@ -1366,8 +1394,9 @@ public class PackagedProgramApplicationTest {
                         new ApplicationID(),
                         program,
                         configuration,
+                        jobCountLimit,
+                        streamingJobCountLimit,
                         handleFatalError,
-                        enforceSingleJobExecution,
                         false,
                         shutDownOnFinish);
         assertApplicationCreated(application);
@@ -1394,7 +1423,11 @@ public class PackagedProgramApplicationTest {
     }
 
     private PackagedProgram getProgram(int numJobs) throws FlinkException {
-        return MultiExecuteJob.getProgram(numJobs, true);
+        return getProgram(numJobs, false);
+    }
+
+    private PackagedProgram getProgram(int numJobs, boolean batchMode) throws FlinkException {
+        return MultiExecuteJob.getProgram(numJobs, true, batchMode);
     }
 
     private static JobResult createFailedJobResult(final JobID jobId) {

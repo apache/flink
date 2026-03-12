@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -91,7 +92,11 @@ public class DeploymentOptions {
                             "Whether a Flink Application cluster should shut down automatically after its application finishes"
                                     + " (either successfully or as result of a failure). Has no effect for other deployment modes.");
 
-    @Experimental
+    /**
+     * @deprecated Check application exceptions instead.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Boolean> SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR =
             ConfigOptions.key("execution.submit-failed-job-on-application-error")
                     .booleanType()
