@@ -347,7 +347,7 @@ public class AsyncDataStream {
      */
     public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatch(
             DataStream<IN> in, AsyncBatchFunction<IN, OUT> func, int maxBatchSize) {
-        return unorderedWaitBatch(in, func, maxBatchSize, 0L);
+        return unorderedWaitBatch(in, func, maxBatchSize, 0L, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -370,7 +370,8 @@ public class AsyncDataStream {
      * @param in Input {@link DataStream}
      * @param func {@link AsyncBatchFunction} to process batches of elements
      * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
-     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means timeout is disabled
+     * @param timeout Batch timeout duration; <= 0 means timeout is disabled
+     * @param timeUnit The time unit of the timeout argument
      * @param <IN> Type of input record
      * @param <OUT> Type of output record
      * @return A new {@link SingleOutputStreamOperator}
@@ -379,7 +380,8 @@ public class AsyncDataStream {
             DataStream<IN> in,
             AsyncBatchFunction<IN, OUT> func,
             int maxBatchSize,
-            long batchTimeoutMs) {
+            long timeout,
+            TimeUnit timeUnit) {
         Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
 
         TypeInformation<OUT> outTypeInfo =
@@ -396,7 +398,9 @@ public class AsyncDataStream {
         // create transform
         AsyncBatchWaitOperatorFactory<IN, OUT> operatorFactory =
                 new AsyncBatchWaitOperatorFactory<>(
-                        in.getExecutionEnvironment().clean(func), maxBatchSize, batchTimeoutMs);
+                        in.getExecutionEnvironment().clean(func),
+                        maxBatchSize,
+                        timeUnit.toMillis(timeout));
 
         return in.transform("async batch wait operator", outTypeInfo, operatorFactory);
     }

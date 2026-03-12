@@ -20,41 +20,32 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * The {@link OrderedAsyncBatchWaitOperator} batches incoming stream records and invokes the {@link
- * AsyncBatchFunction} when the batch size reaches the configured maximum or when the batch timeout
- * is reached.
+ * The {@link OrderedAsyncBatchWaitOperator} extends {@link AsyncBatchWaitOperator} with ordered
+ * output semantics.
  *
- * <p>This operator implements <b>ordered semantics</b> - output records are emitted in the same
- * order as input records, even though async batch invocations may complete out-of-order internally.
+ * <p>Output records are emitted in the same order as input records, even though async batch
+ * invocations may complete out-of-order internally.
  *
- * <p>Ordering is achieved by:
- *
- * <ul>
- *   <li>Assigning a monotonic sequence number to each batch
- *   <li>Buffering completed batch results in a pending results map
- *   <li>Emitting results strictly in sequence order
- * </ul>
+ * <p>Ordering is achieved by maintaining a FIFO queue of pending result slots. Each slot is
+ * pre-allocated when a batch is flushed. When a batch completes, it fills its slot and a drain pass
+ * emits all consecutive head-of-queue completed slots in order.
  *
  * <p>Key behaviors:
  *
@@ -64,90 +55,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>Wait for all batches to complete and emit in order before finishing
  * </ul>
  *
- * <p>Timer lifecycle (when batchTimeoutMs > 0):
- *
- * <ul>
- *   <li>Timer is registered when first element is added to an empty buffer
- *   <li>Timer fires at: currentBatchStartTime + batchTimeoutMs
- *   <li>Timer is cleared when batch is flushed (by size, timeout, or end-of-input)
- *   <li>At most one timer is active at any time
- * </ul>
- *
- * <p>Future enhancements may include:
- *
- * <ul>
- *   <li>Event-time or watermark-based ordering
- *   <li>Multiple inflight batches concurrency control
- *   <li>Retry logic
- *   <li>Metrics
- * </ul>
- *
  * @param <IN> Input type for the operator.
  * @param <OUT> Output type for the operator.
  */
 @Internal
-public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput, ProcessingTimeCallback {
+public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AsyncBatchWaitOperator<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
 
-    /** Constant indicating timeout is disabled. */
-    private static final long NO_TIMEOUT = 0L;
-
-    /** The async batch function to invoke. */
-    private final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
-
-    /** Maximum batch size before triggering async invocation. */
-    private final int maxBatchSize;
-
     /**
-     * Batch timeout in milliseconds. When positive, a timer is registered to flush the batch after
-     * this duration since the first buffered element. A value <= 0 disables timeout-based batching.
+     * FIFO queue of result slots. Each slot is added to the tail when a batch is dispatched and
+     * removed from the head when results are drained in order.
      */
-    private final long batchTimeoutMs;
-
-    /** Buffer for incoming stream records. */
-    private transient List<IN> buffer;
-
-    /** Mailbox executor for processing async results on the main thread. */
-    private final transient MailboxExecutor mailboxExecutor;
-
-    /** Counter for in-flight async operations. */
-    private transient int inFlightCount;
-
-    // ================================================================================
-    //  Timer state fields for timeout-based batching
-    // ================================================================================
-
-    /**
-     * The processing time when the current batch started (i.e., when first element was added to
-     * empty buffer). Used to calculate timer fire time.
-     */
-    private transient long currentBatchStartTime;
-
-    /** Whether a timer is currently registered for the current batch. */
-    private transient boolean timerRegistered;
-
-    // ================================================================================
-    //  Ordered emission state fields
-    // ================================================================================
-
-    /**
-     * The sequence number to assign to the next batch. Monotonically increasing, starting from 0.
-     */
-    private transient long nextBatchSequenceNumber;
-
-    /**
-     * The sequence number of the next batch whose results should be emitted. Used to ensure
-     * strictly ordered output emission.
-     */
-    private transient long nextExpectedSequenceNumber;
-
-    /**
-     * Pending results buffer. Maps batch sequence number to completed results. Results are held
-     * here until all preceding batches have been emitted.
-     */
-    private transient Map<Long, Collection<OUT>> pendingResults;
+    private transient Deque<ResultSlot<OUT>> resultQueue;
 
     /**
      * Creates an OrderedAsyncBatchWaitOperator with size-based batching only (no timeout).
@@ -180,181 +100,90 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
             int maxBatchSize,
             long batchTimeoutMs,
             @Nonnull MailboxExecutor mailboxExecutor) {
-        Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
-        this.asyncBatchFunction = Preconditions.checkNotNull(asyncBatchFunction);
-        this.maxBatchSize = maxBatchSize;
-        this.batchTimeoutMs = batchTimeoutMs;
-        this.mailboxExecutor = Preconditions.checkNotNull(mailboxExecutor);
-
-        // Setup the operator using parameters
-        setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+        super(parameters, asyncBatchFunction, maxBatchSize, batchTimeoutMs, mailboxExecutor);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-        this.buffer = new ArrayList<>(maxBatchSize);
-        this.inFlightCount = 0;
-        this.currentBatchStartTime = 0L;
-        this.timerRegistered = false;
-
-        // Initialize ordered emission state
-        this.nextBatchSequenceNumber = 0L;
-        this.nextExpectedSequenceNumber = 0L;
-        this.pendingResults = new TreeMap<>();
+        this.resultQueue = new ArrayDeque<>();
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) throws Exception {
-        // If buffer is empty and timeout is enabled, record batch start time and register timer
-        if (buffer.isEmpty() && isTimeoutEnabled()) {
-            currentBatchStartTime = getProcessingTimeService().getCurrentProcessingTime();
-            registerBatchTimer();
-        }
-
-        buffer.add(element.getValue());
-
-        // Size-triggered flush: cancel pending timer and flush
-        if (buffer.size() >= maxBatchSize) {
-            flushBuffer();
-        }
-    }
-
-    /**
-     * Callback when processing time timer fires. Flushes the buffer if non-empty.
-     *
-     * @param timestamp The timestamp for which the timer was registered
-     */
-    @Override
-    public void onProcessingTime(long timestamp) throws Exception {
-        // Timer fired - clear timer state first
-        timerRegistered = false;
-
-        // Flush buffer if non-empty (timeout-triggered flush)
-        if (!buffer.isEmpty()) {
-            flushBuffer();
-        }
-    }
-
-    /** Flush the current buffer by invoking the async batch function. */
-    private void flushBuffer() throws Exception {
-        if (buffer.isEmpty()) {
-            return;
-        }
-
-        // Clear timer state since we're flushing the batch
-        clearTimerState();
-
-        // Create a copy of the buffer and clear it for new incoming elements
-        List<IN> batch = new ArrayList<>(buffer);
-        buffer.clear();
-
-        // Assign sequence number to this batch and increment counter
-        long batchSequenceNumber = nextBatchSequenceNumber++;
-
-        // Increment in-flight counter
-        inFlightCount++;
-
-        // Create result handler for this batch with its sequence number
-        OrderedBatchResultHandler resultHandler =
-                new OrderedBatchResultHandler(batchSequenceNumber);
-
-        // Invoke the async batch function
-        asyncBatchFunction.asyncInvokeBatch(batch, resultHandler);
+    protected ResultFuture<OUT> createResultHandler(List<IN> batch) {
+        ResultSlot<OUT> slot = new ResultSlot<>();
+        resultQueue.addLast(slot);
+        return new OrderedBatchResultHandler(slot);
     }
 
     @Override
     public void endInput() throws Exception {
-        // Flush any remaining elements in the buffer
         flushBuffer();
 
-        // Wait for all in-flight async operations to complete and emit results in order
-        while (inFlightCount > 0 || !pendingResults.isEmpty()) {
+        while (inFlightCount > 0 || !resultQueue.isEmpty()) {
             mailboxExecutor.yield();
         }
     }
 
-    @Override
-    public void close() throws Exception {
-        super.close();
-    }
-
-    // ================================================================================
-    //  Timer management methods
-    // ================================================================================
-
-    /** Check if timeout-based batching is enabled. */
-    private boolean isTimeoutEnabled() {
-        return batchTimeoutMs > NO_TIMEOUT;
-    }
-
-    /** Register a processing time timer for the current batch. */
-    private void registerBatchTimer() {
-        if (!timerRegistered && isTimeoutEnabled()) {
-            long fireTime = currentBatchStartTime + batchTimeoutMs;
-            getProcessingTimeService().registerTimer(fireTime, this);
-            timerRegistered = true;
-        }
-    }
-
     /**
-     * Clear timer state. Note: We don't explicitly cancel the timer because: 1. The timer callback
-     * checks buffer state before flushing 2. Cancelling timers has overhead 3. Timer will be
-     * ignored if buffer is empty when it fires
+     * Drain all consecutive completed slots from the head of the queue and emit their results. Runs
+     * on the mailbox thread.
      */
-    private void clearTimerState() {
-        timerRegistered = false;
-        currentBatchStartTime = 0L;
-    }
-
-    // ================================================================================
-    //  Ordered emission methods
-    // ================================================================================
-
-    /**
-     * Try to emit results in order. Called when a batch completes. Emits all consecutive completed
-     * batches starting from nextExpectedSequenceNumber.
-     */
-    private void tryEmitInOrder() {
-        // Emit results in strict sequence order
-        while (pendingResults.containsKey(nextExpectedSequenceNumber)) {
-            Collection<OUT> results = pendingResults.remove(nextExpectedSequenceNumber);
-
-            // Emit all results from this batch
-            for (OUT result : results) {
+    private void drainInOrder() {
+        while (!resultQueue.isEmpty()) {
+            ResultSlot<OUT> head = resultQueue.peekFirst();
+            if (!head.isDone()) {
+                break;
+            }
+            resultQueue.pollFirst();
+            for (OUT result : head.getResults()) {
                 output.collect(new StreamRecord<>(result));
             }
-
-            // Move to next expected sequence number
-            nextExpectedSequenceNumber++;
         }
     }
 
-    /** Returns the current buffer size. Visible for testing. */
-    int getBufferSize() {
-        return buffer != null ? buffer.size() : 0;
+    /** Returns the number of pending result slots. Visible for testing. */
+    int getPendingResultsCount() {
+        return resultQueue != null ? resultQueue.size() : 0;
     }
 
-    /** Returns the number of pending result batches. Visible for testing. */
-    int getPendingResultsCount() {
-        return pendingResults != null ? pendingResults.size() : 0;
+    // ================================================================================
+    //  Internal classes
+    // ================================================================================
+
+    /**
+     * A pre-allocated slot in the result FIFO queue. The slot transitions from "pending" to "done"
+     * exactly once when the batch completes.
+     */
+    private static class ResultSlot<OUT> {
+        private Collection<OUT> results;
+        private boolean done = false;
+
+        void complete(Collection<OUT> results) {
+            this.results = results;
+            this.done = true;
+        }
+
+        boolean isDone() {
+            return done;
+        }
+
+        Collection<OUT> getResults() {
+            return results;
+        }
     }
 
     /**
-     * A handler for the results of a batch async invocation that maintains ordering.
-     *
-     * <p>Results are stored in the pending results buffer and emitted in sequence order.
+     * A {@link ResultFuture} implementation that fills a {@link ResultSlot} and triggers in-order
+     * emission.
      */
     private class OrderedBatchResultHandler implements ResultFuture<OUT> {
 
-        /** Guard against multiple completions. */
         private final AtomicBoolean completed = new AtomicBoolean(false);
+        private final ResultSlot<OUT> slot;
 
-        /** The sequence number of this batch. */
-        private final long batchSequenceNumber;
-
-        OrderedBatchResultHandler(long batchSequenceNumber) {
-            this.batchSequenceNumber = batchSequenceNumber;
+        OrderedBatchResultHandler(ResultSlot<OUT> slot) {
+            this.slot = slot;
         }
 
         @Override
@@ -366,10 +195,13 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
                 return;
             }
 
-            // Process results in the mailbox thread
             mailboxExecutor.execute(
-                    () -> processResultsOrdered(results),
-                    "OrderedAsyncBatchWaitOperator#processResultsOrdered");
+                    () -> {
+                        slot.complete(new ArrayList<>(results));
+                        drainInOrder();
+                        inFlightCount--;
+                    },
+                    "OrderedAsyncBatchWaitOperator#complete");
         }
 
         @Override
@@ -378,14 +210,12 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
                 return;
             }
 
-            // Signal failure through the containing task
             getContainingTask()
                     .getEnvironment()
                     .failExternally(new Exception("Async batch operation failed.", error));
 
-            // Decrement in-flight counter in mailbox thread
             mailboxExecutor.execute(
-                    () -> inFlightCount--, "OrderedAsyncBatchWaitOperator#decrementInFlight");
+                    () -> inFlightCount--, "OrderedAsyncBatchWaitOperator#completeExceptionally");
         }
 
         @Override
@@ -400,7 +230,9 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
             mailboxExecutor.execute(
                     () -> {
                         try {
-                            processResultsOrdered(supplier.get());
+                            slot.complete(new ArrayList<>(supplier.get()));
+                            drainInOrder();
+                            inFlightCount--;
                         } catch (Throwable t) {
                             getContainingTask()
                                     .getEnvironment()
@@ -409,24 +241,7 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
                             inFlightCount--;
                         }
                     },
-                    "OrderedAsyncBatchWaitOperator#processResultsFromSupplier");
-        }
-
-        /**
-         * Process results with ordering guarantee.
-         *
-         * <p>Results are added to the pending buffer and then we try to emit all consecutive
-         * completed batches in order.
-         */
-        private void processResultsOrdered(Collection<OUT> results) {
-            // Store results in pending buffer keyed by sequence number
-            pendingResults.put(batchSequenceNumber, new ArrayList<>(results));
-
-            // Try to emit all consecutive completed batches
-            tryEmitInOrder();
-
-            // Decrement in-flight counter
-            inFlightCount--;
+                    "OrderedAsyncBatchWaitOperator#completeFromSupplier");
         }
     }
 }

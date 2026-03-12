@@ -67,7 +67,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>Future enhancements may include:
  *
  * <ul>
- *   <li>Ordered mode support
  *   <li>Event-time based batching
  *   <li>Multiple inflight batches
  *   <li>Retry logic
@@ -84,32 +83,28 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     private static final long serialVersionUID = 1L;
 
     /** Constant indicating timeout is disabled. */
-    private static final long NO_TIMEOUT = 0L;
+    protected static final long NO_TIMEOUT = 0L;
 
     /** The async batch function to invoke. */
-    private final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
+    protected final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
 
     /** Maximum batch size before triggering async invocation. */
-    private final int maxBatchSize;
+    protected final int maxBatchSize;
 
     /**
      * Batch timeout in milliseconds. When positive, a timer is registered to flush the batch after
      * this duration since the first buffered element. A value <= 0 disables timeout-based batching.
      */
-    private final long batchTimeoutMs;
+    protected final long batchTimeoutMs;
 
     /** Buffer for incoming stream records. */
-    private transient List<IN> buffer;
+    protected transient List<IN> buffer;
 
     /** Mailbox executor for processing async results on the main thread. */
-    private final transient MailboxExecutor mailboxExecutor;
+    protected final transient MailboxExecutor mailboxExecutor;
 
     /** Counter for in-flight async operations. */
-    private transient int inFlightCount;
-
-    // ================================================================================
-    //  Timer state fields for timeout-based batching
-    // ================================================================================
+    protected transient int inFlightCount;
 
     /**
      * The processing time when the current batch started (i.e., when first element was added to
@@ -157,7 +152,6 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         this.batchTimeoutMs = batchTimeoutMs;
         this.mailboxExecutor = Preconditions.checkNotNull(mailboxExecutor);
 
-        // Setup the operator using parameters
         setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
     }
 
@@ -172,7 +166,6 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        // If buffer is empty and timeout is enabled, record batch start time and register timer
         if (buffer.isEmpty() && isTimeoutEnabled()) {
             currentBatchStartTime = getProcessingTimeService().getCurrentProcessingTime();
             registerBatchTimer();
@@ -180,57 +173,51 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
         buffer.add(element.getValue());
 
-        // Size-triggered flush: cancel pending timer and flush
         if (buffer.size() >= maxBatchSize) {
             flushBuffer();
         }
     }
 
-    /**
-     * Callback when processing time timer fires. Flushes the buffer if non-empty.
-     *
-     * @param timestamp The timestamp for which the timer was registered
-     */
     @Override
     public void onProcessingTime(long timestamp) throws Exception {
-        // Timer fired - clear timer state first
         timerRegistered = false;
 
-        // Flush buffer if non-empty (timeout-triggered flush)
         if (!buffer.isEmpty()) {
             flushBuffer();
         }
     }
 
     /** Flush the current buffer by invoking the async batch function. */
-    private void flushBuffer() throws Exception {
+    protected void flushBuffer() throws Exception {
         if (buffer.isEmpty()) {
             return;
         }
 
-        // Clear timer state since we're flushing the batch
         clearTimerState();
 
-        // Create a copy of the buffer and clear it for new incoming elements
         List<IN> batch = new ArrayList<>(buffer);
         buffer.clear();
 
-        // Increment in-flight counter
         inFlightCount++;
 
-        // Create result handler for this batch
-        BatchResultHandler resultHandler = new BatchResultHandler();
+        asyncBatchFunction.asyncInvokeBatch(batch, createResultHandler(batch));
+    }
 
-        // Invoke the async batch function
-        asyncBatchFunction.asyncInvokeBatch(batch, resultHandler);
+    /**
+     * Create a result handler for the given batch. Subclasses can override this to provide custom
+     * result handling (e.g., ordered emission).
+     *
+     * @param batch The batch of input elements
+     * @return A ResultFuture to handle async results
+     */
+    protected ResultFuture<OUT> createResultHandler(List<IN> batch) {
+        return new BatchResultHandler();
     }
 
     @Override
     public void endInput() throws Exception {
-        // Flush any remaining elements in the buffer
         flushBuffer();
 
-        // Wait for all in-flight async operations to complete
         while (inFlightCount > 0) {
             mailboxExecutor.yield();
         }
@@ -241,12 +228,8 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         super.close();
     }
 
-    // ================================================================================
-    //  Timer management methods
-    // ================================================================================
-
     /** Check if timeout-based batching is enabled. */
-    private boolean isTimeoutEnabled() {
+    protected boolean isTimeoutEnabled() {
         return batchTimeoutMs > NO_TIMEOUT;
     }
 
@@ -277,7 +260,6 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     /** A handler for the results of a batch async invocation. */
     private class BatchResultHandler implements ResultFuture<OUT> {
 
-        /** Guard against multiple completions. */
         private final AtomicBoolean completed = new AtomicBoolean(false);
 
         @Override
@@ -289,7 +271,6 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
                 return;
             }
 
-            // Process results in the mailbox thread
             mailboxExecutor.execute(
                     () -> processResults(results), "AsyncBatchWaitOperator#processResults");
         }
@@ -300,12 +281,10 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
                 return;
             }
 
-            // Signal failure through the containing task
             getContainingTask()
                     .getEnvironment()
                     .failExternally(new Exception("Async batch operation failed.", error));
 
-            // Decrement in-flight counter in mailbox thread
             mailboxExecutor.execute(
                     () -> inFlightCount--, "AsyncBatchWaitOperator#decrementInFlight");
         }
@@ -335,11 +314,9 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         }
 
         private void processResults(Collection<OUT> results) {
-            // Emit all results downstream
             for (OUT result : results) {
                 output.collect(new StreamRecord<>(result));
             }
-            // Decrement in-flight counter
             inFlightCount--;
         }
     }

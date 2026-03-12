@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -61,22 +62,27 @@ class OrderedAsyncBatchWaitOperatorTest {
      *
      * <p>Output MUST be: [1, 2, 3, 4, 5] (same as input order)
      */
+    /**
+     * Test strict ordering guarantee even when async results complete out of order.
+     *
+     * <p>Inputs: [1, 2, 3, 4] with maxBatchSize=2
+     *
+     * <p>Batch 0=[1,2] and batch 1=[3,4] are both size-triggered. Batch 1 completes first (via
+     * external future completion), but output MUST still be [1, 2, 3, 4].
+     */
     @Test
     void testStrictOrderingGuarantee() throws Exception {
-        final int maxBatchSize = 3;
+        final int maxBatchSize = 2;
         final List<CompletableFuture<Void>> batchFutures = new CopyOnWriteArrayList<>();
-        final AtomicInteger batchIndex = new AtomicInteger(0);
+        // Each size-triggered batch registers a latch entry synchronously during processElement
+        final CountDownLatch batchesRegistered = new CountDownLatch(2);
 
         AsyncBatchFunction<Integer, Integer> function =
                 (inputs, resultFuture) -> {
-                    int currentBatch = batchIndex.getAndIncrement();
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     batchFutures.add(future);
-
-                    // Store input for later completion
+                    batchesRegistered.countDown();
                     List<Integer> inputCopy = new ArrayList<>(inputs);
-
-                    // Complete asynchronously when future is completed externally
                     future.thenRun(() -> resultFuture.complete(inputCopy));
                 };
 
@@ -85,38 +91,28 @@ class OrderedAsyncBatchWaitOperatorTest {
 
             testHarness.open();
 
-            // Process 5 elements: batch 0 = [1,2,3], batch 1 = [4,5]
-            for (int i = 1; i <= 5; i++) {
+            // Both batches are size-triggered synchronously during processElement calls
+            for (int i = 1; i <= 4; i++) {
                 testHarness.processElement(new StreamRecord<>(i, i));
             }
 
-            // Trigger end of input to flush remaining elements
-            // This creates batch 1 with [4, 5]
-            // At this point we have 2 batches pending
+            // Both batches are already registered at this point (size-triggered synchronously)
+            batchesRegistered.await(10, TimeUnit.SECONDS);
 
-            // Wait for batches to be created
-            while (batchFutures.size() < 2) {
-                Thread.sleep(10);
-            }
-
-            // Complete batches in REVERSE order (batch 1 first, then batch 0)
-            // This tests that output is still in original order
-            batchFutures.get(1).complete(null); // Complete batch [4, 5] first
-            Thread.sleep(50); // Give time for async processing
-
-            batchFutures.get(0).complete(null); // Then complete batch [1, 2, 3]
+            // Complete batches in REVERSE order to verify output is still in input order
+            batchFutures.get(1).complete(null); // Complete batch [3, 4] first
+            batchFutures.get(0).complete(null); // Then complete batch [1, 2]
 
             testHarness.endInput();
 
-            // Verify outputs are in strict input order: [1, 2, 3, 4, 5]
+            // Verify outputs are in strict input order: [1, 2, 3, 4]
             List<Integer> outputs =
                     testHarness.getOutput().stream()
                             .filter(e -> e instanceof StreamRecord)
                             .map(e -> ((StreamRecord<Integer>) e).getValue())
                             .collect(Collectors.toList());
 
-            // MUST be in exact input order, not completion order
-            assertThat(outputs).containsExactly(1, 2, 3, 4, 5);
+            assertThat(outputs).containsExactly(1, 2, 3, 4);
         }
     }
 
