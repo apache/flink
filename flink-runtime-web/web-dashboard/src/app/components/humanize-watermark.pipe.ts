@@ -53,8 +53,9 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
 
       // Use Intl.DateTimeFormat for proper timezone handling including DST
       // This native browser API automatically handles daylight saving time transitions
+      // Use undefined as locale to respect the user's browser locale settings
       // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat
-      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      const dateFormatter = new Intl.DateTimeFormat(undefined, {
         timeZone: timezone,
         year: 'numeric',
         month: '2-digit',
@@ -67,7 +68,7 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
 
       // Get timezone abbreviation (e.g., PST, PDT, EST, EDT)
       // The abbreviation automatically reflects DST status (e.g., PST vs PDT)
-      const timezoneFormatter = new Intl.DateTimeFormat('en-US', {
+      const timezoneFormatter = new Intl.DateTimeFormat(undefined, {
         timeZone: timezone,
         timeZoneName: 'short'
       });
