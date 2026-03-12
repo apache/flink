@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
@@ -44,6 +45,7 @@ import org.apache.flink.types.RowKind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Streaming multi-way join operator which supports inner join and left outer join, right joins are
@@ -339,6 +341,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         implements MultipleInputStreamOperator<RowData> {
     private static final long serialVersionUID = 1L;
 
+    private static final Set<String> HEAP_STATE_BACKENDS = Set.of("hashmap");
     private final List<JoinInputSideSpec> inputSpecs;
     private final List<FlinkJoinType> joinTypes;
     private final List<RowType> inputTypes;
@@ -609,6 +612,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
     }
 
+    private boolean isHeapBackend() {
+        KeyedStateBackend<?> backend = getKeyedStateBackend();
+        String backendName = backend.getBackendTypeIdentifier();
+        return HEAP_STATE_BACKENDS.contains(backendName);
+    }
+
     private static RowData newJoinedRowData(int depth, RowData joinedRowData, RowData record) {
         RowData newJoinedRowData;
         if (depth == 0) {
@@ -806,6 +815,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         } else {
             throw new RuntimeException(
                     "Keyed state store not found when initializing keyed state store handlers.");
+        }
+
+        boolean prohibitReuseRow = isHeapBackend();
+        if (prohibitReuseRow) {
+            this.keyExtractor.requiresKeyDeepCopy();
         }
 
         this.stateHandlers = new ArrayList<>(inputSpecs.size());
