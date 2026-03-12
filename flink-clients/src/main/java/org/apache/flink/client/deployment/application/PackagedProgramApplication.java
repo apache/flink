@@ -393,6 +393,21 @@ public class PackagedProgramApplication extends AbstractApplication {
     }
 
     @VisibleForTesting
+    PermanentBlobKey getUserJarBlobKey() {
+        return userJarBlobKey;
+    }
+
+    @VisibleForTesting
+    Collection<JobInfo> getRecoveredJobInfos() {
+        return recoveredJobInfos;
+    }
+
+    @VisibleForTesting
+    Collection<JobInfo> getRecoveredTerminalJobInfos() {
+        return recoveredTerminalJobInfos;
+    }
+
+    @VisibleForTesting
     ScheduledFuture<?> getApplicationExecutionFuture() {
         return applicationExecutionTask;
     }

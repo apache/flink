@@ -122,7 +122,8 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
                 handleFatalError,
                 enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
-                shutDownOnFinish);
+                shutDownOnFinish,
+                userJarBlobKey);
     }
 
     private List<URL> getClasspaths() {
