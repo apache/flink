@@ -350,7 +350,7 @@ public class DateTimeUtils {
 
     private static TimestampData epochToTimestampData(long epoch, int precision) {
         long factor = (long) Math.pow(10, precision);
-        long epochSeconds = epoch / factor;
+        long epochSeconds = Math.floorDiv(epoch, factor);
 
         if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
             return null;
