@@ -33,6 +33,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.ConfigurationNotAllowedMessage;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -71,10 +72,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     private final boolean suppressSysout;
 
-    private final boolean enforceSingleJobExecution;
     private final Configuration clusterConfiguration;
 
-    private int jobCounter;
+    private final int jobCountLimit;
+    private final int streamingJobCountLimit;
+    private int jobCount;
+    private int streamingJobCount;
 
     private final boolean programConfigEnabled;
     private final Collection<String> programConfigWildcards;
@@ -96,18 +99,21 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 configuration,
                 configuration,
                 userCodeClassLoader,
-                enforceSingleJobExecution,
+                enforceSingleJobExecution ? 1 : Integer.MAX_VALUE,
+                enforceSingleJobExecution ? 1 : Integer.MAX_VALUE,
                 suppressSysout,
                 true,
                 Collections.emptyList());
     }
 
+    @Internal
     public StreamContextEnvironment(
             final PipelineExecutorServiceLoader executorServiceLoader,
             final Configuration clusterConfiguration,
             final Configuration configuration,
             final ClassLoader userCodeClassLoader,
-            final boolean enforceSingleJobExecution,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean suppressSysout,
             final boolean programConfigEnabled,
             final Collection<String> programConfigWildcards) {
@@ -116,7 +122,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 clusterConfiguration,
                 configuration,
                 userCodeClassLoader,
-                enforceSingleJobExecution,
+                jobCountLimit,
+                streamingJobCountLimit,
                 suppressSysout,
                 programConfigEnabled,
                 programConfigWildcards,
@@ -131,7 +138,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final Configuration clusterConfiguration,
             final Configuration configuration,
             final ClassLoader userCodeClassLoader,
-            final boolean enforceSingleJobExecution,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean suppressSysout,
             final boolean programConfigEnabled,
             final Collection<String> programConfigWildcards,
@@ -140,9 +148,11 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final Collection<JobInfo> allRecoveredJobInfos) {
         super(executorServiceLoader, configuration, userCodeClassLoader);
         this.suppressSysout = suppressSysout;
-        this.enforceSingleJobExecution = enforceSingleJobExecution;
         this.clusterConfiguration = clusterConfiguration;
-        this.jobCounter = 0;
+        this.jobCountLimit = jobCountLimit;
+        this.streamingJobCountLimit = streamingJobCountLimit;
+        this.jobCount = 0;
+        this.streamingJobCount = 0;
         this.programConfigEnabled = programConfigEnabled;
         this.programConfigWildcards = programConfigWildcards;
         this.applicationId = applicationId;
@@ -242,7 +252,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     @Override
     public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
         checkNotAllowedConfigurations();
-        validateAllowedExecution();
+        validateAllowedExecution(streamGraph);
         if (applicationId != null) {
             streamGraph.setApplicationId(applicationId);
         }
@@ -260,12 +270,22 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         return jobClient;
     }
 
-    private void validateAllowedExecution() {
-        if (enforceSingleJobExecution && jobCounter > 0) {
-            throw new FlinkRuntimeException(
-                    "Cannot have more than one execute() or executeAsync() call in a single environment.");
+    private void validateAllowedExecution(StreamGraph streamGraph) {
+        if (streamGraph.getJobType() == JobType.STREAMING) {
+            streamingJobCount++;
         }
-        jobCounter++;
+        jobCount++;
+
+        if (streamingJobCount > streamingJobCountLimit) {
+            throw new FlinkRuntimeException(
+                    "Cannot have more than "
+                            + streamingJobCountLimit
+                            + " streaming jobs in a single environment.");
+        }
+        if (jobCount > jobCountLimit) {
+            throw new FlinkRuntimeException(
+                    "Cannot have more than " + jobCountLimit + " jobs in a single environment.");
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -274,7 +294,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final PipelineExecutorServiceLoader executorServiceLoader,
             final Configuration clusterConfiguration,
             final ClassLoader userCodeClassLoader,
-            final boolean enforceSingleJobExecution,
+            final int jobCountLimit,
+            final int streamingJobCountLimit,
             final boolean suppressSysout,
             @Nullable final ApplicationID applicationId,
             @Nullable final JarInfo userJarInfo,
@@ -293,7 +314,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                             clusterConfiguration,
                             mergedEnvConfig,
                             userCodeClassLoader,
-                            enforceSingleJobExecution,
+                            jobCountLimit,
+                            streamingJobCountLimit,
                             suppressSysout,
                             programConfigEnabled,
                             programConfigWildcards,

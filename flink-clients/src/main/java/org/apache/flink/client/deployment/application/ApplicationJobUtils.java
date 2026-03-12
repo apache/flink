@@ -20,9 +20,11 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -125,10 +127,27 @@ public class ApplicationJobUtils {
         return str;
     }
 
-    public static boolean allowExecuteMultipleJobs(Configuration config) {
-        final Optional<String> configuredJobId =
-                config.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
-        return !HighAvailabilityMode.isHighAvailabilityModeActivated(config)
-                && configuredJobId.isEmpty();
+    /**
+     * Returns the job count limits for the given configuration.
+     *
+     * @param config The configuration to get the job count limits from
+     * @return A tuple of (total job count limit, streaming job count limit)
+     */
+    public static Tuple2<Integer, Integer> getJobCountLimits(Configuration config) {
+        if (config.get(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR)) {
+            // When enabled, this option ensures that if the application fails before any job is
+            // submitted, a synthetic failed job is submitted for diagnostics. To provide a stable
+            // and predictable job ID, only a single job is allowed in the main method. Therefore,
+            // we enforce single job execution when this option is enabled.
+            return new Tuple2<>(1, 1);
+        }
+
+        int jobCountLimit = Integer.MAX_VALUE;
+        int streamingJobCountLimit =
+                HighAvailabilityMode.isHighAvailabilityModeActivated(config)
+                        ? 1
+                        : Integer.MAX_VALUE;
+
+        return new Tuple2<>(jobCountLimit, streamingJobCountLimit);
     }
 }

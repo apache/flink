@@ -131,8 +131,9 @@ public class JarRunApplicationHandler
                                             applicationId,
                                             program,
                                             effectiveConfiguration,
+                                            Integer.MAX_VALUE,
+                                            1,
                                             false,
-                                            true,
                                             false,
                                             false,
                                             jarInfo);

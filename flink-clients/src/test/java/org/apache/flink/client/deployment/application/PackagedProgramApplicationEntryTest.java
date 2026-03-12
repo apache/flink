@@ -91,7 +91,14 @@ class PackagedProgramApplicationEntryTest {
     void testConstructionWithoutJarBlob() {
         PackagedProgramApplication application =
                 new PackagedProgramApplication(
-                        applicationId, program, config, true, false, false, true);
+                        applicationId,
+                        program,
+                        config,
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
+                        true,
+                        false,
+                        true);
         ApplicationStoreEntry entry = application.getApplicationStoreEntry().orElse(null);
 
         assertNull(entry);
@@ -107,7 +114,15 @@ class PackagedProgramApplicationEntryTest {
         JarInfo userJarInfo = new JarInfo(jarFile.getName(), blobKey);
         PackagedProgramApplication application =
                 new PackagedProgramApplication(
-                        applicationId, program, config, true, false, false, true, userJarInfo);
+                        applicationId,
+                        program,
+                        config,
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
+                        true,
+                        false,
+                        true,
+                        userJarInfo);
         ApplicationStoreEntry entry = application.getApplicationStoreEntry().orElse(null);
 
         assertInstanceOf(PackagedProgramApplicationEntry.class, entry);
@@ -178,8 +193,9 @@ class PackagedProgramApplicationEntryTest {
                 programArgs,
                 applicationId,
                 applicationName,
+                Integer.MAX_VALUE,
+                Integer.MAX_VALUE,
                 true,
-                false,
                 false,
                 true);
     }
