@@ -776,7 +776,16 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
   }
 
   @TestTemplate
-  def testLookupJoinAfterJoin(): Unit = {
+  def testLookupJoinDimTableWithPkAfterJoin(): Unit = {
+    testLookupJoinAfterJoinInner(true)
+  }
+
+  @TestTemplate
+  def testLookupJoinDimTableWithoutPkAfterJoin(): Unit = {
+    testLookupJoinAfterJoinInner(false)
+  }
+
+  def testLookupJoinAfterJoinInner(dimTableContainsPK: Boolean): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
       changelogRow("+I", Double.box(2.0), Int.box(2), LocalDateTime.of(2022, 2, 2, 2, 2, 2)),
@@ -801,7 +810,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
 
     tEnv.executeSql(s"""
                        |create table dim (
-                       |  id int primary key not enforced,
+                       |  id int ${if (dimTableContainsPK) "primary key not enforced" else ""},
                        |  dim_value string
                        |) with (
                        |  'connector' = 'values',
