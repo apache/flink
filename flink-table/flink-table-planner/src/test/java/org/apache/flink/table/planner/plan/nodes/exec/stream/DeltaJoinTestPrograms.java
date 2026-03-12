@@ -99,7 +99,8 @@ public class DeltaJoinTestPrograms {
                     .runSql(
                             "insert into snk "
                                     + "select * from leftSrc join rightSrc "
-                                    + "on a1 = b1")
+                                    + "on a1 = b1 "
+                                    + "on conflict do deduplicate")
                     .build();
 
     public static final TableTestProgram DELTA_JOIN_WITH_JOIN_KEY_CONTAINS_INDEX =
@@ -115,7 +116,8 @@ public class DeltaJoinTestPrograms {
                     .runSql(
                             "insert into snk "
                                     + "select * from leftSrc join rightSrc "
-                                    + "on a1 = b1 and a0 = b0")
+                                    + "on a1 = b1 and a0 = b0 "
+                                    + "on conflict do deduplicate")
                     .build();
 
     public static final TableTestProgram DELTA_JOIN_WITH_NON_EQUIV_CONDITION =
@@ -166,7 +168,8 @@ public class DeltaJoinTestPrograms {
                     .runSql(
                             "insert into snk "
                                     + "select * from leftSrc join rightSrc "
-                                    + "on a1 = b1 and a2 <> b2")
+                                    + "on a1 = b1 and a2 <> b2 "
+                                    + "on conflict do deduplicate")
                     .build();
 
     public static final TableTestProgram DELTA_JOIN_WITH_CALC_ON_SOURCE =
@@ -197,7 +200,8 @@ public class DeltaJoinTestPrograms {
                                     + "   select b0, b1, b1 + 1 as new_b1, b2 from rightSrc "
                                     + "       where b0 = cast(3.0 as double) or b0 = cast(5.0 as double) "
                                     + ") "
-                                    + "on a1 = b1 and a0 = b0")
+                                    + "on a1 = b1 and a0 = b0 "
+                                    + "on conflict do deduplicate")
                     .build();
 
     public static final TableTestProgram DELTA_JOIN_WITH_CALC_ON_SOURCE_AND_FILTER_PUSHED_DOWN =
