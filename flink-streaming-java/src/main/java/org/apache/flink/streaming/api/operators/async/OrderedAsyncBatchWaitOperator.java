@@ -215,7 +215,13 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AsyncBatchWaitOperat
                     .failExternally(new Exception("Async batch operation failed.", error));
 
             mailboxExecutor.execute(
-                    () -> inFlightCount--, "OrderedAsyncBatchWaitOperator#completeExceptionally");
+                    () -> {
+                        // Mark slot as done with empty results so the queue can be drained
+                        slot.complete(new ArrayList<>());
+                        drainInOrder();
+                        inFlightCount--;
+                    },
+                    "OrderedAsyncBatchWaitOperator#completeExceptionally");
         }
 
         @Override

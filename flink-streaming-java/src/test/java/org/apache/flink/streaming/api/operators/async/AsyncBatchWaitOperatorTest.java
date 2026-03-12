@@ -144,6 +144,7 @@ class AsyncBatchWaitOperatorTest {
         try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
                 createTestHarness(function, maxBatchSize)) {
 
+            testHarness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
             testHarness.open();
 
             // Process 2 elements to trigger a batch

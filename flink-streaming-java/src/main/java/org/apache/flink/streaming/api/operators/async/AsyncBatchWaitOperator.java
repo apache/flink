@@ -146,13 +146,12 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             int maxBatchSize,
             long batchTimeoutMs,
             @Nonnull MailboxExecutor mailboxExecutor) {
+        super(parameters);
         Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
         this.asyncBatchFunction = Preconditions.checkNotNull(asyncBatchFunction);
         this.maxBatchSize = maxBatchSize;
         this.batchTimeoutMs = batchTimeoutMs;
         this.mailboxExecutor = Preconditions.checkNotNull(mailboxExecutor);
-
-        setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
     }
 
     @Override
