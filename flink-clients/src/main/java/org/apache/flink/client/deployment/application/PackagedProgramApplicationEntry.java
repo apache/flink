@@ -50,9 +50,11 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
 
     private final String applicationName;
 
-    private final boolean handleFatalError;
+    private final int jobCountLimit;
 
-    private final boolean enforceSingleJobExecution;
+    private final int streamingJobCountLimit;
+
+    private final boolean handleFatalError;
 
     private final boolean submitFailedJobOnApplicationError;
 
@@ -65,8 +67,9 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
             String[] programArgs,
             ApplicationID applicationId,
             String applicationName,
+            int jobCountLimit,
+            int streamingJobCountLimit,
             boolean handleFatalError,
-            boolean enforceSingleJobExecution,
             boolean submitFailedJobOnApplicationError,
             boolean shutDownOnFinish) {
         this.configuration = configuration;
@@ -75,8 +78,9 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
         this.programArgs = programArgs;
         this.applicationId = applicationId;
         this.applicationName = applicationName;
+        this.jobCountLimit = jobCountLimit;
+        this.streamingJobCountLimit = streamingJobCountLimit;
         this.handleFatalError = handleFatalError;
-        this.enforceSingleJobExecution = enforceSingleJobExecution;
         this.submitFailedJobOnApplicationError = submitFailedJobOnApplicationError;
         this.shutDownOnFinish = shutDownOnFinish;
     }
@@ -120,8 +124,9 @@ public class PackagedProgramApplicationEntry implements ApplicationStoreEntry {
                 recoveredJobInfos,
                 recoveredTerminalJobInfos,
                 configuration,
+                jobCountLimit,
+                streamingJobCountLimit,
                 handleFatalError,
-                enforceSingleJobExecution,
                 submitFailedJobOnApplicationError,
                 shutDownOnFinish,
                 userJarInfo);

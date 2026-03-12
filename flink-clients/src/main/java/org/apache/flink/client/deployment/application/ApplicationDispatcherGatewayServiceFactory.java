@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.Configuration;
@@ -105,8 +106,8 @@ public class ApplicationDispatcherGatewayServiceFactory
         final List<JobInfo> recoveredTerminalJobInfos =
                 getRecoveredTerminalJobInfos(recoveredDirtyJobResults);
 
-        final boolean allowExecuteMultipleJobs =
-                ApplicationJobUtils.allowExecuteMultipleJobs(configuration);
+        final Tuple2<Integer, Integer> jobCountLimits =
+                ApplicationJobUtils.getJobCountLimits(configuration);
         ApplicationJobUtils.maybeFixIds(configuration);
         final ApplicationID applicationId =
                 configuration
@@ -121,8 +122,9 @@ public class ApplicationDispatcherGatewayServiceFactory
                         recoveredJobInfos,
                         recoveredTerminalJobInfos,
                         configuration,
+                        jobCountLimits.f0,
+                        jobCountLimits.f1,
                         true,
-                        !allowExecuteMultipleJobs,
                         configuration.get(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR),
                         configuration.get(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH));
 
