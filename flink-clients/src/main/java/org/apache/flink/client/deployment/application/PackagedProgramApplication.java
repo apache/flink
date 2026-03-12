@@ -704,12 +704,9 @@ public class PackagedProgramApplication extends AbstractApplication {
                     getAllRecoveredJobInfos());
 
             if (applicationJobIds.isEmpty()) {
-                jobIdsFuture.completeExceptionally(
-                        new ApplicationExecutionException(
-                                "The application contains no execute() calls."));
-            } else {
-                jobIdsFuture.complete(applicationJobIds);
+                LOG.info("The application contains no execute() calls.");
             }
+            jobIdsFuture.complete(applicationJobIds);
         } catch (Throwable t) {
             // If we're running in a single job execution mode, it's safe to consider re-submission
             // of an already finished a success.
