@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.data.GenericRowData;
@@ -36,72 +35,23 @@ import java.util.Collection;
  * <p>This class provides built-in metrics for monitoring model inference performance, including:
  *
  * <ul>
- *   <li>inference_requests: Total number of inference requests
- *   <li>inference_requests_success: Number of successful inference requests
- *   <li>inference_requests_failure: Number of failed inference requests
- *   <li>inference_latency: Histogram of inference latency in milliseconds
- *   <li>inference_rows_output: Total number of output rows from inference
+ *   <li>requests: Total number of inference requests
+ *   <li>requests_success: Number of successful inference requests
+ *   <li>requests_failure: Number of failed inference requests
+ *   <li>latency: Histogram of inference latency in milliseconds
+ *   <li>rows_output: Total number of output rows from inference
  * </ul>
  */
 @PublicEvolving
 public abstract class PredictFunction extends TableFunction<RowData> {
 
-    // ------------------------------------------------------------------------
-    // Metrics
-    // ------------------------------------------------------------------------
-
-    /** Counter for total inference requests. */
-    private transient Counter inferenceRequests;
-
-    /** Counter for successful inference requests. */
-    private transient Counter inferenceRequestsSuccess;
-
-    /** Counter for failed inference requests. */
-    private transient Counter inferenceRequestsFailure;
-
-    /** Histogram for inference latency in milliseconds. */
-    private transient Histogram inferenceLatency;
-
-    /** Counter for total output rows from inference. */
-    private transient Counter inferenceRowsOutput;
-
-    // ------------------------------------------------------------------------
-    // Lifecycle Methods
-    // ------------------------------------------------------------------------
+    private transient PredictFunctionMetrics metrics;
 
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        initializeMetrics(context);
-    }
-
-    /**
-     * Initialize metrics for monitoring model inference performance.
-     *
-     * <p>This method creates a metric group named "model_inference" and registers the following
-     * metrics:
-     *
-     * <ul>
-     *   <li>requests: Counter for total inference requests
-     *   <li>requests_success: Counter for successful inference requests
-     *   <li>requests_failure: Counter for failed inference requests
-     *   <li>latency: Histogram for inference latency (milliseconds)
-     *   <li>rows_output: Counter for total output rows
-     * </ul>
-     *
-     * <p>Subclasses can override {@link #createLatencyHistogram(MetricGroup)} to provide a custom
-     * histogram implementation.
-     *
-     * @param context The function context
-     */
-    protected void initializeMetrics(FunctionContext context) {
         MetricGroup metricGroup = context.getMetricGroup().addGroup("model_inference");
-
-        inferenceRequests = metricGroup.counter("requests");
-        inferenceRequestsSuccess = metricGroup.counter("requests_success");
-        inferenceRequestsFailure = metricGroup.counter("requests_failure");
-        inferenceLatency = createLatencyHistogram(metricGroup);
-        inferenceRowsOutput = metricGroup.counter("rows_output");
+        metrics = new PredictFunctionMetrics(metricGroup, createLatencyHistogram(metricGroup));
     }
 
     /**
@@ -112,14 +62,8 @@ public abstract class PredictFunction extends TableFunction<RowData> {
      * @return A Histogram instance, or null to disable latency tracking
      */
     protected Histogram createLatencyHistogram(MetricGroup metricGroup) {
-        // Default: no histogram (return null)
-        // Subclasses can override to provide implementation
         return null;
     }
-
-    // ------------------------------------------------------------------------
-    // Prediction Methods
-    // ------------------------------------------------------------------------
 
     /**
      * Synchronously predict result based on input row.
@@ -131,60 +75,25 @@ public abstract class PredictFunction extends TableFunction<RowData> {
      */
     public abstract Collection<RowData> predict(RowData inputRow);
 
-    /**
-     * Records the inference latency metric.
-     *
-     * @param startTime The start time of the inference request in milliseconds
-     */
-    protected final void recordLatency(long startTime) {
-        if (inferenceLatency != null) {
-            long latency = System.currentTimeMillis() - startTime;
-            inferenceLatency.update(latency);
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // Table Function Evaluation
-    // ------------------------------------------------------------------------
-
     /** Invoke {@link #predict} with metrics tracking and handle exceptions. */
     public final void eval(Object... args) {
         GenericRowData argsData = GenericRowData.of(args);
-
-        // Increment request counter
-        if (inferenceRequests != null) {
-            inferenceRequests.inc();
-        }
-
-        // Record start time
+        metrics.incRequests();
         long startTime = System.currentTimeMillis();
 
         try {
             Collection<RowData> results = predict(argsData);
-
-            // Record success metrics
-            recordLatency(startTime);
-            if (inferenceRequestsSuccess != null) {
-                inferenceRequestsSuccess.inc();
-            }
+            metrics.recordLatency(startTime);
+            metrics.incRequestsSuccess();
 
             if (results == null) {
                 return;
             }
-
-            // Record output rows
-            if (inferenceRowsOutput != null) {
-                inferenceRowsOutput.inc(results.size());
-            }
-
+            metrics.incRowsOutput(results.size());
             results.forEach(this::collect);
         } catch (Exception e) {
-            // Record failure metrics
-            recordLatency(startTime);
-            if (inferenceRequestsFailure != null) {
-                inferenceRequestsFailure.inc();
-            }
-
+            metrics.recordLatency(startTime);
+            metrics.incRequestsFailure();
             throw new FlinkRuntimeException(
                     String.format("Failed to execute prediction with input row %s.", argsData), e);
         }
