@@ -49,36 +49,26 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * Simplifies COALESCE calls that contain equi-join key references by removing redundant
- * non-preserved-side references.
+ * Removes redundant equi-join key references from COALESCE calls above joins.
  *
- * <p>For a 2-arg case like {@code COALESCE(b.k, a.k)} in a {@code LEFT JOIN ON a.k = b.k}, the
- * result always equals {@code a.k}:
- *
- * <ul>
- *   <li>When b matches: {@code b.k = a.k} (equi-join guarantees this), so the result is {@code
- *       a.k}.
- *   <li>When b doesn't match: {@code b.k} is NULL, so the result falls through to {@code a.k}.
- * </ul>
- *
- * <p>For N-arg COALESCE, the non-preserved-side reference is removed when safe:
+ * <p>In an equi-join {@code ON a.k = b.k}, the non-preserved side's key is either equal to the
+ * preserved side's key (matched) or NULL (unmatched). This makes it redundant in a COALESCE when
+ * it appears adjacent-before or anywhere after the preserved side's key:
  *
  * <ul>
- *   <li>Adjacent before preserved: {@code COALESCE(..., b.k, a.k, ...)} becomes {@code
- *       COALESCE(..., a.k, ...)} - when matched b.k=a.k so removing b.k yields the same value;
- *       when unmatched b.k is NULL and skipped anyway.
- *   <li>After preserved: {@code COALESCE(..., a.k, ..., b.k, ...)} becomes {@code COALESCE(...,
- *       a.k, ...)} - when matched a.k is non-null so b.k is never reached; when unmatched b.k is
- *       NULL anyway.
+ *   <li>{@code COALESCE(b.k, a.k)} → {@code a.k}
+ *   <li>{@code COALESCE(b.k, a.k, x)} → {@code COALESCE(a.k, x)}
+ *   <li>{@code COALESCE(x, a.k, b.k)} → {@code COALESCE(x, a.k)}
+ *   <li>{@code COALESCE(b.k, x, a.k)} → unchanged (removing b.k would expose x)
  * </ul>
  *
- * <p>For INNER joins both sides are non-null, so the later-occurring equi-join ref is always
- * unreachable and can be removed. FULL OUTER joins are not handled because both sides can generate
- * nulls.
+ * <p>For INNER joins both keys are always non-null, so the later-occurring one is always
+ * unreachable and can be removed regardless of position. FULL OUTER joins are not handled because
+ * both sides can generate nulls.
  *
- * <p>This rule matches a {@link Project} or {@link Calc} whose input is a {@link Join}. It uses a
- * {@link RexShuttle} to recursively find and simplify applicable COALESCE calls, including those
- * nested inside other expressions (e.g., {@code CAST(COALESCE(b.k, a.k) AS VARCHAR)}).
+ * <p>Matches a {@link Project} or {@link Calc} on top of a {@link Join} and uses a {@link
+ * RexShuttle} to recursively simplify COALESCE calls, including nested ones (e.g., {@code
+ * CAST(COALESCE(b.k, a.k) AS VARCHAR)}).
  */
 @Internal
 @Value.Enclosing
@@ -118,10 +108,7 @@ public class SimplifyCoalesceWithEquiJoinConditionRule
 
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * A {@link RexShuttle} that simplifies COALESCE calls by removing non-preserved-side equi-join
-     * key references when it is semantically safe to do so.
-     */
+    /** Traverses expressions bottom-up, removing redundant equi-join refs from COALESCE calls. */
     private static class EquiJoinCoalesceSimplifier extends RexShuttle {
 
         private final RexBuilder rexBuilder;
@@ -147,23 +134,18 @@ public class SimplifyCoalesceWithEquiJoinConditionRule
 
         @Override
         public RexNode visitCall(RexCall call) {
-            // Recurse first (bottom-up) so nested COALESCE calls are handled
             call = (RexCall) super.visitCall(call);
 
-            if (!operatorIsCoalesce(call.getOperator())) {
-                return call;
-            }
-            if (call.getOperands().size() < 2) {
+            if (!operatorIsCoalesce(call.getOperator()) || call.getOperands().size() < 2) {
                 return call;
             }
 
             final List<RexNode> operands = new ArrayList<>(call.getOperands());
-            boolean changed = false;
-
             for (final IntPair pair : joinInfo.pairs()) {
-                changed |= tryRemoveNonPreservedRef(operands, pair);
+                tryRemoveRedundantRef(operands, pair);
             }
 
+            final boolean changed = operands.size() != call.getOperands().size();
             if (!changed) {
                 return call;
             }
@@ -171,81 +153,73 @@ public class SimplifyCoalesceWithEquiJoinConditionRule
             simplified = true;
 
             if (operands.size() == 1) {
-                final RexNode remaining = operands.get(0);
-                final LogicalType remainingType =
-                        FlinkTypeFactory.toLogicalType(remaining.getType());
-                final LogicalType coalesceType =
-                        FlinkTypeFactory.toLogicalType(call.getType());
-
-                if (LogicalTypeCasts.supportsImplicitCast(remainingType, coalesceType)) {
-                    return remaining;
-                } else {
-                    return rexBuilder.makeCast(call.getType(), remaining);
-                }
+                return castIfNeeded(operands.get(0), call);
             }
-
             return call.clone(call.getType(), operands);
         }
 
         /**
-         * Attempts to remove the non-preserved-side reference from the operand list for a given
-         * equi-join pair. Returns true if a removal was made.
-         *
-         * <p>For LEFT/RIGHT joins, removal is safe when the non-preserved ref is immediately before
-         * the preserved ref (adjacent) or anywhere after it. For INNER joins, the later-occurring
-         * ref is always safe to remove since both are non-null.
+         * For a given equi-join pair, finds the two key references in the operand list and removes
+         * the redundant one if safe.
          */
-        private boolean tryRemoveNonPreservedRef(List<RexNode> operands, IntPair pair) {
-            final int leftJoinIdx = pair.source;
-            final int rightJoinIdx = pair.target + leftFieldCount;
+        private void tryRemoveRedundantRef(List<RexNode> operands, IntPair equiJoinPair) {
+            final int leftPos = findRefPosition(operands, equiJoinPair.source);
+            final int rightPos = findRefPosition(operands, equiJoinPair.target + leftFieldCount);
+            if (leftPos == -1 || rightPos == -1) {
+                return;
+            }
 
-            int leftPos = -1;
-            int rightPos = -1;
+            final int removablePos = findRemovablePosition(leftPos, rightPos);
+            if (removablePos != -1) {
+                operands.remove(removablePos);
+            }
+        }
 
+        /** Returns the position of the first {@link RexInputRef} with the given index, or -1. */
+        private static int findRefPosition(List<RexNode> operands, int inputRefIndex) {
             for (int i = 0; i < operands.size(); i++) {
-                final RexNode op = operands.get(i);
-                if (op instanceof RexInputRef) {
-                    final int idx = ((RexInputRef) op).getIndex();
-                    if (idx == leftJoinIdx && leftPos == -1) {
-                        leftPos = i;
-                    } else if (idx == rightJoinIdx && rightPos == -1) {
-                        rightPos = i;
-                    }
+                if (operands.get(i) instanceof RexInputRef
+                        && ((RexInputRef) operands.get(i)).getIndex() == inputRefIndex) {
+                    return i;
                 }
             }
+            return -1;
+        }
 
-            if (leftPos == -1 || rightPos == -1) {
-                return false;
-            }
-
-            if (joinType == JoinRelType.INNER) {
-                // Both refs are non-null in INNER join; the later one is always unreachable
-                operands.remove(Math.max(leftPos, rightPos));
-                return true;
-            }
-
-            final int preservedPos;
-            final int nonPreservedPos;
+        /**
+         * Determines which of the two equi-join key positions can be safely removed, or returns -1.
+         */
+        private int findRemovablePosition(int leftPos, int rightPos) {
             switch (joinType) {
+                case INNER:
+                    // Both keys are non-null; the later one is unreachable
+                    return Math.max(leftPos, rightPos);
                 case LEFT:
-                    preservedPos = leftPos;
-                    nonPreservedPos = rightPos;
-                    break;
+                    return canSafelyRemove(rightPos, leftPos) ? rightPos : -1;
                 case RIGHT:
-                    preservedPos = rightPos;
-                    nonPreservedPos = leftPos;
-                    break;
+                    return canSafelyRemove(leftPos, rightPos) ? leftPos : -1;
                 default:
-                    return false;
+                    return -1;
             }
+        }
 
-            // Safe: non-preserved is immediately before preserved, or anywhere after preserved
-            if (nonPreservedPos == preservedPos - 1 || nonPreservedPos > preservedPos) {
-                operands.remove(nonPreservedPos);
-                return true;
+        /**
+         * The non-preserved ref can be safely removed when it is adjacent-before or anywhere after
+         * the preserved ref. The only unsafe case is when the non-preserved ref appears earlier with
+         * other operands in between - removing it would change which intermediate value COALESCE
+         * returns.
+         */
+        private static boolean canSafelyRemove(int nonPreservedPos, int preservedPos) {
+            return nonPreservedPos >= preservedPos - 1;
+        }
+
+        private RexNode castIfNeeded(RexNode node, RexCall originalCall) {
+            final LogicalType nodeType = FlinkTypeFactory.toLogicalType(node.getType());
+            final LogicalType targetType = FlinkTypeFactory.toLogicalType(originalCall.getType());
+            if (LogicalTypeCasts.supportsImplicitCast(nodeType, targetType)) {
+                return node;
             }
-
-            return false;
+            return rexBuilder.makeCast(originalCall.getType(), node);
         }
     }
 
