@@ -22,6 +22,9 @@ import org.apache.flink.table.api.typeutils.ScalaCaseClassSerializerReflectionTe
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 
+import java.util.concurrent.{CyclicBarrier, Executors, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
+
 /** Test obtaining the primary constructor of a case class via reflection. */
 class ScalaCaseClassSerializerReflectionTest {
 
@@ -90,6 +93,45 @@ class ScalaCaseClassSerializerReflectionTest {
     val actual = constructor(arguments)
 
     assertThat(actual).isEqualTo(Measurement(1, new DegreeCelsius(0.5f)))
+  }
+
+  @Test
+  def concurrentLookupAndInvocation(): Unit = {
+    val numThreads = 8
+    val iterationsPerThread = 1000
+    val barrier = new CyclicBarrier(numThreads)
+    val errorCount = new AtomicInteger(0)
+    val executor = Executors.newFixedThreadPool(numThreads)
+
+    try {
+      val futures = (0 until numThreads).map {
+        _ =>
+          executor.submit(new Runnable {
+            override def run(): Unit = {
+              try {
+                barrier.await(10, TimeUnit.SECONDS)
+                val constructor = ScalaCaseClassSerializer
+                  .lookupConstructor(classOf[SimpleCaseClass])
+                for (i <- 0 until iterationsPerThread) {
+                  val result = constructor(Array(s"name-$i", i.asInstanceOf[AnyRef]))
+                  if (result != SimpleCaseClass(s"name-$i", i)) {
+                    errorCount.incrementAndGet()
+                  }
+                }
+              } catch {
+                case _: Exception => errorCount.incrementAndGet()
+              }
+            }
+          })
+      }
+
+      futures.foreach(_.get(30, TimeUnit.SECONDS))
+      assertThat(errorCount.get() == 0)
+        .as("No errors should occur during concurrent constructor invocation")
+        .isTrue
+    } finally {
+      executor.shutdownNow()
+    }
   }
 }
 
