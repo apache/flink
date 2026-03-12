@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
@@ -609,6 +610,10 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         }
     }
 
+    private boolean isHeapBackend() {
+        return getKeyedStateBackend() instanceof HeapKeyedStateBackend;
+    }
+
     private static RowData newJoinedRowData(int depth, RowData joinedRowData, RowData record) {
         RowData newJoinedRowData;
         if (depth == 0) {
@@ -806,6 +811,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         } else {
             throw new RuntimeException(
                     "Keyed state store not found when initializing keyed state store handlers.");
+        }
+
+        boolean prohibitReuseRow = isHeapBackend();
+        if (prohibitReuseRow) {
+            this.keyExtractor.requiresKeyDeepCopy();
         }
 
         this.stateHandlers = new ArrayList<>(inputSpecs.size());

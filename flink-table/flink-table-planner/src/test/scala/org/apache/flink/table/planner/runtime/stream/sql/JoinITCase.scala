@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
@@ -611,6 +612,22 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
 
   @TestTemplate
   def testInnerJoinWithEqualPk(): Unit = {
+    val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
+    val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
+    val query = s"SELECT a1, b1 FROM ($query1) JOIN ($query2) ON a1 = b1"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("1,1", "2,2", "3,3")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testInnerMultiJoinWithEqualPk(): Unit = {
+    tEnv.getConfig.getConfiguration
+      .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED.key(), "true")
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
     val query = s"SELECT a1, b1 FROM ($query1) JOIN ($query2) ON a1 = b1"

@@ -362,6 +362,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
         public SerializableKeySelector(JoinKeyExtractor keyExtractor, int inputIndex) {
             this.keyExtractor = keyExtractor;
+            this.keyExtractor.requiresKeyDeepCopy();
             this.inputIndex = inputIndex;
         }
 

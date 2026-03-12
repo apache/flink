@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -171,7 +170,7 @@ public class MultiJoinTestPrograms {
                                             "name STRING",
                                             "cash INT",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
                                             Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
@@ -195,7 +194,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
                                             Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
@@ -212,7 +211,7 @@ public class MultiJoinTestPrograms {
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT",
                                             "user_id_2 STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
                                             Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
@@ -225,7 +224,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
@@ -242,7 +241,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[3, Nomad, order3, payment3, New York]",
                                             "+I[1, Gus, order0, payment1, London]",
@@ -518,7 +517,7 @@ public class MultiJoinTestPrograms {
                                             "name STRING",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "cash INT")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Gus", "1", 100),
                                             Row.ofKind(RowKind.INSERT, "Nomad", "3", 50),
@@ -543,7 +542,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
@@ -561,7 +560,7 @@ public class MultiJoinTestPrograms {
                                             "user_id_2 STRING",
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "3", "3", 30),
                                             Row.ofKind(RowKind.INSERT, "1", "1", 50),
@@ -575,7 +574,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
@@ -593,7 +592,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -626,7 +625,7 @@ public class MultiJoinTestPrograms {
                                             "name STRING",
                                             "cash INT",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
                                             Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
@@ -650,7 +649,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
                                             Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
@@ -667,7 +666,7 @@ public class MultiJoinTestPrograms {
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT",
                                             "user_id_2 STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "1", 50, "1"),
                                             Row.ofKind(RowKind.INSERT, "5", -1, "5"),
@@ -680,7 +679,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
@@ -697,7 +696,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -729,7 +728,7 @@ public class MultiJoinTestPrograms {
                                             "name STRING",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "cash INT")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Gus", "1", 100),
                                             Row.ofKind(RowKind.INSERT, "Nomad", "3", 50),
@@ -754,7 +753,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
@@ -772,7 +771,7 @@ public class MultiJoinTestPrograms {
                                             "user_id_2 STRING",
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "3", "payment3", 30),
                                             Row.ofKind(RowKind.INSERT, "1", "payment1", 50),
@@ -786,7 +785,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
@@ -804,7 +803,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, payment1, London]",
                                             "+I[1, Gus, order1, payment1, London]",
@@ -851,7 +850,7 @@ public class MultiJoinTestPrograms {
                                                     "user_id_1 STRING NOT NULL",
                                                     "product STRING",
                                                     "CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`, `user_id_1`) NOT ENFORCED")
-                                            .addMode(ChangelogMode.insertOnly())
+                                            .addOption("changelog-mode", "I")
                                             .producedBeforeRestore(
                                                     Row.ofKind(
                                                             RowKind.INSERT, "order1", "1", "ProdA"))
@@ -866,7 +865,7 @@ public class MultiJoinTestPrograms {
                                                     "user_id_2 STRING NOT NULL",
                                                     "price INT",
                                                     "CONSTRAINT `PRIMARY` PRIMARY KEY (`payment_id`, `user_id_2`) NOT ENFORCED")
-                                            .addMode(ChangelogMode.insertOnly())
+                                            .addOption("changelog-mode", "I")
                                             .producedBeforeRestore(
                                                     Row.ofKind(
                                                             RowKind.INSERT, "payment1", "1", 100),
@@ -882,7 +881,7 @@ public class MultiJoinTestPrograms {
                                                     "user_id_3 STRING NOT NULL",
                                                     "location STRING",
                                                     "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id_3`) NOT ENFORCED")
-                                            .addMode(ChangelogMode.insertOnly())
+                                            .addOption("changelog-mode", "I")
                                             .producedBeforeRestore(
                                                     Row.ofKind(RowKind.INSERT, "1", "London"),
                                                     Row.ofKind(RowKind.INSERT, "3", "Berlin"))
@@ -891,7 +890,7 @@ public class MultiJoinTestPrograms {
                                             .build())
                             .setupTableSink(
                                     SinkTestStep.newBuilder("sink")
-                                            .addMode(ChangelogMode.upsert())
+                                            .addOption("changelog-mode", "I,UA,D")
                                             .addSchema(
                                                     "user_id_0 STRING NOT NULL",
                                                     "order_id STRING NOT NULL",
@@ -1060,7 +1059,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("AppendTable")
                                     .addSchema("id STRING PRIMARY KEY NOT ENFORCED, val STRING")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "1", "append1"),
                                             Row.ofKind(RowKind.INSERT, "2", "append2"),
@@ -1069,7 +1068,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("RetractTable")
                                     .addSchema("ref_id STRING, data STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "1", "retract1"),
                                             Row.ofKind(RowKind.INSERT, "2", "retract2"),
@@ -1081,7 +1080,7 @@ public class MultiJoinTestPrograms {
                             SourceTestStep.newBuilder("UpsertTable")
                                     .addSchema(
                                             "key_id STRING PRIMARY KEY NOT ENFORCED, status STRING")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "1", "active"),
                                             Row.ofKind(RowKind.INSERT, "2", "pending"),
@@ -1096,7 +1095,7 @@ public class MultiJoinTestPrograms {
                                             "val STRING",
                                             "data STRING",
                                             "status STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[1, append1, retract1, active]",
                                             "+I[2, append2, retract2, active]",
@@ -1123,7 +1122,7 @@ public class MultiJoinTestPrograms {
                                             "user_id STRING",
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "2", "order2", "Product B"),
                                             Row.ofKind(
@@ -1251,7 +1250,7 @@ public class MultiJoinTestPrograms {
                     .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "user_id INT NOT NULL",
                                             "shard_id INT NOT NULL",
@@ -1264,7 +1263,7 @@ public class MultiJoinTestPrograms {
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "user_id INT NOT NULL",
                                             "order_id BIGINT NOT NULL",
@@ -1281,7 +1280,7 @@ public class MultiJoinTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "`user_id` INT NOT NULL",
                                             "`order_id` BIGINT NOT NULL",
@@ -1311,7 +1310,7 @@ public class MultiJoinTestPrograms {
                     .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "user_id INT NOT NULL",
                                             "shard_id INT NOT NULL",
@@ -1324,7 +1323,7 @@ public class MultiJoinTestPrograms {
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "user_id INT NOT NULL",
                                             "order_id BIGINT NOT NULL",
@@ -1339,7 +1338,7 @@ public class MultiJoinTestPrograms {
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Payments")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "user_id INT NOT NULL",
                                             "payment_id BIGINT NOT NULL",
@@ -1354,7 +1353,7 @@ public class MultiJoinTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .addSchema(
                                             "`user_id` INT NOT NULL",
                                             "`order_id` BIGINT NOT NULL",
@@ -1407,7 +1406,7 @@ public class MultiJoinTestPrograms {
                                                     "auctionDateTime AS TO_TIMESTAMP(auctionTimestamp)",
                                                     "expires AS TO_TIMESTAMP(expiresTimestamp)",
                                                     "WATERMARK FOR auctionDateTime AS auctionDateTime - INTERVAL '1' SECOND")
-                                            .addMode(ChangelogMode.insertOnly())
+                                            .addOption("changelog-mode", "I")
                                             .producedValues(
                                                     Row.ofKind(
                                                             RowKind.INSERT,
@@ -1436,7 +1435,7 @@ public class MultiJoinTestPrograms {
                                                     "bidTimestamp STRING",
                                                     "bidDateTime AS TO_TIMESTAMP(bidTimestamp)",
                                                     "WATERMARK FOR bidDateTime AS bidDateTime - INTERVAL '1' SECOND")
-                                            .addMode(ChangelogMode.insertOnly())
+                                            .addOption("changelog-mode", "I")
                                             .producedValues(
                                                     Row.ofKind(
                                                             RowKind.INSERT,
@@ -1497,7 +1496,7 @@ public class MultiJoinTestPrograms {
                                     .addSchema(
                                             "`record_id` STRING PRIMARY KEY NOT ENFORCED",
                                             "`user_id` INT")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "record_1", 1),
                                             Row.ofKind(RowKind.INSERT, "record_2", 2),
@@ -1507,7 +1506,7 @@ public class MultiJoinTestPrograms {
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
                                             "`user_id` INT PRIMARY KEY NOT ENFORCED", "`id` STRING")
-                                    .addMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, "record_1"),
                                             Row.ofKind(RowKind.INSERT, 2, "record_2"),
@@ -1516,7 +1515,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema("record_id STRING", "`user_id` INT", "id STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedValues(
                                             // Only records with user_id 1 and 2 should be
                                             // included due to WHERE IN clause
@@ -1636,7 +1635,7 @@ public class MultiJoinTestPrograms {
                                             "k1 STRING",
                                             "k2 INT",
                                             "k3 BOOLEAN")
-                                    .addMode(ChangelogMode.insertOnly())
+                                    .addOption("changelog-mode", "I")
                                     .consumedValues(
                                             "+I[Gus, order1, payment1, K1, 100, true]",
                                             "+I[Bob, order2, payment2, A1, 200, false]")
@@ -1809,7 +1808,7 @@ public class MultiJoinTestPrograms {
                                             "k2 INT",
                                             "k3 BOOLEAN",
                                             "k4 STRING")
-                                    .addMode(ChangelogMode.all())
+                                    .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[Bob, order2, payment2, null, A1, 200, false, k4_val2]")
                                     .testMaterializedData()
