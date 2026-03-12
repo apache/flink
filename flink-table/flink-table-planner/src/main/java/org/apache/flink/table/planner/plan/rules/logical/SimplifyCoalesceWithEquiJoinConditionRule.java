@@ -44,13 +44,16 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.mapping.IntPair;
 import org.immutables.value.Value;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * Simplifies {@code COALESCE(b.k, a.k)} to the preserved-side column reference when the two
- * arguments reference columns from opposite sides of an equi-join condition.
+ * Simplifies COALESCE calls that contain equi-join key references by removing redundant
+ * non-preserved-side references.
  *
- * <p>For a {@code LEFT JOIN a ON a.k = b.k}, {@code COALESCE(b.k, a.k)} always equals {@code a.k}:
+ * <p>For a 2-arg case like {@code COALESCE(b.k, a.k)} in a {@code LEFT JOIN ON a.k = b.k}, the
+ * result always equals {@code a.k}:
  *
  * <ul>
  *   <li>When b matches: {@code b.k = a.k} (equi-join guarantees this), so the result is {@code
@@ -58,9 +61,20 @@ import java.util.function.Predicate;
  *   <li>When b doesn't match: {@code b.k} is NULL, so the result falls through to {@code a.k}.
  * </ul>
  *
- * <p>Both orderings ({@code COALESCE(b.k, a.k)} and {@code COALESCE(a.k, b.k)}) resolve to the
- * preserved-side key. This applies to LEFT, RIGHT, and INNER joins. FULL OUTER joins are not
- * handled because both sides can generate nulls.
+ * <p>For N-arg COALESCE, the non-preserved-side reference is removed when safe:
+ *
+ * <ul>
+ *   <li>Adjacent before preserved: {@code COALESCE(..., b.k, a.k, ...)} becomes {@code
+ *       COALESCE(..., a.k, ...)} - when matched b.k=a.k so removing b.k yields the same value;
+ *       when unmatched b.k is NULL and skipped anyway.
+ *   <li>After preserved: {@code COALESCE(..., a.k, ..., b.k, ...)} becomes {@code COALESCE(...,
+ *       a.k, ...)} - when matched a.k is non-null so b.k is never reached; when unmatched b.k is
+ *       NULL anyway.
+ * </ul>
+ *
+ * <p>For INNER joins both sides are non-null, so the later-occurring equi-join ref is always
+ * unreachable and can be removed. FULL OUTER joins are not handled because both sides can generate
+ * nulls.
  *
  * <p>This rule matches a {@link Project} or {@link Calc} whose input is a {@link Join}. It uses a
  * {@link RexShuttle} to recursively find and simplify applicable COALESCE calls, including those
@@ -105,8 +119,8 @@ public class SimplifyCoalesceWithEquiJoinConditionRule
     // --------------------------------------------------------------------------------------------
 
     /**
-     * A {@link RexShuttle} that replaces {@code COALESCE(refA, refB)} with the preserved-side
-     * column reference when the two arguments form an equi-join pair from opposite sides.
+     * A {@link RexShuttle} that simplifies COALESCE calls by removing non-preserved-side equi-join
+     * key references when it is semantically safe to do so.
      */
     private static class EquiJoinCoalesceSimplifier extends RexShuttle {
 
@@ -139,88 +153,99 @@ public class SimplifyCoalesceWithEquiJoinConditionRule
             if (!operatorIsCoalesce(call.getOperator())) {
                 return call;
             }
-            if (call.getOperands().size() != 2) {
+            if (call.getOperands().size() < 2) {
                 return call;
             }
 
-            final RexNode op0 = call.getOperands().get(0);
-            final RexNode op1 = call.getOperands().get(1);
-            if (!(op0 instanceof RexInputRef) || !(op1 instanceof RexInputRef)) {
-                return call;
+            final List<RexNode> operands = new ArrayList<>(call.getOperands());
+            boolean changed = false;
+
+            for (final IntPair pair : joinInfo.pairs()) {
+                changed |= tryRemoveNonPreservedRef(operands, pair);
             }
 
-            final RexInputRef ref0 = (RexInputRef) op0;
-            final RexInputRef ref1 = (RexInputRef) op1;
-
-            // Must be from opposite sides of the join
-            final boolean isLeft0 = ref0.getIndex() < leftFieldCount;
-            final boolean isLeft1 = ref1.getIndex() < leftFieldCount;
-            if (isLeft0 == isLeft1) {
-                return call;
-            }
-
-            // Identify left-side and right-side refs
-            final int leftIdx = isLeft0 ? ref0.getIndex() : ref1.getIndex();
-            final int rightIdx = (isLeft0 ? ref1.getIndex() : ref0.getIndex()) - leftFieldCount;
-            final RexInputRef leftRef = isLeft0 ? ref0 : ref1;
-            final RexInputRef rightRef = isLeft0 ? ref1 : ref0;
-
-            // Check if they form an equi-join pair
-            if (!isEquiJoinPair(leftIdx, rightIdx)) {
-                return call;
-            }
-
-            // Determine the preserved-side reference
-            final RexInputRef preservedRef = resolvePreservedSide(leftRef, rightRef, ref0);
-            if (preservedRef == null) {
+            if (!changed) {
                 return call;
             }
 
             simplified = true;
 
-            // Handle potential type mismatch by adding a CAST if needed
-            final LogicalType preservedLogicalType =
-                    FlinkTypeFactory.toLogicalType(preservedRef.getType());
-            final LogicalType coalesceLogicalType = FlinkTypeFactory.toLogicalType(call.getType());
+            if (operands.size() == 1) {
+                final RexNode remaining = operands.get(0);
+                final LogicalType remainingType =
+                        FlinkTypeFactory.toLogicalType(remaining.getType());
+                final LogicalType coalesceType =
+                        FlinkTypeFactory.toLogicalType(call.getType());
 
-            if (LogicalTypeCasts.supportsImplicitCast(preservedLogicalType, coalesceLogicalType)) {
-                return preservedRef;
-            } else {
-                return rexBuilder.makeCast(call.getType(), preservedRef);
-            }
-        }
-
-        private boolean isEquiJoinPair(int leftIdx, int rightIdx) {
-            for (final IntPair pair : joinInfo.pairs()) {
-                if (pair.source == leftIdx && pair.target == rightIdx) {
-                    return true;
+                if (LogicalTypeCasts.supportsImplicitCast(remainingType, coalesceType)) {
+                    return remaining;
+                } else {
+                    return rexBuilder.makeCast(call.getType(), remaining);
                 }
             }
-            return false;
+
+            return call.clone(call.getType(), operands);
         }
 
         /**
-         * Returns the preserved-side reference based on the join type.
+         * Attempts to remove the non-preserved-side reference from the operand list for a given
+         * equi-join pair. Returns true if a removal was made.
          *
-         * <ul>
-         *   <li>LEFT: left side is preserved (never generates nulls on left)
-         *   <li>RIGHT: right side is preserved (never generates nulls on right)
-         *   <li>INNER: both sides preserved, pick the first COALESCE argument to preserve user
-         *       intent
-         * </ul>
+         * <p>For LEFT/RIGHT joins, removal is safe when the non-preserved ref is immediately before
+         * the preserved ref (adjacent) or anywhere after it. For INNER joins, the later-occurring
+         * ref is always safe to remove since both are non-null.
          */
-        private RexInputRef resolvePreservedSide(
-                RexInputRef leftRef, RexInputRef rightRef, RexInputRef firstOperand) {
+        private boolean tryRemoveNonPreservedRef(List<RexNode> operands, IntPair pair) {
+            final int leftJoinIdx = pair.source;
+            final int rightJoinIdx = pair.target + leftFieldCount;
+
+            int leftPos = -1;
+            int rightPos = -1;
+
+            for (int i = 0; i < operands.size(); i++) {
+                final RexNode op = operands.get(i);
+                if (op instanceof RexInputRef) {
+                    final int idx = ((RexInputRef) op).getIndex();
+                    if (idx == leftJoinIdx && leftPos == -1) {
+                        leftPos = i;
+                    } else if (idx == rightJoinIdx && rightPos == -1) {
+                        rightPos = i;
+                    }
+                }
+            }
+
+            if (leftPos == -1 || rightPos == -1) {
+                return false;
+            }
+
+            if (joinType == JoinRelType.INNER) {
+                // Both refs are non-null in INNER join; the later one is always unreachable
+                operands.remove(Math.max(leftPos, rightPos));
+                return true;
+            }
+
+            final int preservedPos;
+            final int nonPreservedPos;
             switch (joinType) {
                 case LEFT:
-                    return leftRef;
+                    preservedPos = leftPos;
+                    nonPreservedPos = rightPos;
+                    break;
                 case RIGHT:
-                    return rightRef;
-                case INNER:
-                    return firstOperand;
+                    preservedPos = rightPos;
+                    nonPreservedPos = leftPos;
+                    break;
                 default:
-                    return null;
+                    return false;
             }
+
+            // Safe: non-preserved is immediately before preserved, or anywhere after preserved
+            if (nonPreservedPos == preservedPos - 1 || nonPreservedPos > preservedPos) {
+                operands.remove(nonPreservedPos);
+                return true;
+            }
+
+            return false;
         }
     }
 

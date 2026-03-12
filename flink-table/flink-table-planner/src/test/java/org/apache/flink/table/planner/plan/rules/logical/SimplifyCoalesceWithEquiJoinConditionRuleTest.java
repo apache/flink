@@ -136,6 +136,34 @@ class SimplifyCoalesceWithEquiJoinConditionRuleTest extends TableTestBase {
     }
 
     @Test
+    void testCoalesceThreeArgsAdjacentPair() {
+        util.verifyRelPlan(
+                "SELECT COALESCE(b.order_id, a.order_id, a.user_id) AS val "
+                        + "FROM orders a LEFT JOIN order_details b ON a.order_id = b.order_id");
+    }
+
+    @Test
+    void testCoalesceThreeArgsNonPreservedAfterPreserved() {
+        util.verifyRelPlan(
+                "SELECT COALESCE(a.user_id, a.order_id, b.order_id) AS val "
+                        + "FROM orders a LEFT JOIN order_details b ON a.order_id = b.order_id");
+    }
+
+    @Test
+    void testCoalesceThreeArgsNonPreservedBeforeWithGapNotSimplified() {
+        util.verifyRelPlan(
+                "SELECT COALESCE(b.order_id, a.user_id, a.order_id) AS val "
+                        + "FROM orders a LEFT JOIN order_details b ON a.order_id = b.order_id");
+    }
+
+    @Test
+    void testCoalesceThreeArgsInnerJoin() {
+        util.verifyRelPlan(
+                "SELECT COALESCE(a.user_id, b.order_id, a.order_id) AS val "
+                        + "FROM orders a INNER JOIN order_details b ON a.order_id = b.order_id");
+    }
+
+    @Test
     void testCoalesceWrappedInCast() {
         util.verifyRelPlan(
                 "SELECT CAST(COALESCE(b.order_id, a.order_id) AS STRING) AS order_id_str "
