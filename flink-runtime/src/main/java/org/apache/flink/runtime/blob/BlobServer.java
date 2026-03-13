@@ -1314,6 +1314,29 @@ public class BlobServer extends Thread
         }
     }
 
+    public void retainApplications(
+            Collection<ApplicationID> applicationsToRetain, Executor ioExecutor)
+            throws IOException {
+        if (storageDir.deref().exists()) {
+            final Set<ApplicationID> applicationsToRemove =
+                    BlobUtils.listExistingApplications(storageDir.deref().toPath());
+
+            applicationsToRemove.removeAll(applicationsToRetain);
+
+            final Collection<CompletableFuture<Void>> cleanupResultFutures =
+                    new ArrayList<>(applicationsToRemove.size());
+            for (ApplicationID applicationToRemove : applicationsToRemove) {
+                cleanupResultFutures.add(globalCleanupAsync(applicationToRemove, ioExecutor));
+            }
+
+            try {
+                FutureUtils.completeAll(cleanupResultFutures).get();
+            } catch (InterruptedException | ExecutionException e) {
+                ExceptionUtils.rethrowIOException(e);
+            }
+        }
+    }
+
     @Override
     public PermanentBlobService getPermanentBlobService() {
         return this;

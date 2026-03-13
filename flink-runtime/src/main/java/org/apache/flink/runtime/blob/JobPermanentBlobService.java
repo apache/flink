@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 
 /**
@@ -28,13 +29,15 @@ public interface JobPermanentBlobService extends PermanentBlobService {
      * Register the given job.
      *
      * @param jobId job id identifying the job to register
+     * @param applicationId application id identifying the application the job belongs to
      */
-    void registerJob(JobID jobId);
+    void registerJob(JobID jobId, ApplicationID applicationId);
 
     /**
      * Release the given job. This makes the blobs stored for this job up for cleanup.
      *
      * @param jobId job id identifying the job to register
+     * @param applicationId application id identifying the application the job belongs to
      */
-    void releaseJob(JobID jobId);
+    void releaseJob(JobID jobId, ApplicationID applicationId);
 }

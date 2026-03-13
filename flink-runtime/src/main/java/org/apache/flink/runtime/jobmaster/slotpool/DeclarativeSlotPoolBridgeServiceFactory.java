@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.clock.Clock;
@@ -53,10 +54,12 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
     @Override
     public SlotPoolService createSlotPoolService(
             @Nonnull JobID jobId,
+            @Nonnull ApplicationID applicationId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new DeclarativeSlotPoolBridge(
                 jobId,
+                applicationId,
                 declarativeSlotPoolFactory,
                 clock,
                 rpcTimeout,

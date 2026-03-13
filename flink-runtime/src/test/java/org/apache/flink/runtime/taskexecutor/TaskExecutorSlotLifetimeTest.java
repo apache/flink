@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -167,11 +168,13 @@ class TaskExecutorSlotLifetimeTest {
                     taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
             final JobID jobId = new JobID();
+            final ApplicationID applicationId = new ApplicationID();
             final AllocationID allocationId = new AllocationID();
             taskExecutorGateway
                     .requestSlot(
                             firstSlotId,
                             jobId,
+                            applicationId,
                             allocationId,
                             ResourceProfile.ZERO,
                             jobMasterGateway.getAddress(),

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ClientOptions;
+import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StreamContextEnvironment;
@@ -89,8 +90,10 @@ public enum ClientUtils {
                 executorServiceLoader,
                 configuration,
                 program,
-                enforceSingleJobExecution,
+                enforceSingleJobExecution ? 1 : Integer.MAX_VALUE,
+                enforceSingleJobExecution ? 1 : Integer.MAX_VALUE,
                 suppressSysout,
+                null,
                 null,
                 Collections.emptyList());
     }
@@ -99,9 +102,11 @@ public enum ClientUtils {
             PipelineExecutorServiceLoader executorServiceLoader,
             Configuration configuration,
             PackagedProgram program,
-            boolean enforceSingleJobExecution,
+            int jobCountLimit,
+            int streamingJobCountLimit,
             boolean suppressSysout,
             @Nullable ApplicationID applicationId,
+            @Nullable JarInfo userJarInfo,
             Collection<JobInfo> allRecoveredJobInfos)
             throws ProgramInvocationException {
         checkNotNull(executorServiceLoader);
@@ -118,9 +123,11 @@ public enum ClientUtils {
                     executorServiceLoader,
                     configuration,
                     userCodeClassLoader,
-                    enforceSingleJobExecution,
+                    jobCountLimit,
+                    streamingJobCountLimit,
                     suppressSysout,
                     applicationId,
+                    userJarInfo,
                     allRecoveredJobInfos);
 
             // For DataStream v2.

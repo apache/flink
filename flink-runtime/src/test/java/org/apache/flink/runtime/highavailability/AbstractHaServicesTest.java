@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
@@ -218,7 +219,8 @@ class AbstractHaServicesTest {
                                         throw new AssertionError(
                                                 "Marking the job as clean shouldn't happen in the HaServices cleanup");
                                     })
-                            .build());
+                            .build(),
+                    new EmbeddedApplicationResultStore());
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
@@ -236,6 +238,11 @@ class AbstractHaServicesTest {
 
         @Override
         protected ExecutionPlanStore createExecutionPlanStore() throws Exception {
+            throw new UnsupportedOperationException("Not supported by this test implementation.");
+        }
+
+        @Override
+        protected ApplicationStore createApplicationStore() throws Exception {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 

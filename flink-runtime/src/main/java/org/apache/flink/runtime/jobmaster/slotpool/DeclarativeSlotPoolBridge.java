@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -102,6 +103,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     public DeclarativeSlotPoolBridge(
             JobID jobId,
+            ApplicationID applicationId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             Clock clock,
             Duration rpcTimeout,
@@ -113,6 +115,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         super(
                 jobId,
+                applicationId,
                 declarativeSlotPoolFactory,
                 clock,
                 idleSlotTimeout,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -96,6 +97,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     public CompletableFuture<Void> allocateSlot(
             InstanceID instanceId,
             JobID jobId,
+            ApplicationID applicationId,
             String targetAddress,
             ResourceProfile resourceProfile) {
         Preconditions.checkNotNull(instanceId);
@@ -132,6 +134,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
                     gateway.requestSlot(
                             SlotID.getDynamicSlotID(resourceId),
                             jobId,
+                            applicationId,
                             allocationId,
                             resourceProfile,
                             targetAddress,

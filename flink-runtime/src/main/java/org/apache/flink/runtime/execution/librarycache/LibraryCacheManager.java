@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -43,9 +44,10 @@ public interface LibraryCacheManager {
      * job will be valid as long as there exists a valid lease for this job.
      *
      * @param jobId jobId for which to register a new class loader lease
+     * @param applicationId applicationId to which the job belongs
      * @return a new class loader lease for the given job
      */
-    ClassLoaderLease registerClassLoaderLease(JobID jobId);
+    ClassLoaderLease registerClassLoaderLease(JobID jobId, ApplicationID applicationId);
 
     /**
      * Shuts the library cache manager down. Thereby it will close all open {@link ClassLoaderLease}

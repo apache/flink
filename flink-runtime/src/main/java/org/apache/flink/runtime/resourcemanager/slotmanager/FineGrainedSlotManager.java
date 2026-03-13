@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.MemorySize;
@@ -95,6 +96,8 @@ public class FineGrainedSlotManager implements SlotManager {
     private final SlotManagerMetricGroup slotManagerMetricGroup;
 
     private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
+
+    private final Map<JobID, ApplicationID> jobIdsToApplicationIds = new HashMap<>();
 
     private final CPUResource maxTotalCpu;
     private final MemorySize maxTotalMem;
@@ -343,6 +346,7 @@ public class FineGrainedSlotManager implements SlotManager {
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
             LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
             jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
+            jobIdsToApplicationIds.remove(resourceRequirements.getJobId());
             if (resourceAllocator.isSupported()) {
                 taskManagerTracker.clearPendingAllocationsOfJob(resourceRequirements.getJobId());
             }
@@ -353,6 +357,8 @@ public class FineGrainedSlotManager implements SlotManager {
                     resourceRequirements.getResourceRequirements());
             jobMasterTargetAddresses.put(
                     resourceRequirements.getJobId(), resourceRequirements.getTargetAddress());
+            jobIdsToApplicationIds.put(
+                    resourceRequirements.getJobId(), resourceRequirements.getApplicationId());
         }
 
         resourceTracker.notifyResourceRequirements(
@@ -751,6 +757,7 @@ public class FineGrainedSlotManager implements SlotManager {
                                 slotStatusSyncer.allocateSlot(
                                         instanceID,
                                         jobID,
+                                        jobIdsToApplicationIds.get(jobID),
                                         jobMasterTargetAddresses.get(jobID),
                                         slotEntry.getKey()));
                     }
@@ -921,6 +928,11 @@ public class FineGrainedSlotManager implements SlotManager {
                 .getRegisteredTaskManager(instanceId)
                 .map(TaskManagerInfo::getIdleSince)
                 .orElse(0L);
+    }
+
+    @VisibleForTesting
+    public Optional<ApplicationID> getApplicationId(JobID jobId) {
+        return Optional.ofNullable(jobIdsToApplicationIds.get(jobId));
     }
 
     // ---------------------------------------------------------------------------------------------
