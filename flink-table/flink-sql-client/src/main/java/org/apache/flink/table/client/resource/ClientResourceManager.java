@@ -31,6 +31,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * The {@link ClientResourceManager} is able to remove the registered JAR resources with the
@@ -48,15 +51,27 @@ public class ClientResourceManager extends ResourceManager {
     }
 
     @Nullable
-    public URL unregisterJarResource(String jarPath) {
-        Path path = new Path(jarPath);
+    public URL unregisterResource(String resourcePath, List<ResourceType> expectedTypes) {
+        Path path = new Path(resourcePath);
         try {
-            checkPath(path, ResourceType.JAR);
-            return resourceInfos.remove(
-                    new ResourceUri(ResourceType.JAR, getURLFromPath(path).getPath()));
+            checkPath(path, expectedTypes);
+            String urlPath = getURLFromPath(path).getPath();
+
+            return expectedTypes.stream()
+                    .map(type -> resourceInfos.remove(new ResourceUri(type, urlPath)))
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
         } catch (IOException e) {
             throw new SqlExecutionException(
-                    String.format("Failed to unregister the jar resource [%s]", jarPath), e);
+                    String.format(
+                            "Failed to unregister the %s resource [%s]",
+                            expectedTypes.stream()
+                                    .map(ResourceType::name)
+                                    .map(String::toLowerCase)
+                                    .collect(Collectors.joining(" or ")),
+                            resourcePath),
+                    e);
         }
     }
 }

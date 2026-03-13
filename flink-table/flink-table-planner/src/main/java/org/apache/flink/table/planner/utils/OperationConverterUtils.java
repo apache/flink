@@ -196,6 +196,9 @@ public class OperationConverterUtils {
                                 case JAR:
                                     resourceType = ResourceType.JAR;
                                     break;
+                                case ARTIFACT:
+                                    resourceType = ResourceType.ARTIFACT;
+                                    break;
                                 case ARCHIVE:
                                     resourceType = ResourceType.ARCHIVE;
                                     break;
