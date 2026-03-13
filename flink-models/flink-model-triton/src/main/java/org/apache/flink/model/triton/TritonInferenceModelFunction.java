@@ -302,7 +302,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     }
 
     private boolean isRetryable(int statusCode) {
-        return statusCode == 503 || statusCode == 504;
+        return statusCode == 408 || statusCode == 429 || statusCode == 503 || statusCode == 504;
     }
 
     private void completeWithDefaultOrException(

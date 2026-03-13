@@ -190,7 +190,9 @@ public class TritonOptions {
                     .withDescription(
                             "Maximum number of retry attempts for failed inference requests. "
                                     + "Retries are triggered by network errors and retryable server "
-                                    + "errors (HTTP 503, 504). Client errors (HTTP 4xx) are not retried. "
+                                    + "errors (HTTP 408 Request Timeout, HTTP 429 Too Many Requests, "
+                                    + "HTTP 503 Service Unavailable, HTTP 504 Gateway Timeout). "
+                                    + "Other client errors (HTTP 4xx) are not retried. "
                                     + "Defaults to 0 (no retries).");
 
     @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
@@ -209,8 +211,19 @@ public class TritonOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Fallback value returned when all retry attempts are exhausted. "
-                                    + "Supports STRING and numeric output types. "
-                                    + "If not configured, an exception is thrown after all retries fail. "
-                                    + "Enables downstream routing of failed records.");
+                            Description.builder()
+                                    .text(
+                                            "Fallback value returned when all retry attempts are exhausted. "
+                                                    + "The value is always configured as a STRING but is parsed "
+                                                    + "to match the output column type at runtime. "
+                                                    + "For example, use %s for a STRING output column, "
+                                                    + "%s for an INT output column, or %s for a DOUBLE output column. "
+                                                    + "If not configured, an exception is thrown after all retries fail. "
+                                                    + "Enables downstream routing of failed records, e.g., "
+                                                    + "%s to filter out failures.",
+                                            code("'FAILED'"),
+                                            code("'-1'"),
+                                            code("'0.0'"),
+                                            code("WHERE result != 'FAILED'"))
+                                    .build());
 }

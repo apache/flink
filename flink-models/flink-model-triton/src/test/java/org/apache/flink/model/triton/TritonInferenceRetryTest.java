@@ -157,6 +157,45 @@ class TritonInferenceRetryTest {
         assertThat(rows.get(0).<String>getFieldAs(0)).isEqualTo("FAILED");
     }
 
+    /**
+     * All attempts fail with 503 and numeric default-value is configured — returns numeric default.
+     */
+    @Test
+    void testNumericDefaultValueReturnedAfterAllRetriesFail() throws Exception {
+        String intModelName = "triton_retry_model_int";
+        Schema intOutputSchema = Schema.newBuilder().column("prediction", DataTypes.INT()).build();
+
+        Map<String, String> intModelOptions = new HashMap<>(modelOptions);
+        intModelOptions.put("max-retries", "1");
+        intModelOptions.put("default-value", "-1");
+
+        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
+        ObjectIdentifier modelIdentifier =
+                ObjectIdentifier.of(
+                        Objects.requireNonNull(catalogManager.getCurrentCatalog()),
+                        Objects.requireNonNull(catalogManager.getCurrentDatabase()),
+                        intModelName);
+        catalogManager.createModel(
+                CatalogModel.of(INPUT_SCHEMA, intOutputSchema, intModelOptions, ""),
+                modelIdentifier,
+                false);
+
+        server.enqueue(new MockResponse().setResponseCode(503));
+        server.enqueue(new MockResponse().setResponseCode(503));
+
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "SELECT prediction FROM ML_PREDICT("
+                                + "TABLE input_table, MODEL "
+                                + intModelName
+                                + ", DESCRIPTOR(`input`))");
+
+        List<Row> rows = collectRows(tableResult);
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).<Integer>getFieldAs(0)).isEqualTo(-1);
+    }
+
     /** All attempts fail with 503 and no default-value — exception is thrown. */
     @Test
     void testExceptionThrownWhenNoDefaultValueAfterAllRetriesFail() {
