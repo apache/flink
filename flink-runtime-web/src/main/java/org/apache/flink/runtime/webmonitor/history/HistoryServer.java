@@ -443,6 +443,10 @@ public class HistoryServer {
             this.fs = fs;
         }
 
+        static RefreshLocation of(Path path, FileSystem fs) {
+            return new RefreshLocation(path, fs);
+        }
+
         public Path getPath() {
             return path;
         }
