@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -55,7 +56,7 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
     private static final Logger LOG =
             LoggerFactory.getLogger(NativeS3RecoverableFsDataOutputStream.class);
 
-    /** Lock to guard close/persist/commit paths against concurrent close() during cancellation. */
+    private static final int BUFFER_SIZE = 64 * 1024;
     private final ReentrantLock lock = new ReentrantLock();
 
     private final NativeS3AccessHelper s3AccessHelper;
@@ -68,7 +69,8 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
     private long numBytesInParts;
 
     private File currentTempFile;
-    private FileOutputStream currentOutputStream;
+    private FileOutputStream currentFileStream;
+    private BufferedOutputStream currentOutputStream;
     private long currentPartSize;
     private int nextPartNumber;
 
@@ -114,7 +116,8 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
         }
 
         currentTempFile = new File(tmpDir, "s3-part-" + UUID.randomUUID());
-        currentOutputStream = new FileOutputStream(currentTempFile);
+        currentFileStream = new FileOutputStream(currentTempFile);
+        currentOutputStream = new BufferedOutputStream(currentFileStream, BUFFER_SIZE);
         currentPartSize = 0;
     }
 
@@ -161,14 +164,18 @@ public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
     @Override
     public void flush() throws IOException {
-        if (!closed) {
-            currentOutputStream.flush();
+        if (closed) {
+            throw new IOException("Stream is closed");
         }
+        currentOutputStream.flush();
     }
 
     @Override
     public void sync() throws IOException {
-        flush();
+        if (closed) {
+            throw new IOException("Stream is closed");
+        }
+        persist();
     }
 
     private void uploadCurrentPart() throws IOException {
