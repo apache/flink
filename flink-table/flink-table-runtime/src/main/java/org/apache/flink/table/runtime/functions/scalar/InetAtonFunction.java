@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 
@@ -34,32 +36,24 @@ import javax.annotation.Nullable;
  * <p>The conversion formula for a standard IP address A.B.C.D is: A * 256^3 + B * 256^2 + C * 256 +
  * D
  *
- * <p>MySQL-compatible short-form IPv4 addresses are supported:
+ * <p>MySQL-compatible short-form IPv4 addresses are supported (following the C library {@code
+ * inet_aton} convention):
  *
  * <ul>
- *   <li>a.b is interpreted as a.0.0.b
- *   <li>a.b.c is interpreted as a.b.0.c
+ *   <li>a — the value is stored directly as a 32-bit address
+ *   <li>a.b — interpreted as a.0.0.b
+ *   <li>a.b.c — interpreted as a.b.0.c
+ *   <li>a.b.c.d — standard dotted-decimal format
  * </ul>
  *
  * <p>Leading zeros in octets are parsed as decimal (consistent with MySQL), not octal.
  *
  * <p>Note: This function only supports IPv4 addresses. IPv6 addresses are not supported.
  *
- * <p><b>Implementation Note:</b> This implementation does not use utility classes such as {@code
- * com.google.common.net.InetAddresses} or {@code sun.net.util.IPAddressUtil} because:
- *
- * <ul>
- *   <li>Guava's {@code InetAddresses.forString()} does not support MySQL-compatible short-form IP
- *       addresses (e.g., "127.1" interpreted as "127.0.0.1")
- *   <li>Standard IP parsers may interpret leading zeros as octal (e.g., "010" as 8), while MySQL
- *       treats them as decimal (e.g., "010" as 10)
- *   <li>{@code sun.net.util.IPAddressUtil} is a JDK internal API requiring {@code --add-exports},
- *       which introduces JDK version compatibility issues
- * </ul>
- *
  * <p>Examples:
  *
  * <ul>
+ *   <li>INET_ATON('1') returns 1 (single number: direct 32-bit value)
  *   <li>INET_ATON('127.0.0.1') returns 2130706433
  *   <li>INET_ATON('127.1') returns 2130706433 (short-form: 127.0.0.1)
  *   <li>INET_ATON('127.0.1') returns 2130706433 (short-form: 127.0.0.1)
@@ -85,73 +79,84 @@ public class InetAtonFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        final String ip = ipAddress.toString();
-        if (ip.isEmpty()) {
+        BinaryStringData binaryStr = (BinaryStringData) ipAddress;
+        if (BinaryStringDataUtil.isEmpty(binaryStr)) {
             return null;
         }
 
-        return ipToLong(ip);
+        return ipToLong(binaryStr);
     }
 
     /**
      * Converts an IPv4 address string to a long value.
      *
-     * <p>Supports MySQL-compatible short-form addresses:
+     * <p>Operates directly on UTF-8 bytes from {@link BinaryStringData} to avoid unnecessary String
+     * object allocation. Since IPv4 addresses contain only ASCII characters ('0'-'9' and '.'), each
+     * character is exactly one byte in UTF-8 encoding.
+     *
+     * <p>Supports MySQL-compatible short-form addresses (following C library {@code inet_aton}):
      *
      * <ul>
-     *   <li>a.b -> a.0.0.b
-     *   <li>a.b.c -> a.b.0.c
-     *   <li>a.b.c.d -> standard format
+     *   <li>a -> direct 32-bit value (value must be in [0, 0xFFFFFFFF])
+     *   <li>a.b -> a.0.0.b (each part must be in [0, 255])
+     *   <li>a.b.c -> a.b.0.c (each part must be in [0, 255])
+     *   <li>a.b.c.d -> standard format (each part must be in [0, 255])
      * </ul>
      *
      * <p>Leading zeros are treated as decimal (not octal), consistent with MySQL behavior.
      *
-     * @param ip the IPv4 address string
+     * @param ip the IPv4 address as BinaryStringData
      * @return the long value, or null if the IP address is invalid
      */
-    private static @Nullable Long ipToLong(String ip) {
-        int len = ip.length();
-        int octetCount = 0;
-        int octetStart = 0;
-        long[] octets = new long[4];
+    private static @Nullable Long ipToLong(BinaryStringData ip) {
+        int len = ip.getSizeInBytes();
+        int partCount = 0;
+        int partStart = 0;
+        long[] parts = new long[4];
 
         for (int i = 0; i <= len; i++) {
-            if (i == len || ip.charAt(i) == '.') {
-                if (octetCount >= 4) {
+            if (i == len || ip.byteAt(i) == '.') {
+                if (partCount >= 4) {
                     return null;
                 }
-                if (octetStart == i) {
+                if (partStart == i) {
                     return null;
                 }
 
-                // Parse number manually
-                long octet = 0;
-                for (int j = octetStart; j < i; j++) {
-                    char c = ip.charAt(j);
-                    if (c < '0' || c > '9') {
+                // Parse number manually from bytes
+                long value = 0;
+                for (int j = partStart; j < i; j++) {
+                    byte b = ip.byteAt(j);
+                    if (b < '0' || b > '9') {
                         return null;
                     }
-                    octet = octet * 10 + (c - '0');
-                    if (octet > 255) {
+                    value = value * 10 + (b - '0');
+                    if (value > 0xFFFFFFFFL) {
                         return null;
                     }
                 }
-                octets[octetCount++] = octet;
-                octetStart = i + 1;
+                parts[partCount++] = value;
+                partStart = i + 1;
             }
         }
 
-        if (octetCount < 2) {
-            return null;
-        }
-
-        switch (octetCount) {
+        switch (partCount) {
+            case 1:
+                // Single number: direct 32-bit value
+                return parts[0] <= 0xFFFFFFFFL ? parts[0] : null;
             case 2:
-                return (octets[0] << 24) | octets[1];
+                // a.b -> a.0.0.b
+                return (parts[0] <= 255 && parts[1] <= 255) ? (parts[0] << 24) | parts[1] : null;
             case 3:
-                return (octets[0] << 24) | (octets[1] << 16) | octets[2];
+                // a.b.c -> a.b.0.c
+                return (parts[0] <= 255 && parts[1] <= 255 && parts[2] <= 255)
+                        ? (parts[0] << 24) | (parts[1] << 16) | parts[2]
+                        : null;
             case 4:
-                return (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+                // a.b.c.d -> standard format
+                return (parts[0] <= 255 && parts[1] <= 255 && parts[2] <= 255 && parts[3] <= 255)
+                        ? (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]
+                        : null;
             default:
                 return null;
         }

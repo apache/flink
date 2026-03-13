@@ -24,7 +24,9 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.Expressions.$;
 
 /**
@@ -38,10 +40,13 @@ public class InetFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 inetAtonStandardTestCases(),
                 inetAtonShortFormTestCases(),
+                inetAtonSingleNumberTestCases(),
                 inetAtonLeadingZeroTestCases(),
                 inetAtonInvalidInputTestCases(),
                 inetNtoaTestCases(),
-                inetNtoaIntInputTestCases());
+                inetNtoaIntInputTestCases(),
+                inetNtoaSmallintInputTestCases(),
+                inetNtoaTinyintInputTestCases());
     }
 
     /** Test standard 4-octet IPv4 addresses. */
@@ -80,6 +85,26 @@ public class InetFunctionsITCase extends BuiltInFunctionTestBase {
                 .testResult($("f4").inetAton(), "INET_ATON(f4)", 16777218L, BIGINT());
     }
 
+    /** Test single-number addresses: value is treated as a direct 32-bit address. */
+    private TestSetSpec inetAtonSingleNumberTestCases() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.INET_ATON)
+                .onFieldsWithData(
+                        "1", // f0: single number -> 1
+                        "0", // f1: zero -> 0
+                        "255", // f2: 255
+                        "167772161", // f3: 10.0.0.1 as direct value
+                        "4294967295", // f4: max unsigned 32-bit = 0xFFFFFFFF
+                        "4294967296" // f5: exceeds max -> null
+                        )
+                .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                .testResult($("f0").inetAton(), "INET_ATON(f0)", 1L, BIGINT())
+                .testResult($("f1").inetAton(), "INET_ATON(f1)", 0L, BIGINT())
+                .testResult($("f2").inetAton(), "INET_ATON(f2)", 255L, BIGINT())
+                .testResult($("f3").inetAton(), "INET_ATON(f3)", 167772161L, BIGINT())
+                .testResult($("f4").inetAton(), "INET_ATON(f4)", 4294967295L, BIGINT())
+                .testResult($("f5").inetAton(), "INET_ATON(f5)", null, BIGINT().nullable());
+    }
+
     /** Test leading zeros are parsed as decimal (MySQL behavior), not octal. */
     private TestSetSpec inetAtonLeadingZeroTestCases() {
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.INET_ATON)
@@ -107,13 +132,12 @@ public class InetFunctionsITCase extends BuiltInFunctionTestBase {
                         "1.2.3.", // f5: trailing dot
                         ".1.2.3", // f6: leading dot
                         "1..2.3", // f7: double dot
-                        "1", // f8: single octet (invalid)
-                        " 127.0.0.1", // f9: leading space (no trim)
-                        "127.0.0.1 " // f10: trailing space (no trim)
+                        " 127.0.0.1", // f8: leading space (no trim)
+                        "127.0.0.1 " // f9: trailing space (no trim)
                         )
                 .andDataTypes(
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
-                        STRING(), STRING(), STRING(), STRING())
+                        STRING(), STRING(), STRING())
                 .testResult($("f0").inetAton(), "INET_ATON(f0)", null, BIGINT().nullable())
                 .testResult($("f1").inetAton(), "INET_ATON(f1)", null, BIGINT().nullable())
                 .testResult($("f2").inetAton(), "INET_ATON(f2)", null, BIGINT().nullable())
@@ -123,8 +147,7 @@ public class InetFunctionsITCase extends BuiltInFunctionTestBase {
                 .testResult($("f6").inetAton(), "INET_ATON(f6)", null, BIGINT().nullable())
                 .testResult($("f7").inetAton(), "INET_ATON(f7)", null, BIGINT().nullable())
                 .testResult($("f8").inetAton(), "INET_ATON(f8)", null, BIGINT().nullable())
-                .testResult($("f9").inetAton(), "INET_ATON(f9)", null, BIGINT().nullable())
-                .testResult($("f10").inetAton(), "INET_ATON(f10)", null, BIGINT().nullable());
+                .testResult($("f9").inetAton(), "INET_ATON(f9)", null, BIGINT().nullable());
     }
 
     /** Test INET_NTOA with BIGINT inputs. */
@@ -169,5 +192,41 @@ public class InetFunctionsITCase extends BuiltInFunctionTestBase {
                 .testResult($("f2").inetNtoa(), "INET_NTOA(f2)", "10.0.0.1", STRING())
                 .testResult($("f3").inetNtoa(), "INET_NTOA(f3)", null, STRING().nullable())
                 .testResult($("f4").inetNtoa(), "INET_NTOA(f4)", "255.255.255.255", STRING());
+    }
+
+    /** Test INET_NTOA with SMALLINT inputs. */
+    private TestSetSpec inetNtoaSmallintInputTestCases() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.INET_NTOA)
+                .onFieldsWithData(
+                        (short) 256, // f0: 0.0.1.0
+                        (short) 0, // f1: 0.0.0.0
+                        (short) 1, // f2: 0.0.0.1
+                        (Short) null, // f3: null
+                        (short) -1 // f4: -1 as unsigned short -> 65535 -> 0.0.255.255
+                        )
+                .andDataTypes(SMALLINT(), SMALLINT(), SMALLINT(), SMALLINT(), SMALLINT())
+                .testResult($("f0").inetNtoa(), "INET_NTOA(f0)", "0.0.1.0", STRING())
+                .testResult($("f1").inetNtoa(), "INET_NTOA(f1)", "0.0.0.0", STRING())
+                .testResult($("f2").inetNtoa(), "INET_NTOA(f2)", "0.0.0.1", STRING())
+                .testResult($("f3").inetNtoa(), "INET_NTOA(f3)", null, STRING().nullable())
+                .testResult($("f4").inetNtoa(), "INET_NTOA(f4)", "0.0.255.255", STRING());
+    }
+
+    /** Test INET_NTOA with TINYINT inputs. */
+    private TestSetSpec inetNtoaTinyintInputTestCases() {
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.INET_NTOA)
+                .onFieldsWithData(
+                        (byte) 1, // f0: 0.0.0.1
+                        (byte) 0, // f1: 0.0.0.0
+                        (byte) 127, // f2: 0.0.0.127
+                        (Byte) null, // f3: null
+                        (byte) -1 // f4: -1 as unsigned byte -> 255 -> 0.0.0.255
+                        )
+                .andDataTypes(TINYINT(), TINYINT(), TINYINT(), TINYINT(), TINYINT())
+                .testResult($("f0").inetNtoa(), "INET_NTOA(f0)", "0.0.0.1", STRING())
+                .testResult($("f1").inetNtoa(), "INET_NTOA(f1)", "0.0.0.0", STRING())
+                .testResult($("f2").inetNtoa(), "INET_NTOA(f2)", "0.0.0.127", STRING())
+                .testResult($("f3").inetNtoa(), "INET_NTOA(f3)", null, STRING().nullable())
+                .testResult($("f4").inetNtoa(), "INET_NTOA(f4)", "0.0.0.255", STRING());
     }
 }

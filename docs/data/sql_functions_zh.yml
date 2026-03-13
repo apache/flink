@@ -605,7 +605,7 @@ string:
   - sql: INET_NTOA(integer)
     table: INTEGER.inetNtoa()
     description: |
-      将数值 IPv4 地址表示转换回字符串格式。遵循 MySQL INET_NTOA 函数行为。
+      将数值 IPv4 地址表示转换回字符串格式。
 
       输入必须在有效的 IPv4 范围内 [0, 4294967295]。如果输入为 NULL 或超出范围，则返回 NULL。
 

@@ -463,15 +463,6 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.UrlEncodeFunction")
                     .build();
 
-    /**
-     * Converts an IPv4 address string to its numeric representation. Follows MySQL INET_ATON
-     * behavior.
-     *
-     * <p>Supports MySQL-compatible short-form addresses (a.b, a.b.c) and treats leading zeros as
-     * decimal.
-     *
-     * <p>Example: INET_ATON('127.0.0.1') returns 2130706433; INET_ATON('127.1') returns 2130706433
-     */
     public static final BuiltInFunctionDefinition INET_ATON =
             BuiltInFunctionDefinition.newBuilder()
                     .name("INET_ATON")
@@ -482,14 +473,6 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.InetAtonFunction")
                     .build();
 
-    /**
-     * Converts a numeric IPv4 address representation back to its string format. Follows MySQL
-     * INET_NTOA behavior.
-     *
-     * <p>Accepts BIGINT or INT input. Input must be in valid range [0, 4294967295].
-     *
-     * <p>Example: INET_NTOA(2130706433) returns '127.0.0.1'
-     */
     public static final BuiltInFunctionDefinition INET_NTOA =
             BuiltInFunctionDefinition.newBuilder()
                     .name("INET_NTOA")

@@ -510,7 +510,7 @@ string:
   - sql: INET_NTOA(integer)
     table: INTEGER.inetNtoa()
     description: |
-      Converts a numeric IPv4 address representation back to its string format. Follows MySQL INET_NTOA behavior.
+      Converts a numeric IPv4 address representation back to its string format.
 
       The input must be in the valid IPv4 range [0, 4294967295]. Returns NULL if input is NULL or out of range.
 

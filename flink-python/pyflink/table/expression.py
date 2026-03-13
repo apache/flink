@@ -1471,7 +1471,6 @@ class Expression(Generic[T]):
     def inet_ntoa(self) -> 'Expression[str]':
         """
         Converts a numeric IPv4 address representation (BIGINT or INT) back to its string format.
-        This function follows MySQL INET_NTOA behavior.
 
         The input must be in the valid IPv4 range [0, 4294967295].
 

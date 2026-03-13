@@ -28,24 +28,11 @@ import javax.annotation.Nullable;
 /**
  * Implementation of {@link BuiltInFunctionDefinitions#INET_NTOA}.
  *
- * <p>This function converts a numeric IPv4 address representation back to its string format. It
- * follows the MySQL INET_NTOA function behavior.
+ * <p>This function converts a numeric IPv4 address representation back to its string format.
  *
  * <p>The conversion extracts each octet from the numeric value using bit shifting and masking.
  *
  * <p>Note: This function only supports IPv4 addresses. IPv6 addresses are not supported.
- *
- * <p><b>Implementation Note:</b> This implementation does not use utility classes such as {@code
- * com.google.common.net.InetAddresses} or {@code sun.net.util.IPAddressUtil} because:
- *
- * <ul>
- *   <li>The conversion from number to IP string is straightforward and does not benefit from
- *       external libraries
- *   <li>Using a custom implementation avoids unnecessary dependencies and object allocations (e.g.,
- *       creating {@code InetAddress} objects)
- *   <li>{@code sun.net.util.IPAddressUtil} is a JDK internal API requiring {@code --add-exports},
- *       which introduces JDK version compatibility issues
- * </ul>
  *
  * <p>Examples:
  *
@@ -57,10 +44,6 @@ import javax.annotation.Nullable;
  */
 @Internal
 public class InetNtoaFunction extends BuiltInScalarFunction {
-
-    private static final long MAX_IPV4_VALUE = 0xFFFFFFFFL;
-    private static final int OCTET_MASK = 0xFF;
-    private static final int BITS_PER_OCTET = 8;
 
     public InetNtoaFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.INET_NTOA, context);
@@ -77,7 +60,7 @@ public class InetNtoaFunction extends BuiltInScalarFunction {
         if (ipNumber == null) {
             return null;
         }
-        return convertToIp(ipNumber);
+        return longToIp(ipNumber);
     }
 
     /**
@@ -96,36 +79,53 @@ public class InetNtoaFunction extends BuiltInScalarFunction {
         }
         // Convert to long, treating negative integers as unsigned
         // For example, -1 (0xFFFFFFFF as signed int) should be treated as 4294967295
-        return convertToIp(Integer.toUnsignedLong(ipNumber));
+        return longToIp(Integer.toUnsignedLong(ipNumber));
     }
 
     /**
-     * Internal conversion method.
+     * Converts a numeric IPv4 address representation (Short / SMALLINT) to its string format.
+     *
+     * @param ipNumber the numeric representation of the IPv4 address
+     * @return the IPv4 address string in dotted-decimal notation, or null if input is null
+     */
+    public @Nullable StringData eval(@Nullable Short ipNumber) {
+        if (ipNumber == null) {
+            return null;
+        }
+        return longToIp(Short.toUnsignedLong(ipNumber));
+    }
+
+    /**
+     * Converts a numeric IPv4 address representation (Byte / TINYINT) to its string format.
+     *
+     * @param ipNumber the numeric representation of the IPv4 address
+     * @return the IPv4 address string in dotted-decimal notation, or null if input is null
+     */
+    public @Nullable StringData eval(@Nullable Byte ipNumber) {
+        if (ipNumber == null) {
+            return null;
+        }
+        return longToIp(Byte.toUnsignedLong(ipNumber));
+    }
+
+    /**
+     * Converts a numeric IPv4 address to its dotted-decimal string format.
      *
      * @param ipNumber the numeric representation
-     * @return the IPv4 address string, or null if out of valid range
+     * @return the IPv4 address string, or null if out of valid range [0, 4294967295]
      */
-    private @Nullable StringData convertToIp(long ipNumber) {
-        // Check if the number is within valid IPv4 range [0, 4294967295]
-        if (ipNumber < 0 || ipNumber > MAX_IPV4_VALUE) {
+    private static @Nullable StringData longToIp(long ipNumber) {
+        if (ipNumber < 0 || ipNumber > 0xFFFFFFFFL) {
             return null;
         }
 
-        return StringData.fromString(longToIp(ipNumber));
-    }
-
-    /**
-     * Converts a numeric IPv4 address representation to its string format.
-     *
-     * @param ipNumber the numeric representation
-     * @return the IPv4 address string
-     */
-    private static String longToIp(long ipNumber) {
-        final int octet1 = (int) ((ipNumber >> (BITS_PER_OCTET * 3)) & OCTET_MASK);
-        final int octet2 = (int) ((ipNumber >> (BITS_PER_OCTET * 2)) & OCTET_MASK);
-        final int octet3 = (int) ((ipNumber >> BITS_PER_OCTET) & OCTET_MASK);
-        final int octet4 = (int) (ipNumber & OCTET_MASK);
-
-        return octet1 + "." + octet2 + "." + octet3 + "." + octet4;
+        return StringData.fromString(
+                ((ipNumber >> 24) & 0xFF)
+                        + "."
+                        + ((ipNumber >> 16) & 0xFF)
+                        + "."
+                        + ((ipNumber >> 8) & 0xFF)
+                        + "."
+                        + (ipNumber & 0xFF));
     }
 }
