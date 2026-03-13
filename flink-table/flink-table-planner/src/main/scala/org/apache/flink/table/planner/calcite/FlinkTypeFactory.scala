@@ -159,6 +159,9 @@ class FlinkTypeFactory(
       case LogicalTypeRoot.VARIANT =>
         createSqlType(SqlTypeName.VARIANT)
 
+      case LogicalTypeRoot.BITMAP =>
+        new BitmapRelDataType(t.asInstanceOf[BitmapType])
+
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")
     }
@@ -419,6 +422,10 @@ class FlinkTypeFactory(
     canonize(relDataType)
   }
 
+  override def createBitmapType(): RelDataType = {
+    canonize(new BitmapRelDataType(new BitmapType()))
+  }
+
   override def createSqlType(typeName: SqlTypeName): RelDataType = {
     if (typeName == DECIMAL) {
       // if we got here, the precision and scale are not specified, here we
@@ -446,6 +453,9 @@ class FlinkTypeFactory(
 
       case structured: StructuredRelDataType =>
         structured.createWithNullability(isNullable)
+
+      case bitmap: BitmapRelDataType =>
+        bitmap.createWithNullability(isNullable)
 
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
@@ -681,6 +691,9 @@ object FlinkTypeFactory {
 
       case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
         relDataType.asInstanceOf[RawRelDataType].getRawType
+
+      case OTHER if relDataType.isInstanceOf[BitmapRelDataType] =>
+        relDataType.asInstanceOf[BitmapRelDataType].getBitmapType
 
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")

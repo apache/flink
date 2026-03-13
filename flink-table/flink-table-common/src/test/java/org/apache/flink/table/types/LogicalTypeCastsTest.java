@@ -25,6 +25,7 @@ import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -262,7 +263,18 @@ class LogicalTypeCastsTest {
                         new RawType<>(Integer.class, IntSerializer.INSTANCE),
                         VarCharType.STRING_TYPE,
                         false,
-                        true));
+                        true),
+                // bitmap, remove these cases when built-in functions are introduced to build bitmap
+                Arguments.of(new BitmapType(), new CharType(), false, true),
+                Arguments.of(new BitmapType(), VarCharType.STRING_TYPE, false, true),
+                Arguments.of(new BitmapType(), new BinaryType(), false, true),
+                Arguments.of(new BitmapType(), new VarBinaryType(), false, true),
+                Arguments.of(new BitmapType(), new ArrayType(new IntType()), false, false),
+                Arguments.of(new CharType(), new BitmapType(), false, false),
+                Arguments.of(VarCharType.STRING_TYPE, new BitmapType(), false, false),
+                Arguments.of(new BinaryType(), new BitmapType(), false, false),
+                Arguments.of(new VarBinaryType(), new BitmapType(), false, false),
+                Arguments.of(new ArrayType(new IntType()), new BitmapType(), false, false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")

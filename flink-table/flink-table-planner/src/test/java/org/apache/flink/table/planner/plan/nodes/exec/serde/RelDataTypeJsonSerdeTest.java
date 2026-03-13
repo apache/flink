@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverterTest.PojoClass;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.RawType;
 
@@ -242,6 +243,13 @@ public class RelDataTypeJsonSerdeTest {
                         FACTORY.createFieldTypeFromLogicalType(
                                 new RawType<>(true, Void.class, VoidSerializer.INSTANCE)),
                         false));
+
+        mutableTypes.add(
+                FACTORY.createTypeWithNullability(
+                        FACTORY.createFieldTypeFromLogicalType(new BitmapType()), false));
+        mutableTypes.add(
+                FACTORY.createTypeWithNullability(
+                        FACTORY.createFieldTypeFromLogicalType(new BitmapType()), true));
 
         return mutableTypes;
     }

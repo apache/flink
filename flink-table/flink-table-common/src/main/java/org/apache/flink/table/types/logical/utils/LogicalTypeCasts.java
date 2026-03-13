@@ -55,6 +55,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BITMAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DATE;
@@ -184,7 +185,7 @@ public final class LogicalTypeCasts {
         castTo(CHAR)
                 .implicitFrom(CHAR)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .build();
@@ -192,7 +193,7 @@ public final class LogicalTypeCasts {
         castTo(VARCHAR)
                 .implicitFromFamily(CHARACTER_STRING)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR, VARCHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .build();
@@ -204,7 +205,7 @@ public final class LogicalTypeCasts {
         castTo(BINARY)
                 .implicitFrom(BINARY)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(VARBINARY, RAW)
+                .explicitFrom(VARBINARY, RAW, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY)
                 .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
@@ -212,7 +213,7 @@ public final class LogicalTypeCasts {
         castTo(VARBINARY)
                 .implicitFromFamily(BINARY_STRING)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(BINARY, RAW)
+                .explicitFrom(BINARY, RAW, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY, VARBINARY)
                 .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();

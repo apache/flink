@@ -41,6 +41,7 @@ import org.apache.flink.table.data.columnar.vector.MapColumnVector;
 import org.apache.flink.table.data.columnar.vector.RowColumnVector;
 import org.apache.flink.table.data.columnar.vector.ShortColumnVector;
 import org.apache.flink.table.data.columnar.vector.TimestampColumnVector;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.util.Arrays;
@@ -159,6 +160,11 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
     @Override
     public RowData getRow(int pos, int numFields) {
         return ((RowColumnVector) data).getRow(offset + pos);
+    }
+
+    @Override
+    public Bitmap getBitmap(int pos) {
+        throw new UnsupportedOperationException("Bitmap is not supported yet.");
     }
 
     @Override

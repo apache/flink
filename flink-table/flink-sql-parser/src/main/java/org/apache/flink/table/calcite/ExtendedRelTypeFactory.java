@@ -43,8 +43,5 @@ public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
             String className, List<RelDataType> typeList, List<String> fieldNameList);
 
     /** Creates a BITMAP type. */
-    default RelDataType createBitmapType() {
-        // The actual implementation will be provided by FlinkTypeFactory as part of FLINK-39185.
-        throw new UnsupportedOperationException("BITMAP type is not supported yet.");
-    }
+    RelDataType createBitmapType();
 }

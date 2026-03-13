@@ -49,6 +49,7 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.bitmap.Bitmap;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -841,7 +842,43 @@ class TypeInferenceExtractorTest {
                 // ---
                 TestSpec.forProcessTableFunction(MultiEvalProcessTableFunction.class)
                         .expectErrorMessage(
-                                "Process table functions require a non-overloaded, non-vararg, and static signature."));
+                                "Process table functions require a non-overloaded, non-vararg, and static signature."),
+                TestSpec.forScalarFunction("Bitmap in scalar function", BitmapTypeFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("bm", DataTypes.BITMAP(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "array", DataTypes.ARRAY(DataTypes.BITMAP()), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "map",
+                                        DataTypes.MAP(DataTypes.INT(), DataTypes.BITMAP()),
+                                        false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "row",
+                                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.BITMAP())),
+                                        false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.BITMAP())),
+                TestSpec.forAsyncScalarFunction(
+                                "Bitmap in async scalar function", BitmapTypeAsyncFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("bm", DataTypes.BITMAP(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.BITMAP())),
+                TestSpec.forAggregateFunction(
+                                "Bitmap in aggregate function", BitmapTypeAggFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("bitmap", DataTypes.BITMAP(), false))
+                        .expectAccumulator(TypeStrategies.explicit(DataTypes.BITMAP()))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.BITMAP())),
+                TestSpec.forScalarFunction(
+                                "Bitmap bridged to custom Bitmap",
+                                InvalidCustomBitmapTypeFunction1.class)
+                        .expectErrorMessage(
+                                "Logical type 'BITMAP' does not support a conversion from or to class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$CustomBitmap'."),
+                TestSpec.forScalarFunction("Custom Bitmap", InvalidCustomBitmapTypeFunction2.class)
+                        .expectErrorMessage(
+                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -1176,7 +1213,11 @@ class TypeInferenceExtractorTest {
                                 ArgumentHintOptionalOnPrimitiveParameterConflictProcedure.class)
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
-                                        + "int[] call(_, java.lang.String, java.lang.Integer)"));
+                                        + "int[] call(_, java.lang.String, java.lang.Integer)"),
+                TestSpec.forProcedure("Bitmap in procedure", BitmapTypeProcedure.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("bitmap", DataTypes.BITMAP(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.BITMAP())));
     }
 
     @ParameterizedTest(name = "{index}: {0}")
@@ -1312,8 +1353,13 @@ class TypeInferenceExtractorTest {
         }
 
         static TestSpec forAggregateFunction(Class<? extends AggregateFunction<?, ?>> function) {
+            return forAggregateFunction(null, function);
+        }
+
+        static TestSpec forAggregateFunction(
+                String description, Class<? extends AggregateFunction<?, ?>> function) {
             return new TestSpec(
-                    function.getSimpleName(),
+                    description == null ? function.getSimpleName() : description,
                     () ->
                             TypeInferenceExtractor.forAggregateFunction(
                                     new DataTypeFactoryMock(), function));
@@ -2622,5 +2668,113 @@ class TypeInferenceExtractorTest {
         public int eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
+    }
+
+    @FunctionHint(output = @DataTypeHint("BITMAP"))
+    private static class BitmapTypeFunction extends ScalarFunction {
+        public Bitmap eval(
+                Bitmap bm,
+                Bitmap[] array,
+                Map<Integer, Bitmap> map,
+                @DataTypeHint("ROW<a BITMAP>") Row row) {
+            return null;
+        }
+    }
+
+    private static class BitmapTypeAsyncFunction extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Bitmap> f, Bitmap bm) {}
+    }
+
+    private static class BitmapTypeAggFunction extends AggregateFunction<Bitmap, Bitmap> {
+        public void accumulate(Bitmap accumulator, Bitmap bitmap) {}
+
+        @Override
+        public Bitmap createAccumulator() {
+            return null;
+        }
+
+        @Override
+        public Bitmap getValue(Bitmap accumulator) {
+            return null;
+        }
+    }
+
+    private static class BitmapTypeProcedure implements Procedure {
+        public Bitmap[] call(Object procedureContext, Bitmap bitmap) {
+            return null;
+        }
+    }
+
+    @FunctionHint(input = @DataTypeHint(value = "BITMAP", bridgedTo = CustomBitmap.class))
+    private static class InvalidCustomBitmapTypeFunction1 extends ScalarFunction {
+        public Bitmap eval(Bitmap bitmap) {
+            return null;
+        }
+    }
+
+    private static class InvalidCustomBitmapTypeFunction2 extends ScalarFunction {
+        public Bitmap eval(CustomBitmap bitmap) {
+            return null;
+        }
+    }
+
+    public static class CustomBitmap implements Bitmap {
+
+        @Override
+        public void add(int value) {}
+
+        @Override
+        public void add(long rangeStart, long rangeEnd) {}
+
+        @Override
+        public void addN(int[] values, int offset, int n) {}
+
+        @Override
+        public void and(@org.jetbrains.annotations.Nullable Bitmap other) {}
+
+        @Override
+        public void andNot(@org.jetbrains.annotations.Nullable Bitmap other) {}
+
+        @Override
+        public void clear() {}
+
+        @Override
+        public boolean contains(int value) {
+            return false;
+        }
+
+        @Override
+        public int getCardinality() {
+            return 0;
+        }
+
+        @Override
+        public long getLongCardinality() {
+            return 0;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @Override
+        public void or(@org.jetbrains.annotations.Nullable Bitmap other) {}
+
+        @Override
+        public void remove(int value) {}
+
+        @Override
+        public int[] toArray() {
+            return new int[0];
+        }
+
+        @Override
+        public byte[] toBytes() {
+            return new byte[0];
+        }
+
+        @Override
+        public void xor(@org.jetbrains.annotations.Nullable Bitmap other) {}
     }
 }
