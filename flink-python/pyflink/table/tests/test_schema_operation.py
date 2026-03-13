@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.table.catalog import ResolvedSchema
+from pyflink.table.catalog import ResolvedSchema, PhysicalColumn
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
@@ -33,7 +33,7 @@ class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
         result = t.group_by(t.c).select(t.a.sum.alias('a'), t.c.alias('b'))
         schema = result.get_schema()
 
-        assert schema == TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()])
+        self.assertEqual(schema, TableSchema(["a", "b"], [DataTypes.BIGINT(), DataTypes.STRING()]))
 
     def test_get_resolved_schema(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
@@ -42,7 +42,23 @@ class StreamTableSchemaTests(PyFlinkStreamTableTestCase):
             ['a', 'b', 'c'],
             [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()],
         )
-        assert resolved_schema == expected_schema
+        self.assertEqual(resolved_schema, expected_schema)
+
+    def test_resolved_schema_get_columns(self):
+        physical_schema = ResolvedSchema.physical(
+            ['a', 'b', 'c'],
+            [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()],
+        )
+
+        columns = physical_schema.get_columns()
+        self.assertEqual(len(columns), 3)
+        for column in columns:
+            self.assertEqual(type(column), PhysicalColumn)
+
+        for idx in range(3):
+            column = physical_schema.get_column(idx)
+            self.assertEqual(type(column), PhysicalColumn)
+
 
 if __name__ == '__main__':
     import unittest
