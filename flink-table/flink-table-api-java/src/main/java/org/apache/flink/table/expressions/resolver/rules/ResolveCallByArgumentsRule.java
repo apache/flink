@@ -682,6 +682,23 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         @Override
+        public Optional<String> getArgumentName(int pos) {
+            final ResolvedExpression arg = getArgument(pos);
+
+            if (arg instanceof CallExpression) {
+                final CallExpression call = (CallExpression) arg;
+                if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
+                    final List<ResolvedExpression> children = call.getResolvedChildren();
+                    if (children.size() >= 2 && children.get(1) instanceof ValueLiteralExpression) {
+                        return ((ValueLiteralExpression) children.get(1)).getValueAs(String.class);
+                    }
+                }
+            }
+
+            return Optional.empty();
+        }
+
+        @Override
         public Optional<DataType> getOutputDataType() {
             return Optional.empty();
         }

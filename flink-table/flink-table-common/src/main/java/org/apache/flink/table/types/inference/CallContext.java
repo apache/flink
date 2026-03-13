@@ -113,6 +113,11 @@ public interface CallContext {
      */
     List<DataType> getArgumentDataTypes();
 
+    /** Returns the name/alias of the argument at the given position if one is available. */
+    default Optional<String> getArgumentName(int pos) {
+        return Optional.empty();
+    }
+
     /**
      * Returns the inferred output data type of the function call.
      *

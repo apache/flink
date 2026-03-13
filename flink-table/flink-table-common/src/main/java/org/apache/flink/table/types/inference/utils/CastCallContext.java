@@ -116,6 +116,12 @@ public final class CastCallContext implements CallContext {
     }
 
     @Override
+    public Optional<String> getArgumentName(int pos) {
+        // argument names remain regardless of casting
+        return originalContext.getArgumentName(pos);
+    }
+
+    @Override
     public Optional<DataType> getOutputDataType() {
         return Optional.ofNullable(outputDataType);
     }
