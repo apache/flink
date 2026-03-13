@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.configuration.CommitFailureStrategy;
 import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
@@ -363,6 +364,136 @@ class SinkV2CommitterOperatorTest {
 
             assertThat(testHarness.getOutput()).hasSize(2);
         }
+    }
+
+    @Test
+    void testWarnStrategySkipsUnknownCommitFailures() throws Exception {
+        SupportsCommitter<String> sink =
+                (SupportsCommitter<String>)
+                        TestSinkV2.newBuilder()
+                                .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                                .setCommitter(
+                                        new TestSinkV2.FailWithUnknownReasonCommitter<>(),
+                                        STRING_SERIALIZER)
+                                .setWithPostCommitTopology(true)
+                                .build();
+
+        try (OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness = createTestHarness(sink, false, true, 1, 1, 0)) {
+            testHarness
+                    .getStreamConfig()
+                    .getConfiguration()
+                    .set(SinkOptions.COMMITTER_FAILURE_STRATEGY, CommitFailureStrategy.WARN);
+            testHarness.open();
+
+            long ckdId = 1L;
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0)));
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableWithLineage<>("1", ckdId, 0)));
+
+            assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(ckdId))
+                    .doesNotThrowAnyException();
+
+            assertThat(testHarness.extractOutputValues()).hasSize(1);
+            assertThat(testHarness.extractOutputValues().get(0))
+                    .isInstanceOf(CommittableSummary.class);
+            CommittableSummary<?> summary =
+                    (CommittableSummary<?>) testHarness.extractOutputValues().get(0);
+            assertThat(summary.getNumberOfCommittables()).isZero();
+        }
+    }
+
+    @Test
+    void testFailStrategyThrowsOnUnknownCommitFailures() throws Exception {
+        SupportsCommitter<String> sink =
+                (SupportsCommitter<String>)
+                        TestSinkV2.newBuilder()
+                                .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                                .setCommitter(
+                                        new TestSinkV2.FailWithUnknownReasonCommitter<>(),
+                                        STRING_SERIALIZER)
+                                .setWithPostCommitTopology(false)
+                                .build();
+
+        try (OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness = createTestHarness(sink, false, true, 1, 1, 0)) {
+            testHarness
+                    .getStreamConfig()
+                    .getConfiguration()
+                    .set(SinkOptions.COMMITTER_FAILURE_STRATEGY, CommitFailureStrategy.FAIL);
+            testHarness.open();
+
+            long ckdId = 1L;
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0)));
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableWithLineage<>("1", ckdId, 0)));
+
+            assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(ckdId))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Failed to commit");
+        }
+    }
+
+    @Test
+    void testWarnStrategyOnRecovery() throws Exception {
+        SupportsCommitter<String> sink =
+                (SupportsCommitter<String>)
+                        TestSinkV2.newBuilder()
+                                .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                                .setCommitter(
+                                        new TestSinkV2.RetryOnceCommitter<>(), STRING_SERIALIZER)
+                                .setWithPostCommitTopology(true)
+                                .build();
+
+        final OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness = createTestHarness(sink, false, true, 1, 1, 0);
+        testHarness.open();
+
+        long checkpointId = 0L;
+        testHarness.processElement(
+                new StreamRecord<>(new CommittableSummary<>(0, 1, checkpointId, 1, 0)));
+        testHarness.processElement(
+                new StreamRecord<>(new CommittableWithLineage<>("1", checkpointId, 0)));
+
+        final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
+        testHarness.close();
+
+        SupportsCommitter<String> restoreSink =
+                (SupportsCommitter<String>)
+                        TestSinkV2.newBuilder()
+                                .setWriter(new TestSinkV2.ForwardCommittingSinkWriter<String>())
+                                .setCommitter(
+                                        new TestSinkV2.FailWithUnknownReasonCommitter<>(),
+                                        STRING_SERIALIZER)
+                                .setWithPostCommitTopology(true)
+                                .build();
+
+        final OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                restoredHarness = createTestHarness(restoreSink, false, true, 1, 1, 0);
+        restoredHarness
+                .getStreamConfig()
+                .getConfiguration()
+                .set(SinkOptions.COMMITTER_FAILURE_STRATEGY, CommitFailureStrategy.WARN);
+
+        assertThatCode(
+                        () -> {
+                            restoredHarness.initializeState(snapshot);
+                            restoredHarness.open();
+                        })
+                .doesNotThrowAnyException();
+
+        assertThat(restoredHarness.extractOutputValues()).isNotEmpty();
+        CommittableSummary<?> summary =
+                (CommittableSummary<?>) restoredHarness.extractOutputValues().get(0);
+        assertThat(summary.getNumberOfCommittables()).isZero();
+
+        restoredHarness.close();
     }
 
     private OneInputStreamOperatorTestHarness<

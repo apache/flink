@@ -38,5 +38,18 @@ public class SinkOptions {
                     .withDescription(
                             "The number of retries a Flink application attempts for committable operations (such as transactions) on retriable errors, as specified by the sink connector, before Flink fails and potentially restarts.");
 
+    /** Strategy for handling commit failures on unknown errors. */
+    @Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
+    public static final ConfigOption<CommitFailureStrategy> COMMITTER_FAILURE_STRATEGY =
+            key("sink.committer.failure-strategy")
+                    .enumType(CommitFailureStrategy.class)
+                    .defaultValue(CommitFailureStrategy.FAIL)
+                    .withDescription(
+                            "Strategy for handling commit failures on unknown errors. "
+                                    + "FAIL (default) fails the job. "
+                                    + "WARN logs the error and skips the committable, allowing recovery to proceed. "
+                                    + "Note: this only applies to unknown failures signaled by the connector; "
+                                    + "committables that exhaust all retries will still fail the job regardless of this setting.");
+
     private SinkOptions() {}
 }
