@@ -124,6 +124,15 @@ object CalcCodeGenerator {
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = inputTerm)
 
+    // --- Common Sub-expression Elimination (CSE) ---
+    // Analyze the projection list for duplicate sub-expressions. If any RexCall
+    // appears more than once across all projections, enable CSE so that the
+    // duplicate is computed once and cached in a local variable.
+    val cseCandidates = CseUtils.findDuplicateSubExpressions(projection)
+    if (cseCandidates.nonEmpty) {
+      exprGenerator.enableCse(cseCandidates)
+    }
+
     val onlyFilter = projection.lengthCompare(inputType.getFieldCount) == 0 &&
       projection.zipWithIndex.forall {
         case (rexNode, index) =>

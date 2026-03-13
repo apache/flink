@@ -50,6 +50,7 @@ import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
@@ -73,6 +74,37 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   /** information of the user-defined constructor */
   var functionContextTerm: Option[String] = None
+
+  // ---------------------------------------------------------------------------
+  // Common Sub-expression Elimination (CSE) support
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Whether CSE is enabled. When enabled, duplicate [[RexCall]] nodes (identified by their digest
+   * string) are computed once and cached in local variables for reuse.
+   */
+  private var cseEnabled: Boolean = false
+
+  /**
+   * Map from RexNode digest to the generated expression. Used to avoid re-evaluating the same
+   * sub-expression multiple times within a single operator (e.g. Calc projection).
+   */
+  private val cseExprCache: mutable.Map[String, GeneratedExpression] =
+    mutable.Map[String, GeneratedExpression]()
+
+  /**
+   * The set of RexNode digests that appear more than once and are therefore eligible for CSE. Only
+   * expressions in this set will be cached. This avoids unnecessary variable allocation for
+   * expressions that only appear once.
+   */
+  private var cseCandidates: Set[String] = Set.empty
+
+  /** Enables CSE with the given set of duplicate sub-expression digests. */
+  def enableCse(candidates: Set[String]): ExprCodeGenerator = {
+    this.cseEnabled = true
+    this.cseCandidates = candidates
+    this
+  }
 
   /** Bind the input information, should be called before generating expression. */
   def bindInput(
@@ -127,12 +159,54 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
    * Generates an expression from a RexNode. If objects or variables can be reused, they will be
    * added to reusable code sections internally.
    *
+   * When CSE is enabled, duplicate [[RexCall]] sub-expressions (identified by their digest) are
+   * computed once and cached in local variables. Subsequent references to the same sub-expression
+   * reuse the cached result, avoiding redundant computation.
+   *
    * @param rex
    *   Calcite row expression
    * @return
    *   instance of GeneratedExpression
    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
+    if (cseEnabled && rex.isInstanceOf[RexCall]) {
+      val digest = rex.toString
+      if (cseCandidates.contains(digest)) {
+        cseExprCache.get(digest) match {
+          case Some(cachedExpr) =>
+            // Return a reference to the cached local variable, with NO_CODE since the
+            // computation was already emitted on first encounter.
+            return GeneratedExpression(
+              cachedExpr.resultTerm,
+              cachedExpr.nullTerm,
+              NO_CODE,
+              cachedExpr.resultType)
+          case None =>
+            // First encounter of this duplicate expression: generate it normally,
+            // store result in reusable local variables, and cache for later reuse.
+            val generatedExpr = rex.accept(this)
+            val resultType = generatedExpr.resultType
+            val resultTypeTerm = CodeGenUtils.primitiveTypeTermForType(resultType)
+            val defaultValue = CodeGenUtils.primitiveDefaultValue(resultType)
+
+            // Create reusable local variables for the CSE result and null flag
+            val cseTerm = ctx.addReusableLocalVariable(resultTypeTerm, "cseResult")
+            val cseNullTerm = ctx.addReusableLocalVariable("boolean", "cseIsNull")
+
+            // Wrap the generated code: compute once and store into local vars
+            val wrappedCode =
+              s"""
+                 |${generatedExpr.code}
+                 |$cseTerm = ${generatedExpr.resultTerm};
+                 |$cseNullTerm = ${generatedExpr.nullTerm};
+                 |""".stripMargin
+
+            val cachedExpr = GeneratedExpression(cseTerm, cseNullTerm, wrappedCode, resultType)
+            cseExprCache.put(digest, cachedExpr)
+            return cachedExpr
+        }
+      }
+    }
     rex.accept(this)
   }
 
@@ -490,7 +564,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (operand: RexNode, i) if isSupportedJsonOperand(operand, call, i) =>
         generateJsonCall(operand)
 
-      case (o @ _, _) => o.accept(this)
+      // Use generateExpression instead of accept(this) to enable CSE for nested operands.
+      // This ensures that common sub-expressions within operands are also cached.
+      case (o @ _, _) => generateExpression(o)
     }
 
     generateCallExpression(ctx, call, operands, resultType)
