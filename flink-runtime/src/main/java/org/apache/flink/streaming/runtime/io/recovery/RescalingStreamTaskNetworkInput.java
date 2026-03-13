@@ -40,7 +40,6 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.util.CollectionUtil;
@@ -54,7 +53,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -201,8 +199,7 @@ public final class RescalingStreamTaskNetworkInput<T>
      * <p>Filters must not be shared across different virtual channels to ensure that the state is
      * in-sync across different subtasks.
      */
-    static class RecordFilterFactory<T>
-            implements Function<InputChannelInfo, Predicate<StreamRecord<T>>> {
+    static class RecordFilterFactory<T> implements Function<InputChannelInfo, RecordFilter<T>> {
         private final Map<Integer, StreamPartitioner<T>> partitionerCache =
                 CollectionUtil.newHashMapWithExpectedSize(1);
         private final Function<Integer, StreamPartitioner<?>> gatePartitioners;
@@ -225,7 +222,7 @@ public final class RescalingStreamTaskNetworkInput<T>
         }
 
         @Override
-        public Predicate<StreamRecord<T>> apply(InputChannelInfo channelInfo) {
+        public RecordFilter<T> apply(InputChannelInfo channelInfo) {
             // retrieving the partitioner for one input task is rather costly so cache them all
             final StreamPartitioner<T> partitioner =
                     partitionerCache.computeIfAbsent(
@@ -234,7 +231,7 @@ public final class RescalingStreamTaskNetworkInput<T>
             // have the same state across several subtasks
             StreamPartitioner<T> partitionerCopy = partitioner.copy();
             partitionerCopy.setup(numberOfChannels);
-            return new RecordFilter<>(partitionerCopy, inputSerializer, subtaskIndex);
+            return new PartitionerRecordFilter<>(partitionerCopy, inputSerializer, subtaskIndex);
         }
 
         private StreamPartitioner<T> createPartitioner(Integer index) {

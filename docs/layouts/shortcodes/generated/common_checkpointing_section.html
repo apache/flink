@@ -56,5 +56,17 @@
             <td>Integer</td>
             <td>The maximum number of completed checkpoints to retain.</td>
         </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.during-recovery.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable checkpointing during recovery from an unaligned checkpoint. When enabled, the job can take checkpoints while still recovering channel state (inflight data), reducing the window of vulnerability to failures during recovery.<br /><br />This option requires <code class="highlighter-rouge">execution.checkpointing.unaligned.recover-output-on-downstream.enabled</code> to be enabled.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.recover-output-on-downstream.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether recovering output buffers of upstream task on downstream task directly when job restores from the unaligned checkpoint.</td>
+        </tr>
     </tbody>
 </table>

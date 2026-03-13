@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -27,10 +29,13 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -56,6 +61,13 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
     private final CompletableFuture<?> stateConsumedFuture = new CompletableFuture<>();
     protected final BufferManager bufferManager;
+
+    /**
+     * Future that completes when recovered buffers have been filtered for this channel. This
+     * completes before stateConsumedFuture, enabling earlier RUNNING state transition when
+     * unaligned checkpoint during recovery is enabled.
+     */
+    private final CompletableFuture<Void> bufferFilteringCompleteFuture = new CompletableFuture<>();
 
     @GuardedBy("receivedBuffers")
     private boolean isReleased;
@@ -104,9 +116,26 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public final InputChannel toInputChannel() throws IOException {
-        Preconditions.checkState(
-                stateConsumedFuture.isDone(), "recovered state is not fully consumed");
-        final InputChannel inputChannel = toInputChannelInternal();
+        // Check the appropriate future based on configuration:
+        // - When unaligned during recovery is enabled: check bufferFilteringCompleteFuture
+        // - When disabled: check stateConsumedFuture (original behavior)
+        if (inputGate.isUnalignedDuringRecoveryEnabled()) {
+            Preconditions.checkState(
+                    bufferFilteringCompleteFuture.isDone(), "buffer filtering is not complete");
+        } else {
+            Preconditions.checkState(
+                    stateConsumedFuture.isDone(), "recovered state is not fully consumed");
+        }
+
+        // Extract remaining buffers before conversion.
+        // These buffers have been filtered but not yet consumed by the Task.
+        final ArrayDeque<Buffer> remainingBuffers;
+        synchronized (receivedBuffers) {
+            remainingBuffers = new ArrayDeque<>(receivedBuffers);
+            receivedBuffers.clear();
+        }
+
+        final InputChannel inputChannel = toInputChannelInternal(remainingBuffers);
         inputChannel.checkpointStopped(lastStoppedCheckpointId);
         return inputChannel;
     }
@@ -116,7 +145,23 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         this.lastStoppedCheckpointId = checkpointId;
     }
 
-    protected abstract InputChannel toInputChannelInternal() throws IOException;
+    /**
+     * Creates the physical InputChannel from this recovered channel.
+     *
+     * @param remainingBuffers buffers that have been filtered but not yet consumed by the Task.
+     *     These buffers will be migrated to the new physical channel.
+     * @return the physical InputChannel (LocalInputChannel or RemoteInputChannel)
+     */
+    protected abstract InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers)
+            throws IOException;
+
+    /**
+     * Returns the future that completes when buffer filtering is complete. This future completes
+     * before stateConsumedFuture, at the point when finishReadRecoveredState() is called.
+     */
+    CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        return bufferFilteringCompleteFuture;
+    }
 
     CompletableFuture<?> getStateConsumedFuture() {
         return stateConsumedFuture;
@@ -158,6 +203,13 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
         bufferManager.releaseFloatingBuffers();
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
+
+        // Complete bufferFilteringCompleteFuture only when unaligned during recovery is enabled.
+        // This signals that buffer filtering is complete, allowing earlier RUNNING state
+        // transition. When the config is disabled, this future should not be completed.
+        if (inputGate.isUnalignedDuringRecoveryEnabled()) {
+            bufferFilteringCompleteFuture.complete(null);
+        }
     }
 
     @Nullable
@@ -281,7 +333,18 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
             exclusiveBuffersAssigned = true;
         }
-        return bufferManager.requestBufferBlocking();
+        if (!inputGate.isUnalignedDuringRecoveryEnabled()) {
+            return bufferManager.requestBufferBlocking();
+        }
+        // TODO FLINK-38544: Simplified spilling logic - use a heap buffer as fallback to avoid
+        // hanging if the buffer pool is insufficient during recovery.
+        Buffer buffer = bufferManager.requestBuffer();
+        if (buffer != null) {
+            return buffer;
+        }
+        MemorySegment memorySegment =
+                MemorySegmentFactory.allocateUnpooledSegment(MemoryManager.DEFAULT_PAGE_SIZE);
+        return new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE);
     }
 
     @Override

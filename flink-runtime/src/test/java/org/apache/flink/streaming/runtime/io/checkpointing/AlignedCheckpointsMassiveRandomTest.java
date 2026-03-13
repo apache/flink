@@ -264,6 +264,11 @@ class AlignedCheckpointsMassiveRandomTest {
         }
 
         @Override
+        public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
         public void finishReadRecoveredState() {}
 
         @Override
@@ -281,5 +286,8 @@ class AlignedCheckpointsMassiveRandomTest {
         public List<InputChannelInfo> getUnfinishedChannels() {
             return Collections.emptyList();
         }
+
+        @Override
+        public void setUnalignedDuringRecoveryEnabled(boolean enabled) {}
     }
 }

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.CloseableIterator;
 
@@ -38,7 +37,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -58,56 +56,6 @@ class DemultiplexingRecordDeserializer<T>
     private final Map<SubtaskConnectionDescriptor, VirtualChannel<T>> channels;
 
     private VirtualChannel<T> currentVirtualChannel;
-
-    static class VirtualChannel<T> {
-        private final RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer;
-        private final Predicate<StreamRecord<T>> recordFilter;
-        Watermark lastWatermark = Watermark.UNINITIALIZED;
-        WatermarkStatus watermarkStatus = WatermarkStatus.ACTIVE;
-        private DeserializationResult lastResult;
-
-        VirtualChannel(
-                RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer,
-                Predicate<StreamRecord<T>> recordFilter) {
-            this.deserializer = deserializer;
-            this.recordFilter = recordFilter;
-        }
-
-        public DeserializationResult getNextRecord(DeserializationDelegate<StreamElement> delegate)
-                throws IOException {
-            do {
-                lastResult = deserializer.getNextRecord(delegate);
-
-                if (lastResult.isFullRecord()) {
-                    final StreamElement element = delegate.getInstance();
-                    // test if record belongs to this subtask if it comes from ambiguous channel
-                    if (element.isRecord() && recordFilter.test(element.asRecord())) {
-                        return lastResult;
-                    } else if (element.isWatermark()) {
-                        lastWatermark = element.asWatermark();
-                        return lastResult;
-                    } else if (element.isWatermarkStatus()) {
-                        watermarkStatus = element.asWatermarkStatus();
-                        return lastResult;
-                    }
-                }
-                // loop is only re-executed for filtered full records
-            } while (!lastResult.isBufferConsumed());
-            return DeserializationResult.PARTIAL_RECORD;
-        }
-
-        public void setNextBuffer(Buffer buffer) throws IOException {
-            deserializer.setNextBuffer(buffer);
-        }
-
-        public void clear() {
-            deserializer.clear();
-        }
-
-        public boolean hasPartialData() {
-            return lastResult != null && !lastResult.isBufferConsumed();
-        }
-    }
 
     public DemultiplexingRecordDeserializer(
             Map<SubtaskConnectionDescriptor, VirtualChannel<T>> channels) {
@@ -161,7 +109,7 @@ class DemultiplexingRecordDeserializer<T>
                     // basically, do not emit a watermark if not all virtual channel are past it
                     final Watermark minWatermark =
                             channels.values().stream()
-                                    .map(virtualChannel -> virtualChannel.lastWatermark)
+                                    .map(VirtualChannel::getLastWatermark)
                                     .min(Comparator.comparing(Watermark::getTimestamp))
                                     .orElseThrow(
                                             () ->
@@ -176,7 +124,8 @@ class DemultiplexingRecordDeserializer<T>
                 } else if (element.isWatermarkStatus()) {
                     // summarize statuses across all virtual channels
                     // duplicate statuses are filtered in StatusWatermarkValve
-                    if (channels.values().stream().anyMatch(d -> d.watermarkStatus.isActive())) {
+                    if (channels.values().stream()
+                            .anyMatch(vc -> vc.getWatermarkStatus().isActive())) {
                         delegate.setInstance(WatermarkStatus.ACTIVE);
                     }
                     return result;
@@ -197,7 +146,7 @@ class DemultiplexingRecordDeserializer<T>
             InflightDataRescalingDescriptor rescalingDescriptor,
             Function<Integer, RecordDeserializer<DeserializationDelegate<StreamElement>>>
                     deserializerFactory,
-            Function<InputChannelInfo, Predicate<StreamRecord<T>>> recordFilterFactory) {
+            Function<InputChannelInfo, RecordFilter<T>> recordFilterFactory) {
         int[] oldSubtaskIndexes =
                 rescalingDescriptor.getOldSubtaskIndexes(channelInfo.getGateIdx());
         if (oldSubtaskIndexes.length == 0) {
@@ -223,7 +172,7 @@ class DemultiplexingRecordDeserializer<T>
                                 deserializerFactory.apply(totalChannels),
                                 rescalingDescriptor.isAmbiguous(channelInfo.getGateIdx(), subtask)
                                         ? recordFilterFactory.apply(channelInfo)
-                                        : RecordFilter.all()));
+                                        : RecordFilter.acceptAll()));
             }
         }
 

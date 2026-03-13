@@ -47,9 +47,14 @@ public class StreamTaskNetworkInputFactory {
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
             TaskInfo taskInfo,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
-            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet) {
+            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet,
+            boolean unalignedDuringRecoveryEnabled) {
         return rescalingDescriptorinflightDataRescalingDescriptor.equals(
-                        InflightDataRescalingDescriptor.NO_RESCALE)
+                                InflightDataRescalingDescriptor.NO_RESCALE)
+                        // When filter during recovery is enabled, records are already filtered in
+                        // the channel-state-unspilling thread. Use StreamTaskNetworkInput to avoid
+                        // redundant demultiplexing/filtering in the Task thread.
+                        || unalignedDuringRecoveryEnabled
                 ? new StreamTaskNetworkInput<>(
                         checkpointedInputGate,
                         inputSerializer,

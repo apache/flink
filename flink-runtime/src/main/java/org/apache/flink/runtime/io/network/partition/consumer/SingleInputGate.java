@@ -243,6 +243,13 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final int[] endOfPartitions;
 
+    /**
+     * Flag indicating whether unaligned checkpoint during recovery is enabled. When enabled,
+     * RecoveredInputChannel will use bufferFilteringCompleteFuture instead of stateConsumedFuture
+     * for RUNNING state transition.
+     */
+    private volatile boolean isUnalignedDuringRecoveryEnabled = false;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -330,6 +337,21 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        synchronized (requestLock) {
+            List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
+            for (InputChannel inputChannel : inputChannels()) {
+                if (inputChannel instanceof RecoveredInputChannel) {
+                    futures.add(
+                            ((RecoveredInputChannel) inputChannel)
+                                    .getBufferFilteringCompleteFuture());
+                }
+            }
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        }
+    }
+
+    @Override
     public void requestPartitions() {
         synchronized (requestLock) {
             if (!requestedPartitionsFlag) {
@@ -363,6 +385,19 @@ public class SingleInputGate extends IndexedInputGate {
         }
     }
 
+    /**
+     * Converts all {@link RecoveredInputChannel}s to their real channel types ({@link
+     * LocalInputChannel} or {@link RemoteInputChannel}).
+     *
+     * <p><b>Lock ordering note:</b> This method acquires {@code inputChannelsWithData} and then may
+     * indirectly acquire {@code receivedBuffers} (via {@code toInputChannel()} and {@code
+     * releaseAllResources()}). This is the reverse order of {@link
+     * RecoveredInputChannel#onRecoveredStateBuffer}, which acquires {@code receivedBuffers} first
+     * and then {@code inputChannelsWithData} (via {@code notifyChannelNonEmpty()}). This is safe
+     * because {@code convertRecoveredInputChannels()} is only called from {@link
+     * #requestPartitions()}, which happens after all state recovery is complete (buffer filtering
+     * future is done), so {@code onRecoveredStateBuffer()} is no longer being called concurrently.
+     */
     @VisibleForTesting
     public void convertRecoveredInputChannels() {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
@@ -372,19 +407,37 @@ public class SingleInputGate extends IndexedInputGate {
                     new HashSet<>(inputChannelsForCurrentPartition.keySet());
             for (InputChannelInfo inputChannelInfo : oldInputChannelInfos) {
                 InputChannel inputChannel = inputChannelsForCurrentPartition.get(inputChannelInfo);
-                if (inputChannel instanceof RecoveredInputChannel) {
-                    try {
+                if (!(inputChannel instanceof RecoveredInputChannel)) {
+                    continue;
+                }
+                try {
+                    synchronized (inputChannelsWithData) {
+                        // Remove old channel from queue if present
+                        if (inputChannelsWithData.contains(inputChannel)) {
+                            inputChannelsWithData.getAndRemove(ch -> ch == inputChannel);
+                        }
+                        enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+
+                        // Convert the channel
                         InputChannel realInputChannel =
                                 ((RecoveredInputChannel) inputChannel).toInputChannel();
                         inputChannel.releaseAllResources();
+
+                        // Update data structures
                         inputChannelsForCurrentPartition.remove(inputChannelInfo);
                         inputChannelsForCurrentPartition.put(
                                 realInputChannel.getChannelInfo(), realInputChannel);
                         channels[inputChannel.getChannelIndex()] = realInputChannel;
-                    } catch (Throwable t) {
-                        inputChannel.setError(t);
-                        return;
+
+                        // If the new channel has buffered data, enqueue it
+                        if (realInputChannel.getBuffersInUseCount() > 0) {
+                            inputChannelsWithData.add(realInputChannel);
+                            enqueuedInputChannelsWithData.set(realInputChannel.getChannelIndex());
+                        }
                     }
+                } catch (Throwable t) {
+                    inputChannel.setError(t);
+                    return;
                 }
             }
         }
@@ -612,6 +665,26 @@ public class SingleInputGate extends IndexedInputGate {
             setupTieredStorageNettyService(nettyService, tieredStorageConsumerSpecs);
             client.registerAvailabilityNotifier(availabilityNotifier);
         }
+    }
+
+    /**
+     * Sets whether unaligned checkpoint during recovery is enabled. When enabled,
+     * RecoveredInputChannel will use bufferFilteringCompleteFuture instead of stateConsumedFuture
+     * for RUNNING state transition.
+     *
+     * @param enabled true to enable unaligned checkpoint during recovery
+     */
+    public void setUnalignedDuringRecoveryEnabled(boolean enabled) {
+        this.isUnalignedDuringRecoveryEnabled = enabled;
+    }
+
+    /**
+     * Returns whether unaligned checkpoint during recovery is enabled.
+     *
+     * @return true if unaligned checkpoint during recovery is enabled
+     */
+    public boolean isUnalignedDuringRecoveryEnabled() {
+        return isUnalignedDuringRecoveryEnabled;
     }
 
     public void updateInputChannel(

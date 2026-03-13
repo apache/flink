@@ -81,6 +81,11 @@ public class MockInputGate extends IndexedInputGate {
     }
 
     @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public void finishReadRecoveredState() {}
 
     @Override
@@ -199,4 +204,7 @@ public class MockInputGate extends IndexedInputGate {
     public List<InputChannelInfo> getUnfinishedChannels() {
         return Collections.emptyList();
     }
+
+    @Override
+    public void setUnalignedDuringRecoveryEnabled(boolean enabled) {}
 }

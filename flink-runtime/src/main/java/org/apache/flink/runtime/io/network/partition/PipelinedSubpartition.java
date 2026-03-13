@@ -252,8 +252,9 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     @GuardedBy("buffers")
     private boolean needNotifyPriorityEvent() {
         assert Thread.holdsLock(buffers);
-        // if subpartition is blocked then downstream doesn't expect any notifications
-        return buffers.getNumPriorityElements() == 1 && !isBlocked;
+        // Priority events (unaligned checkpoint barriers) must notify downstream even when
+        // blocked. The blocking mechanism is for data flow control, not for priority events.
+        return buffers.getNumPriorityElements() == 1;
     }
 
     @GuardedBy("buffers")
@@ -456,7 +457,9 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     @Nullable
     BufferAndBacklog pollBuffer() {
         synchronized (buffers) {
-            if (isBlocked) {
+            // When blocked, only allow priority buffers (e.g. unaligned checkpoint barriers)
+            // to be polled. Data buffers remain blocked until resumeConsumption() is called.
+            if (isBlocked && buffers.getNumPriorityElements() == 0) {
                 return null;
             }
 
