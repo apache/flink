@@ -106,6 +106,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                                             .message(),
                                     CheckpointFailureReason
                                             .CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER
+                                            .message(),
+                                    CheckpointFailureReason.CHECKPOINT_COORDINATOR_SUSPEND
                                             .message())
                             .map(AbstractOperatorRestoreTestBase::escapeRegexCharacters)
                             .collect(Collectors.joining(")|(", "(", ")")));
