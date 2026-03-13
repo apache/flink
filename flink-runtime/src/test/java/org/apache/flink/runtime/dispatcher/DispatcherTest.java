@@ -1909,7 +1909,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testOverridingJobVertexParallelisms() throws Exception {
+    public void testDispatcherDoesNotOverrideJobVertexParallelisms() throws Exception {
         JobVertex v1 = new JobVertex("v1");
         v1.setParallelism(1);
         JobVertex v2 = new JobVertex("v2");
@@ -1952,9 +1952,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
-        assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 10);
+        // Verify that Dispatcher does NOT apply parallelism overrides directly
+        // Overrides are applied in scheduler factories, not in Dispatcher
+        assertEquals(jobGraph.findVertexByID(v1.getID()).getParallelism(), 1);
         assertEquals(jobGraph.findVertexByID(v2.getID()).getParallelism(), 2);
-        assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 42);
+        assertEquals(jobGraph.findVertexByID(v3.getID()).getParallelism(), 3);
     }
 
     private JobManagerRunner runningJobManagerRunnerWithJobStatus(

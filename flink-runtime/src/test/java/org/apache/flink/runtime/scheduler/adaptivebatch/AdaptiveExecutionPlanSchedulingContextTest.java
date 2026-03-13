@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -158,6 +159,7 @@ class AdaptiveExecutionPlanSchedulingContextTest {
         return new DefaultAdaptiveExecutionHandler(
                 Thread.currentThread().getContextClassLoader(),
                 streamGraph,
-                EXECUTOR_RESOURCE.getExecutor());
+                EXECUTOR_RESOURCE.getExecutor(),
+                new Configuration());
     }
 }
