@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -351,7 +352,7 @@ public class MetricUtils {
                 metrics.<Long, Gauge<Long>>gauge("Max", unixMXBean::getMaxFileDescriptorCount);
                 metrics.<Long, Gauge<Long>>gauge("Open", unixMXBean::getOpenFileDescriptorCount);
 
-            } else {
+            } else if (!OperatingSystem.isWindows()) {
                 throw new UnsupportedOperationException(
                         "Can't find com.sun.management.UnixOperatingSystemMXBean in JVM.");
             }
