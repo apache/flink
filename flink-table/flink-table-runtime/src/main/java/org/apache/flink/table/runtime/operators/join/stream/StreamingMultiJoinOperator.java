@@ -835,7 +835,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                             inputSpecs.get(i),
                             joinKeyType,
                             inputTypes.get(i),
-                            stateRetentionTime[i]);
+                            stateRetentionTime[i],
+                            prohibitReuseRow);
             stateHandlers.add(stateView);
         }
     }
