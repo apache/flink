@@ -29,6 +29,10 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.Preconditions;
@@ -52,8 +56,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -90,7 +96,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /** Reusable buffer for gzip compression to avoid repeated allocations. */
-    private final ByteArrayOutputStream compressionBuffer = new ByteArrayOutputStream(1024);
+    private transient ByteArrayOutputStream compressionBuffer;
 
     private final LogicalType inputType;
     private final LogicalType outputType;
@@ -137,6 +143,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                         "Unsupported compression algorithm: '%s'. Currently only 'gzip' is supported.",
                         getCompression());
                 // Only support GZIP: Compress request body with gzip using reusable buffer.
+                if (compressionBuffer == null) {
+                    compressionBuffer = new ByteArrayOutputStream(1024);
+                }
                 compressionBuffer.reset();
                 try (GZIPOutputStream gzos = new GZIPOutputStream(compressionBuffer)) {
                     gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
@@ -161,57 +170,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
 
             Request request = requestBuilder.build();
 
-            httpClient
-                    .newCall(request)
-                    .enqueue(
-                            new Callback() {
-                                @Override
-                                public void onFailure(Call call, IOException e) {
-                                    LOG.error(
-                                            "Triton inference request failed due to network error",
-                                            e);
-
-                                    // Wrap IOException in TritonNetworkException
-                                    TritonNetworkException networkException =
-                                            new TritonNetworkException(
-                                                    String.format(
-                                                            "Failed to connect to Triton server at %s: %s. "
-                                                                    + "This may indicate network connectivity issues, DNS resolution failure, or server unavailability.",
-                                                            url, e.getMessage()),
-                                                    e);
-
-                                    future.completeExceptionally(networkException);
-                                }
-
-                                @Override
-                                public void onResponse(Call call, Response response)
-                                        throws IOException {
-                                    try {
-                                        if (!response.isSuccessful()) {
-                                            handleErrorResponse(response, future);
-                                            return;
-                                        }
-
-                                        String responseBody = response.body().string();
-                                        Collection<RowData> result =
-                                                parseInferenceResponse(responseBody);
-                                        future.complete(result);
-                                    } catch (JsonProcessingException e) {
-                                        LOG.error("Failed to parse Triton inference response", e);
-                                        future.completeExceptionally(
-                                                new TritonClientException(
-                                                        "Failed to parse Triton response JSON: "
-                                                                + e.getMessage()
-                                                                + ". This may indicate an incompatible response format.",
-                                                        400));
-                                    } catch (Exception e) {
-                                        LOG.error("Failed to process Triton inference response", e);
-                                        future.completeExceptionally(e);
-                                    } finally {
-                                        response.close();
-                                    }
-                                }
-                            });
+            executeWithRetry(request, url, 0, future);
 
         } catch (Exception e) {
             LOG.error("Failed to build Triton inference request", e);
@@ -219,6 +178,167 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         }
 
         return future;
+    }
+
+    private void executeWithRetry(
+            Request request,
+            String url,
+            int attempt,
+            CompletableFuture<Collection<RowData>> future) {
+        httpClient
+                .newCall(request)
+                .enqueue(
+                        new Callback() {
+                            @Override
+                            public void onFailure(Call call, IOException e) {
+                                if (attempt < getMaxRetries()) {
+                                    long backoffMs = getRetryBackoff().toMillis() << attempt;
+                                    LOG.warn(
+                                            "Triton inference network error on attempt {}/{}, "
+                                                    + "retrying in {}ms: {}",
+                                            attempt + 1,
+                                            getMaxRetries() + 1,
+                                            backoffMs,
+                                            e.getMessage());
+                                    CompletableFuture.delayedExecutor(
+                                                    backoffMs, TimeUnit.MILLISECONDS)
+                                            .execute(
+                                                    () ->
+                                                            executeWithRetry(
+                                                                    request,
+                                                                    url,
+                                                                    attempt + 1,
+                                                                    future));
+                                } else {
+                                    LOG.error(
+                                            "Triton inference request failed after {} attempt(s) "
+                                                    + "due to network error",
+                                            attempt + 1,
+                                            e);
+                                    completeWithDefaultOrException(
+                                            new TritonNetworkException(
+                                                    String.format(
+                                                            "Failed to connect to Triton server at %s "
+                                                                    + "after %d attempt(s): %s. "
+                                                                    + "This may indicate network connectivity issues, "
+                                                                    + "DNS resolution failure, or server unavailability.",
+                                                            url, attempt + 1, e.getMessage()),
+                                                    e),
+                                            future);
+                                }
+                            }
+
+                            @Override
+                            public void onResponse(Call call, Response response)
+                                    throws IOException {
+                                try {
+                                    if (!response.isSuccessful()) {
+                                        int statusCode = response.code();
+                                        if (isRetryable(statusCode) && attempt < getMaxRetries()) {
+                                            long backoffMs =
+                                                    getRetryBackoff().toMillis() << attempt;
+                                            LOG.warn(
+                                                    "Triton inference failed with HTTP {} on attempt "
+                                                            + "{}/{}, retrying in {}ms",
+                                                    statusCode,
+                                                    attempt + 1,
+                                                    getMaxRetries() + 1,
+                                                    backoffMs);
+                                            CompletableFuture.delayedExecutor(
+                                                            backoffMs, TimeUnit.MILLISECONDS)
+                                                    .execute(
+                                                            () ->
+                                                                    executeWithRetry(
+                                                                            request,
+                                                                            url,
+                                                                            attempt + 1,
+                                                                            future));
+                                        } else if (isRetryable(statusCode)) {
+                                            String errorBody =
+                                                    response.body() != null
+                                                            ? response.body().string()
+                                                            : "No error details provided";
+                                            LOG.error(
+                                                    "Triton inference failed with HTTP {} after {} "
+                                                            + "attempt(s)",
+                                                    statusCode,
+                                                    attempt + 1);
+                                            completeWithDefaultOrException(
+                                                    new TritonServerException(
+                                                            String.format(
+                                                                    "Triton inference failed with HTTP %d "
+                                                                            + "after %d attempt(s): %s",
+                                                                    statusCode,
+                                                                    attempt + 1,
+                                                                    errorBody),
+                                                            statusCode),
+                                                    future);
+                                        } else {
+                                            handleErrorResponse(response, future);
+                                        }
+                                        return;
+                                    }
+
+                                    String responseBody = response.body().string();
+                                    Collection<RowData> result =
+                                            parseInferenceResponse(responseBody);
+                                    future.complete(result);
+                                } catch (JsonProcessingException e) {
+                                    LOG.error("Failed to parse Triton inference response", e);
+                                    future.completeExceptionally(
+                                            new TritonClientException(
+                                                    "Failed to parse Triton response JSON: "
+                                                            + e.getMessage()
+                                                            + ". This may indicate an incompatible response format.",
+                                                    400));
+                                } catch (Exception e) {
+                                    LOG.error("Failed to process Triton inference response", e);
+                                    future.completeExceptionally(e);
+                                } finally {
+                                    response.close();
+                                }
+                            }
+                        });
+    }
+
+    private boolean isRetryable(int statusCode) {
+        return statusCode == 408 || statusCode == 429 || statusCode == 503 || statusCode == 504;
+    }
+
+    private void completeWithDefaultOrException(
+            Exception e, CompletableFuture<Collection<RowData>> future) {
+        if (getDefaultValue() != null) {
+            LOG.warn(
+                    "Triton inference failed after all retries, "
+                            + "returning configured default value: {}",
+                    getDefaultValue());
+            try {
+                future.complete(Collections.singletonList(buildDefaultRowData()));
+            } catch (Exception parseEx) {
+                future.completeExceptionally(parseEx);
+            }
+        } else {
+            future.completeExceptionally(e);
+        }
+    }
+
+    private RowData buildDefaultRowData() {
+        String dv = getDefaultValue();
+        Object value;
+        if (outputType instanceof VarCharType) {
+            value = BinaryStringData.fromString(dv);
+        } else if (outputType instanceof IntType) {
+            value = Integer.parseInt(dv);
+        } else if (outputType instanceof BigIntType) {
+            value = Long.parseLong(dv);
+        } else if (outputType instanceof FloatType) {
+            value = Float.parseFloat(dv);
+        } else if (outputType instanceof DoubleType) {
+            value = Double.parseDouble(dv);
+        } else {
+            value = BinaryStringData.fromString(dv);
+        }
+        return GenericRowData.of(value);
     }
 
     /**

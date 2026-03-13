@@ -181,4 +181,49 @@ public class TritonOptions {
                                                     + "Example: %s",
                                             code("'X-Custom-Header:value,X-Another:value2'"))
                                     .build());
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<Integer> MAX_RETRIES =
+            ConfigOptions.key("max-retries")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Maximum number of retry attempts for failed inference requests. "
+                                    + "Retries are triggered by network errors and retryable server "
+                                    + "errors (HTTP 408 Request Timeout, HTTP 429 Too Many Requests, "
+                                    + "HTTP 503 Service Unavailable, HTTP 504 Gateway Timeout). "
+                                    + "Other client errors (HTTP 4xx) are not retried. "
+                                    + "Defaults to 0 (no retries).");
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<Duration> RETRY_BACKOFF =
+            ConfigOptions.key("retry-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription(
+                            "Initial backoff duration for the exponential retry strategy. "
+                                    + "Each subsequent retry doubles the wait time: 100ms, 200ms, 400ms, etc. "
+                                    + "Only used when max-retries > 0. Defaults to 100ms.");
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<String> DEFAULT_VALUE =
+            ConfigOptions.key("default-value")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Fallback value returned when all retry attempts are exhausted. "
+                                                    + "The value is always configured as a STRING but is parsed "
+                                                    + "to match the output column type at runtime. "
+                                                    + "For example, use %s for a STRING output column, "
+                                                    + "%s for an INT output column, or %s for a DOUBLE output column. "
+                                                    + "If not configured, an exception is thrown after all retries fail. "
+                                                    + "Enables downstream routing of failed records, e.g., "
+                                                    + "%s to filter out failures.",
+                                            code("'FAILED'"),
+                                            code("'-1'"),
+                                            code("'0.0'"),
+                                            code("WHERE result != 'FAILED'"))
+                                    .build());
 }

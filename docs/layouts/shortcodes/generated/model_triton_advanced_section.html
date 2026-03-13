@@ -27,16 +27,34 @@
             <td>Custom HTTP headers as key-value pairs. Example: <code class="highlighter-rouge">'X-Custom-Header:value,X-Another:value2'</code></td>
         </tr>
         <tr>
+            <td><h5>default-value</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Fallback value returned when all retry attempts are exhausted. The value is always configured as a STRING but is parsed to match the output column type at runtime. For example, use <code class="highlighter-rouge">'FAILED'</code> for a STRING output column, <code class="highlighter-rouge">'-1'</code> for an INT output column, or <code class="highlighter-rouge">'0.0'</code> for a DOUBLE output column. If not configured, an exception is thrown after all retries fail. Enables downstream routing of failed records, e.g., <code class="highlighter-rouge">WHERE result != 'FAILED'</code> to filter out failures.</td>
+        </tr>
+        <tr>
             <td><h5>flatten-batch-dim</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Whether to flatten the batch dimension for array inputs. When true, shape [1,N] becomes [N]. Defaults to false.</td>
         </tr>
         <tr>
+            <td><h5>max-retries</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Maximum number of retry attempts for failed inference requests. Retries are triggered by network errors and retryable server errors (HTTP 408 Request Timeout, HTTP 429 Too Many Requests, HTTP 503 Service Unavailable, HTTP 504 Gateway Timeout). Other client errors (HTTP 4xx) are not retried. Defaults to 0 (no retries).</td>
+        </tr>
+        <tr>
             <td><h5>priority</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
             <td>Request priority level (0-255). Higher values indicate higher priority.</td>
+        </tr>
+        <tr>
+            <td><h5>retry-backoff</h5></td>
+            <td style="word-wrap: break-word;">100 ms</td>
+            <td>Duration</td>
+            <td>Initial backoff duration for the exponential retry strategy. Each subsequent retry doubles the wait time: 100ms, 200ms, 400ms, etc. Only used when max-retries &gt; 0. Defaults to 100ms.</td>
         </tr>
         <tr>
             <td><h5>sequence-end</h5></td>
