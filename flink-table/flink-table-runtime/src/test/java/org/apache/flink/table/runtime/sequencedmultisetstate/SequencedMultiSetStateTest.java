@@ -229,6 +229,34 @@ public class SequencedMultiSetStateTest {
                 });
     }
 
+    /** Test that replacing a non-tail row preserves the ability to add new rows afterwards. */
+    @TestTemplate
+    public void testAddAfterReplacingNonTail() throws Exception {
+        runTest(
+                state -> {
+                    state.add(row("k1", "v1"), 1L);
+                    state.add(row("k2", "v2"), 2L);
+                    state.add(row("k3", "v3"), 3L);
+
+                    // replace k1 (not the tail) - should not corrupt highSqn
+                    state.add(row("k1", "v1-updated"), 4L);
+                    assertStateContents(
+                            state,
+                            Tuple2.of(row("k1", "v1-updated"), 4L),
+                            Tuple2.of(row("k2", "v2"), 2L),
+                            Tuple2.of(row("k3", "v3"), 3L));
+
+                    // adding a new key after the replace should work correctly
+                    state.add(row("k4", "v4"), 5L);
+                    assertStateContents(
+                            state,
+                            Tuple2.of(row("k1", "v1-updated"), 4L),
+                            Tuple2.of(row("k2", "v2"), 2L),
+                            Tuple2.of(row("k3", "v3"), 3L),
+                            Tuple2.of(row("k4", "v4"), 5L));
+                });
+    }
+
     @TestTemplate
     public void testAddAfterRemovingTail() throws Exception {
         runTest(
