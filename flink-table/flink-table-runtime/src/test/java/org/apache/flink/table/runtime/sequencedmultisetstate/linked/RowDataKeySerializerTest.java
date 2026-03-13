@@ -20,7 +20,12 @@ package org.apache.flink.table.runtime.sequencedmultisetstate.linked;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -29,8 +34,15 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordUtils;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.VarCharType;
 
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.Objects;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowDataKeySerializer}. */
 public class RowDataKeySerializerTest extends SerializerTestBase<RowDataKey> {
@@ -60,6 +72,51 @@ public class RowDataKeySerializerTest extends SerializerTestBase<RowDataKey> {
     @Override
     protected RowDataKey[] getTestData() {
         return new RowDataKey[] {new RowDataKey(StreamRecordUtils.row(123), equaliser, equaliser)};
+    }
+
+    @Test
+    void testResolveSchemaCompatibilityWithDifferentSchema() throws Exception {
+        // Create a snapshot from the "old" serializer (IntType only) and serialize it
+        RowDataKeySerializer oldSerializer =
+                new RowDataKeySerializer(
+                        new RowDataSerializer(new IntType()),
+                        equaliser,
+                        equaliser,
+                        EQUALISER,
+                        HASH_FUNCTION);
+
+        byte[] serializedSnapshot;
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+                    new DataOutputViewStreamWrapper(out), oldSerializer.snapshotConfiguration());
+            serializedSnapshot = out.toByteArray();
+        }
+
+        // Restore the "old" snapshot
+        TypeSerializerSnapshot<RowDataKey> restoredOldSnapshot;
+        try (ByteArrayInputStream in = new ByteArrayInputStream(serializedSnapshot)) {
+            restoredOldSnapshot =
+                    TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+                            new DataInputViewStreamWrapper(in),
+                            Thread.currentThread().getContextClassLoader());
+        }
+
+        // Create a "new" serializer with a different schema (IntType + VarCharType)
+        RowDataKeySerializer newSerializer =
+                new RowDataKeySerializer(
+                        new RowDataSerializer(new IntType(), new VarCharType()),
+                        equaliser,
+                        equaliser,
+                        EQUALISER,
+                        HASH_FUNCTION);
+
+        // The new snapshot should detect incompatibility with the old snapshot
+        TypeSerializerSchemaCompatibility<RowDataKey> compatibility =
+                newSerializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(restoredOldSnapshot);
+
+        assertThat(compatibility.isIncompatible()).isTrue();
     }
 
     static final GeneratedRecordEqualiser EQUALISER =
