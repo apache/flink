@@ -115,8 +115,10 @@ public class RowDataKeySerializerSnapshot implements TypeSerializerSnapshot<RowD
         RowDataKeySerializerSnapshot old = (RowDataKeySerializerSnapshot) oldSerializerSnapshot;
 
         TypeSerializerSchemaCompatibility<RowData> compatibility =
-                old.restoredRowDataSerializerSnapshot.resolveSchemaCompatibility(
-                        old.serializer.serializer.snapshotConfiguration());
+                serializer
+                        .serializer
+                        .snapshotConfiguration()
+                        .resolveSchemaCompatibility(old.restoredRowDataSerializerSnapshot);
 
         return mapToOuterCompatibility(
                 compatibility,
