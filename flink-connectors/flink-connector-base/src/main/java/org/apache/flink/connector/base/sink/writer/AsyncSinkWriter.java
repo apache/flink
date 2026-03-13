@@ -353,7 +353,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private void flush() throws InterruptedException {
         RequestInfo requestInfo = createRequestInfo();
         while (rateLimitingStrategy.shouldBlock(requestInfo)) {
-            mailboxExecutor.yield();
+            yieldIfThereExistsInFlightRequests();
             requestInfo = createRequestInfo();
         }
 
