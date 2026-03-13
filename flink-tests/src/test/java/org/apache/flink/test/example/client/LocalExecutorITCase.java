@@ -34,28 +34,31 @@ import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for {@link LocalExecutor}. */
-public class LocalExecutorITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class LocalExecutorITCase {
 
     private static final int parallelism = 4;
 
     private MiniCluster miniCluster;
     private LocalExecutor executor;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         executor =
                 LocalExecutor.createWithFactory(
                         new Configuration(),
@@ -65,8 +68,9 @@ public class LocalExecutorITCase extends TestLogger {
                         });
     }
 
-    @Test(timeout = 60_000)
-    public void testLocalExecutorWithWordCount() throws Exception {
+    @Test
+    @Timeout(value = 1, unit = TimeUnit.MINUTES)
+    void testLocalExecutorWithWordCount() throws Exception {
         // set up the files
         File inFile = File.createTempFile("wctext", ".in");
         File outFile = File.createTempFile("wctext", ".out");
@@ -86,10 +90,11 @@ public class LocalExecutorITCase extends TestLogger {
                 executor.execute(wcStreamGraph, config, ClassLoader.getSystemClassLoader()).get();
         jobClient.getJobExecutionResult().get();
 
-        assertThat(miniCluster.isRunning(), is(false));
+        assertThat(miniCluster.isRunning()).isFalse();
     }
 
-    @Test(timeout = 60_000)
+    @Test
+    @Timeout(value = 1, unit = TimeUnit.MINUTES)
     public void testMiniClusterShutdownOnErrors() throws Exception {
         StreamGraph runtimeExceptionPlan = getRuntimeExceptionPlan();
 
@@ -105,7 +110,7 @@ public class LocalExecutorITCase extends TestLogger {
                 Exception.class,
                 () -> jobClient.getJobExecutionResult().get());
 
-        assertThat(miniCluster.isRunning(), is(false));
+        assertThat(miniCluster.isRunning()).isFalse();
     }
 
     private StreamGraph getWordCountStreamGraph(File inFile, File outFile, int parallelism) {

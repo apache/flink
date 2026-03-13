@@ -44,38 +44,38 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler;
 import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
 import org.apache.flink.streaming.api.operators.TimerSerializer;
 import org.apache.flink.test.state.BackendSwitchSpecs.BackendSwitchSpec;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the unified savepoint format. They verify you can switch a state backend through a
  * savepoint.
  */
-public abstract class SavepointStateBackendSwitchTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+abstract class SavepointStateBackendSwitchTestBase {
 
     private static final KeyGroupRange KEY_GROUP_RANGE = new KeyGroupRange(0, 1);
     private static final int NUM_KEY_GROUPS = KEY_GROUP_RANGE.getNumberOfKeyGroups();
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private Path tempFolder;
 
     private final BackendSwitchSpec fromBackend;
 
@@ -87,10 +87,9 @@ public abstract class SavepointStateBackendSwitchTestBase {
         this.toBackend = toBackend;
     }
 
-    @Test
-    public void switchStateBackend() throws Exception {
-
-        final File pathToWrite = tempFolder.newFile();
+    @TestTemplate
+    void switchStateBackend() throws Exception {
+        final File pathToWrite = TempDirUtils.newFile(tempFolder);
 
         final MapStateDescriptor<Long, Long> mapStateDescriptor =
                 new MapStateDescriptor<>("my-map-state", Long.class, Long.class);
@@ -280,36 +279,36 @@ public abstract class SavepointStateBackendSwitchTestBase {
 
         keyedBackend.setCurrentKey("abc");
         mapState.setCurrentNamespace(namespace1);
-        assertEquals(33L, (long) mapState.get(33L));
-        assertEquals(55L, (long) mapState.get(55L));
-        assertEquals(2, getStateSize(mapState));
+        assertThat(mapState.get(33L)).isEqualTo(33L);
+        assertThat(mapState.get(55L)).isEqualTo(55L);
+        assertThat(getStateSize(mapState)).isEqualTo(2);
 
         mapState.setCurrentNamespace(namespace2);
-        assertEquals(22L, (long) mapState.get(22L));
-        assertEquals(11L, (long) mapState.get(11L));
-        assertEquals(2, getStateSize(mapState));
+        assertThat(mapState.get(22L)).isEqualTo(22L);
+        assertThat(mapState.get(11L)).isEqualTo(11L);
+        assertThat(getStateSize(mapState)).isEqualTo(2);
         listState.setCurrentNamespace(namespace2);
-        assertThat(listState.get(), contains(4L, 5L, 6L));
+        assertThat(listState.get()).containsExactly(4L, 5L, 6L);
 
         mapState.setCurrentNamespace(namespace3);
-        assertEquals(44L, (long) mapState.get(44L));
-        assertEquals(1, getStateSize(mapState));
+        assertThat(mapState.get(44L)).isEqualTo(44L);
+        assertThat(getStateSize(mapState)).isEqualTo(1);
 
         keyedBackend.setCurrentKey("mno");
         mapState.setCurrentNamespace(namespace3);
-        assertEquals(11L, (long) mapState.get(11L));
-        assertEquals(22L, (long) mapState.get(22L));
-        assertEquals(33L, (long) mapState.get(33L));
-        assertEquals(44L, (long) mapState.get(44L));
-        assertEquals(55L, (long) mapState.get(55L));
-        assertEquals(5, getStateSize(mapState));
+        assertThat(mapState.get(11L)).isEqualTo(11L);
+        assertThat(mapState.get(22L)).isEqualTo(22L);
+        assertThat(mapState.get(33L)).isEqualTo(33L);
+        assertThat(mapState.get(44L)).isEqualTo(44L);
+        assertThat(mapState.get(55L)).isEqualTo(55L);
+        assertThat(getStateSize(mapState)).isEqualTo(5);
         valueState.setCurrentNamespace(namespace3);
-        assertEquals(1239L, (long) valueState.value());
+        assertThat(valueState.value()).isEqualTo(1239L);
         listState.setCurrentNamespace(namespace3);
-        assertThat(listState.get(), contains(1L, 2L, 3L));
+        assertThat(listState.get()).containsExactly(1L, 2L, 3L);
 
         mapState.setCurrentNamespace(namespace4);
-        assertThat(mapState.isEmpty(), is(true));
+        assertThat(mapState.isEmpty()).isTrue();
 
         KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<String, Integer>> priorityQueue =
                 keyedBackend.create(
@@ -317,15 +316,12 @@ public abstract class SavepointStateBackendSwitchTestBase {
                         new TimerSerializer<>(
                                 keyedBackend.getKeySerializer(), IntSerializer.INSTANCE));
 
-        assertThat(priorityQueue.size(), equalTo(3));
-        assertThat(
-                priorityQueue.poll(),
-                equalTo(new TimerHeapInternalTimer<>(1234L, "mno", namespace3)));
-        assertThat(
-                priorityQueue.poll(),
-                equalTo(new TimerHeapInternalTimer<>(2345L, "mno", namespace2)));
-        assertThat(
-                priorityQueue.poll(),
-                equalTo(new TimerHeapInternalTimer<>(3456L, "mno", namespace3)));
+        assertThat(priorityQueue.size()).isEqualTo(3);
+        assertThat(priorityQueue.iterator())
+                .toIterable()
+                .containsExactly(
+                        new TimerHeapInternalTimer<>(1234L, "mno", namespace3),
+                        new TimerHeapInternalTimer<>(2345L, "mno", namespace2),
+                        new TimerHeapInternalTimer<>(3456L, "mno", namespace3));
     }
 }

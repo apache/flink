@@ -68,7 +68,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests local recovery by restarting Flink processes. */
 @ExtendWith(TestLoggerExtension.class)
@@ -79,7 +79,7 @@ class LocalRecoveryITCase {
     @TempDir private File tmpDirectory;
 
     @Test
-    public void testRecoverLocallyFromProcessCrashWithWorkingDirectory() throws Exception {
+    void testRecoverLocallyFromProcessCrashWithWorkingDirectory() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
         configuration.set(JobManagerOptions.PORT, 0);
@@ -116,7 +116,7 @@ class LocalRecoveryITCase {
                             .getJobExecutionResult()
                             .get(waitingTimeInSeconds, TimeUnit.SECONDS)
                             .getAccumulatorResult(ALLOCATION_FAILURES_ACCUMULATOR_NAME);
-            assertTrue(allocFailures.isEmpty(), allocFailures.toString());
+            assertThat(allocFailures).withFailMessage(allocFailures.toString()).isEmpty();
 
             success = true;
         } finally {

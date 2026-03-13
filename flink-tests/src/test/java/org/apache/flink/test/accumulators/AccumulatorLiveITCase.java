@@ -31,23 +31,26 @@ import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,16 +65,14 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /** Tests the availability of accumulator results during runtime. */
-@RunWith(Parameterized.class)
-public class AccumulatorLiveITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class AccumulatorLiveITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
 
-    @Parameterized.Parameter public boolean testBatchJob;
-
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     // name of user accumulator
     private static final String ACCUMULATOR_NAME = "test";
@@ -90,14 +91,9 @@ public class AccumulatorLiveITCase extends TestLogger {
         }
     }
 
-    @Parameterized.Parameters(name = "testBatchJob: {0}")
-    public static Object[] parameters() {
-        return new Object[] {true, false};
-    }
-
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
@@ -112,13 +108,18 @@ public class AccumulatorLiveITCase extends TestLogger {
         return config;
     }
 
-    @Before
-    public void resetLatches() throws InterruptedException {
+    @BeforeEach
+    void resetLatches() throws InterruptedException {
         NotifyingMapper.reset();
     }
 
-    @Test
-    public void testJob() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testJob(
+            boolean testBatchJob,
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         RuntimeExecutionMode runtimeExecutionMode =
                 testBatchJob ? RuntimeExecutionMode.BATCH : RuntimeExecutionMode.STREAMING;
@@ -132,19 +133,20 @@ public class AccumulatorLiveITCase extends TestLogger {
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        submitJobAndVerifyResults(jobGraph);
+        submitJobAndVerifyResults(jobGraph, miniCluster, clusterClient);
     }
 
-    private static void submitJobAndVerifyResults(JobGraph jobGraph) throws Exception {
+    private static void submitJobAndVerifyResults(
+            JobGraph jobGraph, MiniCluster miniCluster, ClusterClient<?> clusterClient)
+            throws Exception {
         Deadline deadline = Deadline.now().plus(Duration.ofSeconds(30));
-
-        final ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
         final CheckedThread submissionThread =
                 new CheckedThread() {
                     @Override
                     public void go() throws Exception {
-                        submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
+                        submitJobAndWaitForResult(
+                                clusterClient, jobGraph, getClass().getClassLoader());
                     }
                 };
 
@@ -154,9 +156,9 @@ public class AccumulatorLiveITCase extends TestLogger {
             NotifyingMapper.notifyLatch.await();
 
             // verify using the ClusterClient
-            verifyResults(jobGraph, deadline, client);
+            verifyResults(jobGraph, deadline, miniCluster, clusterClient);
             // verify using the MiniClusterJobClient
-            verifyResults(jobGraph, deadline, null);
+            verifyResults(jobGraph, deadline, miniCluster, null);
 
             NotifyingMapper.shutdownLatch.trigger();
         } finally {
@@ -167,7 +169,8 @@ public class AccumulatorLiveITCase extends TestLogger {
         }
     }
 
-    private static void verifyResults(JobGraph jobGraph, Deadline deadline, ClusterClient<?> client)
+    private static void verifyResults(
+            JobGraph jobGraph, Deadline deadline, MiniCluster miniCluster, ClusterClient<?> client)
             throws InterruptedException,
                     java.util.concurrent.ExecutionException,
                     java.util.concurrent.TimeoutException {
@@ -181,7 +184,7 @@ public class AccumulatorLiveITCase extends TestLogger {
                                     final MiniClusterJobClient miniClusterJobClient =
                                             new MiniClusterJobClient(
                                                     jobGraph.getJobID(),
-                                                    MINI_CLUSTER_RESOURCE.getMiniCluster(),
+                                                    miniCluster,
                                                     ClassLoader.getSystemClassLoader(),
                                                     MiniClusterJobClient.JobFinalizationBehavior
                                                             .NOTHING);

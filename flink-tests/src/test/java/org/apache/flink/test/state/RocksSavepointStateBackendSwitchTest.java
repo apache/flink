@@ -19,9 +19,7 @@
 package org.apache.flink.test.state;
 
 import org.apache.flink.test.state.BackendSwitchSpecs.BackendSwitchSpec;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,14 +27,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Tests for switching a RocksDB state backend to a different one. */
-@RunWith(Parameterized.class)
-public class RocksSavepointStateBackendSwitchTest extends SavepointStateBackendSwitchTestBase {
+class RocksSavepointStateBackendSwitchTest extends SavepointStateBackendSwitchTestBase {
     public RocksSavepointStateBackendSwitchTest(
             BackendSwitchSpec fromBackend, BackendSwitchSpec toBackend) {
         super(fromBackend, toBackend);
     }
 
-    @Parameterized.Parameters(name = "from: {0} to: {1}")
+    @Parameters(name = "from: {0} to: {1}")
     public static Collection<BackendSwitchSpec[]> targetBackends() {
         List<BackendSwitchSpec> fromBackends =
                 Arrays.asList(BackendSwitchSpecs.ROCKS_HEAP_TIMERS, BackendSwitchSpecs.ROCKS);

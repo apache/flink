@@ -28,10 +28,10 @@ import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,12 +41,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test the distributed cache. */
-public class DistributedCacheTest extends AbstractTestBaseJUnit4 {
+class DistributedCacheTest extends AbstractTestBase {
 
     public static final String DATA =
             "machen\n" + "zeit\n" + "heerscharen\n" + "keiner\n" + "meine\n";
@@ -54,7 +52,7 @@ public class DistributedCacheTest extends AbstractTestBaseJUnit4 {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testParseCachedFilesFromStringAndBack() {
+    void testParseCachedFilesFromStringAndBack() {
         List<String> cachedFilesStringList =
                 Arrays.asList(
                         "{path: /path/to/file1, name: file1, executable: 'true'}",
@@ -72,15 +70,16 @@ public class DistributedCacheTest extends AbstractTestBaseJUnit4 {
 
         List<Tuple2<String, DistributedCache.DistributedCacheEntry>> parsedCachedFiles =
                 DistributedCache.parseCachedFilesFromString(cachedFilesStringList);
-        assertThat(parsedCachedFiles, containsInAnyOrder(cachedFilesList.toArray()));
+        assertThat(parsedCachedFiles).containsExactlyInAnyOrderElementsOf(cachedFilesList);
 
         List<String> parsedCachedFileStrings =
                 DistributedCache.parseStringFromCachedFiles(cachedFilesList);
-        assertThat(parsedCachedFileStrings, containsInAnyOrder(cachedFilesStringList.toArray()));
+        assertThat(parsedCachedFileStrings)
+                .containsExactlyInAnyOrderElementsOf(cachedFilesStringList);
     }
 
     @Test
-    public void testStreamingDistributedCache() throws Exception {
+    void testStreamingDistributedCache() throws Exception {
         String textPath = createTempFile("count.txt", DATA);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerCachedFile(textPath, "cache_test");
@@ -109,13 +108,14 @@ public class DistributedCacheTest extends AbstractTestBaseJUnit4 {
         }
 
         @Override
-        public void flatMap(String word, Collector<Tuple1<String>> out) throws Exception {
-            assertTrue(
-                    "Unexpected word in stream! wordFromStream: "
-                            + word
-                            + ", shouldBeOneOf: "
-                            + wordList.toString(),
-                    wordList.contains(word));
+        public void flatMap(String word, Collector<Tuple1<String>> out) {
+            assertThat(wordList)
+                    .as(
+                            "Unexpected word in stream! wordFromStream: "
+                                    + word
+                                    + ", shouldBeOneOf: "
+                                    + wordList)
+                    .contains(word);
 
             out.collect(new Tuple1<>(word));
         }

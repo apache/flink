@@ -22,20 +22,21 @@ import org.apache.flink.core.plugin.PluginDescriptor;
 import org.apache.flink.core.plugin.PluginLoader;
 import org.apache.flink.test.plugin.jar.plugina.TestServiceA;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Iterator;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Test for {@link PluginLoader}. */
-public class PluginLoaderTest extends PluginTestBase {
+class PluginLoaderTest extends PluginTestBase {
 
     @Test
-    public void testPluginLoading() throws Exception {
-
+    void testPluginLoading() throws Exception {
         final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
         String[] parentPatterns = {TestSpi.class.getName(), OtherTestSpi.class.getName()};
@@ -44,47 +45,46 @@ public class PluginLoaderTest extends PluginTestBase {
         URLClassLoader pluginClassLoaderA =
                 PluginLoader.createPluginClassLoader(
                         pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
-        Assert.assertNotEquals(PARENT_CLASS_LOADER, pluginClassLoaderA);
+        assertThat(pluginClassLoaderA).isNotEqualTo(PARENT_CLASS_LOADER);
         final PluginLoader pluginLoaderA = new PluginLoader("test-plugin", pluginClassLoaderA);
 
         Iterator<TestSpi> testSpiIteratorA = pluginLoaderA.load(TestSpi.class);
 
-        Assert.assertTrue(testSpiIteratorA.hasNext());
+        assertThat(testSpiIteratorA.hasNext()).isTrue();
 
         TestSpi testSpiA = testSpiIteratorA.next();
 
-        Assert.assertFalse(testSpiIteratorA.hasNext());
+        assertThat(testSpiIteratorA.hasNext()).isFalse();
 
-        Assert.assertNotNull(testSpiA.testMethod());
+        assertThat(testSpiA.testMethod()).isNotNull();
 
-        Assert.assertEquals(
-                TestServiceA.class.getCanonicalName(), testSpiA.getClass().getCanonicalName());
+        assertThat(testSpiA.getClass().getCanonicalName())
+                .isEqualTo(TestServiceA.class.getCanonicalName());
         // The plugin must return the same class loader as the one used to load it.
-        Assert.assertEquals(pluginClassLoaderA, testSpiA.getClassLoader());
-        Assert.assertEquals(pluginClassLoaderA, testSpiA.getClass().getClassLoader());
+        assertThat(testSpiA.getClassLoader()).isEqualTo(pluginClassLoaderA);
+        assertThat(testSpiA.getClass().getClassLoader()).isEqualTo(pluginClassLoaderA);
 
         // Looks strange, but we want to ensure that those classes are not instance of each other
         // because they were
         // loaded by different classloader instances because the plugin loader uses
         // child-before-parent order.
-        Assert.assertFalse(testSpiA instanceof TestServiceA);
+        assertThat(testSpiA).isNotInstanceOf(TestServiceA.class);
 
         // In the following we check for isolation of classes between different plugin loaders.
         final PluginLoader secondPluginLoaderA =
                 PluginLoader.create(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
 
         TestSpi secondTestSpiA = secondPluginLoaderA.load(TestSpi.class).next();
-        Assert.assertNotNull(secondTestSpiA.testMethod());
+        assertThat(secondTestSpiA.testMethod()).isNotNull();
 
         // Again, this looks strange, but we expect classes with the same name, that are not equal.
-        Assert.assertEquals(
-                testSpiA.getClass().getCanonicalName(),
-                secondTestSpiA.getClass().getCanonicalName());
-        Assert.assertNotEquals(testSpiA.getClass(), secondTestSpiA.getClass());
+        assertThat(secondTestSpiA.getClass().getCanonicalName())
+                .isEqualTo(testSpiA.getClass().getCanonicalName());
+        assertThat(secondTestSpiA.getClass()).isNotEqualTo(testSpiA.getClass());
     }
 
     @Test
-    public void testClose() throws MalformedURLException {
+    void testClose() throws MalformedURLException {
         final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
         String[] parentPatterns = {TestSpi.class.getName()};
@@ -97,8 +97,7 @@ public class PluginLoaderTest extends PluginTestBase {
         final PluginLoader pluginLoaderA = new PluginLoader("test-plugin", pluginClassLoaderA);
         pluginLoaderA.close();
 
-        Assert.assertThrows(
-                ClassNotFoundException.class,
-                () -> pluginClassLoaderA.loadClass(junit.framework.Test.class.getName()));
+        assertThatThrownBy(() -> pluginClassLoaderA.loadClass(junit.framework.Test.class.getName()))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 }

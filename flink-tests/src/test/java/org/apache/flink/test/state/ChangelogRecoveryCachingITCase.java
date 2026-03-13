@@ -38,14 +38,14 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,28 +77,31 @@ import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests caching of changelog segments downloaded during recovery. */
-public class ChangelogRecoveryCachingITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ChangelogRecoveryCachingITCase {
     private static final int ACCUMULATE_TIME_MILLIS = 500; // high enough to build some state
     private static final int PARALLELISM = 10; // high enough to trigger DSTL file multiplexing
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     private OpenOnceFileSystem fileSystem;
 
     private MiniClusterWithClientResource cluster;
 
-    @Before
-    public void before() throws Exception {
-        File tmpFolder = temporaryFolder.newFolder();
+    @BeforeEach
+    void init() throws Exception {
+        File tmpFolder = TempDirUtils.newFolder(temporaryFolder);
         registerFileSystem(fileSystem = new OpenOnceFileSystem(), tmpFolder.toURI().getScheme());
 
         Configuration configuration = new Configuration();
         configuration.set(CACHE_IDLE_TIMEOUT, Duration.ofDays(365)); // cache forever
 
         FsStateChangelogStorageFactory.configure(
-                configuration, tmpFolder, Duration.ofMinutes(1), 10);
+                configuration, temporaryFolder.toFile(), Duration.ofMinutes(1), 10);
+
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -109,8 +112,8 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
         cluster.before();
     }
 
-    @After
-    public void after() throws Exception {
+    @AfterEach
+    void after() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -119,15 +122,15 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
     }
 
     @Test
-    public void test() throws Exception {
-        JobID jobID1 = submit(configureJob(temporaryFolder.newFolder()), graph -> {});
+    void test() throws Exception {
+        JobID jobID1 = submit(configureJob(TempDirUtils.newFolder(temporaryFolder)), graph -> {});
 
         Thread.sleep(ACCUMULATE_TIME_MILLIS);
         String cpLocation = checkpointAndCancel(jobID1);
 
         JobID jobID2 =
                 submit(
-                        configureJob(temporaryFolder.newFolder()),
+                        configureJob(TempDirUtils.newFolder(temporaryFolder)),
                         graph -> graph.setSavepointRestoreSettings(forPath(cpLocation)));
         waitForAllTaskRunning(cluster.getMiniCluster(), jobID2, true);
         cluster.getClusterClient().cancel(jobID2).get();
@@ -203,9 +206,7 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
         checkStatus(jobID);
         return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, cluster.getMiniCluster())
                 .<NoSuchElementException>orElseThrow(
-                        () -> {
-                            throw new NoSuchElementException("No checkpoint was created yet");
-                        });
+                        () -> new NoSuchElementException("No checkpoint was created yet"));
     }
 
     private void checkStatus(JobID jobID) throws InterruptedException, ExecutionException {
@@ -226,7 +227,7 @@ public class ChangelogRecoveryCachingITCase extends TestLogger {
 
         @Override
         public FSDataInputStream open(Path f) throws IOException {
-            Assert.assertTrue(f + " was already opened", openedPaths.add(f));
+            assertThat(openedPaths.add(f)).as(f + " was already opened").isTrue();
             return super.open(f);
         }
 

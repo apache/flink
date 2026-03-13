@@ -33,7 +33,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -47,16 +46,19 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -67,39 +69,39 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the state migration behaviour when the underlying POJO type changes and one tries to
  * recover from old state.
  */
-@RunWith(Parameterized.class)
-public class PojoSerializerUpgradeTest extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class PojoSerializerUpgradeTest {
 
-    @Parameterized.Parameters(name = "StateBackend: {0}")
+    @Parameter private String backendType;
+
+    @Parameters(name = "StateBackend: {0}")
     public static Collection<String> parameters() {
         return Arrays.asList(
                 StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                 StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
     }
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     private StateBackend stateBackend;
 
-    public PojoSerializerUpgradeTest(String backendType)
-            throws IOException, DynamicCodeLoadingException {
+    @BeforeEach
+    void before() throws DynamicCodeLoadingException, IOException {
         Configuration config = new Configuration();
         config.set(StateBackendOptions.STATE_BACKEND, backendType);
-        config.set(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                temporaryFolder.newFolder().toURI().toString());
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.toUri().toString());
         stateBackend =
                 StateBackendLoader.loadStateBackendFromConfig(
                         config, Thread.currentThread().getContextClassLoader(), null);
@@ -177,68 +179,52 @@ public class PojoSerializerUpgradeTest extends TestLogger {
                     + "@Override public String toString() {return \"(\" + a + \")\";}}";
 
     /** We should be able to handle a changed field order of a POJO as keyed state. */
-    @Test
-    public void testChangedFieldOrderWithKeyedState() throws Exception {
+    @TestTemplate
+    void testChangedFieldOrderWithKeyedState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_B, true, true);
     }
 
     /** We should be able to handle a changed field order of a POJO as operator state. */
-    @Test
-    public void testChangedFieldOrderWithOperatorState() throws Exception {
+    @TestTemplate
+    void testChangedFieldOrderWithOperatorState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_B, true, false);
     }
 
     /** Changing field types of a POJO as keyed state should require a state migration. */
-    @Test
-    public void testChangedFieldTypesWithKeyedState() throws Exception {
-        try {
-            testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, true);
-            fail("Expected a state migration exception.");
-        } catch (Exception e) {
-            if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-                // StateMigrationException expected
-            } else {
-                throw e;
-            }
-        }
+    @TestTemplate
+    void testChangedFieldTypesWithKeyedState() {
+        assertThatThrownBy(() -> testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, true))
+                .hasRootCauseInstanceOf(StateMigrationException.class);
     }
 
     /** Changing field types of a POJO as operator state should require a state migration. */
-    @Test
-    public void testChangedFieldTypesWithOperatorState() throws Exception {
-        try {
-            testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, false);
-            fail("Expected a state migration exception.");
-        } catch (Exception e) {
-            if (CommonTestUtils.containsCause(e, StateMigrationException.class)) {
-                // StateMigrationException expected
-            } else {
-                throw e;
-            }
-        }
+    @TestTemplate
+    void testChangedFieldTypesWithOperatorState() {
+        assertThatThrownBy(() -> testPojoSerializerUpgrade(SOURCE_A, SOURCE_C, true, false))
+                .isInstanceOf(StateMigrationException.class);
     }
 
     /** Adding fields to a POJO as keyed state should succeed. */
-    @Test
-    public void testAdditionalFieldWithKeyedState() throws Exception {
+    @TestTemplate
+    void testAdditionalFieldWithKeyedState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, true);
     }
 
     /** Adding fields to a POJO as operator state should succeed. */
-    @Test
-    public void testAdditionalFieldWithOperatorState() throws Exception {
+    @TestTemplate
+    void testAdditionalFieldWithOperatorState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_D, true, false);
     }
 
     /** Removing fields from a POJO as keyed state should succeed. */
-    @Test
-    public void testMissingFieldWithKeyedState() throws Exception {
+    @TestTemplate
+    void testMissingFieldWithKeyedState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, true);
     }
 
     /** Removing fields from a POJO as operator state should succeed. */
-    @Test
-    public void testMissingFieldWithOperatorState() throws Exception {
+    @TestTemplate
+    void testMissingFieldWithOperatorState() throws Exception {
         testPojoSerializerUpgrade(SOURCE_A, SOURCE_E, false, false);
     }
 
@@ -251,7 +237,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
         final Collection<Long> inputs = Arrays.asList(1L, 2L, 45L, 67L, 1337L);
 
         // run the program with classSourceA
-        File rootPath = temporaryFolder.newFolder();
+        File rootPath = TempDirUtils.newFolder(temporaryFolder);
         File sourceFile = writeSourceFile(rootPath, POJO_NAME + ".java", classSourceA);
         compileClass(sourceFile);
 
@@ -273,7 +259,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
                         inputs);
 
         // run the program with classSourceB
-        rootPath = temporaryFolder.newFolder();
+        rootPath = TempDirUtils.newFolder(temporaryFolder);
 
         sourceFile = writeSourceFile(rootPath, POJO_NAME + ".java", classSourceB);
         compileClass(sourceFile);
@@ -413,7 +399,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
             if (verify) {
                 if (keyed) {
-                    assertEquals(pojo, keyedValueState.value());
+                    assertThat(keyedValueState.value()).isEqualTo(pojo);
 
                     Iterator<Object> listIterator = keyedListState.get().iterator();
 
@@ -423,23 +409,23 @@ public class PojoSerializerUpgradeTest extends TestLogger {
                         elementFound |= pojo.equals(listIterator.next());
                     }
 
-                    assertTrue(elementFound);
+                    assertThat(elementFound).isTrue();
 
-                    assertEquals(pojo, keyedReducingState.get());
+                    assertThat(keyedReducingState.get()).isEqualTo(pojo);
                 } else {
                     boolean elementFound = false;
                     Iterator<Object> listIterator = partitionableListState.get().iterator();
                     while (listIterator.hasNext()) {
                         elementFound |= pojo.equals(listIterator.next());
                     }
-                    assertTrue(elementFound);
+                    assertThat(elementFound).isTrue();
 
                     elementFound = false;
                     listIterator = unionListState.get().iterator();
                     while (listIterator.hasNext()) {
                         elementFound |= pojo.equals(listIterator.next());
                     }
-                    assertTrue(elementFound);
+                    assertThat(elementFound).isTrue();
                 }
             } else {
                 if (keyed) {

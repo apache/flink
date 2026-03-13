@@ -30,31 +30,33 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests retrieval of a job from a running Flink cluster. */
-public class JobRetrievalITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class JobRetrievalITCase {
 
     private static final Semaphore lock = new Semaphore(1);
 
-    @ClassRule
-    public static final MiniClusterResource CLUSTER =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(4)
@@ -62,25 +64,25 @@ public class JobRetrievalITCase extends TestLogger {
 
     private RestClusterClient<StandaloneClusterId> client;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp(@InjectClusterClient RestClusterClient<?> restClusterClient) throws Exception {
         final Configuration clientConfig = new Configuration();
+        clientConfig.addAll(restClusterClient.getFlinkConfiguration());
         clientConfig.set(RestOptions.RETRY_MAX_ATTEMPTS, 0);
         clientConfig.set(RestOptions.RETRY_DELAY, Duration.ofMillis(0L));
-        clientConfig.addAll(CLUSTER.getClientConfiguration());
 
         client = new RestClusterClient<>(clientConfig, StandaloneClusterId.getInstance());
     }
 
-    @After
-    public void tearDown() {
+    @AfterEach
+    void tearDown() {
         if (client != null) {
             client.close();
         }
     }
 
     @Test
-    public void testJobRetrieval() throws Exception {
+    void testJobRetrieval() throws Exception {
         final JobVertex imalock = new JobVertex("imalock");
         imalock.setInvokableClass(SemaphoreInvokable.class);
         imalock.setParallelism(1);
@@ -98,22 +100,18 @@ public class JobRetrievalITCase extends TestLogger {
                 new CheckedThread("Flink-Job-Retriever") {
                     @Override
                     public void go() throws Exception {
-                        assertNotNull(client.requestJobResult(jobId).get());
+                        assertThat(client.requestJobResult(jobId).get()).isNotNull();
                     }
                 };
 
         // wait until the job is running
-        while (client.listJobs().get().isEmpty()) {
-            Thread.sleep(50);
-        }
+        waitUntilCondition(() -> !client.listJobs().get().isEmpty(), 20);
 
         // kick off resuming
         resumingThread.start();
 
         // wait for client to connect
-        while (resumingThread.getState() != Thread.State.WAITING) {
-            Thread.sleep(10);
-        }
+        waitUntilCondition(() -> resumingThread.getState() == Thread.State.WAITING, 20);
 
         // client has connected, we can release the lock
         lock.release();
@@ -122,25 +120,11 @@ public class JobRetrievalITCase extends TestLogger {
     }
 
     @Test
-    public void testNonExistingJobRetrieval() throws Exception {
+    void testNonExistingJobRetrieval() {
         final JobID jobID = new JobID();
 
-        try {
-            client.requestJobResult(jobID).get();
-            fail();
-        } catch (Exception exception) {
-            Optional<Throwable> expectedCause =
-                    ExceptionUtils.findThrowable(
-                            exception,
-                            candidate ->
-                                    candidate.getMessage() != null
-                                            && candidate
-                                                    .getMessage()
-                                                    .contains("Could not find Flink job"));
-            if (!expectedCause.isPresent()) {
-                throw exception;
-            }
-        }
+        assertThatThrownBy(() -> client.requestJobResult(jobID).get())
+                .hasMessageContaining("Could not find Flink job");
     }
 
     /**

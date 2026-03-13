@@ -37,25 +37,23 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.IOException;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case to test local recovery using {@link DefaultScheduler}. */
-public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class DefaultSchedulerLocalRecoveryITCase {
 
     private static final long TIMEOUT = 10_000L;
 
@@ -64,15 +62,15 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
     // local recovery. Recovering can also lead to a change in parallelism which makes the
     // executionHistory non-linear. The lack of a linear executionHistory prevents us from applying
     // the same test for the AdaptiveScheduler.
-    @Category(FailsWithAdaptiveScheduler.class)
-    public void testLocalRecoveryFull() throws Exception {
+    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
+    void testLocalRecoveryFull() throws Exception {
         testLocalRecoveryInternal("full");
     }
 
     @Test
     // see comment in #testLocalRecoveryFull
-    @Category(FailsWithAdaptiveScheduler.class)
-    public void testLocalRecoveryRegion() throws Exception {
+    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
+    void testLocalRecoveryRegion() throws Exception {
         testLocalRecoveryInternal("region");
     }
 
@@ -102,13 +100,13 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
             AllocationID currentAllocation =
                     vertex.getCurrentExecutionAttempt().getAssignedAllocationID();
 
-            assertNotNull(priorAllocation);
-            assertNotNull(currentAllocation);
+            assertThat(priorAllocation).isNotNull();
+            assertThat(currentAllocation).isNotNull();
             if (!currentAllocation.equals(priorAllocation)) {
                 nonLocalRecoveredTasks++;
             }
         }
-        assertThat(nonLocalRecoveredTasks, is(expected));
+        assertThat(nonLocalRecoveredTasks).isEqualTo(expected);
     }
 
     private ArchivedExecutionGraph executeSchedulingTest(
@@ -166,14 +164,14 @@ public class DefaultSchedulerLocalRecoveryITCase extends TestLogger {
                 () -> miniCluster.getExecutionGraph(jobId).get(TIMEOUT, TimeUnit.SECONDS), false);
     }
 
-    private JobGraph createJobGraph(int parallelism) throws IOException {
+    private JobGraph createJobGraph(int parallelism) {
         final JobVertex source = new JobVertex("v1");
         source.setInvokableClass(WaitingCancelableInvokable.class);
         source.setParallelism(parallelism);
 
         JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()
-                        .addJobVertices(Arrays.asList(source))
+                        .addJobVertices(List.of(source))
                         .build();
 
         RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, 10L);

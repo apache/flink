@@ -36,10 +36,10 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,9 +51,11 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Manually test the throughput of the network stack. */
-public class NetworkStackThroughputITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class NetworkStackThroughputITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);
 
@@ -234,7 +236,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testThroughput() throws Exception {
+    void testThroughput() throws Exception {
         Object[][] configParams =
                 new Object[][] {
                     new Object[] {1, false, false, false, 4, 2},
@@ -307,7 +309,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
         final JobResult jobResult =
                 client.submitJob(jobGraph).thenCompose(client::requestJobResult).get();
 
-        Assert.assertFalse(jobResult.getSerializedThrowable().isPresent());
+        assertThat(jobResult.getSerializedThrowable()).isEmpty();
 
         final long dataVolumeMbit = dataVolumeGb * 8192;
         final long runtimeSecs =

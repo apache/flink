@@ -28,16 +28,18 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -52,19 +54,19 @@ import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
 import static org.apache.flink.util.ExceptionUtils.findThrowableSerializedAware;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * A test suite to check that restrictions on recovery with changelog enabled are enforced; and that
  * non-restricted scenarios are not blocked.
  */
-@RunWith(Parameterized.class)
-public class ChangelogCompatibilityITCase {
+@ExtendWith(ParameterizedTestExtension.class)
+class ChangelogCompatibilityITCase {
 
     private final TestCase testCase;
 
-    @Parameterized.Parameters(name = "{0}")
-    public static List<TestCase> parameters() {
+    @Parameters(name = "{0}")
+    private static List<TestCase> parameters() {
         return Arrays.asList(
                 // disable changelog - allow restore from CANONICAL_SAVEPOINT
                 TestCase.startWithChangelog(true)
@@ -113,8 +115,8 @@ public class ChangelogCompatibilityITCase {
                         .allowRestore(true));
     }
 
-    @Test
-    public void testRestore() throws Exception {
+    @TestTemplate
+    void testRestore() throws Exception {
         runAndStoreIfAllowed().ifPresent(this::restoreAndValidate);
     }
 
@@ -291,7 +293,7 @@ public class ChangelogCompatibilityITCase {
         return path.toURI().toString();
     }
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private Path tempDir;
     private File checkpointDir;
     private File savepointDir;
     private MiniClusterWithClientResource miniClusterResource;
@@ -300,15 +302,15 @@ public class ChangelogCompatibilityITCase {
         this.testCase = testCase;
     }
 
-    @Before
-    public void before() throws Exception {
-        checkpointDir = TEMPORARY_FOLDER.newFolder();
-        savepointDir = TEMPORARY_FOLDER.newFolder();
+    @BeforeEach
+    void before() throws Exception {
+        checkpointDir = TempDirUtils.newFolder(tempDir);
+        savepointDir = TempDirUtils.newFolder(tempDir);
         Configuration config = new Configuration();
         config.set(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
         config.set(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
         FsStateChangelogStorageFactory.configure(
-                config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
+                config, TempDirUtils.newFolder(tempDir), Duration.ofMinutes(1), 10);
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -319,8 +321,8 @@ public class ChangelogCompatibilityITCase {
         miniClusterResource.before();
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
