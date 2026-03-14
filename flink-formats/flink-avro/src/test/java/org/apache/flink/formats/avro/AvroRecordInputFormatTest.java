@@ -31,7 +31,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
-import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
@@ -139,12 +138,11 @@ public class AvroRecordInputFormatTest {
         user1.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS));
         user1.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"));
         user1.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
+        user1.setTypeTimestampNanos(Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS));
         // 20.00
-        user1.setTypeDecimalBytes(
-                ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+        user1.setTypeDecimalBytes(BigDecimal.valueOf(2000, 2));
         // 20.00
-        user1.setTypeDecimalFixed(
-                new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+        user1.setTypeDecimalFixed(BigDecimal.valueOf(2000, 2));
 
         // Construct via builder
         User user2 =
@@ -179,14 +177,12 @@ public class AvroRecordInputFormatTest {
                         .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                         .setTypeTimestampMicros(
                                 Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
+                        .setTypeTimestampNanos(
+                                Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS))
                         // 20.00
-                        .setTypeDecimalBytes(
-                                ByteBuffer.wrap(
-                                        BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                        .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
                         // 20.00
-                        .setTypeDecimalFixed(
-                                new Fixed2(
-                                        BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                        .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                         .build();
         DatumWriter<User> userDatumWriter = new SpecificDatumWriter<>(User.class);
         DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter);
