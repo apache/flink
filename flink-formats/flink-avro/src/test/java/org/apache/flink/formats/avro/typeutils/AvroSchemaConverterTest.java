@@ -610,6 +610,7 @@ class AvroSchemaConverterTest {
                             "type_time_micros",
                             "type_timestamp_millis",
                             "type_timestamp_micros",
+                            "type_timestamp_nanos",
                             "type_decimal_bytes",
                             "type_decimal_fixed"
                         },
@@ -634,6 +635,7 @@ class AvroSchemaConverterTest {
                         Types.SQL_TIME,
                         Types.SQL_TIMESTAMP,
                         Types.SQL_TIMESTAMP,
+                        Types.SQL_TIMESTAMP,
                         Types.BIG_DEC,
                         Types.BIG_DEC);
 
@@ -649,11 +651,15 @@ class AvroSchemaConverterTest {
                         new String[] {
                             "type_timestamp_millis",
                             "type_timestamp_micros",
+                            "type_timestamp_nanos",
                             "type_local_timestamp_millis",
-                            "type_local_timestamp_micros"
+                            "type_local_timestamp_micros",
+                            "type_local_timestamp_nanos"
                         },
                         Types.INSTANT,
                         Types.INSTANT,
+                        Types.INSTANT,
+                        Types.LOCAL_DATE_TIME,
                         Types.LOCAL_DATE_TIME,
                         Types.LOCAL_DATE_TIME);
         final RowTypeInfo timestampsRowTypeInfo = (RowTypeInfo) timestamps;
@@ -666,11 +672,15 @@ class AvroSchemaConverterTest {
                         new String[] {
                             "type_timestamp_millis",
                             "type_timestamp_micros",
+                            "type_timestamp_nanos",
                             "type_local_timestamp_millis",
-                            "type_local_timestamp_micros"
+                            "type_local_timestamp_micros",
+                            "type_local_timestamp_nanos"
                         },
                         Types.SQL_TIMESTAMP,
                         Types.SQL_TIMESTAMP,
+                        Types.SQL_TIMESTAMP,
+                        Types.LONG,
                         Types.LONG,
                         Types.LONG);
         final RowTypeInfo timestampsRowTypeInfo = (RowTypeInfo) timestamps;
@@ -685,11 +695,15 @@ class AvroSchemaConverterTest {
                                 DataTypes.FIELD(
                                         "type_timestamp_micros", DataTypes.TIMESTAMP(6).notNull()),
                                 DataTypes.FIELD(
+                                        "type_timestamp_nanos", DataTypes.TIMESTAMP(9).notNull()),
+                                DataTypes.FIELD(
                                         "type_local_timestamp_millis",
                                         DataTypes.BIGINT().notNull()),
                                 DataTypes.FIELD(
                                         "type_local_timestamp_micros",
-                                        DataTypes.BIGINT().notNull()))
+                                        DataTypes.BIGINT().notNull()),
+                                DataTypes.FIELD(
+                                        "type_local_timestamp_nanos", DataTypes.BIGINT().notNull()))
                         .notNull();
 
         assertThat(actual).isEqualTo(timestamps);
@@ -705,11 +719,17 @@ class AvroSchemaConverterTest {
                                         "type_timestamp_micros",
                                         DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).notNull()),
                                 DataTypes.FIELD(
+                                        "type_timestamp_nanos",
+                                        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).notNull()),
+                                DataTypes.FIELD(
                                         "type_local_timestamp_millis",
                                         DataTypes.TIMESTAMP(3).notNull()),
                                 DataTypes.FIELD(
                                         "type_local_timestamp_micros",
-                                        DataTypes.TIMESTAMP(6).notNull()))
+                                        DataTypes.TIMESTAMP(6).notNull()),
+                                DataTypes.FIELD(
+                                        "type_local_timestamp_nanos",
+                                        DataTypes.TIMESTAMP(9).notNull()))
                         .notNull();
 
         assertThat(actual).isEqualTo(timestamps);
@@ -765,6 +785,8 @@ class AvroSchemaConverterTest {
                                         "type_timestamp_millis", DataTypes.TIMESTAMP(3).notNull()),
                                 DataTypes.FIELD(
                                         "type_timestamp_micros", DataTypes.TIMESTAMP(6).notNull()),
+                                DataTypes.FIELD(
+                                        "type_timestamp_nanos", DataTypes.BIGINT().notNull()),
                                 DataTypes.FIELD(
                                         "type_decimal_bytes", DataTypes.DECIMAL(4, 2).notNull()),
                                 DataTypes.FIELD(

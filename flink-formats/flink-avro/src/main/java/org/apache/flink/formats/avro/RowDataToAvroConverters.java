@@ -25,8 +25,10 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.Schema;
@@ -156,6 +158,7 @@ public class RowDataToAvroConverters {
                         };
                 break;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
+                final int timestampPrecision = ((TimestampType) type).getPrecision();
                 if (legacyTimestampMapping) {
                     converter =
                             new RowDataToAvroConverter() {
@@ -173,15 +176,26 @@ public class RowDataToAvroConverters {
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object)
-                                            .toLocalDateTime()
-                                            .toInstant(ZoneOffset.UTC)
-                                            .toEpochMilli();
+                                    java.time.Instant instant =
+                                            ((TimestampData) object)
+                                                    .toLocalDateTime()
+                                                    .toInstant(ZoneOffset.UTC);
+                                    if (timestampPrecision <= 3) {
+                                        return instant.toEpochMilli();
+                                    } else if (timestampPrecision <= 6) {
+                                        return instant.getEpochSecond() * 1_000_000L
+                                                + instant.getNano() / 1000L;
+                                    } else {
+                                        return instant.getEpochSecond() * 1_000_000_000L
+                                                + instant.getNano();
+                                    }
                                 }
                             };
                 }
                 break;
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                final int localZonedTimestampPrecision =
+                        ((LocalZonedTimestampType) type).getPrecision();
                 if (legacyTimestampMapping) {
                     throw new UnsupportedOperationException("Unsupported type: " + type);
                 } else {
@@ -191,7 +205,17 @@ public class RowDataToAvroConverters {
 
                                 @Override
                                 public Object convert(Schema schema, Object object) {
-                                    return ((TimestampData) object).toInstant().toEpochMilli();
+                                    java.time.Instant instant =
+                                            ((TimestampData) object).toInstant();
+                                    if (localZonedTimestampPrecision <= 3) {
+                                        return instant.toEpochMilli();
+                                    } else if (localZonedTimestampPrecision <= 6) {
+                                        return instant.getEpochSecond() * 1_000_000L
+                                                + instant.getNano() / 1000L;
+                                    } else {
+                                        return instant.getEpochSecond() * 1_000_000_000L
+                                                + instant.getNano();
+                                    }
                                 }
                             };
                 }

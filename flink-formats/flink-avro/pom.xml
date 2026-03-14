@@ -257,6 +257,7 @@ under the License.
 						<configuration>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
 							<testOutputDirectory>${project.basedir}/target/generated-test-sources/</testOutputDirectory>
+							<enableDecimalLogicalType>true</enableDecimalLogicalType>
 						</configuration>
 					</execution>
 				</executions>

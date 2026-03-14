@@ -102,14 +102,15 @@ class AvroTypeExtractionTest {
                         + "\"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, "
                         + "\"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], "
                         + "\"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", "
-                        + "\"type_map\": {\"KEY 2\": 17554, \"KEY 1\": 8546456}, \"type_fixed\": null, \"type_union\": null, "
+                        + "\"type_map\": {\"KEY 1\": 8546456, \"KEY 2\": 17554}, \"type_fixed\": null, \"type_union\": null, "
                         + "\"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", "
                         + "\"state\": \"London\", \"zip\": \"NW1 6XE\"}, "
                         + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
-                        + "\"type_decimal_bytes\": \"\\u0007Ð\", \"type_decimal_fixed\": [7, -48]}\n"
+                        + "\"type_timestamp_nanos\": \"1970-01-01T00:00:00.123456789Z\", "
+                        + "\"type_decimal_bytes\": 20.00, \"type_decimal_fixed\": 20.00}\n"
                         + "{\"name\": \"Charlie\", \"favorite_number\": null, "
                         + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
                         + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
@@ -121,8 +122,9 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
-                        + "\"type_decimal_bytes\": \"\\u0007Ð\", "
-                        + "\"type_decimal_fixed\": [7, -48]}\n";
+                        + "\"type_timestamp_nanos\": \"1970-01-01T00:00:00.123456789Z\", "
+                        + "\"type_decimal_bytes\": 20.00, "
+                        + "\"type_decimal_fixed\": 20.00}\n";
     }
 
     @ParameterizedTest
@@ -163,7 +165,8 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
-                        + "\"type_decimal_bytes\": \"\\u0007Ð\", \"type_decimal_fixed\": [7, -48]}\n"
+                        + "\"type_timestamp_nanos\": \"1970-01-01T00:00:00.123456789Z\", "
+                        + "\"type_decimal_bytes\": 20.00, \"type_decimal_fixed\": 20.00}\n"
                         + "{\"name\": \"Charlie\", \"favorite_number\": null, "
                         + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
                         + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
@@ -175,7 +178,8 @@ class AvroTypeExtractionTest {
                         + "\"type_date\": \"2014-03-01\", \"type_time_millis\": \"12:12:12\", \"type_time_micros\": \"00:00:00.123456\", "
                         + "\"type_timestamp_millis\": \"2014-03-01T12:12:12.321Z\", "
                         + "\"type_timestamp_micros\": \"1970-01-01T00:00:00.123456Z\", "
-                        + "\"type_decimal_bytes\": \"\\u0007Ð\", \"type_decimal_fixed\": [7, -48]}\n";
+                        + "\"type_timestamp_nanos\": \"1970-01-01T00:00:00.123456789Z\", "
+                        + "\"type_decimal_bytes\": 20.00, \"type_decimal_fixed\": 20.00}\n";
     }
 
     @ParameterizedTest

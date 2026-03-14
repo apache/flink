@@ -24,7 +24,6 @@ import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.Timestamps;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroSerializerLargeGenericRecordTest;
@@ -107,20 +106,15 @@ public final class AvroTestUtils {
                         .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                         .setTypeTimestampMicros(
                                 Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
+                        .setTypeTimestampNanos(
+                                Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS))
                         // byte array must contain the two's-complement representation of the
                         // unscaled integer value in big-endian byte order
-                        .setTypeDecimalBytes(
-                                ByteBuffer.wrap(
-                                        BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                        // array of length n can store at most
-                        // Math.floor(Math.log10(Math.pow(2, 8 * n - 1) - 1))
-                        // base-10 digits of precision
-                        .setTypeDecimalFixed(
-                                new Fixed2(
-                                        BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                        .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                        .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                         .build();
 
-        final Row rowUser = new Row(23);
+        final Row rowUser = new Row(24);
         rowUser.setField(0, "Charlie");
         rowUser.setField(1, null);
         rowUser.setField(2, "blue");
@@ -144,8 +138,10 @@ public final class AvroTestUtils {
         rowUser.setField(19, Timestamp.valueOf("2014-03-01 12:12:12.321"));
         rowUser.setField(
                 20, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
-        rowUser.setField(21, BigDecimal.valueOf(2000, 2));
+        rowUser.setField(
+                21, Timestamp.from(Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS)));
         rowUser.setField(22, BigDecimal.valueOf(2000, 2));
+        rowUser.setField(23, BigDecimal.valueOf(2000, 2));
 
         final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
         t.f0 = User.class;
@@ -176,7 +172,8 @@ public final class AvroTestUtils {
                         + "{\"name\":\"type_time_millis\",\"type\":{\"type\":\"int\",\"logicalType\":\"time-millis\"}},{\"name\":\"type_time_micros\","
                         + "\"type\":{\"type\":\"long\",\"logicalType\":\"time-micros\"}},{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\","
                         + "\"logicalType\":\"timestamp-millis\"}},{\"name\":\"type_timestamp_micros\",\"type\":{\"type\":\"long\","
-                        + "\"logicalType\":\"timestamp-micros\"}},{\"name\":\"type_decimal_bytes\",\"type\":{\"type\":\"bytes\","
+                        + "\"logicalType\":\"timestamp-micros\"}},{\"name\":\"type_timestamp_nanos\",\"type\":{\"type\":\"long\","
+                        + "\"logicalType\":\"timestamp-nanos\"}},{\"name\":\"type_decimal_bytes\",\"type\":{\"type\":\"bytes\","
                         + "\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}},{\"name\":\"type_decimal_fixed\",\"type\":{\"type\":\"fixed\","
                         + "\"name\":\"Fixed2\",\"size\":2,\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}}]}";
         final Schema schema = new Schema.Parser().parse(schemaString);
@@ -223,6 +220,9 @@ public final class AvroTestUtils {
         user.put(
                 "type_timestamp_micros", Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
         user.put(
+                "type_timestamp_nanos",
+                Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS));
+        user.put(
                 "type_decimal_bytes",
                 ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
         user.put(
@@ -231,7 +231,7 @@ public final class AvroTestUtils {
                         schema.getField("type_decimal_fixed").schema(),
                         BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 
-        final Row rowUser = new Row(23);
+        final Row rowUser = new Row(24);
         rowUser.setField(0, "Charlie");
         rowUser.setField(1, null);
         rowUser.setField(2, "blue");
@@ -255,8 +255,10 @@ public final class AvroTestUtils {
         rowUser.setField(19, Timestamp.valueOf("2014-03-01 12:12:12.321"));
         rowUser.setField(
                 20, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
-        rowUser.setField(21, BigDecimal.valueOf(2000, 2));
+        rowUser.setField(
+                21, Timestamp.from(Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS)));
         rowUser.setField(22, BigDecimal.valueOf(2000, 2));
+        rowUser.setField(23, BigDecimal.valueOf(2000, 2));
 
         final Tuple3<GenericRecord, Row, Schema> t = new Tuple3<>();
         t.f0 = user;
@@ -274,34 +276,49 @@ public final class AvroTestUtils {
                         + "\"fields\": [{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\","
                         + "\"logicalType\":\"timestamp-millis\"}},{\"name\":\"type_timestamp_micros\",\"type\":{\"type\":\"long\","
                         + "\"logicalType\":\"timestamp-micros\"}},{\"name\": \"type_local_timestamp_millis\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-millis\"}},"
-                        + "{\"name\": \"type_local_timestamp_micros\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-micros\"}}]}";
+                        + "{\"name\": \"type_local_timestamp_micros\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-micros\"}},"
+                        + "{\"name\": \"type_timestamp_nanos\", \"type\": {\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}},"
+                        + "{\"name\": \"type_local_timestamp_nanos\", \"type\": {\"type\": \"long\", \"logicalType\": \"local-timestamp-nanos\"}}]}";
         final Schema schema = new Schema.Parser().parse(schemaString);
         final GenericRecord timestampRecord = new GenericData.Record(schema);
         timestampRecord.put("type_timestamp_millis", Instant.parse("2014-03-01T12:12:12.321Z"));
         timestampRecord.put(
                 "type_timestamp_micros", Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
         timestampRecord.put(
+                "type_timestamp_nanos",
+                Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS));
+        timestampRecord.put(
                 "type_local_timestamp_millis", LocalDateTime.parse("2014-03-01T12:12:12.321"));
         timestampRecord.put(
                 "type_local_timestamp_micros", LocalDateTime.parse("1970-01-01T00:00:00.123456"));
+        timestampRecord.put(
+                "type_local_timestamp_nanos", LocalDateTime.parse("1970-01-01T00:00:00.123456789"));
 
         final Timestamps timestamps =
                 Timestamps.newBuilder()
                         .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                         .setTypeTimestampMicros(
                                 Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
+                        .setTypeTimestampNanos(
+                                Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS))
                         .setTypeLocalTimestampMillis(LocalDateTime.parse("2014-03-01T12:12:12.321"))
                         .setTypeLocalTimestampMicros(
                                 LocalDateTime.parse("1970-01-01T00:00:00.123456"))
+                        .setTypeLocalTimestampNanos(
+                                LocalDateTime.parse("1970-01-01T00:00:00.123456789"))
                         .build();
 
-        final Row timestampRow = new Row(4);
+        final Row timestampRow = new Row(6);
         timestampRow.setField(0, Timestamp.valueOf("2014-03-01 12:12:12.321"));
         timestampRow.setField(
                 1, Timestamp.from(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS)));
         timestampRow.setField(2, Timestamp.valueOf(LocalDateTime.parse("2014-03-01T12:12:12.321")));
         timestampRow.setField(
                 3, Timestamp.valueOf(LocalDateTime.parse("1970-01-01T00:00:00.123456")));
+        timestampRow.setField(
+                4, Timestamp.from(Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS)));
+        timestampRow.setField(
+                5, Timestamp.valueOf(LocalDateTime.parse("1970-01-01T00:00:00.123456789")));
 
         final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> t =
                 new Tuple4<>();

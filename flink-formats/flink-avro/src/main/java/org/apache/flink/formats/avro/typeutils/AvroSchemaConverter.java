@@ -194,7 +194,8 @@ public class AvroSchemaConverter {
             case LONG:
                 if (legacyTimestampMapping) {
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
-                            || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+                            || schema.getLogicalType() == LogicalTypes.timestampMicros()
+                            || schema.getLogicalType() == LogicalTypes.timestampNanos()) {
                         return Types.SQL_TIMESTAMP;
                     } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
                             || schema.getLogicalType() == LogicalTypes.timeMillis()) {
@@ -203,10 +204,12 @@ public class AvroSchemaConverter {
                 } else {
                     // Avro logical timestamp types to Flink DataStream timestamp types
                     if (schema.getLogicalType() == LogicalTypes.timestampMillis()
-                            || schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+                            || schema.getLogicalType() == LogicalTypes.timestampMicros()
+                            || schema.getLogicalType() == LogicalTypes.timestampNanos()) {
                         return Types.INSTANT;
                     } else if (schema.getLogicalType() == LogicalTypes.localTimestampMillis()
-                            || schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
+                            || schema.getLogicalType() == LogicalTypes.localTimestampMicros()
+                            || schema.getLogicalType() == LogicalTypes.localTimestampNanos()) {
                         return Types.LOCAL_DATE_TIME;
                     } else if (schema.getLogicalType() == LogicalTypes.timeMicros()
                             || schema.getLogicalType() == LogicalTypes.timeMillis()) {
@@ -350,6 +353,8 @@ public class AvroSchemaConverter {
                         return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
                         return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.timestampNanos()) {
+                        return DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timeMillis()) {
                         return DataTypes.TIME(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
@@ -358,6 +363,8 @@ public class AvroSchemaConverter {
                         return DataTypes.TIMESTAMP(3).notNull();
                     } else if (schema.getLogicalType() == LogicalTypes.localTimestampMicros()) {
                         return DataTypes.TIMESTAMP(6).notNull();
+                    } else if (schema.getLogicalType() == LogicalTypes.localTimestampNanos()) {
+                        return DataTypes.TIMESTAMP(9).notNull();
                     }
                 }
 
@@ -479,12 +486,14 @@ public class AvroSchemaConverter {
                         avroLogicalType = LogicalTypes.localTimestampMillis();
                     } else if (precision <= 6) {
                         avroLogicalType = LogicalTypes.localTimestampMicros();
+                    } else if (precision <= 9) {
+                        avroLogicalType = LogicalTypes.localTimestampNanos();
                     } else {
                         throw new IllegalArgumentException(
                                 "Avro does not support LOCAL TIMESTAMP type "
                                         + "with precision: "
                                         + precision
-                                        + ", it only supports precision less than 6.");
+                                        + ", it only supports precision less than 9.");
                     }
                 }
                 Schema timestamp = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
@@ -501,12 +510,14 @@ public class AvroSchemaConverter {
                         avroLogicalType = LogicalTypes.timestampMillis();
                     } else if (precision <= 6) {
                         avroLogicalType = LogicalTypes.timestampMicros();
+                    } else if (precision <= 9) {
+                        avroLogicalType = LogicalTypes.timestampNanos();
                     } else {
                         throw new IllegalArgumentException(
                                 "Avro does not support TIMESTAMP type "
                                         + "with precision: "
                                         + precision
-                                        + ", it only supports precision less than 6.");
+                                        + ", it only supports precision less than 9.");
                     }
                     timestamp = avroLogicalType.addToSchema(SchemaBuilder.builder().longType());
                     return nullable ? nullableSchema(timestamp) : timestamp;
