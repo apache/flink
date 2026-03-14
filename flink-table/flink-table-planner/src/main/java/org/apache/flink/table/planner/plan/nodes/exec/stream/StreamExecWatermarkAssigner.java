@@ -129,9 +129,12 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         final long idleTimeout =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
 
+        final ExecutionConfigOptions.RowtimeNullHandling rowtimeNullHandling =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_ROWTIME_NULL_HANDLING);
+
         final WatermarkAssignerOperatorFactory operatorFactory =
                 new WatermarkAssignerOperatorFactory(
-                        rowtimeFieldIndex, idleTimeout, watermarkGenerator);
+                        rowtimeFieldIndex, idleTimeout, watermarkGenerator, rowtimeNullHandling);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
