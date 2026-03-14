@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -59,7 +58,7 @@ public class NativeS3OutputStream extends FSDataOutputStream {
     private long position;
 
     /** Flag to ensure upload happens exactly once. */
-    private final AtomicBoolean fileUploaded = new AtomicBoolean(false);
+    private boolean fileUploaded = false;
 
     public NativeS3OutputStream(
             S3Client s3Client, String bucketName, String key, String localTmpDir)
@@ -104,7 +103,7 @@ public class NativeS3OutputStream extends FSDataOutputStream {
     public void write(int b) throws IOException {
         lock.lock();
         try {
-            if (fileUploaded.get()) {
+            if (fileUploaded) {
                 throw new IOException("Stream is closed");
             }
             bufferedStream.write(b);
@@ -124,7 +123,7 @@ public class NativeS3OutputStream extends FSDataOutputStream {
         }
         lock.lock();
         try {
-            if (fileUploaded.get()) {
+            if (fileUploaded) {
                 throw new IOException("Stream is closed");
             }
             bufferedStream.write(b, off, len);
@@ -138,7 +137,7 @@ public class NativeS3OutputStream extends FSDataOutputStream {
     public void flush() throws IOException {
         lock.lock();
         try {
-            if (fileUploaded.get()) {
+            if (fileUploaded) {
                 throw new IOException("Stream is closed");
             }
             bufferedStream.flush();
@@ -156,7 +155,8 @@ public class NativeS3OutputStream extends FSDataOutputStream {
     public void sync() throws IOException {
         lock.lock();
         try {
-            if (fileUploaded.compareAndSet(false, true)) {
+            if (!fileUploaded) {
+                fileUploaded = true;
                 uploadToS3();
             }
         } finally {
@@ -173,7 +173,8 @@ public class NativeS3OutputStream extends FSDataOutputStream {
     public void close() throws IOException {
         lock.lock();
         try {
-            if (fileUploaded.compareAndSet(false, true)) {
+            if (!fileUploaded) {
+                fileUploaded = true;
                 uploadToS3();
             }
         } finally {
@@ -184,6 +185,7 @@ public class NativeS3OutputStream extends FSDataOutputStream {
     /** Uploads the temp file to S3 and cleans up local resources. */
     private void uploadToS3() throws IOException {
         try {
+            bufferedStream.flush();
             bufferedStream.close();
 
             PutObjectRequest.Builder putRequestBuilder =

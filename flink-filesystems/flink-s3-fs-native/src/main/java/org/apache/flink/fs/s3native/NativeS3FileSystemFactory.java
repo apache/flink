@@ -242,24 +242,6 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
 
         S3EncryptionConfig encryptionConfig =
                 S3EncryptionConfig.fromConfig(config.get(SSE_TYPE), config.get(SSE_KMS_KEY_ID));
-
-        S3ClientProvider clientProvider =
-                S3ClientProvider.builder()
-                        .accessKey(accessKey)
-                        .secretKey(secretKey)
-                        .region(region)
-                        .endpoint(endpoint)
-                        .pathStyleAccess(pathStyleAccess)
-                        .assumeRoleArn(config.get(ASSUME_ROLE_ARN))
-                        .assumeRoleExternalId(config.get(ASSUME_ROLE_EXTERNAL_ID))
-                        .assumeRoleSessionName(config.get(ASSUME_ROLE_SESSION_NAME))
-                        .assumeRoleSessionDurationSeconds(
-                                config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS))
-                        .maxRetries(config.get(MAX_RETRIES))
-                        .credentialsProviderClasses(config.get(AWS_CREDENTIALS_PROVIDER))
-                        .encryptionConfig(encryptionConfig)
-                        .build();
-
         String entropyInjectionKey = config.get(ENTROPY_INJECT_KEY_OPTION);
         int numEntropyChars = -1;
         if (entropyInjectionKey != null) {
@@ -315,6 +297,23 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     configuredReadBufferSize,
                     readBufferSize);
         }
+
+        S3ClientProvider clientProvider =
+                S3ClientProvider.builder()
+                        .accessKey(accessKey)
+                        .secretKey(secretKey)
+                        .region(region)
+                        .endpoint(endpoint)
+                        .pathStyleAccess(pathStyleAccess)
+                        .assumeRoleArn(config.get(ASSUME_ROLE_ARN))
+                        .assumeRoleExternalId(config.get(ASSUME_ROLE_EXTERNAL_ID))
+                        .assumeRoleSessionName(config.get(ASSUME_ROLE_SESSION_NAME))
+                        .assumeRoleSessionDurationSeconds(
+                                config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS))
+                        .maxRetries(config.get(MAX_RETRIES))
+                        .credentialsProviderClasses(config.get(AWS_CREDENTIALS_PROVIDER))
+                        .encryptionConfig(encryptionConfig)
+                        .build();
 
         NativeS3BulkCopyHelper bulkCopyHelper = null;
         if (config.get(BULK_COPY_ENABLED)) {

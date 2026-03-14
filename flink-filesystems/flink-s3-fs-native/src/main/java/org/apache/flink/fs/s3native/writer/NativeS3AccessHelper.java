@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -100,34 +99,30 @@ public class NativeS3AccessHelper {
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3AccessHelper.class);
 
     private final S3Client s3Client;
-    private final S3AsyncClient s3AsyncClient;
     private final S3TransferManager transferManager;
     private final String bucketName;
     private final boolean useAsyncOperations;
     private final S3EncryptionConfig encryptionConfig;
 
     public NativeS3AccessHelper(S3Client s3Client, String bucketName) {
-        this(s3Client, null, null, bucketName, false, null);
+        this(s3Client, null, bucketName, false, null);
     }
 
     public NativeS3AccessHelper(
             S3Client s3Client,
-            S3AsyncClient s3AsyncClient,
             S3TransferManager transferManager,
             String bucketName,
             boolean useAsyncOperations) {
-        this(s3Client, s3AsyncClient, transferManager, bucketName, useAsyncOperations, null);
+        this(s3Client, transferManager, bucketName, useAsyncOperations, null);
     }
 
     public NativeS3AccessHelper(
             S3Client s3Client,
-            S3AsyncClient s3AsyncClient,
             S3TransferManager transferManager,
             String bucketName,
             boolean useAsyncOperations,
             S3EncryptionConfig encryptionConfig) {
         this.s3Client = s3Client;
-        this.s3AsyncClient = s3AsyncClient;
         this.transferManager = transferManager;
         this.bucketName = bucketName;
         this.useAsyncOperations = useAsyncOperations && transferManager != null;

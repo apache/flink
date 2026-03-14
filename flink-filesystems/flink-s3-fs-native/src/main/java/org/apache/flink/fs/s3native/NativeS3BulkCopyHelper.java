@@ -64,7 +64,7 @@ import java.util.concurrent.ExecutionException;
  * consolidate S3 URI handling across the codebase.
  */
 @Internal
-public class NativeS3BulkCopyHelper {
+class NativeS3BulkCopyHelper {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3BulkCopyHelper.class);
 
@@ -79,9 +79,15 @@ public class NativeS3BulkCopyHelper {
     /**
      * Copies files from S3 to local filesystem in batches.
      *
+     * <p><b>Error Handling:</b> If an unsupported URI scheme is encountered, all already-started
+     * copy operations are awaited to completion before throwing the exception. This ensures that no
+     * background copy tasks are left running when the method returns, allowing the caller to safely
+     * manage cleanup and resource lifecycle.
+     *
      * @param requests List of copy requests (source S3 path to destination local path)
      * @param closeableRegistry Registry for cleanup (currently unused, reserved for future use)
-     * @throws IOException if any copy operation fails
+     * @throws IOException if any copy operation fails or if an unsupported URI scheme is
+     *     encountered
      */
     public void copyFiles(
             List<PathsCopyingFileSystem.CopyRequest> requests, ICloseableRegistry closeableRegistry)
@@ -95,23 +101,44 @@ public class NativeS3BulkCopyHelper {
 
         List<CompletableFuture<CompletedCopy>> copyFutures = new ArrayList<>();
 
-        for (int i = 0; i < requests.size(); i++) {
-            PathsCopyingFileSystem.CopyRequest request = requests.get(i);
-            String sourceUri = request.getSource().toUri().toString();
-            if (sourceUri.startsWith("s3://") || sourceUri.startsWith("s3a://")) {
-                copyFutures.add(copyS3ToLocal(request));
-            } else {
-                throw new UnsupportedOperationException(
-                        "Only S3 to local copies are currently supported: " + sourceUri);
+        try {
+            for (int i = 0; i < requests.size(); i++) {
+                PathsCopyingFileSystem.CopyRequest request = requests.get(i);
+                String sourceUri = request.getSource().toUri().toString();
+                if (sourceUri.startsWith("s3://") || sourceUri.startsWith("s3a://")) {
+                    copyFutures.add(copyS3ToLocal(request));
+                } else {
+                    throw new UnsupportedOperationException(
+                            "Only S3 to local copies are currently supported: " + sourceUri);
+                }
+
+                if (copyFutures.size() >= maxConcurrentCopies || i == requests.size() - 1) {
+                    waitForCopies(copyFutures);
+                    copyFutures.clear();
+                }
             }
 
-            if (copyFutures.size() >= maxConcurrentCopies || i == requests.size() - 1) {
-                waitForCopies(copyFutures);
-                copyFutures.clear();
+            LOG.info("Completed bulk copy of {} files", requests.size());
+        } catch (Exception e) {
+            if (!copyFutures.isEmpty()) {
+                LOG.warn(
+                        "Error during bulk copy, waiting for {} in-flight operations to complete",
+                        copyFutures.size());
+                try {
+                    waitForCopies(copyFutures);
+                } catch (IOException waitError) {
+                    LOG.warn(
+                            "Error waiting for in-flight copy operations: {}",
+                            waitError.getMessage());
+                    e.addSuppressed(waitError);
+                }
+            }
+            if (e instanceof IOException) {
+                throw (IOException) e;
+            } else {
+                throw new IOException(e);
             }
         }
-
-        LOG.info("Completed bulk copy of {} files", requests.size());
     }
 
     /**
@@ -158,14 +185,15 @@ public class NativeS3BulkCopyHelper {
         }
     }
 
-    // TODO: Consider moving these URI parsing methods to a shared S3UriUtils class
-
     /**
      * Extracts the bucket name from an S3 URI.
      *
      * <p>Supports both s3:// and s3a:// schemes (s3a is normalized to s3).
+     *
+     * @param s3Uri the S3 URI
+     * @return the bucket name
      */
-    private String extractBucket(String s3Uri) {
+    String extractBucket(String s3Uri) {
         String uri = s3Uri.replaceFirst("s3a://", "s3://");
         int bucketStart = uri.indexOf("://") + 3;
         int bucketEnd = uri.indexOf("/", bucketStart);
@@ -179,8 +207,11 @@ public class NativeS3BulkCopyHelper {
      * Extracts the object key from an S3 URI.
      *
      * <p>Supports both s3:// and s3a:// schemes (s3a is normalized to s3).
+     *
+     * @param s3Uri the S3 URI
+     * @return the object key (empty string if no key in URI)
      */
-    private String extractKey(String s3Uri) {
+    String extractKey(String s3Uri) {
         String uri = s3Uri.replaceFirst("s3a://", "s3://");
         int bucketStart = uri.indexOf("://") + 3;
         int keyStart = uri.indexOf("/", bucketStart);

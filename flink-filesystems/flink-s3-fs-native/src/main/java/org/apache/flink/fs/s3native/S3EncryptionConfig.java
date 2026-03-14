@@ -155,7 +155,7 @@ public class S3EncryptionConfig implements Serializable {
             return none();
         }
 
-        String normalizedType = encryptionTypeStr.toUpperCase().replace("-", "_");
+        String normalizedType = encryptionTypeStr.toUpperCase().replace("-", "_").replace(":", "_");
 
         switch (normalizedType) {
             case "SSE_S3":

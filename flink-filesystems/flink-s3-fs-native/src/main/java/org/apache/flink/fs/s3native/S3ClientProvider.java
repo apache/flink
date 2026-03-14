@@ -37,7 +37,6 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -63,9 +62,12 @@ import java.util.stream.Collectors;
 /**
  * Provider for S3 clients (sync and async). Handles credential management, delegation tokens, and
  * connection configuration.
+ *
+ * <p><b>Thread Safety:</b> This class is thread-safe. All fields are immutable or safely guarded by
+ * atomic operations ({@link AtomicBoolean}).
  */
 @Internal
-public class S3ClientProvider implements AutoCloseableAsync {
+class S3ClientProvider implements AutoCloseableAsync {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientProvider.class);
 
@@ -73,7 +75,6 @@ public class S3ClientProvider implements AutoCloseableAsync {
     private static final long CLIENT_CLOSE_TIMEOUT_SECONDS = 30;
 
     private final S3Client s3Client;
-    private final S3AsyncClient s3AsyncClient;
     private final S3TransferManager transferManager;
     private final S3EncryptionConfig encryptionConfig;
     @Nullable private final AwsCredentialsProvider credentialsProvider;
@@ -82,13 +83,11 @@ public class S3ClientProvider implements AutoCloseableAsync {
 
     private S3ClientProvider(
             S3Client s3Client,
-            S3AsyncClient s3AsyncClient,
             S3TransferManager transferManager,
             S3EncryptionConfig encryptionConfig,
             @Nullable AwsCredentialsProvider credentialsProvider,
             @Nullable StsClient stsClient) {
         this.s3Client = s3Client;
-        this.s3AsyncClient = s3AsyncClient;
         this.transferManager = transferManager;
         this.encryptionConfig =
                 encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
@@ -99,11 +98,6 @@ public class S3ClientProvider implements AutoCloseableAsync {
     public S3Client getS3Client() {
         checkNotClosed();
         return s3Client;
-    }
-
-    public S3AsyncClient getAsyncClient() {
-        checkNotClosed();
-        return s3AsyncClient;
     }
 
     public S3TransferManager getTransferManager() {
@@ -133,13 +127,6 @@ public class S3ClientProvider implements AutoCloseableAsync {
                                     transferManager.close();
                                 } catch (Exception e) {
                                     LOG.warn("Error closing S3 TransferManager", e);
-                                }
-                            }
-                            if (s3AsyncClient != null) {
-                                try {
-                                    s3AsyncClient.close();
-                                } catch (Exception e) {
-                                    LOG.warn("Error closing S3 async client", e);
                                 }
                             }
                             if (s3Client != null) {
@@ -353,35 +340,25 @@ public class S3ClientProvider implements AutoCloseableAsync {
                 clientBuilder.endpointOverride(endpointUri);
             }
             S3Client s3Client = clientBuilder.build();
-
-            NettyNioAsyncHttpClient.Builder asyncHttpClientBuilder =
-                    NettyNioAsyncHttpClient.builder()
-                            .maxConcurrency(maxConnections)
-                            .connectionTimeout(connectionTimeout)
-                            .readTimeout(socketTimeout);
-
-            S3AsyncClientBuilder asyncClientBuilder =
-                    S3AsyncClient.builder()
-                            .credentialsProvider(credentialsProvider)
-                            .region(awsRegion)
-                            .serviceConfiguration(s3Config)
-                            .httpClientBuilder(asyncHttpClientBuilder)
-                            .overrideConfiguration(overrideConfig);
-            if (endpointUri != null) {
-                asyncClientBuilder.endpointOverride(endpointUri);
-            }
-            S3AsyncClient s3AsyncClient = asyncClientBuilder.build();
-
             S3TransferManager transferManager =
-                    S3TransferManager.builder().s3Client(s3AsyncClient).build();
+                    S3TransferManager.builder()
+                            .s3Client(
+                                    S3AsyncClient.builder()
+                                            .credentialsProvider(credentialsProvider)
+                                            .region(awsRegion)
+                                            .serviceConfiguration(s3Config)
+                                            .httpClientBuilder(
+                                                    NettyNioAsyncHttpClient.builder()
+                                                            .maxConcurrency(maxConnections)
+                                                            .connectionTimeout(connectionTimeout)
+                                                            .readTimeout(socketTimeout))
+                                            .overrideConfiguration(overrideConfig)
+                                            .endpointOverride(endpointUri)
+                                            .build())
+                            .build();
 
             return new S3ClientProvider(
-                    s3Client,
-                    s3AsyncClient,
-                    transferManager,
-                    encryptionConfig,
-                    credentialsProvider,
-                    stsClient);
+                    s3Client, transferManager, encryptionConfig, credentialsProvider, stsClient);
         }
 
         private AwsCredentialsProvider buildBaseCredentialsProvider() {

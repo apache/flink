@@ -90,7 +90,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       return errors
  * </ul>
  */
-public class NativeS3FileSystem extends FileSystem
+class NativeS3FileSystem extends FileSystem
         implements EntropyInjectingFileSystem, PathsCopyingFileSystem, AutoCloseableAsync {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystem.class);
@@ -139,7 +139,6 @@ public class NativeS3FileSystem extends FileSystem
         this.s3AccessHelper =
                 new NativeS3AccessHelper(
                         clientProvider.getS3Client(),
-                        clientProvider.getAsyncClient(),
                         clientProvider.getTransferManager(),
                         bucketName,
                         useAsyncOperations,

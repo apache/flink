@@ -38,7 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p><b>Thread Safety:</b> Internal state is guarded by a lock to ensure safe concurrent access and
  * resource cleanup.
  */
-public class NativeS3InputStream extends FSDataInputStream {
+class NativeS3InputStream extends FSDataInputStream {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3InputStream.class);
 
