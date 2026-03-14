@@ -45,12 +45,15 @@ public class PrometheusPushGatewayReporterOptions {
                     .defaultValue("")
                     .withDescription("The job name under which metrics will be pushed");
 
+    @Deprecated
     public static final ConfigOption<Boolean> RANDOM_JOB_NAME_SUFFIX =
             ConfigOptions.key("randomJobNameSuffix")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
-                            "Specifies whether a random suffix should be appended to the job name.");
+                            "Specifies whether random suffixing `job` label (the old way) to avoid metric collision among reporters from taskamangers."
+                                    + " When disabled (now default) , metrics will be grouped under a random reporter id while job name is faithful to configuration."
+                                    + " This option is deprecated and it is recommended to rely on the reporter id grouping key.");
 
     public static final ConfigOption<Boolean> DELETE_ON_SHUTDOWN =
             ConfigOptions.key("deleteOnShutdown")
