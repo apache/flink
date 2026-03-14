@@ -1439,6 +1439,19 @@ class Expression(Generic[T]):
         """
         return _unary_op("urlDecode")(self)
 
+    def url_decode_recursive(self, max_depth: int = None) -> 'Expression[str]':
+        """
+        Recursively decodes a URL-encoded string from 'application/x-www-form-urlencoded'
+        format using the UTF-8 encoding scheme until no further decoding is possible or the
+        max depth is reached. If the input is null, or there is an issue with the decoding
+        process, or the encoding scheme is not supported, returns null.
+
+        :param max_depth: the maximum number of decoding iterations (default: 10)
+        """
+        if max_depth is None:
+            return _unary_op("urlDecodeRecursive")(self)
+        return _binary_op("urlDecodeRecursive")(self, max_depth)
+
     def url_encode(self) -> 'Expression[str]':
         """
         Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8
