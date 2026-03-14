@@ -89,8 +89,8 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
         }
         if (results.length > 0) {
           editor.setSelection(results[0].range);
-          editor.getAction('actions.find').run();
-          editor.getAction('editor.action.nextMatchFindAction').run();
+          editor.getAction('actions.find')?.run();
+          editor.getAction('editor.action.nextMatchFindAction')?.run();
         }
       });
     }
