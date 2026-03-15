@@ -122,6 +122,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     @Override
     public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
         CompletableFuture<Collection<RowData>> future = new CompletableFuture<>();
+        inferenceRequests.inc();
+        final long startTime = System.currentTimeMillis();
 
         try {
             String requestBody = buildInferenceRequest(rowData);
@@ -167,6 +169,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                             new Callback() {
                                 @Override
                                 public void onFailure(Call call, IOException e) {
+                                    lastInferenceLatencyMs =
+                                            System.currentTimeMillis() - startTime;
+                                    inferenceFailure.inc();
                                     LOG.error(
                                             "Triton inference request failed due to network error",
                                             e);
@@ -188,6 +193,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         throws IOException {
                                     try {
                                         if (!response.isSuccessful()) {
+                                            lastInferenceLatencyMs =
+                                                    System.currentTimeMillis() - startTime;
+                                            inferenceFailure.inc();
                                             handleErrorResponse(response, future);
                                             return;
                                         }
@@ -195,8 +203,14 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         String responseBody = response.body().string();
                                         Collection<RowData> result =
                                                 parseInferenceResponse(responseBody);
+                                        lastInferenceLatencyMs =
+                                                System.currentTimeMillis() - startTime;
+                                        inferenceSuccess.inc();
                                         future.complete(result);
                                     } catch (JsonProcessingException e) {
+                                        lastInferenceLatencyMs =
+                                                System.currentTimeMillis() - startTime;
+                                        inferenceFailure.inc();
                                         LOG.error("Failed to parse Triton inference response", e);
                                         future.completeExceptionally(
                                                 new TritonClientException(
@@ -205,6 +219,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                                 + ". This may indicate an incompatible response format.",
                                                         400));
                                     } catch (Exception e) {
+                                        lastInferenceLatencyMs =
+                                                System.currentTimeMillis() - startTime;
+                                        inferenceFailure.inc();
                                         LOG.error("Failed to process Triton inference response", e);
                                         future.completeExceptionally(e);
                                     } finally {
@@ -214,6 +231,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                             });
 
         } catch (Exception e) {
+            lastInferenceLatencyMs = System.currentTimeMillis() - startTime;
+            inferenceFailure.inc();
             LOG.error("Failed to build Triton inference request", e);
             future.completeExceptionally(e);
         }
