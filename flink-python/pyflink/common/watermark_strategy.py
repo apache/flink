@@ -128,8 +128,8 @@ class WatermarkStrategy(object):
         """
         Creates a watermark strategy for situations where records are out of order, but you can
         place an upper bound on how far the events are out of order. An out-of-order bound B means
-        that once the an event with timestamp T was encountered, no events older than (T - B) will
-        follow any more.
+        that once an event with timestamp T was encountered, no events older than (T - B) will
+        follow anymore.
         """
         JWaterMarkStrategy = get_gateway().jvm \
             .org.apache.flink.api.common.eventtime.WatermarkStrategy
