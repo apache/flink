@@ -140,4 +140,19 @@ public class ConfluentRegistryAvroSerializationSchema<T>
                         DEFAULT_IDENTITY_MAP_CAPACITY,
                         registryConfigs));
     }
+
+    public static ConfluentRegistryAvroSerializationSchema<Object> forPrimitiveType(
+            String subject,
+            Schema schema,
+            String schemaRegistryUrl,
+            @Nullable Map<String, ?> registryConfigs) {
+        return new ConfluentRegistryAvroSerializationSchema<>(
+                Object.class,
+                schema,
+                new CachedSchemaCoderProvider(
+                        subject,
+                        schemaRegistryUrl,
+                        DEFAULT_IDENTITY_MAP_CAPACITY,
+                        registryConfigs));
+    }
 }
