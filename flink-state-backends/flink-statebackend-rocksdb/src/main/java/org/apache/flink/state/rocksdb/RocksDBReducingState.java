@@ -32,6 +32,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 
 /**
@@ -145,8 +146,12 @@ class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, 
             dataOutputView.clear();
             valueSerializer.serialize(current, dataOutputView);
 
-            // write the resulting value
-            backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
+            // write the resulting value using ByteBuffer to avoid copy
+            backend.db.put(
+                    columnFamily,
+                    writeOptions,
+                    ByteBuffer.wrap(targetKey),
+                    ByteBuffer.wrap(dataOutputView.getSharedBuffer(), 0, dataOutputView.length()));
         }
     }
 
