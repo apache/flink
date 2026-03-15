@@ -21,10 +21,14 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -260,8 +264,12 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
                 DispatcherId dispatcherId,
                 Collection<ExecutionPlan> recoveredJobs,
                 Collection<JobResult> recoveredDirtyJobResults,
+                Collection<AbstractApplication> recoveredApplications,
+                Collection<ApplicationResult> recoveredDirtyApplicationResults,
                 ExecutionPlanWriter executionPlanWriter,
-                JobResultStore jobResultStore);
+                JobResultStore jobResultStore,
+                ApplicationStore applicationStore,
+                ApplicationResultStore applicationResultStore);
     }
 
     /** An accessor of the {@link DispatcherGateway}. */

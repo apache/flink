@@ -22,8 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationWriter;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -35,13 +37,14 @@ import java.util.Collection;
 import java.util.concurrent.Executor;
 
 /** {@link DispatcherFactory} services container. */
-public class PartialDispatcherServicesWithJobPersistenceComponents
-        extends PartialDispatcherServices {
+public class PartialDispatcherServicesWithPersistenceComponents extends PartialDispatcherServices {
 
     private final ExecutionPlanWriter executionPlanWriter;
     private final JobResultStore jobResultStore;
+    private final ApplicationWriter applicationWriter;
+    private final ApplicationResultStore applicationResultStore;
 
-    private PartialDispatcherServicesWithJobPersistenceComponents(
+    private PartialDispatcherServicesWithPersistenceComponents(
             Configuration configuration,
             HighAvailabilityServices highAvailabilityServices,
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
@@ -56,7 +59,9 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
             DispatcherOperationCaches operationCaches,
             Collection<FailureEnricher> failureEnrichers,
             ExecutionPlanWriter executionPlanWriter,
-            JobResultStore jobResultStore) {
+            JobResultStore jobResultStore,
+            ApplicationWriter applicationWriter,
+            ApplicationResultStore applicationResultStore) {
         super(
                 configuration,
                 highAvailabilityServices,
@@ -73,6 +78,8 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 failureEnrichers);
         this.executionPlanWriter = executionPlanWriter;
         this.jobResultStore = jobResultStore;
+        this.applicationWriter = applicationWriter;
+        this.applicationResultStore = applicationResultStore;
     }
 
     public ExecutionPlanWriter getExecutionPlanWriter() {
@@ -83,11 +90,21 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
         return jobResultStore;
     }
 
-    public static PartialDispatcherServicesWithJobPersistenceComponents from(
+    public ApplicationWriter getApplicationWriter() {
+        return applicationWriter;
+    }
+
+    public ApplicationResultStore getApplicationResultStore() {
+        return applicationResultStore;
+    }
+
+    public static PartialDispatcherServicesWithPersistenceComponents from(
             PartialDispatcherServices partialDispatcherServices,
             ExecutionPlanWriter executionPlanWriter,
-            JobResultStore jobResultStore) {
-        return new PartialDispatcherServicesWithJobPersistenceComponents(
+            JobResultStore jobResultStore,
+            ApplicationWriter applicationWriter,
+            ApplicationResultStore applicationResultStore) {
+        return new PartialDispatcherServicesWithPersistenceComponents(
                 partialDispatcherServices.getConfiguration(),
                 partialDispatcherServices.getHighAvailabilityServices(),
                 partialDispatcherServices.getResourceManagerGatewayRetriever(),
@@ -102,6 +119,8 @@ public class PartialDispatcherServicesWithJobPersistenceComponents
                 partialDispatcherServices.getOperationCaches(),
                 partialDispatcherServices.getFailureEnrichers(),
                 executionPlanWriter,
-                jobResultStore);
+                jobResultStore,
+                applicationWriter,
+                applicationResultStore);
     }
 }

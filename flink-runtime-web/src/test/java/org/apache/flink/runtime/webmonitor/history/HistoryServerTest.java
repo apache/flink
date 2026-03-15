@@ -137,7 +137,9 @@ class HistoryServerTest {
         final int numJobs = 2;
         final int numLegacyJobs = 1;
 
-        CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + numLegacyJobs);
+        CountDownLatch numExpectedLegacyArchives = new CountDownLatch(numLegacyJobs);
+        // one for application itself, one for the job
+        CountDownLatch numExpectedArchives = new CountDownLatch(numJobs * 2);
 
         Configuration historyServerConfig = createTestConfiguration(false);
 
@@ -147,11 +149,14 @@ class HistoryServerTest {
                         (event) -> {
                             if (event.getType()
                                     == HistoryServerArchiveFetcher.ArchiveEventType.CREATED) {
-                                numExpectedArchivedJobs.countDown();
+                                numExpectedLegacyArchives.countDown();
                             }
                         },
                         (event) -> {
-                            throw new RuntimeException("Should not call");
+                            if (event.getType()
+                                    == HistoryServerArchiveFetcher.ArchiveEventType.CREATED) {
+                                numExpectedArchives.countDown();
+                            }
                         });
 
         try {
@@ -161,13 +166,16 @@ class HistoryServerTest {
             assertThat(getJobsOverview(baseUrl).getJobs()).isEmpty();
 
             for (int x = 0; x < numJobs; x++) {
-                mockJobArchive(createExecutionGraphInfo(), null);
+                // the job submitted in MiniCluster will be wrapped into an application
+                runJob();
             }
             createLegacyArchive(jmDirectory.toPath(), versionLessThan14);
-            waitForArchivesCreation(numJobs + numLegacyJobs);
+            waitForArchivesCreation(numJobs);
 
-            assertThat(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numExpectedLegacyArchives.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numExpectedArchives.await(10L, TimeUnit.SECONDS)).isTrue();
             assertThat(getJobsOverview(baseUrl).getJobs()).hasSize(numJobs + numLegacyJobs);
+            assertThat(getApplicationsOverview(baseUrl).getApplications()).hasSize(numJobs);
 
             // checks whether the dashboard configuration contains all expected fields
             getDashboardConfiguration(baseUrl);
@@ -340,7 +348,6 @@ class HistoryServerTest {
         for (int x = 0; x < numJobs; x++) {
             mockJobArchive(createExecutionGraphInfo(), null);
         }
-        waitForArchivesCreation(numJobs);
 
         CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs);
         CountDownLatch firstArchiveExpiredLatch = new CountDownLatch(numExpiredJobs);
@@ -447,13 +454,35 @@ class HistoryServerTest {
         }
     }
 
-    private void waitForArchivesCreation(int numJobs) throws InterruptedException {
-        // the job is archived asynchronously after env.execute() returns
-        File[] archives = jmDirectory.listFiles();
-        while (archives == null || archives.length != numJobs) {
+    private void waitForArchivesCreation(int numApplications) throws InterruptedException {
+        // the job is archived asynchronously after env.execute() returns and the application is
+        // archived after its job completes, so we wait for the application to be archived here
+        int count = 0;
+        while (count < numApplications) {
             Thread.sleep(50);
-            archives = jmDirectory.listFiles();
+            count = getApplicationArchiveCount();
         }
+    }
+
+    private int getApplicationArchiveCount() {
+        int count = 0;
+        File[] clusterDirs = jmDirectory.listFiles();
+        if (clusterDirs == null) {
+            return 0;
+        }
+
+        for (File clusterDir : clusterDirs) {
+            if (clusterDir.isDirectory()) {
+                File applicationsDir = new File(clusterDir, ArchivePathUtils.APPLICATIONS_DIR);
+                if (applicationsDir.exists() && applicationsDir.isDirectory()) {
+                    File[] applicationDirs = applicationsDir.listFiles();
+                    if (applicationDirs != null) {
+                        count += applicationDirs.length;
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     private Configuration createTestConfiguration(boolean cleanupExpiredJobs) {
