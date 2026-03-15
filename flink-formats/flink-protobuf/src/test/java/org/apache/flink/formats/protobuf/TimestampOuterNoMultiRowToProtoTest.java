@@ -22,18 +22,18 @@ import org.apache.flink.formats.protobuf.testproto.TimestampTestOuterNomultiProt
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test conversion of flink internal primitive data to proto timestamp data with outer_classname
  * options.
  */
-public class TimestampOuterNoMultiRowToProtoTest {
+class TimestampOuterNoMultiRowToProtoTest {
 
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row = GenericRowData.of(GenericRowData.of(1672498800L, 123));
 
         byte[] bytes =
@@ -41,7 +41,7 @@ public class TimestampOuterNoMultiRowToProtoTest {
                         row, TimestampTestOuterNomultiProto.TimestampTestOuterNoMulti.class);
         TimestampTestOuterNomultiProto.TimestampTestOuterNoMulti timestampTestOuterNoMulti =
                 TimestampTestOuterNomultiProto.TimestampTestOuterNoMulti.parseFrom(bytes);
-        assertEquals(1672498800, timestampTestOuterNoMulti.getTs().getSeconds());
-        assertEquals(123, timestampTestOuterNoMulti.getTs().getNanos());
+        assertThat(timestampTestOuterNoMulti.getTs().getSeconds()).isEqualTo(1672498800);
+        assertThat(timestampTestOuterNoMulti.getTs().getNanos()).isEqualTo(123);
     }
 }

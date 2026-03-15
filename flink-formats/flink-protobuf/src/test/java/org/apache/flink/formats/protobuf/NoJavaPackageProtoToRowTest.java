@@ -20,12 +20,12 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.proto.SimpleTestNoJavaPackage;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** test no java_package. */
-public class NoJavaPackageProtoToRowTest {
+class NoJavaPackageProtoToRowTest {
     @Test
-    public void testMessage() throws Exception {
+    void testMessage() throws Exception {
         SimpleTestNoJavaPackage simple = SimpleTestNoJavaPackage.newBuilder().build();
         ProtobufTestHelper.pbBytesToRow(SimpleTestNoJavaPackage.class, simple.toByteArray());
     }

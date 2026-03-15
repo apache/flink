@@ -21,7 +21,7 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.testproto.VeryBigPbClass;
 import org.apache.flink.table.data.GenericRowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test for very huge proto definition, which may trigger some special optimizations such as code
@@ -30,10 +30,10 @@ import org.junit.Test;
  * <p>Implementing this test as an {@code ITCase} enables larger heap size for the test execution.
  * The current unit test execution configuration would cause {@code OutOfMemoryErrors}.
  */
-public class VeryBigPbRowToProtoITCase {
+class VeryBigPbRowToProtoITCase {
 
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         GenericRowData rowData = new GenericRowData(4);
 
         // test generated code can be compiled

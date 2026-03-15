@@ -22,20 +22,19 @@ import org.apache.flink.formats.protobuf.testproto.OneofTest;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal map data to one_of proto data. */
-public class OneofRowToProtoTest {
+class OneofRowToProtoTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row = GenericRowData.of(1, 2);
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, OneofTest.class);
         OneofTest oneofTest = OneofTest.parseFrom(bytes);
-        assertFalse(oneofTest.hasA());
-        assertEquals(2, oneofTest.getB());
+        assertThat(oneofTest.hasA()).isFalse();
+        assertThat(oneofTest.getB()).isEqualTo(2);
     }
 }

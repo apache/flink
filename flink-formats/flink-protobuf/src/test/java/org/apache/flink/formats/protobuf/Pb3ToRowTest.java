@@ -24,19 +24,17 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
 import com.google.protobuf.ByteString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test conversion of proto3 data to flink internal data. Default values after conversion is tested
  * especially.
  */
-public class Pb3ToRowTest {
+class Pb3ToRowTest {
     @Test
-    public void testDeserialization() throws Exception {
+    void testDeserialization() throws Exception {
         Pb3Test.InnerMessageTest innerMessageTest =
                 Pb3Test.InnerMessageTest.newBuilder().setA(1).setB(2).build();
         Pb3Test mapTest =
@@ -57,62 +55,62 @@ public class Pb3ToRowTest {
 
         RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, mapTest.toByteArray());
 
-        assertEquals(1, row.getInt(0));
-        assertEquals(2L, row.getLong(1));
-        assertEquals("haha", row.getString(2).toString());
-        assertEquals(Float.valueOf(1.1f), Float.valueOf(row.getFloat(3)));
-        assertEquals(Double.valueOf(1.2), Double.valueOf(row.getDouble(4)));
-        assertEquals("IMAGES", row.getString(5).toString());
+        assertThat(row.getInt(0)).isEqualTo(1);
+        assertThat(row.getLong(1)).isEqualTo(2L);
+        assertThat(row.getString(2).toString()).isEqualTo("haha");
+        assertThat(row.getFloat(3)).isEqualTo(1.1f);
+        assertThat(row.getDouble(4)).isEqualTo(1.2);
+        assertThat(row.getString(5).toString()).isEqualTo("IMAGES");
 
         RowData rowData = row.getRow(6, 2);
-        assertEquals(1, rowData.getInt(0));
-        assertEquals(2L, rowData.getInt(1));
+        assertThat(rowData.getInt(0)).isEqualTo(1);
+        assertThat(rowData.getInt(1)).isEqualTo(2L);
 
         rowData = row.getArray(7).getRow(0, 2);
-        assertEquals(1, rowData.getInt(0));
-        assertEquals(2L, rowData.getInt(1));
+        assertThat(rowData.getInt(0)).isEqualTo(1);
+        assertThat(rowData.getInt(1)).isEqualTo(2L);
 
-        assertEquals(100, row.getBinary(8)[0]);
+        assertThat(row.getBinary(8)[0]).isEqualTo((byte) 100);
 
         MapData map1 = row.getMap(9);
-        assertEquals("a", map1.keyArray().getString(0).toString());
-        assertEquals("b", map1.valueArray().getString(0).toString());
-        assertEquals("c", map1.keyArray().getString(1).toString());
-        assertEquals("d", map1.valueArray().getString(1).toString());
+        assertThat(map1.keyArray().getString(0).toString()).isEqualTo("a");
+        assertThat(map1.valueArray().getString(0).toString()).isEqualTo("b");
+        assertThat(map1.keyArray().getString(1).toString()).isEqualTo("c");
+        assertThat(map1.valueArray().getString(1).toString()).isEqualTo("d");
 
         MapData map2 = row.getMap(10);
-        assertEquals("f", map2.keyArray().getString(0).toString());
+        assertThat(map2.keyArray().getString(0).toString()).isEqualTo("f");
         rowData = map2.valueArray().getRow(0, 2);
 
-        assertEquals(1, rowData.getInt(0));
-        assertEquals(2L, rowData.getLong(1));
+        assertThat(rowData.getInt(0)).isEqualTo(1);
+        assertThat(rowData.getLong(1)).isEqualTo(2L);
     }
 
     @Test
-    public void testReadDefaultValues() throws Exception {
+    void testReadDefaultValues() throws Exception {
         Pb3Test pb3Test = Pb3Test.newBuilder().build();
         RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, pb3Test.toByteArray());
 
         // primitive types should have default values
-        assertFalse(row.isNullAt(0));
-        assertFalse(row.isNullAt(1));
-        assertFalse(row.isNullAt(2));
-        assertFalse(row.isNullAt(3));
-        assertFalse(row.isNullAt(4));
-        assertFalse(row.isNullAt(5));
-        assertFalse(row.isNullAt(8));
+        assertThat(row.isNullAt(0)).isFalse();
+        assertThat(row.isNullAt(1)).isFalse();
+        assertThat(row.isNullAt(2)).isFalse();
+        assertThat(row.isNullAt(3)).isFalse();
+        assertThat(row.isNullAt(4)).isFalse();
+        assertThat(row.isNullAt(5)).isFalse();
+        assertThat(row.isNullAt(8)).isFalse();
 
-        assertEquals(0, row.getInt(0));
-        assertEquals(0L, row.getLong(1));
-        assertEquals("", row.getString(2).toString());
-        assertEquals(Float.valueOf(0.0f), Float.valueOf(row.getFloat(3)));
-        assertEquals(Double.valueOf(0.0d), Double.valueOf(row.getDouble(4)));
-        assertEquals("UNIVERSAL", row.getString(5).toString());
-        assertEquals(0, row.getBinary(8).length);
+        assertThat(row.getInt(0)).isEqualTo(0);
+        assertThat(row.getLong(1)).isEqualTo(0L);
+        assertThat(row.getString(2).toString()).isEqualTo("");
+        assertThat(row.getFloat(3)).isEqualTo(0.0f);
+        assertThat(row.getDouble(4)).isEqualTo(0.0d);
+        assertThat(row.getString(5).toString()).isEqualTo("UNIVERSAL");
+        assertThat(row.getBinary(8).length).isEqualTo(0);
         // non-primitive types should be null
-        assertTrue(row.isNullAt(6));
-        assertTrue(row.isNullAt(7));
-        assertTrue(row.isNullAt(9));
-        assertTrue(row.isNullAt(10));
+        assertThat(row.isNullAt(6)).isTrue();
+        assertThat(row.isNullAt(7)).isTrue();
+        assertThat(row.isNullAt(9)).isTrue();
+        assertThat(row.isNullAt(10)).isTrue();
     }
 }
