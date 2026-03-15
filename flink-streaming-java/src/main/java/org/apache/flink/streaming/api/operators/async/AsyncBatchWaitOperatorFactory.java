@@ -51,7 +51,7 @@ public class AsyncBatchWaitOperatorFactory<IN, OUT> extends AbstractStreamOperat
      */
     public AsyncBatchWaitOperatorFactory(
             AsyncBatchFunction<IN, OUT> asyncBatchFunction, int maxBatchSize) {
-        this(asyncBatchFunction, maxBatchSize, AsyncBatchWaitOperator.NO_TIMEOUT);
+        this(asyncBatchFunction, maxBatchSize, 0L);
     }
 
     /**
