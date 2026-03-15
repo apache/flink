@@ -257,7 +257,7 @@ class ProcessFailureCancelingITCase {
 
     private static void waitUntilAtLeastOneTaskHasBeenDeployed(TestProcess taskManagerProcess)
             throws InterruptedException, TimeoutException {
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         taskManagerProcess
                                 .getProcessOutput()

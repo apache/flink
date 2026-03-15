@@ -119,7 +119,7 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         OperationHandle operationHandle =
                 new OperationHandle(UUID.fromString(response.getOperationHandle()));
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         SQL_GATEWAY_SERVICE_EXTENSION
                                 .getService()
@@ -198,7 +198,7 @@ public class SqlGatewayRestEndpointMaterializedTableITCase
         OperationHandle operationHandle =
                 new OperationHandle(UUID.fromString(response.getOperationHandle()));
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         SQL_GATEWAY_SERVICE_EXTENSION
                                 .getService()

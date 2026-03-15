@@ -117,7 +117,7 @@ class SourceCoordinatorProviderTest {
                         (ignored, e) -> {
                             throw new RuntimeException();
                         });
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 context::isJobFailed,
                 Duration.ofSeconds(10L),
                 "The job did not fail before timeout.");
