@@ -41,16 +41,17 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>Note: This cache is not thread-safe although its inner {@link Cache} is thread-safe.
  */
 @NotThreadSafe
+@VisibleForTesting
 public class DeltaJoinCache {
 
-    private static final String LEFT_CACHE_METRIC_PREFIX = "deltaJoin.leftCache.";
-    private static final String RIGHT_CACHE_METRIC_PREFIX = "deltaJoin.rightCache.";
+    protected static final String LEFT_CACHE_METRIC_PREFIX = "deltaJoin.leftCache.";
+    protected static final String RIGHT_CACHE_METRIC_PREFIX = "deltaJoin.rightCache.";
 
-    private static final String METRIC_HIT_RATE = "hitRate";
-    private static final String METRIC_REQUEST_COUNT = "requestCount";
-    private static final String METRIC_HIT_COUNT = "hitCount";
-    private static final String METRIC_KEY_SIZE = "keySize";
-    private static final String METRIC_TOTAL_NON_EMPTY_VALUE_SIZE = "totalNonEmptyValues";
+    protected static final String METRIC_HIT_RATE = "hitRate";
+    protected static final String METRIC_REQUEST_COUNT = "requestCount";
+    protected static final String METRIC_HIT_COUNT = "hitCount";
+    protected static final String METRIC_KEY_SIZE = "keySize";
+    protected static final String METRIC_TOTAL_NON_EMPTY_VALUE_SIZE = "totalNonEmptyValues";
 
     // use LinkedHashMap to keep order
     private final Cache<RowData, LinkedHashMap<RowData, Object>> leftCache;
@@ -87,7 +88,7 @@ public class DeltaJoinCache {
                                 : Long.valueOf(leftHitCount.get()).doubleValue()
                                         / leftRequestCount.get());
         metricGroup.<Long, Gauge<Long>>gauge(
-                LEFT_CACHE_METRIC_PREFIX + METRIC_REQUEST_COUNT, rightRequestCount::get);
+                LEFT_CACHE_METRIC_PREFIX + METRIC_REQUEST_COUNT, leftRequestCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
                 LEFT_CACHE_METRIC_PREFIX + METRIC_HIT_COUNT, leftHitCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
