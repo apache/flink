@@ -240,7 +240,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCalcBetweenDeltaJoin">
+  <TestCase name="testCalcBetweenCascadedDeltaJoin">
     <Resource name="sql">
       <![CDATA[
 insert into snk_for_cdc_src

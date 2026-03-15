@@ -122,10 +122,6 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        if (!isBinaryDeltaJoin()) {
-            throw new UnsupportedOperationException("Support cascaded delta join later");
-        }
-
         TableConfig config = unwrapTableConfig(this);
         FunctionCallUtil.AsyncOptions asyncLookupOptions =
                 new FunctionCallUtil.AsyncOptions(
@@ -146,12 +142,17 @@ public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
         return new StreamExecDeltaJoin(
                 config,
                 JoinTypeUtil.getFlinkJoinType(joinType),
+                condition,
                 joinInfo.leftKeys.toIntArray(),
                 leftUpsertKey,
-                left2RightLookupChain.getNodes().get(0).deltaJoinSpec,
                 joinInfo.rightKeys.toIntArray(),
                 rightUpsertKey,
-                right2LeftLookupChain.getNodes().get(0).deltaJoinSpec,
+                leftAllBinaryInputOrdinals,
+                rightAllBinaryInputOrdinals,
+                left2RightLookupChain,
+                right2LeftLookupChain,
+                deltaJoinAssociation.getAllBinaryInputTableSourceSpecs(),
+                deltaJoinAssociation.getJoinTree(),
                 InputProperty.DEFAULT,
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(rowType),
