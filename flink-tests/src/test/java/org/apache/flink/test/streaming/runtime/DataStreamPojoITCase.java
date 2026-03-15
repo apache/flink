@@ -24,20 +24,22 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration test for streaming programs using POJOs and key selectors.
  *
  * <p>See FLINK-3697
  */
-public class DataStreamPojoITCase extends AbstractTestBaseJUnit4 {
+class DataStreamPojoITCase extends AbstractTestBase {
     static List<Data> elements = new ArrayList<>();
 
     static {
@@ -51,7 +53,7 @@ public class DataStreamPojoITCase extends AbstractTestBaseJUnit4 {
 
     /** Test composite key on the Data POJO (with nested fields). */
     @Test
-    public void testCompositeKeyOnNestedPojo() throws Exception {
+    void testCompositeKeyOnNestedPojo() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.getConfig().disableObjectReuse();
         see.setParallelism(3);
@@ -107,7 +109,7 @@ public class DataStreamPojoITCase extends AbstractTestBaseJUnit4 {
 
     /** Test composite & nested key on the Data POJO. */
     @Test
-    public void testNestedKeyOnNestedPojo() throws Exception {
+    void testNestedKeyOnNestedPojo() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
@@ -166,7 +168,7 @@ public class DataStreamPojoITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testNestedPojoFieldAccessor() throws Exception {
+    void testNestedPojoFieldAccessor() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.getConfig().disableObjectReuse();
         see.setParallelism(4);
@@ -205,14 +207,19 @@ public class DataStreamPojoITCase extends AbstractTestBaseJUnit4 {
         see.execute();
     }
 
-    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
-    public void testFailOnNestedPojoFieldAccessor() throws Exception {
+    @Test
+    void testFailOnNestedPojoFieldAccessor() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Data> dataStream = see.fromData(elements);
-        dataStream
-                .keyBy(x -> Tuple2.of(x.aaa, x.stats.count), Types.TUPLE(Types.INT, Types.LONG))
-                .sum("stats.nonExistingField");
+        assertThatThrownBy(
+                        () ->
+                                dataStream
+                                        .keyBy(
+                                                x -> Tuple2.of(x.aaa, x.stats.count),
+                                                Types.TUPLE(Types.INT, Types.LONG))
+                                        .sum("stats.nonExistingField"))
+                .isInstanceOf(CompositeType.InvalidFieldReferenceException.class);
     }
 
     /** POJO. */

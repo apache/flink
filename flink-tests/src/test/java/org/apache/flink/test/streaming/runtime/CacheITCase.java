@@ -65,7 +65,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test datastream cache. */
-public class CacheITCase extends AbstractTestBaseJUnit4 {
+class CacheITCase extends AbstractTestBaseJUnit4 {
     private StreamExecutionEnvironment env;
     private MiniClusterWithClientResource miniClusterWithClientResource;
 

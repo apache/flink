@@ -27,18 +27,18 @@ import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSource
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for selective reading of {@code TwoInputStreamTask}. */
-public class StreamTaskSelectiveReadingITCase {
+class StreamTaskSelectiveReadingITCase {
     @Test
-    public void testSequentialReading() throws Exception {
+    void testSequentialReading() throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -86,13 +86,13 @@ public class StreamTaskSelectiveReadingITCase {
                         "[Operator0-2]: 6");
         Collections.sort(expected2);
 
-        assertEquals(expected1.size() + expected2.size(), result.size());
-        assertEquals(expected1, result.subList(0, expected1.size()));
+        assertThat(result).hasSize(expected1.size() + expected2.size());
+        assertThat(result.subList(0, expected1.size())).isEqualTo(expected1);
 
         List<String> result2 =
                 result.subList(expected1.size(), expected1.size() + expected2.size());
         Collections.sort(result2);
-        assertEquals(expected2, result2);
+        assertThat(result2).isEqualTo(expected2);
     }
 
     private abstract static class TestSource<T> extends RichParallelSourceFunction<T> {
