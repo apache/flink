@@ -16,14 +16,27 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
-export * from './topn-metrics.service';
-export * from './diagnosis.service';
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { EMPTY, Observable } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+
+import { TopNMetrics } from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TopNMetricsService {
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
+
+  public loadTopNMetrics(jobId: string): Observable<TopNMetrics> {
+    return this.httpClient
+      .get<TopNMetrics>(`${this.configService.BASE_URL}/jobs/${jobId}/metrics/top-n`)
+      .pipe(catchError(() => EMPTY));
+  }
+}

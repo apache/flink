@@ -16,14 +16,10 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
-export * from './topn-metrics.service';
-export * from './diagnosis.service';
+package org.apache.flink.runtime.rest.messages.job.metrics;
+
+import org.apache.flink.runtime.rest.handler.job.metrics.TopNMetricsHandler;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+
+/** MessageParameters for Top N metrics. */
+public class TopNMetricsMessageParameters extends JobMessageParameters {}

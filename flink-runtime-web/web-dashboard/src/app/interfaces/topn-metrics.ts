@@ -16,14 +16,30 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
-export * from './topn-metrics.service';
-export * from './diagnosis.service';
+export interface TopNMetrics {
+  topCpuConsumers: CpuConsumerInfo[];
+  topBackpressureOperators: BackpressureOperatorInfo[];
+  topGcIntensiveTasks: GcTaskInfo[];
+}
+
+export interface CpuConsumerInfo {
+  subtaskId: number;
+  taskName: string;
+  operatorName: string;
+  cpuPercentage: number;
+  taskManagerId: string;
+}
+
+export interface BackpressureOperatorInfo {
+  operatorId: string;
+  operatorName: string;
+  backpressureRatio: number;
+  subtaskId: number;
+}
+
+export interface GcTaskInfo {
+  taskId: string;
+  taskName: string;
+  gcTimePercentage: number;
+  taskManagerId: string;
+}
