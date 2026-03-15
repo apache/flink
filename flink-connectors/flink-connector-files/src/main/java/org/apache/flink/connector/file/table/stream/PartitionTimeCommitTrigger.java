@@ -72,7 +72,7 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
             throws Exception {
         this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
         this.pendingPartitions = new HashSet<>();
-        if (isRestored) {
+        if (isRestored && pendingPartitionsState.get().iterator().hasNext()) {
             pendingPartitions.addAll(pendingPartitionsState.get().iterator().next());
         }
 
@@ -80,7 +80,7 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
         this.watermarksState = stateStore.getListState(WATERMARKS_STATE_DESC);
         this.watermarks = new TreeMap<>();
-        if (isRestored) {
+        if (isRestored && pendingPartitionsState.get().iterator().hasNext()) {
             watermarks.putAll(watermarksState.get().iterator().next());
         }
     }
