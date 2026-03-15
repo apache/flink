@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.view.SqlAlterView;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.Schema;
@@ -35,6 +36,7 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
@@ -68,6 +70,7 @@ class SqlNodeConvertUtils {
             List<SqlNode> viewFields,
             Map<String, String> viewOptions,
             String viewComment,
+            Optional<SqlWatermark> watermark,
             ConvertContext context) {
         // Put the sql string unparse (getQuotedSqlString()) in front of
         // the node conversion (toQueryOperation()),
@@ -110,9 +113,39 @@ class SqlNodeConvertUtils {
             schema = ResolvedSchema.physical(aliasFieldNames, schema.getColumnDataTypes());
         }
 
+        // Build the final schema with watermark if present
+        Schema finalSchema = Schema.newBuilder().fromResolvedSchema(schema).build();
+        
+        if (watermark.isPresent()) {
+            SqlWatermark sqlWatermark = watermark.get();
+            String rowtimeColumn = sqlWatermark.getEventTimeColumnName().toString();
+            
+            // Validate the SqlWatermark expression
+            Map<String, RelDataType> allFieldsTypes = new HashMap<>();
+            for (int i = 0; i < schema.getColumnNames().size(); i++) {
+                allFieldsTypes.put(
+                        schema.getColumnNames().get(i),
+                        context.getTypeFactory().createFieldTypeFromLogicalType(
+                                schema.getColumnDataTypes().get(i).getLogicalType()));
+            }
+            
+            SchemaBuilderUtil.verifyRowtimeAttribute(sqlWatermark, allFieldsTypes);
+            
+            // Build schema with watermark
+            SqlNode validated =
+                    context.getSqlValidator().validateParameterizedExpression(
+                            sqlWatermark.getWatermarkStrategy(), allFieldsTypes);
+            String watermarkExpression = context.toQuotedSqlString(validated);
+            
+            finalSchema = Schema.newBuilder()
+                    .fromResolvedSchema(schema)
+                    .watermark(rowtimeColumn, watermarkExpression)
+                    .build();
+        }
+
         return new ResolvedCatalogView(
                 CatalogView.of(
-                        Schema.newBuilder().fromResolvedSchema(schema).build(),
+                        finalSchema,
                         viewComment,
                         originalQuery,
                         expandedQuery,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.view.SqlCreateView;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -29,6 +30,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** A converter for {@link SqlCreateView}. */
 public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
@@ -37,6 +39,7 @@ public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
     public Operation convertSqlNode(SqlCreateView sqlCreateView, ConvertContext context) {
         final SqlNode query = sqlCreateView.getQuery();
         final List<SqlNode> viewFields = sqlCreateView.getFieldList().getList();
+        final Optional<SqlWatermark> watermark = sqlCreateView.getWatermark();
 
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateView.getFullName());
@@ -47,7 +50,7 @@ public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
         Map<String, String> viewOptions = sqlCreateView.getProperties();
         CatalogView catalogView =
                 SqlNodeConvertUtils.toCatalogView(
-                        query, viewFields, viewOptions, viewComment, context);
+                        query, viewFields, viewOptions, viewComment, watermark, context);
         return new CreateViewOperation(
                 identifier,
                 catalogView,
