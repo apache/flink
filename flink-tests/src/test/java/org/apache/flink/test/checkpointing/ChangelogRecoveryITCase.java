@@ -91,7 +91,7 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                 sharedObjects.add(new AtomicInteger());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 2, 200, 0);
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 2, 50, 0);
         waitAndAssert(
                 buildJobGraph(
                         delegatedStateBackend,

@@ -53,4 +53,48 @@ class TaskChangelogRegistryImplTest {
         }
         assertThat(handle.isDisposed()).isFalse();
     }
+
+    @Test
+    void testRetainIncrementsRefCount() {
+        TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+        long refCount = 1;
+        registry.startTracking(handle, refCount);
+        registry.retain(handle);
+        // Original refCount=1 + retain=1 → need 2 releases to discard
+        registry.release(handle);
+        assertThat(handle.isDisposed()).isFalse();
+        registry.release(handle);
+        assertThat(handle.isDisposed()).isTrue();
+    }
+
+    @Test
+    void testRetainPreventsDiscard() {
+        TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+        long refCount = 2;
+        registry.startTracking(handle, refCount);
+        registry.retain(handle);
+        // Release the original 2 refs — should NOT discard because retain added one
+        registry.release(handle);
+        registry.release(handle);
+        assertThat(handle.isDisposed()).isFalse();
+        // Final release from the retain
+        registry.release(handle);
+        assertThat(handle.isDisposed()).isTrue();
+    }
+
+    @Test
+    void testRetainAndStopTracking() {
+        TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
+        TestingStreamStateHandle handle = new TestingStreamStateHandle();
+        long refCount = 1;
+        registry.startTracking(handle, refCount);
+        registry.retain(handle);
+        // stopTracking after retain — simulates JM taking ownership
+        registry.stopTracking(handle);
+        // Releases should not discard because stopTracking removed from registry
+        registry.release(handle);
+        assertThat(handle.isDisposed()).isFalse();
+    }
 }
