@@ -37,6 +37,7 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog, CatalogDescriptor
+from pyflink.table.model import Model
 from pyflink.table.model_descriptor import ModelDescriptor
 from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.plan_reference import PlanReference
@@ -1189,6 +1190,24 @@ class TableEnvironment(object):
         .. versionadded:: 2.1.0
         """
         self._j_tenv.createModel(model_path, model_descriptor._j_model_descriptor, ignore_if_exists)
+
+    def from_model(self, model_path: str) -> 'Model':
+        """
+        Gets a model registered in the catalog.
+
+        Example:
+        ::
+
+            >>> from pyflink.table import ModelDescriptor, Schema
+            >>> model = t_env.from_model("my_model")
+            >>> input_table = t_env.from_path("src")
+            >>> result_table = model.predict(input_table, ["user_comment"])
+
+        :param model_path: The path of the model to retrieve.
+        :return: The requested model instance.
+        """
+        j_model = self._j_tenv.fromModel(model_path)
+        return Model(j_model)
 
     def create_temporary_model(self,
                                model_path: str,
