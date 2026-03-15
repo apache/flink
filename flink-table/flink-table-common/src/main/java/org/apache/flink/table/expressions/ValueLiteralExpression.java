@@ -33,9 +33,6 @@ import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
@@ -47,6 +44,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.Period;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -56,6 +54,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Expression for constant literal values.
@@ -283,11 +284,14 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         localDateTime.toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 final Instant instant = getValueAs(Instant.class).get();
-                if (instant.getNano() % 1_000_000 != 0) {
-                    throw new TableException(
-                            "Maximum precision for TIMESTAMP_WITH_LOCAL_TIME_ZONE literals is '3'");
-                }
-                return String.format("TO_TIMESTAMP_LTZ(%d, %d)", instant.toEpochMilli(), 3);
+                final LocalDateTime localDateTimeWithTimeZone =
+                        instant.atOffset(ZoneOffset.UTC).toLocalDateTime();
+                return String.format(
+                        "TIMESTAMP WITH LOCAL TIME ZONE '%s %s'",
+                        localDateTimeWithTimeZone.toLocalDate(),
+                        localDateTimeWithTimeZone
+                                .toLocalTime()
+                                .format(DateTimeFormatter.ISO_LOCAL_TIME));
             case INTERVAL_YEAR_MONTH:
                 final Period period = getValueAs(Period.class).get().normalized();
                 return String.format(
