@@ -85,6 +85,11 @@ class RemoveUnreachableCoalesceArgumentsRuleTest extends TableTestBase {
     }
 
     @Test
+    void testFunctionCoalesce() {
+        util.verifyRelPlan("SELECT COALESCE(f0, JSON_VALUE('{\"a\": true}', '$.a')) FROM T");
+    }
+
+    @Test
     void testMultipleCoalesces() {
         util.verifyRelPlan(
                 "SELECT COALESCE(1),\n"
