@@ -116,7 +116,7 @@ class RegistryAvroFormatFactoryTest {
         final AvroRowDataDeserializationSchema expectedDeser =
                 new AvroRowDataDeserializationSchema(
                         ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                AvroSchemaConverter.convertToSchema(ROW_TYPE), REGISTRY_URL),
+                                null, REGISTRY_URL),
                         AvroToRowDataConverters.createRowConverter(ROW_TYPE),
                         InternalTypeInfo.of(ROW_TYPE));
 

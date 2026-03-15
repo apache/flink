@@ -38,13 +38,18 @@ import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.EncoderFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
@@ -56,6 +61,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * schema registry avro.
  */
 class RegistryAvroRowDataSeDeSchemaTest {
+    private static final String ENUM_SUBJECT = "enum-record-value";
+
+    private static final Schema ENUM_RECORD_SCHEMA =
+            new Schema.Parser()
+                    .parse(
+                            "{\"namespace\": \"org.apache.flink.formats.avro.generated\",\n"
+                                    + " \"type\": \"record\",\n"
+                                    + " \"name\": \"EnumRecord\",\n"
+                                    + " \"fields\": [\n"
+                                    + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+                                    + "     {\"name\": \"color\", \"type\": [\"null\","
+                                    + "         {\"type\": \"enum\", \"name\": \"Colors\","
+                                    + "          \"symbols\": [\"RED\", \"GREEN\", \"BLUE\"]}]}\n"
+                                    + "  ]\n"
+                                    + "}");
+
     private static final Schema ADDRESS_SCHEMA = Address.getClassSchema();
 
     private static final Schema ADDRESS_SCHEMA_COMPATIBLE =
@@ -90,6 +111,7 @@ class RegistryAvroRowDataSeDeSchemaTest {
     @AfterEach
     void after() throws IOException, RestClientException {
         client.deleteSubject(SUBJECT);
+        client.deleteSubject(ENUM_SUBJECT);
     }
 
     @Test
@@ -129,6 +151,30 @@ class RegistryAvroRowDataSeDeSchemaTest {
                 .hasCause(new IOException("Unknown data format. Magic number does not match"));
     }
 
+    @Test
+    void testRowDataReadWithEnumFieldAndNullReaderSchema() throws Exception {
+        DataType dataType = AvroSchemaConverter.convertToDataType(ENUM_RECORD_SCHEMA.toString());
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        int schemaId = client.register(ENUM_SUBJECT, ENUM_RECORD_SCHEMA);
+        GenericRecord record = new GenericData.Record(ENUM_RECORD_SCHEMA);
+        record.put("name", "Alice");
+        record.put(
+                "color",
+                new GenericData.EnumSymbol(
+                        ENUM_RECORD_SCHEMA.getField("color").schema().getTypes().get(1), "RED"));
+        byte[] serialized = serializeWithRegistryFormat(record, ENUM_RECORD_SCHEMA, schemaId);
+
+        AvroRowDataDeserializationSchema deserializer =
+                getDeserializationSchemaForSubject(rowType, null, ENUM_SUBJECT);
+        deserializer.open(null);
+
+        RowData result = deserializer.deserialize(serialized);
+        assertThat(result.getArity()).isEqualTo(2);
+        assertThat(result.getString(0).toString()).isEqualTo("Alice");
+        assertThat(result.getString(1).toString()).isEqualTo("RED");
+    }
+
     private void testRowDataWriteReadWithSchema(Schema schema) throws Exception {
         DataType dataType = AvroSchemaConverter.convertToDataType(schema.toString());
         RowType rowType = (RowType) dataType.getLogicalType();
@@ -162,8 +208,13 @@ class RegistryAvroRowDataSeDeSchemaTest {
 
     private static AvroRowDataSerializationSchema getSerializationSchema(
             RowType rowType, Schema avroSchema) {
+        return getSerializationSchemaForSubject(rowType, avroSchema, SUBJECT);
+    }
+
+    private static AvroRowDataSerializationSchema getSerializationSchemaForSubject(
+            RowType rowType, Schema avroSchema, String subject) {
         ConfluentSchemaRegistryCoder registryCoder =
-                new ConfluentSchemaRegistryCoder(SUBJECT, client);
+                new ConfluentSchemaRegistryCoder(subject, client);
         return new AvroRowDataSerializationSchema(
                 rowType,
                 new RegistryAvroSerializationSchema<GenericRecord>(
@@ -173,13 +224,29 @@ class RegistryAvroRowDataSeDeSchemaTest {
 
     private static AvroRowDataDeserializationSchema getDeserializationSchema(
             RowType rowType, Schema avroSchema) {
+        return getDeserializationSchemaForSubject(rowType, avroSchema, SUBJECT);
+    }
+
+    private static AvroRowDataDeserializationSchema getDeserializationSchemaForSubject(
+            RowType rowType, Schema avroSchema, String subject) {
         ConfluentSchemaRegistryCoder registryCoder =
-                new ConfluentSchemaRegistryCoder(SUBJECT, client);
+                new ConfluentSchemaRegistryCoder(subject, client);
         return new AvroRowDataDeserializationSchema(
                 new RegistryAvroDeserializationSchema<GenericRecord>(
                         GenericRecord.class, avroSchema, () -> registryCoder),
                 AvroToRowDataConverters.createRowConverter(rowType),
                 InternalTypeInfo.of(rowType));
+    }
+
+    private static byte[] serializeWithRegistryFormat(
+            GenericRecord record, Schema schema, int schemaId) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        out.write(0);
+        out.write(ByteBuffer.allocate(4).putInt(schemaId).array());
+        org.apache.avro.io.Encoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+        new GenericDatumWriter<>(schema).write(record, encoder);
+        encoder.flush();
+        return out.toByteArray();
     }
 
     private static RowData address2RowData(Address address) {
