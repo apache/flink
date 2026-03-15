@@ -34,7 +34,11 @@ import java.util.Properties;
 public class MetricConfig extends Properties {
 
     public String getString(String key, String defaultValue) {
-        return getProperty(key, defaultValue);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        return value.toString();
     }
 
     /**
