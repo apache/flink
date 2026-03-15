@@ -28,6 +28,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.InitTaskManagerDecorato
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.PersistentVolumeClaimMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.util.Preconditions;
@@ -55,6 +56,8 @@ public class KubernetesTaskManagerFactory {
                                 new InitTaskManagerDecorator(kubernetesTaskManagerParameters),
                                 new EnvSecretsDecorator(kubernetesTaskManagerParameters),
                                 new MountSecretsDecorator(kubernetesTaskManagerParameters),
+                                new PersistentVolumeClaimMountDecorator(
+                                        kubernetesTaskManagerParameters),
                                 new CmdTaskManagerDecorator(kubernetesTaskManagerParameters)));
 
         Configuration configuration = kubernetesTaskManagerParameters.getFlinkConfiguration();
