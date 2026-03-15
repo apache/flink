@@ -341,7 +341,11 @@ public class PartitionPathUtils {
         }
 
         if (fileStatus.isDir()) {
-            for (FileStatus stat : fs.listStatus(fileStatus.getPath())) {
+            FileStatus[] fileStatuses = listStatusWithoutHidden(fs, fileStatus.getPath());
+            if (fileStatuses == null) {
+                return;
+            }
+            for (FileStatus stat : fileStatuses) {
                 listStatusRecursively(fs, stat, level + 1, expectLevel, results);
             }
         }
