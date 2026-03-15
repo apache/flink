@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.stream;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -30,6 +31,8 @@ import org.apache.flink.datastream.api.stream.KeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.ProcessConfigurable;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * The implementation of {@link ProcessConfigurableAndNonKeyedPartitionStream}. This forwarding all
@@ -50,6 +53,13 @@ public class ProcessConfigurableAndNonKeyedPartitionStreamImpl<T>
     public <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> process(
             OneInputStreamProcessFunction<T, OUT> processFunction) {
         return stream.process(processFunction);
+    }
+
+    @Override
+    public NonKeyedPartitionStream<T> returns(TypeInformation<T> typeInfo) {
+        requireNonNull(typeInfo, "TypeInformation must not be null");
+        this.transformation.setOutputType(typeInfo);
+        return this;
     }
 
     @Override

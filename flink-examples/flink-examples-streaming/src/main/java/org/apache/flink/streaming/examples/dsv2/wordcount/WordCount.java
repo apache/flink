@@ -23,6 +23,8 @@ import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.state.StateDeclarations;
 import org.apache.flink.api.common.state.ValueStateDeclaration;
 import org.apache.flink.api.common.typeinfo.TypeDescriptors;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.DataStreamV2SourceUtils;
 import org.apache.flink.api.connector.dsv2.WrappedSink;
 import org.apache.flink.api.connector.dsv2.WrappedSource;
@@ -153,8 +155,23 @@ public class WordCount {
                 // The text lines read from the source are split into words
                 // using a user-defined process function. The tokenizer, implemented below,
                 // will output each word as a (2-tuple) containing (word, 1)
-                text.process(new Tokenizer())
+                // (OneInputStreamProcessFunction<String, Tuple2<<String, Integer>
+                text.process(
+                                (OneInputStreamProcessFunction<String, Tuple2<String, Integer>>)
+                                        (record, output, ctx) -> {
+                                            // normalize and split the line
+                                            String[] tokens = record.toLowerCase().split("\\W+");
+
+                                            // emit the pairs
+                                            for (String token : tokens) {
+                                                if (!token.isEmpty()) {
+                                                    output.collect(new Tuple2<>(token, 1));
+                                                }
+                                            }
+                                        })
                         .withName("tokenizer")
+                        .returns(TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}))
+
                         // keyBy groups tuples based on the first field, the word.
                         // Using a keyBy allows performing aggregations and other
                         // stateful transformations over data on a per-key basis.
@@ -202,32 +219,6 @@ public class WordCount {
     // *************************************************************************
     // USER PROCESS FUNCTIONS
     // *************************************************************************
-
-    /**
-     * Implements the string tokenizer that splits sentences into words as a user-defined
-     * ProcessFunction. The process function takes a line (String) and splits it into multiple pairs
-     * in the form of "(word,1)" ({@code Tuple2<String, Integer>}).
-     */
-    public static final class Tokenizer
-            implements OneInputStreamProcessFunction<String, Tuple2<String, Integer>> {
-
-        @Override
-        public void processRecord(
-                String record,
-                Collector<Tuple2<String, Integer>> output,
-                PartitionedContext<Tuple2<String, Integer>> ctx)
-                throws Exception {
-            // normalize and split the line
-            String[] tokens = record.toLowerCase().split("\\W+");
-
-            // emit the pairs
-            for (String token : tokens) {
-                if (!token.isEmpty()) {
-                    output.collect(new Tuple2<>(token, 1));
-                }
-            }
-        }
-    }
 
     /**
      * Implements a word counter as a user-defined ProcessFunction that counts received words in
