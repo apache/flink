@@ -29,10 +29,7 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class TopNMetricsService {
-  constructor(
-    private readonly httpClient: HttpClient,
-    private readonly configService: ConfigService
-  ) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
   public loadTopNMetrics(jobId: string): Observable<TopNMetrics> {
     return this.httpClient

@@ -36,7 +36,9 @@
           <td>{{ item.subtaskId }}</td>
           <td>{{ item.operatorName }}</td>
           <td>{{ item.taskName }}</td>
-          <td [class.high-cpu]="item.cpuPercentage > 80">{{ formatPercentage(item.cpuPercentage) }}</td>
+          <td [class.high-cpu]="item.cpuPercentage > 80">
+            {{ formatPercentage(item.cpuPercentage) }}
+          </td>
           <td>{{ item.taskManagerId }}</td>
         </tr>
       </tbody>
@@ -48,7 +50,12 @@
 
   <div class="topn-metrics-section">
     <h3>Top N Backpressure Operators</h3>
-    <nz-table #bpTable [nzData]="topBackpressureOperators" [nzShowPagination]="false" [nzSize]="'small'">
+    <nz-table
+      #bpTable
+      [nzData]="topBackpressureOperators"
+      [nzShowPagination]="false"
+      [nzSize]="'small'"
+    >
       <thead>
         <tr>
           <th>Rank</th>
