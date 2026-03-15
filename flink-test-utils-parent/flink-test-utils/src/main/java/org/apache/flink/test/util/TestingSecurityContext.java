@@ -29,6 +29,7 @@ import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 
 import javax.security.auth.login.AppConfigurationEntry;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,10 +47,11 @@ public class TestingSecurityContext {
         SecurityUtils.install(config);
 
         // install dynamic JAAS entries
-        for (String factoryClassName : config.getSecurityModuleFactories()) {
-            SecurityModuleFactory factory =
-                    SecurityFactoryServiceLoader.findModuleFactory(factoryClassName);
-            if (factory instanceof JaasModuleFactory) {
+        List<String> moduleFactoryClasses = config.getSecurityModuleFactories();
+        List<SecurityModuleFactory> moduleFactories =
+                SecurityFactoryServiceLoader.findModuleFactory(moduleFactoryClasses);
+        for (SecurityModuleFactory moduleFactory : moduleFactories) {
+            if (moduleFactory instanceof JaasModuleFactory) {
                 DynamicConfiguration jaasConf =
                         (DynamicConfiguration)
                                 javax.security.auth.login.Configuration.getConfiguration();
