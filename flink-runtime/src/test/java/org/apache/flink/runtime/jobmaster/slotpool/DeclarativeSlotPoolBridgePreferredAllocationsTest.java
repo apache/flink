@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -52,6 +53,7 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
         final DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 new DeclarativeSlotPoolBridge(
                         new JobID(),
+                        new ApplicationID(),
                         new DefaultDeclarativeSlotPoolFactory(),
                         SystemClock.getInstance(),
                         TestingUtils.infiniteDuration(),

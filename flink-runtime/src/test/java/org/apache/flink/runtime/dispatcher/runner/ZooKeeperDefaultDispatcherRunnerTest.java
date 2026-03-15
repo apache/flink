@@ -34,6 +34,8 @@ import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
+import org.apache.flink.runtime.highavailability.EmbeddedApplicationResultStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -43,8 +45,10 @@ import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithU
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
-import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.PersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.StandaloneApplicationStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
@@ -191,7 +195,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                     createDispatcherRunner(
                             rpcService,
                             dispatcherLeaderElection,
-                            new JobPersistenceComponentFactory() {
+                            new PersistenceComponentFactory() {
                                 @Override
                                 public ExecutionPlanStore createExecutionPlanStore() {
                                     return createZooKeeperExecutionPlanStore(
@@ -201,6 +205,16 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                                 @Override
                                 public JobResultStore createJobResultStore() {
                                     return new EmbeddedJobResultStore();
+                                }
+
+                                @Override
+                                public ApplicationStore createApplicationStore() {
+                                    return new StandaloneApplicationStore();
+                                }
+
+                                @Override
+                                public ApplicationResultStore createApplicationResultStore() {
+                                    return new EmbeddedApplicationResultStore();
                                 }
                             },
                             partialDispatcherServices,
@@ -251,14 +265,14 @@ class ZooKeeperDefaultDispatcherRunnerTest {
     private DispatcherRunner createDispatcherRunner(
             TestingRpcService rpcService,
             LeaderElection dispatcherLeaderElection,
-            JobPersistenceComponentFactory jobPersistenceComponentFactory,
+            PersistenceComponentFactory persistenceComponentFactory,
             PartialDispatcherServices partialDispatcherServices,
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElection,
                 fatalErrorHandler,
-                jobPersistenceComponentFactory,
+                persistenceComponentFactory,
                 EXECUTOR_EXTENSION.getExecutor(),
                 rpcService,
                 partialDispatcherServices);

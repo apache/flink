@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
@@ -92,10 +93,10 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     }
 
     @Override
-    public ClassLoaderLease registerClassLoaderLease(JobID jobId) {
+    public ClassLoaderLease registerClassLoaderLease(JobID jobId, ApplicationID applicationId) {
         synchronized (lockObject) {
             return cacheEntries
-                    .computeIfAbsent(jobId, jobID -> new LibraryCacheEntry(jobId))
+                    .computeIfAbsent(jobId, jobID -> new LibraryCacheEntry(jobId, applicationId))
                     .obtainLease();
         }
     }
@@ -210,6 +211,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
     private final class LibraryCacheEntry {
         private final JobID jobId;
 
+        private final ApplicationID applicationId;
+
         @GuardedBy("lockObject")
         private int referenceCount;
 
@@ -220,8 +223,9 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         @GuardedBy("lockObject")
         private boolean isReleased;
 
-        private LibraryCacheEntry(JobID jobId) {
+        private LibraryCacheEntry(JobID jobId, ApplicationID applicationId) {
             this.jobId = jobId;
+            this.applicationId = applicationId;
             referenceCount = 0;
             this.resolvedClassLoader = null;
             this.isReleased = false;
@@ -241,7 +245,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                                     systemClassLoader
                                             ? ClassLoader.getSystemClassLoader()
                                             : createUserCodeClassLoader(
-                                                    jobId, libraries, classPaths),
+                                                    jobId, applicationId, libraries, classPaths),
                                     libraries,
                                     classPaths,
                                     systemClassLoader);
@@ -256,6 +260,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
         @GuardedBy("lockObject")
         private URLClassLoader createUserCodeClassLoader(
                 JobID jobId,
+                ApplicationID applicationId,
                 Collection<PermanentBlobKey> requiredJarFiles,
                 Collection<URL> requiredClasspaths)
                 throws IOException {
@@ -265,7 +270,19 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 int count = 0;
                 // add URLs to locally cached JAR files
                 for (PermanentBlobKey key : requiredJarFiles) {
-                    libraryURLs[count] = blobService.getFile(jobId, key).toURI().toURL();
+                    try {
+                        // first try job specific libraries
+                        libraryURLs[count] = blobService.getFile(jobId, key).toURI().toURL();
+                    } catch (Exception e) {
+                        // then try application specific libraries
+                        LOG.info(
+                                "Cannot get job specific blob {} for job {}. Checking application specific blob with application id {}.",
+                                key,
+                                jobId,
+                                applicationId);
+                        libraryURLs[count] =
+                                blobService.getFile(applicationId, key).toURI().toURL();
+                    }
                     ++count;
                 }
 

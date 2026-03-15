@@ -26,6 +26,9 @@ import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -84,5 +87,28 @@ class StreamGraphTest {
             }
         }
         return null;
+    }
+
+    @Test
+    void testSkippedUserJar() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromSequence(1, 100).sinkTo(new DiscardingSink<>());
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        // Create a temporary jar file
+        final File tempJar = File.createTempFile("stream_graph_test", ".jar");
+        tempJar.deleteOnExit();
+
+        final URL jarUrl = tempJar.toURI().toURL();
+        final String jarName = tempJar.getName();
+
+        // Add jar to skip list
+        streamGraph.addUserJarToSkip(jarName);
+
+        // Try to add the jar - it should be skipped
+        streamGraph.addJars(Collections.singletonList(jarUrl));
+
+        // Verify that the jar was not added
+        Assertions.assertTrue(streamGraph.getUserJars().isEmpty());
     }
 }

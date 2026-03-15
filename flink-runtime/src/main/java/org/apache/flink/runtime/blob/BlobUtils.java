@@ -762,6 +762,14 @@ public class BlobUtils {
                 .collect(Collectors.toSet());
     }
 
+    static Set<ApplicationID> listExistingApplications(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .map(Blob::getApplicationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
     abstract static class Blob<T extends BlobKey> {
         private final T blobKey;
         private final java.nio.file.Path path;
