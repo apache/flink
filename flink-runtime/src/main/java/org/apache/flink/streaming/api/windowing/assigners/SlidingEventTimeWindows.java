@@ -78,8 +78,9 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
             Object element, long timestamp, WindowAssignerContext context) {
         if (timestamp > Long.MIN_VALUE) {
             List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
-            long lastStart = TimeWindow.getWindowStartWithOffset(timestamp, offset, slide);
-            for (long start = lastStart; start > timestamp - size; start -= slide) {
+            final long lastStart = TimeWindow.getWindowStartWithOffset(timestamp, offset, slide);
+            final long lower = timestamp - size;
+            for (long start = lastStart; start > lower; start -= slide) {
                 windows.add(new TimeWindow(start, start + size));
             }
             return windows;
