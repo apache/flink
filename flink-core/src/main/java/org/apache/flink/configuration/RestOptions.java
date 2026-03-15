@@ -224,6 +224,28 @@ public class RestOptions {
                     .withDescription(
                             "Maximum number of entries in the checkpoint statistics cache.");
 
+    /**
+     * Time-to-live for cached ExecutionGraph. If not set, defaults to the value of {@link
+     * WebOptions#REFRESH_INTERVAL}.
+     *
+     * <p>Setting this to 0 means the cache will always fetch fresh data, which is useful for
+     * real-time state synchronization scenarios where stale state information should be avoided.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> CACHE_EXECUTION_GRAPH_TIMEOUT =
+            key("rest.cache.execution-graph.timeout")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Time-to-live for cached ExecutionGraph. "
+                                                    + "If not set, defaults to the value of %s. "
+                                                    + "Setting this to 0 means the cache will always fetch fresh data, "
+                                                    + "which is useful for real-time state synchronization scenarios.",
+                                            code(WebOptions.REFRESH_INTERVAL.key()))
+                                    .build());
+
     /** Enables the experimental flame graph feature. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
     public static final ConfigOption<Boolean> ENABLE_FLAMEGRAPH =
