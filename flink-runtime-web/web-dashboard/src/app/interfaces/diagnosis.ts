@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
-export * from './topn-metrics.service';
-export * from './diagnosis.service';
+export interface Diagnosis {
+  diagnostics: DiagnosticSuggestion[];
+  timestamp: string;
+}
+
+export interface DiagnosticSuggestion {
+  severity: string;
+  title: string;
+  message: string;
+  metrics: { [key: string]: any };
+  actions: string[];
+}

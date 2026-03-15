@@ -37,3 +37,4 @@ export * from './application-overview';
 export * from './application-detail';
 export * from './application-exception';
 export * from './topn-metrics';
+export * from './diagnosis';
