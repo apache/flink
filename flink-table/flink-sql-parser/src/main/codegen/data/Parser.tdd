@@ -170,6 +170,7 @@
     "org.apache.flink.sql.parser.dql.SqlDescribeJob"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
+    "org.apache.flink.sql.parser.type.SqlBitmapTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlRawTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlStructuredTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlTimestampLtzTypeNameSpec"
@@ -195,6 +196,7 @@
   keywords: [
     "ANALYZE"
     "ARTIFACT"
+    "BITMAP"
     "BUCKETS"
     "BYTES"
     "CATALOGS"
@@ -698,6 +700,7 @@
     "SqlRawTypeName()"
     "ExtendedSqlRowTypeName()"
     "SqlStructuredTypeName()"
+    "SqlBitmapTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.
