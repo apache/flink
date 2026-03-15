@@ -80,7 +80,7 @@ public interface DeclarativeSlotPool {
     /**
      * Offers slots to this slot pool. The slot pool is free to accept as many slots as it needs.
      *
-     * @param offers offers containing the list of slots offered to this slot pool
+     * @param slotOffers offers containing the list of slots offered to this slot pool
      * @param taskManagerLocation taskManagerLocation is the location of the offering TaskExecutor
      * @param taskManagerGateway taskManagerGateway is the gateway to talk to the offering
      *     TaskExecutor
@@ -88,7 +88,7 @@ public interface DeclarativeSlotPool {
      * @return collection of accepted slots; the other slot offers are implicitly rejected
      */
     Collection<SlotOffer> offerSlots(
-            Collection<? extends SlotOffer> offers,
+            Collection<? extends SlotOffer> slotOffers,
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             long currentTime);
