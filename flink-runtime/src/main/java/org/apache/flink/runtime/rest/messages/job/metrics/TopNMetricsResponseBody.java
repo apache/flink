@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
+package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
@@ -46,12 +46,10 @@ public class TopNMetricsResponseBody implements ResponseBody {
 
     @JsonCreator
     public TopNMetricsResponseBody(
-            @JsonProperty(FIELD_NAME_TOP_CPU_CONSUMERS)
-                    List<CpuConsumerInfo> topCpuConsumers,
+            @JsonProperty(FIELD_NAME_TOP_CPU_CONSUMERS) List<CpuConsumerInfo> topCpuConsumers,
             @JsonProperty(FIELD_NAME_TOP_BACKPRESSURE_OPERATORS)
                     List<BackpressureOperatorInfo> topBackpressureOperators,
-            @JsonProperty(FIELD_NAME_TOP_GC_INTENSIVE_TASKS)
-                    List<GcTaskInfo> topGcIntensiveTasks) {
+            @JsonProperty(FIELD_NAME_TOP_GC_INTENSIVE_TASKS) List<GcTaskInfo> topGcIntensiveTasks) {
         this.topCpuConsumers = topCpuConsumers;
         this.topBackpressureOperators = topBackpressureOperators;
         this.topGcIntensiveTasks = topGcIntensiveTasks;

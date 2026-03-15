@@ -18,33 +18,35 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.runtime.rest.handler.legacy.messages.TopNMetricsResponseBody;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
-/** Headers for Top N metrics. */
-public class TopNMetricsHeaders
-        implements MessageHeaders<
-                org.apache.flink.runtime.rest.messages.EmptyRequestBody,
-                TopNMetricsResponseBody,
-                TopNMetricsMessageParameters> {
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+/** {@link RuntimeMessageHeaders} for {@link TopNMetricsHandler}. */
+public final class TopNMetricsHeaders
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, TopNMetricsResponseBody, TopNMetricsMessageParameters> {
 
     private static final TopNMetricsHeaders INSTANCE = new TopNMetricsHeaders();
-
-    private static final String URL =
-            "/jobs/:" + JobIDPathParameter.KEY + "/metrics/top-n";
 
     private TopNMetricsHeaders() {}
 
     @Override
-    public Class<TopNMetricsResponseBody> getResponseBodyClass() {
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
+
+    @Override
+    public Class<TopNMetricsResponseBody> getResponseClass() {
         return TopNMetricsResponseBody.class;
     }
 
     @Override
-    public Class<org.apache.flink.runtime.rest.messages.EmptyRequestBody> getRequestBodyClass() {
-        return org.apache.flink.runtime.rest.messages.EmptyRequestBody.class;
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
     }
 
     @Override
@@ -53,19 +55,13 @@ public class TopNMetricsHeaders
     }
 
     @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
+
+    @Override
     public String getTargetRestEndpointURL() {
-        return URL;
-    }
-
-    @Override
-    public String getDescription() {
-        return "Returns Top N metrics for a job including CPU consumers, "
-                + "backpressured operators, and GC-intensive tasks.";
-    }
-
-    @Override
-    public HttpMethod getHttpMethod() {
-        return HttpMethod.GET;
+        return "/jobs/:" + JobIDPathParameter.KEY + "/metrics/top-n";
     }
 
     public static TopNMetricsHeaders getInstance() {
@@ -73,7 +69,8 @@ public class TopNMetricsHeaders
     }
 
     @Override
-    public String getOperationId() {
-        return "topNMetrics";
+    public String getDescription() {
+        return "Returns Top N metrics for a job including CPU consumers, "
+                + "backpressured operators, and GC-intensive tasks.";
     }
 }

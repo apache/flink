@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.runtime.rest.handler.job.metrics.TopNMetricsHandler;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 
 /** MessageParameters for Top N metrics. */
