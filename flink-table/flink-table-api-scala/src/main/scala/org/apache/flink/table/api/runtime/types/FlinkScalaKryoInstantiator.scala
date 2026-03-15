@@ -24,6 +24,8 @@ import org.apache.flink.table.api.runtime.types.FlinkScalaKryoInstantiator.{regi
 
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.serializers.DefaultSerializers.{BitSetSerializer, VoidSerializer}
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy
+import org.objenesis.strategy.StdInstantiatorStrategy
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -59,7 +61,8 @@ class FlinkScalaKryoInstantiator {
   def newKryo: Kryo = {
     val k = new Kryo
     k.setRegistrationRequired(false)
-    k.setInstantiatorStrategy(new org.objenesis.strategy.StdInstantiatorStrategy)
+    val strategy = new DefaultInstantiatorStrategy(new StdInstantiatorStrategy)
+    k.setInstantiatorStrategy(strategy)
     k.register(classOf[Unit], new VoidSerializer)
     // The wrappers are private classes:
     useFieldSerializer(k, List(1, 2, 3).asJava.getClass)
