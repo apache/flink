@@ -132,6 +132,27 @@ Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 
 {{< generated/optimizer_config_configuration >}}
 
+#### 异步批量维表查找连接配置
+
+异步批量维表查找连接是对时态表连接的性能优化，通过将多个查找请求批量处理来减少网络开销并提高吞吐量。
+
+**table.optimizer.dim-lookup-join.batch.enabled**
+- **类型**: Boolean
+- **默认值**: false
+- **描述**: 是否为时态表连接启用异步批量维表查找。启用后，多个查找请求将被批量处理以获得更好的性能。
+
+**table.optimizer.dim-lookup-join.batch.size**
+- **类型**: Integer  
+- **默认值**: 100
+- **描述**: 批量处理的查找请求数量。较大的值可以提高吞吐量，但可能增加延迟和内存使用。
+
+**table.optimizer.dim-lookup-join.batch.flush.millis**
+- **类型**: Long
+- **默认值**: 2000
+- **描述**: 刷新批次前的最大等待时间（毫秒）。较小的值可以减少延迟，但可能降低批处理效率。
+
+详细的使用示例和最佳实践请参见 [异步批量维表查找连接]({{< ref "docs/dev/table/sql/async-batch-lookup-join" >}})。
+
 <a name="table-options" />
 
 ### Planner 配置
