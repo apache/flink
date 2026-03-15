@@ -33,21 +33,25 @@ import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.MigrationTest;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.URI;
@@ -65,8 +69,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Abstract class to verify that it is possible to migrate a savepoint across upgraded Flink
@@ -79,19 +82,23 @@ import static org.junit.Assert.assertNotNull;
  * <p>The savepoint _metadata file for the current branch is stored in the savepointPath in {@link
  * AbstractOperatorRestoreTestBase#migrateJob}.
  */
-public abstract class AbstractOperatorRestoreTestBase extends TestLogger implements MigrationTest {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
 
-    private final FlinkVersion flinkVersion;
+    @Parameter private FlinkVersion flinkVersion;
 
-    @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
+    @Parameters(name = "Migrate Savepoint: {0}")
     public static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
                 FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
+
+    private final ScheduledExecutor scheduledExecutor =
+            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
 
     private static final int NUM_TMS = 1;
     private static final int NUM_SLOTS_PER_TM = 4;
@@ -110,25 +117,24 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                             .map(AbstractOperatorRestoreTestBase::escapeRegexCharacters)
                             .collect(Collectors.joining(")|(", "(", ")")));
 
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @TempDir private File tmpFolder;
 
-    @Rule
-    public final MiniClusterWithClientResource cluster =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(NUM_TMS)
                             .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
                             .build());
 
-    private final ScheduledExecutor scheduledExecutor =
-            new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
+    private ClusterClient<?> clusterClient;
 
-    protected AbstractOperatorRestoreTestBase(FlinkVersion flinkVersion) {
-        this.flinkVersion = flinkVersion;
+    @BeforeEach
+    void setClusterClient(@InjectClusterClient ClusterClient<?> clusterClient) {
+        this.clusterClient = clusterClient;
     }
 
     protected void internalGenerateSnapshots(FlinkVersion targetVersion) throws Exception {
-        ClusterClient<?> clusterClient = cluster.getClusterClient();
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
         // Submit job with old version savepoint and create a migrated savepoint in the new version.
@@ -149,9 +155,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         }
     }
 
-    @Test
-    public void testMigrationAndRestore() throws Throwable {
-        ClusterClient<?> clusterClient = cluster.getClusterClient();
+    @TestTemplate
+    void testMigrationAndRestore() throws Throwable {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 
         // submit job with old version savepoint and create a migrated savepoint in the new version
@@ -176,7 +181,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         jobToMigrate.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointResource.getFile()));
 
-        assertNotNull(jobToMigrate.getJobID());
+        assertThat(jobToMigrate.getJobID()).isNotNull();
 
         clusterClient.submitJob(jobToMigrate).get();
 
@@ -187,12 +192,10 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                         deadline,
                         (jobStatus) -> jobStatus == JobStatus.RUNNING,
                         scheduledExecutor);
-        assertEquals(
-                JobStatus.RUNNING,
-                jobRunningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+        assertThat(jobRunningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                .isEqualTo(JobStatus.RUNNING);
 
         // Trigger savepoint
-        File targetDirectory = tmpFolder.newFolder();
         String savepointPath = null;
 
         // FLINK-6918: Retry cancel with savepoint message in case that StreamTasks were not running
@@ -204,7 +207,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                         clusterClient
                                 .cancelWithSavepoint(
                                         jobToMigrate.getJobID(),
-                                        targetDirectory.getAbsolutePath(),
+                                        tmpFolder.getAbsolutePath(),
                                         SavepointFormatType.CANONICAL)
                                 .get();
             } catch (Exception e) {
@@ -217,7 +220,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
             }
         }
 
-        assertNotNull("Could not take savepoint.", savepointPath);
+        assertThat(savepointPath).as("Could not take savepoint.").isNotNull();
 
         CompletableFuture<JobStatus> jobCanceledFuture =
                 FutureUtils.retrySuccessfulWithDelay(
@@ -226,9 +229,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                         deadline,
                         (jobStatus) -> jobStatus == JobStatus.CANCELED,
                         scheduledExecutor);
-        assertEquals(
-                JobStatus.CANCELED,
-                jobCanceledFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+        assertThat(jobCanceledFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                .isEqualTo(JobStatus.CANCELED);
 
         return savepointPath;
     }
@@ -239,7 +241,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
         jobToRestore.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, true));
 
-        assertNotNull("Job doesn't have a JobID.", jobToRestore.getJobID());
+        assertThat(jobToRestore.getJobID()).as("Job doesn't have a JobID.").isNotNull();
 
         clusterClient.submitJob(jobToRestore).get();
 
@@ -250,9 +252,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
                         deadline,
                         (jobStatus) -> jobStatus == JobStatus.FINISHED,
                         scheduledExecutor);
-        assertEquals(
-                JobStatus.FINISHED,
-                jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
+        assertThat(jobStatusFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS))
+                .isEqualTo(JobStatus.FINISHED);
     }
 
     private JobGraph createJobGraph(ExecutionMode mode) {

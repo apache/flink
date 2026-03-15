@@ -34,10 +34,10 @@ import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.ParameterTool;
 
-import org.junit.Assert;
-
 import java.util.Arrays;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Savepoint generator to create the savepoint used by the {@link
@@ -148,17 +148,20 @@ public class NonKeyedJob {
                     break;
                 case MIGRATE:
                 case RESTORE:
-                    Assert.assertEquals(
-                            "Failed for "
-                                    + valueToStore
-                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                            1,
-                            state.size());
-                    String value = state.get(0);
-                    Assert.assertEquals(
-                            valueToStore
-                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                            value);
+                    assertThat(state)
+                            .as(
+                                    "Failed for "
+                                            + valueToStore
+                                            + getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask())
+                            .hasSize(1)
+                            .element(0)
+                            .isEqualTo(
+                                    valueToStore
+                                            + getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask());
             }
         }
     }

@@ -25,9 +25,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.AbstractOperatorRestoreTestBase;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSource;
@@ -35,16 +32,10 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /** Base class for all non-keyed operator restore tests. */
-@RunWith(Parameterized.class)
-public abstract class AbstractNonKeyedOperatorRestoreTestBase
-        extends AbstractOperatorRestoreTestBase {
-
-    protected AbstractNonKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
+abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOperatorRestoreTestBase {
 
     @Override
-    public void createMigrationJob(StreamExecutionEnvironment env) {
+    protected void createMigrationJob(StreamExecutionEnvironment env) {
         /** Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3) */
         DataStream<Integer> source = createSource(env, ExecutionMode.MIGRATE);
 
