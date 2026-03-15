@@ -86,6 +86,7 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
     /** Constant indicating timeout is disabled. */
     private static final long NO_TIMEOUT = 0L;
+
     /** Default capacity for concurrent async batch operations. */
     private static final int DEFAULT_CAPACITY = 100;
 
@@ -142,7 +143,13 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             @Nonnull AsyncBatchFunction<IN, OUT> asyncBatchFunction,
             int maxBatchSize,
             @Nonnull MailboxExecutor mailboxExecutor) {
-        this(parameters, asyncBatchFunction, maxBatchSize, NO_TIMEOUT, DEFAULT_CAPACITY, mailboxExecutor);
+        this(
+                parameters,
+                asyncBatchFunction,
+                maxBatchSize,
+                NO_TIMEOUT,
+                DEFAULT_CAPACITY,
+                mailboxExecutor);
     }
 
     /**
@@ -178,7 +185,13 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             int maxBatchSize,
             long batchTimeoutMs,
             @Nonnull MailboxExecutor mailboxExecutor) {
-        this(parameters, asyncBatchFunction, maxBatchSize, batchTimeoutMs, DEFAULT_CAPACITY, mailboxExecutor);
+        this(
+                parameters,
+                asyncBatchFunction,
+                maxBatchSize,
+                batchTimeoutMs,
+                DEFAULT_CAPACITY,
+                mailboxExecutor);
     }
 
     /**
