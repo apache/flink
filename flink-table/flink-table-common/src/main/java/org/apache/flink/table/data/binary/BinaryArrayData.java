@@ -382,7 +382,11 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
 
         if (DecimalData.isCompact(precision)) {
             // compact format
-            setLong(pos, value.toUnscaledLong());
+            if (value == null) {
+                setNullAt(pos);
+            } else {
+                setLong(pos, value.toUnscaledLong());
+            }
         } else {
             int fieldOffset = getElementOffset(pos, 8);
             int cursor = (int) (BinarySegmentUtils.getLong(segments, fieldOffset) >>> 32);
@@ -411,7 +415,11 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
         assertIndexIsValid(pos);
 
         if (TimestampData.isCompact(precision)) {
-            setLong(pos, value.getMillisecond());
+            if (value == null) {
+                setNullAt(pos);
+            } else {
+                setLong(pos, value.getMillisecond());
+            }
         } else {
             int fieldOffset = getElementOffset(pos, 8);
             int cursor = (int) (BinarySegmentUtils.getLong(segments, fieldOffset) >>> 32);
