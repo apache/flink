@@ -50,6 +50,9 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingFileHand
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingListHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerThreadDumpHandler;
+import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineHandler;
+import org.apache.flink.runtime.rest.handler.cluster.NodeQuarantineListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.NodeRemoveQuarantineHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetDeleteHandlers;
 import org.apache.flink.runtime.rest.handler.dataset.ClusterDataSetListHandler;
@@ -986,6 +989,28 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(YarnStopJobTerminationHeaders.getInstance(), jobStopTerminationHandler));
 
         handlers.add(Tuple2.of(shutdownHandler.getMessageHeaders(), shutdownHandler));
+
+        // Node quarantine handlers
+        NodeQuarantineHandler nodeQuarantineHandler =
+                new NodeQuarantineHandler(
+                        leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
+
+        NodeRemoveQuarantineHandler nodeRemoveQuarantineHandler =
+                new NodeRemoveQuarantineHandler(
+                        leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
+
+        NodeQuarantineListHandler nodeQuarantineListHandler =
+                new NodeQuarantineListHandler(
+                        leaderRetriever, timeout, responseHeaders, resourceManagerRetriever);
+
+        handlers.add(Tuple2.of(nodeQuarantineHandler.getMessageHeaders(), nodeQuarantineHandler));
+        handlers.add(
+                Tuple2.of(
+                        nodeRemoveQuarantineHandler.getMessageHeaders(),
+                        nodeRemoveQuarantineHandler));
+        handlers.add(
+                Tuple2.of(
+                        nodeQuarantineListHandler.getMessageHeaders(), nodeQuarantineListHandler));
 
         handlers.add(
                 Tuple2.of(
