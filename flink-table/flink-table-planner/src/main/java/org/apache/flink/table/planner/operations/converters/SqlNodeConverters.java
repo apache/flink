@@ -123,6 +123,7 @@ public class SqlNodeConverters {
         register(new SqlAlterViewAsConverter());
         register(new SqlAlterViewPropertiesConverter());
         register(new SqlAlterViewRenameConverter());
+        register(new SqlAlterViewSetWatermarkConverter());
         register(new SqlCreateViewConverter());
     }
 

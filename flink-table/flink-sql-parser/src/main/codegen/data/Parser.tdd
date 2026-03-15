@@ -101,6 +101,7 @@
     "org.apache.flink.sql.parser.ddl.view.SqlAlterView"
     "org.apache.flink.sql.parser.ddl.view.SqlAlterViewAs"
     "org.apache.flink.sql.parser.ddl.view.SqlAlterViewRename"
+    "org.apache.flink.sql.parser.ddl.view.SqlAlterViewSetWatermark"
     "org.apache.flink.sql.parser.ddl.SqlCompilePlan"
     "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
