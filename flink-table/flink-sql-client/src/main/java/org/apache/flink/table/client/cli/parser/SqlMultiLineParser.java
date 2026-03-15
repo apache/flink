@@ -60,6 +60,9 @@ public class SqlMultiLineParser extends DefaultParser {
     /** Sql command executor. */
     private final Executor executor;
 
+    /** Path to the history file. */
+    private final java.nio.file.Path historyFilePath;
+
     /** Exception caught in parsing. */
     private SqlExecutionException parseException = null;
 
@@ -68,9 +71,18 @@ public class SqlMultiLineParser extends DefaultParser {
 
     public SqlMultiLineParser(
             SqlCommandParser parser, Executor executor, CliClient.ExecutionMode mode) {
+        this(parser, executor, mode, null);
+    }
+
+    public SqlMultiLineParser(
+            SqlCommandParser parser,
+            Executor executor,
+            CliClient.ExecutionMode mode,
+            java.nio.file.Path historyFilePath) {
         this.parser = parser;
         this.mode = mode;
         this.executor = executor;
+        this.historyFilePath = historyFilePath;
         setEscapeChars(null);
         setQuoteChars(null);
     }
@@ -107,6 +119,9 @@ public class SqlMultiLineParser extends DefaultParser {
                     break;
                 case HELP:
                     printer = Printer.createHelpCommandPrinter();
+                    break;
+                case SHOW_HISTORY:
+                    printer = Printer.createHistoryCommandPrinter(historyFilePath);
                     break;
                 default:
                     {
