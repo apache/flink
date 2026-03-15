@@ -75,7 +75,9 @@ object FlinkBatchRuleSets {
     RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
     RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
     RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE,
+    SimplifyCoalesceWithEquiJoinConditionRule.PROJECT_INSTANCE,
+    SimplifyCoalesceWithEquiJoinConditionRule.CALC_INSTANCE
   )
 
   private val LIMIT_RULES: RuleSet = RuleSets.ofList(
