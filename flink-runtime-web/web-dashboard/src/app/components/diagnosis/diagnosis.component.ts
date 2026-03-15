@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 
-import { Diagnosis, DiagnosticSuggestion } from '@flink-runtime-web/interfaces';
+import { Diagnosis } from '@flink-runtime-web/interfaces';
 
 @Component({
   selector: 'flink-diagnosis',
@@ -58,7 +58,7 @@ export class DiagnosisComponent implements OnChanges {
     }
   }
 
-  formatMetricValue(key: string, value: any): string {
+  formatMetricValue(key: string, value: unknown): string {
     if (typeof value === 'number') {
       if (key.toLowerCase().includes('usage') || key.toLowerCase().includes('ratio')) {
         return `${(value * 100).toFixed(2)}%`;

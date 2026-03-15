@@ -36,7 +36,8 @@
       <nz-result
         nzStatus="success"
         nzTitle="No Issues Detected"
-        nzSubTitle="Your job metrics appear to be within normal ranges.">
+        nzSubTitle="Your job metrics appear to be within normal ranges."
+      >
         <nz-result-extra>
           <p>Continue monitoring for any changes.</p>
         </nz-result-extra>
@@ -46,18 +47,28 @@
     <div class="diagnosis-list">
       <nz-alert
         *ngFor="let suggestion of diagnosis.diagnostics"
-        [nzType]="suggestion.severity === 'error' ? 'error' : (suggestion.severity === 'warning' ? 'warning' : 'info')"
+        [nzType]="
+          suggestion.severity === 'error'
+            ? 'error'
+            : suggestion.severity === 'warning'
+            ? 'warning'
+            : 'info'
+        "
         [nzMessage]="suggestion.title"
         [nzDescription]="suggestion.message"
         [nzShowIcon]="true"
         [nzIcon]="getSeverityIcon(suggestion.severity)"
         [nzCloseable]="false"
-        class="diagnosis-alert">
+        class="diagnosis-alert"
+      >
         <ng-template #description>
           <div class="diagnosis-detail">
             <p class="message">{{ suggestion.message }}</p>
 
-            <div *ngIf="suggestion.metrics && Object.keys(suggestion.metrics).length > 0" class="metrics-info">
+            <div
+              *ngIf="suggestion.metrics && Object.keys(suggestion.metrics).length > 0"
+              class="metrics-info"
+            >
               <h4>Related Metrics:</h4>
               <div class="metrics-grid">
                 <div *ngFor="let entry of suggestion.metrics | keyvalue" class="metric-item">
@@ -67,7 +78,10 @@
               </div>
             </div>
 
-            <div *ngIf="suggestion.actions && suggestion.actions.length > 0" class="recommended-actions">
+            <div
+              *ngIf="suggestion.actions && suggestion.actions.length > 0"
+              class="recommended-actions"
+            >
               <h4>Recommended Actions:</h4>
               <ul>
                 <li *ngFor="let action of suggestion.actions">{{ action }}</li>

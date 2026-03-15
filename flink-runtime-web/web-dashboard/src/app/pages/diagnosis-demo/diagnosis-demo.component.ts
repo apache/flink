@@ -36,8 +36,7 @@ export class DiagnosisDemoComponent implements OnInit {
         {
           severity: 'warning',
           title: 'High CPU Usage with High Memory Consumption',
-          message:
-            'High CPU may be caused by frequent GC. Check GC logs or increase heap size.',
+          message: 'High CPU may be caused by frequent GC. Check GC logs or increase heap size.',
           metrics: {
             cpuUsage: 0.85,
             heapUsageRatio: 0.75,

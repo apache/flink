@@ -29,10 +29,7 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class DiagnosisService {
-  constructor(
-    private readonly httpClient: HttpClient,
-    private readonly configService: ConfigService
-  ) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
   public loadDiagnosis(jobId: string): Observable<Diagnosis> {
     return this.httpClient

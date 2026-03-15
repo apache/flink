@@ -25,6 +25,6 @@ export interface DiagnosticSuggestion {
   severity: string;
   title: string;
   message: string;
-  metrics: { [key: string]: any };
+  metrics: { [key: string]: unknown };
   actions: string[];
 }
