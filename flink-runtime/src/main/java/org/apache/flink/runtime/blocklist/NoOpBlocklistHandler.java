@@ -44,6 +44,14 @@ public class NoOpBlocklistHandler implements BlocklistHandler {
     }
 
     @Override
+    public Collection<BlockedNode> getAllBlockedNodes() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void removeTimeoutNodes(Collection<String> nodeIds) {}
+
+    @Override
     public void registerBlocklistListener(BlocklistListener blocklistListener) {}
 
     @Override
