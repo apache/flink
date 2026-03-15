@@ -357,11 +357,11 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             errorMsg.append("\n=== Troubleshooting (Client Error) ===\n");
 
             if (statusCode == 400) {
-                errorMsg.append("  • Verify input shape matches model's config.pbtxt\n");
-                errorMsg.append("  • For scalar: use INT/FLOAT/DOUBLE/STRING\n");
-                errorMsg.append("  • For 1-D tensor: use ARRAY<type>\n");
+                errorMsg.append("  - Verify input shape matches model's config.pbtxt\n");
+                errorMsg.append("  - For scalar: use INT/FLOAT/DOUBLE/STRING\n");
+                errorMsg.append("  - For 1-D tensor: use ARRAY<type>\n");
                 errorMsg.append(
-                        "  • Try flatten-batch-dim=true if model expects [N] but gets [1,N]\n");
+                        "  - Try flatten-batch-dim=true if model expects [N] but gets [1,N]\n");
 
                 if (isShapeMismatch) {
                     exception =
@@ -373,17 +373,17 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                     exception = new TritonClientException(errorMsg.toString(), statusCode);
                 }
             } else if (statusCode == 404) {
-                errorMsg.append("  • Verify model-name: ").append(getModelName()).append("\n");
-                errorMsg.append("  • Verify model-version: ")
+                errorMsg.append("  - Verify model-name: ").append(getModelName()).append("\n");
+                errorMsg.append("  - Verify model-version: ")
                         .append(getModelVersion())
                         .append("\n");
-                errorMsg.append("  • Check model is loaded: GET ")
+                errorMsg.append("  - Check model is loaded: GET ")
                         .append(getEndpoint())
                         .append("\n");
                 exception = new TritonClientException(errorMsg.toString(), statusCode);
             } else if (statusCode == 401 || statusCode == 403) {
-                errorMsg.append("  • Check auth-token configuration\n");
-                errorMsg.append("  • Verify server authentication requirements\n");
+                errorMsg.append("  - Check auth-token configuration\n");
+                errorMsg.append("  - Verify server authentication requirements\n");
                 exception = new TritonClientException(errorMsg.toString(), statusCode);
             } else {
                 exception = new TritonClientException(errorMsg.toString(), statusCode);
@@ -420,17 +420,17 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             errorMsg.append("\n=== Troubleshooting (Server Error) ===\n");
 
             if (statusCode == 500) {
-                errorMsg.append("  • Check Triton server logs for inference crash details\n");
-                errorMsg.append("  • Model may have run out of memory\n");
-                errorMsg.append("  • Input data may trigger model bug\n");
+                errorMsg.append("  - Check Triton server logs for inference crash details\n");
+                errorMsg.append("  - Model may have run out of memory\n");
+                errorMsg.append("  - Input data may trigger model bug\n");
             } else if (statusCode == 503) {
-                errorMsg.append("  • Server is overloaded or unavailable\n");
-                errorMsg.append("  • This error is retryable with backoff\n");
-                errorMsg.append("  • Consider scaling Triton server resources\n");
+                errorMsg.append("  - Server is overloaded or unavailable\n");
+                errorMsg.append("  - This error is retryable with backoff\n");
+                errorMsg.append("  - Consider scaling Triton server resources\n");
             } else if (statusCode == 504) {
-                errorMsg.append("  • Inference exceeded gateway timeout\n");
-                errorMsg.append("  • This error is retryable\n");
-                errorMsg.append("  • Consider increasing timeout configuration\n");
+                errorMsg.append("  - Inference exceeded gateway timeout\n");
+                errorMsg.append("  - This error is retryable\n");
+                errorMsg.append("  - Consider increasing timeout configuration\n");
             }
 
             exception = new TritonServerException(errorMsg.toString(), statusCode);
@@ -439,8 +439,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         } else {
             // Unexpected status code
             errorMsg.append("\n=== Unexpected Status Code ===\n");
-            errorMsg.append("  • This status code is not standard for Triton\n");
-            errorMsg.append("  • Check if proxy/load balancer is involved\n");
+            errorMsg.append("  - This status code is not standard for Triton\n");
+            errorMsg.append("  - Check if proxy/load balancer is involved\n");
 
             exception = new TritonClientException(errorMsg.toString(), statusCode);
             handleFailureWithRetry(rowData, future, attemptNumber, exception);

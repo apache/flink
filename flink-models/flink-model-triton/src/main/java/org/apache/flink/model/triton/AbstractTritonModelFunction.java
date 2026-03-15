@@ -230,12 +230,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     "%s column '%s' has nested array type: %s\n"
                             + "Multi-dimensional tensors (ARRAY<ARRAY<T>>) are not supported in v1.\n"
                             + "=== Supported Types ===\n"
-                            + "  • Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
-                            + "  • 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
+                            + "  - Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
+                            + "  - 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
                             + "=== Workarounds ===\n"
-                            + "  • Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
-                            + "  • Use JSON STRING encoding for complex structures\n"
-                            + "  • Wait for v2+ which will support ROW<...> types",
+                            + "  - Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
+                            + "  - Use JSON STRING encoding for complex structures\n"
+                            + "  - Wait for v2+ which will support ROW<...> types",
                     inputOrOutput,
                     columnName,
                     type);
