@@ -16,14 +16,52 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
-export * from './topn-metrics.service';
-export * from './diagnosis.service';
+.diagnosis-demo-container {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: 100vh;
+
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    color: #262626;
+  }
+
+  .demo-section {
+    h3 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #262626;
+    }
+
+    p {
+      color: #595959;
+      margin-bottom: 16px;
+    }
+
+    nz-radio-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+
+      label {
+        margin-right: 0;
+      }
+    }
+
+    .diagnosis-display {
+      background: #fff;
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 16px;
+      min-height: 200px;
+    }
+
+    nz-alert {
+      margin-top: 16px;
+    }
+  }
+}
