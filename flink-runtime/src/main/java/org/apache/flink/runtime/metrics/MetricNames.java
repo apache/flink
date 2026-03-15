@@ -50,6 +50,8 @@ public class MetricNames {
     public static final String TASK_SLOTS_TOTAL = "taskSlotsTotal";
     public static final String NUM_REGISTERED_TASK_MANAGERS = "numRegisteredTaskManagers";
     public static final String NUM_PENDING_TASK_MANAGERS = "numPendingTaskManagers";
+    public static final String TOTAL_REQUEST_TASK_MANAGERS = "totalRequestTaskManagers";
+    public static final String TOTAL_RELEASE_TASK_MANAGERS = "totalReleaseTaskManagers";
 
     public static final String NUM_RESTARTS = "numRestarts";
     public static final String NUM_RESCALES = "numRescales";
