@@ -17,86 +17,80 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
+import org.apache.flink.core.security.watch.LocalFSDirectoryWatcher;
+import org.apache.flink.core.security.watch.LocalFSWatchSingleton;
+
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 
 import com.typesafe.config.Config;
 import org.apache.pekko.actor.ActorSystem;
-import org.apache.pekko.remote.RemoteTransportException;
 import org.apache.pekko.remote.transport.netty.ConfigSSLEngineProvider;
+import org.apache.pekko.remote.transport.netty.SSLEngineProvider;
+import org.apache.pekko.stream.TLSRole;
 
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
  * Extension of the {@link ConfigSSLEngineProvider} to use a {@link FingerprintTrustManagerFactory}.
  */
 @SuppressWarnings("deprecation")
-public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
+public class CustomSSLEngineProvider implements SSLEngineProvider {
+
     private final String sslTrustStore;
-    private final String sslTrustStorePassword;
-    private final List<String> sslCertFingerprints;
-    private final String sslKeyStoreType;
-    private final String sslTrustStoreType;
+    private final List<String> sslEnabledAlgorithms;
+    private final String sslProtocol;
+    private final Boolean sslRequireMutualAuthentication;
+    private final SSLContextLoader sslContextLoader;
 
-    public CustomSSLEngineProvider(ActorSystem system) {
-        super(system);
-        final Config securityConfig =
+    public CustomSSLEngineProvider(ActorSystem system) throws IOException {
+        final Config pekkoSecurityConfig =
                 system.settings().config().getConfig("pekko.remote.classic.netty.ssl.security");
-        sslTrustStore = securityConfig.getString("trust-store");
-        sslTrustStorePassword = securityConfig.getString("trust-store-password");
-        sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");
-        sslKeyStoreType = securityConfig.getString("key-store-type");
-        sslTrustStoreType = securityConfig.getString("trust-store-type");
-    }
+        sslTrustStore = pekkoSecurityConfig.getString("trust-store");
+        String sslKeyStore = pekkoSecurityConfig.getString("key-store");
+        sslEnabledAlgorithms = pekkoSecurityConfig.getStringList("enabled-algorithms");
+        sslProtocol = pekkoSecurityConfig.getString("protocol");
+        sslRequireMutualAuthentication =
+                pekkoSecurityConfig.getBoolean("require-mutual-authentication");
+        Boolean sslEnabledCertReload = pekkoSecurityConfig.getBoolean("enabled-cert-reload");
 
-    @Override
-    public TrustManager[] trustManagers() {
-        try {
-            final TrustManagerFactory trustManagerFactory =
-                    sslCertFingerprints.isEmpty()
-                            ? TrustManagerFactory.getInstance(
-                                    TrustManagerFactory.getDefaultAlgorithm())
-                            : FingerprintTrustManagerFactory.builder("SHA1")
-                                    .fingerprints(sslCertFingerprints)
-                                    .build();
-
-            trustManagerFactory.init(
-                    loadKeystore(sslTrustStore, sslTrustStorePassword, sslTrustStoreType));
-            return trustManagerFactory.getTrustManagers();
-        } catch (GeneralSecurityException | IOException e) {
-            // replicate exception handling from SSLEngineProvider
-            throw new RemoteTransportException(
-                    "Server SSL connection could not be established because SSL context could not be constructed",
-                    e);
+        sslContextLoader = new SSLContextLoader(sslTrustStore, sslProtocol, pekkoSecurityConfig);
+        if (sslEnabledCertReload) {
+            LocalFSDirectoryWatcher localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
+            localFSWatchSingleton.registerDirectory(
+                    new Path[] {
+                        Path.of(sslTrustStore).getParent(), Path.of(sslKeyStore).getParent()
+                    },
+                    sslContextLoader);
         }
     }
 
     @Override
-    public KeyStore loadKeystore(String filename, String password) {
-        try {
-            return loadKeystore(filename, password, sslKeyStoreType);
-        } catch (IOException | GeneralSecurityException e) {
-            throw new RemoteTransportException(
-                    "Server SSL connection could not be established because key store could not be loaded",
-                    e);
-        }
+    public SSLEngine createServerSSLEngine() {
+        return createSSLEngine(TLSRole.server());
     }
 
-    private KeyStore loadKeystore(String filename, String password, String keystoreType)
-            throws IOException, GeneralSecurityException {
-        KeyStore keyStore = KeyStore.getInstance(keystoreType);
-        try (InputStream fin = Files.newInputStream(Paths.get(filename))) {
-            char[] passwordCharArray = password.toCharArray();
-            keyStore.load(fin, passwordCharArray);
+    @Override
+    public SSLEngine createClientSSLEngine() {
+        return createSSLEngine(TLSRole.client());
+    }
+
+    private SSLEngine createSSLEngine(TLSRole role) {
+        return createSSLEngine(sslContextLoader.createSSLEngine(), role);
+    }
+
+    private SSLEngine createSSLEngine(SSLEngine engine, TLSRole role) {
+        engine.setUseClientMode(role == TLSRole.client());
+        engine.setEnabledCipherSuites(sslEnabledAlgorithms.toArray(String[]::new));
+        engine.setEnabledProtocols(new String[] {sslProtocol});
+
+        if ((role != TLSRole.client()) && sslRequireMutualAuthentication) {
+            engine.setNeedClientAuth(true);
         }
-        return keyStore;
+
+        return engine;
     }
 }
