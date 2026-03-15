@@ -50,6 +50,8 @@ public class MetricNames {
     public static final String TASK_SLOTS_TOTAL = "taskSlotsTotal";
     public static final String NUM_REGISTERED_TASK_MANAGERS = "numRegisteredTaskManagers";
     public static final String NUM_PENDING_TASK_MANAGERS = "numPendingTaskManagers";
+    public static final String RPC_LATEST_RESPONSE_FRAME_SIZE = "latestResponseFrameSizeBytes";
+    public static final String RPC_OVERSIZED_RESPONSE_REJECTIONS = "oversizedResponseRejections";
 
     public static final String NUM_RESTARTS = "numRestarts";
     public static final String NUM_RESCALES = "numRescales";

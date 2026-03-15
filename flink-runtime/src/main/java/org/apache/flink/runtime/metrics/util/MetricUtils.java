@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.rpc.RpcResponseFrameSizeObserver;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
@@ -63,6 +65,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -74,6 +77,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class MetricUtils {
     private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
     private static final String METRIC_GROUP_STATUS_NAME = "Status";
+    private static final String METRIC_GROUP_RPC_NAME = "RPC";
     private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
 
     static final String METRIC_GROUP_HEAP_NAME = "Heap";
@@ -140,6 +144,29 @@ public class MetricUtils {
         instantiateThreadMetrics(jvm.addGroup("Threads"));
         instantiateCPUMetrics(jvm.addGroup("CPU"));
         instantiateFileDescriptorMetrics(jvm.addGroup("FileDescriptor"));
+    }
+
+    public static RpcResponseFrameSizeObserver instantiateRpcResponseFrameSizeMetrics(
+            MetricGroup statusMetricGroup) {
+        final MetricGroup rpcMetricGroup = statusMetricGroup.addGroup(METRIC_GROUP_RPC_NAME);
+        final AtomicLong latestSerializedResponseFrameSize = new AtomicLong(0L);
+
+        rpcMetricGroup.gauge(
+                MetricNames.RPC_LATEST_RESPONSE_FRAME_SIZE, latestSerializedResponseFrameSize::get);
+        final Counter oversizedResponseRejectionsCounter =
+                rpcMetricGroup.counter(MetricNames.RPC_OVERSIZED_RESPONSE_REJECTIONS);
+
+        return new RpcResponseFrameSizeObserver() {
+            @Override
+            public void onSerializedResponseFrameSize(long serializedResponseSize) {
+                latestSerializedResponseFrameSize.set(serializedResponseSize);
+            }
+
+            @Override
+            public void onOversizedResponse() {
+                oversizedResponseRejectionsCounter.inc();
+            }
+        };
     }
 
     public static void instantiateFlinkMemoryMetricGroup(
