@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
 import org.apache.flink.table.catalog.listener.AlterModelEvent;
 import org.apache.flink.table.catalog.listener.AlterTableEvent;
@@ -37,6 +38,8 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 import org.apache.flink.table.utils.ParserMock;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
+
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
@@ -46,6 +49,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -363,6 +367,62 @@ class CatalogManagerTest {
         assertThat(dropTemporaryEvent.isTemporary()).isTrue();
         assertThat(dropTemporaryEvent.ignoreIfNotExists()).isFalse();
         assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("model2");
+    }
+
+    @Test
+    void testGetTableWithPrivileges() throws Exception {
+        CompletableFuture<Set<TableWritePrivilege>> privilegesFuture = new CompletableFuture<>();
+        Catalog testCatalog =
+                new GenericInMemoryCatalog("test") {
+                    @Override
+                    public CatalogBaseTable getTable(
+                            ObjectPath tablePath, Set<TableWritePrivilege> privileges)
+                            throws TableNotExistException {
+                        privilegesFuture.complete(privileges);
+                        return super.getTable(tablePath);
+                    }
+                };
+
+        CatalogManager catalogManager =
+                CatalogManager.newBuilder()
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .defaultCatalog("test", testCatalog)
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .build())
+                        .build();
+        catalogManager.initSchemaResolver(
+                true, ExpressionResolverMocks.dummyResolver(), new ParserMock());
+
+        // Create a table
+        catalogManager.createTable(
+                CatalogTable.newBuilder().schema(Schema.newBuilder().build()).build(),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "test_table"),
+                false);
+
+        // Test getTableOrError with privileges
+        Set<TableWritePrivilege> privileges = Sets.newHashSet(TableWritePrivilege.INSERT);
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "test_table");
+        ContextResolvedTable resolvedTable =
+                catalogManager.getTableOrError(tableIdentifier, privileges);
+
+        assertThat(resolvedTable).isNotNull();
+        assertThat(resolvedTable.getIdentifier()).isEqualTo(tableIdentifier);
+
+        // Verify the privileges were passed to the catalog
+        Set<TableWritePrivilege> capturedPrivileges = privilegesFuture.get(10, TimeUnit.SECONDS);
+        assertThat(capturedPrivileges).containsExactly(TableWritePrivilege.INSERT);
     }
 
     private CatalogManager createCatalogManager(@Nullable CatalogModificationListener listener) {

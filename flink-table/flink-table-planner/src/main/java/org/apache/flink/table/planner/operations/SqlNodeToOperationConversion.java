@@ -65,6 +65,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.TableWritePrivilege;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -117,6 +118,8 @@ import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
+
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
@@ -136,6 +139,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -325,9 +329,10 @@ public class SqlNodeToOperationConversion {
 
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        Set<TableWritePrivilege> privileges = Sets.newHashSet(TableWritePrivilege.INSERT);
         // If it is materialized table, convert it to catalog table for query optimize
         ContextResolvedTable contextResolvedTable =
-                catalogManager.getTableOrError(identifier).toCatalogTable();
+                catalogManager.getTableOrError(identifier, privileges).toCatalogTable();
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
@@ -679,9 +684,10 @@ public class SqlNodeToOperationConversion {
         LogicalTableModify tableModify = (LogicalTableModify) deleteRelational.rel;
         UnresolvedIdentifier unresolvedTableIdentifier =
                 UnresolvedIdentifier.of(tableModify.getTable().getQualifiedName());
+        Set<TableWritePrivilege> privileges = Sets.newHashSet(TableWritePrivilege.DELETE);
         ContextResolvedTable contextResolvedTable =
                 catalogManager.getTableOrError(
-                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
+                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier), privileges);
         // try push down delete
         Optional<DynamicTableSink> optionalDynamicTableSink =
                 DeletePushDownUtils.getDynamicTableSink(contextResolvedTable, tableModify);
@@ -724,9 +730,10 @@ public class SqlNodeToOperationConversion {
         LogicalTableModify tableModify = (LogicalTableModify) updateRelational.rel;
         UnresolvedIdentifier unresolvedTableIdentifier =
                 UnresolvedIdentifier.of(tableModify.getTable().getQualifiedName());
+        Set<TableWritePrivilege> privileges = Sets.newHashSet(TableWritePrivilege.UPDATE);
         ContextResolvedTable contextResolvedTable =
                 catalogManager.getTableOrError(
-                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
+                        catalogManager.qualifyIdentifier(unresolvedTableIdentifier), privileges);
         // get query
         PlannerQueryOperation queryOperation =
                 new PlannerQueryOperation(
