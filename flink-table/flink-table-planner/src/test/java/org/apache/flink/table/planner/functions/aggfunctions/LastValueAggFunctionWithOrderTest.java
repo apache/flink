@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.serialization.types.ShortType;
@@ -275,6 +277,197 @@ final class LastValueAggFunctionWithOrderTest {
         @Override
         protected AggregateFunction<StringData, RowData> getAggregator() {
             return new LastValueAggFunction<>(DataTypes.STRING().getLogicalType());
+        }
+    }
+
+    /** Test for {@link RowType}. */
+    @Nested
+    final class RowLastValueAggFunctionWithOrderTest
+            extends LastValueAggFunctionWithOrderTestBase<RowData> {
+
+        private int precision = 20;
+
+        private int scale = 6;
+
+        @Override
+        protected List<List<RowData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            createRow(
+                                    1,
+                                    StringData.fromString("a"),
+                                    DecimalDataUtils.castFrom("10.5", precision, scale),
+                                    true),
+                            createRow(
+                                    2,
+                                    StringData.fromString("b"),
+                                    DecimalDataUtils.castFrom("20.0", precision, scale),
+                                    false),
+                            createRow(
+                                    3,
+                                    StringData.fromString("c"),
+                                    DecimalDataUtils.castFrom("30.75", precision, scale),
+                                    true),
+                            null,
+                            createRow(
+                                    4,
+                                    StringData.fromString("d"),
+                                    DecimalDataUtils.castFrom("40.25", precision, scale),
+                                    false),
+                            createRow(5, StringData.fromString("e"), null, true),
+                            createRow(
+                                    6,
+                                    null,
+                                    DecimalDataUtils.castFrom("60.5", precision, scale),
+                                    null),
+                            createRow(
+                                    1,
+                                    StringData.fromString("a"),
+                                    DecimalDataUtils.castFrom("10.5", precision, scale),
+                                    true)),
+                    Arrays.asList(null, null),
+                    Arrays.asList(
+                            null,
+                            createRow(
+                                    7,
+                                    StringData.fromString("f"),
+                                    DecimalDataUtils.castFrom("70.0", precision, scale),
+                                    true)),
+                    Arrays.asList(
+                            createRow(8, StringData.fromString("g"), null, false),
+                            null,
+                            createRow(
+                                    9,
+                                    StringData.fromString("h"),
+                                    DecimalDataUtils.castFrom("90.5", precision, scale),
+                                    true)));
+        }
+
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 5L, null, 3L, 1L, 6L, 10L),
+                    Arrays.asList(6L, 5L),
+                    Arrays.asList(8L, 6L),
+                    Arrays.asList(6L, 4L, 3L));
+        }
+
+        @Override
+        protected List<RowData> getExpectedResults() {
+            return Arrays.asList(
+                    createRow(
+                            1,
+                            StringData.fromString("a"),
+                            DecimalDataUtils.castFrom("10.5", precision, scale),
+                            true),
+                    null,
+                    createRow(
+                            7,
+                            StringData.fromString("f"),
+                            DecimalDataUtils.castFrom("70.0", precision, scale),
+                            true),
+                    createRow(8, StringData.fromString("g"), null, false));
+        }
+
+        @Override
+        protected AggregateFunction<RowData, RowData> getAggregator() {
+            return new LastValueAggFunction<>(
+                    DataTypes.ROW(
+                                    DataTypes.FIELD("id", DataTypes.INT()),
+                                    DataTypes.FIELD("name", DataTypes.STRING()),
+                                    DataTypes.FIELD("value", DataTypes.DECIMAL(10, 2)),
+                                    DataTypes.FIELD("flag", DataTypes.BOOLEAN()))
+                            .getLogicalType());
+        }
+
+        private GenericRowData createRow(
+                Integer id, StringData name, DecimalData value, Boolean flag) {
+            GenericRowData row = new GenericRowData(4);
+            row.setField(0, id);
+            row.setField(1, name);
+            row.setField(2, value);
+            row.setField(3, flag);
+            return row;
+        }
+    }
+
+    /** Test for {@link RowType} with nested struction. */
+    @Nested
+    final class NestedRowLastValueAggFunctionWithOrderTest
+            extends LastValueAggFunctionWithOrderTestBase<RowData> {
+
+        private int precision = 20;
+
+        private int scale = 6;
+
+        @Override
+        protected List<List<RowData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            createRowWithNestedRow(
+                                    8,
+                                    StringData.fromString("g"),
+                                    null,
+                                    false,
+                                    createNestedRow(106, StringData.fromString("t"))),
+                            null,
+                            createRowWithNestedRow(
+                                    9,
+                                    StringData.fromString("h"),
+                                    DecimalDataUtils.castFrom("90.5", precision, scale),
+                                    true,
+                                    createNestedRow(107, StringData.fromString("s")))));
+        }
+
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(Arrays.asList(6L, 4L, 3L));
+        }
+
+        @Override
+        protected List<RowData> getExpectedResults() {
+            return Arrays.asList(
+                    createRowWithNestedRow(
+                            8,
+                            StringData.fromString("g"),
+                            null,
+                            false,
+                            createNestedRow(106, StringData.fromString("t"))));
+        }
+
+        @Override
+        protected AggregateFunction<RowData, RowData> getAggregator() {
+            return new LastValueAggFunction<>(
+                    DataTypes.ROW(
+                                    DataTypes.FIELD("id", DataTypes.INT()),
+                                    DataTypes.FIELD("name", DataTypes.STRING()),
+                                    DataTypes.FIELD("value", DataTypes.DECIMAL(10, 2)),
+                                    DataTypes.FIELD("flag", DataTypes.BOOLEAN()),
+                                    DataTypes.FIELD(
+                                            "nested",
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("nestedId", DataTypes.INT()),
+                                                    DataTypes.FIELD(
+                                                            "nestedName", DataTypes.STRING()))))
+                            .getLogicalType());
+        }
+
+        private RowData createNestedRow(Integer nestedId, StringData nestedName) {
+            GenericRowData row = new GenericRowData(2);
+            row.setField(0, nestedId);
+            row.setField(1, nestedName);
+            return row;
+        }
+
+        private RowData createRowWithNestedRow(
+                Integer id, StringData name, DecimalData value, Boolean flag, RowData nestedRow) {
+            GenericRowData row = new GenericRowData(5);
+            row.setField(0, id);
+            row.setField(1, name);
+            row.setField(2, value);
+            row.setField(3, flag);
+            row.setField(4, nestedRow);
+            return row;
         }
     }
 
