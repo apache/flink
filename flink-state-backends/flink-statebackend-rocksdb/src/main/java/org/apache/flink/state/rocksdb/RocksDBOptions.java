@@ -27,6 +27,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE;
 import static org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.state.rocksdb.PredefinedOptions.DEFAULT;
@@ -90,6 +92,21 @@ public class RocksDBOptions {
                                     + "If negative, the common (TM) IO thread pool is used (see "
                                     + CLUSTER_IO_EXECUTOR_POOL_SIZE.key()
                                     + ")");
+
+    /** The time interval used to create jitter for each checkpoint file upload. */
+    @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
+    public static final ConfigOption<Duration> CHECKPOINT_UPLOAD_JITTER =
+            ConfigOptions.key("state.backend.rocksdb.checkpoint.upload-jitter")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDescription(
+                            "The jitter time interval determines the amount of random delay introduced before uploading each checkpoint file. "
+                                    + "This jitter is applied to help stagger the upload times of state files, thereby introducing a small, "
+                                    + "randomized delay for each upload operation. The purpose of this mechanism is to avoid simultaneous upload bursts, "
+                                    + "which could otherwise overwhelm the remote storage system. By distributing the upload requests more evenly over time, "
+                                    + "jitter helps maintain system stability and prevents potential performance degradation during checkpoint completion. "
+                                    + "It is therefore recommended to configure the jitter interval at the seconds level, ensuring a balanced trade-off "
+                                    + "between randomness and upload efficiency.");
 
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
