@@ -19,24 +19,22 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
-import org.apache.flink.util.MathUtils;
 
-import com.amazonaws.SdkBaseException;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.UploadPartRequest;
-import com.amazonaws.services.s3.model.UploadPartResult;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.s3a.S3ADataBlocks;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
-import org.apache.hadoop.fs.s3a.statistics.S3AStatisticsContext;
-import org.apache.hadoop.fs.store.audit.AuditSpan;
-import org.apache.hadoop.fs.store.audit.AuditSpanSource;
+import org.apache.hadoop.fs.s3a.impl.PutObjectOptions;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -47,62 +45,67 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** An implementation of the {@link S3AccessHelper} for the Hadoop S3A filesystem. */
+/**
+ * An implementation of the {@link S3AccessHelper} for the Hadoop S3A filesystem.
+ *
+ * <p>This implementation uses Hadoop's {@link WriteOperationHelper} to perform S3 operations,
+ * similar to the SDK v1 implementation. This provides retry logic, error handling, S3A statistics
+ * integration, and auditing support.
+ */
 public class HadoopS3AccessHelper implements S3AccessHelper {
 
     private final S3AFileSystem s3a;
 
-    private final InternalWriteOperationHelper s3accessHelper;
+    private final WriteOperationHelper writeHelper;
+
+    private final PutObjectOptions putOptions;
 
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
-        checkNotNull(s3a);
-        this.s3accessHelper =
-                new InternalWriteOperationHelper(
-                        s3a,
-                        checkNotNull(conf),
-                        s3a.createStoreContext().getInstrumentation(),
-                        s3a.getAuditSpanSource(),
-                        s3a.getActiveAuditSpan());
-        this.s3a = s3a;
+        this.s3a = checkNotNull(s3a);
+        // Get WriteOperationHelper from S3AFileSystem which properly initializes
+        // it with callbacks, statistics, and audit support
+        this.writeHelper = s3a.getWriteOperationHelper();
+        this.putOptions = PutObjectOptions.defaultOptions();
     }
 
     @Override
     public String startMultiPartUpload(String key) throws IOException {
-        return s3accessHelper.initiateMultiPartUpload(key);
+        return writeHelper.initiateMultiPartUpload(key, putOptions);
     }
 
     @Override
-    public UploadPartResult uploadPart(
+    public UploadPartResponse uploadPart(
             String key, String uploadId, int partNumber, File inputFile, long length)
             throws IOException {
-        final UploadPartRequest uploadRequest =
-                s3accessHelper.newUploadPartRequest(
-                        key,
-                        uploadId,
-                        partNumber,
-                        MathUtils.checkedDownCast(length),
-                        null,
-                        inputFile,
-                        0L);
-        return s3accessHelper.uploadPart(uploadRequest);
+        UploadPartRequest request =
+                writeHelper
+                        .newUploadPartRequestBuilder(key, uploadId, partNumber, false, length)
+                        .build();
+        RequestBody body = RequestBody.fromFile(inputFile);
+        return writeHelper.uploadPart(request, body, null);
     }
 
     @Override
-    public PutObjectResult putObject(String key, File inputFile) throws IOException {
-        final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputFile);
-        return s3accessHelper.putObject(putRequest);
+    public PutObjectResponse putObject(String key, File inputFile) throws IOException {
+        // Use WriteOperationHelper for retry logic, statistics, and audit tracking
+        software.amazon.awssdk.services.s3.model.PutObjectRequest request =
+                writeHelper.createPutObjectRequest(key, inputFile.length(), putOptions);
+        try (S3ADataBlocks.BlockUploadData uploadData =
+                new S3ADataBlocks.BlockUploadData(inputFile, () -> true)) {
+            return writeHelper.putObject(request, putOptions, uploadData, null);
+        }
     }
 
     @Override
-    public CompleteMultipartUploadResult commitMultiPartUpload(
+    public CompleteMultipartUploadResponse commitMultiPartUpload(
             String destKey,
             String uploadId,
-            List<PartETag> partETags,
+            List<CompletedPart> partETags,
             long length,
             AtomicInteger errorCount)
             throws IOException {
-        return s3accessHelper.completeMPUwithRetries(
-                destKey, uploadId, partETags, length, errorCount);
+        return writeHelper.completeMPUwithRetries(
+                destKey, uploadId, partETags, length, errorCount, putOptions);
     }
 
     @Override
@@ -139,27 +142,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     }
 
     @Override
-    public ObjectMetadata getObjectMetadata(String key) throws IOException {
+    public HeadObjectResponse getObjectMetadata(String key) throws IOException {
         try {
             return s3a.getObjectMetadata(new Path('/' + key));
-        } catch (SdkBaseException e) {
+        } catch (SdkException e) {
             throw S3AUtils.translateException("getObjectMetadata", key, e);
-        }
-    }
-
-    /**
-     * Internal {@link WriteOperationHelper} that is wrapped so that it only exposes the
-     * functionality we need for the {@link S3AccessHelper}.
-     */
-    private static final class InternalWriteOperationHelper extends WriteOperationHelper {
-
-        InternalWriteOperationHelper(
-                S3AFileSystem owner,
-                Configuration conf,
-                S3AStatisticsContext statisticsContext,
-                AuditSpanSource auditSpanSource,
-                AuditSpan auditSpan) {
-            super(owner, conf, statisticsContext, auditSpanSource, auditSpan);
         }
     }
 }

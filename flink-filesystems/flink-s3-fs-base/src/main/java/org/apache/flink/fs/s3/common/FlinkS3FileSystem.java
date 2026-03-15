@@ -36,10 +36,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.sts.model.Credentials;
 
 import javax.annotation.Nullable;
 
@@ -159,11 +159,11 @@ public class FlinkS3FileSystem extends HadoopFileSystem
             Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
             if (credentials != null) {
                 maybeSetEnvironmentVariable(
-                        environment, "AWS_ACCESS_KEY_ID", credentials.getAccessKeyId());
+                        environment, "AWS_ACCESS_KEY_ID", credentials.accessKeyId());
                 maybeSetEnvironmentVariable(
-                        environment, "AWS_SECRET_ACCESS_KEY", credentials.getSecretAccessKey());
+                        environment, "AWS_SECRET_ACCESS_KEY", credentials.secretAccessKey());
                 maybeSetEnvironmentVariable(
-                        environment, "AWS_SESSION_TOKEN", credentials.getSessionToken());
+                        environment, "AWS_SESSION_TOKEN", credentials.sessionToken());
             } else {
                 maybeSetEnvironmentVariable(environment, "AWS_ACCESS_KEY_ID", accessArtifact);
                 maybeSetEnvironmentVariable(environment, "AWS_SECRET_ACCESS_KEY", secretArtifact);

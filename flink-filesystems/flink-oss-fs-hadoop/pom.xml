@@ -175,6 +175,10 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
+										<!-- Exclude GPL-licensed content from Hadoop transitive dependencies -->
+										<exclude>com/sun/jersey/**</exclude>
+										<exclude>com/sun/xml/bind/**</exclude>
+										<exclude>javax/xml/bind/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

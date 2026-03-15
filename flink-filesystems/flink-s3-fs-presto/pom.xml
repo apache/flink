@@ -562,6 +562,12 @@ under the License.
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<!-- Exclude GPL-licensed content from Hadoop transitive dependencies -->
+										<exclude>com/sun/jersey/**</exclude>
+										<exclude>com/sun/xml/bind/**</exclude>
+										<exclude>THIRD-PARTY-NOTICES</exclude>
+										<exclude>LICENSE</exclude>
+										<exclude>NOTICE</exclude>
 									</excludes>
 								</filter>
 								<filter>
