@@ -278,7 +278,7 @@ Table table = tEnv.fromValues(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-table = tEnv.fromValues(
+val table: Table = tEnv.fromValues(
    row(1, "ABC"),
    row(2L, "ABCDE")
 )
@@ -364,8 +364,8 @@ Table result = orders.select($("a"), $("c").as("d"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders")
-Table result = orders.select($"a", $"c" as "d")
+val orders: Table = tableEnv.from("Orders")
+val result: Table = orders.select($"a", $"c" as "d")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -386,7 +386,7 @@ Table result = orders.select($("*"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-Table result = orders.select($"*")
+val result: Table = orders.select($"*")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
