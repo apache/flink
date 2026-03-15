@@ -65,4 +65,7 @@ public interface SliceAssigner extends WindowAssigner {
      * slice assigned.
      */
     long getSliceEndInterval();
+
+    /** Returns the window offset if supported or zero otherwise. */
+    long getWindowOffset();
 }
