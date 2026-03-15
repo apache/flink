@@ -100,6 +100,6 @@ public final class SharedPoolNettyShuffleServiceFactory
                 shuffleEnvironmentContext.getParentMetricGroup(),
                 shuffleEnvironmentContext.getIoExecutor(),
                 shuffleEnvironmentContext.getNumberOfSlots(),
-                shuffleEnvironmentContext.getTmpDirPaths());
+                shuffleEnvironmentContext.getTmpDirs().length);
     }
 }
