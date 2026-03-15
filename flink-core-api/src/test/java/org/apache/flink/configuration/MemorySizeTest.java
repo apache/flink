@@ -179,6 +179,10 @@ class MemorySizeTest {
         // negative number
         assertThatThrownBy(() -> MemorySize.parseBytes("-100 bytes"))
                 .isInstanceOf(IllegalArgumentException.class);
+
+        // fractional number
+        assertThatThrownBy(() -> MemorySize.parseBytes("1.5g"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
