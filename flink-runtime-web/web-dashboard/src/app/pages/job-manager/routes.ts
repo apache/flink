@@ -86,6 +86,14 @@ export const JOB_MANAGER_ROUTES: Routes = [
         }
       },
       {
+        path: 'node-health',
+        loadComponent: () =>
+          import('./node-health/job-manager-node-health.component').then(m => m.JobManagerNodeHealthComponent),
+        data: {
+          path: 'node-health'
+        }
+      },
+      {
         path: '**',
         redirectTo: 'metrics',
         pathMatch: 'full'
