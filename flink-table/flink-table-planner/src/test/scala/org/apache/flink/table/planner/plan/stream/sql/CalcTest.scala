@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{DeterministicUdf, NonDeterministicUdf}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.AbstractDataType
@@ -36,11 +36,23 @@ class CalcTest extends TableTestBase {
   def setup(): Unit = {
     util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
     util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("deterministic_udf", new DeterministicUdf)
   }
 
   @Test
   def testOnlyProject(): Unit = {
     util.verifyExecPlan("SELECT a, c FROM MyTable")
+  }
+
+  @Test
+  def testReusedFunctionInProject(): Unit = {
+    util.verifyExecPlan("SELECT LTRIM(q), RTRIM(q) FROM (SELECT TRIM(c) as q FROM MyTable) t")
+  }
+
+  @Test
+  def testReusedFunctionInProjectWithDeterministicUdf(): Unit = {
+    util.verifyExecPlan(
+      "SELECT JSON_VALUE(json_data, '$.id'), JSON_VALUE(json_data, '$.name') FROM (SELECT deterministic_udf(c) as json_data FROM MyTable) t")
   }
 
   @Test
