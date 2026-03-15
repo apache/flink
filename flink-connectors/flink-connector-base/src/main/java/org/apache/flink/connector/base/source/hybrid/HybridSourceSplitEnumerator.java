@@ -82,6 +82,7 @@ public class HybridSourceSplitEnumerator
     private HybridSourceEnumeratorState restoredEnumeratorState;
     private SplitEnumerator<SourceSplit, Object> currentEnumerator;
     private SimpleVersionedSerializer<Object> currentEnumeratorCheckpointSerializer;
+    private boolean isRecovering = false;
 
     public HybridSourceSplitEnumerator(
             SplitEnumeratorContext<HybridSourceSplit> context,
@@ -100,6 +101,7 @@ public class HybridSourceSplitEnumerator
 
     @Override
     public void start() {
+        isRecovering = (restoredEnumeratorState != null);
         switchEnumerator();
     }
 
@@ -270,13 +272,13 @@ public class HybridSourceSplitEnumerator
             currentSourceIndex++;
         }
 
+        // During recovery, attempt to provide previous enumerator context if needed
+        if (isRecovering && restoredEnumeratorState != null && previousEnumerator == null) {
+            previousEnumerator = createPreviousEnumeratorForContext();
+        }
+
         HybridSource.SourceSwitchContext<?> switchContext =
-                new HybridSource.SourceSwitchContext<Object>() {
-                    @Override
-                    public Object getPreviousEnumerator() {
-                        return previousEnumerator;
-                    }
-                };
+                new RecoveryAwareSourceSwitchContext(previousEnumerator);
 
         Source<?, ? extends SourceSplit, Object> source =
                 sources.get(currentSourceIndex).factory.create(switchContext);
@@ -308,6 +310,65 @@ public class HybridSourceSplitEnumerator
         LOG.info("Starting enumerator for sourceIndex={}", currentSourceIndex);
         context.setIsProcessingBacklog(currentSourceIndex < sources.size() - 1);
         currentEnumerator.start();
+        isRecovering = false;
+    }
+
+    /** Creates a previous enumerator purely for context purposes during recovery. */
+    private SplitEnumerator<SourceSplit, Object> createPreviousEnumeratorForContext() {
+        if (currentSourceIndex == 0) {
+            return null;
+        }
+
+        try {
+            // Create the previous source using an empty recovery context
+            HybridSource.SourceSwitchContext<?> recoveryContext =
+                    new EmptyRecoverySourceSwitchContext();
+            Source<?, ? extends SourceSplit, Object> previousSource =
+                    sources.get(currentSourceIndex - 1).factory.create(recoveryContext);
+
+            SplitEnumeratorContextProxy previousContext =
+                    new SplitEnumeratorContextProxy(
+                            currentSourceIndex - 1,
+                            context,
+                            readerSourceIndex,
+                            switchedSources,
+                            sources.size());
+            return previousSource.createEnumerator(previousContext);
+        } catch (Exception e) {
+            LOG.debug("Could not create previous enumerator for context, proceeding without it", e);
+            return null;
+        }
+    }
+
+    /**
+     * Recovery-aware SourceSwitchContext that properly handles the previous enumerator during
+     * normal operation and recovery scenarios.
+     */
+    private static class RecoveryAwareSourceSwitchContext
+            implements HybridSource.SourceSwitchContext<Object> {
+
+        private final SplitEnumerator<SourceSplit, Object> previousEnumerator;
+
+        RecoveryAwareSourceSwitchContext(SplitEnumerator<SourceSplit, Object> previousEnumerator) {
+            this.previousEnumerator = previousEnumerator;
+        }
+
+        @Override
+        public Object getPreviousEnumerator() {
+            return previousEnumerator;
+        }
+    }
+
+    /**
+     * Empty context used only for temporary source creation to access serializers. It returns null
+     * for getPreviousEnumerator() as it's not meant to provide actual context.
+     */
+    private static class EmptyRecoverySourceSwitchContext
+            implements HybridSource.SourceSwitchContext<Object> {
+        @Override
+        public Object getPreviousEnumerator() {
+            return null;
+        }
     }
 
     /**
