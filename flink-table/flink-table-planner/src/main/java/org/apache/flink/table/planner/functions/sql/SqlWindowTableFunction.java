@@ -242,7 +242,8 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
 
         /**
          * Checks whether the operands starting from position {@code startPos} are all of type
-         * {@code INTERVAL}, returning whether successful.
+         * {@code INTERVAL}, returning whether successful. Non-interval types (like BOOLEAN) are
+         * skipped to support optional parameters like emitOnlyOnUpdate.
          *
          * @param callBinding The call binding
          * @param startPos The start position to validate (starting index is 0)
@@ -250,13 +251,31 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
          */
         boolean checkIntervalOperands(SqlCallBinding callBinding, int startPos) {
             final SqlValidator validator = callBinding.getValidator();
-            for (int i = startPos; i < callBinding.getOperandCount(); i++) {
+            int operandCount = callBinding.getOperandCount();
+            for (int i = startPos; i < operandCount; i++) {
                 final RelDataType type = validator.getValidatedNodeType(callBinding.operand(i));
+                // Skip boolean parameters (like emitOnlyOnUpdate in CUMULATE)
+                if (SqlTypeUtil.isBoolean(type)) {
+                    continue;
+                }
                 if (!SqlTypeUtil.isInterval(type)) {
                     return false;
                 }
             }
             return true;
+        }
+
+        /**
+         * Checks whether the operand at the specified position is of type {@code BOOLEAN}.
+         *
+         * @param callBinding The call binding
+         * @param index The position of the operand to validate (starting index is 0)
+         * @return true if the operand is a boolean type
+         */
+        boolean checkBooleanOperands(SqlCallBinding callBinding, int index) {
+            final SqlValidator validator = callBinding.getValidator();
+            final RelDataType type = validator.getValidatedNodeType(callBinding.operand(index));
+            return SqlTypeUtil.isBoolean(type);
         }
     }
 }

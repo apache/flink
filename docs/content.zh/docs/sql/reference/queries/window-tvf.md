@@ -219,10 +219,10 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
 `CUMULATE` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
-`CUMULATE` 有四个必填参数和一个可选参数：
+`CUMULATE` 有四个必填参数和两个可选参数：
 
 ```sql
-CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
+CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size [, offset [, emitOnlyOnUpdate]])
 ```
 
 - `data`：拥有时间属性列的表。
@@ -230,6 +230,7 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 - `step`：指定连续的累积窗口之间增加的窗口大小。
 - `size`：指定累积窗口的最大宽度的窗口时间。`size`必须是`step`的整数倍。
 - `offset`：窗口的偏移量 [非必填]。
+- `emitOnlyOnUpdate`：可选布尔参数（默认为 `false`）。当设置为 `true` 时，窗口仅在步长间隔内有新数据到达时才输出结果。这对于减少稀疏数据流中不必要的输出非常有用。注意：此参数仅在流模式下支持。
 
 下面是 `Bid` 表的调用示例：
 
@@ -282,6 +283,42 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 | 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
 +------------------+------------------+-------------+
+
+-- 使用 emit-only-on-update 模式进行聚合
+-- 这可以在步长间隔内没有新数据到达时减少输出
+> SELECT window_start, window_end, SUM(price) AS total_price
+  FROM CUMULATE(
+    TABLE Bid, 
+    DESCRIPTOR(bidtime), 
+    INTERVAL '2' MINUTES, 
+    INTERVAL '10' MINUTES,
+    INTERVAL '0' SECOND,  -- offset
+    true                  -- emitOnlyOnUpdate
+  )
+  GROUP BY window_start, window_end;
+-- 或者使用命名参数
+> SELECT window_start, window_end, SUM(price) AS total_price
+  FROM CUMULATE(
+    DATA => TABLE Bid,
+    TIMECOL => DESCRIPTOR(bidtime),
+    STEP => INTERVAL '2' MINUTES,
+    SIZE => INTERVAL '10' MINUTES,
+    `OFFSET` => INTERVAL '0' SECOND,
+    EMITONLYONUPDATE => true
+  )
+  GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:06 |        4.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:08 |        6.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:12 |        3.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:14 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
++------------------+------------------+-------------+
+-- 注意：与前面的结果相比，窗口 [08:10, 08:16) 和 [08:10, 08:20) 被跳过了
+-- 因为在这些步长间隔内没有新数据到达。
 ```
 
 ### 会话窗口（SESSION）

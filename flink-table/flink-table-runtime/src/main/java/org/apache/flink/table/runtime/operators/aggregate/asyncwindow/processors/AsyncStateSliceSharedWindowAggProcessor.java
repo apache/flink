@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.buffers.AsyncStateWindowBuffer;
 import org.apache.flink.table.runtime.operators.window.async.AsyncMergeCallback;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 
 import javax.annotation.Nullable;
@@ -48,6 +49,9 @@ public final class AsyncStateSliceSharedWindowAggProcessor
     private static final long serialVersionUID = 1L;
 
     private final SliceSharedAssigner sliceSharedAssigner;
+
+    /** Indicates whether there is new data to merge in the current slice. */
+    private boolean hasSliceUpdate;
 
     public AsyncStateSliceSharedWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
@@ -74,9 +78,14 @@ public final class AsyncStateSliceSharedWindowAggProcessor
                         accAndAggResult -> {
                             if (!emptyChecker.apply(accAndAggResult.f0)) {
                                 // if the triggered window is an empty window, we shouldn't emit it
-                                collect(
-                                        ctx.getAsyncKeyContext().getCurrentKey(),
-                                        accAndAggResult.f1);
+                                // Check emit-only-on-update mode: skip output if no new data in
+                                // current slice
+                                boolean shouldEmit = !isEmitOnlyOnUpdate() || hasSliceUpdate;
+                                if (shouldEmit) {
+                                    collect(
+                                            ctx.getAsyncKeyContext().getCurrentKey(),
+                                            accAndAggResult.f1);
+                                }
                             }
 
                             // we should register next window timer here,
@@ -131,11 +140,23 @@ public final class AsyncStateSliceSharedWindowAggProcessor
                             // set base accumulator
                             aggregator.setAccumulators(mergeResult, accOfMergeResult);
 
-                            // merge slice accumulators
-                            for (Tuple2<Long, RowData> sliceAndAcc : allAccOfSlicesToBeMerged) {
-                                RowData sliceAcc = sliceAndAcc.f1;
-                                if (sliceAcc != null) {
-                                    aggregator.merge(sliceAndAcc.f0, sliceAcc);
+                            // Track whether there's new data to merge for emit-only-on-update mode.
+                            // If allAccOfSlicesToBeMerged is empty, this is the first slice and
+                            // we should emit (because the first slice itself contains data).
+                            // If allAccOfSlicesToBeMerged is not empty, we only emit when
+                            // there's actual data to merge.
+                            if (allAccOfSlicesToBeMerged.isEmpty()) {
+                                // No slices to merge, this is the first slice - always emit
+                                hasSliceUpdate = true;
+                            } else {
+                                // There are slices to merge, check if any has data
+                                hasSliceUpdate = false;
+                                for (Tuple2<Long, RowData> sliceAndAcc : allAccOfSlicesToBeMerged) {
+                                    RowData sliceAcc = sliceAndAcc.f1;
+                                    if (sliceAcc != null) {
+                                        hasSliceUpdate = true;
+                                        aggregator.merge(sliceAndAcc.f0, sliceAcc);
+                                    }
                                 }
                             }
 
@@ -181,6 +202,33 @@ public final class AsyncStateSliceSharedWindowAggProcessor
                                 return sliceToMerge;
                             }
                         });
+    }
+
+    /**
+     * Returns whether emit-only-on-update mode is enabled for the cumulative window.
+     *
+     * <p>This method checks if the inner assigner is a {@link
+     * SliceAssigners.CumulativeSliceAssigner} and whether it has emit-only-on-update mode enabled.
+     *
+     * @return true if emit-only-on-update mode is enabled for cumulative window
+     */
+    private boolean isEmitOnlyOnUpdate() {
+        // Check if the assigner is a SlicedSharedSliceAssigner wrapping a CumulativeSliceAssigner
+        if (sliceSharedAssigner instanceof SliceAssigners.SlicedSharedSliceAssigner) {
+            SliceSharedAssigner innerAssigner =
+                    ((SliceAssigners.SlicedSharedSliceAssigner) sliceSharedAssigner)
+                            .getInnerSharedAssigner();
+            if (innerAssigner instanceof SliceAssigners.CumulativeSliceAssigner) {
+                return ((SliceAssigners.CumulativeSliceAssigner) innerAssigner)
+                        .isEmitOnlyOnUpdate();
+            }
+        }
+        // Direct CumulativeSliceAssigner case
+        if (sliceSharedAssigner instanceof SliceAssigners.CumulativeSliceAssigner) {
+            return ((SliceAssigners.CumulativeSliceAssigner) sliceSharedAssigner)
+                    .isEmitOnlyOnUpdate();
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------------------------------

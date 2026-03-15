@@ -323,17 +323,44 @@ public final class SliceAssigners {
         /** Creates a new {@link CumulativeSliceAssigner} with a new specified offset. */
         public CumulativeSliceAssigner withOffset(Duration offset) {
             return new CumulativeSliceAssigner(
-                    rowtimeIndex, shiftTimeZone, maxSize, step, offset.toMillis());
+                    rowtimeIndex,
+                    shiftTimeZone,
+                    maxSize,
+                    step,
+                    offset.toMillis(),
+                    emitOnlyOnUpdate);
+        }
+
+        /**
+         * Creates a new {@link CumulativeSliceAssigner} with emit-only-on-update mode.
+         *
+         * @param emitOnlyOnUpdate if true, window output is only triggered when new data arrives
+         *     within the current step interval
+         */
+        public CumulativeSliceAssigner withEmitOnlyOnUpdate(boolean emitOnlyOnUpdate) {
+            return new CumulativeSliceAssigner(
+                    rowtimeIndex, shiftTimeZone, maxSize, step, offset, emitOnlyOnUpdate);
         }
 
         private final long maxSize;
         private final long step;
         private final long offset;
+        private final boolean emitOnlyOnUpdate;
         private final ReusableListIterable reuseToBeMergedList = new ReusableListIterable();
         private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         protected CumulativeSliceAssigner(
                 int rowtimeIndex, ZoneId shiftTimeZone, long maxSize, long step, long offset) {
+            this(rowtimeIndex, shiftTimeZone, maxSize, step, offset, false);
+        }
+
+        protected CumulativeSliceAssigner(
+                int rowtimeIndex,
+                ZoneId shiftTimeZone,
+                long maxSize,
+                long step,
+                long offset,
+                boolean emitOnlyOnUpdate) {
             super(rowtimeIndex, shiftTimeZone);
             if (maxSize <= 0 || step <= 0) {
                 throw new IllegalArgumentException(
@@ -351,6 +378,7 @@ public final class SliceAssigners {
             this.maxSize = maxSize;
             this.step = step;
             this.offset = offset;
+            this.emitOnlyOnUpdate = emitOnlyOnUpdate;
         }
 
         @Override
@@ -368,6 +396,19 @@ public final class SliceAssigners {
         @Override
         public long getWindowStart(long windowEnd) {
             return TimeWindow.getWindowStartWithOffset(windowEnd - 1, offset, maxSize);
+        }
+
+        /**
+         * Returns whether this assigner only emits results when new data arrives within the step
+         * interval.
+         *
+         * <p>When enabled, no output is produced for step intervals without new data. This is
+         * useful for reducing unnecessary outputs in scenarios where data arrives sparsely.
+         *
+         * @return true if emit-only-on-update mode is enabled
+         */
+        public boolean isEmitOnlyOnUpdate() {
+            return emitOnlyOnUpdate;
         }
 
         @Override
@@ -526,6 +567,16 @@ public final class SliceAssigners {
         public SlicedSharedSliceAssigner(int sliceEndIndex, SliceSharedAssigner innerAssigner) {
             super(sliceEndIndex, innerAssigner);
             this.innerSharedAssigner = innerAssigner;
+        }
+
+        /**
+         * Returns the inner shared assigner.
+         *
+         * <p>This is used to access the inner assigner's properties, e.g., to check if the
+         * cumulative assigner has emit-only-on-update mode enabled.
+         */
+        public SliceSharedAssigner getInnerSharedAssigner() {
+            return innerSharedAssigner;
         }
 
         @Override
