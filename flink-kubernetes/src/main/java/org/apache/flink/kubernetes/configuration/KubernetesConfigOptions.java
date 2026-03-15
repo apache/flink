@@ -526,6 +526,23 @@ public class KubernetesConfigOptions {
                             "Whether to enable HostNetwork mode. "
                                     + "The HostNetwork allows the pod could use the node network namespace instead of the individual pod network namespace. Please note that the JobManager service account should have the permission to update Kubernetes service.");
 
+
+
+    public static final ConfigOption<String> KUBERNETES_LOG_VOLUME_HOSTPATH =
+            key("kubernetes.log.volume.hostpath")
+                    .stringType()
+                    .defaultValue("/apps/log/flink")
+                    .withDescription("flink host machine log path");
+
+
+    public static final ConfigOption<String> KUBERNETES_LOG_VOLUMES_MOUNT_MOUNTPATH =
+            key("kubernetes.log.volumemounts.mountpath")
+                    .stringType()
+                    .defaultValue("/opt/flink/log")
+                    .withDescription("flink container log path .");
+
+
+
     public static final ConfigOption<String> KUBERNETES_CLIENT_USER_AGENT =
             key("kubernetes.client.user-agent")
                     .stringType()
@@ -552,6 +569,13 @@ public class KubernetesConfigOptions {
                                     + "to false when Kerberos config and keytab is mounted outside of "
                                     + "Flink. A typical use-case is when one uses Flink Kubernetes "
                                     + "Operator.");
+
+    public static final ConfigOption<Boolean> KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED =
+            key("kubernetes.decorator.log-mount.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable log mount decorator. ");
 
     public static final ConfigOption<Boolean> LOCAL_UPLOAD_ENABLED =
             ConfigOptions.key("kubernetes.artifacts.local-upload-enabled")
