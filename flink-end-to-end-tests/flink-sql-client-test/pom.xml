@@ -61,7 +61,7 @@ under the License.
 			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-kafka</artifactId>
-			<version>3.0.0-1.17</version>
+			<version>${flink.connector.kafka.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -138,7 +138,7 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>flink-sql-connector-kafka</artifactId>
-									<version>3.0.0-1.17</version>
+									<version>${flink.connector.kafka.version}</version>
 									<type>jar</type>
 								</artifactItem>
 								<artifactItem>
