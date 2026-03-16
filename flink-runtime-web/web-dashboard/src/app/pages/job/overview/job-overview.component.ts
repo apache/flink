@@ -48,7 +48,15 @@ import { JobLocalService } from '../job-local.service';
   templateUrl: './job-overview.component.html',
   styleUrls: ['./job-overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzAlertModule, NgIf, DagreComponent, RouterOutlet, JobOverviewListComponent, ResizeComponent, TopNMetricsComponent]
+  imports: [
+    NzAlertModule,
+    NgIf,
+    DagreComponent,
+    RouterOutlet,
+    JobOverviewListComponent,
+    ResizeComponent,
+    TopNMetricsComponent
+  ]
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];

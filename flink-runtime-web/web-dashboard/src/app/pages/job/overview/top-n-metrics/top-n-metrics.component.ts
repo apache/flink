@@ -17,8 +17,8 @@
  * limitations under the License.
  */
 
-import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, Input } from '@angular/core';
 
 import { CpuConsumer, BackpressureOperator, GcIntensiveTask } from '@flink-runtime-web/interfaces/top-n-metrics';
 
@@ -26,7 +26,10 @@ import { CpuConsumer, BackpressureOperator, GcIntensiveTask } from '@flink-runti
   selector: 'flink-top-n-metrics',
   standalone: true,
   template: `
-    <div class="top-n-metrics" *ngIf="topCpuConsumers?.length || topBackpressureOperators?.length || topGcIntensiveTasks?.length">
+    <div
+      class="top-n-metrics"
+      *ngIf="topCpuConsumers?.length || topBackpressureOperators?.length || topGcIntensiveTasks?.length"
+    >
       <h3>Top N Metrics</h3>
       
       <div class="metric-section" *ngIf="topCpuConsumers?.length">
