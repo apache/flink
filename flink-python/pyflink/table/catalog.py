@@ -1559,11 +1559,11 @@ class Column(metaclass=ABCMeta):
             raise TypeError("The input %s is not an instance of Column." % j_column)
 
         if get_java_class(JPhysicalColumn).isAssignableFrom(j_column.getClass()):
-            return PhysicalColumn(j_physical_column=j_column.getClass())
+            return PhysicalColumn(j_physical_column=j_column)
         elif get_java_class(JComputedColumn).isAssignableFrom(j_column.getClass()):
-            return ComputedColumn(j_computed_column=j_column.getClass())
+            return ComputedColumn(j_computed_column=j_column)
         elif get_java_class(JMetadataColumn).isAssignableFrom(j_column.getClass()):
-            return MetadataColumn(j_metadata_column=j_column.getClass())
+            return MetadataColumn(j_metadata_column=j_column)
         else:
             return None
 
