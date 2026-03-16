@@ -91,7 +91,7 @@ public class ToChangelogFunction extends ProcessTableFunction<Row> {
 
         final String opCode = opMap.get(input.getKind());
         if (opCode == null) {
-            // TODO Gustavo Error handling still to be implemented in following ticket
+            // This RowKind not mapped in opMap. This record should be dropped.
             return;
         }
 
