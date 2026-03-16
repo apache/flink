@@ -136,11 +136,7 @@ class TritonConnectionPoolTest {
         long timeout = 10000;
         TritonUtils.ConnectionPoolConfig config =
                 new TritonUtils.ConnectionPoolConfig(
-                        20,
-                        300000,
-                        100,
-                        10000,
-                        false, // reuse disabled
+                        20, 300000, 100, 10000, false, // reuse disabled
                         false);
 
         OkHttpClient client = TritonUtils.createHttpClient(timeout, config);
@@ -156,11 +152,7 @@ class TritonConnectionPoolTest {
         long timeout = 10000;
         TritonUtils.ConnectionPoolConfig config =
                 new TritonUtils.ConnectionPoolConfig(
-                        20,
-                        300000,
-                        100,
-                        10000,
-                        true, // reuse enabled
+                        20, 300000, 100, 10000, true, // reuse enabled
                         false);
 
         OkHttpClient client = TritonUtils.createHttpClient(timeout, config);
@@ -198,9 +190,7 @@ class TritonConnectionPoolTest {
         assertThat(TritonUtils.buildInferenceUrl("http://localhost:8000/v2", "mymodel", "1"))
                 .isEqualTo("http://localhost:8000/v2/models/mymodel/versions/1/infer");
 
-        assertThat(
-                        TritonUtils.buildInferenceUrl(
-                                "http://localhost:8000/v2/models", "mymodel", "1"))
+        assertThat(TritonUtils.buildInferenceUrl("http://localhost:8000/v2/models", "mymodel", "1"))
                 .isEqualTo("http://localhost:8000/v2/models/mymodel/versions/1/infer");
 
         assertThat(TritonUtils.buildInferenceUrl("http://localhost:8000///", "mymodel", "latest"))

@@ -111,11 +111,13 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
         // Connection pool configuration
         this.connectionPoolMaxIdle = config.get(TritonOptions.CONNECTION_POOL_MAX_IDLE);
-        this.connectionPoolKeepAliveMs = config.get(TritonOptions.CONNECTION_POOL_KEEP_ALIVE).toMillis();
+        this.connectionPoolKeepAliveMs =
+                config.get(TritonOptions.CONNECTION_POOL_KEEP_ALIVE).toMillis();
         this.connectionPoolMaxTotal = config.get(TritonOptions.CONNECTION_POOL_MAX_TOTAL);
         this.connectionTimeoutMs = config.get(TritonOptions.CONNECTION_TIMEOUT).toMillis();
         this.connectionReuseEnabled = config.get(TritonOptions.CONNECTION_REUSE_ENABLED);
-        this.connectionPoolMonitoringEnabled = config.get(TritonOptions.CONNECTION_POOL_MONITORING_ENABLED);
+        this.connectionPoolMonitoringEnabled =
+                config.get(TritonOptions.CONNECTION_POOL_MONITORING_ENABLED);
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
@@ -126,14 +128,14 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client with connection pool configuration.");
 
-        TritonUtils.ConnectionPoolConfig poolConfig = new TritonUtils.ConnectionPoolConfig(
-                connectionPoolMaxIdle,
-                connectionPoolKeepAliveMs,
-                connectionPoolMaxTotal,
-                connectionTimeoutMs,
-                connectionReuseEnabled,
-                connectionPoolMonitoringEnabled
-        );
+        TritonUtils.ConnectionPoolConfig poolConfig =
+                new TritonUtils.ConnectionPoolConfig(
+                        connectionPoolMaxIdle,
+                        connectionPoolKeepAliveMs,
+                        connectionPoolMaxTotal,
+                        connectionTimeoutMs,
+                        connectionReuseEnabled,
+                        connectionPoolMonitoringEnabled);
 
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis(), poolConfig);
 
