@@ -9,28 +9,54 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.apache.flink.model.triton;
 
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TritonUtils} connection pool management. */
 class TritonConnectionPoolTest {
 
+    @BeforeEach
+    void setUp() {
+        // Clear cache before each test to ensure test isolation
+        clearClientCache();
+    }
+
     @AfterEach
     void tearDown() {
-        // Clean up any remaining clients
-        // (In production, clients are released via releaseHttpClient)
+        // Clean up any remaining clients after each test
+        clearClientCache();
+    }
+
+    private void clearClientCache() {
+        try {
+            Field cacheField = TritonUtils.class.getDeclaredField("cache");
+            cacheField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<?, ?> cache = (Map<?, ?>) cacheField.get(null);
+            if (cache != null && !cache.isEmpty()) {
+                // Clear all cached clients
+                cache.clear();
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // If reflection fails, ignore - tests should still work
+            // This is just a cleanup mechanism
+        }
     }
 
     @Test
