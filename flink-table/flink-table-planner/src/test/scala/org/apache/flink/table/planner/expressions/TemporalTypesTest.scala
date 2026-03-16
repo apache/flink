@@ -1141,58 +1141,70 @@ class TemporalTypesTest extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     // INT -> TIMESTAMP_LTZ
-    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 08:01:40")
+    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 08:01:40.000")
 
     // TINYINT -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.cast(DataTypes.TINYINT()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100 AS TINYINT), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.000")
 
     // BIGINT -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.cast(DataTypes.BIGINT()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100 AS BIGINT), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.000")
 
     // FLOAT -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.01.cast(DataTypes.FLOAT()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100.01 AS FLOAT), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.010")
 
     // DOUBLE -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.123.cast(DataTypes.DOUBLE()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100.123 AS DOUBLE), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.123")
 
     // DECIMAL -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.cast(DataTypes.DECIMAL(38, 18)), 0),
       "TO_TIMESTAMP_LTZ(100, 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.000")
     testAllApis(
       toTimestampLtz(-100.cast(DataTypes.DECIMAL(38, 18)), 0),
       "TO_TIMESTAMP_LTZ(-100, 0)",
-      "1970-01-01 07:58:20")
+      "1970-01-01 07:58:20.000")
 
     // keep scale
     testAllApis(toTimestampLtz(1234, 3), "TO_TIMESTAMP_LTZ(1234, 3)", "1970-01-01 08:00:01.234")
     // drop scale
     testAllApis(toTimestampLtz(0.01, 3), "TO_TIMESTAMP_LTZ(0.01, 3)", "1970-01-01 08:00:00.000")
+
+    // higher precision: DOUBLE with precision 6
+    testAllApis(
+      toTimestampLtz(1000000.5.cast(DataTypes.DOUBLE()), 6),
+      "TO_TIMESTAMP_LTZ(CAST(1000000.5 AS DOUBLE), 6)",
+      "1970-01-01 08:00:01.000000")
+
+    // higher precision: DECIMAL with precision 9
+    testAllApis(
+      toTimestampLtz(1234567890L.cast(DataTypes.DECIMAL(38, 18)), 9),
+      "TO_TIMESTAMP_LTZ(1234567890, 9)",
+      "1970-01-01 08:00:01.234567890")
   }
 
   @Test
   def testToTimestampLtzUTC(): Unit = {
     tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
-    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40")
+    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40.000")
 
-    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40")
+    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40.000")
 
     testAllApis(toTimestampLtz(1234, 3), "TO_TIMESTAMP_LTZ(1234, 3)", "1970-01-01 00:00:01.234")
 
-    testAllApis(toTimestampLtz(-100, 0), "TO_TIMESTAMP_LTZ(-100, 0)", "1969-12-31 23:58:20")
+    testAllApis(toTimestampLtz(-100, 0), "TO_TIMESTAMP_LTZ(-100, 0)", "1969-12-31 23:58:20.000")
   }
 
   @Test
@@ -1203,21 +1215,21 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       toTimestampLtz(JInt.MIN_VALUE.cast(DataTypes.INT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JInt.MIN_VALUE} AS INTEGER), 0)",
-      "1901-12-13 20:45:52")
+      "1901-12-13 20:45:52.000")
     testAllApis(
       toTimestampLtz(JInt.MAX_VALUE.cast(DataTypes.INT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JInt.MAX_VALUE} AS INTEGER), 0)",
-      "2038-01-19 03:14:07")
+      "2038-01-19 03:14:07.000")
 
     // TINYINT
     testAllApis(
       toTimestampLtz(-128.cast(DataTypes.TINYINT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(-128 AS TINYINT), 0)",
-      "1969-12-31 23:57:52")
+      "1969-12-31 23:57:52.000")
     testAllApis(
       toTimestampLtz(127.cast(DataTypes.TINYINT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(127 AS TINYINT), 0)",
-      "1970-01-01 00:02:07")
+      "1970-01-01 00:02:07.000")
 
     // BIGINT
     testAllApis(
@@ -1285,13 +1297,55 @@ class TemporalTypesTest extends ExpressionTestBase {
       "NULL")
 
     // precision 1 (deciseconds): 12 deciseconds = 1.2 seconds
-    testAllApis(toTimestampLtz(12, 1), "TO_TIMESTAMP_LTZ(12, 1)", "1970-01-01 00:00:01.2")
+    testAllApis(toTimestampLtz(12, 1), "TO_TIMESTAMP_LTZ(12, 1)", "1970-01-01 00:00:01.200")
 
     // precision 9 (nanoseconds): 1,000,000,000 nanoseconds = 1 second
     testAllApis(
       toTimestampLtz(1000000000, 9),
       "TO_TIMESTAMP_LTZ(1000000000, 9)",
       "1970-01-01 00:00:01.000000000")
+
+    // string with format: millisecond precision (SSS) -> TIMESTAMP_LTZ(3)
+    testAllApis(
+      toTimestampLtz("2023-01-01 00:00:00.123", "yyyy-MM-dd HH:mm:ss.SSS"),
+      "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00.123', 'yyyy-MM-dd HH:mm:ss.SSS')",
+      "2023-01-01 00:00:00.123"
+    )
+
+    // string with format: microsecond precision (SSSSSS) -> TIMESTAMP_LTZ(6)
+    testAllApis(
+      toTimestampLtz("2023-01-01 00:00:00.123456", "yyyy-MM-dd HH:mm:ss.SSSSSS"),
+      "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00.123456', 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+      "2023-01-01 00:00:00.123456"
+    )
+
+    // string with format: nanosecond precision (SSSSSSSSS) -> TIMESTAMP_LTZ(9)
+    testAllApis(
+      toTimestampLtz("2023-01-01 00:00:00.123456789", "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"),
+      "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
+      "2023-01-01 00:00:00.123456789"
+    )
+
+    // string with format: no fractional seconds -> TIMESTAMP_LTZ(3)
+    testAllApis(
+      toTimestampLtz("2023-01-01 00:00:00", "yyyy-MM-dd HH:mm:ss"),
+      "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss')",
+      "2023-01-01 00:00:00.000"
+    )
+
+    // fewer fractional digits in input than format pattern
+    testAllApis(
+      toTimestampLtz("2023-01-01 00:00:00.1", "yyyy-MM-dd HH:mm:ss.SSSSSS"),
+      "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00.1', 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+      "2023-01-01 00:00:00.100000"
+    )
+
+    // string with format and timezone
+    testAllApis(
+      toTimestampLtz("2023-01-01 00:00:00.123456", "yyyy-MM-dd HH:mm:ss.SSSSSS", "UTC"),
+      "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00.123456', 'yyyy-MM-dd HH:mm:ss.SSSSSS', 'UTC')",
+      "2023-01-01 00:00:00.123456"
+    )
 
     // invalid type for the first input
     testExpectedSqlException(

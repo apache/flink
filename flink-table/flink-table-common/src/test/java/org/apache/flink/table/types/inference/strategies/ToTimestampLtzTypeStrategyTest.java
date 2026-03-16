@@ -29,6 +29,7 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
+                // Single argument: defaults to TIMESTAMP_LTZ(3)
                 TestSpec.forStrategy(
                                 "Valid single argument of type <VARCHAR> or <CHAR>",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
@@ -45,6 +46,7 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                         .inputTypes(DataTypes.BOOLEAN())
                         .expectErrorMessage(
                                 "Unsupported argument type. When taking 1 argument, TO_TIMESTAMP_LTZ accepts an argument of type <VARCHAR>, <CHAR>, or <NUMERIC>."),
+                // Two arguments without literal: defaults to TIMESTAMP_LTZ(3)
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
@@ -73,6 +75,7 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                         .inputTypes(DataTypes.BOOLEAN(), DataTypes.FLOAT())
                         .expectErrorMessage(
                                 "Unsupported argument type. When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be of type <VARCHAR>, <CHAR>, or <NUMERIC>."),
+                // Three arguments: defaults to TIMESTAMP_LTZ(3)
                 TestSpec.forStrategy(
                                 "Valid three arguments", SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
@@ -94,24 +97,26 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                                 DataTypes.STRING())
                         .expectErrorMessage(
                                 "Unsupported argument type. TO_TIMESTAMP_LTZ requires 1 to 3 arguments, but 4 were provided."),
-                TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision 9",
-                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
-                        .inputTypes(DataTypes.BIGINT(), DataTypes.INT())
-                        .calledWithLiteralAt(1, 9)
-                        .expectDataType(DataTypes.TIMESTAMP_LTZ(9).nullable()),
+                // Precision 0-3: clamped to TIMESTAMP_LTZ(3)
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision 0",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BIGINT(), DataTypes.INT())
                         .calledWithLiteralAt(1, 0)
-                        .expectDataType(DataTypes.TIMESTAMP_LTZ(0).nullable()),
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision 3",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BIGINT(), DataTypes.INT())
                         .calledWithLiteralAt(1, 3)
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
+                // Precision 4-9: follows input precision
+                TestSpec.forStrategy(
+                                "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision 4",
+                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                        .inputTypes(DataTypes.BIGINT(), DataTypes.INT())
+                        .calledWithLiteralAt(1, 4)
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(4).nullable()),
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision 6",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
@@ -119,11 +124,18 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                         .calledWithLiteralAt(1, 6)
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(6).nullable()),
                 TestSpec.forStrategy(
+                                "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision 9",
+                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                        .inputTypes(DataTypes.BIGINT(), DataTypes.INT())
+                        .calledWithLiteralAt(1, 9)
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(9).nullable()),
+                TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<DOUBLE>, <INTEGER>) with precision 9",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.DOUBLE(), DataTypes.INT())
                         .calledWithLiteralAt(1, 9)
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(9).nullable()),
+                // Out of range
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) with precision out of range",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
@@ -131,18 +143,44 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                         .calledWithLiteralAt(1, 10)
                         .expectErrorMessage(
                                 "Precision for TO_TIMESTAMP_LTZ must be between 0 and 9 but was 10."),
+                // Format-based precision inference for string variants
+                TestSpec.forStrategy(
+                                "TO_TIMESTAMP_LTZ(<STRING>, <STRING>) with no S in format returns TIMESTAMP_LTZ(3)",
+                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss")
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
+                TestSpec.forStrategy(
+                                "TO_TIMESTAMP_LTZ(<STRING>, <STRING>) with SSS format returns TIMESTAMP_LTZ(3)",
+                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SSS")
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
+                TestSpec.forStrategy(
+                                "TO_TIMESTAMP_LTZ(<STRING>, <STRING>) with SSSSSS format returns TIMESTAMP_LTZ(6)",
+                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SSSSSS")
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(6).nullable()),
+                TestSpec.forStrategy(
+                                "TO_TIMESTAMP_LTZ(<STRING>, <STRING>) with SSSSSSSSS format returns TIMESTAMP_LTZ(9)",
+                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SSSSSSSSS")
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(9).nullable()),
+                // Nullability
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC NULLABLE>) returns NULLABLE",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BIGINT().nullable())
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
                 TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<NUMERIC NOT NULL>) returns NOT NULL",
+                                "TO_TIMESTAMP_LTZ(<NUMERIC NOT NULL>) returns NULLABLE",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BIGINT().notNull())
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
                 TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<NUMERIC NOT NULL>, <INTEGER NOT NULL>) with precision 9 returns NOT NULL",
+                                "TO_TIMESTAMP_LTZ(<NUMERIC NOT NULL>, <INTEGER NOT NULL>) with precision 9 returns NULLABLE",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BIGINT().notNull(), DataTypes.INT().notNull())
                         .calledWithLiteralAt(1, 9)

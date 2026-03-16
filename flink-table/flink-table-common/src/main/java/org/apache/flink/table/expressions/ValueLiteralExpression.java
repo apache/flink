@@ -29,7 +29,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
-import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.Preconditions;
@@ -285,10 +284,18 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         localDateTime.toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 final Instant instant = getValueAs(Instant.class).get();
-                final int precision =
+                final int ltzPrecision =
                         ((LocalZonedTimestampType) dataType.getLogicalType()).getPrecision();
-                long epochValue = DateTimeUtils.toEpochValue(instant, precision);
-                return String.format("TO_TIMESTAMP_LTZ(%d, %d)", epochValue, precision);
+                final LocalDateTime utcDateTime =
+                        LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+                final String formatPattern =
+                        ltzPrecision > 0
+                                ? "yyyy-MM-dd HH:mm:ss." + "S".repeat(ltzPrecision)
+                                : "yyyy-MM-dd HH:mm:ss";
+                final DateTimeFormatter ltzFormatter = DateTimeFormatter.ofPattern(formatPattern);
+                final String timestampStr = utcDateTime.format(ltzFormatter);
+                return String.format(
+                        "TO_TIMESTAMP_LTZ('%s', '%s', 'UTC')", timestampStr, formatPattern);
             case INTERVAL_YEAR_MONTH:
                 final Period period = getValueAs(Period.class).get().normalized();
                 return String.format(

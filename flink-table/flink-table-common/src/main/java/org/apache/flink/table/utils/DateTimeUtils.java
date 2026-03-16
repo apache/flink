@@ -142,7 +142,7 @@ public class DateTimeUtils {
                     .optionalEnd()
                     .toFormatter();
 
-    private static final Integer DEFAULT_PRECISION = 3;
+    private static final int DEFAULT_PRECISION = 3;
 
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
@@ -337,9 +337,20 @@ public class DateTimeUtils {
         return epochToTimestampData(epoch, precision);
     }
 
-    /** See {@link #toTimestampData(long, int)}. The double value is truncated to a long. */
+    /**
+     * See {@link #toTimestampData(long, int)}. The double value is first converted to nanoseconds
+     * to preserve fractional parts, then processed at nanosecond precision. Returns {@code null} if
+     * the value is out of the valid timestamp range.
+     */
     public static TimestampData toTimestampData(double epoch, int precision) {
-        return epochToTimestampData((long) epoch, precision);
+        double factor = Math.pow(10, precision);
+        double epochSeconds = epoch / factor;
+        if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
+            return null;
+        }
+        double nanoFactor = Math.pow(10, 9 - precision);
+        long epochNanos = (long) (epoch * nanoFactor);
+        return epochToTimestampData(epochNanos, 9);
     }
 
     /** See {@link #toTimestampData(long, int)}. The decimal value is truncated to a long. */
@@ -373,6 +384,21 @@ public class DateTimeUtils {
         return (instant.getEpochSecond() * factor) + (instant.getNano() / nanoDivisor);
     }
 
+    /**
+     * Infers fractional second precision from a format pattern by counting trailing 'S' characters.
+     * Returns at least {@link #DEFAULT_PRECISION} (3) and at most 9.
+     */
+    public static int precisionFromFormat(String format) {
+        int sCount = 0;
+        for (int i = format.length() - 1; i >= 0; i--) {
+            if (format.charAt(i) != 'S') {
+                break;
+            }
+            sCount++;
+        }
+        return Math.max(Math.min(sCount, 9), DEFAULT_PRECISION);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Parsing functions
     // --------------------------------------------------------------------------------------------
@@ -397,7 +423,18 @@ public class DateTimeUtils {
                         .toInstant());
     }
 
+    /**
+     * Parses a timestamp string with the given format, truncating to millisecond precision.
+     * Precision is hardcoded to match signature of TO_TIMESTAMP.
+     *
+     * @see <a href="https://issues.apache.org/jira/browse/FLINK-14925">FLINK-14925</a>
+     */
     public static TimestampData parseTimestampData(String dateStr, String format) {
+        return parseTimestampData(dateStr, format, 3);
+    }
+
+    /** Parses a timestamp string with the given format, truncating to the specified precision. */
+    public static TimestampData parseTimestampData(String dateStr, String format, int precision) {
         DateTimeFormatter formatter;
         try {
             formatter = DATETIME_FORMATTER_CACHE.get(format);
@@ -406,9 +443,7 @@ public class DateTimeUtils {
         }
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
-            // Precision is hardcoded to match signature of TO_TIMESTAMP
-            //  https://issues.apache.org/jira/browse/FLINK-14925
-            LocalDateTime ldt = fromTemporalAccessor(accessor, 3);
+            LocalDateTime ldt = fromTemporalAccessor(accessor, precision);
             return TimestampData.fromLocalDateTime(ldt);
         } catch (DateTimeParseException e) {
             // fall back to support cases like '1999-9-10 05:20:10' or '1999-9-10'
