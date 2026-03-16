@@ -1,0 +1,313 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.planner.plan.nodes.exec.stream;
+
+import org.apache.flink.table.test.program.SinkTestStep;
+import org.apache.flink.table.test.program.SourceTestStep;
+import org.apache.flink.table.test.program.TableTestProgram;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+
+import java.time.Instant;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.map;
+
+/** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
+public class ToChangelogTestPrograms {
+
+    // --------------------------------------------------------------------------------------------
+    // SQL tests
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram INSERT_ONLY_INPUT =
+            TableTestProgram.of("to-changelog-insert-only", "insert-only input produces op=INSERT")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("id INT", "name STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "op STRING", "name STRING")
+                                    .consumedValues("+I[1, INSERT, Alice]", "+I[2, INSERT, Bob]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t PARTITION BY id)")
+                    .build();
+
+    public static final TableTestProgram UPDATING_INPUT =
+            TableTestProgram.of(
+                            "to-changelog-updating-input",
+                            "updating input produces correct op codes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING", "op STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[Alice, INSERT, 10]",
+                                            "+I[Bob, INSERT, 20]",
+                                            "+I[Alice, UPDATE_AFTER, 30]",
+                                            "+I[Bob, DELETE, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram CUSTOM_OP_MAPPING =
+            TableTestProgram.of(
+                            "to-changelog-custom-op-mapping",
+                            "custom op_mapping maps RowKinds to user-defined codes and drops unmapped")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING", "op_code STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[Alice, I, 10]",
+                                            "+I[Bob, I, 20]",
+                                            "+I[Alice, U, 30]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "op => DESCRIPTOR(op_code), "
+                                    + "op_mapping => MAP['INSERT','I', 'UPDATE_AFTER','U'])")
+                    .build();
+
+    public static final TableTestProgram CUSTOM_OP_NAME =
+            TableTestProgram.of(
+                            "to-changelog-custom-op-name", "custom op column name via DESCRIPTOR")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("id INT", "name STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, "Alice"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "operation STRING", "name STRING")
+                                    .consumedValues("+I[1, INSERT, Alice]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY id, "
+                                    + "op => DESCRIPTOR(operation))")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Table API tests
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram TABLE_API_DEFAULT =
+            TableTestProgram.of(
+                            "to-changelog-table-api-default",
+                            "Table API with default op column via fromCall")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("id INT", "name STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "op STRING", "name STRING")
+                                    .consumedValues("+I[1, INSERT, Alice]", "+I[2, INSERT, Bob]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            "TO_CHANGELOG",
+                                            env.from("t").partitionBy($("id")).asArgument("input")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_CUSTOM_OP =
+            TableTestProgram.of(
+                            "to-changelog-table-api-custom-op",
+                            "Table API with custom op name and mapping via fromCall")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING", "code STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[Alice, I, 10]",
+                                            "+I[Bob, I, 20]",
+                                            "+I[Alice, U, 30]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            "TO_CHANGELOG",
+                                            env.from("t")
+                                                    .partitionBy($("name"))
+                                                    .asArgument("input"),
+                                            descriptor("code").asArgument("op"),
+                                            map("INSERT", "I", "UPDATE_AFTER", "U")
+                                                    .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Convenience API tests (PartitionedTable.toChangelog)
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram CONVENIENCE_API_DEFAULT =
+            TableTestProgram.of(
+                            "to-changelog-convenience-default",
+                            "PartitionedTable.toChangelog() convenience method")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("id INT", "name STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "op STRING", "name STRING")
+                                    .consumedValues("+I[1, INSERT, Alice]", "+I[2, INSERT, Bob]")
+                                    .build())
+                    .runTableApi(env -> env.from("t").partitionBy($("id")).toChangelog(), "sink")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Use case: LAG on upsert stream via TO_CHANGELOG
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * LAG/LEAD window functions don't support upsert streams directly. TO_CHANGELOG converts the
+     * upsert stream to append-only, enabling window functions on changelog data.
+     */
+    /**
+     * A retract source produces UPDATE_BEFORE + UPDATE_AFTER pairs and DELETE events. TO_CHANGELOG
+     * converts all of them to append-only rows with explicit op codes, enabling LAG to track status
+     * transitions - something that fails directly on retract streams.
+     */
+    public static final TableTestProgram LAG_ON_UPSERT_VIA_CHANGELOG =
+            TableTestProgram.of(
+                            "to-changelog-lag-on-upsert",
+                            "enables LAG on retract stream including UB and DELETE events")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders")
+                                    .addSchema(
+                                            "order_id INT NOT NULL",
+                                            "status STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "PRIMARY KEY (order_id) NOT ENFORCED",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND")
+                                    .addOption("changelog-mode", "I,UB,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    1,
+                                                    "CREATED",
+                                                    Instant.ofEpochMilli(1000)),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    2,
+                                                    "CREATED",
+                                                    Instant.ofEpochMilli(2000)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_BEFORE,
+                                                    1,
+                                                    "CREATED",
+                                                    Instant.ofEpochMilli(3000)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    1,
+                                                    "SHIPPED",
+                                                    Instant.ofEpochMilli(3000)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_BEFORE,
+                                                    1,
+                                                    "SHIPPED",
+                                                    Instant.ofEpochMilli(4000)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    1,
+                                                    "DELIVERED",
+                                                    Instant.ofEpochMilli(4000)),
+                                            Row.ofKind(
+                                                    RowKind.DELETE,
+                                                    2,
+                                                    "CREATED",
+                                                    Instant.ofEpochMilli(5000)))
+                                    .build())
+                    .setupSql(
+                            "CREATE VIEW orders_changelog AS "
+                                    + "SELECT order_id, op, status, ts FROM TO_CHANGELOG("
+                                    + "  input => TABLE orders PARTITION BY order_id, "
+                                    + "  op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER'])")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "order_id INT",
+                                            "op STRING",
+                                            "cur_status STRING",
+                                            "prev_status STRING")
+                                    .consumedValues(
+                                            "+I[1, INSERT, CREATED, null]",
+                                            "+I[2, INSERT, CREATED, null]",
+                                            "+I[1, UPDATE_AFTER, SHIPPED, CREATED]",
+                                            "+I[1, UPDATE_AFTER, DELIVERED, SHIPPED]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT order_id, op, status, "
+                                    + "  LAG(status) OVER (PARTITION BY order_id ORDER BY ts) AS prev_status "
+                                    + "FROM orders_changelog")
+                    .build();
+}

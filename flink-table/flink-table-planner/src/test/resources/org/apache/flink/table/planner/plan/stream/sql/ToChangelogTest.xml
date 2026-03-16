@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCustomOpMapping">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id, op => DESCRIPTOR(op_code), op_mapping => MAP['INSERT','I', 'DELETE','D', 'UPDATE_AFTER','U'])]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], op_code=[$1], name=[$2], cnt=[$3])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'I', _UTF-16LE'DELETE':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'D', _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'U'), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
+   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
+      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+         +- LogicalProject(id=[$0], name=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'I', _UTF-16LE'DELETE':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'D', _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'U'), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op_code,name,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
++- Exchange(distribution=[hash[id]])
+   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[id, name]])
+         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCustomOpName">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id, op => DESCRIPTOR(op_code))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], op_code=[$1], name=[$2], cnt=[$3])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
+   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
+      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+         +- LogicalProject(id=[$0], name=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op_code,name,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
++- Exchange(distribution=[hash[id]])
+   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[id, name]])
+         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDefaultCall">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], op=[$1], name=[$2], cnt=[$3])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name, BIGINT cnt)])
+   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
+      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+         +- LogicalProject(id=[$0], name=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name, BIGINT cnt)])
++- Exchange(distribution=[hash[id]])
+   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[id, name]])
+         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiplePartitionKeys">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY (id, name))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], op=[$2], cnt=[$3])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0, $1), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, VARCHAR(2147483647) op, BIGINT cnt)])
+   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
+      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+         +- LogicalProject(id=[$0], name=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0, $1), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,name,op,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, VARCHAR(2147483647) op, BIGINT cnt)])
++- Exchange(distribution=[hash[id, name]])
+   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[id, name]])
+         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
