@@ -49,7 +49,9 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import javax.annotation.Nullable;
 
 import java.util.AbstractList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -136,6 +138,8 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         }
         try {
             final SqlNode sqlNode = adaptedArguments.get(pos);
+            // Calcite represents DESCRIPTOR and MAP constructors as SqlCall, not SqlLiteral.
+            // Handle them explicitly by extracting values from the call operands.
             if (sqlNode.getKind() == SqlKind.DESCRIPTOR && clazz == ColumnList.class) {
                 final List<SqlNode> columns = ((SqlCall) sqlNode).getOperandList();
                 if (columns.stream()
@@ -146,6 +150,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     return Optional.empty();
                 }
                 return Optional.of((T) convertColumnList(columns));
+            }
+            if (sqlNode.getKind() == SqlKind.MAP_VALUE_CONSTRUCTOR && clazz == Map.class) {
+                return Optional.of((T) convertMap((SqlCall) sqlNode));
             }
             final SqlLiteral literal = SqlLiteral.unchain(sqlNode);
             return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
@@ -353,5 +360,16 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                         .map(operand -> ((SqlIdentifier) operand).getSimple())
                         .collect(Collectors.toList());
         return ColumnList.of(names);
+    }
+
+    private static Map<String, String> convertMap(SqlCall mapCall) {
+        final List<SqlNode> operands = mapCall.getOperandList();
+        final Map<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < operands.size(); i += 2) {
+            final String key = SqlLiteral.unchain(operands.get(i)).getValueAs(String.class);
+            final String value = SqlLiteral.unchain(operands.get(i + 1)).getValueAs(String.class);
+            map.put(key, value);
+        }
+        return map;
     }
 }
