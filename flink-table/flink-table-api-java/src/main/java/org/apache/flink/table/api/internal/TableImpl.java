@@ -901,6 +901,11 @@ public class TableImpl implements Table {
                             createPartitionQueryOperation(), table.tableEnvironment, arguments));
         }
 
+        @Override
+        public Table toChangelog() {
+            return process("TO_CHANGELOG");
+        }
+
         private QueryOperation createPartitionQueryOperation() {
             return table.operationTreeBuilder.partition(partitionKeys, table.operationTree);
         }
