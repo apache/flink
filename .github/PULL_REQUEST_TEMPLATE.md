@@ -72,3 +72,20 @@ This change added tests and can be verified as follows:
 
   - Does this pull request introduce a new feature? (yes / no)
   - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
+
+---
+
+##### Was generative AI tooling used to co-author this PR?
+
+<!--
+If generative AI tooling has been used in the process of authoring this PR, please
+change the checkbox below to `[X]` followed by the name of the tool, and uncomment the
+"Generated-by" line. See the ASF Generative Tooling Guidance for details:
+https://www.apache.org/legal/generative-tooling.html
+-->
+
+- [ ] Yes (please specify the tool below)
+
+<!--
+Generated-by: [Tool Name and Version]
+-->
