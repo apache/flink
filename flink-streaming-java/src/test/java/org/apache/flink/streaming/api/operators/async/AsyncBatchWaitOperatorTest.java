@@ -502,9 +502,7 @@ class AsyncBatchWaitOperatorTest {
 
     private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarness(
             AsyncBatchFunction<Integer, Integer> function, int maxBatchSize) throws Exception {
-        return new OneInputStreamOperatorTestHarness<>(
-                new AsyncBatchWaitOperatorFactory<>(function, maxBatchSize),
-                IntSerializer.INSTANCE);
+        return createTestHarnessWithTimeout(function, maxBatchSize, 0L);
     }
 
     private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarnessWithTimeout(
