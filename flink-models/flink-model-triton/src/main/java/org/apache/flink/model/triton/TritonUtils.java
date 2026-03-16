@@ -94,8 +94,12 @@ public class TritonUtils {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             ConnectionPoolConfig that = (ConnectionPoolConfig) o;
             return maxIdleConnections == that.maxIdleConnections
                     && keepAliveDurationMs == that.keepAliveDurationMs
@@ -133,7 +137,8 @@ public class TritonUtils {
         synchronized (LOCK) {
             ClientValue value = cache.get(key);
             if (value != null) {
-                LOG.debug("Returning existing Triton HTTP client (reference count: {}).", 
+                LOG.debug(
+                        "Returning existing Triton HTTP client (reference count: {}).",
                         value.referenceCount.get() + 1);
                 value.referenceCount.incrementAndGet();
                 return value.client;
@@ -204,7 +209,7 @@ public class TritonUtils {
                         10_000, // connectionTimeoutMs (10 seconds)
                         true, // reuseEnabled
                         false // monitoringEnabled
-                );
+                        );
         return createHttpClient(timeoutMs, defaultConfig);
     }
 
@@ -288,8 +293,12 @@ public class TritonUtils {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             ClientKey clientKey = (ClientKey) o;
             return timeoutMs == clientKey.timeoutMs
                     && Objects.equals(poolConfig, clientKey.poolConfig);
@@ -323,8 +332,7 @@ public class TritonUtils {
                                 int idleConnections =
                                         client.connectionPool().connectionCount()
                                                 - client.dispatcher().runningCallsCount();
-                                int activeConnections =
-                                        client.dispatcher().runningCallsCount();
+                                int activeConnections = client.dispatcher().runningCallsCount();
                                 int queuedCalls = client.dispatcher().queuedCallsCount();
 
                                 LOG.info(
