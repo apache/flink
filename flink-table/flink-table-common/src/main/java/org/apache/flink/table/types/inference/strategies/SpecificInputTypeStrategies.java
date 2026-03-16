@@ -122,6 +122,10 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy ML_PREDICT_INPUT_TYPE_STRATEGY =
             MLPredictTypeStrategy.ML_PREDICT_INPUT_TYPE_STRATEGY;
 
+    /** Input strategy for {@link BuiltInFunctionDefinitions#TO_CHANGELOG}. */
+    public static final InputTypeStrategy TO_CHANGELOG_INPUT_TYPE_STRATEGY =
+            ToChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
+
     /** See {@link ExtractInputTypeStrategy}. */
     public static final InputTypeStrategy EXTRACT = new ExtractInputTypeStrategy();
 
