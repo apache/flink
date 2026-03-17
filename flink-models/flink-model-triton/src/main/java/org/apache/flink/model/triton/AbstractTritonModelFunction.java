@@ -115,9 +115,11 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.healthCheckEnabled = config.get(TritonOptions.HEALTH_CHECK_ENABLED);
         this.healthCheckInterval = config.get(TritonOptions.HEALTH_CHECK_INTERVAL);
         this.circuitBreakerEnabled = config.get(TritonOptions.CIRCUIT_BREAKER_ENABLED);
-        this.circuitBreakerFailureThreshold = config.get(TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD);
+        this.circuitBreakerFailureThreshold =
+                config.get(TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD);
         this.circuitBreakerTimeout = config.get(TritonOptions.CIRCUIT_BREAKER_TIMEOUT);
-        this.circuitBreakerHalfOpenRequests = config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
+        this.circuitBreakerHalfOpenRequests =
+                config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());

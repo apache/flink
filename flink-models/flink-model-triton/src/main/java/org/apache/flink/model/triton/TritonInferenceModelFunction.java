@@ -195,7 +195,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                     try {
                                         if (!response.isSuccessful()) {
                                             // Record failure for 5xx errors (server issues)
-                                            // Don't record 4xx errors as they are client configuration issues
+                                            // Don't record 4xx errors as they are client
+                                            // configuration issues
                                             if (response.code() >= 500) {
                                                 recordFailure();
                                             }
@@ -213,7 +214,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         future.complete(result);
                                     } catch (JsonProcessingException e) {
                                         LOG.error("Failed to parse Triton inference response", e);
-                                        // Don't record as circuit breaker failure - this is a client parsing issue
+                                        // Don't record as circuit breaker failure - this is a
+                                        // client parsing issue
                                         future.completeExceptionally(
                                                 new TritonClientException(
                                                         "Failed to parse Triton response JSON: "
@@ -222,7 +224,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                         400));
                                     } catch (Exception e) {
                                         LOG.error("Failed to process Triton inference response", e);
-                                        // Don't record as circuit breaker failure - processing error
+                                        // Don't record as circuit breaker failure - processing
+                                        // error
                                         future.completeExceptionally(e);
                                     } finally {
                                         response.close();

@@ -95,16 +95,16 @@ public class TritonHealthChecker implements AutoCloseable {
         this.httpClient = httpClient;
         this.circuitBreaker = circuitBreaker;
         this.checkInterval = checkInterval;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread thread = new Thread(r, "triton-health-checker-" + endpoint);
-            thread.setDaemon(true);
-            return thread;
-        });
+        this.scheduler =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread thread = new Thread(r, "triton-health-checker-" + endpoint);
+                            thread.setDaemon(true);
+                            return thread;
+                        });
 
         LOG.info(
-                "Health checker created for endpoint {} with interval {}",
-                endpoint,
-                checkInterval);
+                "Health checker created for endpoint {} with interval {}", endpoint, checkInterval);
     }
 
     /**
@@ -186,8 +186,8 @@ public class TritonHealthChecker implements AutoCloseable {
     /**
      * Checks the Triton server health by calling its health endpoints.
      *
-     * <p>This method first tries the /v2/health/live endpoint, then falls back to
-     * /v2/health/ready if needed.
+     * <p>This method first tries the /v2/health/live endpoint, then falls back to /v2/health/ready
+     * if needed.
      *
      * @return true if server is healthy, false otherwise
      */
@@ -211,10 +211,7 @@ public class TritonHealthChecker implements AutoCloseable {
     private boolean checkEndpoint(String path) {
         String healthUrl = buildHealthUrl(path);
 
-        Request request = new Request.Builder()
-                .url(healthUrl)
-                .get()
-                .build();
+        Request request = new Request.Builder().url(healthUrl).get().build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             boolean isHealthy = response.isSuccessful();
