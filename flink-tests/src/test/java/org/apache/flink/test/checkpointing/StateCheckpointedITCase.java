@@ -69,7 +69,7 @@ class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
      */
     @Override
     public void testProgram(StreamExecutionEnvironment env) {
-        assertThat(NUM_STRINGS % 40).as("Broken test setup").isEqualTo(0);
+        assertThat(NUM_STRINGS % 40).as("Broken test setup").isZero();
 
         final long failurePosMin = (long) (0.4 * NUM_STRINGS / PARALLELISM);
         final long failurePosMax = (long) (0.7 * NUM_STRINGS / PARALLELISM);

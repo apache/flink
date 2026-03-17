@@ -93,9 +93,7 @@ class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase 
         // Checking the result of the built-in aggregate
         for (int i = 0; i < PARALLELISM; i++) {
             for (Long value : MinEvictingQueueSink.queues[i]) {
-                assertThat(value)
-                        .as("Value different from 1 found, was " + value + ".")
-                        .isEqualTo(1);
+                assertThat(value).as("Value different from 1 found, was " + value + ".").isOne();
             }
         }
 

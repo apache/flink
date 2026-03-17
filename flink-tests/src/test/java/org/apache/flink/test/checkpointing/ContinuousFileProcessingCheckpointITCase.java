@@ -135,7 +135,7 @@ class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestB
         fc.join();
 
         Map<Integer, Set<String>> collected = actualCollectedContent;
-        assertThat(fc.getFileContent()).hasSize(collected.size());
+        assertThat(fc.getFileContent()).hasSameSizeAs(collected);
 
         for (Integer fileIdx : fc.getFileContent().keySet()) {
             assertThat(collected).containsKey(fileIdx);
@@ -154,7 +154,7 @@ class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestB
             for (String line : cntnt) {
                 cntntStr.append(line);
             }
-            assertThat(cntntStr.toString()).isEqualTo(fc.getFileContent().get(fileIdx));
+            assertThat(cntntStr).hasToString(fc.getFileContent().get(fileIdx));
         }
 
         collected.clear();
@@ -192,8 +192,7 @@ class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestB
         @Override
         public void open(OpenContext openContext) throws Exception {
             // this sink can only work with DOP 1
-            assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())
-                    .isEqualTo(1);
+            assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()).isOne();
 
             long failurePosMin = (long) (0.4 * LINES_PER_FILE);
             long failurePosMax = (long) (0.7 * LINES_PER_FILE);
