@@ -22,6 +22,7 @@ The following commands are available:
 HELP               		Prints the available commands.
 QUIT/EXIT          		Quits the SQL CLI client.
 CLEAR              		Clears the current terminal.
+HISTORY            		Shows the SQL execution history.
 SET                		Sets a session configuration property. Syntax: "SET '<key>'='<value>';". Use "SET;" for listing all properties.
 RESET              		Resets a session configuration property. Syntax: "RESET '<key>';". Use "RESET;" for reset all session properties.
 INSERT INTO        		Inserts the results of a SQL SELECT query into a declared table sink.
