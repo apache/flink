@@ -18,11 +18,18 @@
 
 package org.apache.flink.table.expressions;
 
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
-
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -42,13 +49,6 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link org.apache.flink.table.expressions.Expression} and its sub-classes. */
 class ExpressionTest {
@@ -276,6 +276,33 @@ class ExpressionTest {
                                 .getValueAs(Period.class)
                                 .orElseThrow(AssertionError::new))
                 .isEqualTo(expected);
+    }
+
+    @Test
+    void testTimestampLtzPrecision0AsSerializableString() {
+        final Instant instant = Instant.ofEpochSecond(1234);
+        assertThat(
+                        new ValueLiteralExpression(instant, DataTypes.TIMESTAMP_LTZ(0).notNull())
+                                .asSerializableString(DefaultSqlFactory.INSTANCE))
+                .isEqualTo("TIMESTAMP WITH LOCAL TIME ZONE '1970-01-01 00:20:34'");
+    }
+
+    @Test
+    void testTimestampLtzPrecision3AsSerializableString() {
+        final Instant instant = Instant.ofEpochMilli(1234567);
+        assertThat(
+                        new ValueLiteralExpression(instant, DataTypes.TIMESTAMP_LTZ(3).notNull())
+                                .asSerializableString(DefaultSqlFactory.INSTANCE))
+                .isEqualTo("TIMESTAMP WITH LOCAL TIME ZONE '1970-01-01 00:20:34.567'");
+    }
+
+    @Test
+    void testTimestampLtzPrecision9AsSerializableString() {
+        final Instant instant = Instant.ofEpochSecond(1, 123456789);
+        assertThat(
+                        new ValueLiteralExpression(instant, DataTypes.TIMESTAMP_LTZ(9).notNull())
+                                .asSerializableString(DefaultSqlFactory.INSTANCE))
+                .isEqualTo("TIMESTAMP WITH LOCAL TIME ZONE '1970-01-01 00:00:01.123456789'");
     }
 
     // --------------------------------------------------------------------------------------------

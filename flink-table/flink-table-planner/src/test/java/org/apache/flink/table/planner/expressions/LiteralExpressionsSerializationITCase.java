@@ -63,6 +63,7 @@ public class LiteralExpressionsSerializationITCase {
         final LocalDateTime localDateTimeWithoutSeconds =
                 LocalDateTime.of(localDate, localTimeWithoutSeconds);
         final Instant instant = Instant.ofEpochMilli(1234567);
+        final Instant nanoInstant = Instant.ofEpochSecond(1, 123456789);
         final Duration duration = Duration.ofDays(99).plusSeconds(34).plusMillis(999);
         final Period period = Period.ofMonths(470);
         final Table t =
@@ -86,6 +87,7 @@ public class LiteralExpressionsSerializationITCase {
                                 lit(localDateTime, DataTypes.TIMESTAMP(3).notNull()),
                                 lit(localDateTimeWithoutSeconds, DataTypes.TIMESTAMP(3).notNull()),
                                 lit(instant, DataTypes.TIMESTAMP_LTZ(3).notNull()),
+                                lit(nanoInstant, DataTypes.TIMESTAMP_LTZ(9).notNull()),
                                 lit(
                                         duration,
                                         DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(9))
@@ -122,7 +124,8 @@ public class LiteralExpressionsSerializationITCase {
                                 + "TIME '12:12:00',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:12.333',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:00',\n"
-                                + "TO_TIMESTAMP_LTZ(1234567, 3),\n"
+                                + "TIMESTAMP WITH LOCAL TIME ZONE '1970-01-01 00:20:34.567',\n"
+                                + "TIMESTAMP WITH LOCAL TIME ZONE '1970-01-01 00:00:01.123456789',\n"
                                 + "INTERVAL '99 00:00:34.999' DAY TO SECOND(3),\n"
                                 + "INTERVAL '39-2' YEAR TO MONTH");
 
@@ -149,6 +152,7 @@ public class LiteralExpressionsSerializationITCase {
                                 localDateTime,
                                 localDateTimeWithoutSeconds,
                                 instant,
+                                nanoInstant,
                                 duration,
                                 period));
     }
