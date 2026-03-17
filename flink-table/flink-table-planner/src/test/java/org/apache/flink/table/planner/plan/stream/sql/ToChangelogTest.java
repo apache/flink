@@ -95,7 +95,9 @@ public class ToChangelogTest extends TableTestBase {
                                         "SELECT * FROM TO_CHANGELOG("
                                                 + "input => TABLE t_updating PARTITION BY id, "
                                                 + "op => DESCRIPTOR(a, b))"))
-                .satisfies(anyCauseMatches("OP descriptor must contain exactly one column name"));
+                .satisfies(
+                        anyCauseMatches(
+                                "The descriptor for argument 'op' must contain exactly one column name."));
     }
 
     @Test
@@ -106,6 +108,8 @@ public class ToChangelogTest extends TableTestBase {
                                         "SELECT * FROM TO_CHANGELOG("
                                                 + "input => TABLE t_updating PARTITION BY id, "
                                                 + "op_mapping => MAP['INVALID_KIND', 'X'])"))
-                .satisfies(anyCauseMatches("Invalid RowKind name 'INVALID_KIND' in op_mapping."));
+                .satisfies(
+                        anyCauseMatches(
+                                "Invalid target mapping for argument 'op_mapping'."));
     }
 }

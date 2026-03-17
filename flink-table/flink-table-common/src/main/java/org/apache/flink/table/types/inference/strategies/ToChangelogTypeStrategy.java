@@ -125,9 +125,7 @@ public final class ToChangelogTypeStrategy {
         if (opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1) {
             return callContext.fail(
                     throwOnFailure,
-                    "OP descriptor must contain exactly one column name "
-                            + "to define the output operation column name, but got: "
-                            + opDescriptor.get().getNames());
+                    "The descriptor for argument 'op' must contain exactly one column name.");
         }
 
         final Optional<Map> opMapping = callContext.getArgumentValue(2, Map.class);
@@ -135,10 +133,7 @@ public final class ToChangelogTypeStrategy {
             for (final Object key : opMapping.get().keySet()) {
                 if (!(key instanceof String) || !VALID_ROW_KIND_NAMES.contains(key)) {
                     return callContext.fail(
-                            throwOnFailure,
-                            "Invalid RowKind name '%s' in op_mapping. Valid names are: %s.",
-                            key,
-                            VALID_ROW_KIND_NAMES);
+                            throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
                 }
             }
         }

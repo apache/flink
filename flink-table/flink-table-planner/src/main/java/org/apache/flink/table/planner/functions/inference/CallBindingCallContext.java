@@ -116,9 +116,10 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     @Override
     public boolean isArgumentLiteral(int pos) {
         final SqlNode sqlNode = adaptedArguments.get(pos);
-        // Semantically a descriptor can be considered a literal,
-        // however, Calcite represents them as a call
-        return SqlUtil.isLiteral(sqlNode, false) || sqlNode.getKind() == SqlKind.DESCRIPTOR;
+        // Calcite represents DESCRIPTOR and MAP constructors as calls, not literals
+        return SqlUtil.isLiteral(sqlNode, false)
+                || sqlNode.getKind() == SqlKind.DESCRIPTOR
+                || isLiteralMap(sqlNode);
     }
 
     @Override
@@ -152,7 +153,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                 return Optional.of((T) convertColumnList(columns));
             }
             if (sqlNode.getKind() == SqlKind.MAP_VALUE_CONSTRUCTOR && clazz == Map.class) {
-                return Optional.of((T) convertMap((SqlCall) sqlNode));
+                return Optional.ofNullable((T) convertMap((SqlCall) sqlNode));
             }
             final SqlLiteral literal = SqlLiteral.unchain(sqlNode);
             return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
@@ -362,14 +363,29 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         return ColumnList.of(names);
     }
 
-    private static Map<String, String> convertMap(SqlCall mapCall) {
+    private static @Nullable Map<String, String> convertMap(SqlCall mapCall) {
         final List<SqlNode> operands = mapCall.getOperandList();
         final Map<String, String> map = new LinkedHashMap<>();
-        for (int i = 0; i < operands.size(); i += 2) {
-            final String key = SqlLiteral.unchain(operands.get(i)).getValueAs(String.class);
-            final String value = SqlLiteral.unchain(operands.get(i + 1)).getValueAs(String.class);
-            map.put(key, value);
+        try {
+            for (int i = 0; i < operands.size(); i += 2) {
+                final String key = SqlLiteral.unchain(operands.get(i)).getValueAs(String.class);
+                final String value =
+                        SqlLiteral.unchain(operands.get(i + 1)).getValueAs(String.class);
+                map.put(key, value);
+            }
+        } catch (Exception e) {
+            // Not all children are literals
+            return null;
         }
         return map;
+    }
+
+    /** A MAP constructor is literal if all its key-value children are literals. */
+    private static boolean isLiteralMap(SqlNode sqlNode) {
+        if (sqlNode.getKind() != SqlKind.MAP_VALUE_CONSTRUCTOR) {
+            return false;
+        }
+        return ((SqlCall) sqlNode)
+                .getOperandList().stream().allMatch(child -> SqlUtil.isLiteral(child, false));
     }
 }

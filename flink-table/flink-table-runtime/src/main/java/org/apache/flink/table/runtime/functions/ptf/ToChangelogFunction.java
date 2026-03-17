@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.ptf;
+package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
-import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
@@ -46,7 +46,7 @@ import java.util.stream.IntStream;
  * partition key columns automatically.
  */
 @Internal
-public class ToChangelogFunction extends ProcessTableFunction<Row> {
+public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -58,11 +58,11 @@ public class ToChangelogFunction extends ProcessTableFunction<Row> {
                     RowKind.DELETE, "DELETE");
 
     private final Map<RowKind, String> opMap;
-    private final Set<Integer> partitionKeySet;
-    private final int partitionKeyCount;
+    private final RowData.FieldGetter[] fieldGetters;
 
     @SuppressWarnings("unchecked")
     public ToChangelogFunction(final SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.TO_CHANGELOG, context);
         final CallContext callContext = context.getCallContext();
 
         final TableSemantics semantics =
@@ -70,44 +70,28 @@ public class ToChangelogFunction extends ProcessTableFunction<Row> {
                         .getTableSemantics(0)
                         .orElseThrow(() -> new IllegalStateException("Table argument expected."));
         final int[] partitionKeys = semantics.partitionByColumns();
-        this.partitionKeySet = IntStream.of(partitionKeys).boxed().collect(Collectors.toSet());
-        this.partitionKeyCount = partitionKeys.length;
+        final Set<Integer> partitionKeySet =
+                IntStream.of(partitionKeys).boxed().collect(Collectors.toSet());
+
+        final RowType inputType = (RowType) semantics.dataType().getLogicalType();
+        this.fieldGetters = buildFieldGetters(inputType, partitionKeySet);
 
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.opMap = buildOpMap(opMapping);
     }
 
-    @Override
-    public TypeInference getTypeInference(final DataTypeFactory typeFactory) {
-        return BuiltInFunctionDefinitions.TO_CHANGELOG.getTypeInference(typeFactory);
-    }
-
-    public void eval(
-            final Context ctx,
-            final Row input,
-            @Nullable final ColumnList op,
-            @Nullable final Map<String, String> opMapping) {
-
-        final String opCode = opMap.get(input.getKind());
-        if (opCode == null) {
-            // This RowKind not mapped in opMap. This record should be dropped.
-            return;
-        }
-
-        collect(buildOutputRow(input, opCode));
-    }
-
-    private Row buildOutputRow(final Row input, final String opCode) {
-        final Object[] fields = new Object[input.getArity() - partitionKeyCount + 1];
-        fields[0] = opCode;
-        int outputIdx = 1;
-        for (int i = 0; i < input.getArity(); i++) {
+    private static RowData.FieldGetter[] buildFieldGetters(
+            final RowType inputType, final Set<Integer> partitionKeySet) {
+        final int outputFieldCount = inputType.getFieldCount() - partitionKeySet.size();
+        final RowData.FieldGetter[] getters = new RowData.FieldGetter[outputFieldCount];
+        int outputIdx = 0;
+        for (int i = 0; i < inputType.getFieldCount(); i++) {
             if (!partitionKeySet.contains(i)) {
-                fields[outputIdx++] = input.getField(i);
+                getters[outputIdx++] = RowData.createFieldGetter(inputType.getTypeAt(i), i);
             }
         }
-        return Row.ofKind(RowKind.INSERT, fields);
+        return getters;
     }
 
     private static Map<RowKind, String> buildOpMap(@Nullable final Map<String, String> opMapping) {
@@ -117,5 +101,25 @@ public class ToChangelogFunction extends ProcessTableFunction<Row> {
         final Map<RowKind, String> map = new EnumMap<>(RowKind.class);
         opMapping.forEach((name, code) -> map.put(RowKind.valueOf(name), code));
         return map;
+    }
+
+    public void eval(
+            final Context ctx,
+            final RowData input,
+            @Nullable final ColumnList op,
+            @Nullable final Map<String, String> opMapping) {
+
+        final String opCode = opMap.get(input.getRowKind());
+        if (opCode == null) {
+            // RowKind not in op_mapping - intentionally dropped
+            return;
+        }
+
+        final GenericRowData output = new GenericRowData(fieldGetters.length + 1);
+        output.setField(0, StringData.fromString(opCode));
+        for (int i = 0; i < fieldGetters.length; i++) {
+            output.setField(i + 1, fieldGetters[i].getFieldOrNull(input));
+        }
+        collect(output);
     }
 }

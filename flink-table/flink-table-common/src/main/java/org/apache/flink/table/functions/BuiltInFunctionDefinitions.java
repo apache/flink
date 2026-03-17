@@ -27,6 +27,7 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -764,7 +765,7 @@ public final class BuiltInFunctionDefinitions {
                     .staticArguments(
                             StaticArgument.table(
                                     "input",
-                                    Row.class,
+                                    RowData.class,
                                     false,
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,
@@ -778,7 +779,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
-                            "org.apache.flink.table.planner.functions.ptf.ToChangelogFunction")
+                            "org.apache.flink.table.runtime.functions.ptf.ToChangelogFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition GREATEST =
