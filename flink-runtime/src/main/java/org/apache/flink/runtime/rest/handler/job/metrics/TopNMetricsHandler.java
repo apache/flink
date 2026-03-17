@@ -19,16 +19,19 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.legacy.messages.TopNMetricsResponseBody;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.job.metrics.TopNMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.TopNMetricsMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.metrics.TopNMetricsResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
@@ -40,6 +43,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
@@ -56,10 +60,8 @@ public class TopNMetricsHandler
 
     private static final int DEFAULT_TOP_N = 5;
 
-    private static final String CPU_METRIC = "taskmanager.cpu.time";
-    private static final String BACKPRESSURE_METRIC = "tasks.backpressure.ratio";
-    private static final String GC_TIME_METRIC = "tasks.GC.time";
-    private static final String GC_COUNT_METRIC = "tasks.GC.count";
+    private static final String CPU_METRIC = "Status.JVM.CPU.Load";
+    private static final String GC_TIME_METRIC = "Status.JVM.GarbageCollector.All.Time";
 
     private final Executor executor;
     private final MetricFetcher fetcher;
@@ -70,19 +72,14 @@ public class TopNMetricsHandler
             Map<String, String> responseHeaders,
             Executor executor,
             MetricFetcher fetcher) {
-        super(
-                leaderRetriever,
-                timeout,
-                responseHeaders,
-                TopNMetricsHeaders.getInstance());
+        super(leaderRetriever, timeout, responseHeaders, TopNMetricsHeaders.getInstance());
         this.executor = executor;
         this.fetcher = fetcher;
     }
 
     @Override
     protected CompletableFuture<TopNMetricsResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         return CompletableFuture.supplyAsync(
                 () -> {
@@ -91,168 +88,88 @@ public class TopNMetricsHandler
                         MetricStore store = fetcher.getMetricStore();
 
                         JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-                        MetricStore.JobMetricStoreSnapshot jobMetrics = store.getJobs();
 
-                        // Get job's metric store
-                        MetricStore.JobMetricStore jobMetricStore =
-                                (MetricStore.JobMetricStore)
-                                        jobMetrics.get(jobId.toHexString());
-
-                        if (jobMetricStore == null) {
-                            return createEmptyResponse();
-                        }
-
-                        // Collect Top N metrics
+                        // Get Top N CPU consumers from TaskManagers
                         List<TopNMetricsResponseBody.CpuConsumerInfo> topCpuConsumers =
-                                getTopCpuConsumers(jobMetricStore);
+                                getTopCpuConsumers(store, jobId);
 
-                        List<TopNMetricsResponseBody.BackpressureOperatorInfo>
-                                topBackpressureOperators = getTopBackpressureOperators(jobMetricStore);
-
+                        // Get Top N GC-intensive TaskManagers
                         List<TopNMetricsResponseBody.GcTaskInfo> topGcIntensiveTasks =
-                                getTopGcIntensiveTasks(jobMetricStore);
+                                getTopGcIntensiveTasks(store, jobId);
 
                         return new TopNMetricsResponseBody(
-                                topCpuConsumers, topBackpressureOperators, topGcIntensiveTasks);
+                                topCpuConsumers, Collections.emptyList(), topGcIntensiveTasks);
 
                     } catch (Exception e) {
                         log.warn("Could not retrieve Top N metrics.", e);
-                        throw new RestHandlerException(
-                                "Could not retrieve Top N metrics.",
-                                HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                        throw new CompletionException(
+                                new RestHandlerException(
+                                        "Could not retrieve Top N metrics.",
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR));
                     }
                 },
                 executor);
     }
 
-    private TopNMetricsResponseBody createEmptyResponse() {
-        return new TopNMetricsResponseBody(
-                Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-    }
-
     private List<TopNMetricsResponseBody.CpuConsumerInfo> getTopCpuConsumers(
-            MetricStore.JobMetricStore jobMetricStore) {
+            MetricStore store, JobID jobId) {
         List<TopNMetricsResponseBody.CpuConsumerInfo> cpuConsumers = new ArrayList<>();
 
-        // Iterate through all vertices and subtasks
-        for (Map.Entry<String, MetricStore.TaskMetricStore> vertexEntry :
-                jobMetricStore.tasks.entrySet()) {
-            String taskName = vertexEntry.getKey();
-            MetricStore.TaskMetricStore taskMetricStore = vertexEntry.getValue();
+        Map<String, MetricStore.TaskManagerMetricStore> taskManagers = store.getTaskManagers();
+        int index = 0;
+        for (Map.Entry<String, MetricStore.TaskManagerMetricStore> entry :
+                taskManagers.entrySet()) {
+            String tmId = entry.getKey();
+            MetricStore.TaskManagerMetricStore tmStore = entry.getValue();
 
-            for (Map.Entry<String, MetricStore.ComponentMetricStore> subtaskEntry :
-                    taskMetricStore.subtasks.entrySet()) {
-                String subtaskId = subtaskEntry.getKey();
-                MetricStore.ComponentMetricStore subtaskMetrics = subtaskEntry.getValue();
-
-                String cpuValue = subtaskMetrics.metrics.get(CPU_METRIC);
-                if (cpuValue != null) {
-                    try {
-                        double cpuTime = Double.parseDouble(cpuValue);
-                        cpuConsumers.add(
-                                new TopNMetricsResponseBody.CpuConsumerInfo(
-                                        Integer.parseInt(subtaskId),
-                                        taskName,
-                                        taskName, // Using taskName as operatorName for simplicity
-                                        cpuTime,
-                                        "unknown")); // TaskManager ID not directly available
-                    } catch (NumberFormatException e) {
-                        // Skip invalid values
-                    }
+            String cpuValue = tmStore.metrics.get(CPU_METRIC);
+            if (cpuValue != null) {
+                try {
+                    double cpuLoad = Double.parseDouble(cpuValue);
+                    cpuConsumers.add(
+                            new TopNMetricsResponseBody.CpuConsumerInfo(
+                                    index++, tmId, tmId, cpuLoad * 100.0, tmId));
+                } catch (NumberFormatException e) {
+                    // Skip invalid values
                 }
             }
         }
 
-        // Sort by CPU usage and take top N
         return cpuConsumers.stream()
                 .sorted(
                         Comparator.comparing(
-                                TopNMetricsResponseBody.CpuConsumerInfo::getCpuPercentage)
-                                .reversed())
-                .limit(DEFAULT_TOP_N)
-                .collect(Collectors.toList());
-    }
-
-    private List<TopNMetricsResponseBody.BackpressureOperatorInfo> getTopBackpressureOperators(
-            MetricStore.JobMetricStore jobMetricStore) {
-        List<TopNMetricsResponseBody.BackpressureOperatorInfo> backpressureOperators =
-                new ArrayList<>();
-
-        // Iterate through all vertices and subtasks
-        for (Map.Entry<String, MetricStore.TaskMetricStore> vertexEntry :
-                jobMetricStore.tasks.entrySet()) {
-            String operatorName = vertexEntry.getKey();
-            MetricStore.TaskMetricStore taskMetricStore = vertexEntry.getValue();
-
-            for (Map.Entry<String, MetricStore.ComponentMetricStore> subtaskEntry :
-                    taskMetricStore.subtasks.entrySet()) {
-                String subtaskId = subtaskEntry.getKey();
-                MetricStore.ComponentMetricStore subtaskMetrics = subtaskEntry.getValue();
-
-                String backpressureValue = subtaskMetrics.metrics.get(BACKPRESSURE_METRIC);
-                if (backpressureValue != null) {
-                    try {
-                        double backpressureRatio = Double.parseDouble(backpressureValue);
-                        backpressureOperators.add(
-                                new TopNMetricsResponseBody.BackpressureOperatorInfo(
-                                        operatorName,
-                                        operatorName,
-                                        backpressureRatio,
-                                        Integer.parseInt(subtaskId)));
-                    } catch (NumberFormatException e) {
-                        // Skip invalid values
-                    }
-                }
-            }
-        }
-
-        // Sort by backpressure ratio and take top N
-        return backpressureOperators.stream()
-                .sorted(
-                        Comparator.comparing(
-                                TopNMetricsResponseBody.BackpressureOperatorInfo::
-                                        getBackpressureRatio)
+                                        TopNMetricsResponseBody.CpuConsumerInfo::getCpuPercentage)
                                 .reversed())
                 .limit(DEFAULT_TOP_N)
                 .collect(Collectors.toList());
     }
 
     private List<TopNMetricsResponseBody.GcTaskInfo> getTopGcIntensiveTasks(
-            MetricStore.JobMetricStore jobMetricStore) {
+            MetricStore store, JobID jobId) {
         List<TopNMetricsResponseBody.GcTaskInfo> gcIntensiveTasks = new ArrayList<>();
 
-        // Iterate through all vertices and subtasks
-        for (Map.Entry<String, MetricStore.TaskMetricStore> vertexEntry :
-                jobMetricStore.tasks.entrySet()) {
-            String taskName = vertexEntry.getKey();
-            MetricStore.TaskMetricStore taskMetricStore = vertexEntry.getValue();
+        Map<String, MetricStore.TaskManagerMetricStore> taskManagers = store.getTaskManagers();
+        for (Map.Entry<String, MetricStore.TaskManagerMetricStore> entry :
+                taskManagers.entrySet()) {
+            String tmId = entry.getKey();
+            MetricStore.TaskManagerMetricStore tmStore = entry.getValue();
 
-            for (Map.Entry<String, MetricStore.ComponentMetricStore> subtaskEntry :
-                    taskMetricStore.subtasks.entrySet()) {
-                String subtaskId = subtaskEntry.getKey();
-                MetricStore.ComponentMetricStore subtaskMetrics = subtaskEntry.getValue();
-
-                String gcTimeValue = subtaskMetrics.metrics.get(GC_TIME_METRIC);
-                if (gcTimeValue != null) {
-                    try {
-                        double gcTime = Double.parseDouble(gcTimeValue);
-                        gcIntensiveTasks.add(
-                                new TopNMetricsResponseBody.GcTaskInfo(
-                                        subtaskId,
-                                        taskName,
-                                        gcTime,
-                                        "unknown")); // TaskManager ID not directly available
-                    } catch (NumberFormatException e) {
-                        // Skip invalid values
-                    }
+            String gcTimeValue = tmStore.metrics.get(GC_TIME_METRIC);
+            if (gcTimeValue != null) {
+                try {
+                    double gcTime = Double.parseDouble(gcTimeValue);
+                    gcIntensiveTasks.add(
+                            new TopNMetricsResponseBody.GcTaskInfo(tmId, tmId, gcTime, tmId));
+                } catch (NumberFormatException e) {
+                    // Skip invalid values
                 }
             }
         }
 
-        // Sort by GC time and take top N
         return gcIntensiveTasks.stream()
                 .sorted(
-                        Comparator.comparing(TopNMetricsResponseBody.GcTaskInfo::getGcTimePercentage)
+                        Comparator.comparing(
+                                        TopNMetricsResponseBody.GcTaskInfo::getGcTimePercentage)
                                 .reversed())
                 .limit(DEFAULT_TOP_N)
                 .collect(Collectors.toList());

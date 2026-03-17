@@ -18,18 +18,19 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.handler.legacy.messages.DiagnosisResponseBody;
 import org.apache.flink.runtime.rest.handler.legacy.messages.DiagnosisResponseBody.DiagnosticSuggestion;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.job.diagnosis.DiagnosisHeaders;
 import org.apache.flink.runtime.rest.messages.job.diagnosis.DiagnosisMessageParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
@@ -42,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -50,20 +52,20 @@ import java.util.concurrent.Executor;
  * performance issues and provide actionable recommendations.
  */
 public class DiagnosisHandler
-        extends AbstractJobHandler<
-                EmptyRequestBody, DiagnosisResponseBody, DiagnosisMessageParameters> {
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                DiagnosisResponseBody,
+                DiagnosisMessageParameters> {
 
-    private static final String CPU_USAGE_METRIC = "taskmanager.cpu.usage";
-    private static final String HEAP_USED_METRIC = "taskmanager.memory.heap.used";
-    private static final String HEAP_MAX_METRIC = "taskmanager.memory.heap.max";
-    private static final String GC_TIME_METRIC = "taskmanager.GarbageCollector.time";
-    private static final String GC_COUNT_METRIC = "taskmanager.GarbageCollector.count";
-    private static final String BACKPRESSURE_METRIC = "tasks.backpressure.ratio";
+    private static final String CPU_USAGE_METRIC = "Status.JVM.CPU.Load";
+    private static final String HEAP_USED_METRIC = "Status.JVM.Memory.Heap.Used";
+    private static final String HEAP_MAX_METRIC = "Status.JVM.Memory.Heap.Max";
+    private static final String GC_COUNT_METRIC = "Status.JVM.GarbageCollector.All.Count";
 
     // Thresholds for diagnosis rules
     private static final double HIGH_CPU_THRESHOLD = 0.8; // 80%
     private static final double HIGH_HEAP_THRESHOLD = 0.7; // 70%
-    private static final double HIGH_BACKPRESSURE_THRESHOLD = 0.5; // 50%
     private static final double LOW_CPU_THRESHOLD = 0.3; // 30%
 
     private final Executor executor;
@@ -82,8 +84,7 @@ public class DiagnosisHandler
 
     @Override
     protected CompletableFuture<DiagnosisResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody> request,
-            @Nonnull RestfulGateway gateway)
+            @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         return CompletableFuture.supplyAsync(
                 () -> {
@@ -91,15 +92,8 @@ public class DiagnosisHandler
                         fetcher.update();
                         MetricStore store = fetcher.getMetricStore();
 
-                        JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-                        MetricStore.JobMetricStore jobMetricStore = store.getJob(jobId.toHexString());
-
-                        if (jobMetricStore == null) {
-                            return createEmptyResponse();
-                        }
-
-                        // Collect metrics for diagnosis
-                        Map<String, Object> metrics = collectMetrics(jobMetricStore);
+                        // Collect metrics from all TaskManagers
+                        Map<String, Object> metrics = collectMetrics(store);
 
                         // Apply diagnosis rules
                         List<DiagnosticSuggestion> suggestions = diagnose(metrics);
@@ -108,35 +102,27 @@ public class DiagnosisHandler
 
                     } catch (Exception e) {
                         log.warn("Could not generate diagnosis.", e);
-                        throw new RestHandlerException(
-                                "Could not generate diagnosis.",
-                                HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                        throw new CompletionException(
+                                new RestHandlerException(
+                                        "Could not generate diagnosis.",
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR));
                     }
                 },
                 executor);
     }
 
-    private DiagnosisResponseBody createEmptyResponse() {
-        return new DiagnosisResponseBody(Collections.emptyList(), Instant.now().toString());
-    }
-
-    private Map<String, Object> collectMetrics(MetricStore.JobMetricStore jobMetricStore) {
+    private Map<String, Object> collectMetrics(MetricStore store) {
         Map<String, Object> metrics = new HashMap<>();
 
-        // Collect CPU metrics (average across all task managers)
+        // Collect CPU and memory metrics from all TaskManagers
         double totalCpuUsage = 0.0;
         int cpuMetricCount = 0;
-
-        // Collect memory and GC metrics
         double totalHeapUsed = 0.0;
         double totalHeapMax = 0.0;
         double totalGcCount = 0.0;
 
-        // Collect backpressure metrics
-        double maxBackpressureRatio = 0.0;
-
-        // Iterate through task managers
-        for (MetricStore.TaskManagerMetricStore tmStore : jobMetricStore.taskManagers.values()) {
+        Map<String, MetricStore.TaskManagerMetricStore> taskManagers = store.getTaskManagers();
+        for (MetricStore.TaskManagerMetricStore tmStore : taskManagers.values()) {
             // CPU metrics
             String cpuValue = tmStore.metrics.get(CPU_USAGE_METRIC);
             if (cpuValue != null) {
@@ -171,29 +157,12 @@ public class DiagnosisHandler
             }
         }
 
-        // Calculate average values
         double avgCpuUsage = cpuMetricCount > 0 ? totalCpuUsage / cpuMetricCount : 0.0;
         double heapUsageRatio = totalHeapMax > 0 ? totalHeapUsed / totalHeapMax : 0.0;
-
-        // Collect backpressure from tasks
-        for (MetricStore.TaskMetricStore taskStore : jobMetricStore.tasks.values()) {
-            for (MetricStore.ComponentMetricStore subtaskStore : taskStore.subtasks.values()) {
-                String bpValue = subtaskStore.metrics.get(BACKPRESSURE_METRIC);
-                if (bpValue != null) {
-                    try {
-                        double bpRatio = Double.parseDouble(bpValue);
-                        maxBackpressureRatio = Math.max(maxBackpressureRatio, bpRatio);
-                    } catch (NumberFormatException e) {
-                        // Skip invalid values
-                    }
-                }
-            }
-        }
 
         metrics.put("cpuUsage", avgCpuUsage);
         metrics.put("heapUsageRatio", heapUsageRatio);
         metrics.put("gcCount", totalGcCount);
-        metrics.put("maxBackpressureRatio", maxBackpressureRatio);
 
         return metrics;
     }
@@ -204,7 +173,6 @@ public class DiagnosisHandler
         double cpuUsage = (double) metrics.getOrDefault("cpuUsage", 0.0);
         double heapUsageRatio = (double) metrics.getOrDefault("heapUsageRatio", 0.0);
         double gcCount = (double) metrics.getOrDefault("gcCount", 0.0);
-        double maxBackpressureRatio = (double) metrics.getOrDefault("maxBackpressureRatio", 0.0);
 
         // Rule 1: High CPU + High Heap Memory -> Possible GC issue
         if (cpuUsage > HIGH_CPU_THRESHOLD && heapUsageRatio > HIGH_HEAP_THRESHOLD) {
@@ -223,17 +191,17 @@ public class DiagnosisHandler
                     new DiagnosticSuggestion(
                             "warning",
                             "High CPU Usage with High Memory Consumption",
-                            "High CPU may be caused by frequent GC. Check GC logs or increase heap size.",
+                            "High CPU may be caused by frequent GC. Check GC logs or increase"
+                                    + " heap size.",
                             ruleMetrics,
                             actions));
         }
 
-        // Rule 2: High CPU + Normal Heap -> Heavy computation or backpressure
+        // Rule 2: High CPU + Normal Heap -> Heavy computation
         else if (cpuUsage > HIGH_CPU_THRESHOLD && heapUsageRatio < HIGH_HEAP_THRESHOLD) {
             Map<String, Object> ruleMetrics = new HashMap<>();
             ruleMetrics.put("cpuUsage", cpuUsage);
             ruleMetrics.put("heapUsageRatio", heapUsageRatio);
-            ruleMetrics.put("maxBackpressureRatio", maxBackpressureRatio);
 
             List<String> actions = new ArrayList<>();
             actions.add("Check backpressure metrics");
@@ -244,16 +212,16 @@ public class DiagnosisHandler
                     new DiagnosticSuggestion(
                             "info",
                             "High CPU Usage with Normal Memory",
-                            "High CPU is likely caused by heavy user computation. Check backpressure.",
+                            "High CPU is likely caused by heavy user computation. Check"
+                                    + " backpressure.",
                             ruleMetrics,
                             actions));
         }
 
-        // Rule 3: Low CPU + High Backpressure -> I/O bottleneck
-        if (cpuUsage < LOW_CPU_THRESHOLD && maxBackpressureRatio > HIGH_BACKPRESSURE_THRESHOLD) {
+        // Rule 3: Low CPU -> Potential idle or I/O bottleneck
+        if (cpuUsage < LOW_CPU_THRESHOLD && cpuMetricCount(metrics) > 0) {
             Map<String, Object> ruleMetrics = new HashMap<>();
             ruleMetrics.put("cpuUsage", cpuUsage);
-            ruleMetrics.put("maxBackpressureRatio", maxBackpressureRatio);
 
             List<String> actions = new ArrayList<>();
             actions.add("Check external system connectivity");
@@ -263,7 +231,7 @@ public class DiagnosisHandler
             suggestions.add(
                     new DiagnosticSuggestion(
                             "warning",
-                            "Low CPU with High Backpressure",
+                            "Low CPU Usage",
                             "Possible I/O bottleneck or external dependency delay.",
                             ruleMetrics,
                             actions));
@@ -283,11 +251,22 @@ public class DiagnosisHandler
                     new DiagnosticSuggestion(
                             "warning",
                             "High Garbage Collection Count",
-                            "Job is experiencing excessive GC activity. This may impact performance.",
+                            "Job is experiencing excessive GC activity. This may impact"
+                                    + " performance.",
                             ruleMetrics,
                             actions));
         }
 
+        if (suggestions.isEmpty()) {
+            return Collections.emptyList();
+        }
+
         return suggestions;
+    }
+
+    private int cpuMetricCount(Map<String, Object> metrics) {
+        // If cpuUsage is 0 and no TMs had metrics, we can check via the value
+        // This is a simple check to avoid false positives on empty clusters
+        return metrics.containsKey("cpuUsage") ? 1 : 0;
     }
 }

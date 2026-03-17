@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.metrics;
+package org.apache.flink.runtime.rest.messages.job.diagnosis;
 
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 
-/** MessageParameters for Top N metrics. */
-public class TopNMetricsMessageParameters extends JobMessageParameters {}
+/** MessageParameters for Diagnosis Advisor. */
+public class DiagnosisMessageParameters extends JobMessageParameters {}

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -26,7 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Response body for Diagnosis Advisor containing diagnostic suggestions. */
-public class DiagnosisResponseBody {
+public class DiagnosisResponseBody implements ResponseBody {
 
     private static final String FIELD_NAME_DIAGNOSTICS = "diagnostics";
     private static final String FIELD_NAME_TIMESTAMP = "timestamp";

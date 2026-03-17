@@ -18,15 +18,17 @@
 
 package org.apache.flink.runtime.rest.messages.job.diagnosis;
 
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.legacy.messages.DiagnosisResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Headers for Diagnosis Advisor. */
 public class DiagnosisHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, DiagnosisResponseBody, DiagnosisMessageParameters> {
 
     private static final DiagnosisHeaders INSTANCE = new DiagnosisHeaders();
@@ -36,12 +38,17 @@ public class DiagnosisHeaders
     private DiagnosisHeaders() {}
 
     @Override
-    public Class<DiagnosisResponseBody> getResponseBodyClass() {
+    public Class<DiagnosisResponseBody> getResponseClass() {
         return DiagnosisResponseBody.class;
     }
 
     @Override
-    public Class<EmptyRequestBody> getRequestBodyClass() {
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
+
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
         return EmptyRequestBody.class;
     }
 
@@ -62,16 +69,11 @@ public class DiagnosisHeaders
     }
 
     @Override
-    public HttpMethod getHttpMethod() {
-        return HttpMethod.GET;
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
     }
 
     public static DiagnosisHeaders getInstance() {
         return INSTANCE;
-    }
-
-    @Override
-    public String getOperationId() {
-        return "diagnosis";
     }
 }
