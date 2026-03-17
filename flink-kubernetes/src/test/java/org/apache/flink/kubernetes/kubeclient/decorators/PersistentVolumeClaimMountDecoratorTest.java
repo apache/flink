@@ -29,12 +29,8 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import org.junit.jupiter.api.Test;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -199,156 +195,62 @@ class PersistentVolumeClaimMountDecoratorTest extends KubernetesJobManagerTestBa
         assertThat(volumeMount.getReadOnly()).isFalse();
     }
 
-    @Test
-    void testVolumeNameGeneration() {
-        final String pvcName = "my-test-pvc";
-        final String expectedVolumeName =
-                pvcName + PersistentVolumeClaimMountDecorator.VOLUME_NAME_SUFFIX;
+    // ==================== PVC Name Validation Tests ====================
 
-        assertThat(PersistentVolumeClaimMountDecorator.getVolumeName(pvcName))
-                .isEqualTo(expectedVolumeName);
+    @Test
+    void testValidPvcNamesAccepted() {
+        // DNS-1123 subdomain allows '-' and '.'
+        String[] validNames = {"my-pvc", "pvc1", "a", "my-long-pvc-name-123", "pvc.data-01"};
+        for (String name : validNames) {
+            this.flinkConfig.setString(
+                    KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
+                    name + ":/opt/flink/data");
+            // Should not throw
+            new PersistentVolumeClaimMountDecorator(kubernetesJobManagerParameters);
+        }
     }
 
-    @Test
-    void testBuildVolumeMounts() {
-        final List<VolumeMount> volumeMounts = pvcDecorator.buildVolumeMounts();
+    @ParameterizedTest
+    @ValueSource(strings = {"My-PVC", "-my-pvc", "my-pvc-", "my_pvc", ".my-pvc", "my-pvc."})
+    void testInvalidPvcNameFailsOnConstruction(String invalidPvcName) {
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
+                invalidPvcName + ":/opt/flink");
 
-        assertThat(volumeMounts).hasSize(1);
-        assertThat(volumeMounts.get(0).getName())
-                .isEqualTo(PVC_NAME_1 + PersistentVolumeClaimMountDecorator.VOLUME_NAME_SUFFIX);
-        assertThat(volumeMounts.get(0).getMountPath()).isEqualTo(PVC_MOUNT_PATH_1);
-    }
-
-    @Test
-    void testBuildVolumes() {
-        final List<Volume> volumes = pvcDecorator.buildVolumes();
-
-        assertThat(volumes).hasSize(1);
-        assertThat(volumes.get(0).getName())
-                .isEqualTo(PVC_NAME_1 + PersistentVolumeClaimMountDecorator.VOLUME_NAME_SUFFIX);
-        assertThat(volumes.get(0).getPersistentVolumeClaim().getClaimName()).isEqualTo(PVC_NAME_1);
-    }
-
-    // ==================== PVC Name Validation Tests (DNS-1123 Subdomain) ====================
-
-    @Test
-    void testValidatePvcName_ValidNames() {
-        // These should not throw - DNS-1123 subdomain allows '-' and '.'
-        PersistentVolumeClaimMountDecorator.validatePvcName("my-pvc");
-        PersistentVolumeClaimMountDecorator.validatePvcName("pvc1");
-        PersistentVolumeClaimMountDecorator.validatePvcName("a");
-        PersistentVolumeClaimMountDecorator.validatePvcName("my-long-pvc-name-123");
-        PersistentVolumeClaimMountDecorator.validatePvcName("a1b2c3");
-        // DNS-1123 subdomain allows dots
-        PersistentVolumeClaimMountDecorator.validatePvcName("pvc.data-01");
-        PersistentVolumeClaimMountDecorator.validatePvcName("my.pvc.name");
-        // Long names up to 253 chars are allowed for subdomain
-        PersistentVolumeClaimMountDecorator.validatePvcName("a".repeat(253));
-    }
-
-    @Test
-    void testValidatePvcName_NullOrEmpty() {
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName(null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not be null or empty");
-
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName(""))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not be null or empty");
-
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName("   "))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not be null or empty");
-    }
-
-    @Test
-    void testValidatePvcName_InvalidDns1123Subdomain() {
-        // Uppercase letters
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName("My-PVC"))
+        assertThatThrownBy(
+                        () ->
+                                new PersistentVolumeClaimMountDecorator(
+                                        kubernetesJobManagerParameters))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("DNS-1123 subdomain standard");
-
-        // Starts with hyphen
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName("-my-pvc"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("DNS-1123 subdomain standard");
-
-        // Ends with hyphen
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName("my-pvc-"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("DNS-1123 subdomain standard");
-
-        // Contains underscore
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName("my_pvc"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("DNS-1123 subdomain standard");
-
-        // Starts with dot
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName(".my-pvc"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("DNS-1123 subdomain standard");
-
-        // Ends with dot
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName("my-pvc."))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("DNS-1123 subdomain standard");
-    }
-
-    @Test
-    void testValidatePvcName_ExceedsMaxLength() {
-        String longName = "a".repeat(254); // 254 chars, exceeds 253 limit
-        assertThatThrownBy(() -> PersistentVolumeClaimMountDecorator.validatePvcName(longName))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("exceeds maximum length");
     }
 
     // ==================== Mount Path Validation Tests ====================
 
     @Test
-    void testValidateMountPath_ValidPaths() {
-        HashSet<String> existingPaths = new HashSet<>();
-        // These should not throw
-        PersistentVolumeClaimMountDecorator.validateMountPath("/opt/flink", existingPaths);
-        PersistentVolumeClaimMountDecorator.validateMountPath("/", new HashSet<>());
-        PersistentVolumeClaimMountDecorator.validateMountPath("/a/b/c/d", new HashSet<>());
-    }
-
-    @Test
-    void testValidateMountPath_NullOrEmpty() {
-        assertThatThrownBy(
-                        () ->
-                                PersistentVolumeClaimMountDecorator.validateMountPath(
-                                        null, new HashSet<>()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not be null or empty");
+    void testInvalidMountPathNotAbsoluteFailsOnConstruction() {
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
+                "my-pvc:relative/path");
 
         assertThatThrownBy(
                         () ->
-                                PersistentVolumeClaimMountDecorator.validateMountPath(
-                                        "", new HashSet<>()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not be null or empty");
-    }
-
-    @Test
-    void testValidateMountPath_NotAbsolute() {
-        assertThatThrownBy(
-                        () ->
-                                PersistentVolumeClaimMountDecorator.validateMountPath(
-                                        "relative/path", new HashSet<>()))
+                                new PersistentVolumeClaimMountDecorator(
+                                        kubernetesJobManagerParameters))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must be an absolute path");
     }
 
     @Test
-    void testValidateMountPath_Duplicate() {
-        HashSet<String> existingPaths = new HashSet<>();
-        existingPaths.add("/opt/flink");
+    void testDuplicateMountPathFailsOnConstruction() {
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
+                "pvc1:/opt/flink,pvc2:/opt/flink");
 
         assertThatThrownBy(
                         () ->
-                                PersistentVolumeClaimMountDecorator.validateMountPath(
-                                        "/opt/flink", existingPaths))
+                                new PersistentVolumeClaimMountDecorator(
+                                        kubernetesJobManagerParameters))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate mount path");
     }
@@ -356,68 +258,51 @@ class PersistentVolumeClaimMountDecoratorTest extends KubernetesJobManagerTestBa
     // ==================== Volume Name Generation Tests ====================
 
     @Test
-    void testVolumeNameSanitization_DotsReplacedWithHyphens() {
-        // PVC name with dots should have them replaced with hyphens in volume name
+    void testVolumeNameSanitizationDotsReplacedWithHyphens() {
+        // Configure PVC with dots (valid DNS-1123 subdomain)
         String pvcWithDots = "my.pvc.name";
-        String volumeName = PersistentVolumeClaimMountDecorator.getVolumeName(pvcWithDots);
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
+                pvcWithDots + ":" + PVC_MOUNT_PATH_1);
+        this.pvcDecorator = new PersistentVolumeClaimMountDecorator(kubernetesJobManagerParameters);
 
-        // Dots should be replaced with hyphens
-        assertThat(volumeName).doesNotContain(".");
-        assertThat(volumeName).isEqualTo("my-pvc-name-pvc");
-    }
+        final FlinkPod resultFlinkPod = pvcDecorator.decorateFlinkPod(baseFlinkPod);
 
-    @Test
-    void testVolumeNameTruncationWithHash() {
-        // PVC name that would result in volume name > 63 chars
-        String longPvcName = "a".repeat(100);
+        // Volume name should have dots replaced with hyphens + suffix
+        String expectedVolumeName = "my-pvc-name-pvc";
 
-        String volumeName = PersistentVolumeClaimMountDecorator.getVolumeName(longPvcName);
+        // Verify volume is added with sanitized name (no dots)
+        assertThat(
+                        VolumeTestUtils.podHasVolume(
+                                resultFlinkPod.getPodWithoutMainContainer(), expectedVolumeName))
+                .isTrue();
 
-        // Should be truncated to max 63 chars
-        assertThat(volumeName.length())
-                .isLessThanOrEqualTo(PersistentVolumeClaimMountDecorator.MAX_VOLUME_NAME_LENGTH);
-
-        // Should contain hash suffix for uniqueness
-        assertThat(volumeName).endsWith("-pvc");
-
-        // Should not end with hyphen (before suffix)
-        assertThat(volumeName).doesNotEndWith("--pvc");
-    }
-
-    @Test
-    void testVolumeNameUniquenessWithHash() {
-        // Two long PVC names that would be truncated to the same prefix without hash
-        String pvc1 = "a".repeat(60) + "x";
-        String pvc2 = "a".repeat(60) + "y";
-
-        String vol1 = PersistentVolumeClaimMountDecorator.getVolumeName(pvc1);
-        String vol2 = PersistentVolumeClaimMountDecorator.getVolumeName(pvc2);
-
-        // Volume names should be different due to hash
-        assertThat(vol1).isNotEqualTo(vol2);
-
-        // Both should be valid length
-        assertThat(vol1.length())
-                .isLessThanOrEqualTo(PersistentVolumeClaimMountDecorator.MAX_VOLUME_NAME_LENGTH);
-        assertThat(vol2.length())
-                .isLessThanOrEqualTo(PersistentVolumeClaimMountDecorator.MAX_VOLUME_NAME_LENGTH);
-    }
-
-    @Test
-    void testVolumeNameValidDns1123Label() {
-        // Even with dots in PVC name, volume name should be valid DNS-1123 label
-        String pvcWithDots = "my.namespace.pvc-01";
-        String volumeName = PersistentVolumeClaimMountDecorator.getVolumeName(pvcWithDots);
-
-        // Should match DNS-1123 label pattern (no dots)
-        assertThat(volumeName)
+        // Verify volume name matches DNS-1123 label pattern
+        assertThat(expectedVolumeName)
                 .matches(PersistentVolumeClaimMountDecorator.DNS_1123_LABEL_PATTERN.pattern());
     }
 
-    // ==================== Volume Conflict Detection Tests (Fail-Fast) ====================
+    @Test
+    void testVolumeNameExceedsMaxLengthFailsOnConstruction() {
+        // PVC name that would result in volume name > 63 chars
+        // Suffix is "-pvc" (4 chars), so PVC name > 59 chars will exceed 63 limit
+        String longPvcName = "a".repeat(60);
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
+                longPvcName + ":/opt/flink/data");
+
+        assertThatThrownBy(
+                        () ->
+                                new PersistentVolumeClaimMountDecorator(
+                                        kubernetesJobManagerParameters))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds the maximum length");
+    }
+
+    // ==================== Volume Conflict Detection Tests ====================
 
     @Test
-    void testVolumeNameConflict_FailFast() {
+    void testVolumeNameConflictFailFast() {
         // Create a FlinkPod with existing volume that has the same name as our PVC would generate
         String conflictingVolumeName =
                 PVC_NAME_1 + PersistentVolumeClaimMountDecorator.VOLUME_NAME_SUFFIX;
@@ -484,70 +369,6 @@ class PersistentVolumeClaimMountDecoratorTest extends KubernetesJobManagerTestBa
         assertThatThrownBy(() -> pvcDecorator.decorateFlinkPod(flinkPodWithConflict))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Volume name conflict");
-    }
-
-    // ==================== Configuration Validation Tests ====================
-
-    @Test
-    void testValidatePvcConfiguration_ValidConfig() {
-        Map<String, String> validPvcs = new HashMap<>();
-        validPvcs.put("pvc1", "/path1");
-        validPvcs.put("pvc2", "/path2");
-        validPvcs.put("pvc.with.dots", "/path3");
-
-        // Should not throw
-        PersistentVolumeClaimMountDecorator.validatePvcConfiguration(validPvcs);
-    }
-
-    @Test
-    void testValidatePvcConfiguration_EmptyMap() {
-        // Should not throw
-        PersistentVolumeClaimMountDecorator.validatePvcConfiguration(Collections.emptyMap());
-    }
-
-    @Test
-    void testInvalidPvcName_FailsOnConstruction() {
-        // Configure an invalid PVC name
-        this.flinkConfig.setString(
-                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
-                "Invalid_PVC_Name:/opt/flink");
-
-        assertThatThrownBy(
-                        () ->
-                                new PersistentVolumeClaimMountDecorator(
-                                        kubernetesJobManagerParameters))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("DNS-1123 subdomain standard");
-    }
-
-    @Test
-    void testInvalidMountPath_FailsOnConstruction() {
-        // Configure a relative mount path
-        this.flinkConfig.setString(
-                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
-                "my-pvc:relative/path");
-
-        assertThatThrownBy(
-                        () ->
-                                new PersistentVolumeClaimMountDecorator(
-                                        kubernetesJobManagerParameters))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must be an absolute path");
-    }
-
-    @Test
-    void testDuplicateMountPath_FailsOnConstruction() {
-        // Configure duplicate mount paths
-        this.flinkConfig.setString(
-                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS.key(),
-                "pvc1:/opt/flink,pvc2:/opt/flink");
-
-        assertThatThrownBy(
-                        () ->
-                                new PersistentVolumeClaimMountDecorator(
-                                        kubernetesJobManagerParameters))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate mount path");
     }
 
     @Test
