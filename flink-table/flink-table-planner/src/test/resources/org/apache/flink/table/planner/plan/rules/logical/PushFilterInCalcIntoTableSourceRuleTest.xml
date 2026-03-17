@@ -195,7 +195,7 @@ LogicalProject(name=[$0], event_time=[$1])
       <![CDATA[
 FlinkLogicalCalc(select=[name, event_time], where=[=(LOWER(name), 'foo')])
 +- FlinkLogicalWatermarkAssigner(rowtime=[event_time], watermark=[-($1, 5000:INTERVAL SECOND)])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, WithWatermark]], fields=[name, event_time])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, WithWatermark]], fields=[name, event_time], watermark=[event_time - `event_time` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>

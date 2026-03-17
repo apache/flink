@@ -30,7 +30,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], idletimeout=[60000], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.idle-timeout=60s}]]])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], idletimeout=[60000], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.idle-timeout=60s}]]], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -48,7 +48,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], idletimeout=[60000], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], idletimeout=[60000], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -66,7 +66,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -84,7 +84,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], watermarkAlignment=[group1, PT1M, PT1S]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.alignment.max-drift=1min, scan.watermark.alignment.group=group1}]]])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], watermarkAlignment=[group1, PT1M, PT1S]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.alignment.max-drift=1min, scan.watermark.alignment.group=group1}]]], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -102,7 +102,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], watermarkAlignment=[group1, PT1M, PT1S]]], fields=[a, b, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], watermarkAlignment=[group1, PT1M, PT1S]]], fields=[a, b, c], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -120,7 +120,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-event]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.emit.strategy=on-event}]]])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-event]]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.watermark.emit.strategy=on-event}]]], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -138,7 +138,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-event]]], fields=[a, b, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-event]]], fields=[a, b, c], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -158,7 +158,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, d])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(+(c, 5000:INTERVAL SECOND)) AS d])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[d - `d` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -178,7 +178,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c])
 +- FlinkLogicalCalc(select=[a, b, Reinterpret(TO_TIMESTAMP(a, b)) AS c])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(TO_TIMESTAMP(a, b), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(TO_TIMESTAMP(a, b), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -200,7 +200,7 @@ LogicalProject(a=[$0], b=[$1])
 FlinkLogicalCalc(select=[a, b])
 +- FlinkLogicalCalc(select=[a, b, c, d], where=[>(d, TO_TIMESTAMP('2020-10-09 12:12:12'))])
    +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(+(c, 5000:INTERVAL SECOND)) AS d])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[d - `d` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -220,7 +220,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, metadata, computed])
 +- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata AS BIGINT) AS metadata, +(CAST(metadata AS BIGINT), b) AS computed])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, metadata=[metadata_2], watermark=[-(c, CAST(+(CAST(metadata AS BIGINT), +(CAST(metadata AS BIGINT), b)) AS INTERVAL SECOND))], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, metadata])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, metadata=[metadata_2], watermark=[-(c, CAST(+(CAST(metadata AS BIGINT), +(CAST(metadata AS BIGINT), b)) AS INTERVAL SECOND))], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c, metadata], watermark=[c - `c` - CAST(`metadata` + `computed` AS INTERVAL SECOND)])
 ]]>
     </Resource>
   </TestCase>
@@ -240,7 +240,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], g=[$3])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, g])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(c.d.f) AS g])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c.d.f, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c.d.f, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[g - `g` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -260,7 +260,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$3])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, e])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(c.d) AS e])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c.d, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c.d, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[e - `e` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -278,7 +278,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, c])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], idletimeout=[1000], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, 5000:INTERVAL SECOND)], idletimeout=[1000], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[c - `c` - INTERVAL '5' SECOND])
 ]]>
     </Resource>
   </TestCase>
@@ -298,7 +298,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, d])
 +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(func(c, a)) AS d])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[func(func(func(c, a), a), a)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[func(func(func(c, a), a), a)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c], watermark=[d - `func`(`func`(`d`, `a`), `a`)])
 ]]>
     </Resource>
   </TestCase>
@@ -319,7 +319,7 @@ LogicalProject(a=[$0], b=[$1])
 FlinkLogicalCalc(select=[a, b])
 +- FlinkLogicalWatermarkAssigner(rowtime=[b], watermark=[$1])
    +- FlinkLogicalCalc(select=[a, parse_ts(a) AS b])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a], watermark=[b - `b`])
 ]]>
     </Resource>
   </TestCase>
