@@ -646,14 +646,11 @@ public class KubernetesConfigOptions {
      * <p>Note: This setting applies globally to all PVCs configured via {@link
      * #KUBERNETES_PERSISTENT_VOLUME_CLAIMS}. If you need different access modes for different PVCs,
      * consider using pod templates instead.
-     *
-     * <p>Default: false (read-write mode)
      */
     public static final ConfigOption<Boolean> KUBERNETES_PERSISTENT_VOLUME_CLAIM_READ_ONLY =
             key("kubernetes.persistent-volume-claim-read-only")
                     .booleanType()
                     .defaultValue(false)
-                    .withDeprecatedKeys("kubernetes.persistent-volume-claims.read-only")
                     .withDescription(
                             Description.builder()
                                     .text(

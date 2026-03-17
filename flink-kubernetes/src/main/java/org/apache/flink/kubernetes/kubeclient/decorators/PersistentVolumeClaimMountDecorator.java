@@ -19,7 +19,6 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
@@ -38,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -48,66 +46,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Decorator for mounting Kubernetes PersistentVolumeClaims (PVCs) to JobManager and TaskManager
- * pods.
- *
- * <p>This decorator allows users to attach pre-existing PVCs to Flink pods, enabling persistent
- * storage for checkpoints, savepoints, or other data that needs to survive pod restarts.
- *
- * <h2>Configuration</h2>
- *
- * <p>Users can configure PVC mounting through the following configuration options:
- *
- * <ul>
- *   <li>{@link KubernetesConfigOptions#KUBERNETES_PERSISTENT_VOLUME_CLAIMS} - Specifies PVCs and
- *       their mount paths in the format {@code pvc-name:/mount/path,pvc-name2:/mount/path2}
- *   <li>{@link KubernetesConfigOptions#KUBERNETES_PERSISTENT_VOLUME_CLAIM_READ_ONLY} - When set to
- *       true, mounts all PVCs as read-only (default: false)
- * </ul>
- *
- * <h2>Usage Example</h2>
- *
- * <pre>{@code
- * # Mount a single PVC for checkpoint storage
- * kubernetes.persistent-volume-claims: checkpoint-pvc:/opt/flink/checkpoints
- *
- * # Mount multiple PVCs
- * kubernetes.persistent-volume-claims: checkpoint-pvc:/opt/flink/checkpoints,data-pvc:/opt/flink/data
- *
- * # Mount PVCs as read-only
- * kubernetes.persistent-volume-claim-read-only: true
- * }</pre>
- *
- * <h2>Validation</h2>
- *
- * <p>This decorator validates that:
- *
- * <ul>
- *   <li>PVC names conform to DNS-1123 subdomain standard (lowercase alphanumeric, '-' and '.', max
- *       253 chars)
- *   <li>Mount paths are non-empty and absolute (start with '/')
- *   <li>No duplicate mount paths are specified
- *   <li>Generated volume names do not conflict with existing volumes
- * </ul>
- *
- * <h2>Volume Name Generation</h2>
- *
- * <p>Volume names are generated from PVC names by:
- *
- * <ol>
- *   <li>Replacing '.' with '-' (DNS-1123 label requirement)
- *   <li>Adding '-pvc' suffix
- *   <li>Truncating to 63 characters if necessary (with hash suffix for uniqueness)
- * </ol>
- *
- * <h2>Important Notes</h2>
- *
- * <ul>
- *   <li>The PVC must exist in the same namespace as the Flink cluster
- *   <li>The PVC must have an appropriate access mode (ReadWriteOnce, ReadWriteMany, etc.)
- *   <li>For HA setups with multiple JobManagers, use ReadWriteMany or ReadOnlyMany access modes
- *   <li>If you need different read/write modes for different PVCs, use Pod Templates instead
- * </ul>
+ * Mount user-specified PersistentVolumeClaims (PVCs) into JobManager and TaskManager pods.
  *
  * @see KubernetesConfigOptions#KUBERNETES_PERSISTENT_VOLUME_CLAIMS
  * @see KubernetesConfigOptions#KUBERNETES_PERSISTENT_VOLUME_CLAIM_READ_ONLY
@@ -119,49 +58,38 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
             LoggerFactory.getLogger(PersistentVolumeClaimMountDecorator.class);
 
     /** Suffix appended to sanitized PVC names to generate volume names. */
-    @VisibleForTesting static final String VOLUME_NAME_SUFFIX = "-pvc";
+    public static final String VOLUME_NAME_SUFFIX = "-pvc";
 
     /**
      * Maximum length for Kubernetes volume names (DNS-1123 label standard). Must be 63 characters
      * or less.
      */
-    @VisibleForTesting static final int MAX_VOLUME_NAME_LENGTH = 63;
+    public static final int MAX_VOLUME_NAME_LENGTH = 63;
 
     /**
      * Maximum length for Kubernetes resource names (DNS-1123 subdomain standard). Must be 253
      * characters or less.
      */
-    @VisibleForTesting static final int MAX_PVC_NAME_LENGTH = 253;
-
-    /** Length reserved for hash suffix when truncating volume names. */
-    private static final int HASH_SUFFIX_LENGTH = 6; // "-" + 5 hex chars
+    public static final int MAX_PVC_NAME_LENGTH = 253;
 
     /**
      * Pattern for validating DNS-1123 subdomain names. Used for PVC names. Must consist of lower
      * case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric
      * character.
      */
-    @VisibleForTesting
-    static final Pattern DNS_1123_SUBDOMAIN_PATTERN =
+    public static final Pattern DNS_1123_SUBDOMAIN_PATTERN =
             Pattern.compile("^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$");
 
     /**
      * Pattern for validating DNS-1123 label names. Used for volume names. Must consist of lower
      * case alphanumeric characters or '-', and must start and end with an alphanumeric character.
      */
-    @VisibleForTesting
-    static final Pattern DNS_1123_LABEL_PATTERN =
+    public static final Pattern DNS_1123_LABEL_PATTERN =
             Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$");
 
     private final Map<String, String> pvcNamesToMountPaths;
     private final boolean readOnly;
 
-    /**
-     * Creates a new PersistentVolumeClaimMountDecorator.
-     *
-     * @param kubernetesComponentConf the Kubernetes parameters containing PVC configuration
-     * @throws IllegalArgumentException if the PVC configuration is invalid
-     */
     public PersistentVolumeClaimMountDecorator(
             AbstractKubernetesParameters kubernetesComponentConf) {
         checkNotNull(kubernetesComponentConf, "kubernetesComponentConf must not be null");
@@ -172,14 +100,7 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
         validatePvcConfiguration(pvcNamesToMountPaths);
     }
 
-    /**
-     * Validates the PVC configuration.
-     *
-     * @param pvcNamesToMountPaths the map of PVC names to mount paths
-     * @throws IllegalArgumentException if validation fails
-     */
-    @VisibleForTesting
-    static void validatePvcConfiguration(Map<String, String> pvcNamesToMountPaths) {
+    private static void validatePvcConfiguration(Map<String, String> pvcNamesToMountPaths) {
         if (pvcNamesToMountPaths.isEmpty()) {
             return;
         }
@@ -210,22 +131,7 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
         }
     }
 
-    /**
-     * Validates that a PVC name conforms to DNS-1123 subdomain standard.
-     *
-     * <p>DNS-1123 subdomain allows:
-     *
-     * <ul>
-     *   <li>Lowercase alphanumeric characters, '-' and '.'
-     *   <li>Must start and end with an alphanumeric character
-     *   <li>Maximum length of 253 characters
-     * </ul>
-     *
-     * @param pvcName the PVC name to validate
-     * @throws IllegalArgumentException if the PVC name is invalid
-     */
-    @VisibleForTesting
-    static void validatePvcName(String pvcName) {
+    private static void validatePvcName(String pvcName) {
         checkArgument(
                 pvcName != null && !pvcName.trim().isEmpty(),
                 "PVC name must not be null or empty.");
@@ -243,15 +149,7 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
                 pvcName);
     }
 
-    /**
-     * Validates the mount path.
-     *
-     * @param mountPath the mount path to validate
-     * @param existingPaths existing mount paths to check for duplicates
-     * @throws IllegalArgumentException if the mount path is invalid
-     */
-    @VisibleForTesting
-    static void validateMountPath(String mountPath, Set<String> existingPaths) {
+    private static void validateMountPath(String mountPath, Set<String> existingPaths) {
         checkArgument(
                 mountPath != null && !mountPath.trim().isEmpty(),
                 "Mount path must not be null or empty.");
@@ -285,17 +183,6 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
                 .build();
     }
 
-    /**
-     * Checks for conflicts between PVC volumes and existing Pod volumes/mounts.
-     *
-     * <p>For volume name conflicts, this method throws an exception (fail-fast) because Kubernetes
-     * does not allow duplicate volume names in a Pod spec. For mount path conflicts, this method
-     * logs a warning since Kubernetes allows multiple volume mounts, though the behavior may be
-     * unexpected.
-     *
-     * @param flinkPod the FlinkPod to check
-     * @throws IllegalArgumentException if a volume name conflict is detected
-     */
     private void checkVolumeConflicts(FlinkPod flinkPod) {
         // Get existing volume names from pod spec
         Set<String> existingVolumeNames = new HashSet<>();
@@ -340,46 +227,22 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
         }
     }
 
-    /**
-     * Decorates the main container with volume mounts for all configured PVCs.
-     *
-     * @param container the original main container
-     * @return a new container with PVC volume mounts added
-     */
     private Container decorateMainContainer(Container container) {
         final List<VolumeMount> volumeMounts = buildVolumeMounts();
         return new ContainerBuilder(container).addAllToVolumeMounts(volumeMounts).build();
     }
 
-    /**
-     * Decorates the pod specification with volumes for all configured PVCs.
-     *
-     * @param pod the original pod without main container
-     * @return a new pod with PVC volumes added
-     */
     private Pod decoratePod(Pod pod) {
         final List<Volume> volumes = buildVolumes();
         return new PodBuilder(pod).editOrNewSpec().addAllToVolumes(volumes).endSpec().build();
     }
 
-    /**
-     * Builds the list of volume mounts for all configured PVCs.
-     *
-     * @return list of volume mounts
-     */
-    @VisibleForTesting
-    List<VolumeMount> buildVolumeMounts() {
+    private List<VolumeMount> buildVolumeMounts() {
         return pvcNamesToMountPaths.entrySet().stream()
                 .map(this::buildVolumeMount)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Builds a single volume mount for a PVC.
-     *
-     * @param pvcNameToMountPath entry containing PVC name and mount path
-     * @return the volume mount
-     */
     private VolumeMount buildVolumeMount(Map.Entry<String, String> pvcNameToMountPath) {
         return new VolumeMountBuilder()
                 .withName(getVolumeName(pvcNameToMountPath.getKey()))
@@ -388,24 +251,12 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
                 .build();
     }
 
-    /**
-     * Builds the list of volumes for all configured PVCs.
-     *
-     * @return list of volumes
-     */
-    @VisibleForTesting
-    List<Volume> buildVolumes() {
+    private List<Volume> buildVolumes() {
         return pvcNamesToMountPaths.keySet().stream()
                 .map(this::buildVolume)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Builds a single volume for a PVC.
-     *
-     * @param pvcName the name of the PVC
-     * @return the volume
-     */
     private Volume buildVolume(String pvcName) {
         return new VolumeBuilder()
                 .withName(getVolumeName(pvcName))
@@ -418,75 +269,24 @@ public class PersistentVolumeClaimMountDecorator extends AbstractKubernetesStepD
     }
 
     /**
-     * Generates a valid Kubernetes volume name from the PVC name.
-     *
-     * <p>Volume names must conform to DNS-1123 label standard:
-     *
-     * <ul>
-     *   <li>Lowercase alphanumeric characters or '-'
-     *   <li>Must start and end with an alphanumeric character
-     *   <li>Maximum 63 characters
-     * </ul>
-     *
-     * <p>The conversion process:
-     *
-     * <ol>
-     *   <li>Replace '.' with '-' (dots are allowed in PVC names but not in volume names)
-     *   <li>Append '-pvc' suffix
-     *   <li>If length exceeds 63, truncate and append hash for uniqueness
-     * </ol>
-     *
-     * @param pvcName the name of the PVC
-     * @return a valid volume name
+     * Generates a DNS-1123 label compliant volume name from the PVC name by replacing '.' with '-'
+     * and appending '-pvc' suffix.
      */
-    @VisibleForTesting
-    static String getVolumeName(String pvcName) {
+    private static String getVolumeName(String pvcName) {
         // Sanitize: replace '.' with '-' to conform to DNS-1123 label
         String sanitized = pvcName.replace('.', '-');
 
         // Add suffix
         String volumeName = sanitized + VOLUME_NAME_SUFFIX;
 
-        // Truncate if exceeds max length
-        if (volumeName.length() > MAX_VOLUME_NAME_LENGTH) {
-            volumeName = truncateWithHash(sanitized, pvcName);
-        }
-
-        // Final validation: ensure it doesn't end with '-'
-        while (volumeName.endsWith("-")) {
-            volumeName = volumeName.substring(0, volumeName.length() - 1);
-        }
+        checkArgument(
+                volumeName.length() <= MAX_VOLUME_NAME_LENGTH,
+                "Generated volume name '%s' for PVC '%s' exceeds the maximum length of %d characters. "
+                        + "Please use a shorter PVC name.",
+                volumeName,
+                pvcName,
+                MAX_VOLUME_NAME_LENGTH);
 
         return volumeName;
-    }
-
-    /**
-     * Truncates the volume name and appends a hash suffix for uniqueness.
-     *
-     * <p>Format: {truncated-name}-{hash}-pvc
-     *
-     * @param sanitized the sanitized PVC name (with '.' replaced by '-')
-     * @param original the original PVC name (used for hash calculation)
-     * @return truncated volume name with hash suffix
-     */
-    private static String truncateWithHash(String sanitized, String original) {
-        // Calculate hash from original PVC name for uniqueness
-        String hash = String.format("%05x", original.hashCode() & 0xFFFFF);
-
-        // Calculate available length for the base name
-        // Format: {base}-{hash}-pvc, where hash is 5 chars
-        int availableLength =
-                MAX_VOLUME_NAME_LENGTH - HASH_SUFFIX_LENGTH - VOLUME_NAME_SUFFIX.length();
-
-        // Truncate base name
-        String truncatedBase =
-                sanitized.substring(0, Math.min(sanitized.length(), availableLength));
-
-        // Remove trailing hyphens from truncated base
-        while (truncatedBase.endsWith("-")) {
-            truncatedBase = truncatedBase.substring(0, truncatedBase.length() - 1);
-        }
-
-        return truncatedBase + "-" + hash.toLowerCase(Locale.ROOT) + VOLUME_NAME_SUFFIX;
     }
 }
