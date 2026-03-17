@@ -25,14 +25,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.event.Level;
 
-import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter.REPORTER_ID_GROUPPING_KEY;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter.REPORTER_ID_GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.USERNAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -67,25 +67,23 @@ class PrometheusPushGatewayReporterTest {
 
     @Test
     void testGroupingKeysIteratorEndsWithReporterId() {
-        PrometheusPushGatewayReporter.GroupingKeyMap groupingKey =
-                new PrometheusPushGatewayReporter.GroupingKeyMap(
+        Map<String, String> groupingKeyWithReporterId =
+                PrometheusPushGatewayReporter.groupWithReporterId(
                         PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=v1;k2=v2"));
-        assertThat(groupingKey.size()).isEqualTo(3);
-        Iterator<Map.Entry<String, String>> it = groupingKey.entrySet().iterator();
+        assertThat(groupingKeyWithReporterId.size()).isEqualTo(3);
+        Iterator<String> it = groupingKeyWithReporterId.keySet().iterator();
         for (int i = 0; i < 2; i++) {
             it.next();
         }
-        assertThat(it.next())
-                .isEqualTo(
-                        new AbstractMap.SimpleEntry(
-                                REPORTER_ID_GROUPPING_KEY, groupingKey.reporterId()));
+        assertThat(it.next()).isEqualTo(REPORTER_ID_GROUPING_KEY);
     }
 
     @Test
     void testRejectReporterIdInUserGroupingKey() {
         MetricConfig metricConfig = new MetricConfig();
         metricConfig.setProperty(HOST_URL.key(), "http://localhost:8080");
-        metricConfig.setProperty(GROUPING_KEY.key(), "k1=v1;" + REPORTER_ID_GROUPPING_KEY + "=123");
+        metricConfig.setProperty(GROUPING_KEY.key(), "k1=v1;" + REPORTER_ID_GROUPING_KEY + "=123");
+        metricConfig.setProperty(RANDOM_JOB_NAME_SUFFIX.key(), "false");
         assertThatThrownBy(
                         () ->
                                 new PrometheusPushGatewayReporterFactory()
@@ -93,7 +91,7 @@ class PrometheusPushGatewayReporterTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(
                         "Grouping keys must not contain the reserved key: "
-                                + REPORTER_ID_GROUPPING_KEY);
+                                + REPORTER_ID_GROUPING_KEY);
     }
 
     @Test

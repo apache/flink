@@ -33,12 +33,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.AbstractMap;
-import java.util.AbstractSet;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus {@link PushGateway}.
@@ -75,8 +71,8 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey =
                 metricsGroupingByReporter
-                        ? new GroupingKeyMap(Preconditions.checkNotNull(groupingKey))
-                        : Preconditions.checkNotNull(groupingKey);
+                        ? groupWithReporterId(groupingKey)
+                        : new LinkedHashMap<>(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
     }
 
@@ -114,62 +110,14 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
      * grouping keys, so that each taskmanger instance and jobmanager will not collide their metrics
      * in the PushGateway.
      */
-    static class GroupingKeyMap extends AbstractMap<String, String> {
-        private final Map<String, String> customGroupingKeys;
-        private final String reporterId = new AbstractID().toString();
-        private final Set<Entry<String, String>> entrySet = new GroupingKeySet();
-
-        GroupingKeyMap(Map<String, String> customGroupingKeys) {
-            if (customGroupingKeys.containsKey(REPORTER_ID_GROUPPING_KEY)) {
-                throw new IllegalArgumentException(
-                        "Grouping keys must not contain the reserved key: "
-                                + REPORTER_ID_GROUPPING_KEY);
-            }
-            this.customGroupingKeys = customGroupingKeys;
+    static Map<String, String> groupWithReporterId(Map<String, String> origin) {
+        Preconditions.checkNotNull(origin);
+        Map<String, String> groupingKey = new LinkedHashMap<>(origin);
+        if (origin.containsKey(REPORTER_ID_GROUPING_KEY)) {
+            throw new IllegalArgumentException(
+                    "Grouping keys must not contain the reserved key: " + REPORTER_ID_GROUPING_KEY);
         }
-
-        @Override
-        public Set<Entry<String, String>> entrySet() {
-            return entrySet;
-        }
-
-        private class GroupingKeySet extends AbstractSet<Map.Entry<String, String>> {
-            @Override
-            public Iterator<Entry<String, String>> iterator() {
-
-                return new Iterator<>() {
-                    private Iterator<Entry<String, String>> customEntryIterator =
-                            customGroupingKeys.entrySet().iterator();
-                    private boolean consumedLast = false;
-
-                    @Override
-                    public boolean hasNext() {
-                        return customEntryIterator.hasNext() || !consumedLast;
-                    }
-
-                    @Override
-                    public Entry<String, String> next() {
-                        if (customEntryIterator.hasNext()) {
-                            return customEntryIterator.next();
-                        }
-                        if (!consumedLast) {
-                            consumedLast = true;
-                            return new AbstractMap.SimpleEntry<>(
-                                    REPORTER_ID_GROUPPING_KEY, reporterId);
-                        }
-                        throw new NoSuchElementException();
-                    }
-                };
-            }
-
-            @Override
-            public int size() {
-                return customGroupingKeys.size() + 1;
-            }
-        }
-
-        String reporterId() {
-            return reporterId;
-        }
+        groupingKey.put(REPORTER_ID_GROUPING_KEY, new AbstractID().toString());
+        return groupingKey;
     }
 }
