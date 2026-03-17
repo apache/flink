@@ -770,7 +770,8 @@ public final class BuiltInFunctionDefinitions {
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,
                                             StaticArgumentTrait.SET_SEMANTIC_TABLE,
-                                            StaticArgumentTrait.SUPPORT_UPDATES)),
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",

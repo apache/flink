@@ -46,6 +46,7 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
                 ToChangelogTestPrograms.TABLE_API_CUSTOM_OP,
                 ToChangelogTestPrograms.CONVENIENCE_API_DEFAULT,
-                ToChangelogTestPrograms.LAG_ON_UPSERT_VIA_CHANGELOG);
+                ToChangelogTestPrograms.LAG_ON_UPSERT_VIA_CHANGELOG,
+                ToChangelogTestPrograms.LAG_ON_RETRACT_VIA_CHANGELOG);
     }
 }
