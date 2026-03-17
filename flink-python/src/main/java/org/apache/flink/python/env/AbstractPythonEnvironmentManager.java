@@ -309,20 +309,19 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
                 // If the python file is file with suffix .py, add the parent directory to
                 // PYTHONPATH.
                 pythonPath = String.join(File.separator, filesDirectory, distributedCacheFileName);
-            } else if (pythonFile.isFile() && originFileName.endsWith(".zip")) {
-                // Expand the zip file and add the root directory to PYTHONPATH
-                // as not all zip files are importable
+            } else if (pythonFile.isFile() && CompressionUtils.isCompressedFile(originFileName)) {
+                // Expand the compressed file and add the root directory to PYTHONPATH
+                // as not all compressed files are importable
                 org.apache.flink.core.fs.Path targetDirectory =
                         new org.apache.flink.core.fs.Path(
                                 filesDirectory,
                                 String.join(
                                         File.separator,
                                         distributedCacheFileName,
-                                        originFileName.substring(
-                                                0, originFileName.lastIndexOf("."))));
-                FileUtils.expandDirectory(
-                        new org.apache.flink.core.fs.Path(pythonFile.getAbsolutePath()),
-                        targetDirectory);
+                                        CompressionUtils.getBaseNameWithoutExtension(
+                                                originFileName)));
+                CompressionUtils.extractFile(
+                        pythonFile.getAbsolutePath(), targetDirectory.toString(), originFileName);
                 pythonPath = targetDirectory.toString();
             } else {
                 pythonPath =
