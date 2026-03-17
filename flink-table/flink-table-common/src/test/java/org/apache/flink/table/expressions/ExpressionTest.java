@@ -322,52 +322,26 @@ class ExpressionTest {
 
     private static Stream<Arguments> timestampLtzPrecisionTestCases() {
         return Stream.of(
+                // Small instants use numeric variant for readability
+                Arguments.of(Instant.ofEpochSecond(1234), 0, "TO_TIMESTAMP_LTZ(1234, 0)"),
+                Arguments.of(Instant.ofEpochSecond(1, 100_000_000), 1, "TO_TIMESTAMP_LTZ(11, 1)"),
+                Arguments.of(Instant.ofEpochSecond(1, 120_000_000), 2, "TO_TIMESTAMP_LTZ(112, 2)"),
+                Arguments.of(Instant.ofEpochMilli(1234567), 3, "TO_TIMESTAMP_LTZ(1234567, 3)"),
+                Arguments.of(Instant.ofEpochSecond(1, 123400000), 4, "TO_TIMESTAMP_LTZ(11234, 4)"),
+                Arguments.of(Instant.ofEpochSecond(1, 123450000), 5, "TO_TIMESTAMP_LTZ(112345, 5)"),
                 Arguments.of(
-                        Instant.ofEpochSecond(1234),
-                        0,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:20:34', 'yyyy-MM-dd HH:mm:ss', 'UTC')"),
+                        Instant.ofEpochSecond(1, 123456000), 6, "TO_TIMESTAMP_LTZ(1123456, 6)"),
                 Arguments.of(
-                        Instant.ofEpochSecond(1, 100_000_000),
-                        1,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.1', 'yyyy-MM-dd HH:mm:ss.S', 'UTC')"),
+                        Instant.ofEpochSecond(1, 123456700), 7, "TO_TIMESTAMP_LTZ(11234567, 7)"),
                 Arguments.of(
-                        Instant.ofEpochSecond(1, 120_000_000),
-                        2,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.12', 'yyyy-MM-dd HH:mm:ss.SS', 'UTC')"),
+                        Instant.ofEpochSecond(1, 123456780), 8, "TO_TIMESTAMP_LTZ(112345678, 8)"),
                 Arguments.of(
-                        Instant.ofEpochMilli(1234567),
-                        3,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:20:34.567', 'yyyy-MM-dd HH:mm:ss.SSS', 'UTC')"),
-                Arguments.of(
-                        Instant.ofEpochSecond(1, 123400000),
-                        4,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.1234', 'yyyy-MM-dd HH:mm:ss.SSSS', 'UTC')"),
-                Arguments.of(
-                        Instant.ofEpochSecond(1, 123450000),
-                        5,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS', 'UTC')"),
-                Arguments.of(
-                        Instant.ofEpochSecond(1, 123456000),
-                        6,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.123456', 'yyyy-MM-dd HH:mm:ss.SSSSSS', 'UTC')"),
-                Arguments.of(
-                        Instant.ofEpochSecond(1, 123456700),
-                        7,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.1234567', 'yyyy-MM-dd HH:mm:ss.SSSSSSS', 'UTC')"),
-                Arguments.of(
-                        Instant.ofEpochSecond(1, 123456780),
-                        8,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.12345678', 'yyyy-MM-dd HH:mm:ss.SSSSSSSS', 'UTC')"),
-                Arguments.of(
-                        Instant.ofEpochSecond(1, 123456789),
-                        9,
-                        "TO_TIMESTAMP_LTZ('1970-01-01 00:00:01.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"),
-                // Edge case: year 9999 (beyond the long nanosecond overflow at 2262-04-11)
+                        Instant.ofEpochSecond(1, 123456789), 9, "TO_TIMESTAMP_LTZ(1123456789, 9)"),
+                // Edge cases: large instants fall back to string variant to avoid long overflow
                 Arguments.of(
                         Instant.parse("9999-12-31T23:59:59.999999999Z"),
                         9,
                         "TO_TIMESTAMP_LTZ('9999-12-31 23:59:59.999999999', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"),
-                // Edge case: just after the long nanosecond overflow boundary (2262-04-12)
                 Arguments.of(
                         Instant.parse("2262-04-12T00:00:00Z"),
                         9,

@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.util.Preconditions;
@@ -283,19 +284,9 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         localDateTime.toLocalDate(),
                         localDateTime.toLocalTime().format(DateTimeFormatter.ISO_LOCAL_TIME));
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                final Instant instant = getValueAs(Instant.class).get();
-                final int ltzPrecision =
-                        ((LocalZonedTimestampType) dataType.getLogicalType()).getPrecision();
-                final LocalDateTime utcDateTime =
-                        LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
-                final String formatPattern =
-                        ltzPrecision > 0
-                                ? "yyyy-MM-dd HH:mm:ss." + "S".repeat(ltzPrecision)
-                                : "yyyy-MM-dd HH:mm:ss";
-                final DateTimeFormatter ltzFormatter = DateTimeFormatter.ofPattern(formatPattern);
-                final String timestampStr = utcDateTime.format(ltzFormatter);
-                return String.format(
-                        "TO_TIMESTAMP_LTZ('%s', '%s', 'UTC')", timestampStr, formatPattern);
+                return serializeTimestampLtz(
+                        getValueAs(Instant.class).get(),
+                        ((LocalZonedTimestampType) dataType.getLogicalType()).getPrecision());
             case INTERVAL_YEAR_MONTH:
                 final Period period = getValueAs(Period.class).get().normalized();
                 return String.format(
@@ -436,5 +427,35 @@ public final class ValueLiteralExpression implements ResolvedExpression {
             return "'" + ((String) value).replace("'", "''") + "'";
         }
         return StringUtils.arrayAwareToString(value);
+    }
+
+    /**
+     * Serializes a TIMESTAMP_LTZ literal as a SQL string. Uses the numeric variant {@code
+     * TO_TIMESTAMP_LTZ(epoch, precision)} for readability when the value fits in a long, and falls
+     * back to the string variant for large values that would overflow.
+     */
+    private static String serializeTimestampLtz(Instant instant, int precision) {
+        if (canRepresentAsLong(instant, precision)) {
+            long epochValue = DateTimeUtils.toEpochValue(instant, precision);
+            return String.format("TO_TIMESTAMP_LTZ(%d, %d)", epochValue, precision);
+        }
+        final LocalDateTime utcDateTime =
+                LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+        final String formatPattern =
+                precision > 0
+                        ? "yyyy-MM-dd HH:mm:ss." + "S".repeat(precision)
+                        : "yyyy-MM-dd HH:mm:ss";
+        final String timestampStr = utcDateTime.format(DateTimeFormatter.ofPattern(formatPattern));
+        return String.format("TO_TIMESTAMP_LTZ('%s', '%s', 'UTC')", timestampStr, formatPattern);
+    }
+
+    /**
+     * Checks whether an {@link Instant} can be represented as a {@code long} epoch value at the
+     * given precision without overflow.
+     */
+    private static boolean canRepresentAsLong(Instant instant, int precision) {
+        long factor = (long) Math.pow(10, precision);
+        long epochSeconds = instant.getEpochSecond();
+        return factor == 0 || Math.abs(epochSeconds) <= Long.MAX_VALUE / factor;
     }
 }
