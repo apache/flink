@@ -101,8 +101,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testCircuitTransitionsToHalfOpenAfterTimeout() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker(
-                        "http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -123,8 +122,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testHalfOpenAllowsLimitedRequests() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker(
-                        "http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -149,8 +147,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testHalfOpenClosesAfterSuccessfulProbes() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker(
-                        "http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -175,8 +172,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testHalfOpenReopensOnFailure() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker(
-                        "http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {

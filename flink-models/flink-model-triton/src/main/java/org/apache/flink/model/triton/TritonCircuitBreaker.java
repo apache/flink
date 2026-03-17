@@ -142,10 +142,14 @@ public class TritonCircuitBreaker {
             case OPEN:
                 // Check if it's time to transition to HALF_OPEN
                 if (shouldTransitionToHalfOpen()) {
-                    LOG.info("Circuit breaker transitioning from OPEN to HALF_OPEN for {}", endpoint);
+                    LOG.info(
+                            "Circuit breaker transitioning from OPEN to HALF_OPEN for {}",
+                            endpoint);
                     if (state.compareAndSet(State.OPEN, State.HALF_OPEN)) {
                         lastStateTransitionTime.set(System.currentTimeMillis());
                         resetHalfOpenMetrics();
+                        // Count this first request as a half-open probe request
+                        halfOpenRequests.incrementAndGet();
                         return true;
                     }
                 }
@@ -191,6 +195,19 @@ public class TritonCircuitBreaker {
         switch (currentState) {
             case CLOSED:
                 totalRequests.incrementAndGet();
+
+                // Also check if we should open the circuit after recording a success
+                // This handles the case where the minimum threshold is reached on a success
+                if (shouldOpenCircuit()) {
+                    if (state.compareAndSet(State.CLOSED, State.OPEN)) {
+                        LOG.warn(
+                                "Circuit breaker opening for {} due to high failure rate: {}/{}",
+                                endpoint,
+                                failedRequests.get(),
+                                totalRequests.get());
+                        lastStateTransitionTime.set(System.currentTimeMillis());
+                    }
+                }
                 break;
 
             case HALF_OPEN:
@@ -225,8 +242,8 @@ public class TritonCircuitBreaker {
     /**
      * Records a failed request.
      *
-     * <p>In CLOSED state, this may trigger transition to OPEN if failure rate exceeds threshold.
-     * In HALF_OPEN state, any failure immediately reopens the circuit.
+     * <p>In CLOSED state, this may trigger transition to OPEN if failure rate exceeds threshold. In
+     * HALF_OPEN state, any failure immediately reopens the circuit.
      */
     public void recordFailure() {
         State currentState = state.get();
