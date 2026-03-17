@@ -557,6 +557,98 @@ class FsStateChangelogWriterTest {
     }
 
     @Test
+    void testHandleNotDiscardedAfterTruncateBeforeConfirm() throws Exception {
+        long appendPersistThreshold = 1000;
+
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.disabled(),
+                                LocalChangelogRegistry.NO_OP)) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10)); // sqn: 0
+
+            long checkpointId = 1L;
+            // checkpoint 1 trigger & complete
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
+                    writer.persist(initialSqn, checkpointId);
+            uploadScheduler.scheduleAll();
+
+            // materialization completes — truncates changes before checkpoint1sqn
+            writer.truncate(checkpoint1sqn);
+
+            // now confirm — handle should NOT have been discarded by truncate
+            writer.confirm(initialSqn, checkpoint1sqn, checkpointId);
+
+            SnapshotResult<ChangelogStateHandleStreamImpl> result = future.get();
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result.getJobManagerOwnedSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
+            }
+        }
+    }
+
+    @Test
+    void testHandleDiscardedAfterTruncateAndReset() throws Exception {
+        long appendPersistThreshold = 1000;
+
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.disabled(),
+                                LocalChangelogRegistry.NO_OP)) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10)); // sqn: 0
+
+            long checkpointId = 1L;
+            // checkpoint 1 trigger & complete
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
+                    writer.persist(initialSqn, checkpointId);
+            uploadScheduler.scheduleAll();
+
+            // materialization completes — truncates
+            writer.truncate(checkpoint1sqn);
+
+            // checkpoint aborted — handle should be discarded since truncation already released it
+            writer.reset(initialSqn, checkpoint1sqn, checkpointId);
+
+            SnapshotResult<ChangelogStateHandleStreamImpl> result = future.get();
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result.getJobManagerOwnedSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isTrue();
+            }
+        }
+    }
+
+    @Test
     void testTruncate() {
         assertThatThrownBy(
                         () ->
