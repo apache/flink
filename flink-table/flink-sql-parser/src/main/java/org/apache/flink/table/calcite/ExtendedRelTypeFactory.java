@@ -44,6 +44,7 @@ public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
 
     /** Creates a BITMAP type. */
     default RelDataType createBitmapType() {
+        // The actual implementation will be provided by FlinkTypeFactory as part of FLINK-39185.
         throw new UnsupportedOperationException("BITMAP type is not supported yet.");
     }
 }
