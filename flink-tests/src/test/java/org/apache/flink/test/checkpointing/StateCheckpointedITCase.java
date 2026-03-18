@@ -131,7 +131,7 @@ class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         for (Map<Character, Long> map : ValidatingSink.maps) {
             for (Long count : map.values()) {
-                assertThat(count.longValue()).isEqualTo(NUM_STRINGS / 40L);
+                assertThat(count).isEqualTo(NUM_STRINGS / 40L);
             }
         }
     }

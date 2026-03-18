@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-    static final long NUM_STRINGS = 10_000_000L;
+    private static final long NUM_STRINGS = 10_000_000L;
 
     /**
      * Runs the following program.

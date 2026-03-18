@@ -53,19 +53,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 abstract class StreamFaultToleranceTestBase {
 
     @Parameters(name = "FailoverStrategy: {0}")
-    public static Collection<FailoverStrategy> parameters() {
+    private static Collection<FailoverStrategy> parameters() {
         return Arrays.asList(
                 FailoverStrategy.RestartAllFailoverStrategy,
                 FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
     }
 
     /** The failover strategy to use. */
-    public enum FailoverStrategy {
+    protected enum FailoverStrategy {
         RestartAllFailoverStrategy,
         RestartPipelinedRegionFailoverStrategy
     }
 
-    @Parameter public FailoverStrategy failoverStrategy;
+    @Parameter protected FailoverStrategy failoverStrategy;
 
     protected static final int NUM_TASK_MANAGERS = 3;
     protected static final int NUM_TASK_SLOTS = 4;
@@ -73,7 +73,7 @@ abstract class StreamFaultToleranceTestBase {
 
     private MiniClusterWithClientResource cluster;
 
-    @TempDir public static File tempFolder;
+    @TempDir private static File tempFolder;
 
     @BeforeEach
     void setup() throws Exception {
