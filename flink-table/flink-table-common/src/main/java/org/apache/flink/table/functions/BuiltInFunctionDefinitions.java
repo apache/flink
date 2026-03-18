@@ -765,7 +765,7 @@ public final class BuiltInFunctionDefinitions {
                     .staticArguments(
                             StaticArgument.table(
                                     "input",
-                                    RowData.class,
+                                    Row.class,
                                     false,
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,

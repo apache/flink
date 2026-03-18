@@ -481,17 +481,7 @@ public final class TypeInferenceUtil {
                                                 }
                                                 return null;
                                             }
-                                            final DataType tableDataType =
-                                                    semantics.dataType();
-                                            if (expectedArg
-                                                    .getConversionClass()
-                                                    .isPresent()) {
-                                                return tableDataType.bridgedTo(
-                                                        expectedArg
-                                                                .getConversionClass()
-                                                                .get());
-                                            }
-                                            return tableDataType;
+                                            return semantics.dataType();
                                         } else if (expectedArg.is(StaticArgumentTrait.MODEL)) {
                                             final ModelSemantics semantics =
                                                     callContext.getModelSemantics(pos).orElse(null);
