@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
@@ -29,6 +31,8 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
+
+import org.apache.flink.table.functions.FunctionContext;
 
 import javax.annotation.Nullable;
 
@@ -44,6 +48,9 @@ import java.util.stream.IntStream;
  * <p>Converts each input row into an INSERT-only output row with an operation code column. The
  * output schema is {@code [op_column, ...non_partition_columns...]} - the framework prepends
  * partition key columns automatically.
+ *
+ * <p>Uses {@link ProjectedRowData} for zero-copy projection of non-partition columns and {@link
+ * JoinedRowData} to combine the op column with the projected input.
  */
 @Internal
 public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
@@ -58,7 +65,11 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                     RowKind.DELETE, "DELETE");
 
     private final Map<RowKind, String> opMap;
-    private final RowData.FieldGetter[] fieldGetters;
+    private final int[] nonPartitionIndices;
+
+    private transient ProjectedRowData projectedInput;
+    private transient GenericRowData opRow;
+    private transient JoinedRowData output;
 
     @SuppressWarnings("unchecked")
     public ToChangelogFunction(final SpecializedContext context) {
@@ -74,24 +85,26 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                 IntStream.of(partitionKeys).boxed().collect(Collectors.toSet());
 
         final RowType inputType = (RowType) semantics.dataType().getLogicalType();
-        this.fieldGetters = buildFieldGetters(inputType, partitionKeySet);
+        this.nonPartitionIndices = buildNonPartitionIndices(inputType.getFieldCount(), partitionKeySet);
 
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.opMap = buildOpMap(opMapping);
     }
 
-    private static RowData.FieldGetter[] buildFieldGetters(
-            final RowType inputType, final Set<Integer> partitionKeySet) {
-        final int outputFieldCount = inputType.getFieldCount() - partitionKeySet.size();
-        final RowData.FieldGetter[] getters = new RowData.FieldGetter[outputFieldCount];
-        int outputIdx = 0;
-        for (int i = 0; i < inputType.getFieldCount(); i++) {
-            if (!partitionKeySet.contains(i)) {
-                getters[outputIdx++] = RowData.createFieldGetter(inputType.getTypeAt(i), i);
-            }
-        }
-        return getters;
+    @Override
+    public void open(final FunctionContext context) throws Exception {
+        super.open(context);
+        projectedInput = ProjectedRowData.from(nonPartitionIndices);
+        opRow = new GenericRowData(1);
+        output = new JoinedRowData();
+    }
+
+    private static int[] buildNonPartitionIndices(
+            final int fieldCount, final Set<Integer> partitionKeySet) {
+        return IntStream.range(0, fieldCount)
+                .filter(i -> !partitionKeySet.contains(i))
+                .toArray();
     }
 
     private static Map<RowKind, String> buildOpMap(@Nullable final Map<String, String> opMapping) {
@@ -108,18 +121,13 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
             final RowData input,
             @Nullable final ColumnList op,
             @Nullable final Map<String, String> opMapping) {
-
         final String opCode = opMap.get(input.getRowKind());
         if (opCode == null) {
-            // RowKind not in op_mapping - intentionally dropped
             return;
         }
 
-        final GenericRowData output = new GenericRowData(fieldGetters.length + 1);
-        output.setField(0, StringData.fromString(opCode));
-        for (int i = 0; i < fieldGetters.length; i++) {
-            output.setField(i + 1, fieldGetters[i].getFieldOrNull(input));
-        }
-        collect(output);
+        opRow.setField(0, StringData.fromString(opCode));
+        projectedInput.replaceRow(input);
+        collect(output.replace(opRow, projectedInput));
     }
 }
