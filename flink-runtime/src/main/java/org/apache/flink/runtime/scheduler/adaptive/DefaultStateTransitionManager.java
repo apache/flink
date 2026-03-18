@@ -151,7 +151,19 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
 
     private void triggerTransitionToSubsequentState() {
         progressToPhase(new Transitioning(clock, this));
-        transitionContext.transitionToSubsequentState();
+        try {
+            transitionContext.transitionToSubsequentState();
+        } catch (Throwable t) {
+            LOG.warn(
+                    "Failed to transition to subsequent state for job {}. "
+                            + "Resetting to Idling phase to allow future transition attempts.",
+                    getJobId(),
+                    t);
+            // Reset phase directly (bypassing progressToPhase guard) so the manager
+            // can respond to future resource changes and retry the transition.
+            phase = new Idling(clock, this);
+            throw t;
+        }
     }
 
     private void progressToPhase(Phase newPhase) {
