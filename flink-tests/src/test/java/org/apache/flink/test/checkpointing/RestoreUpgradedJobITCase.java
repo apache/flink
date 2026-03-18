@@ -60,6 +60,7 @@ import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -73,15 +74,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_1;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_2;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_3;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_4;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_5;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_6;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.TestCheckpointType.ALIGNED_CHECKPOINT;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.TestCheckpointType.CANONICAL_SAVEPOINT;
-import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.TestCheckpointType.NATIVE_SAVEPOINT;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -111,25 +103,28 @@ class RestoreUpgradedJobITCase {
     private SharedReference<OneShotLatch> allDataEmittedLatch;
     private SharedReference<AtomicLong> result;
 
-    public void setupSharedObjects() {
+    @BeforeEach
+    void setupSharedObjects() {
         allDataEmittedLatch = sharedObjects.add(new OneShotLatch());
         result = sharedObjects.add(new AtomicLong());
     }
 
     @Parameters(name = "Savepoint type[{0}]")
-    public static Object[][] parameters() {
+    private static Object[][] parameters() {
         return new Object[][] {
-            {ALIGNED_CHECKPOINT}, {CANONICAL_SAVEPOINT}, {NATIVE_SAVEPOINT},
+            {TestCheckpointType.ALIGNED_CHECKPOINT},
+            {TestCheckpointType.CANONICAL_SAVEPOINT},
+            {TestCheckpointType.NATIVE_SAVEPOINT},
         };
     }
 
-    enum TestCheckpointType {
+    private enum TestCheckpointType {
         ALIGNED_CHECKPOINT,
         CANONICAL_SAVEPOINT,
         NATIVE_SAVEPOINT
     }
 
-    enum MapName {
+    private enum MapName {
         MAP_1,
         MAP_2,
         MAP_3,
@@ -144,33 +139,18 @@ class RestoreUpgradedJobITCase {
 
     @TestTemplate
     void testRestoreUpgradedJob(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
-        setupSharedObjects();
-
         // when: Run original job.
         String snapshotPath = runOriginalJob(miniCluster);
 
         // then: Check the result before the checkpoint.
-        assertThat(result.get().longValue()).isEqualTo(calculateExpectedResultBeforeSavepoint());
+        assertThat(result.get()).hasValue(calculateExpectedResultBeforeSavepoint());
         result.get().set(0);
 
         // when: Executing the new job with different order of maps.
         runUpgradedJob(snapshotPath, miniCluster);
 
         // then: The final result should ignore state from new maps(because it is empty).
-        assertThat(result.get().longValue()).isEqualTo(calculateExpectedResultBeforeSavepoint());
-    }
-
-    private long calculateExpectedResultAfterSavepoint() {
-        long totalStates = 0;
-        for (int i = 1; i <= MapName.values().length; i++) {
-            totalStates += (long) i * i;
-        }
-        long expectedAfterSavepointResult = 0;
-        for (int i = 0; i < TOTAL_RECORDS; i++) {
-            expectedAfterSavepointResult += i + totalStates;
-        }
-        // Multiply for parallelism due to broadcast.
-        return PARALLELISM * expectedAfterSavepointResult;
+        assertThat(result.get()).hasValue(calculateExpectedResultBeforeSavepoint());
     }
 
     private long calculateExpectedResultBeforeSavepoint() {
@@ -200,27 +180,27 @@ class RestoreUpgradedJobITCase {
         // Different order of maps before and after savepoint.
         env.fromSource(
                         new IntSource(allDataEmittedLatch),
-                        WatermarkStrategy.<Integer>noWatermarks(),
+                        WatermarkStrategy.noWatermarks(),
                         "IntSourceV2")
                 .setParallelism(1)
-                .map(new IntMap(MAP_5.id()))
-                .uid(MAP_5.name())
+                .map(new IntMap(MapName.MAP_5.id()))
+                .uid(MapName.MAP_5.name())
                 .forward()
-                .map(new IntMap(MAP_1.id()))
-                .uid(MAP_1.name())
+                .map(new IntMap(MapName.MAP_1.id()))
+                .uid(MapName.MAP_1.name())
                 .slotSharingGroup("anotherSharingGroup")
                 .keyBy((key) -> key)
-                .map(new IntMap(MAP_6.id()))
-                .uid(MAP_6.name())
+                .map(new IntMap(MapName.MAP_6.id()))
+                .uid(MapName.MAP_6.name())
                 .rebalance()
-                .map(new IntMap(MAP_4.id()))
-                .uid(MAP_4.name())
+                .map(new IntMap(MapName.MAP_4.id()))
+                .uid(MapName.MAP_4.name())
                 .broadcast()
-                .map(new IntMap(MAP_2.id()))
-                .uid(MAP_2.name())
+                .map(new IntMap(MapName.MAP_2.id()))
+                .uid(MapName.MAP_2.name())
                 .rescale()
-                .map(new IntMap(MAP_3.id()))
-                .uid(MAP_3.name())
+                .map(new IntMap(MapName.MAP_3.id()))
+                .uid(MapName.MAP_3.name())
                 .sinkTo(createIntSink(result))
                 // one sink for easy calculation.
                 .setParallelism(1);
@@ -247,28 +227,28 @@ class RestoreUpgradedJobITCase {
                         WatermarkStrategy.noWatermarks(),
                         "StringSourceV2")
                 .setParallelism(1)
-                .map(new StringMap(MAP_1.id()))
-                .uid(MAP_1.name())
+                .map(new StringMap(MapName.MAP_1.id()))
+                .uid(MapName.MAP_1.name())
                 .forward()
-                .map(new StringMap(MAP_2.id()))
-                .uid(MAP_2.name())
+                .map(new StringMap(MapName.MAP_2.id()))
+                .uid(MapName.MAP_2.name())
                 .slotSharingGroup("anotherSharingGroup")
                 .keyBy((key) -> key)
-                .map(new StringMap(MAP_3.id()))
-                .uid(MAP_3.name())
+                .map(new StringMap(MapName.MAP_3.id()))
+                .uid(MapName.MAP_3.name())
                 .map(new StringMap(-1))
                 .uid("new_chained_map")
                 .rebalance()
                 .map(new StringMap(-2))
                 .uid("new_map2")
-                .map(new StringMap(MAP_4.id()))
-                .uid(MAP_4.name())
+                .map(new StringMap(MapName.MAP_4.id()))
+                .uid(MapName.MAP_4.name())
                 .rescale()
-                .map(new StringMap(MAP_5.id()))
-                .uid(MAP_5.name())
+                .map(new StringMap(MapName.MAP_5.id()))
+                .uid(MapName.MAP_5.name())
                 .broadcast()
-                .map(new StringMap(MAP_6.id()))
-                .uid(MAP_6.name())
+                .map(new StringMap(MapName.MAP_6.id()))
+                .uid(MapName.MAP_6.name())
                 .sinkTo(createStringSink(result))
                 // one sink for easy calculation.
                 .setParallelism(1);
@@ -289,10 +269,10 @@ class RestoreUpgradedJobITCase {
     private String stopWithSnapshot(JobClient jobClient, MiniCluster miniCluster)
             throws InterruptedException, ExecutionException {
         String snapshotPath;
-        if (checkpointType == ALIGNED_CHECKPOINT) {
+        if (checkpointType == TestCheckpointType.ALIGNED_CHECKPOINT) {
             snapshotPath = miniCluster.triggerCheckpoint(jobClient.getJobID()).get();
             jobClient.cancel().get();
-        } else if (checkpointType == CANONICAL_SAVEPOINT) {
+        } else if (checkpointType == TestCheckpointType.CANONICAL_SAVEPOINT) {
             snapshotPath =
                     jobClient
                             .stopWithSavepoint(
@@ -300,7 +280,7 @@ class RestoreUpgradedJobITCase {
                                     temporaryFolder.getAbsolutePath(),
                                     SavepointFormatType.CANONICAL)
                             .get();
-        } else if (checkpointType == NATIVE_SAVEPOINT) {
+        } else if (checkpointType == TestCheckpointType.NATIVE_SAVEPOINT) {
             snapshotPath =
                     jobClient
                             .stopWithSavepoint(
@@ -338,7 +318,7 @@ class RestoreUpgradedJobITCase {
 
     private static Sink<String> createStringSink(SharedReference<AtomicLong> result) {
         return context ->
-                new SinkWriter<String>() {
+                new SinkWriter<>() {
                     @Override
                     public void write(String element, Context ctx) {
                         result.get().addAndGet(Integer.parseInt(element));
@@ -403,7 +383,7 @@ class RestoreUpgradedJobITCase {
             this.id = id;
         }
 
-        protected int calculate(int value) throws Exception {
+        protected int calculate(int value) {
             return value;
         }
 
@@ -430,7 +410,7 @@ class RestoreUpgradedJobITCase {
 
         @Override
         public SourceReader<Integer, TestSplit> createReader(SourceReaderContext ctx) {
-            return new TestSourceReader<Integer>(ctx) {
+            return new TestSourceReader<>(ctx) {
                 private int i = TOTAL_RECORDS;
                 private boolean signaled = false;
 

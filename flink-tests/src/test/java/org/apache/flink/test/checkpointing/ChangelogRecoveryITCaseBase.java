@@ -100,7 +100,6 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestComple
 import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.get;
 import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
 /** Base class for tests related to period materialization of ChangelogStateBackend. */
 @ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
@@ -121,7 +120,7 @@ abstract class ChangelogRecoveryITCaseBase {
     protected final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @Parameters(name = "delegated state backend type = {0}")
-    public static Collection<AbstractStateBackend> parameter() {
+    private static Collection<AbstractStateBackend> parameter() {
         return Arrays.asList(
                 new HashMapStateBackend(),
                 new EmbeddedRocksDBStateBackend(true),
@@ -285,7 +284,7 @@ abstract class ChangelogRecoveryITCaseBase {
         if (jobResult.getSerializedThrowable().isPresent()) {
             throw jobResult.getSerializedThrowable().get();
         }
-        assertSame(JobStatus.FINISHED, jobResult.getJobStatus().orElse(null));
+        assertThat(jobResult.getJobStatus()).contains(JobStatus.FINISHED);
     }
 
     private Configuration configure() throws IOException {

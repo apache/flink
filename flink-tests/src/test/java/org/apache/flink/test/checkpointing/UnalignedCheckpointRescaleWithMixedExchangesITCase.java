@@ -105,7 +105,7 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
     @Parameter private ExecuteJobViaEnv executeJobViaEnv;
 
     @Parameters
-    public static Collection<ExecuteJobViaEnv> parameter() {
+    private static Collection<ExecuteJobViaEnv> parameter() {
         return List.of(
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createMultiOutputDAG,
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createMultiInputDAG,
@@ -397,7 +397,7 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
         }
     }
 
-    public interface ExecuteJobViaEnv {
+    private interface ExecuteJobViaEnv {
         JobClient executeJob(StreamExecutionEnvironment env) throws Exception;
     }
 }

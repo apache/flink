@@ -113,7 +113,7 @@ class AutoRescalingITCase {
     private static final int totalSlots = numTaskManagers * slotsPerTaskManager;
 
     @Parameters(name = "backend = {0}, useIngestDB = {1}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {"rocksdb", false},
@@ -124,7 +124,7 @@ class AutoRescalingITCase {
                 });
     }
 
-    public AutoRescalingITCase(String backend, boolean useIngestDB) {
+    private AutoRescalingITCase(String backend, boolean useIngestDB) {
         this.backend = backend;
         this.useIngestDB = useIngestDB;
     }
@@ -135,7 +135,7 @@ class AutoRescalingITCase {
 
     private String currentBackend = null;
 
-    enum OperatorCheckpointMethod {
+    private enum OperatorCheckpointMethod {
         NON_PARTITIONED,
         CHECKPOINTED_FUNCTION,
         CHECKPOINTED_FUNCTION_BROADCAST,
@@ -145,7 +145,7 @@ class AutoRescalingITCase {
     private static MiniClusterWithClientResource cluster;
     private static RestClusterClient<?> restClusterClient;
 
-    @TempDir static Path temporaryFolder;
+    @TempDir private static Path temporaryFolder;
 
     @BeforeEach
     void setup() throws Exception {

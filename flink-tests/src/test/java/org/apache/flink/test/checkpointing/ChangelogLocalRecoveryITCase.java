@@ -73,7 +73,7 @@ class ChangelogLocalRecoveryITCase {
 
     private final Configuration configuration;
 
-    public ChangelogLocalRecoveryITCase(Configuration configuration) {
+    private ChangelogLocalRecoveryITCase(Configuration configuration) {
         this.configuration = configuration;
     }
 

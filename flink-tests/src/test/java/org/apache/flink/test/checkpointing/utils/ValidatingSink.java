@@ -112,7 +112,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
 
     @Override
     public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-        if (state.isEmpty() || state.size() > 1) {
+        if (state.size() != 1) {
             throw new RuntimeException(
                     "Test failed due to unexpected recovered state size " + state.size());
         }

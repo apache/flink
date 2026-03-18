@@ -70,7 +70,7 @@ class CoStreamCheckpointingITCase extends AbstractTestBase {
      */
     @Test
     void testCoStreamCheckpointingProgram() throws Exception {
-        assertThat(NUM_STRINGS % 40).as("Broken test setup").isEqualTo(0);
+        assertThat(NUM_STRINGS % 40).as("Broken test setup").isZero();
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);

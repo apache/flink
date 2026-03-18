@@ -141,7 +141,7 @@ class TimersSavepointITCase {
         FileUtils.moveDirectory(jobManagerSavepoint, new File(savepointPath));
     }
 
-    public JobGraph getJobGraph(PriorityQueueStateType priorityQueueStateType) throws IOException {
+    private JobGraph getJobGraph(PriorityQueueStateType priorityQueueStateType) throws IOException {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.addSource(new Source())

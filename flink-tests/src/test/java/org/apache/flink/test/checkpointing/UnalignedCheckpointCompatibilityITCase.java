@@ -91,7 +91,7 @@ class UnalignedCheckpointCompatibilityITCase {
                             .build());
 
     @Parameters
-    public static Collection<Object[]> parameters() {
+    private static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[][] {
                     {CHECKPOINT, true},

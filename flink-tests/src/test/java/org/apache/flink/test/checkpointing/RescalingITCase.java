@@ -107,7 +107,7 @@ class RescalingITCase {
     @Parameter private String backend;
 
     @Parameters(name = "backend = {0}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {{"hashmap"}, {"rocksdb"}});
     }
 

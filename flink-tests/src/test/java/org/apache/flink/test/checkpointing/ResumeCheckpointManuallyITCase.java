@@ -88,7 +88,7 @@ class ResumeCheckpointManuallyITCase {
     @Parameter private RecoveryClaimMode recoveryClaimMode;
 
     @Parameters(name = "RecoveryClaimMode = {0}")
-    public static Collection<RecoveryClaimMode> parameters() {
+    private static Collection<RecoveryClaimMode> parameters() {
         return Arrays.stream(RecoveryClaimMode.values()).collect(Collectors.toList());
     }
 

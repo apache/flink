@@ -136,8 +136,8 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             IntegerStreamSource.latch.countDown();
 
             miniCluster.requestJobResult(restoredJobGraph.getJobID()).get();
-            assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
-            assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+            assertThat(smallResult.get()).hasSize(SMALL_SOURCE_NUM_RECORDS);
+            assertThat(bigResult.get()).hasSize(BIG_SOURCE_NUM_RECORDS);
         }
     }
 
@@ -185,9 +185,14 @@ class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             // However, in a few cases, a checkpoint happens to be triggered before failover, and
             // the source would not restart so the sink will only receive SMALL_SOURCE_NUM_RECORDS
             // records.
-            assertThat(smallResult.get().size())
-                    .isIn(SMALL_SOURCE_NUM_RECORDS, SMALL_SOURCE_NUM_RECORDS * 2);
-            assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+            assertThat(smallResult.get())
+                    .satisfiesAnyOf(
+                            smallResultList ->
+                                    assertThat(smallResultList).hasSize(SMALL_SOURCE_NUM_RECORDS),
+                            smallResultList ->
+                                    assertThat(smallResultList)
+                                            .hasSize(SMALL_SOURCE_NUM_RECORDS * 2));
+            assertThat(bigResult.get()).hasSize(BIG_SOURCE_NUM_RECORDS);
         }
     }
 

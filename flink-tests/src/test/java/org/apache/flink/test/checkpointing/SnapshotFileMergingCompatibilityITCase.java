@@ -70,7 +70,7 @@ class SnapshotFileMergingCompatibilityITCase {
 
     private static final long DELETE_TIMEOUT_MILLS = 120000;
 
-    public static Collection<Object[]> parameters() {
+    private static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[][] {
                     {RecoveryClaimMode.CLAIM, true},

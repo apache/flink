@@ -73,11 +73,11 @@ class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
     @Parameters(name = "Test snapshot: {0}")
-    public static Collection<SnapshotSpec> createSpecsForTestRuns() {
+    private static Collection<SnapshotSpec> createSpecsForTestRuns() {
         return internalParameters(null);
     }
 
-    public static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
+    private static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
             FlinkVersion targetVersion) {
         return internalParameters(targetVersion);
     }
@@ -144,7 +144,7 @@ class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase
     @Parameter private SnapshotSpec snapshotSpec;
 
     @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
-    public void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
+    private void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
         testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec);
     }
 

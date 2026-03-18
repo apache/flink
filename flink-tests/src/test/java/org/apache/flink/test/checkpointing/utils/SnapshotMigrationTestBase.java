@@ -78,13 +78,13 @@ public abstract class SnapshotMigrationTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SnapshotMigrationTestBase.class);
 
-    protected static final int DEFAULT_PARALLELISM = 4;
+    private static final int DEFAULT_PARALLELISM = 4;
 
     /**
      * Modes for migration test execution. This enum is supposed to serve as a switch between two
      * modes of test execution: 1) create snapshots and 2) verify snapshots:
      */
-    public enum ExecutionMode {
+    protected enum ExecutionMode {
         /** Create binary snapshot(s), i.e. run the checkpointing functions. */
         CREATE_SNAPSHOT,
         /** Verify snapshot(s), i.e, restore snapshot and check execution result. */
@@ -92,7 +92,7 @@ public abstract class SnapshotMigrationTestBase {
     }
 
     /** Types of snapshot supported by this base test. */
-    public enum SnapshotType {
+    protected enum SnapshotType {
         /** Savepoints with Flink canonical format. */
         SAVEPOINT_CANONICAL,
         /** Savepoint with native format of respective state backend. */
@@ -310,9 +310,9 @@ public abstract class SnapshotMigrationTestBase {
             }
         }
 
-        if (!done) {
-            fail("Did not see the expected accumulator results within time limit.");
-        }
+        assertThat(done)
+                .as("Did not see the expected accumulator results within time limit.")
+                .isTrue();
 
         LOG.info("Triggering snapshot.");
 
@@ -410,8 +410,8 @@ public abstract class SnapshotMigrationTestBase {
             }
         }
 
-        if (!done) {
-            fail("Did not see the expected accumulator results within time limit.");
-        }
+        assertThat(done)
+                .as("Did not see the expected accumulator results within time limit.")
+                .isTrue();
     }
 }

@@ -53,7 +53,7 @@ import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingIT
 @ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
 class LocalRecoveryITCase {
 
-    @Parameter public StateBackendEnum backendEnum;
+    @Parameter private StateBackendEnum backendEnum;
 
     @Parameter(1)
     private boolean localRecoveryEnabled;
@@ -69,7 +69,7 @@ class LocalRecoveryITCase {
 
     @Parameters(
             name = "stateBackendType = {0}, localBackupEnabled = {1}, localRecoveryEnabled = {2}")
-    public static Collection<Object[]> parameter() {
+    private static Collection<Object[]> parameter() {
         List<Object[]> parameterList = new ArrayList<>();
         for (StateBackendEnum stateBackend : STATE_BACKEND_ENUMS) {
             for (Tuple2<Boolean, Boolean> backupAndRecoveryConfig :
@@ -122,7 +122,7 @@ class LocalRecoveryITCase {
         private final boolean localBackupEnable;
         private final boolean localRecoveryEnabled;
 
-        public EventTimeWindowCheckpointingITCaseInstance(
+        private EventTimeWindowCheckpointingITCaseInstance(
                 StateBackendEnum backendEnum,
                 boolean localBackupEnable,
                 boolean localRecoveryEnabled) {

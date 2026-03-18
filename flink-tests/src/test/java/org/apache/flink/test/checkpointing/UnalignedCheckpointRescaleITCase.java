@@ -693,7 +693,7 @@ class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBase {
                     if (!topology.equals(Topology.CUSTOM_PARTITIONER)) {
                         assertThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES))
                                 .as("NUM_DUPLICATES")
-                                .isEqualTo(0L);
+                                .isZero();
                     }
                 });
     }

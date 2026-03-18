@@ -87,10 +87,10 @@ class BoundedSourceITCase {
         return conf;
     }
 
-    @Parameter public TestingGraphBuilder graphBuilder;
+    @Parameter private TestingGraphBuilder graphBuilder;
 
     @Parameters(name = "{0}")
-    public static Collection<TestingGraphBuilder> parameters() {
+    private static Collection<TestingGraphBuilder> parameters() {
         return Arrays.asList(SIMPLE_GRAPH_BUILDER, COMPLEX_GRAPH_BUILDER);
     }
 

@@ -95,15 +95,15 @@ class EventTimeWindowCheckpointingITCase {
 
     private TestingServer zkServer;
 
-    public MiniClusterWithClientResource miniClusterResource;
+    private MiniClusterWithClientResource miniClusterResource;
 
-    @TempDir protected java.nio.file.Path tempFolder;
+    @TempDir private java.nio.file.Path tempFolder;
 
     private Configuration configuration;
 
-    @Parameter public StateBackendEnum stateBackendEnum;
+    @Parameter protected StateBackendEnum stateBackendEnum;
 
-    public enum StateBackendEnum {
+    protected enum StateBackendEnum {
         MEM,
         FILE,
         ROCKSDB_FULL,
@@ -113,7 +113,7 @@ class EventTimeWindowCheckpointingITCase {
     }
 
     @Parameters(name = "statebackend type ={0}")
-    public static Collection<StateBackendEnum> parameter() {
+    private static Collection<StateBackendEnum> parameter() {
         return Arrays.stream(StateBackendEnum.values()).collect(Collectors.toList());
     }
 
@@ -388,7 +388,7 @@ class EventTimeWindowCheckpointingITCase {
         doTestTumblingTimeWindowWithKVState(1 << 15);
     }
 
-    public void doTestTumblingTimeWindowWithKVState(int maxParallelism) throws Exception {
+    private void doTestTumblingTimeWindowWithKVState(int maxParallelism) throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();

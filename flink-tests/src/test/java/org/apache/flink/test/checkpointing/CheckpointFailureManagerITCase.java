@@ -27,7 +27,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -82,7 +81,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests to verify end-to-end logic of checkpoint failure manager. */
 @ExtendWith(TestLoggerExtension.class)
@@ -110,15 +109,11 @@ class CheckpointFailureManagerITCase {
         RestartStrategyUtils.configureNoRestartStrategy(env);
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-        try {
-            TestUtils.submitJobAndWaitForResult(
-                    clusterClient, jobGraph, getClass().getClassLoader());
-            fail("The job should fail");
-        } catch (JobExecutionException jobException) {
-            if (!isCheckpointFailure(jobException)) {
-                throw jobException;
-            }
-        }
+        assertThatThrownBy(
+                        () ->
+                                TestUtils.submitJobAndWaitForResult(
+                                        clusterClient, jobGraph, getClass().getClassLoader()))
+                .satisfies(throwable -> assertThat(isCheckpointFailure(throwable)).isTrue());
     }
 
     @Test
@@ -133,15 +128,12 @@ class CheckpointFailureManagerITCase {
                 "org.apache.flink.test.checkpointing.CheckpointFailureManagerITCase$AsyncFailureStateBackendFactory");
         env.addSource(new StringGeneratingSourceFunction()).sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-        try {
-            // assert that the job only execute checkpoint once and only failed once.
-            TestUtils.submitJobAndWaitForResult(
-                    clusterClient, jobGraph, getClass().getClassLoader());
-        } catch (JobExecutionException jobException) {
-            if (!isCheckpointFailure(jobException)) {
-                throw jobException;
-            }
-        }
+        assertThatThrownBy(
+                        () ->
+                                TestUtils.submitJobAndWaitForResult(
+                                        clusterClient, jobGraph, getClass().getClassLoader()))
+                .satisfies(throwable -> assertThat(isCheckpointFailure(throwable)).isTrue());
+
         // assert that the job only failed once.
         assertThat(StringGeneratingSourceFunction.INITIALIZE_TIMES.get()).isEqualTo(1);
     }
@@ -294,7 +286,7 @@ class CheckpointFailureManagerITCase {
         }
     }
 
-    private boolean isCheckpointFailure(JobExecutionException jobException) {
+    private boolean isCheckpointFailure(Throwable jobException) {
         return ExceptionUtils.findThrowable(jobException, FlinkRuntimeException.class)
                 .filter(
                         ex ->

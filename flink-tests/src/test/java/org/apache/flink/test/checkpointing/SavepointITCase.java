@@ -150,7 +150,7 @@ class SavepointITCase {
     private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
 
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
     @TempDir private File folder;
@@ -160,7 +160,7 @@ class SavepointITCase {
     private File savepointDir;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         checkpointDir = new File(folder, "checkpoints");
         savepointDir = new File(folder, "savepoints");
 
@@ -724,17 +724,21 @@ class SavepointITCase {
                                 .setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
                                 .build());
         cluster.before();
-        final ClusterClient<?> client = cluster.getClusterClient();
-
-        final JobID jobID = new JobID();
-
         try {
-            client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL).get();
+            final ClusterClient<?> client = cluster.getClusterClient();
+            final JobID jobID = new JobID();
 
-            fail();
-        } catch (ExecutionException e) {
-            assertThrowable(e, FlinkJobNotFoundException.class);
-            assertThrowableWithMessage(e, jobID.toString());
+            assertThatThrownBy(
+                            () ->
+                                    client.triggerSavepoint(
+                                                    jobID, null, SavepointFormatType.CANONICAL)
+                                            .get())
+                    .isInstanceOf(ExecutionException.class)
+                    .satisfies(
+                            throwable -> {
+                                assertThrowable(throwable, FlinkJobNotFoundException.class);
+                                assertThrowableWithMessage(throwable, jobID.toString());
+                            });
         } finally {
             cluster.after();
         }
@@ -756,26 +760,35 @@ class SavepointITCase {
                                 .setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
                                 .build());
         cluster.before();
-        final ClusterClient<?> client = cluster.getClusterClient();
 
-        final JobVertex vertex = new JobVertex("Blocking vertex");
-        vertex.setInvokableClass(BlockingNoOpInvokable.class);
-        vertex.setParallelism(1);
-
-        final JobGraph graph = JobGraphTestUtils.streamingJobGraph(vertex);
-
+        cluster.before();
         try {
+            final ClusterClient<?> client = cluster.getClusterClient();
+
+            final JobVertex vertex = new JobVertex("Blocking vertex");
+            vertex.setInvokableClass(BlockingNoOpInvokable.class);
+            vertex.setParallelism(1);
+
+            final JobGraph graph = JobGraphTestUtils.streamingJobGraph(vertex);
+
             client.submitJob(graph).get();
             // triggerSavepoint is only available after all tasks are running
             waitForAllTaskRunning(cluster.getMiniCluster(), graph.getJobID(), false);
 
-            client.triggerSavepoint(graph.getJobID(), null, SavepointFormatType.CANONICAL).get();
-
-            fail();
-        } catch (ExecutionException e) {
-            assertThrowable(e, IllegalStateException.class);
-            assertThrowableWithMessage(e, graph.getJobID().toString());
-            assertThrowableWithMessage(e, "is not a streaming job");
+            assertThatThrownBy(
+                            () ->
+                                    client.triggerSavepoint(
+                                                    graph.getJobID(),
+                                                    null,
+                                                    SavepointFormatType.CANONICAL)
+                                            .get())
+                    .isInstanceOf(ExecutionException.class)
+                    .satisfies(
+                            throwable -> {
+                                assertThrowable(throwable, IllegalStateException.class);
+                                assertThrowableWithMessage(throwable, graph.getJobID().toString());
+                                assertThrowableWithMessage(throwable, "is not a streaming job");
+                            });
         } finally {
             cluster.after();
         }
@@ -819,7 +832,7 @@ class SavepointITCase {
 
             client.cancel(jobGraph.getJobID()).get();
             // checkpoint directory should not be initialized
-            assertThat(checkpointDir.listFiles()).isNotNull().hasSize(0);
+            assertThat(checkpointDir.listFiles()).hasSize(0);
         } finally {
             if (null != savepointPath) {
                 client.disposeSavepoint(savepointPath);
@@ -1067,8 +1080,7 @@ class SavepointITCase {
         }
     }
 
-    private static BiFunction<JobID, ExecutionException, Boolean>
-            assertInSnapshotCreationFailure() {
+    private static BiFunction<JobID, Throwable, Boolean> assertInSnapshotCreationFailure() {
         return (ignored, actualException) -> {
             if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
                 return findThrowable(actualException, FlinkException.class).isPresent();
@@ -1103,7 +1115,7 @@ class SavepointITCase {
             InfiniteTestSource failingSource,
             File savepointDir,
             int expectedMaximumNumberOfRestarts,
-            BiFunction<JobID, ExecutionException, Boolean> exceptionAssertion,
+            BiFunction<JobID, Throwable, Boolean> exceptionAssertion,
             boolean shouldRestart)
             throws Exception {
         MiniClusterWithClientResource cluster =
@@ -1147,17 +1159,22 @@ class SavepointITCase {
             succeedingPipelineLatch.await();
             waitForAllTaskRunning(cluster.getMiniCluster(), jobID, false);
 
-            try {
-                client.stopWithSavepoint(
-                                jobGraph.getJobID(),
-                                false,
-                                savepointDir.getAbsolutePath(),
-                                SavepointFormatType.CANONICAL)
-                        .get();
-                fail("The future should fail exceptionally.");
-            } catch (ExecutionException e) {
-                assertThrowable(e, ex -> exceptionAssertion.apply(jobGraph.getJobID(), e));
-            }
+            assertThatThrownBy(
+                            () ->
+                                    client.stopWithSavepoint(
+                                                    jobGraph.getJobID(),
+                                                    false,
+                                                    savepointDir.getAbsolutePath(),
+                                                    SavepointFormatType.CANONICAL)
+                                            .get())
+                    .isInstanceOf(ExecutionException.class)
+                    .satisfies(
+                            throwable ->
+                                    assertThrowable(
+                                            throwable,
+                                            ex ->
+                                                    exceptionAssertion.apply(
+                                                            jobGraph.getJobID(), throwable)));
 
             if (shouldRestart) {
                 waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());

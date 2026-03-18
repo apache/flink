@@ -110,10 +110,10 @@ class CheckpointIntervalDuringBacklogITCase {
 
         runAndVerifyResult(env, source);
 
-        assertThat(CheckpointRecordingOperator.numCheckpointsBeforeSwitchSource.get())
-                .isGreaterThan(0);
-        assertThat(CheckpointRecordingOperator.numCheckpointsAfterSwitchSource.get())
-                .isGreaterThan(0);
+        assertThat(CheckpointRecordingOperator.numCheckpointsBeforeSwitchSource)
+                .hasValueGreaterThan(0);
+        assertThat(CheckpointRecordingOperator.numCheckpointsAfterSwitchSource)
+                .hasValueGreaterThan(0);
     }
 
     @Test
@@ -133,10 +133,10 @@ class CheckpointIntervalDuringBacklogITCase {
 
         runAndVerifyResult(env, source);
 
-        assertThat(CheckpointRecordingOperator.numCheckpointsBeforeSwitchSource.get())
-                .isGreaterThan(0);
-        assertThat(CheckpointRecordingOperator.numCheckpointsAfterSwitchSource.get())
-                .isGreaterThan(0);
+        assertThat(CheckpointRecordingOperator.numCheckpointsBeforeSwitchSource)
+                .hasValueGreaterThan(0);
+        assertThat(CheckpointRecordingOperator.numCheckpointsAfterSwitchSource)
+                .hasValueGreaterThan(0);
     }
 
     @Test
@@ -164,9 +164,9 @@ class CheckpointIntervalDuringBacklogITCase {
 
         runAndVerifyResult(env, source);
 
-        assertThat(CheckpointRecordingOperator.numCheckpointsBeforeSwitchSource.get()).isEqualTo(0);
-        assertThat(CheckpointRecordingOperator.numCheckpointsAfterSwitchSource.get())
-                .isGreaterThan(0);
+        assertThat(CheckpointRecordingOperator.numCheckpointsBeforeSwitchSource).hasValue(0);
+        assertThat(CheckpointRecordingOperator.numCheckpointsAfterSwitchSource)
+                .hasValueGreaterThan(0);
     }
 
     @Test
@@ -210,7 +210,7 @@ class CheckpointIntervalDuringBacklogITCase {
         }
 
         Collections.sort(result);
-        assertThat(result).containsExactly(EXPECTED_RESULT.toArray(new Long[0]));
+        assertThat(result).containsExactlyElementsOf(EXPECTED_RESULT);
     }
 
     private void runAndVerifyResult(StreamExecutionEnvironment env, Source<Long, ?, ?> source)
@@ -231,7 +231,7 @@ class CheckpointIntervalDuringBacklogITCase {
         }
 
         Collections.sort(result);
-        assertThat(result).containsExactly(EXPECTED_RESULT.toArray(new Long[0]));
+        assertThat(result).containsExactlyElementsOf(EXPECTED_RESULT);
     }
 
     /**

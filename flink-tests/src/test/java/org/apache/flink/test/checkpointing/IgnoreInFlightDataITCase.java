@@ -157,12 +157,12 @@ class IgnoreInFlightDataITCase {
 
         // then: Actual result should be less than the ideal result because some of data was
         // ignored.
-        assertThat(result.get().longValue()).isLessThan(resultWithoutIgnoringData);
+        assertThat(result.get()).hasValueLessThan(resultWithoutIgnoringData);
 
         // and: Actual result should be equal to sum of result before fail + source value after
         // recovery.
         long expectedResult = resultBeforeFail.get().longValue() + sourceValueAfterRestore;
-        assertThat(result.get().longValue()).isEqualTo(expectedResult);
+        assertThat(result.get()).hasValue(expectedResult);
 
         return true;
     }
@@ -207,7 +207,7 @@ class IgnoreInFlightDataITCase {
          * during the waiting will be sent to the sink before the checkpoint barrier would be
          * handled).
          */
-        public void sinkCheckpointStarted() {
+        private void sinkCheckpointStarted() {
             checkpointReachSinkLatch.get().trigger();
         }
     }
@@ -233,8 +233,7 @@ class IgnoreInFlightDataITCase {
                     Integer lastValue = stateIt.next();
 
                     // Checking that ListState is recovered correctly.
-                    assertThat(lastValue.intValue())
-                            .isEqualTo(lastCheckpointValue.get().intValue());
+                    assertThat(lastValue).isEqualTo(lastCheckpointValue.get().intValue());
 
                     // if it is started after recovery, just send one more value and finish.
                     ctx.collect(lastValue + 1);

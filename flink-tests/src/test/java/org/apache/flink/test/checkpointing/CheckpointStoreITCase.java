@@ -53,7 +53,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -106,7 +105,7 @@ class CheckpointStoreITCase {
         // Await for job to finish.
         jobClient.getJobExecutionResult().get();
 
-        checkState(FailingMapper.failedAndProcessed);
+        assertThat(FailingMapper.failedAndProcessed).isTrue();
     }
 
     private static class FailingMapper implements MapFunction<Integer, Integer> {

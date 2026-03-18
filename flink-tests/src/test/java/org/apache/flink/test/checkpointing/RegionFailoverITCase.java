@@ -149,7 +149,7 @@ class RegionFailoverITCase {
         int keyCount = 0;
         for (Map<Integer, Integer> map : ValidatingSink.maps) {
             for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
-                assertThat(entry.getValue().intValue()).isEqualTo(4 * entry.getKey() + 1);
+                assertThat(entry.getValue()).isEqualTo(4 * entry.getKey() + 1);
                 keyCount += 1;
             }
         }

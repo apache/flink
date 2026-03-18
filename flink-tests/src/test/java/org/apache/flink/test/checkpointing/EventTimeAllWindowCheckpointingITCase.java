@@ -109,7 +109,7 @@ class EventTimeAllWindowCheckpointingITCase {
                                                 getRuntimeContext()
                                                         .getTaskInfo()
                                                         .getNumberOfParallelSubtasks())
-                                        .isEqualTo(1);
+                                        .isOne();
                                 open = true;
                             }
 
@@ -183,7 +183,7 @@ class EventTimeAllWindowCheckpointingITCase {
                                                 getRuntimeContext()
                                                         .getTaskInfo()
                                                         .getNumberOfParallelSubtasks())
-                                        .isEqualTo(1);
+                                        .isOne();
                                 open = true;
                             }
 
@@ -263,7 +263,7 @@ class EventTimeAllWindowCheckpointingITCase {
                                                 getRuntimeContext()
                                                         .getTaskInfo()
                                                         .getNumberOfParallelSubtasks())
-                                        .isEqualTo(1);
+                                        .isOne();
                                 open = true;
                             }
 
@@ -341,7 +341,7 @@ class EventTimeAllWindowCheckpointingITCase {
                                                 getRuntimeContext()
                                                         .getTaskInfo()
                                                         .getNumberOfParallelSubtasks())
-                                        .isEqualTo(1);
+                                        .isOne();
                                 open = true;
                             }
 

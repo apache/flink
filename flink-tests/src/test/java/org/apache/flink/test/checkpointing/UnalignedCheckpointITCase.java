@@ -234,7 +234,7 @@ class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     }
 
     @Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
-    public static Object[][] parameters() {
+    private static Object[][] parameters() {
         Object[] defaults = {Topology.PIPELINE, 1, MIXED, 0};
 
         Object[][] runs = {

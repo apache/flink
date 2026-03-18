@@ -46,7 +46,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -113,7 +112,7 @@ class StreamCheckpointNotifierITCase extends AbstractTestBase {
         env.execute();
 
         final long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
-        assertThat(failureCheckpointID).isNotEqualTo(0L);
+        assertThat(failureCheckpointID).isNotZero();
 
         List<List<Long>[]> allLists =
                 Arrays.asList(
@@ -128,7 +127,7 @@ class StreamCheckpointNotifierITCase extends AbstractTestBase {
 
                 assertThat(notifications)
                         .as("No checkpoint notification was received.")
-                        .hasSizeGreaterThan(0);
+                        .isNotEmpty();
 
                 assertThat(notifications)
                         .as("Failure checkpoint was marked as completed.")
@@ -141,7 +140,7 @@ class StreamCheckpointNotifierITCase extends AbstractTestBase {
 
                 assertThat(notifications)
                         .as("Checkpoint notification was received multiple times")
-                        .hasSize(new HashSet<>(notifications).size());
+                        .doesNotHaveDuplicates();
             }
         }
     }

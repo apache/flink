@@ -99,7 +99,7 @@ class RescaleCheckpointManuallyITCase {
     private final String statebackendType;
     private final boolean enableAsyncState;
 
-    public RescaleCheckpointManuallyITCase(String statebackendType, boolean enableAsyncState) {
+    private RescaleCheckpointManuallyITCase(String statebackendType, boolean enableAsyncState) {
         this.statebackendType = statebackendType;
         this.enableAsyncState = enableAsyncState;
     }

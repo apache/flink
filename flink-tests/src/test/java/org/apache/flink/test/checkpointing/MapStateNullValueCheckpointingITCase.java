@@ -75,7 +75,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MapStateNullValueCheckpointingITCase {
 
     @Parameters(name = "stateBackend : {0}, snapshotType : {1}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {"rocksdb", Either.Left(CheckpointType.FULL)},
@@ -215,7 +215,7 @@ class MapStateNullValueCheckpointingITCase {
 
         assertThat(restoredState.get("key")).isEqualTo("value");
         assertThat(restoredState.get("null-key")).isNull();
-        assertThat(restoredState.containsKey("null-key")).isTrue();
+        assertThat(restoredState).containsKey("null-key");
     }
 
     private static class StatefulMapper extends RichMapFunction<Long, Long> {

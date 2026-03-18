@@ -128,7 +128,7 @@ class NotifyCheckpointAbortedITCase {
     @Parameter private boolean unalignedCheckpointEnabled;
 
     @Parameters(name = "unalignedCheckpointEnabled ={0}")
-    public static Collection<Boolean> parameter() {
+    private static Collection<Boolean> parameter() {
         return Arrays.asList(true, false);
     }
 
@@ -230,8 +230,8 @@ class NotifyCheckpointAbortedITCase {
     }
 
     private void verifyAllOperatorsNotifyAbortedTimes(int expectedTimes) {
-        assertThat(NormalMap.notifiedAbortedTimes.get()).isEqualTo(expectedTimes);
-        assertThat(DeclineSink.notifiedAbortedTimes.get()).isEqualTo(expectedTimes);
+        assertThat(NormalMap.notifiedAbortedTimes).hasValue(expectedTimes);
+        assertThat(DeclineSink.notifiedAbortedTimes).hasValue(expectedTimes);
     }
 
     /** Source V2 implementation using AbstractTestSource that replaces the legacy NormalSource. */

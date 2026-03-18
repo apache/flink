@@ -55,7 +55,6 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -73,14 +72,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(TestLoggerExtension.class)
 class KeyedStateCheckpointingITCase {
 
-    protected static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
+    private static final int NUM_STRINGS = 10_000;
+    private static final int NUM_KEYS = 40;
 
-    protected static final int NUM_STRINGS = 10_000;
-    protected static final int NUM_KEYS = 40;
-
-    protected static final int NUM_TASK_MANAGERS = 2;
-    protected static final int NUM_TASK_SLOTS = 2;
-    protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
+    private static final int NUM_TASK_MANAGERS = 2;
+    private static final int NUM_TASK_SLOTS = 2;
+    private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
     // ------------------------------------------------------------------------
 
@@ -165,8 +162,8 @@ class KeyedStateCheckpointingITCase {
 
     // ------------------------------------------------------------------------
 
-    protected void testProgramWithBackend(StreamExecutionEnvironment env) throws Exception {
-        assertThat((NUM_STRINGS / 2) % NUM_KEYS).as("Broken test setup").isEqualTo(0);
+    private void testProgramWithBackend(StreamExecutionEnvironment env) throws Exception {
+        assertThat((NUM_STRINGS / 2) % NUM_KEYS).as("Broken test setup").isZero();
 
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(500);
@@ -195,19 +192,23 @@ class KeyedStateCheckpointingITCase {
 
         // OnceFailingPartitionedSum should have failed exactly once, so one recovery with state per
         // parallel operator
-        assertThat(OnceFailingPartitionedSum.RECOVERY_COUNTER.get())
-                .isEqualTo(recoveryCounterBeforeTest + PARALLELISM);
+        assertThat(OnceFailingPartitionedSum.RECOVERY_COUNTER)
+                .hasValue(recoveryCounterBeforeTest + PARALLELISM);
         // verify that we counted exactly right
         assertThat(CounterSink.ALL_COUNTS).hasSize(NUM_KEYS);
         assertThat(OnceFailingPartitionedSum.ALL_SUMS).hasSize(NUM_KEYS);
 
-        for (Entry<Integer, Long> sum : OnceFailingPartitionedSum.ALL_SUMS.entrySet()) {
-            assertThat(sum.getValue().longValue())
-                    .isEqualTo((long) sum.getKey() * NUM_STRINGS / NUM_KEYS);
-        }
-        for (long count : CounterSink.ALL_COUNTS.values()) {
-            assertThat(count).isEqualTo((long) NUM_STRINGS / NUM_KEYS);
-        }
+        assertThat(OnceFailingPartitionedSum.ALL_SUMS.entrySet())
+                .allSatisfy(
+                        sum -> {
+                            assertThat(sum.getValue())
+                                    .isEqualTo(sum.getKey() * NUM_STRINGS / NUM_KEYS);
+                        });
+        assertThat(CounterSink.ALL_COUNTS.values())
+                .allSatisfy(
+                        count -> {
+                            assertThat(count).isEqualTo(NUM_STRINGS / NUM_KEYS);
+                        });
     }
 
     // --------------------------------------------------------------------------------------------
@@ -284,9 +285,7 @@ class KeyedStateCheckpointingITCase {
 
         @Override
         public void restoreState(List<Integer> state) throws Exception {
-            assertThat(state.size())
-                    .as("Test failed due to unexpected recovered state size")
-                    .isEqualTo(1);
+            assertThat(state).as("Test failed due to unexpected recovered state size").hasSize(1);
             lastEmitted = state.get(0);
             checkpointHappened = true;
         }
@@ -348,9 +347,7 @@ class KeyedStateCheckpointingITCase {
 
         @Override
         public void restoreState(List<Integer> state) throws Exception {
-            assertThat(state.size())
-                    .as("Test failed due to unexpected recovered state size")
-                    .isEqualTo(1);
+            assertThat(state).as("Test failed due to unexpected recovered state size").hasSize(1);
             RECOVERY_COUNTER.incrementAndGet();
             count = state.get(0);
             shouldFail = false;
@@ -403,7 +400,7 @@ class KeyedStateCheckpointingITCase {
     // ------------------------------------------------------------------------
 
     /** Custom boxed long type that does not implement Serializable. */
-    public static class NonSerializableLong {
+    private static class NonSerializableLong {
 
         public long value;
 
@@ -425,7 +422,7 @@ class KeyedStateCheckpointingITCase {
 
         @Override
         public int hashCode() {
-            return (int) (value ^ (value >>> 32));
+            return Long.hashCode(value);
         }
     }
 }

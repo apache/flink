@@ -105,7 +105,7 @@ class StopWithSavepointITCase extends AbstractTestBase {
     @RegisterExtension
     private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Parameter public boolean withDrain;
+    @Parameter private boolean withDrain;
 
     @Parameter(1)
     private TestingGraphBuilder graphBuilder;
@@ -144,7 +144,7 @@ class StopWithSavepointITCase extends AbstractTestBase {
     }
 
     @Parameters(name = "withDrain: {0}, {1}")
-    public static Object[] parameters() {
+    private static Object[] parameters() {
         return new Object[][] {
             new Object[] {true, SIMPLE_GRAPH_BUILDER}, new Object[] {false, SIMPLE_GRAPH_BUILDER},
             new Object[] {true, COMPLEX_GRAPH_BUILDER}, new Object[] {false, COMPLEX_GRAPH_BUILDER},
