@@ -28,8 +28,6 @@ import org.apache.flink.types.RowKind;
 import java.time.Instant;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.descriptor;
-import static org.apache.flink.table.api.Expressions.map;
 
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
@@ -139,78 +137,12 @@ public class ToChangelogTestPrograms {
                     .build();
 
     // --------------------------------------------------------------------------------------------
-    // Table API tests
+    // Table API test
     // --------------------------------------------------------------------------------------------
 
     public static final TableTestProgram TABLE_API_DEFAULT =
             TableTestProgram.of(
                             "to-changelog-table-api-default",
-                            "Table API with default op column via fromCall")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("t")
-                                    .addSchema("id INT", "name STRING")
-                                    .addMode(ChangelogMode.insertOnly())
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
-                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema("id INT", "op STRING", "name STRING")
-                                    .consumedValues("+I[1, INSERT, Alice]", "+I[2, INSERT, Bob]")
-                                    .build())
-                    .runTableApi(
-                            env ->
-                                    env.fromCall(
-                                            "TO_CHANGELOG",
-                                            env.from("t").partitionBy($("id")).asArgument("input")),
-                            "sink")
-                    .build();
-
-    public static final TableTestProgram TABLE_API_CUSTOM_OP =
-            TableTestProgram.of(
-                            "to-changelog-table-api-custom-op",
-                            "Table API with custom op name and mapping via fromCall")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("t")
-                                    .addSchema(
-                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
-                                    .addMode(ChangelogMode.all())
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
-                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
-                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema("name STRING", "code STRING", "score BIGINT")
-                                    .consumedValues(
-                                            "+I[Alice, I, 10]",
-                                            "+I[Bob, I, 20]",
-                                            "+I[Alice, U, 30]")
-                                    .build())
-                    .runTableApi(
-                            env ->
-                                    env.fromCall(
-                                            "TO_CHANGELOG",
-                                            env.from("t")
-                                                    .partitionBy($("name"))
-                                                    .asArgument("input"),
-                                            descriptor("code").asArgument("op"),
-                                            map("INSERT", "I", "UPDATE_AFTER", "U")
-                                                    .asArgument("op_mapping")),
-                            "sink")
-                    .build();
-
-    // --------------------------------------------------------------------------------------------
-    // Convenience API tests (PartitionedTable.toChangelog)
-    // --------------------------------------------------------------------------------------------
-
-    public static final TableTestProgram CONVENIENCE_API_DEFAULT =
-            TableTestProgram.of(
-                            "to-changelog-convenience-default",
                             "PartitionedTable.toChangelog() convenience method")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")

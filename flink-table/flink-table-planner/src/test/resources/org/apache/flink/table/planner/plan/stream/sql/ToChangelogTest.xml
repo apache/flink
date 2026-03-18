@@ -16,99 +16,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testCustomOpMapping">
+  <TestCase name="testInsertOnlySource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id, op => DESCRIPTOR(op_code), op_mapping => MAP['INSERT','I', 'DELETE','D', 'UPDATE_AFTER','U'])]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], op_code=[$1], name=[$2], cnt=[$3])
-+- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'I', _UTF-16LE'DELETE':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'D', _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'U'), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
-   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
-      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-         +- LogicalProject(id=[$0], name=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-]]>
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source PARTITION BY id)]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), MAP(_UTF-16LE'INSERT':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'I', _UTF-16LE'DELETE':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'D', _UTF-16LE'UPDATE_AFTER':VARCHAR(12) CHARACTER SET "UTF-16LE", _UTF-16LE'U'), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op_code,name,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
-+- Exchange(distribution=[hash[id]])
-   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
-      +- Exchange(distribution=[hash[id, name]])
-         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
++- Exchange(distribution=[hash[id]], changelogMode=[I])
+   +- TableSourceScan(table=[[default_catalog, default_database, insert_only_source]], fields=[id, name], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCustomOpName">
+  <TestCase name="testRetractSource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id, op => DESCRIPTOR(op_code))]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], op_code=[$1], name=[$2], cnt=[$3])
-+- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
-   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
-      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-         +- LogicalProject(id=[$0], name=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-]]>
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op_code'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op_code,name,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op_code, VARCHAR(2147483647) name, BIGINT cnt)])
-+- Exchange(distribution=[hash[id]])
-   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
-      +- Exchange(distribution=[hash[id, name]])
-         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
++- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+   +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDefaultCall">
+  <TestCase name="testUpsertSource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], op=[$1], name=[$2], cnt=[$3])
-+- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name, BIGINT cnt)])
-   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
-      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-         +- LogicalProject(id=[$0], name=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-]]>
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name, BIGINT cnt)])
-+- Exchange(distribution=[hash[id]])
-   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
-      +- Exchange(distribution=[hash[id, name]])
-         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testMultiplePartitionKeys">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY (id, name))]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], name=[$1], op=[$2], cnt=[$3])
-+- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0, $1), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, VARCHAR(2147483647) op, BIGINT cnt)])
-   +- LogicalProject(id=[$0], name=[$1], cnt=[$2])
-      +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
-         +- LogicalProject(id=[$0], name=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0, $1), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,name,op,cnt], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name, VARCHAR(2147483647) op, BIGINT cnt)])
-+- Exchange(distribution=[hash[id, name]])
-   +- GroupAggregate(groupBy=[id, name], select=[id, name, COUNT(*) AS cnt])
-      +- Exchange(distribution=[hash[id, name]])
-         +- TableSourceScan(table=[[default_catalog, default_database, t, project=[id, name], metadata=[]]], fields=[id, name])
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
++- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+   +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>

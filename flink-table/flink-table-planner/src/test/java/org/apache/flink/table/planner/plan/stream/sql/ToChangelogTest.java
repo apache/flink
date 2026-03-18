@@ -18,17 +18,24 @@
 
 package org.apache.flink.table.planner.plan.stream.sql;
 
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for the TO_CHANGELOG built-in process table function. */
+/**
+ * Plan tests for the TO_CHANGELOG built-in process table function. Uses {@link
+ * ExplainDetail#CHANGELOG_MODE} to verify changelog mode propagation through the plan.
+ */
 public class ToChangelogTest extends TableTestBase {
 
     private TableTestUtil util;
@@ -36,48 +43,69 @@ public class ToChangelogTest extends TableTestBase {
     @BeforeEach
     void setup() {
         util = streamTestUtil(TableConfig.getDefault());
+    }
+
+    @Test
+    void testRetractSource() {
         util.tableEnv()
                 .executeSql(
-                        "CREATE TABLE t ("
+                        "CREATE TABLE retract_source ("
                                 + "  id INT,"
                                 + "  name STRING,"
-                                + "  val BIGINT"
-                                + ") WITH ('connector' = 'values')");
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UB,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)",
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(ExplainDetail.CHANGELOG_MODE)));
+    }
+
+    @Test
+    void testUpsertSource() {
         util.tableEnv()
                 .executeSql(
-                        "CREATE VIEW t_updating AS SELECT id, name, COUNT(*) AS cnt FROM t GROUP BY id, name");
-    }
-
-    @Test
-    void testDefaultCall() {
-        util.verifyRelPlan("SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY id)");
-    }
-
-    @Test
-    void testCustomOpName() {
+                        "CREATE TABLE upsert_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
         util.verifyRelPlan(
-                "SELECT * FROM TO_CHANGELOG("
-                        + "input => TABLE t_updating PARTITION BY id, "
-                        + "op => DESCRIPTOR(op_code))");
+                "SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)",
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(ExplainDetail.CHANGELOG_MODE)));
     }
 
     @Test
-    void testCustomOpMapping() {
+    void testInsertOnlySource() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE insert_only_source ("
+                                + "  id INT,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
         util.verifyRelPlan(
-                "SELECT * FROM TO_CHANGELOG("
-                        + "input => TABLE t_updating PARTITION BY id, "
-                        + "op => DESCRIPTOR(op_code), "
-                        + "op_mapping => MAP['INSERT','I', 'DELETE','D', 'UPDATE_AFTER','U'])");
-    }
-
-    @Test
-    void testMultiplePartitionKeys() {
-        util.verifyRelPlan(
-                "SELECT * FROM TO_CHANGELOG(input => TABLE t_updating PARTITION BY (id, name))");
+                "SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source PARTITION BY id)",
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(ExplainDetail.CHANGELOG_MODE)));
     }
 
     @Test
     void testMissingPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t ("
+                                + "  id INT,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW t_updating AS SELECT id, name, COUNT(*) AS cnt FROM t GROUP BY id, name");
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
@@ -89,6 +117,15 @@ public class ToChangelogTest extends TableTestBase {
 
     @Test
     void testInvalidDescriptorMultipleColumns() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t ("
+                                + "  id INT,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW t_updating AS SELECT id, name, COUNT(*) AS cnt FROM t GROUP BY id, name");
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
@@ -102,6 +139,15 @@ public class ToChangelogTest extends TableTestBase {
 
     @Test
     void testInvalidRowKindInOpMapping() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t ("
+                                + "  id INT,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW t_updating AS SELECT id, name, COUNT(*) AS cnt FROM t GROUP BY id, name");
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
