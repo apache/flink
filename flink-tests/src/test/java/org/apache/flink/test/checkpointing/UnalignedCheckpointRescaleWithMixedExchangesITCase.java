@@ -95,7 +95,9 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(new Configuration().set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 50))
+                            .setConfiguration(
+                                    new Configuration()
+                                            .set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 50))
                             .setNumberTaskManagers(NUM_TASK_MANAGERS)
                             .setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
                             .build());

@@ -242,7 +242,7 @@ abstract class UnalignedCheckpointTestBase {
             return null;
         }
         return CommonTestUtils.getLatestCompletedCheckpointPath(jobID, miniCluster.getMiniCluster())
-                .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
+                .orElseGet(() -> fail("Could not generate checkpoint"));
     }
 
     private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
