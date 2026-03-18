@@ -184,6 +184,7 @@ public class TritonOptions {
 
     // ==================== Health Check and Circuit Breaker Options ====================
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Boolean> HEALTH_CHECK_ENABLED =
             ConfigOptions.key("health-check-enabled")
                     .booleanType()
@@ -197,6 +198,7 @@ public class TritonOptions {
                                             code("/v2/health/live"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Duration> HEALTH_CHECK_INTERVAL =
             ConfigOptions.key("health-check-interval")
                     .durationType()
@@ -206,6 +208,7 @@ public class TritonOptions {
                                     + "Shorter intervals provide faster failure detection but increase server load. "
                                     + "Defaults to 30 seconds. Only effective when health-check-enabled is true.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Boolean> CIRCUIT_BREAKER_ENABLED =
             ConfigOptions.key("circuit-breaker-enabled")
                     .booleanType()
@@ -220,6 +223,7 @@ public class TritonOptions {
                                                     + "and HALF_OPEN (testing recovery). Defaults to false.")
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Double> CIRCUIT_BREAKER_FAILURE_THRESHOLD =
             ConfigOptions.key("circuit-breaker-failure-threshold")
                     .doubleType()
@@ -230,6 +234,7 @@ public class TritonOptions {
                                     + "Requires a minimum of 10 requests before evaluation. Defaults to 0.5 (50%). "
                                     + "Only effective when circuit-breaker-enabled is true.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Duration> CIRCUIT_BREAKER_TIMEOUT =
             ConfigOptions.key("circuit-breaker-timeout")
                     .durationType()
@@ -239,6 +244,7 @@ public class TritonOptions {
                                     + "In HALF_OPEN state, limited requests are allowed to probe if the server has recovered. "
                                     + "Defaults to 60 seconds. Only effective when circuit-breaker-enabled is true.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Integer> CIRCUIT_BREAKER_HALF_OPEN_REQUESTS =
             ConfigOptions.key("circuit-breaker-half-open-requests")
                     .intType()
