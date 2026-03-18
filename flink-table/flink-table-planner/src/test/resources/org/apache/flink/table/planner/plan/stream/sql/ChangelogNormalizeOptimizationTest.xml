@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalFilter(condition=[>($1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
 ]]>
@@ -44,7 +44,7 @@ Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id,
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
@@ -70,7 +70,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
@@ -96,7 +96,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
@@ -121,7 +121,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
@@ -146,7 +146,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
@@ -176,7 +176,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fi
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
@@ -206,7 +206,7 @@ Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id,
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2, offset])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
++- LogicalProject(select=[id, col1, col2, offset])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata, metadata=[offset]]])
 ]]>
     </Resource>
@@ -226,8 +226,8 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
-   +- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
++- LogicalProject(select=[id, col1, col2])
+   +- LogicalProject(select=[id, col1, col2, offset])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata, metadata=[offset]]])
 ]]>
     </Resource>
@@ -245,7 +245,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2, offset])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
++- LogicalProject(select=[id, col1, col2, offset])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata_no_pushdown, metadata=[offset]]])
 ]]>
     </Resource>
@@ -265,7 +265,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
 ]]>
     </Resource>
@@ -283,8 +283,8 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
-   +- LogicalProject(id=[$0], col1=[$1], col2=[$2], offset=[$3])
++- LogicalProject(select=[id, col1, col2])
+   +- LogicalProject(select=[id, col1, col2, offset])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes_metadata_no_pushdown, metadata=[offset]]])
 ]]>
     </Resource>
@@ -303,7 +303,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, retract_table_partial_deletes]])
 ]]>
     </Resource>
@@ -324,7 +324,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
 ]]>
     </Resource>
@@ -342,7 +342,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
 ]]>
     </Resource>
@@ -362,7 +362,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fi
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
 ]]>
     </Resource>
@@ -380,7 +380,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fi
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
 ]]>
     </Resource>
@@ -400,7 +400,7 @@ Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id,
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
 ]]>
     </Resource>
@@ -420,7 +420,7 @@ Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id,
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalFilter(condition=[>($1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
 ]]>
@@ -441,7 +441,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalFilter(condition=[>($1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_full_deletes]])
 ]]>
@@ -462,7 +462,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.all_change_sink_table], fields=[id, col1, col2])
-+- LogicalProject(id=[$0], col1=[$1], col2=[$2])
++- LogicalProject(select=[id, col1, col2])
    +- LogicalFilter(condition=[>($1, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]])
 ]]>

@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testFilterUnionTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$1], b=[$0], c=[$2])
+LogicalProject(select=[EXPR$0 AS a, b, EXPR$1 AS c])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
    +- LogicalFilter(condition=[>($0, 0)])
       +- LogicalUnion(all=[true])
@@ -119,11 +119,11 @@ Join(joinType=[LeftSemiJoin], where=[(b = w)], select=[a, b, c], leftInputSpec=[
   <TestCase name="testProjectUnionTranspose">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], c=[$2])
+LogicalProject(select=[b, c])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :- LogicalProject(select=[a, b, c])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, left]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(select=[a, b, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, right]])
 ]]>
     </Resource>

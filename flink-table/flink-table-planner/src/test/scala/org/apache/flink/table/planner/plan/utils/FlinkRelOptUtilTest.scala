@@ -72,12 +72,12 @@ class FlinkRelOptUtilTest {
 
     val expected1 =
       """
-        |LogicalProject(a=[$0], c=[$1], a0=[$2], c0=[$3])
+        |LogicalProject(select=[a, c, a0, c0])
         |+- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
-        |   :- LogicalProject(a=[$0], c=[$2])
+        |   :- LogicalProject(select=[a, c])
         |   :  +- LogicalFilter(condition=[>($1, 50)])
         |   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-        |   +- LogicalProject(a=[*($0, 2)], c=[$2])
+        |   +- LogicalProject(select=[*($0, 2) AS a, c])
         |      +- LogicalFilter(condition=[<($1, 50)])
         |         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       """.stripMargin

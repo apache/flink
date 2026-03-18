@@ -24,11 +24,11 @@ limitations under the License.
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t1], fields=[EXPR$0, EXPR$1])
 +- LogicalUnion(all=[true])
-   :- LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', _UTF-16LE'123':VARCHAR(6) CHARACTER SET "UTF-16LE", _UTF-16LE'b', _UTF-16LE'123456':VARCHAR(6) CHARACTER SET "UTF-16LE")], EXPR$1=[MAP(_UTF-16LE'k1', X'c0ffee':VARBINARY(3), _UTF-16LE'k2', X'babe':VARBINARY(3))])
+   :- LogicalProject(select=[MAP(_UTF-16LE'a', _UTF-16LE'123':VARCHAR(6) CHARACTER SET "UTF-16LE", _UTF-16LE'b', _UTF-16LE'123456':VARCHAR(6) CHARACTER SET "UTF-16LE") AS EXPR$0, MAP(_UTF-16LE'k1', X'c0ffee':VARBINARY(3), _UTF-16LE'k2', X'babe':VARBINARY(3)) AS EXPR$1])
    :  +- LogicalValues(tuples=[[{ 0 }]])
-   :- LogicalProject(EXPR$0=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP], EXPR$1=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARBINARY(2147483647)) MAP])
+   :- LogicalProject(select=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARCHAR(2147483647) CHARACTER SET "UTF-16LE") MAP AS EXPR$0, null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", VARBINARY(2147483647)) MAP AS EXPR$1])
    :  +- LogicalValues(tuples=[[{ 0 }]])
-   +- LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', _UTF-16LE'1', _UTF-16LE'b', _UTF-16LE'1')], EXPR$1=[MAP(_UTF-16LE'k1', X'10':BINARY(1), _UTF-16LE'k2', X'20':BINARY(1))])
+   +- LogicalProject(select=[MAP(_UTF-16LE'a', _UTF-16LE'1', _UTF-16LE'b', _UTF-16LE'1') AS EXPR$0, MAP(_UTF-16LE'k1', X'10':BINARY(1), _UTF-16LE'k2', X'20':BINARY(1)) AS EXPR$1])
       +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>

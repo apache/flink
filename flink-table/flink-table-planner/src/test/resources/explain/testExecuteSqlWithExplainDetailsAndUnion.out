@@ -1,8 +1,8 @@
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:- LogicalProject(select=[a, b, c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(a, b, c)]]])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [CollectionTableSource(a, b, c)]]])
 
 == Optimized Physical Plan ==

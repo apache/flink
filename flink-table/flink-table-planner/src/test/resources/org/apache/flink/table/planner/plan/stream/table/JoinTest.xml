@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testDependentConditionDerivationInnerJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+LogicalProject(select=[a, b, d, e])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($3, 1)), AND(=($1, 2), =($3, 5)))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -41,7 +41,7 @@ Join(joinType=[InnerJoin], where=[(((a = 1) AND (d = 1)) OR ((b = 2) AND (d = 5)
   <TestCase name="testDependentConditionDerivationInnerJoinWithNull">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+LogicalProject(select=[a, b, d, e])
 +- LogicalFilter(condition=[OR(AND(=($0, 0), =($3, 3)), AND(=($0, 1), IS NULL($5)))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -64,7 +64,7 @@ Calc(select=[a, b, d, e])
   <TestCase name="testDependentConditionDerivationInnerJoinWithTrue">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+LogicalProject(select=[a, b, d, e])
 +- LogicalFilter(condition=[OR(AND(=($0, 0), =($3, 3)), =($0, 1))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -86,7 +86,7 @@ Join(joinType=[InnerJoin], where=[(((a = 0) AND (d = 3)) OR (a = 1))], select=[a
   <TestCase name="testLeftOuterJoinEquiAndLocalPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -108,7 +108,7 @@ Calc(select=[b, y])
   <TestCase name="testLeftOuterJoinEquiAndNonEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -129,7 +129,7 @@ Calc(select=[b, y])
   <TestCase name="testLeftOuterJoinEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -151,7 +151,7 @@ Calc(select=[b, y])
   <TestCase name="testProcTimeWindowFullOuterJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lptime=[$3])
+LogicalProject(select=[a, e, lptime])
 +- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 1000:INTERVAL DAY TO SECOND)), <($3, $7))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -173,7 +173,7 @@ Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
   <TestCase name="testProcTimeWindowInnerJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lptime=[$3])
+LogicalProject(select=[a, e, lptime])
 +- LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 1000:INTERVAL DAY TO SECOND)), <($3, $7))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -196,7 +196,7 @@ Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
   <TestCase name="testProcTimeWindowInnerJoinWithEquiTimeAttrs">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lptime=[$3])
+LogicalProject(select=[a, e, lptime])
 +- LogicalFilter(condition=[AND(=($0, $4), =($3, $7))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -219,7 +219,7 @@ Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
   <TestCase name="testProcTimeWindowLeftOuterJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lptime=[$3])
+LogicalProject(select=[a, e, lptime])
 +- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 1000:INTERVAL DAY TO SECOND)), <($3, $7))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -241,7 +241,7 @@ Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
   <TestCase name="testProcTimeWindowRightOuterJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lptime=[$3])
+LogicalProject(select=[a, e, lptime])
 +- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 1000:INTERVAL DAY TO SECOND)), <($3, $7))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -263,7 +263,7 @@ Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
   <TestCase name="testRightOuterJoinEquiAndLocalPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], x=[$3])
+LogicalProject(select=[b, x])
 +- LogicalJoin(condition=[AND(=($0, $5), <($3, 2))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -285,7 +285,7 @@ Calc(select=[b, x])
   <TestCase name="testRightOuterJoinEquiAndNonEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -306,7 +306,7 @@ Calc(select=[b, y])
   <TestCase name="testRightOuterJoinEquiPred">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], y=[$4])
+LogicalProject(select=[b, y])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T]])
    +- LogicalTableScan(table=[[default_catalog, default_database, S]])
@@ -347,7 +347,7 @@ IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=
   <TestCase name="testRowTimeWindowFullOuterJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lrtime=[$3])
+LogicalProject(select=[a, e, lrtime])
 +- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -369,7 +369,7 @@ Calc(select=[a, e, lrtime])
   <TestCase name="testRowTimeWindowInnerJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lrtime=[$3])
+LogicalProject(select=[a, e, lrtime])
 +- LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -392,7 +392,7 @@ Calc(select=[a, e, lrtime])
   <TestCase name="testRowTimeWindowLeftOuterJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lrtime=[$3])
+LogicalProject(select=[a, e, lrtime])
 +- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
@@ -414,7 +414,7 @@ Calc(select=[a, e, lrtime])
   <TestCase name="testRowTimeWindowOuterJoinOpt">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lrtime=[$3])
+LogicalProject(select=[a, e, lrtime])
 +- LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))])
    +- LogicalJoin(condition=[true], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
@@ -437,7 +437,7 @@ Calc(select=[a, e, lrtime])
   <TestCase name="testRowTimeWindowRightOuterJoin">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], e=[$5], lrtime=[$3])
+LogicalProject(select=[a, e, lrtime])
 +- LogicalJoin(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])

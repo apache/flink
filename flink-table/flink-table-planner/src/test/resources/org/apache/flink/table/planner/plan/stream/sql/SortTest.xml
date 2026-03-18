@@ -22,9 +22,9 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -43,9 +43,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -64,9 +64,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -85,9 +85,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -106,9 +106,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -127,9 +127,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -148,9 +148,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -169,9 +169,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -190,9 +190,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], c=[$2])
+   +- LogicalProject(select=[a, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
