@@ -141,7 +141,7 @@ public interface PartitionedTable {
     Table process(Class<? extends UserDefinedFunction> function, Object... arguments);
 
     /**
-     * Converts this dynamic table into an append-only stream with an explicit operation code
+     * Converts this dynamic table into an append-only table with an explicit operation code
      * column using the built-in {@code TO_CHANGELOG} process table function.
      *
      * <p>Each input row - regardless of its original RowKind - is emitted as an INSERT-only row
@@ -151,7 +151,7 @@ public interface PartitionedTable {
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
-     * // Default: adds 'op' column
+     * // Default: adds 'op' column and supports all changelog modes
      * table.partitionBy($("id")).toChangelog();
      *
      * // Custom op column name and mapping

@@ -1,5 +1,5 @@
 ---
-title: "Changelog Functions"
+title: "Changelog Conversion"
 weight: 8
 type: docs
 ---
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Changelog Functions
+# Changelog Conversion
 
 {{< label Streaming >}}
 
@@ -30,15 +30,15 @@ Flink SQL provides built-in process table functions (PTFs) for working with chan
 
 | Function | Description |
 |:---------|:------------|
-| [TO_CHANGELOG](#to_changelog) | Converts a dynamic table into an append-only stream with explicit operation codes |
+| [TO_CHANGELOG](#to_changelog) | Converts a dynamic table into an append-only table with explicit operation codes |
 
 <!-- Placeholder for future FROM_CHANGELOG function -->
 
 ## TO_CHANGELOG
 
-The `TO_CHANGELOG` PTF converts a dynamic table (retract or upsert stream) into an append-only stream with an explicit operation code column. Each input row - regardless of its original `RowKind` (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE) - is emitted as an INSERT-only row with a string column indicating the original operation.
+The `TO_CHANGELOG` PTF converts a dynamic table (i.e. an updating table) into an append-only table with an explicit operation code column. Each input row - regardless of its original `RowKind` (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE) - is emitted as an INSERT-only row with a string column indicating the original operation.
 
-This is useful when you need to materialize changelog events into a downstream system that only supports appends (e.g., a message queue, log store, or append-only file sink).
+This is useful when you need to materialize changelog events into a downstream system that only supports appends (e.g., a message queue, log store, or append-only file sink). It is also useful to filter out certain types of updates, for example DELETEs.
 
 ### Syntax
 
@@ -54,7 +54,7 @@ SELECT * FROM TO_CHANGELOG(
 
 | Parameter    | Required | Description |
 |:-------------|:---------|:------------|
-| `input`      | Yes      | The input table. Must include `PARTITION BY` for parallel execution. Accepts insert-only, retract, and upsert streams. |
+| `input`      | Yes      | The input table. Must include `PARTITION BY` for parallel execution. Accepts insert-only, retract, and upsert tables. |
 | `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. |
 | `op_mapping` | No       | A `MAP<STRING, STRING>` mapping `RowKind` names to custom output codes. When provided, only mapped RowKinds are forwarded - unmapped events are dropped. |
 
@@ -64,10 +64,10 @@ When `op_mapping` is omitted, all four RowKinds are mapped to their standard nam
 
 | RowKind         | Output value      |
 |:----------------|:------------------|
-| INSERT          | `"INSERT"`        |
-| UPDATE_BEFORE   | `"UPDATE_BEFORE"` |
-| UPDATE_AFTER    | `"UPDATE_AFTER"`  |
-| DELETE          | `"DELETE"`        |
+| INSERT          | `'INSERT'`        |
+| UPDATE_BEFORE   | `'UPDATE_BEFORE'` |
+| UPDATE_AFTER    | `'UPDATE_AFTER'`  |
+| DELETE          | `'DELETE'`        |
 
 ### Output Schema
 
@@ -77,14 +77,14 @@ The output columns are ordered as:
 [partition_key_columns, op_column, remaining_columns]
 ```
 
-All output rows have `RowKind.INSERT` - the stream is always append-only.
+All output rows have `INSERT` - the table is always append-only.
 
 ### Examples
 
 #### Basic usage
 
 ```sql
--- Input: retract stream from an aggregation
+-- Input: retract table from an aggregation
 -- +I[id:1, name:'Alice', cnt:1]
 -- +U[id:1, name:'Alice', cnt:2]
 -- -D[id:2, name:'Bob',   cnt:1]
@@ -125,12 +125,11 @@ SELECT * FROM TO_CHANGELOG(
 #### Table API
 
 ```java
-// Convenience method (default op column)
+// Default: adds 'op' column and supports all changelog modes
 Table result = myTable.partitionBy($("id")).toChangelog();
 
-// With custom parameters using process() and named arguments
-Table result = myTable.partitionBy($("id")).process(
-    "TO_CHANGELOG",
+// With custom parameters
+Table result = myTable.partitionBy($("id")).toChangelog(
     descriptor("op_code").asArgument("op"),
     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
 );
