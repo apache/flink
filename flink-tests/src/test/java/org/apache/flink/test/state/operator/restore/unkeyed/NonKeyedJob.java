@@ -155,9 +155,7 @@ public class NonKeyedJob {
                                             + getRuntimeContext()
                                                     .getTaskInfo()
                                                     .getIndexOfThisSubtask())
-                            .hasSize(1)
-                            .element(0)
-                            .isEqualTo(
+                            .containsExactly(
                                     valueToStore
                                             + getRuntimeContext()
                                                     .getTaskInfo()

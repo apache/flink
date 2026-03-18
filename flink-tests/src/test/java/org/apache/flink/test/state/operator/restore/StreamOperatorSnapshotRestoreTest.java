@@ -89,9 +89,9 @@ class StreamOperatorSnapshotRestoreTest {
 
     private static final int MAX_PARALLELISM = 10;
 
-    @TempDir static File temporaryFolder;
+    @TempDir private static File temporaryFolder;
 
-    public enum StateBackendEnum {
+    private enum StateBackendEnum {
         FILE,
         ROCKSDB_FULLY_ASYNC,
         ROCKSDB_INCREMENTAL

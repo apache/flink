@@ -255,9 +255,7 @@ public class KeyedJob {
                                             + getRuntimeContext()
                                                     .getTaskInfo()
                                                     .getIndexOfThisSubtask())
-                            .hasSize(1)
-                            .element(0)
-                            .isEqualTo(
+                            .containsExactly(
                                     valueToStore
                                             + getRuntimeContext()
                                                     .getTaskInfo()

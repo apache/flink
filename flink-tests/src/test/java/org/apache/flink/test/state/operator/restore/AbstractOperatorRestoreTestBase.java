@@ -88,7 +88,7 @@ public abstract class AbstractOperatorRestoreTestBase implements MigrationTest {
     @Parameter private FlinkVersion flinkVersion;
 
     @Parameters(name = "Migrate Savepoint: {0}")
-    public static Collection<FlinkVersion> parameters() {
+    private static Collection<FlinkVersion> parameters() {
         return FlinkVersion.rangeOf(
                 FlinkVersion.v1_8, MigrationTest.getMostRecentlyPublishedVersion());
     }
