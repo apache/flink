@@ -75,6 +75,16 @@ public class EmbeddedApplicationResultStore extends AbstractThreadsafeApplicatio
                 .collect(Collectors.toSet());
     }
 
+    @Override
+    protected ApplicationResult getCleanApplicationResultInternal(ApplicationID applicationId) {
+        final ApplicationResultEntry entry = cleanResults.get(applicationId);
+        if (entry == null) {
+            return null;
+        }
+
+        return entry.getApplicationResult();
+    }
+
     /** Clears all stored results. */
     public void clear() {
         dirtyResults.clear();

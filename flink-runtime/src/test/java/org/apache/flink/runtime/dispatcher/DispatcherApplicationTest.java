@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.application.AbstractApplication;
@@ -734,6 +735,122 @@ public class DispatcherApplicationTest {
 
         assertThatThrownBy(submitFuture::get)
                 .hasCauseInstanceOf(DuplicateApplicationSubmissionException.class);
+    }
+
+    @Test
+    public void testDuplicateSubmissionWithTerminatedButDirtyApplication() throws Exception {
+        final ApplicationResult applicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(applicationId);
+        haServices
+                .getApplicationResultStore()
+                .createDirtyResultAsync(new ApplicationResultEntry(applicationResult))
+                .get();
+
+        assertDuplicateApplicationSubmission();
+    }
+
+    @Test
+    public void testDuplicateSubmissionWithTerminatedAndCleanedApplication() throws Exception {
+        final ApplicationResult applicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(applicationId);
+        haServices
+                .getApplicationResultStore()
+                .createDirtyResultAsync(new ApplicationResultEntry(applicationResult))
+                .get();
+        haServices.getApplicationResultStore().markResultAsCleanAsync(applicationId).get();
+
+        assertDuplicateApplicationSubmission();
+    }
+
+    private void assertDuplicateApplicationSubmission() throws Exception {
+        dispatcher = createTestingDispatcherBuilder().build(rpcService);
+        dispatcher.start();
+
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        final AbstractApplication application =
+                TestingApplication.builder().setApplicationId(applicationId).build();
+
+        final CompletableFuture<Acknowledge> submitFuture =
+                dispatcherGateway.submitApplication(application, TIMEOUT);
+
+        assertThatThrownBy(submitFuture::get)
+                .hasCauseInstanceOf(DuplicateApplicationSubmissionException.class);
+    }
+
+    @Test
+    public void testApplicationBootstrapWithDirtyResultTriggersShutdown() throws Exception {
+        testApplicationBootstrapWithApplicationResult(false, true);
+    }
+
+    @Test
+    public void testApplicationBootstrapWithDirtyResultDoesNotTriggerShutdownWhenDisabled()
+            throws Exception {
+        testApplicationBootstrapWithApplicationResult(false, false);
+    }
+
+    @Test
+    public void testApplicationBootstrapWithCleanResultTriggersShutdown() throws Exception {
+        testApplicationBootstrapWithApplicationResult(true, true);
+    }
+
+    @Test
+    public void testApplicationBootstrapWithCleanResultDoesNotTriggerShutdownWhenDisabled()
+            throws Exception {
+        testApplicationBootstrapWithApplicationResult(true, false);
+    }
+
+    private void testApplicationBootstrapWithApplicationResult(
+            boolean isCleanResult, boolean triggerShutDown) throws Exception {
+        configuration.set(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH, triggerShutDown);
+
+        final ApplicationResult applicationResult =
+                TestingApplicationResultStore.createSuccessfulApplicationResult(applicationId);
+        haServices
+                .getApplicationResultStore()
+                .createDirtyResultAsync(new ApplicationResultEntry(applicationResult))
+                .get();
+        if (isCleanResult) {
+            haServices.getApplicationResultStore().markResultAsCleanAsync(applicationId).get();
+        }
+
+        final OneShotLatch bootstrapLatch = new OneShotLatch();
+        final TestingDispatcher.Builder builder =
+                createTestingDispatcherBuilder()
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(
+                                                TestingApplication.builder()
+                                                        .setApplicationId(applicationId)
+                                                        .setExecuteFunction(
+                                                                ignoredExecuteParams -> {
+                                                                    bootstrapLatch.trigger();
+                                                                    return CompletableFuture
+                                                                            .completedFuture(
+                                                                                    Acknowledge
+                                                                                            .get());
+                                                                })
+                                                        .build()));
+        if (!isCleanResult) {
+            builder.setRecoveredDirtyApplications(Collections.singleton(applicationResult));
+        }
+        dispatcher = builder.build(rpcService);
+        dispatcher.start();
+
+        if (triggerShutDown) {
+            assertEquals(
+                    ApplicationStatus.SUCCEEDED,
+                    dispatcher.getShutDownFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
+        } else {
+            assertThatThrownBy(
+                            () -> dispatcher.getShutDownFuture().get(100L, TimeUnit.MILLISECONDS))
+                    .isInstanceOf(TimeoutException.class);
+        }
+
+        assertFalse(bootstrapLatch.isTriggered());
     }
 
     @Test

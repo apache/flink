@@ -66,6 +66,8 @@ public class TestingApplicationResultStore implements ApplicationResultStore {
             hasCleanApplicationResultEntryFunction;
     private final SupplierWithException<Set<ApplicationResult>, ? extends IOException>
             getDirtyResultsSupplier;
+    private final Function<ApplicationID, CompletableFuture<ApplicationResult>>
+            getCleanApplicationResultFunction;
 
     private TestingApplicationResultStore(
             Function<ApplicationResultEntry, CompletableFuture<Void>> createDirtyResultConsumer,
@@ -76,13 +78,16 @@ public class TestingApplicationResultStore implements ApplicationResultStore {
             Function<ApplicationID, CompletableFuture<Boolean>>
                     hasCleanApplicationResultEntryFunction,
             SupplierWithException<Set<ApplicationResult>, ? extends IOException>
-                    getDirtyResultsSupplier) {
+                    getDirtyResultsSupplier,
+            Function<ApplicationID, CompletableFuture<ApplicationResult>>
+                    getCleanApplicationResultFunction) {
         this.createDirtyResultConsumer = createDirtyResultConsumer;
         this.markResultAsCleanConsumer = markResultAsCleanConsumer;
         this.hasApplicationResultEntryFunction = hasApplicationResultEntryFunction;
         this.hasDirtyApplicationResultEntryFunction = hasDirtyApplicationResultEntryFunction;
         this.hasCleanApplicationResultEntryFunction = hasCleanApplicationResultEntryFunction;
         this.getDirtyResultsSupplier = getDirtyResultsSupplier;
+        this.getCleanApplicationResultFunction = getCleanApplicationResultFunction;
     }
 
     @Override
@@ -118,6 +123,12 @@ public class TestingApplicationResultStore implements ApplicationResultStore {
         return getDirtyResultsSupplier.get();
     }
 
+    @Override
+    public CompletableFuture<ApplicationResult> getCleanApplicationResultAsync(
+            ApplicationID applicationId) {
+        return getCleanApplicationResultFunction.apply(applicationId);
+    }
+
     public static TestingApplicationResultStore.Builder builder() {
         return new Builder();
     }
@@ -143,6 +154,12 @@ public class TestingApplicationResultStore implements ApplicationResultStore {
 
         private SupplierWithException<Set<ApplicationResult>, ? extends IOException>
                 getDirtyResultsSupplier = Collections::emptySet;
+
+        private Function<ApplicationID, CompletableFuture<ApplicationResult>>
+                getCleanApplicationResultFunction =
+                        applicationID ->
+                                CompletableFuture.completedFuture(
+                                        createSuccessfulApplicationResult(applicationID));
 
         public Builder withCreateDirtyResultConsumer(
                 Function<ApplicationResultEntry, CompletableFuture<Void>>
@@ -185,6 +202,13 @@ public class TestingApplicationResultStore implements ApplicationResultStore {
             return this;
         }
 
+        public Builder withGetCleanApplicationResultFunction(
+                Function<ApplicationID, CompletableFuture<ApplicationResult>>
+                        getCleanApplicationResultFunction) {
+            this.getCleanApplicationResultFunction = getCleanApplicationResultFunction;
+            return this;
+        }
+
         public TestingApplicationResultStore build() {
             return new TestingApplicationResultStore(
                     createDirtyResultConsumer,
@@ -192,7 +216,8 @@ public class TestingApplicationResultStore implements ApplicationResultStore {
                     hasApplicationResultEntryFunction,
                     hasDirtyApplicationResultEntryFunction,
                     hasCleanApplicationResultEntryFunction,
-                    getDirtyResultsSupplier);
+                    getDirtyResultsSupplier,
+                    getCleanApplicationResultFunction);
         }
     }
 }

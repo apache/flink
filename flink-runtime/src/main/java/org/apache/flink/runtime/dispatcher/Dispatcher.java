@@ -31,6 +31,7 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -483,52 +484,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         this.getRpcService().getScheduledExecutor(),
                         this::onFatalError);
 
+        startApplicationsCleanup();
+
         if (dispatcherBootstrap instanceof ApplicationBootstrap) {
             // Application Mode
-            checkState(suspendedApplications.isEmpty());
-            checkState(recoveredDirtyApplicationResults.size() <= 1);
-
-            AbstractApplication application =
-                    ((ApplicationBootstrap) dispatcherBootstrap).getApplication();
-            if (!recoveredDirtyApplicationResults.isEmpty()) {
-                // the application is already terminated
-                ApplicationResult applicationResult =
-                        recoveredDirtyApplicationResults.iterator().next();
-                checkState(
-                        application
-                                .getApplicationId()
-                                .equals(applicationResult.getApplicationId()));
-
-                startApplicationCleanup();
-            } else {
-                // defer starting recovered jobs, as they might be skipped based on user logic
-                internalSubmitApplication(application).get();
-            }
+            maybeSubmitApplicationInApplicationMode();
         } else {
             // Session Mode
-            startApplicationCleanup();
-
-            // start suspended applications
-            for (AbstractApplication suspendedApplication : suspendedApplications.values()) {
-                // defer starting recovered jobs, as they might be skipped based on user logic
-                internalSubmitApplication(suspendedApplication).get();
-            }
-
-            // start suspended jobs that do not belong to any application (previously submitted in a
-            // SingleJobApplication) by wrapping them into a SingleJobApplication
-            Iterator<Map.Entry<JobID, ExecutionPlan>> jobIterator =
-                    suspendedJobs.entrySet().iterator();
-            while (jobIterator.hasNext()) {
-                Map.Entry<JobID, ExecutionPlan> entry = jobIterator.next();
-                ExecutionPlan recoveredJob = entry.getValue();
-                ApplicationID applicationId = recoveredJob.getApplicationId().orElse(null);
-
-                if (!suspendedApplications.containsKey(applicationId)) {
-                    runRecoveredJob(recoveredJob, true);
-                    jobIterator.remove();
-                    suspendedJobIdsByApplicationId.remove(applicationId);
-                }
-            }
+            recoverApplicationsAndJobsInSessionMode();
         }
 
         checkState(recoveredDirtyJobResultsByApplicationId.isEmpty());
@@ -673,49 +636,145 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         }
     }
 
-    private void startApplicationCleanup() {
+    private void startApplicationsCleanup() {
         for (ApplicationResult applicationResult : recoveredDirtyApplicationResults) {
-            ApplicationID applicationId = applicationResult.getApplicationId();
-            ApplicationState applicationState = applicationResult.getApplicationState();
+            try {
+                startApplicationCleanup(applicationResult);
+            } catch (Throwable throwable) {
+                onFatalError(
+                        new DispatcherException(
+                                String.format(
+                                        "Could not start cleanup for application %s.",
+                                        applicationResult.getApplicationId()),
+                                throwable));
+            }
+        }
+    }
 
-            Map<JobID, ExecutionGraphInfo> jobs = new HashMap<>();
-            Collection<JobResult> dirtyJobResults =
-                    recoveredDirtyJobResultsByApplicationId.remove(applicationId);
-            if (dirtyJobResults != null) {
-                for (JobResult jobResult : dirtyJobResults) {
-                    JobID jobId = jobResult.getJobId();
-                    ExecutionGraphInfo executionGraphInfo =
-                            new ExecutionGraphInfo(
-                                    ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                                            jobResult, -1));
-                    jobs.put(jobId, executionGraphInfo);
+    private void startApplicationCleanup(ApplicationResult applicationResult) {
+        ApplicationID applicationId = applicationResult.getApplicationId();
+        ApplicationState applicationState = applicationResult.getApplicationState();
 
-                    runJobWithCleanupRunner(jobResult, false);
-                }
+        Map<JobID, ExecutionGraphInfo> jobs = new HashMap<>();
+        Collection<JobResult> dirtyJobResults =
+                recoveredDirtyJobResultsByApplicationId.remove(applicationId);
+        if (dirtyJobResults != null) {
+            for (JobResult jobResult : dirtyJobResults) {
+                JobID jobId = jobResult.getJobId();
+                ExecutionGraphInfo executionGraphInfo =
+                        new ExecutionGraphInfo(
+                                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
+                                        jobResult, -1));
+                jobs.put(jobId, executionGraphInfo);
+
+                runJobWithCleanupRunner(jobResult, false);
+            }
+        }
+
+        long[] stateTimestamps = new long[ApplicationState.values().length];
+        stateTimestamps[ApplicationState.CREATED.ordinal()] = applicationResult.getStartTime();
+        stateTimestamps[applicationState.ordinal()] = applicationResult.getEndTime();
+
+        ArchivedApplication sparseArchivedApplication =
+                new ArchivedApplication(
+                        applicationId,
+                        applicationResult.getApplicationName(),
+                        applicationState,
+                        stateTimestamps,
+                        jobs,
+                        Collections.emptyList());
+
+        writeToArchivedApplicationStore(sparseArchivedApplication);
+
+        // the dirty result already exists
+        // create a completed future to make sure the jobs can be marked clean
+        applicationCreateDirtyResultFutures.put(applicationId, FutureUtils.completedVoidFuture());
+        applicationTerminationFutures.put(applicationId, new CompletableFuture<>());
+
+        removeApplication(applicationId, jobs.keySet());
+    }
+
+    private void recoverApplicationsAndJobsInSessionMode() {
+        for (AbstractApplication suspendedApplication : suspendedApplications.values()) {
+            // defer starting recovered jobs, as they might be skipped based on user logic
+            try {
+                internalSubmitApplication(suspendedApplication).get();
+            } catch (Throwable throwable) {
+                onFatalError(
+                        new DispatcherException(
+                                String.format(
+                                        "Could not start recovered application %s.",
+                                        suspendedApplication.getApplicationId()),
+                                throwable));
+            }
+        }
+
+        // start suspended jobs that do not belong to any application (previously submitted in a
+        // SingleJobApplication) by wrapping them into a SingleJobApplication
+        Iterator<Map.Entry<JobID, ExecutionPlan>> jobIterator = suspendedJobs.entrySet().iterator();
+        while (jobIterator.hasNext()) {
+            Map.Entry<JobID, ExecutionPlan> entry = jobIterator.next();
+            ExecutionPlan recoveredJob = entry.getValue();
+            ApplicationID applicationId = recoveredJob.getApplicationId().orElse(null);
+            if (!suspendedApplications.containsKey(applicationId)) {
+                runRecoveredJob(recoveredJob, true);
+                jobIterator.remove();
+                suspendedJobIdsByApplicationId.remove(applicationId);
+            }
+        }
+    }
+
+    private void maybeSubmitApplicationInApplicationMode() {
+        checkState(suspendedApplications.isEmpty());
+        checkState(recoveredDirtyApplicationResults.size() <= 1);
+
+        AbstractApplication application =
+                ((ApplicationBootstrap) dispatcherBootstrap).getApplication();
+        ApplicationID applicationId = application.getApplicationId();
+        boolean shutDownOnApplicationFinish =
+                configuration.get(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH);
+        if (!recoveredDirtyApplicationResults.isEmpty()) {
+            // the application is already terminated but needs to be cleaned up
+            ApplicationResult applicationResult =
+                    recoveredDirtyApplicationResults.iterator().next();
+            checkState(applicationId.equals(applicationResult.getApplicationId()));
+
+            if (shutDownOnApplicationFinish) {
+                shutDownCluster(
+                        ApplicationStatus.fromApplicationState(
+                                applicationResult.getApplicationState()));
+            }
+        } else {
+            // check whether the application is already cleaned up
+            ApplicationResult applicationResult = null;
+            try {
+                applicationResult =
+                        applicationResultStore.getCleanApplicationResultAsync(applicationId).get();
+            } catch (Throwable throwable) {
+                onFatalError(
+                        new DispatcherException(
+                                String.format(
+                                        "Could not get clean application result for application %s.",
+                                        applicationId),
+                                throwable));
             }
 
-            long[] stateTimestamps = new long[ApplicationState.values().length];
-            stateTimestamps[ApplicationState.CREATED.ordinal()] = applicationResult.getStartTime();
-            stateTimestamps[applicationState.ordinal()] = applicationResult.getEndTime();
-
-            ArchivedApplication sparseArchivedApplication =
-                    new ArchivedApplication(
-                            applicationId,
-                            applicationResult.getApplicationName(),
-                            applicationState,
-                            stateTimestamps,
-                            jobs,
-                            Collections.emptyList());
-
-            writeToArchivedApplicationStore(sparseArchivedApplication);
-
-            // the dirty result already exists
-            // create a completed future to make sure the jobs can be marked clean
-            applicationCreateDirtyResultFutures.put(
-                    applicationId, FutureUtils.completedVoidFuture());
-            applicationTerminationFutures.put(applicationId, new CompletableFuture<>());
-
-            removeApplication(applicationId, jobs.keySet());
+            if (applicationResult == null) {
+                try {
+                    internalSubmitApplication(application).get();
+                } catch (Throwable throwable) {
+                    onFatalError(
+                            new DispatcherException(
+                                    String.format("Could not start application %s.", applicationId),
+                                    throwable));
+                }
+            } else {
+                if (shutDownOnApplicationFinish) {
+                    shutDownCluster(
+                            ApplicationStatus.fromApplicationState(
+                                    applicationResult.getApplicationState()));
+                }
+            }
         }
     }
 
@@ -873,29 +932,45 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         final ApplicationID applicationId = application.getApplicationId();
         log.info(
                 "Received application submission '{}' ({}).", application.getName(), applicationId);
+        return applicationResultStore
+                .hasApplicationResultEntryAsync(applicationId)
+                .thenComposeAsync(
+                        isTerminated -> {
+                            if (isTerminated) {
+                                log.warn(
+                                        "Ignoring application submission '{}' ({}) because the application already "
+                                                + "reached a terminal state.",
+                                        application.getName(),
+                                        applicationId);
+                                return FutureUtils.completedExceptionally(
+                                        new DuplicateApplicationSubmissionException(applicationId));
+                            } else if (applications.containsKey(applicationId)
+                                    || archivedApplicationStore.get(applicationId).isPresent()) {
+                                log.warn("Application with id {} already exists.", applicationId);
+                                return FutureUtils.completedExceptionally(
+                                        new DuplicateApplicationSubmissionException(applicationId));
+                            }
 
-        if (applications.containsKey(applicationId)) {
-            log.warn("Application with id {} already exists.", applicationId);
-            throw new CompletionException(
-                    new DuplicateApplicationSubmissionException(applicationId));
-        }
+                            Optional<ApplicationStoreEntry> optionalApplicationStoreEntry =
+                                    application.getApplicationStoreEntry();
+                            if (optionalApplicationStoreEntry.isPresent()) {
+                                try {
+                                    applicationWriter.putApplication(
+                                            optionalApplicationStoreEntry.get());
+                                } catch (Exception e) {
+                                    String msg =
+                                            String.format(
+                                                    "Could not persist application %s to the ApplicationStore.",
+                                                    applicationId);
+                                    log.warn(msg, e);
+                                    return FutureUtils.completedExceptionally(
+                                            new RuntimeException(msg, e));
+                                }
+                            }
 
-        Optional<ApplicationStoreEntry> optionalApplicationStoreEntry =
-                application.getApplicationStoreEntry();
-        if (optionalApplicationStoreEntry.isPresent()) {
-            try {
-                applicationWriter.putApplication(optionalApplicationStoreEntry.get());
-            } catch (Exception e) {
-                String msg =
-                        String.format(
-                                "Could not persist application %s to the ApplicationStore.",
-                                applicationId);
-                log.warn(msg);
-                throw new CompletionException(new RuntimeException(msg, e));
-            }
-        }
-
-        return internalSubmitApplication(application);
+                            return internalSubmitApplication(application);
+                        },
+                        getMainThreadExecutor());
     }
 
     /** This method must be called from the main thread. */

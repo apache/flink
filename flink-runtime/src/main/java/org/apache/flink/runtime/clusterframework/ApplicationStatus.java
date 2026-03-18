@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobStatus;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.BiMap;
@@ -88,5 +89,29 @@ public enum ApplicationStatus {
         }
 
         return JOB_STATUS_APPLICATION_STATUS_BI_MAP.inverse().get(this);
+    }
+
+    /**
+     * Derives the ApplicationStatus that corresponds to the given ApplicationState. If the
+     * ApplicationState is not a terminal state, this method returns {@link #UNKNOWN}.
+     *
+     * <p>Note: {@code ApplicationState} covers the entire lifecycle of an application, representing
+     * various stages from created to finish. {@code ApplicationStatus}, on the other hand,
+     * describes the final state of the cluster when shutdown.
+     *
+     * @param applicationState the application state
+     * @return the corresponding status
+     */
+    public static ApplicationStatus fromApplicationState(ApplicationState applicationState) {
+        switch (applicationState) {
+            case FAILED:
+                return FAILED;
+            case CANCELED:
+                return CANCELED;
+            case FINISHED:
+                return SUCCEEDED;
+            default:
+                return UNKNOWN;
+        }
     }
 }
