@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[COALESCE($3, $0)])
+LogicalProject(select=[COALESCE($3, $0) AS order_id])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[full])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -45,7 +45,7 @@ Calc(select=[COALESCE(order_id0, order_id) AS order_id])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[COALESCE($3, $0)])
+LogicalProject(select=[COALESCE($3, $0) AS order_id])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -68,7 +68,7 @@ Calc(select=[order_id0 AS order_id])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[COALESCE($3, $0)], amount=[$2])
+LogicalProject(select=[COALESCE($3, $0) AS order_id, amount])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -86,11 +86,11 @@ TableSourceScan(table=[[default_catalog, default_database, orders, project=[orde
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id_str=[CAST(COALESCE($3.order_id, $0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
-+- LogicalProject(order_id=[$0], user_id=[$1], amount=[$2], r=[$3], detail=[$4])
+LogicalProject(select=[CAST(COALESCE($3.order_id, $0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL AS order_id_str])
++- LogicalProject(select=[order_id, user_id, amount, r, detail])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
-      +- LogicalProject(r=[$0], detail=[$1], $f2=[$0.order_id])
+      +- LogicalProject(select=[r, detail, $0.order_id AS $f2])
          +- LogicalTableScan(table=[[default_catalog, default_database, order_details_row]])
 ]]>
     </Resource>
@@ -112,7 +112,7 @@ Calc(select=[CAST(r.order_id AS VARCHAR(2147483647)) AS order_id_str])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(val=[COALESCE($4, CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+LogicalProject(select=[COALESCE($4, CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS val])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -135,7 +135,7 @@ Calc(select=[COALESCE(detail, CAST(amount AS VARCHAR(2147483647))) AS val])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[COALESCE($0, $3)])
+LogicalProject(select=[COALESCE($0, $3) AS order_id])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[right])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -153,7 +153,7 @@ TableSourceScan(table=[[default_catalog, default_database, order_details, projec
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[COALESCE($0, $3)], amount=[$2])
+LogicalProject(select=[COALESCE($0, $3) AS order_id, amount])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -171,7 +171,7 @@ TableSourceScan(table=[[default_catalog, default_database, orders, project=[orde
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(val=[COALESCE($3, $0, $1)])
+LogicalProject(select=[COALESCE($3, $0, $1) AS val])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -189,7 +189,7 @@ TableSourceScan(table=[[default_catalog, default_database, orders, project=[orde
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(val=[COALESCE($1, $3, $0)])
+LogicalProject(select=[COALESCE($1, $3, $0) AS val])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -212,7 +212,7 @@ Calc(select=[user_id AS val])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(val=[COALESCE($1, $0, $3)])
+LogicalProject(select=[COALESCE($1, $0, $3) AS val])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -230,7 +230,7 @@ TableSourceScan(table=[[default_catalog, default_database, orders, project=[user
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(val=[COALESCE($3, $1, $0)])
+LogicalProject(select=[COALESCE($3, $1, $0) AS val])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -253,7 +253,7 @@ Calc(select=[COALESCE(order_id0, user_id) AS val])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id=[COALESCE($3, $0, 0:BIGINT)])
+LogicalProject(select=[COALESCE($3, $0, 0:BIGINT) AS order_id])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -271,7 +271,7 @@ TableSourceScan(table=[[default_catalog, default_database, orders, project=[orde
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id_str=[CAST(COALESCE($3, $0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
+LogicalProject(select=[CAST(COALESCE($3, $0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL AS order_id_str])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, order_details]])
@@ -290,7 +290,7 @@ Calc(select=[CAST(order_id AS VARCHAR(2147483647)) AS order_id_str])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(k1=[COALESCE($3, $0)], k2=[COALESCE($4, $1)], val=[$2])
+LogicalProject(select=[COALESCE($3, $0) AS k1, COALESCE($4, $1) AS k2, val])
 +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, composite_key_table]])
    +- LogicalTableScan(table=[[default_catalog, default_database, composite_key_details]])

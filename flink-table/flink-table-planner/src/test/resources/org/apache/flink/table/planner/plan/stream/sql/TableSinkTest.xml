@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.appendSink], fields=[EXPR$0, c])
-+- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
++- LogicalProject(select=[+($0, $1) AS EXPR$0, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -36,7 +36,7 @@ Sink(table=[default_catalog.default_database.appendSink], fields=[EXPR$0, c], ch
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -85,7 +85,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conf
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -134,7 +134,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conf
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -183,7 +183,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conf
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -221,7 +221,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -259,36 +259,36 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.appendSink], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalUnion(all=[true])
-      :- LogicalProject(a=[$0], b=[$1])
+      :- LogicalProject(select=[a, b])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalProject(select=[d, e])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalSink(table=[default_catalog.default_database.retractSink], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(a=[$0])
+   +- LogicalProject(select=[a])
       +- LogicalUnion(all=[true])
-         :- LogicalProject(a=[$0], b=[$1])
+         :- LogicalProject(select=[a, b])
          :  +- LogicalUnion(all=[true])
-         :     :- LogicalProject(a=[$0], b=[$1])
+         :     :- LogicalProject(select=[a, b])
          :     :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-         :     +- LogicalProject(d=[$0], e=[$1])
+         :     +- LogicalProject(select=[d, e])
          :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-         +- LogicalProject(i=[$0], j=[$1])
+         +- LogicalProject(select=[i, j])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
 
 LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[a, total_min])
 +- LogicalAggregate(group=[{0}], total_min=[MIN($1)])
    +- LogicalUnion(all=[true])
-      :- LogicalProject(a=[$0], b=[$1])
+      :- LogicalProject(select=[a, b])
       :  +- LogicalUnion(all=[true])
-      :     :- LogicalProject(a=[$0], b=[$1])
+      :     :- LogicalProject(select=[a, b])
       :     :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      :     +- LogicalProject(d=[$0], e=[$1])
+      :     +- LogicalProject(select=[d, e])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-      +- LogicalProject(i=[$0], j=[$1])
+      +- LogicalProject(select=[i, j])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
 ]]>
     </Resource>
@@ -332,7 +332,7 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, total_min],
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -394,9 +394,9 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, rn])
-+- LogicalProject(id=[$0], city_name=[$1], ts=[$2], rn=[$3])
++- LogicalProject(select=[id, city_name, ts, rn])
    +- LogicalFilter(condition=[=($3, 1)])
-      +- LogicalProject(id=[$0], city_name=[$1], ts=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(select=[id, city_name, ts, ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST) AS rn])
          +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -474,7 +474,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
 +- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -492,9 +492,9 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink_agg_with_string_pk], fields=[EXPR$0, EXPR$1])
-+- LogicalProject(EXPR$0=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$1=[$1])
++- LogicalProject(select=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS EXPR$0, EXPR$1])
    +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
-      +- LogicalProject(a=[$0])
+      +- LogicalProject(select=[a])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -513,7 +513,7 @@ Sink(table=[default_catalog.default_database.sink_agg_with_string_pk], fields=[E
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.conflictSink3], fields=[a, b])
-+- LogicalProject(a=[$0], b=[$1])
++- LogicalProject(select=[a, b])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -529,7 +529,7 @@ Sink(table=[default_catalog.default_database.conflictSink3], fields=[a, b], conf
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.zm_test], targetColumns=[[0]], fields=[a, m1, m2, m3, m4])
-+- LogicalProject(a=[CAST($0):BIGINT], m1=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m2=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m4=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP])
++- LogicalProject(select=[CAST($0):BIGINT AS a, null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP AS m1, null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP AS m2, null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP AS m3, null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP AS m4])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -545,7 +545,7 @@ Sink(table=[default_catalog.default_database.zm_test], targetColumns=[[0]], fiel
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.appendSink], targetColumns=[[0],[1]], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]])
-+- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
++- LogicalProject(select=[+($0, $1) AS EXPR$0, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -561,7 +561,7 @@ Sink(table=[default_catalog.default_database.appendSink], targetColumns=[[0],[1]
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_1=[$3], metadata_2=[CAST(CAST($4):INTEGER):BIGINT])
++- LogicalProject(select=[a, b, c, metadata_1, CAST(CAST($4):INTEGER):BIGINT AS metadata_2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
@@ -577,7 +577,7 @@ Sink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, me
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1, metadata_2, other, metadata_23])
-+- LogicalProject(metadata_1=[$0], metadata_2=[$1], other=[$2], metadata_23=[$4])
++- LogicalProject(select=[metadata_1, metadata_2, other, m_2 AS metadata_23])
    +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
@@ -592,9 +592,9 @@ Sink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1,
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink_agg_with_int_pk], fields=[EXPR$0, EXPR$1])
-+- LogicalProject(EXPR$0=[CAST($0):INTEGER], EXPR$1=[$1])
++- LogicalProject(select=[CAST($0):INTEGER AS EXPR$0, EXPR$1])
    +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
-      +- LogicalProject(c=[$2])
+      +- LogicalProject(select=[c])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -619,25 +619,25 @@ Sink(table=[default_catalog.default_database.sink_agg_with_int_pk], fields=[EXPR
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.retractSink], fields=[b, cnt])
-+- LogicalProject(b=[$0], cnt=[$1])
++- LogicalProject(select=[b, cnt])
    +- LogicalFilter(condition=[<($0, 4)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-         +- LogicalProject(b=[$1], a=[$0])
+         +- LogicalProject(select=[b, a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt])
-+- LogicalProject(b=[$0], cnt=[$1])
++- LogicalProject(select=[b, cnt])
    +- LogicalFilter(condition=[AND(>=($0, 4), <($0, 6))])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-         +- LogicalProject(b=[$1], a=[$0])
+         +- LogicalProject(select=[b, a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[cnt, frequency])
 +- LogicalAggregate(group=[{0}], frequency=[COUNT($1)])
-   +- LogicalProject(cnt=[$1], b=[$0])
+   +- LogicalProject(select=[cnt, b])
       +- LogicalFilter(condition=[<($0, 4)])
          +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
-            +- LogicalProject(b=[$1], a=[$0])
+            +- LogicalProject(select=[b, a])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -673,7 +673,7 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[cnt, frequency
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.retractSink], fields=[a, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-   +- LogicalProject(a=[$0])
+   +- LogicalProject(select=[a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -692,9 +692,9 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[a, cnt], chan
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.retractSink], fields=[cnt, a])
 +- LogicalAggregate(group=[{0}], a=[COUNT($1)])
-   +- LogicalProject(cnt=[$1], a=[$0])
+   +- LogicalProject(select=[cnt, a])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -715,9 +715,9 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[cnt, a], chan
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.retractSink], fields=[cnt, a])
 +- LogicalAggregate(group=[{0}], a=[COUNT($1)])
-   +- LogicalProject(cnt=[$1], a=[$0])
+   +- LogicalProject(select=[cnt, a])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -737,7 +737,7 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[cnt, a], chan
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
-+- LogicalProject(id=[$0], city_name=[$1])
++- LogicalProject(select=[id, city_name])
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
@@ -796,7 +796,7 @@ DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person, sum_votes, prize])
-+- LogicalProject(person=[$0], sum_votes=[$1], prize=[$3])
++- LogicalProject(select=[person, sum_votes, prize])
    +- LogicalFilter(condition=[=($1, $2)])
       +- LogicalJoin(condition=[true], joinType=[inner])
          :- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
@@ -834,10 +834,10 @@ ON CONFLICT DO DEDUPLICATE
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes])
-+- LogicalProject(person=[$0], sum_votes=[$1])
++- LogicalProject(select=[person, sum_votes])
    +- LogicalFilter(condition=[<($2, 10)])
-      +- LogicalProject(person=[$0], sum_votes=[$1], rank_number=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalProject(person=[$0], sum_votes=[$1], vote_section=[/($1, 2)])
+      +- LogicalProject(select=[person, sum_votes, ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST) AS rank_number])
+         +- LogicalProject(select=[person, sum_votes, /($1, 2) AS vote_section])
             +- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
                +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -860,7 +860,7 @@ Sink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person,
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[a, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-   +- LogicalProject(a=[$0])
+   +- LogicalProject(select=[a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -878,10 +878,10 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, cnt], chang
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[a, cnt])
-+- LogicalProject(a=[$0], cnt=[$1])
++- LogicalProject(select=[a, cnt])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

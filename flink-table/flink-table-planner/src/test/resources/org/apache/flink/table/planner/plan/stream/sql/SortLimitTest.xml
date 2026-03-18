@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
++- LogicalProject(select=[a, b, c, proctime, rowtime])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -43,7 +43,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], chan
     <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
++- LogicalProject(select=[a, b, c, proctime, rowtime])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -62,9 +62,9 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], chan
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -83,9 +83,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[0], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -104,9 +104,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -125,9 +125,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -146,9 +146,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[0], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -167,9 +167,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -188,9 +188,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -209,9 +209,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[0])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -227,9 +227,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -248,9 +248,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -266,9 +266,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -287,9 +287,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[0])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -305,9 +305,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3])
+   +- LogicalProject(select=[a, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -326,9 +326,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[0], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -347,9 +347,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -368,9 +368,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -389,9 +389,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[2])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -410,9 +410,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[0])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -428,9 +428,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[1])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -449,9 +449,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[2])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -470,9 +470,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -491,9 +491,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], c=[$2], proctime=[$3])
+   +- LogicalProject(select=[a, c, proctime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -512,9 +512,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -533,9 +533,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+   +- LogicalProject(select=[a, proctime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -554,9 +554,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -572,9 +572,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -593,9 +593,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[0], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -611,9 +611,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[0], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -632,9 +632,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[1], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -650,9 +650,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -671,9 +671,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[2])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -692,9 +692,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[2])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -713,9 +713,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -734,9 +734,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[0], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -752,9 +752,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[0], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -773,9 +773,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[1], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -791,9 +791,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -812,9 +812,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -833,9 +833,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -851,9 +851,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -872,9 +872,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -890,9 +890,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -911,9 +911,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -929,9 +929,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4])
+   +- LogicalProject(select=[a, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -950,9 +950,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[1], fetch=[0])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -968,9 +968,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[1], fetch=[1])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -989,9 +989,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[0])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1007,9 +1007,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1028,9 +1028,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[0])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1046,9 +1046,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[1])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1067,9 +1067,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1088,9 +1088,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+   +- LogicalProject(select=[a, c, rowtime])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1109,9 +1109,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1130,9 +1130,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+   +- LogicalProject(select=[a, rowtime, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1151,9 +1151,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], c=[$2])
+   +- LogicalProject(select=[a, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1172,9 +1172,9 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[0])
-   +- LogicalProject(a=[$0], c=[$2])
+   +- LogicalProject(select=[a, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -1190,9 +1190,9 @@ Values(tuples=[[]])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], c=[$2])
+   +- LogicalProject(select=[a, c])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

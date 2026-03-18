@@ -33,11 +33,11 @@ Values(tuples=[[{ 1, 2, _UTF-16LE'JKL' }, { 2, 3, _UTF-16LE'GHI' }, { 3, 4, _UTF
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalValues(tuples=[[{ null }]])
-:- LogicalProject(f0=[CAST(1:FLOAT):FLOAT])
+:- LogicalProject(select=[CAST(1:FLOAT):FLOAT AS f0])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[CAST(3.1E0:FLOAT):FLOAT])
+:- LogicalProject(select=[CAST(3.1E0:FLOAT):FLOAT AS f0])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(f0=[CAST(99:FLOAT):FLOAT])
++- LogicalProject(select=[CAST(99:FLOAT):FLOAT AS f0])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -58,15 +58,15 @@ Union(all=[true], union=[f0])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(f0=[1:DOUBLE], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[null:INTEGER])
+:- LogicalProject(select=[1:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[3.141592653589793E0:DOUBLE], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(1):INTEGER])
+:- LogicalProject(select=[3.141592653589793E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(1):INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[3.1E0:DOUBLE], f1=[_UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(2):INTEGER])
+:- LogicalProject(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(2):INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[99:DOUBLE], f1=[_UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[null:INTEGER])
+:- LogicalProject(select=[99:DOUBLE AS f0, _UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(f0=[0E-1:DOUBLE], f1=[_UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(4):INTEGER])
++- LogicalProject(select=[0E-1:DOUBLE AS f0, _UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(4):INTEGER AS f2])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -90,9 +90,9 @@ Union(all=[true], union=[f0, f1, f2])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(f0=[1:DOUBLE], f1=[ROW(_UTF-16LE'A':VARCHAR(3) CHARACTER SET "UTF-16LE", 2:DOUBLE)], f2=[ARRAY(1:BIGINT)])
+:- LogicalProject(select=[1:DOUBLE AS f0, ROW(_UTF-16LE'A':VARCHAR(3) CHARACTER SET "UTF-16LE", 2:DOUBLE) AS f1, ARRAY(1:BIGINT) AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(f0=[3.141592653589793E0:DOUBLE], f1=[ROW(_UTF-16LE'ABC':VARCHAR(3) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE)], f2=[ARRAY(3:BIGINT)])
++- LogicalProject(select=[3.141592653589793E0:DOUBLE AS f0, ROW(_UTF-16LE'ABC':VARCHAR(3) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f1, ARRAY(3:BIGINT) AS f2])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -110,17 +110,17 @@ Union(all=[true], union=[f0, f1, f2])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(f0=[CAST(+(1, 3)):DOUBLE NOT NULL], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE)])
+:- LogicalProject(select=[CAST(+(1, 3)):DOUBLE NOT NULL AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[CAST(+(ABS(-1), 2)):DOUBLE NOT NULL], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", CAST(+(ABS(-5), -5)):DOUBLE)])
+:- LogicalProject(select=[CAST(+(ABS(-1), 2)):DOUBLE NOT NULL AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", CAST(+(ABS(-5), -5)):DOUBLE) AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[PI], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[MAP(_UTF-16LE'abc':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE)])
+:- LogicalProject(select=[PI AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'abc':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[3.1E0:DOUBLE], f1=[_UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[MAP(_UTF-16LE'abcd':VARCHAR(4) CHARACTER SET "UTF-16LE", 3:DOUBLE)])
+:- LogicalProject(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'abcd':VARCHAR(4) CHARACTER SET "UTF-16LE", 3:DOUBLE) AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[99:DOUBLE], f1=[_UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 1:DOUBLE)])
+:- LogicalProject(select=[99:DOUBLE AS f0, _UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 1:DOUBLE) AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(f0=[0E-1:DOUBLE], f1=[_UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[null:(VARCHAR(4) CHARACTER SET "UTF-16LE", DOUBLE) MAP])
++- LogicalProject(select=[0E-1:DOUBLE AS f0, _UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:(VARCHAR(4) CHARACTER SET "UTF-16LE", DOUBLE) MAP AS f2])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -146,15 +146,15 @@ Union(all=[true], union=[f0, f1, f2])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(f0=[1:DOUBLE], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[null:INTEGER])
+:- LogicalProject(select=[1:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[3.141592653589793E0:DOUBLE], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(1):INTEGER])
+:- LogicalProject(select=[3.141592653589793E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(1):INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[3.1E0:DOUBLE], f1=[_UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(2):INTEGER])
+:- LogicalProject(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(2):INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(f0=[99:DOUBLE], f1=[_UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(3):INTEGER])
+:- LogicalProject(select=[99:DOUBLE AS f0, _UTF-16LE'DEFG':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(3):INTEGER AS f2])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(f0=[0E-1:DOUBLE], f1=[_UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[CAST(4):INTEGER])
++- LogicalProject(select=[0E-1:DOUBLE AS f0, _UTF-16LE'D':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(4):INTEGER AS f2])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -178,15 +178,15 @@ Union(all=[true], union=[f0, f1, f2])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[1:DECIMAL(10, 2)], b=[_UTF-16LE'ABC '])
+:- LogicalProject(select=[1:DECIMAL(10, 2) AS a, _UTF-16LE'ABC ' AS b])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(a=[3.141592653589793E0:DECIMAL(10, 2)], b=[_UTF-16LE'ABC '])
+:- LogicalProject(select=[3.141592653589793E0:DECIMAL(10, 2) AS a, _UTF-16LE'ABC ' AS b])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(a=[3.1E0:DECIMAL(10, 2)], b=[_UTF-16LE'DEF '])
+:- LogicalProject(select=[3.1E0:DECIMAL(10, 2) AS a, _UTF-16LE'DEF ' AS b])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-:- LogicalProject(a=[99:DECIMAL(10, 2)], b=[_UTF-16LE'DEFG'])
+:- LogicalProject(select=[99:DECIMAL(10, 2) AS a, _UTF-16LE'DEFG' AS b])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(a=[0E-1:DECIMAL(10, 2)], b=[_UTF-16LE'D   '])
++- LogicalProject(select=[0E-1:DECIMAL(10, 2) AS a, _UTF-16LE'D   ' AS b])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -209,7 +209,7 @@ Union(all=[true], union=[a, b])
   <TestCase name="testValuesOverrideNullability">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[CAST(+(1, 2)):BIGINT NOT NULL], b=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], c=[X'01020300':BINARY(4)])
+LogicalProject(select=[CAST(+(1, 2)):BIGINT NOT NULL AS a, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS b, X'01020300':BINARY(4) AS c])
 +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -224,9 +224,9 @@ Calc(select=[3 AS a, 'ABC' AS b, X'01020300' AS c])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(a=[CAST(+(1, 2)):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+:- LogicalProject(select=[CAST(+(1, 2)):BIGINT AS a, CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS b])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(a=[CAST(2:BIGINT):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalProject(select=[CAST(2:BIGINT):BIGINT AS a, CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS b])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -244,9 +244,9 @@ Union(all=[true], union=[a, b])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(number=[CAST(1:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00:TIME(3)))], array=[ARRAY(1:BIGINT)])
+:- LogicalProject(select=[CAST(1:DOUBLE):DOUBLE AS number, ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00:TIME(3))) AS row, ARRAY(1:BIGINT) AS array])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(number=[CAST(3.141592653589793E0:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'ABC  ', 3.0E0:DECIMAL(10, 2), ROW(00:00:00.1:TIME(3)))], array=[ARRAY(3:BIGINT)])
++- LogicalProject(select=[CAST(3.141592653589793E0:DOUBLE):DOUBLE AS number, ROW(_UTF-16LE'ABC  ', 3.0E0:DECIMAL(10, 2), ROW(00:00:00.1:TIME(3))) AS row, ARRAY(3:BIGINT) AS array])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
