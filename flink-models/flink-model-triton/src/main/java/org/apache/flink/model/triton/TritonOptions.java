@@ -184,6 +184,7 @@ public class TritonOptions {
 
     // ========== Connection Pool Management Options ==========
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Integer> CONNECTION_POOL_MAX_IDLE =
             ConfigOptions.key("connection-pool-max-idle")
                     .intType()
@@ -197,6 +198,7 @@ public class TritonOptions {
                                                     + "Defaults to 20.")
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Duration> CONNECTION_POOL_KEEP_ALIVE =
             ConfigOptions.key("connection-pool-keep-alive")
                     .durationType()
@@ -210,6 +212,7 @@ public class TritonOptions {
                                                     + "Defaults to 300s (5 minutes).")
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Integer> CONNECTION_POOL_MAX_TOTAL =
             ConfigOptions.key("connection-pool-max-total")
                     .intType()
@@ -224,6 +227,7 @@ public class TritonOptions {
                                                     + "Defaults to 100.")
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             ConfigOptions.key("connection-timeout")
                     .durationType()
@@ -239,6 +243,7 @@ public class TritonOptions {
                                             code("timeout"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Boolean> CONNECTION_REUSE_ENABLED =
             ConfigOptions.key("connection-reuse-enabled")
                     .booleanType()
@@ -253,6 +258,7 @@ public class TritonOptions {
                                                     + "Defaults to true.")
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Boolean> CONNECTION_POOL_MONITORING_ENABLED =
             ConfigOptions.key("connection-pool-monitoring-enabled")
                     .booleanType()
