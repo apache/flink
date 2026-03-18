@@ -38,10 +38,8 @@ import org.apache.flink.util.Collector;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.AssumptionViolatedException;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,11 +53,12 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test checkpointing while sourcing a continuous file processor. */
-public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
+class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
 
     private static final int NO_OF_FILES = 5;
     private static final int LINES_PER_FILE = 150;
@@ -72,15 +71,15 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
     private static Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
 
-    @Before
-    public void createHDFS() throws IOException {
-        if (failoverStrategy.equals(FailoverStrategy.RestartPipelinedRegionFailoverStrategy)) {
-            // TODO the 'NO_OF_RETRIES' is useless for current RestartPipelinedRegionStrategy,
-            // for this ContinuousFileProcessingCheckpointITCase, using
-            // RestartPipelinedRegionStrategy would result in endless running.
-            throw new AssumptionViolatedException(
-                    "ignored ContinuousFileProcessingCheckpointITCase when using RestartPipelinedRegionStrategy");
-        }
+    @BeforeEach
+    void createHDFS() throws IOException {
+        // TODO the 'NO_OF_RETRIES' is useless for current RestartPipelinedRegionStrategy,
+        // for this ContinuousFileProcessingCheckpointITCase, using
+        // RestartPipelinedRegionStrategy would result in endless running.
+        assumeThat(failoverStrategy)
+                .as(
+                        "ignored ContinuousFileProcessingCheckpointITCase when using RestartPipelinedRegionStrategy")
+                .isNotEqualTo(FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
 
         baseDir = new File("./target/localfs/fs_tests").getAbsoluteFile();
         FileUtil.fullyDelete(baseDir);
@@ -91,8 +90,8 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
         localFs = new org.apache.hadoop.fs.Path(localFsURI).getFileSystem(hdConf);
     }
 
-    @After
-    public void destroyHDFS() {
+    @AfterEach
+    void destroyHDFS() {
         if (baseDir != null) {
             FileUtil.fullyDelete(baseDir);
         }
@@ -136,10 +135,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
         fc.join();
 
         Map<Integer, Set<String>> collected = actualCollectedContent;
-        Assert.assertEquals(collected.size(), fc.getFileContent().size());
+        assertThat(fc.getFileContent()).hasSameSizeAs(collected);
 
         for (Integer fileIdx : fc.getFileContent().keySet()) {
-            Assert.assertTrue(collected.keySet().contains(fileIdx));
+            assertThat(collected).containsKey(fileIdx);
 
             List<String> cntnt = new ArrayList<>(collected.get(fileIdx));
             Collections.sort(
@@ -155,7 +154,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
             for (String line : cntnt) {
                 cntntStr.append(line);
             }
-            Assert.assertEquals(fc.getFileContent().get(fileIdx), cntntStr.toString());
+            assertThat(cntntStr).hasToString(fc.getFileContent().get(fileIdx));
         }
 
         collected.clear();
@@ -193,7 +192,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
         @Override
         public void open(OpenContext openContext) throws Exception {
             // this sink can only work with DOP 1
-            assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
+            assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()).isOne();
 
             long failurePosMin = (long) (0.4 * LINES_PER_FILE);
             long failurePosMax = (long) (0.7 * LINES_PER_FILE);
@@ -315,7 +314,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
                     org.apache.hadoop.fs.Path file =
                             new org.apache.hadoop.fs.Path(localFsURI + "/file" + i);
                     localFs.rename(tmpFile.f0, file);
-                    Assert.assertTrue(localFs.exists(file));
+                    assertThat(localFs.exists(file)).isTrue();
 
                     filesCreated.add(file);
                     fileContents.put(i, tmpFile.f1);
