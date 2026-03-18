@@ -198,7 +198,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a, b])
-+- FlinkLogicalCalc(select=[a, b, c, d], where=[>(d, TO_TIMESTAMP('2020-10-09 12:12:12'))])
++- FlinkLogicalCalc(select=[a, b, c, d], where=[d > TO_TIMESTAMP(_UTF-16LE'2020-10-09 12:12:12')])
    +- FlinkLogicalCalc(select=[a, b, c, Reinterpret(+(c, 5000:INTERVAL SECOND)) AS d])
       +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(+(c, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, c])
 ]]>

@@ -30,7 +30,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, c], where=[>(random_udf(b), 10)])
+FlinkLogicalCalc(select=[a, c], where=[random_udf(b) > 10])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -49,7 +49,7 @@ LogicalProject(a1=[$0], b2=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[random_udf(a) AS a1, random_udf(b) AS b2], where=[>(CAST(c AS BIGINT), 10)])
+FlinkLogicalCalc(select=[random_udf(a) AS a1, random_udf(b) AS b2], where=[CAST(c AS BIGINT) > 10:BIGINT])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -68,7 +68,7 @@ LogicalProject(c=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[c], where=[>(random_udf(a), random_udf(b))])
+FlinkLogicalCalc(select=[c], where=[random_udf(a) > random_udf(b)])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -87,7 +87,7 @@ LogicalProject(a2=[random_udf($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[random_udf(random_udf(a)) AS a2], where=[>(b, 10)])
+FlinkLogicalCalc(select=[random_udf(random_udf(a)) AS a2], where=[b > 10])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -106,7 +106,7 @@ LogicalProject(a=[$0], a1=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, a1], where=[>(a1, 10)])
+FlinkLogicalCalc(select=[a, a1], where=[a1 > 10])
 +- FlinkLogicalCalc(select=[a, random_udf(a) AS a1])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
@@ -126,7 +126,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a], where=[>(random_udf(a), 10)])
+FlinkLogicalCalc(select=[a], where=[random_udf(a) > 10])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -146,7 +146,7 @@ LogicalProject(a=[$0], b=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b], where=[=(a, b)])
+FlinkLogicalCalc(select=[a, b], where=[a = b])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -166,7 +166,7 @@ LogicalProject(a2=[random_udf($0)], a3=[random_udf($0)])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
-+- FlinkLogicalCalc(select=[random_udf(a) AS a1, b], where=[>(b, 10)])
++- FlinkLogicalCalc(select=[random_udf(a) AS a1, b], where=[b > 10])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -185,7 +185,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, c], where=[>(CAST(c AS BIGINT), 10)])
+FlinkLogicalCalc(select=[a, c], where=[CAST(c AS BIGINT) > 10:BIGINT])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -241,7 +241,7 @@ LogicalProject(rowtime=[$3], c=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[rowtime, c], where=[>(a, 10)])
+FlinkLogicalCalc(select=[rowtime, c], where=[a > 10])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, c, rowtime])
    +- FlinkLogicalCalc(select=[a, c, rowtime])
       +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])

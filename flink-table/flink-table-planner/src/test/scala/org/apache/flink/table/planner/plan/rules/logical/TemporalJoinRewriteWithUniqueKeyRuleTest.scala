@@ -146,11 +146,10 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
         util.verifyRelPlan(
           "SELECT * FROM T1 LEFT JOIN noPkTable FOR SYSTEM_TIME AS OF " +
             "T1.rowtime AS T ON T1.id = T.id"))
-      .hasMessageContaining(
-        "Temporal Table Join requires primary key in versioned table," +
-          " but no primary key can be found. The physical plan is:\nFlinkLogicalJoin(" +
-          "condition=[AND(=($0, $4), __INITIAL_TEMPORAL_JOIN_CONDITION($3, $6," +
-          " __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[left])")
+      .hasMessageContaining("Temporal Table Join requires primary key in versioned table," +
+        " but no primary key can be found. The physical plan is:\nFlinkLogicalJoin(" +
+        "Type=[LEFT], Condition=[id = id AND __INITIAL_TEMPORAL_JOIN_CONDITION(rowtime, rowtime," +
+        " __TEMPORAL_JOIN_LEFT_KEY(id), __TEMPORAL_JOIN_RIGHT_KEY(id))])")
       .isInstanceOf[ValidationException]
   }
 
@@ -171,10 +170,10 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
             "T1.rowtime AS T ON T1.id = T.id"))
       .hasMessageContaining("Temporal Table Join requires primary key in versioned table," +
         " but no primary key can be found. The physical plan is:\n" +
-        "FlinkLogicalJoin(condition=[AND(=($0, $4), __INITIAL_TEMPORAL_JOIN_CONDITION(" +
-        "$3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])")
-      .isInstanceOf[ValidationException]
+        "FlinkLogicalJoin(Type=[INNER], Condition=[id = id AND __INITIAL_TEMPORAL_JOIN_CONDITION(" +
+        "rowtime, rowtime, __TEMPORAL_JOIN_LEFT_KEY(id), __TEMPORAL_JOIN_RIGHT_KEY(id))])")
   }
+    .isInstanceOf[ValidationException]
 
   @Test
   def testInferredPrimaryKeyInTemporalJoinOnTrue(): Unit = {
