@@ -80,15 +80,12 @@ import java.util.stream.Stream;
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER;
 import static org.apache.flink.util.JobIDLoggingUtil.assertKeyPresent;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.isOneOf;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.slf4j.event.Level.TRACE;
 
 /**
  * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean,
- * Duration)}.
+ * SavepointFormatType, Duration)}.
  *
  * @see org.apache.flink.runtime.jobmaster.JobMaster
  */
@@ -193,13 +190,13 @@ class JobMasterTriggerSavepointITCase {
         final String savepointLocation = cancelWithSavepoint(clusterClient);
         final JobStatus jobStatus = clusterClient.getJobStatus(jobGraph.getJobID()).get();
 
-        assertThat(jobStatus, isOneOf(JobStatus.CANCELED, JobStatus.CANCELLING));
+        assertThat(jobStatus).isIn(JobStatus.CANCELED, JobStatus.CANCELLING);
 
         final List<Path> savepoints;
         try (Stream<Path> savepointFiles = Files.list(savepointDirectory)) {
             savepoints = savepointFiles.map(Path::getFileName).collect(Collectors.toList());
         }
-        assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
+        assertThat(savepoints).contains(Paths.get(savepointLocation).getFileName());
     }
 
     @Test
@@ -212,13 +209,13 @@ class JobMasterTriggerSavepointITCase {
         final JobStatus jobStatus =
                 clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
 
-        assertThat(jobStatus, isOneOf(JobStatus.CANCELED, JobStatus.CANCELLING));
+        assertThat(jobStatus).isIn(JobStatus.CANCELED, JobStatus.CANCELLING);
 
         final List<Path> savepoints;
         try (Stream<Path> savepointFiles = Files.list(savepointDirectory)) {
             savepoints = savepointFiles.map(Path::getFileName).collect(Collectors.toList());
         }
-        assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
+        assertThat(savepoints).contains(Paths.get(savepointLocation).getFileName());
     }
 
     @Test
@@ -233,21 +230,22 @@ class JobMasterTriggerSavepointITCase {
             Assumptions.assumeTrue(e == null);
         }
 
-        try {
-            cancelWithSavepoint(clusterClient);
-        } catch (Exception e) {
-            assertThat(
-                    ExceptionUtils.findThrowable(e, CheckpointException.class).isPresent(),
-                    equalTo(true));
-        }
+        assertThatThrownBy(() -> cancelWithSavepoint(clusterClient))
+                .satisfies(
+                        throwable -> {
+                            assertThat(
+                                            ExceptionUtils.findThrowable(
+                                                    throwable, CheckpointException.class))
+                                    .isPresent();
+                        });
 
         final JobStatus jobStatus =
                 clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
-        assertThat(jobStatus, equalTo(JobStatus.RUNNING));
+        assertThat(jobStatus).isEqualTo(JobStatus.RUNNING);
 
         // assert that checkpoints are continued to be triggered
         triggerCheckpointLatch = new CountDownLatch(1);
-        assertThat(triggerCheckpointLatch.await(60L, TimeUnit.SECONDS), equalTo(true));
+        assertThat(triggerCheckpointLatch.await(60L, TimeUnit.SECONDS)).isEqualTo(true);
 
         // assert that JobId is present in the logs
         waitForDisconnect(clusterClient);
@@ -350,7 +348,7 @@ class JobMasterTriggerSavepointITCase {
             try {
                 final JobStatus jobStatus =
                         clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
-                assertThat(jobStatus.isGloballyTerminalState(), equalTo(false));
+                assertThat(jobStatus.isGloballyTerminalState()).isEqualTo(false);
                 if (jobStatus == JobStatus.RUNNING) {
                     return;
                 }

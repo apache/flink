@@ -19,7 +19,6 @@
 package org.apache.flink.test.streaming.api.datastream;
 
 import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
@@ -52,7 +51,6 @@ class FinishedSourcesWatermarkITCase {
 
     @Test
     void testTwoConsecutiveFinishedTasksShouldPropagateMaxWatermark() throws Exception {
-        Configuration conf = new Configuration();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
         // disable chaining to make sure we will have two consecutive checkpoints with Task ==

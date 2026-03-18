@@ -325,12 +325,11 @@ class SortingBoundedInputITCase extends AbstractTestBase {
 
         assertThat(lateRecordsCollected).isEmpty();
         assertThat(sumsCollected)
-                .isEqualTo(
-                        Arrays.asList(
-                                Tuple3.of(10L, 1, 4),
-                                Tuple3.of(20L, 1, 3),
-                                Tuple3.of(10L, 2, 2),
-                                Tuple3.of(20L, 2, 1)));
+                .containsExactly(
+                        Tuple3.of(10L, 1, 4),
+                        Tuple3.of(20L, 1, 3),
+                        Tuple3.of(10L, 2, 2),
+                        Tuple3.of(20L, 2, 1));
     }
 
     @Test
@@ -487,12 +486,11 @@ class SortingBoundedInputITCase extends AbstractTestBase {
         assertThat(lateRecordsCollected).isEmpty();
 
         assertThat(sumsCollected)
-                .isEqualTo(
-                        Arrays.asList(
-                                Tuple3.of(10L, 1, 8),
-                                Tuple3.of(20L, 1, 6),
-                                Tuple3.of(10L, 2, 4),
-                                Tuple3.of(20L, 2, 2)));
+                .containsExactly(
+                        Tuple3.of(10L, 1, 8),
+                        Tuple3.of(20L, 1, 6),
+                        Tuple3.of(10L, 2, 4),
+                        Tuple3.of(20L, 2, 2));
     }
 
     private static final WatermarkGenerator<Tuple2<Integer, Integer>>

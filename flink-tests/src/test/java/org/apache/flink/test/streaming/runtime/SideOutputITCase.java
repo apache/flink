@@ -62,8 +62,6 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,7 +70,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Integration test for streaming programs using side outputs. */
 class SideOutputITCase extends AbstractTestBase implements Serializable {
 
-    static List<Integer> elements = new ArrayList<>();
+    private static List<Integer> elements = new ArrayList<>();
 
     static {
         elements.add(1);
@@ -161,63 +159,60 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "E:sideout-1",
-                                "E:sideout-2",
-                                "E:sideout-3",
-                                "E:sideout-4",
-                                "E:sideout-5",
-                                "WM:0",
-                                "WM:0",
-                                "WM:0",
-                                "WM:2",
-                                "WM:2",
-                                "WM:2",
-                                "WM:" + Long.MAX_VALUE,
-                                "WM:" + Long.MAX_VALUE,
-                                "WM:" + Long.MAX_VALUE));
+                .containsExactly(
+                        "E:sideout-1",
+                        "E:sideout-2",
+                        "E:sideout-3",
+                        "E:sideout-4",
+                        "E:sideout-5",
+                        "WM:0",
+                        "WM:0",
+                        "WM:0",
+                        "WM:2",
+                        "WM:2",
+                        "WM:2",
+                        "WM:" + Long.MAX_VALUE,
+                        "WM:" + Long.MAX_VALUE,
+                        "WM:" + Long.MAX_VALUE);
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "E:sideout-1",
-                                "E:sideout-2",
-                                "E:sideout-3",
-                                "E:sideout-4",
-                                "E:sideout-5",
-                                "WM:0",
-                                "WM:0",
-                                "WM:0",
-                                "WM:2",
-                                "WM:2",
-                                "WM:2",
-                                "WM:" + Long.MAX_VALUE,
-                                "WM:" + Long.MAX_VALUE,
-                                "WM:" + Long.MAX_VALUE));
+                .containsExactly(
+                        "E:sideout-1",
+                        "E:sideout-2",
+                        "E:sideout-3",
+                        "E:sideout-4",
+                        "E:sideout-5",
+                        "WM:0",
+                        "WM:0",
+                        "WM:0",
+                        "WM:2",
+                        "WM:2",
+                        "WM:2",
+                        "WM:" + Long.MAX_VALUE,
+                        "WM:" + Long.MAX_VALUE,
+                        "WM:" + Long.MAX_VALUE);
 
         assertThat(resultSink.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "E:1",
-                                "E:2",
-                                "E:3",
-                                "E:4",
-                                "E:5",
-                                "WM:0",
-                                "WM:0",
-                                "WM:0",
-                                "WM:2",
-                                "WM:2",
-                                "WM:2",
-                                "WM:" + Long.MAX_VALUE,
-                                "WM:" + Long.MAX_VALUE,
-                                "WM:" + Long.MAX_VALUE));
+                .containsExactly(
+                        "E:1",
+                        "E:2",
+                        "E:3",
+                        "E:4",
+                        "E:5",
+                        "WM:0",
+                        "WM:0",
+                        "WM:0",
+                        "WM:2",
+                        "WM:2",
+                        "WM:2",
+                        "WM:" + Long.MAX_VALUE,
+                        "WM:" + Long.MAX_VALUE,
+                        "WM:" + Long.MAX_VALUE);
     }
 
     @Test
     void testSideOutputWithMultipleConsumers() throws Exception {
-        final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
+        final OutputTag<String> sideOutputTag = new OutputTag<>("side") {};
 
         TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
         TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
@@ -248,14 +243,10 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
         assertThat(sideOutputResultSink2.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
@@ -292,14 +283,10 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
         assertThat(sideOutputResultSink2.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
@@ -338,12 +325,9 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
-        assertThat(sideOutputResultSink2.getSortedResult())
-                .isEqualTo(Arrays.asList(13, 13, 13, 13, 13));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(sideOutputResultSink2.getSortedResult()).containsExactly(13, 13, 13, 13, 13);
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
@@ -416,10 +400,8 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test CoProcessFunction side output. */
@@ -470,14 +452,9 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout1-1",
-                                "sideout1-2",
-                                "sideout2-3",
-                                "sideout2-4",
-                                "sideout2-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly(
+                        "sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test CoProcessFunction side output with multiple consumers. */
@@ -531,10 +508,10 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout1-1", "sideout1-2", "sideout1-3"));
+                .containsExactly("sideout1-1", "sideout1-2", "sideout1-3");
         assertThat(sideOutputResultSink2.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout2-4", "sideout2-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed ProcessFunction side output. */
@@ -580,10 +557,8 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed CoProcessFunction side output. */
@@ -635,14 +610,9 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout1-1",
-                                "sideout1-2",
-                                "sideout2-3",
-                                "sideout2-4",
-                                "sideout2-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly(
+                        "sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed KeyedCoProcessFunction side output. */
@@ -700,14 +670,13 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(
-                        Arrays.asList(
-                                "sideout1-1-1",
-                                "sideout1-2-2",
-                                "sideout2-3-3",
-                                "sideout2-4-4",
-                                "sideout2-5-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly(
+                        "sideout1-1-1",
+                        "sideout1-2-2",
+                        "sideout2-3-3",
+                        "sideout2-4-4",
+                        "sideout2-5-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed CoProcessFunction side output with multiple consumers. */
@@ -762,10 +731,10 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout1-1", "sideout1-2", "sideout1-3"));
+                .containsExactly("sideout1-1", "sideout1-2", "sideout1-3");
         assertThat(sideOutputResultSink2.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout2-4", "sideout2-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed KeyedCoProcessFunction side output with multiple consumers. */
@@ -826,10 +795,10 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink1.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout1-1-1", "sideout1-2-2", "sideout1-3-3"));
+                .containsExactly("sideout1-1-1", "sideout1-2-2", "sideout1-3-3");
         assertThat(sideOutputResultSink2.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout2-4-4", "sideout2-5-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4, 5));
+                .containsExactly("sideout2-4-4", "sideout2-5-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test ProcessFunction side outputs with wrong {@code OutputTag}. */
@@ -941,8 +910,7 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
                 .addSink(sideOutputResultSink);
 
         see.execute();
-        assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(Arrays.asList("late-3", "late-4"));
+        assertThat(sideOutputResultSink.getSortedResult()).containsExactly("late-3", "late-4");
     }
 
     @Test
@@ -991,9 +959,8 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         windowOperator.getSideOutput(lateDataTag).addSink(lateResultSink);
 
         see.execute();
-        assertThat(resultSink.getSortedResult())
-                .isEqualTo(Arrays.asList("1-1", "2-2", "4-4", "5-5"));
-        assertThat(lateResultSink.getSortedResult()).isEqualTo(Collections.singletonList(3));
+        assertThat(resultSink.getSortedResult()).containsExactly("1-1", "2-2", "4-4", "5-5");
+        assertThat(lateResultSink.getSortedResult()).containsExactly(3);
     }
 
     @Test
@@ -1038,8 +1005,8 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout-1", "sideout-2", "sideout-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 5);
     }
 
     @Test
@@ -1083,8 +1050,8 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
         see.execute();
 
         assertThat(sideOutputResultSink.getSortedResult())
-                .isEqualTo(Arrays.asList("sideout-1", "sideout-2", "sideout-5"));
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 5));
+                .containsExactly("sideout-1", "sideout-2", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 5);
     }
 
     @Test
@@ -1139,22 +1106,21 @@ class SideOutputITCase extends AbstractTestBase implements Serializable {
 
         env.execute();
 
-        assertThat(oddsResultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 3));
+        assertThat(oddsResultSink.getSortedResult()).containsExactly(1, 3);
 
-        assertThat(evensResultSink.getSortedResult()).isEqualTo(Arrays.asList(2, 4));
+        assertThat(evensResultSink.getSortedResult()).containsExactly(2, 4);
 
-        assertThat(resultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
 
-        assertThat(oddsUEvensResultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(oddsUEvensResultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
 
-        assertThat(evensUOddsResultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(evensUOddsResultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
 
-        assertThat(oddsUOddsResultSink.getSortedResult()).isEqualTo(Arrays.asList(1, 1, 3, 3));
+        assertThat(oddsUOddsResultSink.getSortedResult()).containsExactly(1, 1, 3, 3);
 
-        assertThat(evensUEvensResultSink.getSortedResult()).isEqualTo(Arrays.asList(2, 2, 4, 4));
+        assertThat(evensUEvensResultSink.getSortedResult()).containsExactly(2, 2, 4, 4);
 
-        assertThat(oddsUEvensExternalResultSink.getSortedResult())
-                .isEqualTo(Arrays.asList(1, 2, 3, 4));
+        assertThat(oddsUEvensExternalResultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
     }
 
     /** Source V2 that emits timestamped elements with watermarks for side output testing. */

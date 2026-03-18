@@ -27,10 +27,6 @@ import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for connected streams. */
@@ -68,14 +64,8 @@ class SelfConnectionITCase extends AbstractTestBase {
 
         env.execute();
 
-        List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
-
-        List<String> result = resultSink.getResult();
-
-        Collections.sort(expected);
-        Collections.sort(result);
-
-        assertThat(result).isEqualTo(expected);
+        assertThat(resultSink.getResult())
+                .containsExactlyInAnyOrder("x 1", "x 3", "x 5", "2", "4", "6");
     }
 
     /**
@@ -125,12 +115,7 @@ class SelfConnectionITCase extends AbstractTestBase {
 
         env.execute();
 
-        List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
-        List<String> result = resultSink.getResult();
-
-        Collections.sort(expected);
-        Collections.sort(result);
-
-        assertThat(result).isEqualTo(expected);
+        assertThat(resultSink.getResult())
+                .containsExactlyInAnyOrder("x 1", "x 3", "x 5", "2", "4", "6");
     }
 }

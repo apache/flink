@@ -55,7 +55,7 @@ class PartitionerITCase extends AbstractTestBase {
     private static final List<String> INPUT = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
 
     @Test
-    void testForwardFailsLowToHighParallelism() throws Exception {
+    void testForwardFailsLowToHighParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> src = env.fromData(1, 2, 3);

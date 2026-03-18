@@ -36,11 +36,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.TestLoggerExtension;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for the {@link JobMaster}. */
@@ -59,10 +57,8 @@ class JobMasterITCase {
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         try {
-            miniCluster.getMiniCluster().submitJob(jobGraph).get();
-            Assertions.fail("Expect failure");
-        } catch (Throwable t) {
-            assertThat(t).hasRootCauseMessage("The given job is empty");
+            assertThatThrownBy(() -> miniCluster.getMiniCluster().submitJob(jobGraph).get())
+                    .hasRootCauseMessage("The given job is empty");
         } finally {
             miniCluster.after();
         }

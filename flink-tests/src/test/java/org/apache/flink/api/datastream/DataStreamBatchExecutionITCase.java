@@ -183,7 +183,7 @@ class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
             List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
-            assertThat(results).isEqualTo(Arrays.asList(30L, 25L));
+            assertThat(results).containsExactly(30L, 25L);
         }
     }
 
@@ -198,7 +198,7 @@ class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
             List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
-            assertThat(results).isEqualTo(Arrays.asList(30L, 25L));
+            assertThat(results).containsExactly(30L, 25L);
         }
     }
 
@@ -245,16 +245,15 @@ class DataStreamBatchExecutionITCase {
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results)
-                    .isEqualTo(
-                            Arrays.asList(
-                                    "(regular4,4)",
-                                    "(regular3,3)",
-                                    "(regular3,2)",
-                                    "(regular4,1)",
-                                    "(regular1,2)",
-                                    "(regular1,3)",
-                                    "(regular2,1)",
-                                    "(regular2,4)"));
+                    .containsExactly(
+                            "(regular4,4)",
+                            "(regular3,3)",
+                            "(regular3,2)",
+                            "(regular4,1)",
+                            "(regular1,2)",
+                            "(regular1,3)",
+                            "(regular2,1)",
+                            "(regular2,4)");
         }
     }
 
@@ -300,16 +299,15 @@ class DataStreamBatchExecutionITCase {
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results)
-                    .isEqualTo(
-                            Arrays.asList(
-                                    "(regular4,4)",
-                                    "(regular3,3)",
-                                    "(regular3,2)",
-                                    "(regular4,1)",
-                                    "(regular1,2)",
-                                    "(regular1,3)",
-                                    "(regular2,1)",
-                                    "(regular2,4)"));
+                    .containsExactly(
+                            "(regular4,4)",
+                            "(regular3,3)",
+                            "(regular3,2)",
+                            "(regular4,1)",
+                            "(regular1,2)",
+                            "(regular1,3)",
+                            "(regular2,1)",
+                            "(regular2,4)");
         }
     }
 
@@ -354,18 +352,17 @@ class DataStreamBatchExecutionITCase {
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results)
-                    .isEqualTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,5): [bc2=bc2, bc1=bc1, bc3=bc3]"));
+                    .containsExactly(
+                            "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular2,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular2,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular2,5): [bc2=bc2, bc1=bc1, bc3=bc3]");
         }
     }
 
@@ -406,15 +403,14 @@ class DataStreamBatchExecutionITCase {
             // regular, that is non-keyed input is not sorted by timestamp. For keyed inputs
             // this is a by-product of the grouping/sorting we use to get the keyed groups.
             assertThat(results)
-                    .isEqualTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]"));
+                    .containsExactly(
+                            "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]");
         }
     }
 
@@ -463,15 +459,14 @@ class DataStreamBatchExecutionITCase {
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results)
-                    .isEqualTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc3, bc2, bc1]",
-                                    "(regular1,2): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,4): [bc3, bc2, bc1]",
-                                    "(regular2,3): [bc3, bc2, bc1]",
-                                    "(regular2,5): [bc3, bc2, bc1]"));
+                    .containsExactly(
+                            "(regular1,1): [bc3, bc2, bc1]",
+                            "(regular1,2): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,4): [bc3, bc2, bc1]",
+                            "(regular2,3): [bc3, bc2, bc1]",
+                            "(regular2,5): [bc3, bc2, bc1]");
         }
     }
 
@@ -524,15 +519,14 @@ class DataStreamBatchExecutionITCase {
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
             assertThat(results)
-                    .isEqualTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc3, bc2, bc1]",
-                                    "(regular1,2): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,4): [bc3, bc2, bc1]",
-                                    "(regular2,3): [bc3, bc2, bc1]",
-                                    "(regular2,5): [bc3, bc2, bc1]"));
+                    .containsExactly(
+                            "(regular1,1): [bc3, bc2, bc1]",
+                            "(regular1,2): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,4): [bc3, bc2, bc1]",
+                            "(regular2,3): [bc3, bc2, bc1]",
+                            "(regular2,5): [bc3, bc2, bc1]");
         }
     }
 

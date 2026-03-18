@@ -68,14 +68,14 @@ class JobManagerMetricsITCase {
 
     @RegisterExtension
     @Order(1)
-    static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
+    private static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
             ContextClassLoaderExtension.builder()
                     .withServiceEntry(MetricReporterFactory.class, TestReporter.class.getName())
                     .build();
 
     @RegisterExtension
     @Order(2)
-    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())

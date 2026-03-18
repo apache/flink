@@ -60,8 +60,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.Serializable;
@@ -84,8 +82,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test for {@link org.apache.flink.api.connector.sink2.Sink} run time implementation.
  */
 class SinkV2ITCase extends AbstractTestBase {
-    private static final Logger LOG = LoggerFactory.getLogger(SinkV2ITCase.class);
-
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,

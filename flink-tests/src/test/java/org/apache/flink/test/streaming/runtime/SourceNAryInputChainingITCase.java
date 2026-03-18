@@ -74,11 +74,11 @@ class SourceNAryInputChainingITCase {
     // because those are the only ones where the runtime supports chaining at the moment.
 
     @Test
-    void testDirectSourcesOnlyChainCreation() throws Exception {
+    void testDirectSourcesOnlyChainCreation() {
         final DataStream<Long> stream = createProgramWithSourcesOnly();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
-        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(1);
+        assertThat(jobGraph.getNumberOfVertices()).isOne();
     }
 
     @Test

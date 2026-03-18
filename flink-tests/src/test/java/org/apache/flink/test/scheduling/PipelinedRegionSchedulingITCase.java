@@ -45,6 +45,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -85,8 +86,10 @@ class PipelinedRegionSchedulingITCase {
 
         final Optional<NoResourceAvailableException> cause =
                 ExceptionUtils.findThrowable(jobFailure, NoResourceAvailableException.class);
-        assertThat(cause).isPresent();
-        assertThat(cause.get().getMessage()).contains("Slot request bulk is not fulfillable!");
+        assertThat(cause)
+                .isPresent()
+                .get(InstanceOfAssertFactories.THROWABLE)
+                .hasMessageContaining("Slot request bulk is not fulfillable!");
     }
 
     @Test

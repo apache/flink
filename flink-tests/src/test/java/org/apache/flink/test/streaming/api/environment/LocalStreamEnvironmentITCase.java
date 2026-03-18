@@ -39,7 +39,7 @@ class LocalStreamEnvironmentITCase {
     @Test
     void testRunIsolatedJob() throws Exception {
         LocalStreamEnvironment env = new LocalStreamEnvironment();
-        assertThat(env.getParallelism()).isEqualTo(1);
+        assertThat(env.getParallelism()).isOne();
 
         addSmallBoundedJob(env, 3);
         env.execute();

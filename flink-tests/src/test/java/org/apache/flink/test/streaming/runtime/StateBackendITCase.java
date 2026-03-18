@@ -45,7 +45,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for {@link OperatorStateBackend}. */
 class StateBackendITCase extends AbstractTestBase {
@@ -82,12 +82,15 @@ class StateBackendITCase extends AbstractTestBase {
                         })
                 .print();
 
-        try {
-            see.execute();
-            fail();
-        } catch (JobExecutionException e) {
-            assertThat(ExceptionUtils.findThrowable(e, SuccessException.class)).isPresent();
-        }
+        assertThatThrownBy(see::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .satisfies(
+                        throwable -> {
+                            assertThat(
+                                            ExceptionUtils.findThrowable(
+                                                    throwable, SuccessException.class))
+                                    .isPresent();
+                        });
     }
 
     public static class FailingStateBackendFactory

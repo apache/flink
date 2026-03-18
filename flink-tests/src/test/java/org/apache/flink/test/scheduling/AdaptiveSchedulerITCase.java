@@ -63,6 +63,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,7 +101,7 @@ class AdaptiveSchedulerITCase {
     private static final Configuration configuration = getConfiguration();
 
     private MiniClusterWithClientResource miniClusterResource;
-    @TempDir File tempFolder;
+    @TempDir private File tempFolder;
 
     private static Configuration getConfiguration() {
         final Configuration conf = new Configuration();
@@ -176,7 +177,7 @@ class AdaptiveSchedulerITCase {
                                 SavepointFormatType.CANONICAL)
                         .get();
         assertThat(savepoint).contains(savepointDirectory.getAbsolutePath());
-        assertThat(client.getJobStatus().get()).isSameAs(JobStatus.FINISHED);
+        assertThat(client.getJobStatus().get()).isEqualTo(JobStatus.FINISHED);
     }
 
     @Test
@@ -228,10 +229,10 @@ class AdaptiveSchedulerITCase {
                         e ->
                                 assertThat(
                                                 ExceptionUtils.findThrowable(
-                                                                e,
-                                                                StopWithSavepointStoppingException
-                                                                        .class)
-                                                        .get())
+                                                        e,
+                                                        StopWithSavepointStoppingException.class))
+                                        .isPresent()
+                                        .get(InstanceOfAssertFactories.THROWABLE)
                                         .hasMessageContaining("A savepoint has been created at: "));
         assertThat(client.getJobStatus().get()).isIn(JobStatus.FAILED, JobStatus.FAILING);
     }
