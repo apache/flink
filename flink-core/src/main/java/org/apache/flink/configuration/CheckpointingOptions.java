@@ -683,8 +683,7 @@ public class CheckpointingOptions {
      * execution.
      */
     @Experimental
-    @Documentation.ExcludeFromDocumentation(
-            "This option is not yet ready for public use, will be documented in a follow-up commit")
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
     public static final ConfigOption<Boolean> UNALIGNED_DURING_RECOVERY_ENABLED =
             ConfigOptions.key("execution.checkpointing.unaligned.during-recovery.enabled")
                     .booleanType()
