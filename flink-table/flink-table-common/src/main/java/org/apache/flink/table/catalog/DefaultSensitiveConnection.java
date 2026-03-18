@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,6 +69,15 @@ public class DefaultSensitiveConnection implements SensitiveConnection {
 
     @Override
     public String toString() {
-        return "DefaultSensitiveConnection{" + "options=" + options + ", comment=" + comment + "}";
+        String maskedOptions =
+                options.entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, e -> "****"))
+                        .toString();
+        return "DefaultSensitiveConnection{"
+                + "options="
+                + maskedOptions
+                + ", comment="
+                + comment
+                + "}";
     }
 }

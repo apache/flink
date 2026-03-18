@@ -50,6 +50,7 @@ public interface CatalogModel {
      *
      * @return comment of the model.
      */
+    @Nullable
     String getComment();
 
     /**

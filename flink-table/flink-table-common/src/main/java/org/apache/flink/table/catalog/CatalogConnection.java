@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.secret.SecretStore;
 
 import javax.annotation.Nullable;
 
@@ -29,8 +30,8 @@ import java.util.Map;
  *
  * <p>A {@link CatalogConnection} contains non-sensitive connection configuration that can be safely
  * persisted in the catalog. Sensitive credentials are extracted and replaced with identifier
- * references to external secret management systems. See {@link SensitiveConnection} for connection
- * containing sensitive information.
+ * references to external secret management systems via the {@link SecretStore}. See {@link
+ * SensitiveConnection} for connection containing sensitive information.
  */
 @PublicEvolving
 public interface CatalogConnection {
@@ -39,7 +40,7 @@ public interface CatalogConnection {
      * Returns a map of string-based connection options.
      *
      * <p>These options contain non-sensitive configuration. Any sensitive values (passwords,
-     * tokens, etc.) are replaced with references to external secret stores.
+     * tokens, etc.) are replaced with references to {@link SecretStore}.
      *
      * @return connection options without plain secrets
      */
