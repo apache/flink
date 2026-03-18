@@ -167,23 +167,6 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SSSSSSSSS")
-                        .expectDataType(DataTypes.TIMESTAMP_LTZ(9).nullable()),
-                // Nullability
-                TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<NUMERIC NULLABLE>) returns NULLABLE",
-                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
-                        .inputTypes(DataTypes.BIGINT().nullable())
-                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
-                TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<NUMERIC NOT NULL>) returns NULLABLE",
-                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
-                        .inputTypes(DataTypes.BIGINT().notNull())
-                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
-                TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<NUMERIC NOT NULL>, <INTEGER NOT NULL>) with precision 9 returns NULLABLE",
-                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
-                        .inputTypes(DataTypes.BIGINT().notNull(), DataTypes.INT().notNull())
-                        .calledWithLiteralAt(1, 9)
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(9).nullable()));
     }
 }

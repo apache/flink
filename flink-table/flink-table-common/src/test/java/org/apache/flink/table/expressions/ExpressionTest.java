@@ -322,10 +322,20 @@ class ExpressionTest {
 
     private static Stream<Arguments> timestampLtzPrecisionTestCases() {
         return Stream.of(
-                // Small instants use numeric variant for readability
-                Arguments.of(Instant.ofEpochSecond(1234), 0, "TO_TIMESTAMP_LTZ(1234, 0)"),
-                Arguments.of(Instant.ofEpochSecond(1, 100_000_000), 1, "TO_TIMESTAMP_LTZ(11, 1)"),
-                Arguments.of(Instant.ofEpochSecond(1, 120_000_000), 2, "TO_TIMESTAMP_LTZ(112, 2)"),
+                // Precision 0-2: numeric variant wrapped in CAST to match data type
+                Arguments.of(
+                        Instant.ofEpochSecond(1234),
+                        0,
+                        "CAST(TO_TIMESTAMP_LTZ(1234, 0) AS TIMESTAMP_LTZ(0))"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 100_000_000),
+                        1,
+                        "CAST(TO_TIMESTAMP_LTZ(11, 1) AS TIMESTAMP_LTZ(1))"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 120_000_000),
+                        2,
+                        "CAST(TO_TIMESTAMP_LTZ(112, 2) AS TIMESTAMP_LTZ(2))"),
+                // Precision 3+: numeric variant without CAST
                 Arguments.of(Instant.ofEpochMilli(1234567), 3, "TO_TIMESTAMP_LTZ(1234567, 3)"),
                 Arguments.of(Instant.ofEpochSecond(1, 123400000), 4, "TO_TIMESTAMP_LTZ(11234, 4)"),
                 Arguments.of(Instant.ofEpochSecond(1, 123450000), 5, "TO_TIMESTAMP_LTZ(112345, 5)"),

@@ -435,18 +435,29 @@ public final class ValueLiteralExpression implements ResolvedExpression {
      * back to the string variant for large values that would overflow.
      */
     private static String serializeTimestampLtz(Instant instant, int precision) {
+        String toTimestampLtzExpr;
         if (canRepresentAsLong(instant, precision)) {
             long epochValue = DateTimeUtils.toEpochValue(instant, precision);
-            return String.format("TO_TIMESTAMP_LTZ(%d, %d)", epochValue, precision);
+            toTimestampLtzExpr = String.format("TO_TIMESTAMP_LTZ(%d, %d)", epochValue, precision);
+        } else {
+            final LocalDateTime utcDateTime =
+                    LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+            final String formatPattern =
+                    precision > 0
+                            ? "yyyy-MM-dd HH:mm:ss." + "S".repeat(precision)
+                            : "yyyy-MM-dd HH:mm:ss";
+            final String timestampStr =
+                    utcDateTime.format(DateTimeFormatter.ofPattern(formatPattern));
+            toTimestampLtzExpr =
+                    String.format(
+                            "TO_TIMESTAMP_LTZ('%s', '%s', 'UTC')", timestampStr, formatPattern);
         }
-        final LocalDateTime utcDateTime =
-                LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
-        final String formatPattern =
-                precision > 0
-                        ? "yyyy-MM-dd HH:mm:ss." + "S".repeat(precision)
-                        : "yyyy-MM-dd HH:mm:ss";
-        final String timestampStr = utcDateTime.format(DateTimeFormatter.ofPattern(formatPattern));
-        return String.format("TO_TIMESTAMP_LTZ('%s', '%s', 'UTC')", timestampStr, formatPattern);
+        // For precision 0-2, TO_TIMESTAMP_LTZ returns TIMESTAMP_LTZ(3), so we need a CAST
+        // to match the actual data type precision.
+        if (precision < 3) {
+            return String.format("CAST(%s AS TIMESTAMP_LTZ(%d))", toTimestampLtzExpr, precision);
+        }
+        return toTimestampLtzExpr;
     }
 
     /**

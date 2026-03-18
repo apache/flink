@@ -125,7 +125,7 @@ public class LiteralExpressionsSerializationITCase {
                                 + "TIME '12:12:00',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:12.333',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:00',\n"
-                                + "TO_TIMESTAMP_LTZ(1234, 0),\n"
+                                + "CAST(TO_TIMESTAMP_LTZ(1234, 0) AS TIMESTAMP_LTZ(0)),\n"
                                 + "TO_TIMESTAMP_LTZ(1234567, 3),\n"
                                 + "TO_TIMESTAMP_LTZ(1234567000, 6),\n"
                                 + "TO_TIMESTAMP_LTZ(1234567000000, 9),\n"
