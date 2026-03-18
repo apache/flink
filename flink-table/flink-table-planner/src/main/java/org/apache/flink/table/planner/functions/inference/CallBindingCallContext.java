@@ -380,12 +380,30 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         return map;
     }
 
-    /** A MAP constructor is literal if all its key-value children are literals. */
+    /** A MAP constructor is a string literal if all its key-value children are string literals. */
     private static boolean isLiteralMap(SqlNode sqlNode) {
         if (sqlNode.getKind() != SqlKind.MAP_VALUE_CONSTRUCTOR) {
             return false;
         }
         return ((SqlCall) sqlNode)
-                .getOperandList().stream().allMatch(child -> SqlUtil.isLiteral(child, false));
+                .getOperandList().stream().allMatch(CallBindingCallContext::isStringLiteral);
+    }
+
+    /**
+     * Checks if a node is a string literal. Also handles implicit CASTs because Calcite
+     * automatically wraps string literals in MAP constructors when values have different lengths
+     * (e.g. MAP['INSERT', 'I', 'UPDATE_AFTER', 'U'] coerces 'INSERT' to CAST('INSERT' AS
+     * VARCHAR(12))).
+     */
+    private static boolean isStringLiteral(final SqlNode node) {
+        if (node instanceof SqlLiteral) {
+            return SqlTypeName.CHAR_TYPES.contains(((SqlLiteral) node).getTypeName());
+        }
+        if (node.getKind() == SqlKind.CAST && node instanceof SqlCall) {
+            final SqlNode inner = ((SqlCall) node).operand(0);
+            return inner instanceof SqlLiteral
+                    && SqlTypeName.CHAR_TYPES.contains(((SqlLiteral) inner).getTypeName());
+        }
+        return false;
     }
 }

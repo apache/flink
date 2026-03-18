@@ -107,7 +107,7 @@ public final class ToChangelogTypeStrategy {
                     }
                 }
 
-                return Optional.of(DataTypes.ROW(outputFields));
+                return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
 
     // --------------------------------------------------------------------------------------------
@@ -116,25 +116,40 @@ public final class ToChangelogTypeStrategy {
 
     private static Optional<List<DataType>> validateInputs(
             final CallContext callContext, final boolean throwOnFailure) {
-        if (callContext.getTableSemantics(0).isEmpty()) {
+        final boolean isMissingTableArg = callContext.getTableSemantics(0).isEmpty();
+        if (isMissingTableArg) {
             return callContext.fail(
                     throwOnFailure, "First argument must be a table for TO_CHANGELOG.");
         }
 
         final Optional<ColumnList> opDescriptor = callContext.getArgumentValue(1, ColumnList.class);
-        if (opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1) {
+        final boolean hasInvalidOpDescriptor =
+                opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1;
+        if (hasInvalidOpDescriptor) {
             return callContext.fail(
                     throwOnFailure,
                     "The descriptor for argument 'op' must contain exactly one column name.");
         }
 
+        final boolean hasMappingArgProvided = !callContext.isArgumentNull(2);
+        final boolean isMappingArgLiteral = callContext.isArgumentLiteral(2);
+        if (hasMappingArgProvided && !isMappingArgLiteral) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "The 'op_mapping' argument must be a constant MAP literal.");
+        }
+
         final Optional<Map> opMapping = callContext.getArgumentValue(2, Map.class);
         if (opMapping.isPresent()) {
-            for (final Object key : opMapping.get().keySet()) {
-                if (!(key instanceof String) || !VALID_ROW_KIND_NAMES.contains(key)) {
-                    return callContext.fail(
-                            throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
-                }
+            final boolean hasInvalidMappingKey =
+                    opMapping.get().keySet().stream()
+                            .anyMatch(
+                                    key ->
+                                            !(key instanceof String)
+                                                    || !VALID_ROW_KIND_NAMES.contains(key));
+            if (hasInvalidMappingKey) {
+                return callContext.fail(
+                        throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
             }
         }
 
