@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateOrAlterMateria
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
@@ -144,6 +145,12 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 }
             }
 
+            final RefreshMode oldRefreshMode = oldTable.getRefreshMode();
+            final RefreshMode newRefreshMode = mergeContext.getMergedRefreshMode();
+            if (oldRefreshMode != newRefreshMode && newRefreshMode != null) {
+                throw new ValidationException("Changing of REFRESH MODE is unsupported");
+            }
+
             return changes;
         };
     }
@@ -227,6 +234,12 @@ public class SqlCreateOrAlterMaterializedTableConverter
             @Override
             public ResolvedSchema getMergedQuerySchema() {
                 return this.querySchema;
+            }
+
+            @Override
+            public RefreshMode getMergedRefreshMode() {
+                return getDerivedRefreshMode(
+                        getDerivedLogicalRefreshMode(sqlCreateMaterializedTable));
             }
         };
     }
