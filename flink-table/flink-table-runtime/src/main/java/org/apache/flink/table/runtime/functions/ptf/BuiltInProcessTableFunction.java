@@ -35,7 +35,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Base class for built-in process table functions that are constructed from {@link
@@ -64,15 +63,9 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
         this.definition = definition;
         final CallContext callContext = context.getCallContext();
 
-        // Convert TABLE args to internal (RowData), leave DESCRIPTOR/MAP args external
-        final List<DataType> argTypes = callContext.getArgumentDataTypes();
         this.argumentDataTypes =
-                IntStream.range(0, argTypes.size())
-                        .mapToObj(
-                                pos ->
-                                        callContext.getTableSemantics(pos).isPresent()
-                                                ? DataTypeUtils.toInternalDataType(argTypes.get(pos))
-                                                : argTypes.get(pos))
+                callContext.getArgumentDataTypes().stream()
+                        .map(DataTypeUtils::toInternalDataType)
                         .collect(Collectors.toList());
 
         this.internalOutputDataType =

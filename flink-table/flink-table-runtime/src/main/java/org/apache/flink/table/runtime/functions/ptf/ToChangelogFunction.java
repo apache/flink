@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -120,7 +121,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
             final Context ctx,
             final RowData input,
             @Nullable final ColumnList op,
-            @Nullable final Map<String, String> opMapping) {
+            @Nullable final MapData opMapping) {
         final String opCode = opMap.get(input.getRowKind());
         if (opCode == null) {
             return;
