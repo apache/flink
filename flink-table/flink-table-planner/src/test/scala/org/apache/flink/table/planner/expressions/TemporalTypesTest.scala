@@ -1283,24 +1283,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
       "NULL")
 
-    // invalid precision
-    testExpectedAllApisException(
-      toTimestampLtz(12, 1),
-      "TO_TIMESTAMP_LTZ(12, 1)",
-      "The precision value '1' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
-        " the supported value is '0' for second or '3' for millisecond.",
-      classOf[TableException]
-    )
-
-    // invalid precision
-    testExpectedAllApisException(
-      toTimestampLtz(1000000000, 9),
-      "TO_TIMESTAMP_LTZ(1000000000, 9)",
-      "The precision value '9' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
-        " the supported value is '0' for second or '3' for millisecond.",
-      classOf[TableException]
-    )
-
     // invalid type for the first input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ('test_string_type', 0)",
