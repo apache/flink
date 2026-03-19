@@ -77,6 +77,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for timestamps, watermarks, and event-time sources. */
+@SuppressWarnings("serial")
 public class TimestampITCase extends TestLogger {
 
     @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
