@@ -309,12 +309,19 @@ def to_date(date_str: Union[str, Expression[str]],
 def to_timestamp(timestamp_str: Union[str, Expression[str]],
                  format: Union[str, Expression[str]] = None) -> Expression:
     """
-    Converts the date time string with the given format (by default: 'yyyy-MM-dd HH:mm:ss')
-    under the 'UTC+0' time zone to a timestamp.
+    Converts a datetime string to a TIMESTAMP without time zone.
 
-    :param timestamp_str: The date time string
-    :param format: The format of the string
-    :return: The date value with TIMESTAMP type.
+    The output precision depends on the variant used:
+
+    - 1-arg variant: always returns TIMESTAMP(3).
+    - 2-arg variant: precision is inferred from the number of trailing 'S' characters
+      in the format pattern, with a minimum of 3. E.g., format
+      'yyyy-MM-dd HH:mm:ss.SSSSSS' returns TIMESTAMP(6).
+
+    :param timestamp_str: The datetime string to parse.
+    :param format: The format pattern (default 'yyyy-MM-dd HH:mm:ss'). 'S' represents
+        fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSS' for microseconds).
+    :return: The timestamp value with TIMESTAMP type.
     """
     if format is None:
         return _unary_op("toTimestamp", timestamp_str)

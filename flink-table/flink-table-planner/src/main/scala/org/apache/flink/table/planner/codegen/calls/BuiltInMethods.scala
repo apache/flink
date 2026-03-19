@@ -325,15 +325,6 @@ object BuiltInMethods {
     classOf[Long],
     classOf[TimeZone])
 
-  val STRING_TO_TIMESTAMP =
-    Types.lookupMethod(classOf[DateTimeUtils], "parseTimestampData", classOf[String])
-
-  val STRING_TO_TIMESTAMP_WITH_FORMAT = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "parseTimestampData",
-    classOf[String],
-    classOf[String])
-
   val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampWithLocalZoneToDate",

@@ -722,7 +722,21 @@ temporal:
       TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai') parses in Shanghai time zone.
   - sql: TO_TIMESTAMP(string1[, string2])
     table: toTimestamp(STRING1[, STRING2])
-    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') to a timestamp, without time zone."
+    description: |
+      Converts a datetime string to a TIMESTAMP without time zone.
+
+      - string1: the datetime string to parse
+      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's DateTimeFormatter syntax, where 'S' represents fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSS' for microseconds, 'SSSSSSSSS' for nanoseconds).
+
+      The output precision depends on the variant used:
+      - 1-arg variant: always returns TIMESTAMP(3).
+      - 2-arg variant: precision is inferred from the number of trailing 'S' characters in the format pattern, with a minimum of 3. E.g., format 'yyyy-MM-dd HH:mm:ss.SS' returns TIMESTAMP(3), format 'yyyy-MM-dd HH:mm:ss.SSSSSS' returns TIMESTAMP(6).
+
+      Returns NULL if the input string cannot be parsed.
+
+      E.g., TO_TIMESTAMP('2023-01-01 00:00:00') parses using default format and returns TIMESTAMP(3),
+      TO_TIMESTAMP('2023-01-01 12:30:00.123456', 'yyyy-MM-dd HH:mm:ss.SSSSSS') parses with microsecond precision and returns TIMESTAMP(6),
+      TO_TIMESTAMP('2023-01-01 12:30:00.123', 'yyyy-MM-dd HH:mm:ss.SSS') returns TIMESTAMP(3).
   - sql: CURRENT_WATERMARK(rowtime)
     description: |
       Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark of all upstream operations is available at the current operation in the pipeline.
