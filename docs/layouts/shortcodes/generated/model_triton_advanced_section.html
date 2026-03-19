@@ -22,7 +22,7 @@
         </tr>
         <tr>
             <td><h5>connection-pool-keep-alive</h5></td>
-            <td style="word-wrap: break-word;">300 s</td>
+            <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
             <td>Duration to keep idle connections alive in the pool before eviction. Longer durations reduce connection setup overhead but may keep stale connections. Recommended: 60s-600s. Defaults to 300s (5 minutes).</td>
         </tr>
@@ -36,7 +36,7 @@
             <td><h5>connection-pool-max-total</h5></td>
             <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
-            <td>Maximum total number of connections across all routes. This limits the overall number of concurrent connections. Should be >= max-concurrent-requests to avoid blocking. Recommended: 50-200 depending on expected load. Defaults to 100.</td>
+            <td>Maximum total number of connections across all routes. This limits the overall number of concurrent connections. Should be &gt;= max-concurrent-requests to avoid blocking. Recommended: 50-200 depending on expected load. Defaults to 100.</td>
         </tr>
         <tr>
             <td><h5>connection-pool-monitoring-enabled</h5></td>
