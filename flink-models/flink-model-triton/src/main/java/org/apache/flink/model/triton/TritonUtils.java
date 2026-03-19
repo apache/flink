@@ -315,7 +315,7 @@ public class TritonUtils {
         private final OkHttpClient client;
         private final AtomicInteger referenceCount;
         private final ConnectionPoolConfig poolConfig;
-        private ScheduledExecutorService monitoringScheduler;
+        private volatile ScheduledExecutorService monitoringScheduler;
 
         private ClientValue(OkHttpClient client, ConnectionPoolConfig poolConfig) {
             this.client = client;
@@ -356,6 +356,14 @@ public class TritonUtils {
         private void stopMonitoring() {
             if (monitoringScheduler != null) {
                 monitoringScheduler.shutdownNow();
+                try {
+                    if (!monitoringScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                        LOG.warn("Monitoring scheduler did not terminate within 5 seconds");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    LOG.warn("Interrupted while waiting for monitoring scheduler to terminate", e);
+                }
                 monitoringScheduler = null;
                 LOG.info("Connection pool monitoring stopped.");
             }

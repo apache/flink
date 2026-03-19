@@ -119,6 +119,9 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.connectionPoolMonitoringEnabled =
                 config.get(TritonOptions.CONNECTION_POOL_MONITORING_ENABLED);
 
+        // Validate connection pool configuration
+        validateConnectionPoolConfig();
+
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
     }
@@ -148,6 +151,48 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     connectionTimeoutMs,
                     connectionReuseEnabled,
                     connectionPoolMonitoringEnabled);
+        }
+    }
+
+    /**
+     * Validates connection pool configuration parameters.
+     *
+     * @throws IllegalArgumentException if configuration is invalid
+     */
+    private void validateConnectionPoolConfig() {
+        Preconditions.checkArgument(
+                connectionPoolMaxIdle > 0,
+                "connection-pool-max-idle must be positive, but was: %s",
+                connectionPoolMaxIdle);
+
+        Preconditions.checkArgument(
+                connectionPoolMaxTotal > 0,
+                "connection-pool-max-total must be positive, but was: %s",
+                connectionPoolMaxTotal);
+
+        Preconditions.checkArgument(
+                connectionPoolMaxTotal >= connectionPoolMaxIdle,
+                "connection-pool-max-total (%s) must be >= connection-pool-max-idle (%s)",
+                connectionPoolMaxTotal,
+                connectionPoolMaxIdle);
+
+        Preconditions.checkArgument(
+                connectionPoolKeepAliveMs > 0,
+                "connection-pool-keep-alive must be positive, but was: %sms",
+                connectionPoolKeepAliveMs);
+
+        Preconditions.checkArgument(
+                connectionTimeoutMs > 0,
+                "connection-timeout must be positive, but was: %sms",
+                connectionTimeoutMs);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Connection pool config validated - maxIdle={}, maxTotal={}, keepAlive={}ms, connTimeout={}ms",
+                    connectionPoolMaxIdle,
+                    connectionPoolMaxTotal,
+                    connectionPoolKeepAliveMs,
+                    connectionTimeoutMs);
         }
     }
 
@@ -207,7 +252,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                 column.getClass());
 
         Preconditions.checkArgument(
-                expectedType != null && !expectedType.equals(column.getDataType().getLogicalType()),
+                expectedType == null || expectedType.equals(column.getDataType().getLogicalType()),
                 "%s column %s should be %s, but is a %s.",
                 inputOrOutput,
                 column.getName(),
