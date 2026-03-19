@@ -51,6 +51,7 @@ import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -99,6 +100,7 @@ class NativeS3FileSystem extends FileSystem
     private static final long CLOSE_TIMEOUT_SECONDS = 60;
 
     private final S3ClientProvider clientProvider;
+    private final S3ClientProvider effectiveClientProvider;
     private final URI uri;
     private final String bucketName;
 
@@ -115,6 +117,13 @@ class NativeS3FileSystem extends FileSystem
     private final int readBufferSize;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    @Nullable private final BucketConfigProvider bucketConfigProvider;
+
+    private final Duration connectionTimeout;
+    private final Duration socketTimeout;
+
+    private final S3ClientProviderCache clientProviderCache;
+
     public NativeS3FileSystem(
             S3ClientProvider clientProvider,
             URI uri,
@@ -126,9 +135,78 @@ class NativeS3FileSystem extends FileSystem
             @Nullable NativeS3BulkCopyHelper bulkCopyHelper,
             boolean useAsyncOperations,
             int readBufferSize) {
+        this(
+                clientProvider,
+                null,
+                NativeS3FileSystemFactory.CONNECTION_TIMEOUT.defaultValue(),
+                NativeS3FileSystemFactory.SOCKET_TIMEOUT.defaultValue(),
+                uri,
+                entropyInjectionKey,
+                entropyLength,
+                localTmpDir,
+                s3uploadPartSize,
+                maxConcurrentUploadsPerStream,
+                bulkCopyHelper,
+                false,
+                0,
+                useAsyncOperations,
+                readBufferSize);
+    }
+
+    public NativeS3FileSystem(
+            S3ClientProvider clientProvider,
+            @Nullable BucketConfigProvider bucketConfigProvider,
+            Duration connectionTimeout,
+            Duration socketTimeout,
+            URI uri,
+            @Nullable String entropyInjectionKey,
+            int entropyLength,
+            String localTmpDir,
+            long s3uploadPartSize,
+            int maxConcurrentUploadsPerStream,
+            @Nullable NativeS3BulkCopyHelper bulkCopyHelper,
+            boolean useAsyncOperations,
+            int readBufferSize) {
+        this(
+                clientProvider,
+                bucketConfigProvider,
+                connectionTimeout,
+                socketTimeout,
+                uri,
+                entropyInjectionKey,
+                entropyLength,
+                localTmpDir,
+                s3uploadPartSize,
+                maxConcurrentUploadsPerStream,
+                bulkCopyHelper,
+                false,
+                0,
+                useAsyncOperations,
+                readBufferSize);
+    }
+
+    public NativeS3FileSystem(
+            S3ClientProvider clientProvider,
+            @Nullable BucketConfigProvider bucketConfigProvider,
+            Duration connectionTimeout,
+            Duration socketTimeout,
+            URI uri,
+            @Nullable String entropyInjectionKey,
+            int entropyLength,
+            String localTmpDir,
+            long s3uploadPartSize,
+            int maxConcurrentUploadsPerStream,
+            @Nullable NativeS3BulkCopyHelper bulkCopyHelper,
+            boolean bulkCopyEnabled,
+            int bulkCopyMaxConcurrent,
+            boolean useAsyncOperations,
+            int readBufferSize) {
         this.clientProvider = clientProvider;
         this.uri = uri;
         this.bucketName = uri.getHost();
+        if (bucketName == null || bucketName.isEmpty()) {
+            throw new IllegalArgumentException("S3 URI must contain a bucket name: " + uri);
+        }
         this.entropyInjectionKey = entropyInjectionKey;
         this.entropyLength = entropyLength;
         this.localTmpDir = localTmpDir;
@@ -136,14 +214,26 @@ class NativeS3FileSystem extends FileSystem
         this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
         this.useAsyncOperations = useAsyncOperations;
         this.readBufferSize = readBufferSize;
+        this.bucketConfigProvider = bucketConfigProvider;
+        this.connectionTimeout = connectionTimeout;
+        this.socketTimeout = socketTimeout;
+        this.clientProviderCache = new S3ClientProviderCache();
+        this.effectiveClientProvider = getClientProviderForBucket(bucketName);
         this.s3AccessHelper =
                 new NativeS3AccessHelper(
-                        clientProvider.getS3Client(),
-                        clientProvider.getTransferManager(),
+                        effectiveClientProvider.getS3Client(),
+                        effectiveClientProvider.getTransferManager(),
                         bucketName,
                         useAsyncOperations,
-                        clientProvider.getEncryptionConfig());
-        this.bulkCopyHelper = bulkCopyHelper;
+                        effectiveClientProvider.getEncryptionConfig());
+        this.bulkCopyHelper =
+                bulkCopyHelper != null
+                        ? bulkCopyHelper
+                        : (bulkCopyEnabled
+                                ? new NativeS3BulkCopyHelper(
+                                        effectiveClientProvider.getTransferManager(),
+                                        bulkCopyMaxConcurrent)
+                                : null);
 
         if (entropyInjectionKey != null && entropyLength <= 0) {
             throw new IllegalArgumentException(
@@ -177,7 +267,7 @@ class NativeS3FileSystem extends FileSystem
     public FileStatus getFileStatus(Path path) throws IOException {
         checkNotClosed();
         final String key = NativeS3AccessHelper.extractKey(path);
-        final S3Client s3Client = clientProvider.getS3Client();
+        final S3Client s3Client = effectiveClientProvider.getS3Client();
 
         LOG.debug("Getting file status for s3://{}/{}", bucketName, key);
 
@@ -276,7 +366,7 @@ class NativeS3FileSystem extends FileSystem
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
         checkNotClosed();
         final String key = NativeS3AccessHelper.extractKey(path);
-        final S3Client s3Client = clientProvider.getS3Client();
+        final S3Client s3Client = effectiveClientProvider.getS3Client();
         final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, bufferSize);
     }
@@ -285,7 +375,7 @@ class NativeS3FileSystem extends FileSystem
     public FSDataInputStream open(Path path) throws IOException {
         checkNotClosed();
         final String key = NativeS3AccessHelper.extractKey(path);
-        final S3Client s3Client = clientProvider.getS3Client();
+        final S3Client s3Client = effectiveClientProvider.getS3Client();
         final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, readBufferSize);
     }
@@ -313,7 +403,7 @@ class NativeS3FileSystem extends FileSystem
             key = key + "/";
         }
 
-        final S3Client s3Client = clientProvider.getS3Client();
+        final S3Client s3Client = effectiveClientProvider.getS3Client();
         final List<FileStatus> results = new ArrayList<>();
         String continuationToken = null;
 
@@ -356,7 +446,7 @@ class NativeS3FileSystem extends FileSystem
     public boolean delete(Path path, boolean recursive) throws IOException {
         checkNotClosed();
         final String key = NativeS3AccessHelper.extractKey(path);
-        final S3Client s3Client = clientProvider.getS3Client();
+        final S3Client s3Client = effectiveClientProvider.getS3Client();
 
         try {
             final FileStatus status = getFileStatus(path);
@@ -428,11 +518,11 @@ class NativeS3FileSystem extends FileSystem
 
         final String key = NativeS3AccessHelper.extractKey(path);
         return new NativeS3OutputStream(
-                clientProvider.getS3Client(),
+                effectiveClientProvider.getS3Client(),
                 bucketName,
                 key,
                 localTmpDir,
-                clientProvider.getEncryptionConfig());
+                effectiveClientProvider.getEncryptionConfig());
     }
 
     /**
@@ -447,7 +537,7 @@ class NativeS3FileSystem extends FileSystem
         checkNotClosed();
         final String srcKey = NativeS3AccessHelper.extractKey(src);
         final String dstKey = NativeS3AccessHelper.extractKey(dst);
-        final S3Client s3Client = clientProvider.getS3Client();
+        final S3Client s3Client = effectiveClientProvider.getS3Client();
 
         final FileStatus srcStatus = getFileStatus(src);
         if (srcStatus.isDir()) {
@@ -532,37 +622,69 @@ class NativeS3FileSystem extends FileSystem
                                                 "Native S3 FileSystem closed for bucket: {}",
                                                 bucketName))
                         .thenCompose(
-                                ignored -> {
-                                    if (clientProvider != null) {
-                                        return clientProvider
-                                                .closeAsync()
-                                                .whenComplete(
-                                                        (result, error) -> {
-                                                            if (error != null) {
-                                                                LOG.warn(
-                                                                        "Error closing S3 client provider",
-                                                                        error);
-                                                            } else {
-                                                                LOG.debug(
-                                                                        "S3 client provider closed");
-                                                            }
-                                                        });
-                                    }
-                                    return CompletableFuture.completedFuture(null);
-                                })
+                                ignored ->
+                                        FutureUtils.waitForAll(
+                                                java.util.Arrays.asList(
+                                                        clientProvider.closeAsync(),
+                                                        clientProviderCache.closeAsync())))
+                        .thenApply(v -> (Void) null)
                         .orTimeout(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                         .whenComplete(
                                 (result, error) -> {
                                     if (error != null) {
                                         LOG.error(
-                                                "FileSystem close timed out after {} seconds for bucket: {}",
-                                                CLOSE_TIMEOUT_SECONDS,
+                                                "Error closing FileSystem for bucket: {}",
                                                 bucketName,
                                                 error);
                                     }
                                 });
         FutureUtils.assertNoException(closeFuture);
         return closeFuture;
+    }
+
+    /** Returns bucket-specific provider if configured, otherwise default. */
+    private S3ClientProvider getClientProviderForBucket(String targetBucket) {
+        if (bucketConfigProvider == null) {
+            return clientProvider;
+        }
+
+        S3BucketConfig bucketConfig = bucketConfigProvider.getBucketConfig(targetBucket);
+        if (bucketConfig == null) {
+            return clientProvider;
+        }
+
+        return clientProviderCache.getOrCreateProvider(
+                targetBucket,
+                bucketConfig,
+                clientProvider,
+                (config) -> createClientProviderForBucketConfig(config));
+    }
+
+    private S3ClientProvider createClientProviderForBucketConfig(S3BucketConfig bucketConfig) {
+        String accessKey = bucketConfig.getAccessKey();
+        String secretKey = bucketConfig.getSecretKey();
+        String region = bucketConfig.getRegion();
+        String endpoint = bucketConfig.getEndpoint();
+        boolean pathStyleAccess = bucketConfig.isPathStyleAccess();
+
+        S3EncryptionConfig encryptionConfig =
+                S3EncryptionConfig.fromConfig(
+                        bucketConfig.getSseType(), bucketConfig.getSseKmsKeyId());
+
+        S3ClientProvider.Builder builder =
+                S3ClientProvider.builder()
+                        .accessKey(accessKey)
+                        .secretKey(secretKey)
+                        .region(region)
+                        .endpoint(endpoint)
+                        .pathStyleAccess(pathStyleAccess)
+                        .assumeRoleArn(bucketConfig.getAssumeRoleArn())
+                        .assumeRoleExternalId(bucketConfig.getAssumeRoleExternalId())
+                        .encryptionConfig(encryptionConfig);
+
+        builder.connectionTimeout(connectionTimeout).socketTimeout(socketTimeout);
+
+        return builder.build();
     }
 
     /**

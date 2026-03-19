@@ -72,6 +72,8 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.bulk-copy.enabled | true | Enable bulk copy operations |
 | s3.async.enabled | true | Enable async read/write with TransferManager |
 | s3.read.buffer.size | 262144 (256KB) | Read buffer size per stream (64KB - 4MB) |
+| s3.client.connection-timeout | 60s | Connection timeout for establishing connections to S3 |
+| s3.client.socket-timeout | 300s | Socket (read) timeout for S3 operations. Increase for large state uploads to avoid "Read timed out" errors |
 
 ### Server-Side Encryption (SSE)
 
