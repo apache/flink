@@ -37,6 +37,7 @@ import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MaxDepthArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -450,6 +451,21 @@ public final class BuiltInFunctionDefinitions {
                     .name("URL_DECODE")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition URL_DECODE_RECURSIVE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("URL_DECODE_RECURSIVE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            new MaxDepthArgumentTypeStrategy(false))))
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")

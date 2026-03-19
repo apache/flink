@@ -230,6 +230,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CA
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE_RECURSIVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_POP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
@@ -1421,19 +1422,41 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8 encoding
-     * scheme. If the input is null, or there is an issue with the decoding process(such as
-     * encountering an illegal escape pattern), or the encoding scheme is not supported, will return
-     * null.
+     * Translates a string from 'application/x-www-form-urlencoded' format using the UTF-8 encoding
+     * scheme. If the input is null, or there is an issue with the decoding process, or the encoding
+     * scheme is not supported, returns null.
      */
     public OutType urlDecode() {
         return toApiSpecificExpression(unresolvedCall(URL_DECODE, toExpr()));
     }
 
     /**
+     * Recursively decodes a URL-encoded string from 'application/x-www-form-urlencoded' format
+     * using the UTF-8 encoding scheme until no further decoding is possible or the default max
+     * depth of 10 is reached. If the input is null, or there is an issue with the decoding process,
+     * or the encoding scheme is not supported, returns null.
+     */
+    public OutType urlDecodeRecursive() {
+        return toApiSpecificExpression(unresolvedCall(URL_DECODE_RECURSIVE, toExpr()));
+    }
+
+    /**
+     * Recursively decodes a URL-encoded string from 'application/x-www-form-urlencoded' format
+     * using the UTF-8 encoding scheme until no further decoding is possible or the specified max
+     * depth is reached. If the input is null, or there is an issue with the decoding process, or
+     * the encoding scheme is not supported, returns null.
+     *
+     * @param maxDepth the maximum number of decoding iterations
+     */
+    public OutType urlDecodeRecursive(InType maxDepth) {
+        return toApiSpecificExpression(
+                unresolvedCall(URL_DECODE_RECURSIVE, toExpr(), objectToExpression(maxDepth)));
+    }
+
+    /**
      * Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8 encoding
      * scheme. If the input is null, or there is an issue with the encoding process, or the encoding
-     * scheme is not supported, will return null.
+     * scheme is not supported, returns null.
      */
     public OutType urlEncode() {
         return toApiSpecificExpression(unresolvedCall(URL_ENCODE, toExpr()));
