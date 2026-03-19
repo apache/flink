@@ -3907,4 +3907,21 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("CREATE TABLE t (\n" + "v VARIANT NOT NULL" + "\n)")
                 .ok("CREATE TABLE `T` (\n" + "  `V` VARIANT NOT NULL\n" + ")");
     }
+
+    @Test
+    void testBitmapType() {
+        sql("CREATE TABLE t (\n" + "bm bitmap" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `BM` BITMAP\n" + ")");
+
+        sql("CREATE TABLE t (\n" + "bm bitmap NOT NULL" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `BM` BITMAP NOT NULL\n" + ")");
+
+        // BITMAP takes no parameters
+        sql("CREATE TABLE t (\n" + "bm bitmap^(^1)" + "\n)")
+                .fails("(?s).*Encountered \"\\(\" at line 2, column 10.\n.*");
+
+        // BITMAP is a reserved keyword and cannot be used as an identifier without escaping
+        sql("CREATE TABLE t (\n" + "^bitmap^ INT" + "\n)")
+                .fails("(?s).*Encountered \"bitmap\" at line 2, column 1.\n.*");
+    }
 }
