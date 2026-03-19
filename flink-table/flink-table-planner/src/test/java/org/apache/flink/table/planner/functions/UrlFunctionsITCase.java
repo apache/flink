@@ -147,21 +147,23 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                         // Test with TINYINT literal
                         .testResult(
                                 $("f0").urlDecodeRecursive(
-                                        org.apache.flink.table.api.Expressions.lit((byte) 2)),
+                                                org.apache.flink.table.api.Expressions.lit(
+                                                        (byte) 2)),
                                 "url_decode_recursive(f0, CAST(2 AS TINYINT))",
                                 "https://flink.apache.org/",
                                 STRING())
                         // Test with SMALLINT literal
                         .testResult(
                                 $("f1").urlDecodeRecursive(
-                                        org.apache.flink.table.api.Expressions.lit((short) 2)),
+                                                org.apache.flink.table.api.Expressions.lit(
+                                                        (short) 2)),
                                 "url_decode_recursive(f1, CAST(2 AS SMALLINT))",
                                 "https://flink.apache.org/",
                                 STRING())
                         // Test with BIGINT literal
                         .testResult(
                                 $("f2").urlDecodeRecursive(
-                                        org.apache.flink.table.api.Expressions.lit(2L)),
+                                                org.apache.flink.table.api.Expressions.lit(2L)),
                                 "url_decode_recursive(f2, CAST(2 AS BIGINT))",
                                 "https://flink.apache.org/",
                                 STRING()),
