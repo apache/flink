@@ -32,6 +32,9 @@ import javax.annotation.Nullable;
  *
  * <p>The conversion extracts each octet from the numeric value using bit shifting and masking.
  *
+ * <p>Accepts any integer numeric type (TINYINT, SMALLINT, INT, BIGINT). Negative values return
+ * null, consistent with MySQL's {@code INET_NTOA(-1) = NULL} behavior.
+ *
  * <p>Note: This function only supports IPv4 addresses. IPv6 addresses are not supported.
  *
  * <p>Examples:
@@ -40,6 +43,7 @@ import javax.annotation.Nullable;
  *   <li>INET_NTOA(2130706433) returns '127.0.0.1'
  *   <li>INET_NTOA(167772161) returns '10.0.0.1'
  *   <li>INET_NTOA(0) returns '0.0.0.0'
+ *   <li>INET_NTOA(-1) returns NULL
  * </ul>
  */
 @Internal
@@ -50,62 +54,20 @@ public class InetNtoaFunction extends BuiltInScalarFunction {
     }
 
     /**
-     * Converts a numeric IPv4 address representation (Long) to its string format.
+     * Converts a numeric IPv4 address representation to its string format.
+     *
+     * <p>Accepts any integer numeric type (TINYINT, SMALLINT, INT, BIGINT). Negative values return
+     * null, consistent with MySQL's {@code INET_NTOA(-1) = NULL} behavior.
      *
      * @param ipNumber the numeric representation of the IPv4 address
-     * @return the IPv4 address string in dotted-decimal notation, or null if input is null or out
-     *     of valid range
+     * @return the IPv4 address string in dotted-decimal notation, or null if input is null,
+     *     negative, or out of valid range [0, 4294967295]
      */
-    public @Nullable StringData eval(@Nullable Long ipNumber) {
+    public @Nullable StringData eval(@Nullable Number ipNumber) {
         if (ipNumber == null) {
             return null;
         }
-        return longToIp(ipNumber);
-    }
-
-    /**
-     * Converts a numeric IPv4 address representation (Integer) to its string format.
-     *
-     * <p>This overload handles INT type inputs which Flink may pass directly without implicit
-     * conversion to Long.
-     *
-     * @param ipNumber the numeric representation of the IPv4 address
-     * @return the IPv4 address string in dotted-decimal notation, or null if input is null or out
-     *     of valid range
-     */
-    public @Nullable StringData eval(@Nullable Integer ipNumber) {
-        if (ipNumber == null) {
-            return null;
-        }
-        // Convert to long, treating negative integers as unsigned
-        // For example, -1 (0xFFFFFFFF as signed int) should be treated as 4294967295
-        return longToIp(Integer.toUnsignedLong(ipNumber));
-    }
-
-    /**
-     * Converts a numeric IPv4 address representation (Short / SMALLINT) to its string format.
-     *
-     * @param ipNumber the numeric representation of the IPv4 address
-     * @return the IPv4 address string in dotted-decimal notation, or null if input is null
-     */
-    public @Nullable StringData eval(@Nullable Short ipNumber) {
-        if (ipNumber == null) {
-            return null;
-        }
-        return longToIp(Short.toUnsignedLong(ipNumber));
-    }
-
-    /**
-     * Converts a numeric IPv4 address representation (Byte / TINYINT) to its string format.
-     *
-     * @param ipNumber the numeric representation of the IPv4 address
-     * @return the IPv4 address string in dotted-decimal notation, or null if input is null
-     */
-    public @Nullable StringData eval(@Nullable Byte ipNumber) {
-        if (ipNumber == null) {
-            return null;
-        }
-        return longToIp(Byte.toUnsignedLong(ipNumber));
+        return longToIp(ipNumber.longValue());
     }
 
     /**

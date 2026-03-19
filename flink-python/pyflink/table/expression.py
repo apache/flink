@@ -1454,13 +1454,16 @@ class Expression(Generic[T]):
 
         The conversion formula is: A * 256^3 + B * 256^2 + C * 256 + D for an IP address A.B.C.D
 
-        Supports MySQL-compatible short-form addresses:
-          - a.b is interpreted as a.0.0.b
-          - a.b.c is interpreted as a.b.0.c
+        Supports MySQL-compatible short-form IPv4 addresses:
+          - a — the value is stored directly as an address (value must be in [0, 255])
+          - a.b — interpreted as a.0.0.b
+          - a.b.c — interpreted as a.b.0.c
+          - a.b.c.d — standard dotted-decimal format
 
         Examples:
+          - lit('1').inet_aton() returns 1 (single number)
           - lit('127.0.0.1').inet_aton() returns 2130706433
-          - lit('127.1').inet_aton() returns 2130706433 (short-form)
+          - lit('127.1').inet_aton() returns 2130706433 (short-form: 127.0.0.1)
           - lit('0.0.0.0').inet_aton() returns 0
 
         :return: the numeric representation of the IP address, or null if the input is
@@ -1470,16 +1473,19 @@ class Expression(Generic[T]):
 
     def inet_ntoa(self) -> 'Expression[str]':
         """
-        Converts a numeric IPv4 address representation (BIGINT or INT) back to its string format.
+        Converts a numeric IPv4 address representation back to its string format.
 
-        The input must be in the valid IPv4 range [0, 4294967295].
+        Accepts any integer numeric type (TINYINT, SMALLINT, INT, BIGINT). The input must be
+        in the valid IPv4 range [0, 4294967295]. Negative values return null, consistent with
+        MySQL's INET_NTOA(-1) = NULL behavior.
 
         Examples:
           - lit(2130706433).inet_ntoa() returns '127.0.0.1'
           - lit(0).inet_ntoa() returns '0.0.0.0'
+          - lit(-1).inet_ntoa() returns null
 
         :return: the IPv4 address string in dotted-decimal notation, or null if the input is
-                 null or out of valid range
+                 null, negative, or out of valid range
         """
         return _unary_op("inetNtoa")(self)
 

@@ -1427,11 +1427,13 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * <p>The conversion formula is: A * 256^3 + B * 256^2 + C * 256 + D for an IP address A.B.C.D
      *
-     * <p>Supports MySQL-compatible short-form addresses:
+     * <p>MySQL-compatible short-form IPv4 addresses are supported:
      *
      * <ul>
-     *   <li>a.b is interpreted as a.0.0.b
-     *   <li>a.b.c is interpreted as a.b.0.c
+     *   <li>a — the value is stored directly as an address (value must be in [0, 255])
+     *   <li>a.b — interpreted as a.0.0.b
+     *   <li>a.b.c — interpreted as a.b.0.c
+     *   <li>a.b.c.d — standard dotted-decimal format
      * </ul>
      *
      * <p>Leading zeros in octets are parsed as decimal (not octal), consistent with MySQL.
@@ -1439,8 +1441,9 @@ public abstract class BaseExpressions<InType, OutType> {
      * <p>Examples:
      *
      * <ul>
+     *   <li>INET_ATON('1') returns 1 (single number)
      *   <li>INET_ATON('127.0.0.1') returns 2130706433
-     *   <li>INET_ATON('127.1') returns 2130706433 (short-form)
+     *   <li>INET_ATON('127.1') returns 2130706433 (short-form: 127.0.0.1)
      *   <li>INET_ATON('0.0.0.0') returns 0
      * </ul>
      *
@@ -1451,20 +1454,22 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Converts a numeric IPv4 address representation back to its string format. This function
-     * follows MySQL INET_NTOA behavior.
+     * Converts a numeric IPv4 address representation back to its string format.
      *
-     * <p>Accepts BIGINT or INT input. The input must be in the valid IPv4 range [0, 4294967295].
+     * <p>Accepts any integer numeric type (TINYINT, SMALLINT, INT, BIGINT). The input must be in
+     * the valid IPv4 range [0, 4294967295]. Negative values return null, consistent with MySQL's
+     * {@code INET_NTOA(-1) = NULL} behavior.
      *
      * <p>Examples:
      *
      * <ul>
      *   <li>INET_NTOA(2130706433) returns '127.0.0.1'
      *   <li>INET_NTOA(0) returns '0.0.0.0'
+     *   <li>INET_NTOA(-1) returns NULL
      * </ul>
      *
-     * @return the IPv4 address string in dotted-decimal notation, or null if the input is null or
-     *     out of valid range
+     * @return the IPv4 address string in dotted-decimal notation, or null if the input is null,
+     *     negative, or out of valid range
      */
     public OutType inetNtoa() {
         return toApiSpecificExpression(unresolvedCall(INET_NTOA, toExpr()));

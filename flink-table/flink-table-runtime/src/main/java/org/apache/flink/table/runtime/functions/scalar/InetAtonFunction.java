@@ -36,11 +36,10 @@ import javax.annotation.Nullable;
  * <p>The conversion formula for a standard IP address A.B.C.D is: A * 256^3 + B * 256^2 + C * 256 +
  * D
  *
- * <p>MySQL-compatible short-form IPv4 addresses are supported (following the C library {@code
- * inet_aton} convention):
+ * <p>MySQL-compatible short-form IPv4 addresses are supported:
  *
  * <ul>
- *   <li>a — the value is stored directly as a 32-bit address
+ *   <li>a — the value is stored directly as an address (value must be in [0, 255])
  *   <li>a.b — interpreted as a.0.0.b
  *   <li>a.b.c — interpreted as a.b.0.c
  *   <li>a.b.c.d — standard dotted-decimal format
@@ -53,7 +52,7 @@ import javax.annotation.Nullable;
  * <p>Examples:
  *
  * <ul>
- *   <li>INET_ATON('1') returns 1 (single number: direct 32-bit value)
+ *   <li>INET_ATON('1') returns 1 (single number)
  *   <li>INET_ATON('127.0.0.1') returns 2130706433
  *   <li>INET_ATON('127.1') returns 2130706433 (short-form: 127.0.0.1)
  *   <li>INET_ATON('127.0.1') returns 2130706433 (short-form: 127.0.0.1)
@@ -94,13 +93,13 @@ public class InetAtonFunction extends BuiltInScalarFunction {
      * object allocation. Since IPv4 addresses contain only ASCII characters ('0'-'9' and '.'), each
      * character is exactly one byte in UTF-8 encoding.
      *
-     * <p>Supports MySQL-compatible short-form addresses (following C library {@code inet_aton}):
+     * <p>Supports MySQL-compatible short-form addresses:
      *
      * <ul>
-     *   <li>a -> direct 32-bit value (value must be in [0, 0xFFFFFFFF])
-     *   <li>a.b -> a.0.0.b (each part must be in [0, 255])
-     *   <li>a.b.c -> a.b.0.c (each part must be in [0, 255])
-     *   <li>a.b.c.d -> standard format (each part must be in [0, 255])
+     *   <li>a — direct value (value must be in [0, 255])
+     *   <li>a.b — a.0.0.b (each part must be in [0, 255])
+     *   <li>a.b.c — a.b.0.c (each part must be in [0, 255])
+     *   <li>a.b.c.d — standard format (each part must be in [0, 255])
      * </ul>
      *
      * <p>Leading zeros are treated as decimal (not octal), consistent with MySQL behavior.
@@ -131,7 +130,7 @@ public class InetAtonFunction extends BuiltInScalarFunction {
                         return null;
                     }
                     value = value * 10 + (b - '0');
-                    if (value > 0xFFFFFFFFL) {
+                    if (value > 255) {
                         return null;
                     }
                 }
@@ -142,21 +141,17 @@ public class InetAtonFunction extends BuiltInScalarFunction {
 
         switch (partCount) {
             case 1:
-                // Single number: direct 32-bit value
-                return parts[0] <= 0xFFFFFFFFL ? parts[0] : null;
+                // Single number: direct value
+                return parts[0];
             case 2:
                 // a.b -> a.0.0.b
-                return (parts[0] <= 255 && parts[1] <= 255) ? (parts[0] << 24) | parts[1] : null;
+                return (parts[0] << 24) | parts[1];
             case 3:
                 // a.b.c -> a.b.0.c
-                return (parts[0] <= 255 && parts[1] <= 255 && parts[2] <= 255)
-                        ? (parts[0] << 24) | (parts[1] << 16) | parts[2]
-                        : null;
+                return (parts[0] << 24) | (parts[1] << 16) | parts[2];
             case 4:
                 // a.b.c.d -> standard format
-                return (parts[0] <= 255 && parts[1] <= 255 && parts[2] <= 255 && parts[3] <= 255)
-                        ? (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]
-                        : null;
+                return (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
             default:
                 return null;
         }
