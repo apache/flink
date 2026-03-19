@@ -370,7 +370,8 @@ class DataStreamJavaITCase {
                                                 TIMESTAMP_LTZ(3), "`SOURCE_WATERMARK`()"))),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("f0")))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("f0"))),
+                        null));
 
         tableEnv.createTemporaryView("t", table);
 
@@ -644,7 +645,8 @@ class DataStreamJavaITCase {
                                                 TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("f0")))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("f0"))),
+                        null));
 
         final DataStream<Long> rowtimeStream =
                 tableEnv.toDataStream(table)

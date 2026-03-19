@@ -39,6 +39,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.TableDistribution.Kind;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -1469,9 +1470,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                         Column.physical("shop_id", DataTypes.BIGINT()),
                                         Column.physical("user_id", DataTypes.INT().notNull())),
                                 List.of(),
-                                org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
-                                        "PK_user_id", List.of("user_id")),
-                                List.of())),
+                                UniqueConstraint.primaryKey("PK_user_id", List.of("user_id")),
+                                List.of(),
+                                null)),
                 Arguments.of(
                         operation
                                 + "MATERIALIZED TABLE users_shops (PRIMARY KEY(user_id) NOT ENFORCED)"
@@ -1482,9 +1483,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                         Column.physical("shop_id", DataTypes.INT().notNull()),
                                         Column.physical("user_id", DataTypes.INT().notNull())),
                                 List.of(),
-                                org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
-                                        "PK_user_id", List.of("user_id")),
-                                List.of())));
+                                UniqueConstraint.primaryKey("PK_user_id", List.of("user_id")),
+                                List.of(),
+                                null)));
     }
 
     /** Boilerplate CatalogMaterializedTable builder for tests. */

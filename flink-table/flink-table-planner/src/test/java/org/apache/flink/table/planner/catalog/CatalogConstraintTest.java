@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.DefaultIndex;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -78,7 +79,9 @@ public class CatalogConstraintTest {
                                                 "primary_constraint",
                                                 Collections.singletonList("b")),
                                         Collections.singletonList(
-                                                DefaultIndex.newIndex("idx", List.of("a", "b")))))
+                                                DefaultIndex.newIndex("idx", List.of("a", "b"))),
+                                        ImmutableColumnsConstraint.immutableColumns(
+                                                "immutable_constraint", List.of("b"))))
                         .build();
         Map<String, String> properties = buildCatalogTableProperties();
 

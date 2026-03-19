@@ -321,7 +321,8 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")),
-      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+      null)
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -366,7 +367,8 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
-      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+      null)
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
@@ -394,7 +396,8 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")),
-      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+      null)
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -424,7 +427,8 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       null,
-      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+      null)
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -451,7 +455,8 @@ object MetadataTestUtil {
         Column.physical("b", DataTypes.BIGINT().notNull())),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
-      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+      null)
 
     val catalogTable = getCatalogTable(resolvedSchema)
 

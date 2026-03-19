@@ -376,6 +376,8 @@ public final class CatalogPropertiesUtil {
 
     private static final String PRIMARY_KEY = "primary-key";
 
+    private static final String IMMUTABLE = "immutable";
+
     private static final String COLUMNS = "columns";
 
     private static final String PARTITION = "partition";
@@ -398,6 +400,10 @@ public final class CatalogPropertiesUtil {
     private static final String PRIMARY_KEY_NAME = compoundKey(PRIMARY_KEY, NAME);
 
     private static final String PRIMARY_KEY_COLUMNS = compoundKey(PRIMARY_KEY, COLUMNS);
+
+    private static final String IMMUTABLE_NAME = compoundKey(IMMUTABLE, NAME);
+
+    private static final String IMMUTABLE_COLUMNS = compoundKey(IMMUTABLE, COLUMNS);
 
     private static final String INDEX = "index";
 
@@ -515,6 +521,8 @@ public final class CatalogPropertiesUtil {
 
         deserializePrimaryKey(map, schemaKey, builder);
 
+        deserializeImmutableCols(map, schemaKey, builder);
+
         deserializeIndexes(map, schemaKey, builder);
 
         return builder.build();
@@ -542,6 +550,17 @@ public final class CatalogPropertiesUtil {
             final String constraintName = getValue(map, constraintNameKey);
             final String[] columns = getValue(map, columnsKey, s -> s.split(","));
             builder.primaryKeyNamed(constraintName, columns);
+        }
+    }
+
+    private static void deserializeImmutableCols(
+            Map<String, String> map, String schemaKey, Builder builder) {
+        final String constraintNameKey = compoundKey(schemaKey, IMMUTABLE_NAME);
+        final String columnsKey = compoundKey(schemaKey, IMMUTABLE_COLUMNS);
+        if (map.containsKey(constraintNameKey)) {
+            final String constraintName = getValue(map, constraintNameKey);
+            final String[] columns = getValue(map, columnsKey, s -> s.split(","));
+            builder.immutableColumnsNamed(constraintName, columns);
         }
     }
 
@@ -654,6 +673,8 @@ public final class CatalogPropertiesUtil {
 
         schema.getPrimaryKey().ifPresent(pk -> serializePrimaryKey(map, pk));
 
+        schema.getImmutableColumns().ifPresent(ics -> serializeImmutableCols(map, ics));
+
         serializeIndexes(map, schema.getIndexes());
     }
 
@@ -677,6 +698,12 @@ public final class CatalogPropertiesUtil {
         map.put(
                 compoundKey(SCHEMA, PRIMARY_KEY_COLUMNS),
                 String.join(",", constraint.getColumns()));
+    }
+
+    private static void serializeImmutableCols(
+            Map<String, String> map, ImmutableColumnsConstraint constraint) {
+        map.put(compoundKey(SCHEMA, IMMUTABLE_NAME), constraint.getName());
+        map.put(compoundKey(SCHEMA, IMMUTABLE_COLUMNS), String.join(",", constraint.getColumns()));
     }
 
     private static void serializeWatermarkSpecs(

@@ -19,30 +19,30 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.Constraint.ConstraintType;
-import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.catalog.Constraint;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-/** Mixin for {@link UniqueConstraint}. */
+/** Mixin for {@link ImmutableColumnsConstraint}. */
 @Internal
-abstract class UniqueConstraintMixin extends AbstractConstraintMixin {
+abstract class ImmutableColumnsConstraintMixin extends AbstractConstraintMixin {
 
     static final String TYPE = "type";
     static final String COLUMNS = "columns";
 
     @JsonCreator
-    private UniqueConstraintMixin(
+    private ImmutableColumnsConstraintMixin(
             @JsonProperty(NAME) String name,
             @JsonProperty(ENFORCED) boolean enforced,
-            @JsonProperty(TYPE) ConstraintType type,
+            @JsonProperty(TYPE) Constraint.ConstraintType type,
             @JsonProperty(COLUMNS) List<String> columns) {}
 
     @JsonProperty(TYPE)
-    public abstract ConstraintType getType();
+    public abstract Constraint.ConstraintType getType();
 
     @JsonProperty(COLUMNS)
     public abstract List<String> getColumns();

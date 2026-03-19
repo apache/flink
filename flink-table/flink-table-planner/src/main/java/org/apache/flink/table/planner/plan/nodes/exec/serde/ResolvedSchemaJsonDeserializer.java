@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.DefaultIndex;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.Index;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -39,6 +40,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanS
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeList;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeListOrEmpty;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.COLUMNS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.IMMUTABLE_COLUMNS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.INDEXES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.PRIMARY_KEY;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.WATERMARK_SPECS;
@@ -69,7 +71,10 @@ final class ResolvedSchemaJsonDeserializer extends StdDeserializer<ResolvedSchem
                 deserializeFieldOrNull(jsonNode, PRIMARY_KEY, UniqueConstraint.class, codec, ctx);
         List<Index> indexes =
                 deserializeListOrEmpty(jsonNode, INDEXES, DefaultIndex.class, codec, ctx);
+        ImmutableColumnsConstraint immutableColumns =
+                deserializeFieldOrNull(
+                        jsonNode, IMMUTABLE_COLUMNS, ImmutableColumnsConstraint.class, codec, ctx);
 
-        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes);
+        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes, immutableColumns);
     }
 }
