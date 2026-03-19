@@ -903,9 +903,7 @@ public class TableImpl implements Table {
 
         @Override
         public Table toChangelog(Expression... arguments) {
-            return process(
-                    BuiltInFunctionDefinitions.TO_CHANGELOG.getName(),
-                    (Object[]) arguments);
+            return process(BuiltInFunctionDefinitions.TO_CHANGELOG.getName(), (Object[]) arguments);
         }
 
         private QueryOperation createPartitionQueryOperation() {

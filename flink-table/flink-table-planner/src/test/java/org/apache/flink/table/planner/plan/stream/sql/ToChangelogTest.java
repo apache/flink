@@ -90,5 +90,4 @@ public class ToChangelogTest extends TableTestBase {
                 "SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source PARTITION BY id)",
                 CHANGELOG_MODE);
     }
-
 }

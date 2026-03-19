@@ -26,14 +26,13 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
-
-import org.apache.flink.table.functions.FunctionContext;
 
 import javax.annotation.Nullable;
 
@@ -65,9 +64,10 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                     RowKind.UPDATE_AFTER, "UPDATE_AFTER",
                     RowKind.DELETE, "DELETE");
 
-    private final Map<RowKind, String> opMap;
+    private final Map<RowKind, String> rawOpMap;
     private final int[] nonPartitionIndices;
 
+    private transient Map<RowKind, StringData> opMap;
     private transient ProjectedRowData projectedInput;
     private transient GenericRowData opRow;
     private transient JoinedRowData output;
@@ -86,16 +86,19 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                 IntStream.of(partitionKeys).boxed().collect(Collectors.toSet());
 
         final RowType inputType = (RowType) semantics.dataType().getLogicalType();
-        this.nonPartitionIndices = buildNonPartitionIndices(inputType.getFieldCount(), partitionKeySet);
+        this.nonPartitionIndices =
+                buildNonPartitionIndices(inputType.getFieldCount(), partitionKeySet);
 
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
-        this.opMap = buildOpMap(opMapping);
+        this.rawOpMap = buildOpMap(opMapping);
     }
 
     @Override
     public void open(final FunctionContext context) throws Exception {
         super.open(context);
+        opMap = new EnumMap<>(RowKind.class);
+        rawOpMap.forEach((kind, code) -> opMap.put(kind, StringData.fromString(code)));
         projectedInput = ProjectedRowData.from(nonPartitionIndices);
         opRow = new GenericRowData(1);
         output = new JoinedRowData();
@@ -103,9 +106,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
 
     private static int[] buildNonPartitionIndices(
             final int fieldCount, final Set<Integer> partitionKeySet) {
-        return IntStream.range(0, fieldCount)
-                .filter(i -> !partitionKeySet.contains(i))
-                .toArray();
+        return IntStream.range(0, fieldCount).filter(i -> !partitionKeySet.contains(i)).toArray();
     }
 
     private static Map<RowKind, String> buildOpMap(@Nullable final Map<String, String> opMapping) {
@@ -122,12 +123,12 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
             final RowData input,
             @Nullable final ColumnList op,
             @Nullable final MapData opMapping) {
-        final String opCode = opMap.get(input.getRowKind());
+        final StringData opCode = opMap.get(input.getRowKind());
         if (opCode == null) {
             return;
         }
 
-        opRow.setField(0, StringData.fromString(opCode));
+        opRow.setField(0, opCode);
         projectedInput.replaceRow(input);
         collect(output.replace(opRow, projectedInput));
     }

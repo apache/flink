@@ -135,8 +135,7 @@ public final class ToChangelogTypeStrategy {
         final boolean isMappingArgLiteral = callContext.isArgumentLiteral(2);
         if (hasMappingArgProvided && !isMappingArgLiteral) {
             return callContext.fail(
-                    throwOnFailure,
-                    "The 'op_mapping' argument must be a constant MAP literal.");
+                    throwOnFailure, "The 'op_mapping' argument must be a constant MAP literal.");
         }
 
         final Optional<Map> opMapping = callContext.getArgumentValue(2, Map.class);

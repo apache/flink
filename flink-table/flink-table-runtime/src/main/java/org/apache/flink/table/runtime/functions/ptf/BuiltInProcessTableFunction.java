@@ -42,10 +42,9 @@ import java.util.stream.Collectors;
  *
  * <p>Subclasses must offer a constructor that takes {@link SpecializedContext}.
  *
- * <p>By default, all built-in PTFs work on internal data structures. Table arguments are converted
- * to internal representation (e.g. {@code RowData} instead of {@code Row}), while scalar arguments
- * (DESCRIPTOR, MAP, etc.) remain in their external form. Output and state types are also converted
- * to internal representation.
+ * <p>By default, all built-in PTFs work on internal data structures. All argument types, output
+ * type, and state types are converted to internal representation (e.g. {@code RowData} instead of
+ * {@code Row}, {@code MapData} instead of {@code Map}).
  */
 @Internal
 public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunction<T> {
@@ -62,6 +61,8 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
             final BuiltInFunctionDefinition definition, final SpecializedContext context) {
         this.definition = definition;
         final CallContext callContext = context.getCallContext();
+        final TypeInference definitionTypeInference =
+                definition.getTypeInference(callContext.getDataTypeFactory());
 
         this.argumentDataTypes =
                 callContext.getArgumentDataTypes().stream()
@@ -75,30 +76,31 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                         .orElseThrow(IllegalStateException::new);
 
         this.internalStateStrategies =
-                toInternalStateStrategies(
-                        definition.getTypeInference(null), callContext);
+                toInternalStateStrategies(definitionTypeInference, callContext);
     }
 
-    // typedArguments is used here (same as BuiltInScalarFunction) to provide
-    // enriched argument types with internal conversion classes instead of external static types
+    // Uses deprecated typedArguments() because staticArguments() does not apply the conversion
+    // class to TABLE arguments in TypeInferenceUtil.inferInputTypes, and we want to use internal
+    // types in our built in functions.
     @SuppressWarnings("deprecation")
     @Override
     public TypeInference getTypeInference(final DataTypeFactory typeFactory) {
-        final TypeInference original = definition.getTypeInference(typeFactory);
+        final TypeInference definitionTypeInference = definition.getTypeInference(typeFactory);
 
         return TypeInference.newBuilder()
                 .typedArguments(argumentDataTypes)
                 .stateTypeStrategies(internalStateStrategies)
                 .outputTypeStrategy(TypeStrategies.explicit(internalOutputDataType))
-                .disableSystemArguments(original.disableSystemArguments())
+                .disableSystemArguments(definitionTypeInference.disableSystemArguments())
                 .build();
     }
 
     /** Wraps each state type strategy to produce internal data types, preserving TTL. */
     private static LinkedHashMap<String, StateTypeStrategy> toInternalStateStrategies(
-            final TypeInference original, final CallContext callContext) {
+            final TypeInference definitionTypeInference, final CallContext callContext) {
         final LinkedHashMap<String, StateTypeStrategy> result = new LinkedHashMap<>();
-        original.getStateTypeStrategies()
+        definitionTypeInference
+                .getStateTypeStrategies()
                 .forEach(
                         (name, strategy) ->
                                 result.put(
@@ -109,8 +111,7 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                                                                 .map(
                                                                         DataTypeUtils
                                                                                 ::toInternalDataType),
-                                                strategy.getTimeToLive(callContext)
-                                                        .orElse(null))));
+                                                strategy.getTimeToLive(callContext).orElse(null))));
         return result;
     }
 
