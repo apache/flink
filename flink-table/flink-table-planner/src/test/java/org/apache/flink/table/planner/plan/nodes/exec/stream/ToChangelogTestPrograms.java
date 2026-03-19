@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -31,6 +32,13 @@ import static org.apache.flink.table.api.Expressions.$;
 
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
+
+    private static final SourceTestStep SIMPLE_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema("id INT", "name STRING")
+                    .addMode(ChangelogMode.insertOnly())
+                    .producedValues(Row.ofKind(RowKind.INSERT, 1, "Alice"))
+                    .build();
 
     // --------------------------------------------------------------------------------------------
     // SQL tests
@@ -312,5 +320,46 @@ public class ToChangelogTestPrograms {
                                     + "SELECT order_id, op, status, "
                                     + "  LAG(status) OVER (PARTITION BY order_id ORDER BY ts) AS prev_status "
                                     + "FROM orders_changelog")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Error validation tests
+    // --------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram MISSING_PARTITION_BY =
+            TableTestProgram.of(
+                            "to-changelog-missing-partition-by",
+                            "fails when PARTITION BY is missing")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingSql(
+                            "SELECT * FROM TO_CHANGELOG(input => TABLE t)",
+                            ValidationException.class,
+                            "Table argument 'input' requires a PARTITION BY clause for parallel processing.")
+                    .build();
+
+    public static final TableTestProgram INVALID_DESCRIPTOR =
+            TableTestProgram.of(
+                            "to-changelog-invalid-descriptor",
+                            "fails when DESCRIPTOR has multiple columns")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingSql(
+                            "SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY id, "
+                                    + "op => DESCRIPTOR(a, b))",
+                            ValidationException.class,
+                            "The descriptor for argument 'op' must contain exactly one column name.")
+                    .build();
+
+    public static final TableTestProgram INVALID_OP_MAPPING =
+            TableTestProgram.of(
+                            "to-changelog-invalid-op-mapping",
+                            "fails when op_mapping has invalid RowKind name")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingSql(
+                            "SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY id, "
+                                    + "op_mapping => MAP['INVALID_KIND', 'X'])",
+                            ValidationException.class,
+                            "Invalid target mapping for argument 'op_mapping'.")
                     .build();
 }
