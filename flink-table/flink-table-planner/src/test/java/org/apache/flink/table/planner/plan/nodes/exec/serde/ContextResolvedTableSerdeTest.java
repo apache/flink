@@ -83,7 +83,8 @@ public class ContextResolvedTableSerdeTest {
                     Collections.emptyList(),
                     null,
                     Collections.singletonList(
-                            DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                            DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                    null);
     private static final Schema CATALOG_TABLE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CATALOG_TABLE_RESOLVED_SCHEMA).build();
 
@@ -416,7 +417,8 @@ public class ContextResolvedTableSerdeTest {
                                 null,
                                 Collections.singletonList(
                                         DefaultIndex.newIndex(
-                                                "idx", Collections.singletonList("a"))));
+                                                "idx", Collections.singletonList("a"))),
+                                null);
                 final ContextResolvedTable spec =
                         ContextResolvedTable.permanent(
                                 PERMANENT_TABLE_IDENTIFIER,

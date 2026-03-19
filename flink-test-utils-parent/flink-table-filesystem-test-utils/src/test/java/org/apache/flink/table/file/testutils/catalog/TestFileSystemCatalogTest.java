@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -69,13 +70,20 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                     Column.physical("age", DataTypes.INT()),
                     Column.physical("tss", DataTypes.TIMESTAMP(3)),
                     Column.physical("partition", DataTypes.VARCHAR(10)));
-    private static final UniqueConstraint CONSTRAINTS =
+    private static final UniqueConstraint PK_CONSTRAINT =
             UniqueConstraint.primaryKey("primary_constraint", Collections.singletonList("id"));
+    private static final ImmutableColumnsConstraint IMMUTABLE_COLS_CONSTRAINT =
+            ImmutableColumnsConstraint.immutableColumns(
+                    "imt_constraint", Collections.singletonList("name"));
     private static final List<String> PARTITION_KEYS = Collections.singletonList("partition");
 
     private static final ResolvedSchema CREATE_RESOLVED_SCHEMA =
             new ResolvedSchema(
-                    CREATE_COLUMNS, Collections.emptyList(), CONSTRAINTS, Collections.emptyList());
+                    CREATE_COLUMNS,
+                    Collections.emptyList(),
+                    PK_CONSTRAINT,
+                    Collections.emptyList(),
+                    IMMUTABLE_COLS_CONSTRAINT);
 
     private static final Schema CREATE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CREATE_RESOLVED_SCHEMA).build();

@@ -46,19 +46,23 @@ public interface Constraint {
     /**
      * Type of the constraint.
      *
-     * <p>Unique constraints:
-     *
      * <ul>
-     *   <li>UNIQUE - is satisfied if and only if there do not exist two rows that have same
-     *       non-null values in the unique columns
-     *   <li>PRIMARY KEY - additionally to UNIQUE constraint, it requires none of the values in
-     *       specified columns be a null value. Moreover there can be only a single PRIMARY KEY
-     *       defined for a Table.
+     *   <li>Unique constraints:
+     *       <ul>
+     *         <li>UNIQUE - is satisfied if and only if there do not exist two rows that have same
+     *             non-null values in the unique columns
+     *         <li>PRIMARY KEY - additionally to UNIQUE constraint, it requires none of the values
+     *             in specified columns be a null value. Moreover there can be only a single PRIMARY
+     *             KEY defined for a Table.
+     *       </ul>
+     *   <li>Immutable constraint - is satisfied iff these specific columns corresponding each pk
+     *       will not be modified with new values.
      * </ul>
      */
     @PublicEvolving
     enum ConstraintType {
         PRIMARY_KEY,
-        UNIQUE_KEY
+        UNIQUE_KEY,
+        IMMUTABLE_COLUMNS
     }
 }

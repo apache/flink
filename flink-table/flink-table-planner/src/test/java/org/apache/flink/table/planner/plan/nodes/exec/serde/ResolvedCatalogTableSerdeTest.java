@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
@@ -96,7 +97,9 @@ class ResolvedCatalogTableSerdeTest {
                     Collections.singletonList(WatermarkSpec.of("b", REX_NODE_EXPRESSION)),
                     UniqueConstraint.primaryKey("myPrimaryKey", Arrays.asList("a", "c")),
                     Collections.singletonList(
-                            DefaultIndex.newIndex("idx", Collections.singletonList("b"))));
+                            DefaultIndex.newIndex("idx", Collections.singletonList("b"))),
+                    ImmutableColumnsConstraint.immutableColumns(
+                            "imt", Collections.singletonList("d")));
 
     private static final ResolvedCatalogTable FULL_RESOLVED_CATALOG_TABLE =
             new ResolvedCatalogTable(
@@ -126,7 +129,8 @@ class ResolvedCatalogTableSerdeTest {
                         Collections.emptyList(),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                        null);
 
         return Stream.of(
                 FULL_RESOLVED_CATALOG_TABLE,

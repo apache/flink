@@ -79,7 +79,8 @@ public class TemporalTableSourceSpecSerdeTest {
                         Collections.emptyList(),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                        null);
 
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()

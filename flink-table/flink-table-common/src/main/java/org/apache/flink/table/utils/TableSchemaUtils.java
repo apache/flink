@@ -127,7 +127,8 @@ public class TableSchemaUtils {
                         .collect(Collectors.toList()),
                 resolvedSchema.getWatermarkSpecs(),
                 resolvedSchema.getPrimaryKey().orElse(null),
-                resolvedSchema.getIndexes());
+                resolvedSchema.getIndexes(),
+                resolvedSchema.getImmutableColumns().orElse(null));
     }
 
     /**

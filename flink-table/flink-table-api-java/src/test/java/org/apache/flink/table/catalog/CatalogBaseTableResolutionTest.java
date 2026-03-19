@@ -89,6 +89,7 @@ class CatalogBaseTableResolutionTest {
                     .watermark("ts", WATERMARK_SQL)
                     .primaryKeyNamed("primary_constraint", "id")
                     .indexNamed("idx", Collections.singletonList("id"))
+                    .immutableColumnsNamed("imt", Collections.singletonList("region"))
                     .build();
 
     private static final Schema MATERIALIZED_TABLE_SCHEMA =
@@ -101,6 +102,7 @@ class CatalogBaseTableResolutionTest {
                     .withComment("") // empty column comment
                     .primaryKeyNamed("primary_constraint", "id")
                     .indexNamed("idx", Collections.singletonList("id"))
+                    .immutableColumnsNamed("imt", Collections.singletonList("region"))
                     .build();
 
     private static final TableSchema LEGACY_TABLE_SCHEMA =
@@ -138,7 +140,9 @@ class CatalogBaseTableResolutionTest {
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")),
                     Collections.singletonList(
-                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
+                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))),
+                    ImmutableColumnsConstraint.immutableColumns(
+                            "imt", Collections.singletonList("region")));
 
     private static final ResolvedSchema RESOLVED_MATERIALIZED_TABLE_SCHEMA =
             new ResolvedSchema(
@@ -152,7 +156,9 @@ class CatalogBaseTableResolutionTest {
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")),
                     Collections.singletonList(
-                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
+                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))),
+                    ImmutableColumnsConstraint.immutableColumns(
+                            "imt", Collections.singletonList("region")));
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
             new ContinuousRefreshHandler(
@@ -171,7 +177,8 @@ class CatalogBaseTableResolutionTest {
                             Column.physical("county", DataTypes.VARCHAR(200))),
                     Collections.emptyList(),
                     null,
-                    Collections.emptyList());
+                    Collections.emptyList(),
+                    null);
 
     @Test
     void testCatalogTableResolution() {
@@ -397,6 +404,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.primary-key.columns", "id");
         properties.put("schema.index.0.name", "idx");
         properties.put("schema.index.0.columns", "id");
+        properties.put("schema.immutable.name", "imt");
+        properties.put("schema.immutable.columns", "region");
         properties.put("partition.keys.0.name", "region");
         properties.put("partition.keys.1.name", "county");
         properties.put("version", "12");
@@ -424,6 +433,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.primary-key.columns", "id");
         properties.put("schema.index.0.name", "idx");
         properties.put("schema.index.0.columns", "id");
+        properties.put("schema.immutable.name", "imt");
+        properties.put("schema.immutable.columns", "region");
         properties.put("freshness-interval", "30");
         properties.put("freshness-unit", "SECOND");
         properties.put("logical-refresh-mode", "CONTINUOUS");

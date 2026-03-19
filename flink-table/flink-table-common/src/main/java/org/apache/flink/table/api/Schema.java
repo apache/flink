@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.Column.PhysicalColumn;
 import org.apache.flink.table.catalog.Constraint;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.Index;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
@@ -80,7 +81,12 @@ public final class Schema {
 
     private final List<UnresolvedIndex> indexes;
 
-    /** Please use {@link #Schema(List, List, UnresolvedPrimaryKey, List)} instead. */
+    private final @Nullable UnresolvedImmutableColumns immutableColumns;
+
+    /**
+     * Please use {@link #Schema(List, List, UnresolvedPrimaryKey, List,
+     * UnresolvedImmutableColumns)} instead.
+     */
     @Deprecated
     public Schema(
             List<UnresolvedColumn> columns,
@@ -94,10 +100,20 @@ public final class Schema {
             List<UnresolvedWatermarkSpec> watermarkSpecs,
             @Nullable UnresolvedPrimaryKey primaryKey,
             List<UnresolvedIndex> indexes) {
+        this(columns, watermarkSpecs, primaryKey, indexes, null);
+    }
+
+    public Schema(
+            List<UnresolvedColumn> columns,
+            List<UnresolvedWatermarkSpec> watermarkSpecs,
+            @Nullable UnresolvedPrimaryKey primaryKey,
+            List<UnresolvedIndex> indexes,
+            @Nullable UnresolvedImmutableColumns immutableColumns) {
         this.columns = Collections.unmodifiableList(columns);
         this.watermarkSpecs = Collections.unmodifiableList(watermarkSpecs);
         this.primaryKey = primaryKey;
         this.indexes = Collections.unmodifiableList(indexes);
+        this.immutableColumns = immutableColumns;
     }
 
     /** Builder for configuring and creating instances of {@link Schema}. */
@@ -134,6 +150,10 @@ public final class Schema {
         return indexes;
     }
 
+    public Optional<UnresolvedImmutableColumns> getImmutableColumns() {
+        return Optional.ofNullable(immutableColumns);
+    }
+
     /** Resolves the given {@link Schema} to a validated {@link ResolvedSchema}. */
     public ResolvedSchema resolve(SchemaResolver resolver) {
         return resolver.resolve(this);
@@ -149,6 +169,9 @@ public final class Schema {
         }
         if (!indexes.isEmpty()) {
             components.addAll(indexes);
+        }
+        if (immutableColumns != null) {
+            components.add(immutableColumns);
         }
         return components.stream()
                 .map(Objects::toString)
@@ -168,12 +191,13 @@ public final class Schema {
         return columns.equals(schema.columns)
                 && watermarkSpecs.equals(schema.watermarkSpecs)
                 && Objects.equals(primaryKey, schema.primaryKey)
-                && indexes.equals(schema.indexes);
+                && indexes.equals(schema.indexes)
+                && Objects.equals(immutableColumns, schema.immutableColumns);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(columns, watermarkSpecs, primaryKey, indexes);
+        return Objects.hash(columns, watermarkSpecs, primaryKey, indexes, immutableColumns);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -189,6 +213,8 @@ public final class Schema {
         private @Nullable UnresolvedPrimaryKey primaryKey;
 
         private final List<UnresolvedIndex> indexes;
+
+        private @Nullable UnresolvedImmutableColumns immutableColumns;
 
         private Builder() {
             columns = new ArrayList<>();
@@ -206,6 +232,11 @@ public final class Schema {
                         unresolvedSchema.primaryKey.getColumnNames());
             }
             indexes.addAll(unresolvedSchema.indexes);
+            if (unresolvedSchema.immutableColumns != null) {
+                immutableColumnsNamed(
+                        unresolvedSchema.immutableColumns.getConstraintName(),
+                        unresolvedSchema.immutableColumns.getColumnNames());
+            }
             return this;
         }
 
@@ -215,6 +246,7 @@ public final class Schema {
             addResolvedWatermarkSpec(resolvedSchema.getWatermarkSpecs());
             resolvedSchema.getPrimaryKey().ifPresent(this::addResolvedConstraint);
             addResolvedIndexes(resolvedSchema.getIndexes());
+            resolvedSchema.getImmutableColumns().ifPresent(this::addResolvedConstraint);
             return this;
         }
 
@@ -672,9 +704,87 @@ public final class Schema {
             return this;
         }
 
+        /**
+         * Declares an immutable columns constraint for a list of given columns. Immutable columns
+         * constraint is used to identify which columns in a table are not allowed to be modified.
+         * Currently, this constraint is informational only and is not enforced. It can be utilized
+         * for optimization purposes. It is the responsibility of the data owner to ensure that
+         * these columns are unmodified.
+         *
+         * <p>The immutable columns will be assigned a generated name in the format {@code
+         * IMMUTABLE_COLUMNS_col1_col2}.
+         *
+         * @param columnNames columns that form the constraint for immutable columns
+         */
+        public Builder immutableColumns(String... columnNames) {
+            Preconditions.checkNotNull(columnNames, "Immutable column names must not be null.");
+            return immutableColumns(Arrays.asList(columnNames));
+        }
+
+        /**
+         * Declares an immutable columns constraint for a list of given columns. Immutable columns
+         * constraint is used to identify which columns in a table are not allowed to be modified.
+         * Currently, this constraint is informational only and is not enforced. It can be utilized
+         * for optimization purposes. It is the responsibility of the data owner to ensure that
+         * these columns are unmodified.
+         *
+         * <p>The immutable columns will be assigned a generated name in the format {@code
+         * IMMUTABLE_COLUMNS_col1_col2}.
+         *
+         * @param columnNames columns that form the constraint for immutable columns
+         */
+        public Builder immutableColumns(List<String> columnNames) {
+            Preconditions.checkNotNull(columnNames, "Immutable column names must not be null.");
+            final String generatedConstraintName =
+                    columnNames.stream().collect(Collectors.joining("_", "IMMUTABLE_COLUMNS_", ""));
+            return immutableColumnsNamed(generatedConstraintName, columnNames);
+        }
+
+        /**
+         * Declares an immutable columns constraint for a list of given columns. Immutable columns
+         * constraint is used to identify which columns in a table are not allowed to be modified.
+         * Currently, this constraint is informational only and is not enforced. It can be utilized
+         * for optimization purposes. It is the responsibility of the data owner to ensure that
+         * these columns are unmodified.
+         *
+         * @param constraintName name for the immutable columns constraint, can be used to reference
+         *     this constraint
+         * @param columnNames columns that form the constraint for immutable columns
+         */
+        public Builder immutableColumnsNamed(String constraintName, String... columnNames) {
+            Preconditions.checkNotNull(columnNames, "Immutable column names must not be null.");
+            return immutableColumnsNamed(constraintName, Arrays.asList(columnNames));
+        }
+
+        /**
+         * Declares an immutable columns constraint for a list of given columns. Immutable columns
+         * constraint is used to identify which columns in a table are not allowed to be modified.
+         * Currently, this constraint is informational only and is not enforced. It can be utilized
+         * for optimization purposes. It is the responsibility of the data owner to ensure that
+         * these columns are unmodified.
+         *
+         * @param constraintName name for the immutable columns constraint, can be used to reference
+         *     this constraint
+         * @param columnNames columns that form the constraint for immutable columns
+         */
+        public Builder immutableColumnsNamed(String constraintName, List<String> columnNames) {
+            Preconditions.checkState(
+                    immutableColumns == null, "Multiple immutable constraints are not supported.");
+            Preconditions.checkNotNull(
+                    constraintName, "Immutable constraint name must not be null.");
+            Preconditions.checkArgument(
+                    !StringUtils.isNullOrWhitespaceOnly(constraintName),
+                    "Immutable constraint name must not be empty.");
+            Preconditions.checkArgument(
+                    columnNames != null && !columnNames.isEmpty(),
+                    "Immutable constraint must be defined for at least a single column.");
+            immutableColumns = new UnresolvedImmutableColumns(constraintName, columnNames);
+            return this;
+        }
+
         /** Returns an instance of an unresolved {@link Schema}. */
         public Schema build() {
-            return new Schema(columns, watermarkSpecs, primaryKey, indexes);
+            return new Schema(columns, watermarkSpecs, primaryKey, indexes, immutableColumns);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -709,9 +819,13 @@ public final class Schema {
                                             s.getRowtimeAttribute(), s.getWatermarkExpression())));
         }
 
-        private void addResolvedConstraint(UniqueConstraint constraint) {
+        private void addResolvedConstraint(Constraint constraint) {
             if (constraint.getType() == Constraint.ConstraintType.PRIMARY_KEY) {
-                primaryKeyNamed(constraint.getName(), constraint.getColumns());
+                primaryKeyNamed(constraint.getName(), ((UniqueConstraint) constraint).getColumns());
+            } else if (constraint.getType() == Constraint.ConstraintType.IMMUTABLE_COLUMNS) {
+                immutableColumnsNamed(
+                        constraint.getName(),
+                        ((ImmutableColumnsConstraint) constraint).getColumns());
             } else {
                 throw new IllegalArgumentException("Unsupported constraint type.");
             }
@@ -1171,6 +1285,55 @@ public final class Schema {
         @Override
         public int hashCode() {
             return Objects.hash(indexName, columnNames);
+        }
+    }
+
+    /**
+     * Declaration of a list of immutable columns that will be resolved to {@link
+     * ImmutableColumnsConstraint} during schema resolution.
+     */
+    @PublicEvolving
+    public static final class UnresolvedImmutableColumns extends UnresolvedConstraint {
+
+        private final List<String> columnNames;
+
+        public UnresolvedImmutableColumns(String constraintName, List<String> columnNames) {
+            super(constraintName);
+            this.columnNames = columnNames;
+        }
+
+        public List<String> getColumnNames() {
+            return columnNames;
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "%s COLUMNS (%s) IMMUTABLE NOT ENFORCED",
+                    super.toString(),
+                    columnNames.stream()
+                            .map(EncodingUtils::escapeIdentifier)
+                            .collect(Collectors.joining(", ")));
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            UnresolvedImmutableColumns that = (UnresolvedImmutableColumns) o;
+            return columnNames.equals(that.columnNames);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), columnNames);
         }
     }
 }

@@ -120,6 +120,7 @@ class CatalogPropertiesUtilTest {
                         .column("f2", DataTypes.STRING().getLogicalType().asSerializableString())
                         .primaryKey("f1")
                         .indexNamed("f1", Collections.singletonList("f1"))
+                        .immutableColumns("f2")
                         .build();
 
         final TableDistribution hashDist =
@@ -137,8 +138,12 @@ class CatalogPropertiesUtilTest {
         List<Index> indexes =
                 Collections.singletonList(
                         DefaultIndex.newIndex("f1", Collections.singletonList("f1")));
+        final ImmutableColumnsConstraint immutableColumns =
+                ImmutableColumnsConstraint.immutableColumns(
+                        "IMMUTABLE_COLUMNS_f2", Collections.singletonList("f2"));
         final ResolvedSchema resolvedSchema =
-                new ResolvedSchema(columns, Collections.emptyList(), primaryKey, indexes);
+                new ResolvedSchema(
+                        columns, Collections.emptyList(), primaryKey, indexes, immutableColumns);
 
         return Stream.of(
                 new ResolvedCatalogTable(

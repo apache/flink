@@ -51,7 +51,10 @@ public class TestSchemaResolver implements SchemaResolver {
 
         final List<Index> indexes = resolveIndexes(schema.getIndexes());
 
-        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes);
+        final ImmutableColumnsConstraint immutableColumns =
+                resolveImmutableColumns(schema.getImmutableColumns().orElse(null));
+
+        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes, immutableColumns);
     }
 
     private List<Index> resolveIndexes(List<Schema.UnresolvedIndex> unresolvedIndexes) {
@@ -122,6 +125,17 @@ public class TestSchemaResolver implements SchemaResolver {
 
         return UniqueConstraint.primaryKey(
                 unresolvedPrimaryKey.getConstraintName(), unresolvedPrimaryKey.getColumnNames());
+    }
+
+    private @Nullable ImmutableColumnsConstraint resolveImmutableColumns(
+            @Nullable Schema.UnresolvedImmutableColumns unresolvedImmutableColumns) {
+        if (unresolvedImmutableColumns == null) {
+            return null;
+        }
+
+        return ImmutableColumnsConstraint.immutableColumns(
+                unresolvedImmutableColumns.getConstraintName(),
+                unresolvedImmutableColumns.getColumnNames());
     }
 
     private ResolvedExpression resolveExpression(Expression expression) {

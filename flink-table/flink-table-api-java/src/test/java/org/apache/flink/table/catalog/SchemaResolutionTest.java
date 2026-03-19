@@ -90,6 +90,7 @@ class SchemaResolutionTest {
                     .watermark("ts", WATERMARK_SQL)
                     .columnByExpression("proctime", PROCTIME_SQL)
                     .indexNamed("idx", Collections.singletonList("counter"))
+                    .immutableColumnsNamed("imt", Collections.singletonList("payload"))
                     .build();
 
     // the type of ts_ltz is TIMESTAMP_LTZ
@@ -141,8 +142,9 @@ class SchemaResolutionTest {
                         UniqueConstraint.primaryKey(
                                 "primary_constraint", Collections.singletonList("id")),
                         Collections.singletonList(
-                                DefaultIndex.newIndex(
-                                        "idx", Collections.singletonList("counter"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("counter"))),
+                        ImmutableColumnsConstraint.immutableColumns(
+                                "imt", Collections.singletonList("payload")));
 
         final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA, true);
         {
@@ -172,7 +174,8 @@ class SchemaResolutionTest {
                                 WatermarkSpec.of("ts1", WATERMARK_RESOLVED_WITH_TS_LTZ)),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("id"))),
+                        null);
 
         final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA_WITH_TS_LTZ, true);
         {
@@ -202,7 +205,8 @@ class SchemaResolutionTest {
                                                 DataTypes.TIMESTAMP_LTZ(1)))),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("ts_ltz"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("ts_ltz"))),
+                        null);
         final ResolvedSchema resolvedSchema =
                 resolveSchema(
                         Schema.newBuilder()
@@ -352,6 +356,40 @@ class SchemaResolutionTest {
                         .build(),
                 "Invalid index 'INDEX_ts'. "
                         + "Column 'ts' is not a physical column or a metadata column.");
+
+        // immutable constraints
+
+        testError(
+                Schema.newBuilder().column("id", DataTypes.INT()).immutableColumns("id").build(),
+                "An immutable constraint must be defined on the table that contains primary key.");
+
+        testError(
+                Schema.newBuilder()
+                        .column("id", DataTypes.INT().notNull())
+                        .primaryKey("id")
+                        .immutableColumns("INVALID")
+                        .build(),
+                "Column 'INVALID' does not exist.");
+
+        testError(
+                Schema.newBuilder()
+                        .column("id", DataTypes.INT().notNull())
+                        .column("orig_ts", DataTypes.TIMESTAMP(3))
+                        .columnByExpression("ts", COMPUTED_SQL)
+                        .primaryKey("id")
+                        .immutableColumns("ts")
+                        .build(),
+                "Column 'ts' is not a physical column.");
+
+        testError(
+                Schema.newBuilder()
+                        .column("id", DataTypes.INT().notNull())
+                        .column("name", DataTypes.STRING())
+                        .primaryKey("id")
+                        .immutableColumns("name", "name")
+                        .build(),
+                "Invalid immutable constraint 'IMMUTABLE_COLUMNS_name_name'. "
+                        + "An immutable constraint must not contain duplicate columns. Found: [name]");
     }
 
     @Test
@@ -371,6 +409,7 @@ class SchemaResolutionTest {
                                         .indexNamed("idx", null)
                                         .build())
                 .hasMessageContaining("Index column names must not be null.");
+
         assertThatThrownBy(
                         () ->
                                 Schema.newBuilder()
@@ -378,6 +417,48 @@ class SchemaResolutionTest {
                                         .indexNamed("idx", Collections.emptyList())
                                         .build())
                 .hasMessageContaining("Index must be defined for at least a single column.");
+    }
+
+    @Test
+    void testImmutableColumnsBuildingErrors() {
+        assertThatThrownBy(
+                        () ->
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.INT().notNull())
+                                        .primaryKey("a")
+                                        .immutableColumnsNamed(null, Collections.singletonList("a"))
+                                        .build())
+                .hasMessageContaining("Immutable constraint name must not be null.");
+
+        assertThatThrownBy(
+                        () ->
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.INT())
+                                        .primaryKey("a")
+                                        .immutableColumnsNamed("imt", (String[]) null)
+                                        .build())
+                .hasMessageContaining("Immutable column names must not be null.");
+
+        assertThatThrownBy(
+                        () ->
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.INT())
+                                        .primaryKey("a")
+                                        .immutableColumnsNamed("idx", Collections.emptyList())
+                                        .build())
+                .hasMessageContaining(
+                        "Immutable constraint must be defined for at least a single column.");
+
+        assertThatThrownBy(
+                        () ->
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.INT().notNull())
+                                        .column("b", DataTypes.INT().notNull())
+                                        .primaryKey("a")
+                                        .immutableColumns("a")
+                                        .immutableColumns("b")
+                                        .build())
+                .hasMessageContaining("Multiple immutable constraints are not supported.");
     }
 
     @Test
@@ -394,7 +475,8 @@ class SchemaResolutionTest {
                                 + "  `proctime` AS [PROCTIME()],\n"
                                 + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED,\n"
-                                + "  INDEX `idx` (`counter`)\n"
+                                + "  INDEX `idx` (`counter`),\n"
+                                + "  CONSTRAINT `imt` COLUMNS (`payload`) IMMUTABLE NOT ENFORCED\n"
                                 + ")");
     }
 
@@ -413,7 +495,8 @@ class SchemaResolutionTest {
                                 + "  `proctime` TIMESTAMP_LTZ(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
                                 + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED,\n"
-                                + "  INDEX `idx` (`counter`)\n"
+                                + "  INDEX `idx` (`counter`),\n"
+                                + "  CONSTRAINT `imt` COLUMNS (`payload`) IMMUTABLE NOT ENFORCED\n"
                                 + ")");
     }
 

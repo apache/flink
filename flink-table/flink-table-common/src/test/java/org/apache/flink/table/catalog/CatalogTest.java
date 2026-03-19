@@ -1623,7 +1623,8 @@ public abstract class CatalogTest {
                 Collections.emptyList(),
                 null,
                 Collections.singletonList(
-                        DefaultIndex.newIndex("idx", Collections.singletonList("first"))));
+                        DefaultIndex.newIndex("idx", Collections.singletonList("first"))),
+                null);
     }
 
     protected ResolvedSchema createAnotherSchema() {
@@ -1635,7 +1636,8 @@ public abstract class CatalogTest {
                 Collections.emptyList(),
                 null,
                 Collections.singletonList(
-                        DefaultIndex.newIndex("idx", Collections.singletonList("first"))));
+                        DefaultIndex.newIndex("idx", Collections.singletonList("first"))),
+                null);
     }
 
     protected List<String> createPartitionKeys() {

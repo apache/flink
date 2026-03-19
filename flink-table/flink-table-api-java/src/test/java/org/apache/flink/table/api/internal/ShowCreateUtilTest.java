@@ -73,7 +73,8 @@ class ShowCreateUtilTest {
                             Column.metadata("mt_column", DataTypes.STRING(), null, true)),
                     List.of(),
                     UniqueConstraint.primaryKey("pk", List.of("id")),
-                    List.of());
+                    List.of(),
+                    null);
 
     private static final ResolvedSchema TWO_COLUMNS_SCHEMA =
             ResolvedSchema.of(

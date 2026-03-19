@@ -90,7 +90,8 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                        null);
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
@@ -122,7 +123,8 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                        null);
         final CatalogTable catalogTable2 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
@@ -160,7 +162,8 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                        null);
         final CatalogTable catalogTable3 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build())
@@ -195,7 +198,8 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.emptyList(),
                         null,
                         Collections.singletonList(
-                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+                        null);
         final CatalogTable catalogTable4 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema4).build())

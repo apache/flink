@@ -19,31 +19,21 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.Constraint.ConstraintType;
-import org.apache.flink.table.catalog.UniqueConstraint;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
-
-/** Mixin for {@link UniqueConstraint}. */
+/** Base mixin for {@code AbstractConstraint} subclasses. */
 @Internal
-abstract class UniqueConstraintMixin extends AbstractConstraintMixin {
+abstract class AbstractConstraintMixin {
 
-    static final String TYPE = "type";
-    static final String COLUMNS = "columns";
+    static final String NAME = "name";
+    static final String ENFORCED = "enforced";
 
-    @JsonCreator
-    private UniqueConstraintMixin(
-            @JsonProperty(NAME) String name,
-            @JsonProperty(ENFORCED) boolean enforced,
-            @JsonProperty(TYPE) ConstraintType type,
-            @JsonProperty(COLUMNS) List<String> columns) {}
+    @JsonProperty(NAME)
+    public abstract String getName();
 
-    @JsonProperty(TYPE)
-    public abstract ConstraintType getType();
-
-    @JsonProperty(COLUMNS)
-    public abstract List<String> getColumns();
+    @JsonProperty(ENFORCED)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    public abstract boolean isEnforced();
 }

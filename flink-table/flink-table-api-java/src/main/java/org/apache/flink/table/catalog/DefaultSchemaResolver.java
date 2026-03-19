@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedComputedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedImmutableColumns;
 import org.apache.flink.table.api.Schema.UnresolvedIndex;
 import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
@@ -92,7 +93,12 @@ class DefaultSchemaResolver implements SchemaResolver {
 
         final List<Index> indexes = resolveIndexes(schema.getIndexes(), columnsWithRowtime);
 
-        return new ResolvedSchema(columnsWithRowtime, watermarkSpecs, primaryKey, indexes);
+        final ImmutableColumnsConstraint immutableColumns =
+                resolveImmutableColumns(
+                        schema.getImmutableColumns().orElse(null), primaryKey, columnsWithRowtime);
+
+        return new ResolvedSchema(
+                columnsWithRowtime, watermarkSpecs, primaryKey, indexes, immutableColumns);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -455,6 +461,74 @@ class DefaultSchemaResolver implements SchemaResolver {
                         String.format(
                                 "Invalid index '%s'. Column '%s' is not a physical column or a metadata column.",
                                 index.getName(), columnName));
+            }
+        }
+    }
+
+    private @Nullable ImmutableColumnsConstraint resolveImmutableColumns(
+            @Nullable UnresolvedImmutableColumns unresolvedImmutableColumns,
+            @Nullable UniqueConstraint primaryKey,
+            List<Column> columns) {
+        if (unresolvedImmutableColumns == null) {
+            return null;
+        }
+
+        final ImmutableColumnsConstraint immutableColumns =
+                ImmutableColumnsConstraint.immutableColumns(
+                        unresolvedImmutableColumns.getConstraintName(),
+                        unresolvedImmutableColumns.getColumnNames());
+
+        validateImmutableColumns(immutableColumns, primaryKey, columns);
+
+        return immutableColumns;
+    }
+
+    private void validateImmutableColumns(
+            ImmutableColumnsConstraint immutableColumns,
+            @Nullable UniqueConstraint primaryKey,
+            List<Column> columns) {
+        if (primaryKey == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid immutable constraint '%s'. "
+                                    + "An immutable constraint must be defined on the table that contains primary key.",
+                            immutableColumns.getName()));
+        }
+
+        final Map<String, Column> columnsByNameLookup =
+                columns.stream().collect(Collectors.toMap(Column::getName, Function.identity()));
+
+        final Set<String> duplicateColumns =
+                immutableColumns.getColumns().stream()
+                        .filter(
+                                name ->
+                                        Collections.frequency(immutableColumns.getColumns(), name)
+                                                > 1)
+                        .collect(Collectors.toSet());
+
+        if (!duplicateColumns.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid immutable constraint '%s'. "
+                                    + "An immutable constraint must not contain duplicate columns. "
+                                    + "Found: %s",
+                            immutableColumns.getName(), duplicateColumns));
+        }
+
+        for (String columnName : immutableColumns.getColumns()) {
+            Column column = columnsByNameLookup.get(columnName);
+            if (column == null) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid immutable constraint '%s'. Column '%s' does not exist.",
+                                immutableColumns.getName(), columnName));
+            }
+
+            if (!column.isPhysical()) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid immutable constraint '%s'. Column '%s' is not a physical column.",
+                                immutableColumns.getName(), columnName));
             }
         }
     }
