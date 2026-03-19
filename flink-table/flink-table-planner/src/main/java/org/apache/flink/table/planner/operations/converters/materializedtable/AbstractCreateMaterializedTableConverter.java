@@ -70,6 +70,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         String getMergedExpandedQuery();
 
         ResolvedSchema getMergedQuerySchema();
+
+        RefreshMode getMergedRefreshMode();
     }
 
     protected abstract MergeContext getMergeContext(

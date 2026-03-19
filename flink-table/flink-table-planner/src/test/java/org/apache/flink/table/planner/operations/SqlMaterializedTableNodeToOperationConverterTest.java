@@ -650,6 +650,32 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
+    void testCreateOrAlterMaterializedTableWithChangingRefreshMode() {
+        // Changing refresh mode is not supported
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = CONTINUOUS\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        // Will be invoked while operation#execute
+        assertThatThrownBy(op::getTableChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Changing of REFRESH MODE is unsupported");
+    }
+
+    @Test
     void testCreateOrAlterMaterializedTableForExistingTable() throws TableNotExistException {
         final String sql =
                 "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
