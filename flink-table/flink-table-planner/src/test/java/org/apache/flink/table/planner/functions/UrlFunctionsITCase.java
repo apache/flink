@@ -138,33 +138,32 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 "test%3A%",
                                 STRING()),
                 // Test with different integer literal types (TINYINT, SMALLINT, BIGINT)
+                // Note: SQL does not support typed integer literals (e.g., CAST(2 AS TINYINT)
+                // is not considered a literal), so we only test Table API here.
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_DECODE_RECURSIVE)
                         .onFieldsWithData(
                                 "https%253A%252F%252Fflink.apache.org%252F",
                                 "https%253A%252F%252Fflink.apache.org%252F",
                                 "https%253A%252F%252Fflink.apache.org%252F")
                         .andDataTypes(STRING(), STRING(), STRING())
-                        // Test with TINYINT literal
-                        .testResult(
+                        // Test with TINYINT literal (Table API only)
+                        .testTableApiResult(
                                 $("f0").urlDecodeRecursive(
                                                 org.apache.flink.table.api.Expressions.lit(
                                                         (byte) 2)),
-                                "url_decode_recursive(f0, CAST(2 AS TINYINT))",
                                 "https://flink.apache.org/",
                                 STRING())
-                        // Test with SMALLINT literal
-                        .testResult(
+                        // Test with SMALLINT literal (Table API only)
+                        .testTableApiResult(
                                 $("f1").urlDecodeRecursive(
                                                 org.apache.flink.table.api.Expressions.lit(
                                                         (short) 2)),
-                                "url_decode_recursive(f1, CAST(2 AS SMALLINT))",
                                 "https://flink.apache.org/",
                                 STRING())
-                        // Test with BIGINT literal
-                        .testResult(
+                        // Test with BIGINT literal (Table API only)
+                        .testTableApiResult(
                                 $("f2").urlDecodeRecursive(
                                                 org.apache.flink.table.api.Expressions.lit(2L)),
-                                "url_decode_recursive(f2, CAST(2 AS BIGINT))",
                                 "https://flink.apache.org/",
                                 STRING()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_ENCODE)
