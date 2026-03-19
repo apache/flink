@@ -148,6 +148,86 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         expected = ['+I[1, abc, 2.0]', '+I[2, def, 3.0]']
         self.assert_equals(actual, expected)
 
+    def test_url_decode_recursive(self):
+        t_env = self.t_env
+
+        # Create sink table
+        sink_table_ddl = """
+            CREATE TABLE Results_url_decode_recursive(
+                decoded STRING,
+                decoded_with_depth2 STRING,
+                decoded_with_depth1 STRING,
+                decoded_null STRING
+            )
+            WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
+        # Test URL_DECODE_RECURSIVE with various scenarios
+        # Scenario 1: Simple URL decode (Hello%20World -> Hello World)
+        # Scenario 2: Double encoded URL (Hello%2520World -> Hello%20World -> Hello World)
+        # with maxDepth=2
+        # Scenario 3: Double encoded URL with maxDepth=1 (should only decode once)
+        # Scenario 4: NULL input
+        t = t_env.from_elements([
+            ("Hello%20World", "Hello%2520World", "Hello%2520World", None),
+        ], DataTypes.ROW([
+            DataTypes.FIELD('a', DataTypes.STRING()),
+            DataTypes.FIELD('b', DataTypes.STRING()),
+            DataTypes.FIELD('c', DataTypes.STRING()),
+            DataTypes.FIELD('d', DataTypes.STRING()),
+        ]))
+
+        t.select(
+            t.a.url_decode_recursive(),  # Simple decode
+            t.b.url_decode_recursive(2),  # Double decode with depth=2
+            t.c.url_decode_recursive(1),  # Double decode with depth=1
+            t.d.url_decode_recursive()   # NULL input
+        ).execute_insert("Results_url_decode_recursive").wait()
+
+        actual = source_sink_utils.results()
+
+        # Expected results:
+        # - Hello%20World -> Hello World (default maxDepth=10)
+        # - Hello%2520World -> Hello%20World -> Hello World (maxDepth=2)
+        # - Hello%2520World -> Hello%20World (maxDepth=1, only one decode)
+        # - NULL -> NULL
+        expected = [
+            '+I[Hello World, Hello World, Hello%20World, null]'
+        ]
+        self.assert_equals(actual, expected)
+
+        # Test with triple encoded URL
+        sink_table_ddl2 = """
+            CREATE TABLE Results_url_decode_recursive2(
+                decoded_default STRING,
+                decoded_depth3 STRING,
+                decoded_depth2 STRING
+            )
+            WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl2)
+
+        # Triple encoded: Hello%252520World
+        # Depth 3: Hello%252520World -> Hello%2520World -> Hello%20World -> Hello World
+        # Depth 2: Hello%252520World -> Hello%2520World -> Hello%20World
+        t2 = t_env.from_elements([
+            ("Hello%252520World", "Hello%252520World"),
+        ], ['e', 'f'])
+
+        t2.select(
+            t2.e.url_decode_recursive(),  # Default maxDepth=10, should decode all
+            t2.e.url_decode_recursive(3),  # Depth=3, should decode all
+            t2.f.url_decode_recursive(2)   # Depth=2, should stop at 2 decodes
+        ).execute_insert("Results_url_decode_recursive2").wait()
+
+        actual2 = source_sink_utils.results()
+
+        expected2 = [
+            '+I[Hello World, Hello World, Hello%20World]'
+        ]
+        self.assert_equals(actual2, expected2)
+
 
 if __name__ == '__main__':
     import unittest
