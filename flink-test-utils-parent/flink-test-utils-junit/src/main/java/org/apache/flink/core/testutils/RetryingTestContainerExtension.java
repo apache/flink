@@ -41,7 +41,6 @@ public class RetryingTestContainerExtension<T extends GenericContainer<T>>
         implements CustomExtension {
 
     private static final Logger LOG = LoggerFactory.getLogger(RetryingTestContainerExtension.class);
-
     private static final int DEFAULT_MAX_RETRIES = 3;
     private static final long DEFAULT_RETRY_DELAY_MS = 2000;
     private static final long IMAGE_PULL_TIMEOUT_MINUTES = 2;
