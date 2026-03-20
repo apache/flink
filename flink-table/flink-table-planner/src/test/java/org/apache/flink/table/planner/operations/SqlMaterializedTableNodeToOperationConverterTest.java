@@ -583,9 +583,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
     @Test
     void testAlterMaterializedTableAsQueryWithConflictColumnName() {
-        String sql5 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, c as a FROM t3";
+        String sql = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, c as a FROM t3";
         AlterMaterializedTableAsQueryOperation sqlAlterMaterializedTableAsQuery =
-                (AlterMaterializedTableAsQueryOperation) parse(sql5);
+                (AlterMaterializedTableAsQueryOperation) parse(sql);
 
         assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
                 .containsExactly(
@@ -594,6 +594,48 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 "SELECT `a`, `b`, `c`, `d`, `c` AS `a`\nFROM `t3`",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryWithDefinedSchema() {
+        String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl ("
+                        + "`a` BIGINT NOT NULL, `b` STRING, `c` INT, `d` STRING, `a1` BIGINT NOT NULL, `f` INT) "
+                        + "AS SELECT a, b, c, d, a as `a1`, 3 as f FROM t3";
+        FullAlterMaterializedTableOperation sqlAlterMaterializedTableAsQuery =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
+                .containsExactly(
+                        // If NOT NULL is defined in schema, it should stay
+                        TableChange.add(Column.physical("a1", DataTypes.BIGINT().notNull())),
+                        TableChange.add(Column.physical("f", DataTypes.INT())),
+                        TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`, 3 AS `f`\nFROM `t3`",
+                                "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`a` AS `a1`, 3 AS `f`\n"
+                                        + "FROM `builtin`.`default`.`t3` AS `t3`"),
+                        TableChange.reset("connector"),
+                        TableChange.reset("format"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryWithoutDefinedSchema() {
+        String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl "
+                        + "AS SELECT a, b, c, d, a as `a1` FROM t3";
+        FullAlterMaterializedTableOperation sqlAlterMaterializedTableAsQuery =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
+                .containsExactly(
+                        // No explicit schema, so nullable will be used
+                        TableChange.add(Column.physical("a1", DataTypes.BIGINT())),
+                        TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`\nFROM `t3`",
+                                "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`a` AS `a1`\n"
+                                        + "FROM `builtin`.`default`.`t3` AS `t3`"),
+                        TableChange.reset("connector"),
+                        TableChange.reset("format"));
     }
 
     @Test
@@ -1293,6 +1335,16 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         list.add(
                 TestSpec.withExpectedSchema(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted (`EXPR$0` INT NOT NULL, `sec` CHAR(1)) AS SELECT 2, 'a' AS sec",
+                        "(\n"
+                                + "  `m` STRING METADATA VIRTUAL,\n"
+                                + "  `calc` AS ['a' || 'b'],\n"
+                                + "  `EXPR$0` INT NOT NULL,\n"
+                                + "  `sec` CHAR(1)\n"
+                                + ")"));
+
+        list.add(
+                TestSpec.withExpectedSchema(
                         // Schema doesn't change, so should be ok
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted_last AS SELECT 123 as a",
                         "(\n"
@@ -1342,6 +1394,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.BIGINT()),
+                                Column.physical("user_id", DataTypes.INT()))),
+                Arguments.of(
+                        operation
+                                + "MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT NOT NULL)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        ResolvedSchema.of(
+                                Column.physical("shop_id", DataTypes.BIGINT().notNull()),
                                 Column.physical("user_id", DataTypes.INT()))),
                 Arguments.of(
                         operation
