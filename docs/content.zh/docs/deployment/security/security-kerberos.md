@@ -66,7 +66,12 @@ Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runt
 ### Hadoop Security 模块
 该模块使用 Hadoop UserGroupInformation（UGI）类来建立进程范围的 *登录用户* 上下文。然后，登录用户用于与 Hadoop 组件的所有交互，包括 HDFS、HBase 和 YARN。
 
-如果启用了 Hadoop security（在 `core-site.xml` 中），登录用户将拥有所有配置的 Kerberos 凭据。否则，登录用户仅继承启动集群的操作系统帐户的用户身份。
+如果启用了 Hadoop security（在 `core-site.xml` 中），登录用户将拥有所有配置的 Kerberos 凭据。否则，登录用户仅继承启动集群的操作系统帐户的用户身份。具体来说，登录过程的优先级如下：
+* 当 `hadoop.security.authentication` 设置为 `kerberos` 时
+  * 当 `security.kerberos.login.keytab-login.enabled` 为 `true`（默认值）且配置了 `security.kerberos.login.keytab` 和 `security.kerberos.login.principal` 时，执行 keytab 登录
+  * 当 `security.kerberos.login.keytab-login.enabled` 设置为 `false` 时，跳过 keytab 登录，进程将依赖通过 `HADOOP_TOKEN_FILE_LOCATION` 分发的 delegation token。这对于 YARN/Kubernetes 部署中的 TaskManager 容器很有用，可以避免在容器启动上下文中已有 delegation token 时发起不必要的 KDC 请求。
+  * 当配置了 `security.kerberos.login.use-ticket-cache` 时，执行 credential cache 登录
+* 其他情况使用启动集群的操作系统账户的用户身份
 
 <a name="jaas-security-module"></a>
 

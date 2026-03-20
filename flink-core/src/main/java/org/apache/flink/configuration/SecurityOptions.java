@@ -183,6 +183,18 @@ public class SecurityOptions {
                                     + "possible to disable that behavior if it somehow conflicts "
                                     + "with the application being run.");
 
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Boolean> KERBEROS_LOGIN_KEYTAB_LOGIN_ENABLED =
+            key("security.kerberos.login.keytab-login.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to perform Kerberos keytab login during process startup. "
+                                    + "When set to false, the process will rely on delegation tokens "
+                                    + "distributed via HADOOP_TOKEN_FILE_LOCATION instead of performing "
+                                    + "a direct KDC login. This is useful for TaskManager containers in "
+                                    + "YARN/Kubernetes where delegation tokens are already available.");
+
     /**
      * Returns a view over the given configuration via which options can be set/retrieved for the
      * given provider.

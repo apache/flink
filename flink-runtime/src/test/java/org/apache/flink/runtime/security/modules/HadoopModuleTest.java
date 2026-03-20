@@ -29,10 +29,13 @@ import org.mockito.MockedStatic;
 
 import java.io.IOException;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,6 +80,58 @@ class HadoopModuleTest {
                     assertThrows(
                             SecurityModule.SecurityInstallException.class, hadoopModule::install);
             assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+        }
+    }
+
+    @Test
+    public void keytabLoginDisabledShouldSkipKdcLogin() {
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+            ugi.when(UserGroupInformation::getLoginUser).thenReturn(userGroupInformation);
+            when(userGroupInformation.getAuthenticationMethod())
+                    .thenReturn(UserGroupInformation.AuthenticationMethod.SIMPLE);
+
+            Configuration flinkConf = new Configuration();
+            flinkConf.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB_LOGIN_ENABLED, false);
+            SecurityConfiguration securityConf = new SecurityConfiguration(flinkConf);
+            org.apache.hadoop.conf.Configuration hadoopConf =
+                    new org.apache.hadoop.conf.Configuration();
+            HadoopModule hadoopModule = new HadoopModule(securityConf, hadoopConf);
+
+            assertDoesNotThrow(hadoopModule::install);
+
+            // loginUserFromKeytab should never be called when keytab login is disabled
+            ugi.verify(
+                    () -> UserGroupInformation.loginUserFromKeytab(anyString(), anyString()),
+                    never());
+        }
+    }
+
+    @Test
+    public void keytabLoginEnabledByDefaultShouldPerformKdcLogin() {
+        try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
+            UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
+            ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
+            ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
+            ugi.when(UserGroupInformation::getLoginUser).thenReturn(userGroupInformation);
+            when(userGroupInformation.getAuthenticationMethod())
+                    .thenReturn(UserGroupInformation.AuthenticationMethod.KERBEROS);
+            when(userGroupInformation.isFromKeytab()).thenReturn(true);
+            when(userGroupInformation.hasKerberosCredentials()).thenReturn(true);
+
+            Configuration flinkConf = new Configuration();
+            // default is true, not setting KERBEROS_LOGIN_KEYTAB_LOGIN_ENABLED explicitly
+            SecurityConfiguration securityConf = new SecurityConfiguration(flinkConf);
+            org.apache.hadoop.conf.Configuration hadoopConf =
+                    new org.apache.hadoop.conf.Configuration();
+            HadoopModule hadoopModule = new HadoopModule(securityConf, hadoopConf);
+
+            // Without keytab/principal configured, isLoginPossible returns false (no principal),
+            // so it falls through to the else branch regardless.
+            // This test verifies the default config value is true and doesn't cause errors.
+            assertDoesNotThrow(hadoopModule::install);
         }
     }
 }

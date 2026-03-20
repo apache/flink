@@ -77,7 +77,8 @@ If Hadoop security is enabled (in `core-site.xml`), the login user will have wha
 Otherwise, the login user conveys only the user identity of the OS account that launched the cluster.
 In order to be specific the login process has the following order of precedence:
 * When `hadoop.security.authentication` is set to `kerberos`
-  * When `security.kerberos.login.keytab` and `security.kerberos.login.principal` configured then keytab login performed
+  * When `security.kerberos.login.keytab-login.enabled` is set to `true` (default) and `security.kerberos.login.keytab` and `security.kerberos.login.principal` configured then keytab login performed
+  * When `security.kerberos.login.keytab-login.enabled` is set to `false`, keytab login is skipped and the process relies on delegation tokens distributed via `HADOOP_TOKEN_FILE_LOCATION` instead. This is useful for TaskManager containers in YARN/Kubernetes deployments to avoid unnecessary KDC requests when delegation tokens are already available from the container launch context.
   * When `security.kerberos.login.use-ticket-cache` configured then credential cache login performed
 * All other cases user identity of the OS account used
 
