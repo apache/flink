@@ -109,12 +109,14 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.TO_CHANGELOG_OUTPUT_TYPE_STRATEGY;
 
 /** Dictionary of function definitions for all built-in functions. */
 @PublicEvolving
@@ -753,6 +755,31 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(ML_PREDICT_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                     .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition TO_CHANGELOG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TO_CHANGELOG")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)),
+                            StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
+                            StaticArgument.scalar(
+                                    "op_mapping",
+                                    DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
+                                    true))
+                    .inputTypeStrategy(TO_CHANGELOG_INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.ptf.ToChangelogFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition GREATEST =

@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentTrait;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 
@@ -138,4 +139,31 @@ public interface PartitionedTable {
      * @see ProcessTableFunction
      */
     Table process(Class<? extends UserDefinedFunction> function, Object... arguments);
+
+    /**
+     * Converts this dynamic table into an append-only table with an explicit operation code column
+     * using the built-in {@code TO_CHANGELOG} process table function.
+     *
+     * <p>Each input row - regardless of its original RowKind - is emitted as an INSERT-only row
+     * with a string {@code "op"} column indicating the original operation (INSERT, UPDATE_AFTER,
+     * DELETE, etc.).
+     *
+     * <p>Optional arguments can be passed using named expressions:
+     *
+     * <pre>{@code
+     * // Default: adds 'op' column and supports all changelog modes
+     * table.partitionBy($("id")).toChangelog();
+     *
+     * // Custom op column name and mapping
+     * table.partitionBy($("id")).toChangelog(
+     *     descriptor("op_code").asArgument("op"),
+     *     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
+     * );
+     * }</pre>
+     *
+     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @return an append-only {@link Table} with an {@code op} column prepended to the non-partition
+     *     columns
+     */
+    Table toChangelog(Expression... arguments);
 }
