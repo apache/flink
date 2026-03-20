@@ -215,7 +215,7 @@ class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parseAndConvert(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Incompatible types for sink column 'a' at position 0. "
+                        "Incompatible types for sink column 'a' at position 1. "
                                 + "The source column has type 'BIGINT NOT NULL', while the target "
                                 + "column has type 'BOOLEAN'.");
     }
