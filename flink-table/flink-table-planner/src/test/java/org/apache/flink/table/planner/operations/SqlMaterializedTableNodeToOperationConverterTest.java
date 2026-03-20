@@ -607,7 +607,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
                 .containsExactly(
-                        // If NOT NULL defined in schema it should stay
+                        // If NOT NULL is defined in schema, it should stay
                         TableChange.add(Column.physical("a1", DataTypes.BIGINT().notNull())),
                         TableChange.add(Column.physical("f", DataTypes.INT())),
                         TableChange.modifyDefinitionQuery(
