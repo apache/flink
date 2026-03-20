@@ -63,7 +63,8 @@ public class OpenTelemetryTestBase {
     private static final AllCallbackWrapper<RetryingTestContainerExtension<OtelTestContainer>>
             OTEL_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new RetryingTestContainerExtension<>(() -> new OtelTestContainer(outputDir)));
+                            new RetryingTestContainerExtension<>(
+                                    () -> new OtelTestContainer(outputDir)));
 
     @BeforeEach
     public void setup() {
