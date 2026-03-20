@@ -22,15 +22,14 @@ import org.apache.flink.formats.protobuf.testproto.MultipleLevelMessageTest;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal nested row data to proto data. */
-public class MultiLevelMessageRowToProtoTest {
+class MultiLevelMessageRowToProtoTest {
     @Test
-    public void testMultipleLevelMessage() throws Exception {
+    void testMultipleLevelMessage() throws Exception {
         RowData subSubRow = GenericRowData.of(1, 2L);
         RowData subRow = GenericRowData.of(subSubRow, false);
         RowData row = GenericRowData.of(1, 2L, false, subRow);
@@ -38,14 +37,14 @@ public class MultiLevelMessageRowToProtoTest {
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, MultipleLevelMessageTest.class);
         MultipleLevelMessageTest test = MultipleLevelMessageTest.parseFrom(bytes);
 
-        assertFalse(test.getD().getC());
-        assertEquals(1, test.getD().getA().getA());
-        assertEquals(2L, test.getD().getA().getB());
-        assertEquals(1, test.getA());
+        assertThat(test.getD().getC()).isFalse();
+        assertThat(test.getD().getA().getA()).isEqualTo(1);
+        assertThat(test.getD().getA().getB()).isEqualTo(2L);
+        assertThat(test.getA()).isEqualTo(1);
     }
 
     @Test
-    public void testNull() throws Exception {
+    void testNull() throws Exception {
         RowData row = GenericRowData.of(1, 2L, false, null);
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, MultipleLevelMessageTest.class);
 
@@ -53,6 +52,6 @@ public class MultiLevelMessageRowToProtoTest {
 
         MultipleLevelMessageTest.InnerMessageTest1 empty =
                 MultipleLevelMessageTest.InnerMessageTest1.newBuilder().build();
-        assertEquals(empty, test.getD());
+        assertThat(test.getD()).isEqualTo(empty);
     }
 }

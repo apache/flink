@@ -21,15 +21,14 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.testproto.MultipleLevelMessageTest;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of multiple level of proto nested message data to flink internal data. */
-public class MultiLevelMessageProtoToRowTest {
+class MultiLevelMessageProtoToRowTest {
     @Test
-    public void testMessage() throws Exception {
+    void testMessage() throws Exception {
         MultipleLevelMessageTest.InnerMessageTest1.InnerMessageTest2 innerMessageTest2 =
                 MultipleLevelMessageTest.InnerMessageTest1.InnerMessageTest2.newBuilder()
                         .setA(1)
@@ -47,12 +46,12 @@ public class MultiLevelMessageProtoToRowTest {
                 ProtobufTestHelper.pbBytesToRow(
                         MultipleLevelMessageTest.class, multipleLevelMessageTest.toByteArray());
 
-        assertEquals(4, row.getArity());
+        assertThat(row.getArity()).isEqualTo(4);
         RowData subRow = (RowData) row.getRow(3, 2);
-        assertFalse(subRow.getBoolean(1));
+        assertThat(subRow.getBoolean(1)).isFalse();
 
         RowData subSubRow = (RowData) subRow.getRow(0, 2);
-        assertEquals(1, subSubRow.getInt(0));
-        assertEquals(2L, subSubRow.getLong(1));
+        assertThat(subSubRow.getInt(0)).isEqualTo(1);
+        assertThat(subSubRow.getLong(1)).isEqualTo(2L);
     }
 }

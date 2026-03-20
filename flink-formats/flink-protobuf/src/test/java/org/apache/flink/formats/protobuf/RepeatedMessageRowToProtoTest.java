@@ -24,14 +24,14 @@ import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal array of row to proto data. */
-public class RepeatedMessageRowToProtoTest {
+class RepeatedMessageRowToProtoTest {
     @Test
-    public void testRepeatedMessage() throws Exception {
+    void testRepeatedMessage() throws Exception {
         RowData subRow = GenericRowData.of(1, 2L);
         RowData subRow2 = GenericRowData.of(3, 4L);
         ArrayData tmp = new GenericArrayData(new Object[] {subRow, subRow2});
@@ -40,11 +40,11 @@ public class RepeatedMessageRowToProtoTest {
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedMessageTest.class);
         RepeatedMessageTest repeatedMessageTest = RepeatedMessageTest.parseFrom(bytes);
 
-        assertEquals(2, repeatedMessageTest.getDCount());
+        assertThat(repeatedMessageTest.getDCount()).isEqualTo(2);
 
-        assertEquals(1, repeatedMessageTest.getD(0).getA());
-        assertEquals(2L, repeatedMessageTest.getD(0).getB());
-        assertEquals(3, repeatedMessageTest.getD(1).getA());
-        assertEquals(4L, repeatedMessageTest.getD(1).getB());
+        assertThat(repeatedMessageTest.getD(0).getA()).isEqualTo(1);
+        assertThat(repeatedMessageTest.getD(0).getB()).isEqualTo(2L);
+        assertThat(repeatedMessageTest.getD(1).getA()).isEqualTo(3);
+        assertThat(repeatedMessageTest.getD(1).getB()).isEqualTo(4L);
     }
 }
