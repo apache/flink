@@ -33,8 +33,21 @@ import java.util.Properties;
 @Public
 public class MetricConfig extends Properties {
 
+    /**
+     * Returns the value associated with the given key as a {@code String}.
+     *
+     * <p>If the value is not a {@link String}, its {@code toString()} representation is returned.
+     *
+     * @param key the hashtable key.
+     * @param defaultValue a default value.
+     * @return the value in this property list with the specified key value as a String.
+     */
     public String getString(String key, String defaultValue) {
-        return getProperty(key, defaultValue);
+        final Object value = get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        return value.toString();
     }
 
     /**

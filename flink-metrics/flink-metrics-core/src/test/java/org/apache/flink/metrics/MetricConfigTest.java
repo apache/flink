@@ -90,7 +90,14 @@ class MetricConfigTest {
                         123456789012345L),
                 Arguments.of(3.14f, (TypedGetter) (c, k) -> c.getFloat(k, 0.0f), 3.14f),
                 Arguments.of(2.718281828, (TypedGetter) (c, k) -> c.getDouble(k, 0.0), 2.718281828),
-                Arguments.of(true, (TypedGetter) (c, k) -> c.getBoolean(k, false), true));
+                Arguments.of(true, (TypedGetter) (c, k) -> c.getBoolean(k, false), true),
+                Arguments.of(42, (TypedGetter) (c, k) -> c.getString(k, "default"), "42"),
+                Arguments.of(
+                        123456789012345L,
+                        (TypedGetter) (c, k) -> c.getString(k, "default"),
+                        "123456789012345"),
+                Arguments.of(3.14f, (TypedGetter) (c, k) -> c.getString(k, "default"), "3.14"),
+                Arguments.of(true, (TypedGetter) (c, k) -> c.getString(k, "default"), "true"));
     }
 
     private static Stream<Arguments> crossTypeCases() {
