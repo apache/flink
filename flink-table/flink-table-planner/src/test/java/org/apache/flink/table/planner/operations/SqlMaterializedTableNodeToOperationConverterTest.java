@@ -37,6 +37,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.TableDistribution.Kind;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -732,6 +734,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
                         + ")\n"
                         + "COMMENT 'materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH (b) INTO 7 BUCKETS\n"
                         + "PARTITIONED BY (a, d)\n"
                         + "WITH (\n"
                         + "  'format' = 'json2'\n"
@@ -753,7 +756,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"),
                         TableChange.set("format", "json2"),
-                        TableChange.reset("connector"));
+                        TableChange.reset("connector"),
+                        TableChange.add(TableDistribution.of(Kind.HASH, 7, List.of("b"))));
         assertThat(operation.asSummaryString())
                 .isEqualTo(
                         "CREATE OR ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
@@ -762,7 +766,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + " MODIFY DEFINITION QUERY TO 'SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                 + "FROM `builtin`.`default`.`t3` AS `t3`',\n"
                                 + "  SET 'format' = 'json2',\n"
-                                + "  RESET 'connector'");
+                                + "  RESET 'connector',\n"
+                                + "  ADD DISTRIBUTED BY HASH(`b`) INTO 7 BUCKETS");
 
         // new table only difference schema & definition query with old table.
         CatalogMaterializedTable oldTable =
@@ -798,6 +803,49 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .containsExactly(
                         new UnresolvedPhysicalColumn("e", DataTypes.VARCHAR(Integer.MAX_VALUE)),
                         new UnresolvedPhysicalColumn("f", DataTypes.VARCHAR(Integer.MAX_VALUE)));
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableWithDistributionForExistingTable() {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_metadata (\n"
+                        + "   t AS current_timestamp,"
+                        + "   m STRING METADATA VIRTUAL,"
+                        + "   m_p STRING METADATA,"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED,"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '5' SECOND"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH (a) INTO 5 BUCKETS\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT t1.* FROM t1";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges())
+                .containsExactly(
+                        TableChange.modifyDefinitionQuery(
+                                "SELECT `t1`.*\n" + "FROM `t1`",
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`"),
+                        TableChange.set("connector", "filesystem"),
+                        TableChange.set("format", "json"),
+                        TableChange.modify(TableDistribution.of(Kind.HASH, 5, List.of("a"))));
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.base_mtbl_with_metadata\n"
+                                + " MODIFY DEFINITION QUERY TO 'SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`',\n"
+                                + "  SET 'connector' = 'filesystem',\n"
+                                + "  SET 'format' = 'json',\n"
+                                + "  MODIFY DISTRIBUTED BY HASH(`a`) INTO 5 BUCKETS");
     }
 
     private static Collection<TestSpec> testDataForCreateAlterMaterializedTableFailedCase() {
