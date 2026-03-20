@@ -691,30 +691,38 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
 
-    @Test
-    void testCreateOrAlterMaterializedTableWithChangingRefreshMode() {
-        // Changing refresh mode is not supported
-        final String sql =
-                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
-                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
-                        + ")\n"
-                        + "COMMENT 'materialized table comment'\n"
-                        + "PARTITIONED BY (a, d)\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'filesystem', \n"
-                        + "  'format' = 'json'\n"
-                        + ")\n"
-                        + "FRESHNESS = INTERVAL '30' SECOND\n"
-                        + "REFRESH_MODE = CONTINUOUS\n"
-                        + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
-
-        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
-        // Will be invoked while operation#execute
-        assertThatThrownBy(op::getTableChanges)
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Changing of REFRESH MODE is unsupported");
+    private static Collection<TestSpec> createOrAlterForExistingMaterializedTableFailedCaseSpecs() {
+        return List.of(
+                TestSpec.of(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
+                                + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                                + ")\n"
+                                + "COMMENT 'materialized table comment'\n"
+                                + "PARTITIONED BY (a, d)\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'filesystem', \n"
+                                + "  'format' = 'json'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '30' SECOND\n"
+                                + "REFRESH_MODE = CONTINUOUS\n"
+                                + "AS SELECT * FROM t1",
+                        "Changing of REFRESH MODE is unsupported"),
+                TestSpec.of(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
+                                + "   a BIGINT, b INT, c INT, d INT, "
+                                + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                                + ")\n"
+                                + "COMMENT 'materialized table comment'\n"
+                                + "PARTITIONED BY (a, d)\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'filesystem', \n"
+                                + "  'format' = 'json'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '30' SECOND\n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS SELECT * FROM t1",
+                        "Incompatible types for sink column 'b' at position 2. "
+                                + "The source column has type 'STRING', while the target column has type 'INT'."));
     }
 
     @Test
@@ -817,21 +825,21 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 2: Original column is [`c` INT], "
+                                + "Column mismatch at position 3: Original column is [`c` INT], "
                                 + "but new column is [`d` STRING]."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST(d AS INT) AS d FROM t3",
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 3: Original column is [`d` STRING], "
+                                + "Column mismatch at position 4: Original column is [`d` STRING], "
                                 + "but new column is [`d` INT]."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST('d' AS STRING) AS d FROM t3",
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 3: Original column is [`d` STRING], "
+                                + "Column mismatch at position 4: Original column is [`d` STRING], "
                                 + "but new column is [`d` STRING NOT NULL]."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT '123'",
@@ -964,7 +972,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "CREATE MATERIALIZED TABLE users_shops (shop_id STRING, user_id STRING)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
-                        "Incompatible types for sink column 'shop_id' at position 0. The source column has type 'INT NOT NULL', "
+                        "Incompatible types for sink column 'shop_id' at position 1. The source column has type 'INT NOT NULL', "
                                 + "while the target column has type 'STRING'."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id INT, WATERMARK FOR ts AS `ts` - INTERVAL '5' SECOND)"
