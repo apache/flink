@@ -69,7 +69,7 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.testutils.TestJvmProcess;
+import org.apache.flink.runtime.testutils.TestProcessBuilder;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
@@ -118,27 +118,32 @@ class JvmExitOnFatalErrorTest {
     //  Blocking Process Implementation
     // ------------------------------------------------------------------------
 
-    private static final class KillOnFatalErrorProcess extends TestJvmProcess {
-
+    private static final class KillOnFatalErrorProcess {
         private final File temporaryFolder;
+        private TestProcessBuilder.TestProcess testProcess;
 
         public KillOnFatalErrorProcess(File temporaryFolder) throws Exception {
             this.temporaryFolder = temporaryFolder;
         }
 
-        @Override
-        public String getName() {
-            return "KillOnFatalErrorProcess";
+        void startProcess() throws Exception {
+            this.testProcess =
+                    TestProcessBuilder.createAndStart(
+                            ProcessEntryPoint.class.getName(),
+                            "KillOnFatalErrorProcess",
+                            temporaryFolder.getAbsolutePath());
         }
 
-        @Override
-        public String[] getMainMethodArgs() {
-            return new String[] {temporaryFolder.getAbsolutePath()};
+        void waitFor() throws InterruptedException {
+            if (testProcess != null) {
+                testProcess.waitFor();
+            }
         }
 
-        @Override
-        public String getEntryPointClassName() {
-            return ProcessEntryPoint.class.getName();
+        void destroy() throws InterruptedException {
+            if (testProcess != null) {
+                testProcess.destroyForcibly();
+            }
         }
     }
 

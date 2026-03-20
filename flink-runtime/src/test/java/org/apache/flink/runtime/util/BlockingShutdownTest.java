@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.runtime.testutils.TestJvmProcess;
+import org.apache.flink.runtime.testutils.TestProcessBuilder;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.jupiter.api.Test;
@@ -56,9 +56,9 @@ class BlockingShutdownTest {
             assertThat(pid).withFailMessage("Cannot determine process ID").isNotEqualTo(-1);
 
             // wait for the marker file to appear, which means the process is up properly
-            TestJvmProcess.waitForMarkerFile(markerFile, 30000);
+            TestProcessBuilder.waitForMarkerFile(markerFile, 30000);
 
-            TestJvmProcess.killProcessWithSigTerm(pid);
+            TestProcessBuilder.killProcessWithSigTerm(pid);
 
             // minimal delay until the Java process object notices that the process is gone
             // this will not let the test fail predictably if the process is actually in fact going
@@ -98,9 +98,9 @@ class BlockingShutdownTest {
             assertThat(pid).withFailMessage("Cannot determine process ID").isNotEqualTo(-1);
 
             // wait for the marker file to appear, which means the process is up properly
-            TestJvmProcess.waitForMarkerFile(markerFile, 30000);
+            TestProcessBuilder.waitForMarkerFile(markerFile, 30000);
 
-            TestJvmProcess.killProcessWithSigTerm(pid);
+            TestProcessBuilder.killProcessWithSigTerm(pid);
 
             // the process should eventually go away
             final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs in nanos
@@ -143,11 +143,11 @@ class BlockingShutdownTest {
     //  Blocking Process Implementation
     // ------------------------------------------------------------------------
 
-    private static final class BlockingShutdownProcess extends TestJvmProcess {
-
+    private static final class BlockingShutdownProcess {
         private final String tempFilePath;
         private final long selfKillDelay;
         private final boolean installSignalHandler;
+        private TestProcessBuilder.TestProcess testProcess;
 
         public BlockingShutdownProcess(
                 String tempFilePath, long selfKillDelay, boolean installSignalHandler)
@@ -158,21 +158,28 @@ class BlockingShutdownTest {
             this.installSignalHandler = installSignalHandler;
         }
 
-        @Override
-        public String getName() {
-            return "BlockingShutdownProcess";
+        void startProcess() throws Exception {
+            this.testProcess =
+                    TestProcessBuilder.createAndStart(
+                            BlockingShutdownProcessEntryPoint.class.getName(),
+                            "BlockingShutdownProcess",
+                            tempFilePath,
+                            String.valueOf(installSignalHandler),
+                            String.valueOf(selfKillDelay));
         }
 
-        @Override
-        public String[] getMainMethodArgs() {
-            return new String[] {
-                tempFilePath, String.valueOf(installSignalHandler), String.valueOf(selfKillDelay)
-            };
+        long getProcessId() {
+            return testProcess != null ? testProcess.getProcessId() : -1;
         }
 
-        @Override
-        public String getEntryPointClassName() {
-            return BlockingShutdownProcessEntryPoint.class.getName();
+        boolean isAlive() {
+            return testProcess != null && testProcess.isAlive();
+        }
+
+        void destroy() throws InterruptedException {
+            if (testProcess != null) {
+                testProcess.destroyForcibly();
+            }
         }
     }
 
@@ -206,7 +213,7 @@ class BlockingShutdownTest {
             }
 
             System.err.println("signaling process started");
-            TestJvmProcess.touchFile(touchFile);
+            TestProcessBuilder.touchFile(touchFile);
 
             System.err.println("parking the main thread");
             parkForever();

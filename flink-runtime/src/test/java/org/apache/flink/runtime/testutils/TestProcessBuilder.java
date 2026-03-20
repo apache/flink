@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util;
+package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils.PipeForwarder;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -43,7 +42,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-/** Utility class wrapping {@link ProcessBuilder} and pre-configuring it with common options. */
+/**
+ * Utility class wrapping {@link ProcessBuilder} and pre-configuring it with common options.
+ *
+ * <p>This class unifies the functionality previously split between TestJvmProcess and the original
+ * TestProcessBuilder from flink-test-utils. It provides a builder pattern for flexible
+ * configuration and includes lifecycle management, process monitoring, and file-based
+ * synchronization utilities.
+ *
+ * <p>Usage example:
+ *
+ * <pre>{@code
+ * TestProcess process = new TestProcessBuilder(MyMainClass.class.getName())
+ *     .setJvmMemory(MemorySize.parse("256mb"))
+ *     .addMainClassArg("--config")
+ *     .addMainClassArg("value")
+ *     .start();
+ * }</pre>
+ */
 public class TestProcessBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(TestProcessBuilder.class);
 
@@ -64,6 +80,12 @@ public class TestProcessBuilder {
         this(mainClass, null);
     }
 
+    /**
+     * Creates a new TestProcessBuilder.
+     *
+     * @param mainClass The fully qualified name of the main class to run
+     * @param processName Optional name for the process (for logging/debugging)
+     */
     public TestProcessBuilder(String mainClass, String processName) throws IOException {
         File tempLogFile =
                 File.createTempFile(getClass().getSimpleName() + "-", "-log4j.properties");
@@ -144,6 +166,18 @@ public class TestProcessBuilder {
         return this;
     }
 
+    /**
+     * Helper factory method to simplify migration from TestJvmProcess subclasses.
+     *
+     * <p>This method mimics the pattern used by TestJvmProcess where you provide an entry point
+     * class and main method arguments.
+     *
+     * @param entryPointClassName The fully qualified name of the entry point class
+     * @param processName Optional name for the process
+     * @param mainMethodArgs Arguments to pass to the main method
+     * @return A TestProcess instance
+     * @throws Exception if the process cannot be started
+     */
     public static TestProcess createAndStart(
             String entryPointClassName, String processName, String... mainMethodArgs)
             throws Exception {
@@ -154,6 +188,16 @@ public class TestProcessBuilder {
         return builder.start();
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // File-based synchronization utilities (migrated from TestJvmProcess)
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Touches a file by updating its last modified timestamp.
+     *
+     * @param file The file to touch
+     * @throws IOException if the file cannot be touched
+     */
     public static void touchFile(File file) throws IOException {
         if (!file.exists()) {
             new FileOutputStream(file).close();
@@ -163,6 +207,13 @@ public class TestProcessBuilder {
         }
     }
 
+    /**
+     * Waits for a marker file to exist.
+     *
+     * @param file The marker file to wait for
+     * @param timeoutMillis The maximum time to wait in milliseconds
+     * @throws InterruptedException if the thread is interrupted while waiting
+     */
     public static void waitForMarkerFile(File file, long timeoutMillis)
             throws InterruptedException {
         final long deadline = System.nanoTime() + timeoutMillis * 1_000_000;
@@ -177,6 +228,12 @@ public class TestProcessBuilder {
                 .isTrue();
     }
 
+    /**
+     * Kills a process using SIGTERM signal.
+     *
+     * @param pid The process ID to kill
+     * @throws Exception if the kill command fails
+     */
     public static void killProcessWithSigTerm(long pid) throws Exception {
         final Process kill = Runtime.getRuntime().exec("kill " + pid);
         kill.waitFor();
@@ -185,6 +242,14 @@ public class TestProcessBuilder {
                 .isZero();
     }
 
+    /**
+     * Waits for multiple marker files to exist.
+     *
+     * @param basedir The base directory containing the marker files
+     * @param prefix The prefix of the marker files
+     * @param num The number of marker files to wait for
+     * @param timeout The maximum time to wait in milliseconds
+     */
     public static void waitForMarkerFiles(File basedir, String prefix, int num, long timeout) {
         long now = System.currentTimeMillis();
         final long deadline = now + timeout;
@@ -216,6 +281,12 @@ public class TestProcessBuilder {
         fail("The tasks were not started within time (" + timeout + "msecs)");
     }
 
+    /**
+     * Wrapper for a {@link Process} with its output streams and lifecycle management.
+     *
+     * <p>This class provides enhanced lifecycle management including automatic shutdown hooks,
+     * process monitoring, and detailed output capture.
+     */
     public static class TestProcess {
         private static final Logger LOG = LoggerFactory.getLogger(TestProcess.class);
 
@@ -275,11 +346,22 @@ public class TestProcessBuilder {
             return processName;
         }
 
+        /**
+         * Destroys the process gracefully.
+         *
+         * @deprecated Use {@link #destroyForcibly()} for explicit force destroy or {@link
+         *     Process#destroy()} for graceful destroy.
+         */
         @Deprecated
         public void destroy() {
             process.destroy();
         }
 
+        /**
+         * Destroys the process forcibly and waits for it to terminate.
+         *
+         * @throws InterruptedException if interrupted while waiting for process termination
+         */
         public void destroyForcibly() throws InterruptedException {
             if (destroyed) {
                 return;
@@ -296,6 +378,11 @@ public class TestProcessBuilder {
             }
         }
 
+        /**
+         * Prints the captured process output to System.out.
+         *
+         * <p>This is useful for debugging test failures.
+         */
         public void printProcessLog() {
             System.out.println("-----------------------------------------");
             System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + processName);
@@ -324,6 +411,14 @@ public class TestProcessBuilder {
             System.out.println("-----------------------------------------");
         }
 
+        /**
+         * Gets the process ID, if possible.
+         *
+         * <p>This method works on UNIX-based operating systems and modern Java versions. On others,
+         * it returns {@code -1}.
+         *
+         * @return The process ID, or -1 if the ID cannot be determined.
+         */
         public long getProcessId() {
             try {
                 Class<? extends Process> clazz = process.getClass();
@@ -343,6 +438,11 @@ public class TestProcessBuilder {
             }
         }
 
+        /**
+         * Checks if the process is still alive.
+         *
+         * @return true if the process is still running, false otherwise
+         */
         public boolean isAlive() {
             if (destroyed) {
                 return false;
@@ -356,14 +456,33 @@ public class TestProcessBuilder {
             }
         }
 
+        /**
+         * Waits for the process to terminate.
+         *
+         * @throws InterruptedException if interrupted while waiting
+         */
         public void waitFor() throws InterruptedException {
             process.waitFor();
         }
 
+        /**
+         * Waits for the process to terminate with a timeout.
+         *
+         * @param timeout the maximum time to wait
+         * @param unit the time unit of the timeout argument
+         * @return true if the process terminated, false if the timeout elapsed
+         * @throws InterruptedException if interrupted while waiting
+         */
         public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
             return process.waitFor(timeout, unit);
         }
 
+        /**
+         * Gets the exit code of the process.
+         *
+         * @return the exit code
+         * @throws IllegalThreadStateException if the process has not yet terminated
+         */
         public int exitCode() {
             return process.exitValue();
         }

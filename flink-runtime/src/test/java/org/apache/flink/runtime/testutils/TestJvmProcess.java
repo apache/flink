@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
@@ -39,10 +38,46 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandP
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
-/** A {@link Process} running a separate JVM. */
+/**
+ * A {@link Process} running a separate JVM.
+ *
+ * @deprecated This class has been unified with {@link TestProcessBuilder}. Please migrate to using
+ *     TestProcessBuilder which provides the same functionality with a more flexible builder
+ *     pattern.
+ *     <p>Migration guide:
+ *     <ul>
+ *       <li>Instead of extending TestJvmProcess, use TestProcessBuilder directly
+ *       <li>Replace {@code new MyProcess().startProcess()} with {@code new
+ *           TestProcessBuilder(MyEntryPoint.class.getName()).addMainClassArg(...).start()}
+ *       <li>Replace {@code setJVMMemory(int)} with {@code
+ *           setJvmMemory(MemorySize.ofMebiBytes(...))}
+ *       <li>Replace {@code getProcessOutput()} with {@code getProcessOutput().toString()}
+ *       <li>File synchronization utilities (touchFile, waitForMarkerFile, etc.) are now static
+ *           methods in TestProcessBuilder
+ *     </ul>
+ *     <p>Example migration:
+ *     <pre>{@code
+ * // Old approach:
+ * class MyTestProcess extends TestJvmProcess {
+ *     public String getName() { return "MyProcess"; }
+ *     public String getEntryPointClassName() { return MyMain.class.getName(); }
+ *     public String[] getMainMethodArgs() { return new String[]{"arg1", "arg2"}; }
+ * }
+ * MyTestProcess process = new MyTestProcess();
+ * process.setJVMMemory(256);
+ * process.startProcess();
+ *
+ * // New approach:
+ * TestProcess process = new TestProcessBuilder(MyMain.class.getName())
+ *     .setProcessName("MyProcess")
+ *     .setJvmMemory(MemorySize.parse("256mb"))
+ *     .addMainClassArg("arg1")
+ *     .addMainClassArg("arg2")
+ *     .start();
+ * }</pre>
+ */
+@Deprecated
 public abstract class TestJvmProcess {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestJvmProcess.class);
@@ -300,67 +335,37 @@ public abstract class TestJvmProcess {
     // File based synchronization utilities
     // ---------------------------------------------------------------------------------------------
 
+    /**
+     * @deprecated Use {@link TestProcessBuilder#touchFile(File)} instead.
+     */
+    @Deprecated
     public static void touchFile(File file) throws IOException {
-        if (!file.exists()) {
-            new FileOutputStream(file).close();
-        }
-        if (!file.setLastModified(System.currentTimeMillis())) {
-            throw new IOException("Could not touch the file.");
-        }
+        TestProcessBuilder.touchFile(file);
     }
 
+    /**
+     * @deprecated Use {@link TestProcessBuilder#waitForMarkerFile(File, long)} instead.
+     */
+    @Deprecated
     public static void waitForMarkerFile(File file, long timeoutMillis)
             throws InterruptedException {
-        final long deadline = System.nanoTime() + timeoutMillis * 1_000_000;
-
-        boolean exists;
-        while (!(exists = file.exists()) && System.nanoTime() < deadline) {
-            Thread.sleep(10);
-        }
-
-        assertThat(exists)
-                .withFailMessage("The marker file was not found within %s msecs", timeoutMillis)
-                .isTrue();
+        TestProcessBuilder.waitForMarkerFile(file, timeoutMillis);
     }
 
+    /**
+     * @deprecated Use {@link TestProcessBuilder#killProcessWithSigTerm(long)} instead.
+     */
+    @Deprecated
     public static void killProcessWithSigTerm(long pid) throws Exception {
-        // send it a regular kill command (SIG_TERM)
-        final Process kill = Runtime.getRuntime().exec("kill " + pid);
-        kill.waitFor();
-        assertThat(kill.exitValue())
-                .withFailMessage("failed to send SIG_TERM to process %s", pid)
-                .isZero();
+        TestProcessBuilder.killProcessWithSigTerm(pid);
     }
 
+    /**
+     * @deprecated Use {@link TestProcessBuilder#waitForMarkerFiles(File, String, int, long)}
+     *     instead.
+     */
+    @Deprecated
     public static void waitForMarkerFiles(File basedir, String prefix, int num, long timeout) {
-        long now = System.currentTimeMillis();
-        final long deadline = now + timeout;
-
-        while (now < deadline) {
-            boolean allFound = true;
-
-            for (int i = 0; i < num; i++) {
-                File nextToCheck = new File(basedir, prefix + i);
-                if (!nextToCheck.exists()) {
-                    allFound = false;
-                    break;
-                }
-            }
-
-            if (allFound) {
-                return;
-            } else {
-                // not all found, wait for a bit
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-
-                now = System.currentTimeMillis();
-            }
-        }
-
-        fail("The tasks were not started within time (" + timeout + "msecs)");
+        TestProcessBuilder.waitForMarkerFiles(basedir, prefix, num, timeout);
     }
 }

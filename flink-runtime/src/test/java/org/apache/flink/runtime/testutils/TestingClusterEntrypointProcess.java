@@ -37,31 +37,85 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A testing {@link ClusterEntrypoint} instance running in a separate JVM. */
-public class TestingClusterEntrypointProcess extends TestJvmProcess {
+/**
+ * A testing {@link ClusterEntrypoint} instance running in a separate JVM.
+ *
+ * <p>This class has been migrated to use the unified {@link TestProcessBuilder} instead of the
+ * deprecated TestJvmProcess.
+ */
+public class TestingClusterEntrypointProcess {
 
     private final File markerFile;
+    private TestProcessBuilder.TestProcess testProcess;
 
     public TestingClusterEntrypointProcess(File markerFile) throws Exception {
         this.markerFile = checkNotNull(markerFile, "marker file");
     }
 
-    @Override
-    public String getName() {
-        return getClass().getCanonicalName();
+    public void startProcess() throws IOException {
+        this.testProcess =
+                new TestProcessBuilder(
+                                TestingClusterEntrypointProcessEntryPoint.class.getName(),
+                                "TestingClusterEntrypoint")
+                        .addMainClassArg(markerFile.getAbsolutePath())
+                        .start();
     }
 
-    @Override
-    public String[] getMainMethodArgs() {
-        return new String[] {markerFile.getAbsolutePath()};
+    public void destroy() throws InterruptedException {
+        if (testProcess != null) {
+            testProcess.destroyForcibly();
+        }
     }
 
-    @Override
-    public String getEntryPointClassName() {
-        return TestingClusterEntrypointProcessEntryPoint.class.getName();
+    public String getProcessOutput() {
+        if (testProcess != null) {
+            return testProcess.getProcessOutput().toString();
+        }
+        return null;
+    }
+
+    public void printProcessLog() {
+        if (testProcess != null) {
+            testProcess.printProcessLog();
+        }
+    }
+
+    public long getProcessId() {
+        if (testProcess != null) {
+            return testProcess.getProcessId();
+        }
+        return -1;
+    }
+
+    public boolean isAlive() {
+        if (testProcess != null) {
+            return testProcess.isAlive();
+        }
+        return false;
+    }
+
+    public void waitFor() throws InterruptedException {
+        if (testProcess != null) {
+            testProcess.waitFor();
+        }
+    }
+
+    public boolean waitFor(long timeout, TimeUnit unit) throws InterruptedException {
+        if (testProcess != null) {
+            return testProcess.waitFor(timeout, unit);
+        }
+        throw new IllegalStateException("process not started");
+    }
+
+    public int exitCode() {
+        if (testProcess != null) {
+            return testProcess.exitCode();
+        }
+        throw new IllegalStateException("process not started");
     }
 
     @Override
@@ -88,7 +142,7 @@ public class TestingClusterEntrypointProcess extends TestJvmProcess {
 
                 SignalHandler.register(LOG);
                 clusterEntrypoint.startCluster();
-                TestJvmProcess.touchFile(markerFile);
+                TestProcessBuilder.touchFile(markerFile);
                 final int returnCode =
                         clusterEntrypoint.getTerminationFuture().get().processExitCode();
                 System.exit(returnCode);

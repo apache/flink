@@ -24,7 +24,7 @@ import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
-import org.apache.flink.runtime.testutils.TestJvmProcess;
+import org.apache.flink.runtime.testutils.TestProcessBuilder;
 import org.apache.flink.runtime.util.ClusterUncaughtExceptionHandler;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.OperatingSystem;
@@ -117,26 +117,43 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
         }
     }
 
-    private static final class ForcedJVMExitProcess extends TestJvmProcess {
+    private static final class ForcedJVMExitProcess {
         private final Class<?> entryPointName;
+        private TestProcessBuilder.TestProcess testProcess;
 
         private ForcedJVMExitProcess(Class<?> entryPointName) throws Exception {
             this.entryPointName = entryPointName;
         }
 
-        @Override
-        public String getName() {
-            return getEntryPointClassName();
+        void startProcess() throws Exception {
+            this.testProcess =
+                    TestProcessBuilder.createAndStart(
+                            entryPointName.getName(), entryPointName.getName());
         }
 
-        @Override
-        public String[] getMainMethodArgs() {
-            return new String[0];
+        void waitFor() throws InterruptedException {
+            if (testProcess != null) {
+                testProcess.waitFor();
+            }
         }
 
-        @Override
-        public String getEntryPointClassName() {
-            return entryPointName.getName();
+        int exitCode() {
+            if (testProcess != null) {
+                return testProcess.exitCode();
+            }
+            throw new IllegalStateException("process not started");
+        }
+
+        void destroy() throws InterruptedException {
+            if (testProcess != null) {
+                testProcess.destroyForcibly();
+            }
+        }
+
+        void printProcessLog() {
+            if (testProcess != null) {
+                testProcess.printProcessLog();
+            }
         }
     }
 }

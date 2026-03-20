@@ -29,14 +29,11 @@ import org.apache.flink.util.ParameterTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Map;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A {@link Dispatcher} instance running in a separate JVM. */
-public class DispatcherProcess extends TestJvmProcess {
+public class DispatcherProcess {
 
     private static final Logger LOG = LoggerFactory.getLogger(DispatcherProcess.class);
 
@@ -46,8 +43,8 @@ public class DispatcherProcess extends TestJvmProcess {
     /** The configuration for the Dispatcher. */
     private final Configuration config;
 
-    /** Configuration parsed as args for {@link DispatcherProcess.DispatcherProcessEntryPoint}. */
-    private final String[] jvmArgs;
+    /** The test process instance. */
+    private TestProcessBuilder.TestProcess testProcess;
 
     /**
      * Creates a {@link Dispatcher} running in a separate JVM.
@@ -60,31 +57,60 @@ public class DispatcherProcess extends TestJvmProcess {
         checkArgument(id >= 0, "Negative ID");
         this.id = id;
         this.config = checkNotNull(config, "Configuration");
+    }
 
-        ArrayList<String> args = new ArrayList<>();
+    public void startProcess() throws Exception {
+        TestProcessBuilder builder =
+                new TestProcessBuilder(
+                        DispatcherProcessEntryPoint.class.getName(), "Dispatcher " + id);
+        builder.addConfigAsMainClassArgs(config);
+        this.testProcess = builder.start();
+    }
 
-        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
-            args.add("--" + entry.getKey());
-            args.add(entry.getValue());
+    public void destroy() throws InterruptedException {
+        if (testProcess != null) {
+            testProcess.destroyForcibly();
         }
-
-        this.jvmArgs = new String[args.size()];
-        args.toArray(jvmArgs);
     }
 
-    @Override
-    public String getName() {
-        return "Dispatcher " + id;
+    public String getProcessOutput() {
+        if (testProcess != null) {
+            return testProcess.getProcessOutput().toString();
+        }
+        return null;
     }
 
-    @Override
-    public String[] getMainMethodArgs() {
-        return jvmArgs;
+    public void printProcessLog() {
+        if (testProcess != null) {
+            testProcess.printProcessLog();
+        }
     }
 
-    @Override
-    public String getEntryPointClassName() {
-        return DispatcherProcessEntryPoint.class.getName();
+    public long getProcessId() {
+        if (testProcess != null) {
+            return testProcess.getProcessId();
+        }
+        return -1;
+    }
+
+    public boolean isAlive() {
+        if (testProcess != null) {
+            return testProcess.isAlive();
+        }
+        return false;
+    }
+
+    public void waitFor() throws InterruptedException {
+        if (testProcess != null) {
+            testProcess.waitFor();
+        }
+    }
+
+    public int exitCode() {
+        if (testProcess != null) {
+            return testProcess.exitCode();
+        }
+        throw new IllegalStateException("process not started");
     }
 
     public Configuration getConfig() {

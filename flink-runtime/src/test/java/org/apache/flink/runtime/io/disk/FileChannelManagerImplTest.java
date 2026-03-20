@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.disk;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.testutils.TestJvmProcess;
+import org.apache.flink.runtime.testutils.TestProcessBuilder;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -128,7 +128,7 @@ class FileChannelManagerImplTest {
 
             // Waits till the process has created temporary files and registered the corresponding
             // shutdown hooks.
-            TestJvmProcess.waitForMarkerFile(signalFile, 3 * TEST_TIMEOUT.toMillis());
+            TestProcessBuilder.waitForMarkerFile(signalFile, 3 * TEST_TIMEOUT.toMillis());
 
             Process kill =
                     Runtime.getRuntime()
@@ -165,11 +165,16 @@ class FileChannelManagerImplTest {
         return candidates != null && candidates.length > 0;
     }
 
-    /** The {@link FileChannelManagerCleanupRunner} instance running in a separate JVM process. */
-    private static class FileChannelManagerTestProcess extends TestJvmProcess {
+    /**
+     * The {@link FileChannelManagerCleanupRunner} instance running in a separate JVM process.
+     *
+     * <p>Migrated to use {@link TestProcessBuilder}.
+     */
+    private static class FileChannelManagerTestProcess {
         private final boolean callerHasHook;
         private final String tmpDirectories;
         private final String signalFilePath;
+        private TestProcessBuilder.TestProcess testProcess;
 
         FileChannelManagerTestProcess(
                 boolean callerHasHook, String tmpDirectories, String signalFilePath)
@@ -179,19 +184,37 @@ class FileChannelManagerImplTest {
             this.signalFilePath = signalFilePath;
         }
 
-        @Override
-        public String getName() {
-            return "File Channel Manager Test";
+        void startProcess() throws Exception {
+            this.testProcess =
+                    TestProcessBuilder.createAndStart(
+                            FileChannelManagerCleanupRunner.class.getName(),
+                            "File Channel Manager Test",
+                            Boolean.toString(callerHasHook),
+                            tmpDirectories,
+                            signalFilePath);
         }
 
-        @Override
-        public String[] getMainMethodArgs() {
-            return new String[] {Boolean.toString(callerHasHook), tmpDirectories, signalFilePath};
+        long getProcessId() {
+            return testProcess != null ? testProcess.getProcessId() : -1;
         }
 
-        @Override
-        public String getEntryPointClassName() {
-            return FileChannelManagerCleanupRunner.class.getName();
+        boolean isAlive() {
+            return testProcess != null && testProcess.isAlive();
+        }
+
+        String getProcessOutput() {
+            if (testProcess != null) {
+                return testProcess.getProcessOutput().toString()
+                        + "\n"
+                        + testProcess.getErrorOutput().toString();
+            }
+            return null;
+        }
+
+        void destroy() throws InterruptedException {
+            if (testProcess != null) {
+                testProcess.destroyForcibly();
+            }
         }
     }
 
