@@ -51,22 +51,24 @@ import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.curator.test.TestingServer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,8 +76,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This verifies that checkpointing works correctly with event time windows. This is more strict
@@ -85,9 +86,8 @@ import static org.junit.Assert.assertTrue;
  * <p>Split into multiple test classes in order to decrease the runtime per backend and not run into
  * CI infrastructure limits like no std output being emitted for I/O heavy variants.
  */
-@SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class EventTimeWindowCheckpointingITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class EventTimeWindowCheckpointingITCase {
 
     private static final int MAX_MEM_STATE_SIZE = 20 * 1024 * 1024;
     private static final int PARALLELISM = 4;
@@ -95,17 +95,15 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
     private TestingServer zkServer;
 
-    public MiniClusterWithClientResource miniClusterResource;
+    private MiniClusterWithClientResource miniClusterResource;
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Rule public TestName name = new TestName();
+    @TempDir private java.nio.file.Path tempFolder;
 
     private Configuration configuration;
 
-    public StateBackendEnum stateBackendEnum;
+    @Parameter protected StateBackendEnum stateBackendEnum;
 
-    enum StateBackendEnum {
+    protected enum StateBackendEnum {
         MEM,
         FILE,
         ROCKSDB_FULL,
@@ -114,16 +112,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         FORST_INCREMENTAL
     }
 
-    @Parameterized.Parameters(name = "statebackend type ={0}")
-    public static Collection<Object[]> parameter() {
-        return Arrays.stream(StateBackendEnum.values())
-                .map((type) -> new Object[][] {{type}})
-                .flatMap(Arrays::stream)
-                .collect(Collectors.toList());
-    }
-
-    public EventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
-        this.stateBackendEnum = stateBackendEnum;
+    @Parameters(name = "statebackend type ={0}")
+    private static Collection<StateBackendEnum> parameter() {
+        return Arrays.stream(StateBackendEnum.values()).collect(Collectors.toList());
     }
 
     protected StateBackendEnum getStateBackend() {
@@ -139,20 +130,24 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                         .build());
     }
 
-    private Configuration getConfigurationSafe() {
+    private Configuration getConfigurationSafe(TestInfo testInfo) {
         try {
-            return getConfiguration();
+            return getConfiguration(testInfo);
         } catch (Exception e) {
             throw new AssertionError("Could not initialize test.", e);
         }
     }
 
-    private Configuration getConfiguration() throws Exception {
+    private Configuration getConfiguration(TestInfo testInfo) throws Exception {
 
         // print a message when starting a test method to avoid Travis' <tt>"Maven produced no
         // output for xxx seconds."</tt> messages
         System.out.println(
-                "Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+                "Starting "
+                        + getClass().getCanonicalName()
+                        + "#"
+                        + testInfo.getTestMethod().map(Method::getName).orElse("unknown")
+                        + ".");
 
         // Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
         StateBackendEnum stateBackendEnum = getStateBackend();
@@ -169,7 +164,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 break;
             case FILE:
                 {
-                    final File backups = tempFolder.newFolder().getAbsoluteFile();
+                    final File backups = TempDirUtils.newFolder(tempFolder).getAbsoluteFile();
                     config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
                     config.set(
                             CheckpointingOptions.CHECKPOINTS_DIRECTORY,
@@ -209,7 +204,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
         FsStateChangelogStorageFactory.configure(
-                config, tempFolder.newFolder(), Duration.ofMinutes(1), 10);
+                config, TempDirUtils.newFolder(tempFolder), Duration.ofMinutes(1), 10);
 
         return config;
     }
@@ -222,8 +217,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 TaskManagerOptions.MANAGED_MEMORY_SIZE,
                 MemorySize.ofMebiBytes(PARALLELISM / NUM_OF_TASK_MANAGERS * 64));
 
-        final String rocksDb = tempFolder.newFolder().getAbsolutePath();
-        final File backups = tempFolder.newFolder().getAbsoluteFile();
+        final String rocksDb = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
+        final File backups = TempDirUtils.newFolder(tempFolder).getAbsoluteFile();
         // we use the fs backend with small threshold here to test the behaviour with file
         // references, not self contained byte handles
         config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
@@ -245,8 +240,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 TaskManagerOptions.MANAGED_MEMORY_SIZE,
                 MemorySize.ofMebiBytes(PARALLELISM / NUM_OF_TASK_MANAGERS * 64));
 
-        final String forstdb = tempFolder.newFolder().getAbsolutePath();
-        final File backups = tempFolder.newFolder().getAbsoluteFile();
+        final String forstdb = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
+        final File backups = TempDirUtils.newFolder(tempFolder).getAbsoluteFile();
         // we use the fs backend with small threshold here to test the behaviour with file
         // references, not self contained byte handles
         config.set(StateBackendOptions.STATE_BACKEND, "forst");
@@ -263,12 +258,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
     }
 
     protected Configuration createClusterConfig() throws IOException {
-        TemporaryFolder temporaryFolder = new TemporaryFolder();
-        temporaryFolder.create();
-        final File haDir = temporaryFolder.newFolder();
+        final File haDir = TempDirUtils.newFolder(tempFolder);
 
         Configuration config = new Configuration();
-        config.set(RpcOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
+        config.set(RpcOptions.FRAMESIZE, MAX_MEM_STATE_SIZE + "b");
 
         if (zkServer != null) {
             config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
@@ -278,15 +271,15 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         return config;
     }
 
-    @Before
-    public void setupTestCluster() throws Exception {
-        configuration = getConfigurationSafe();
+    @BeforeEach
+    void setupTestCluster(TestInfo testInfo) throws Exception {
+        configuration = getConfigurationSafe(testInfo);
         miniClusterResource = getMiniClusterResource();
         miniClusterResource.before();
     }
 
-    @After
-    public void stopTestCluster() throws IOException {
+    @AfterEach
+    void stopTestCluster(TestInfo testInfo) throws IOException {
         if (miniClusterResource != null) {
             miniClusterResource.after();
             miniClusterResource = null;
@@ -301,13 +294,17 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         // output
         // for xxx seconds."</tt> messages.
         System.out.println(
-                "Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
+                "Finished "
+                        + getClass().getCanonicalName()
+                        + "#"
+                        + testInfo.getTestMethod().map(Method::getName).orElse("unknown")
+                        + ".");
     }
 
     // ------------------------------------------------------------------------
 
-    @Test
-    public void testTumblingTimeWindow() throws Exception {
+    @TestTemplate
+    void testTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
@@ -337,11 +334,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                             }
 
@@ -353,7 +350,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 int sum = 0;
                                 long key = -1;
@@ -381,17 +378,17 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         env.execute("Tumbling Window Test");
     }
 
-    @Test
-    public void testTumblingTimeWindowWithKVStateMinMaxParallelism() throws Exception {
+    @TestTemplate
+    void testTumblingTimeWindowWithKVStateMinMaxParallelism() throws Exception {
         doTestTumblingTimeWindowWithKVState(PARALLELISM);
     }
 
-    @Test
-    public void testTumblingTimeWindowWithKVStateMaxMaxParallelism() throws Exception {
+    @TestTemplate
+    void testTumblingTimeWindowWithKVStateMaxMaxParallelism() throws Exception {
         doTestTumblingTimeWindowWithKVState(1 << 15);
     }
 
-    public void doTestTumblingTimeWindowWithKVState(int maxParallelism) throws Exception {
+    private void doTestTumblingTimeWindowWithKVState(int maxParallelism) throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
@@ -424,11 +421,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                                 count =
                                         getRuntimeContext()
@@ -452,7 +449,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 }
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 count.update(count.value() + 1);
                                 out.collect(
@@ -472,8 +469,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         env.execute("Tumbling Window Test");
     }
 
-    @Test
-    public void testSlidingTimeWindow() throws Exception {
+    @TestTemplate
+    void testSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int windowSlide = windowSlide();
@@ -507,11 +504,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                             }
 
@@ -523,7 +520,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 int sum = 0;
                                 long key = -1;
@@ -550,8 +547,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         env.execute("Tumbling Window Test");
     }
 
-    @Test
-    public void testPreAggregatedTumblingTimeWindow() throws Exception {
+    @TestTemplate
+    void testPreAggregatedTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
@@ -589,11 +586,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                             }
 
@@ -605,7 +602,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 for (Tuple2<Long, IntType> in : input) {
                                     final Tuple4<Long, Long, Long, IntType> output =
@@ -627,8 +624,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         env.execute("Tumbling Window Test");
     }
 
-    @Test
-    public void testPreAggregatedSlidingTimeWindow() throws Exception {
+    @TestTemplate
+    void testPreAggregatedSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int windowSlide = windowSlide();
@@ -671,11 +668,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                             @Override
                             public void open(OpenContext openContext) {
-                                assertEquals(
-                                        PARALLELISM,
-                                        getRuntimeContext()
-                                                .getTaskInfo()
-                                                .getNumberOfParallelSubtasks());
+                                assertThat(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getNumberOfParallelSubtasks())
+                                        .isEqualTo(PARALLELISM);
                                 open = true;
                             }
 
@@ -687,7 +684,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
                                 // validate that the function has been opened properly
-                                assertTrue(open);
+                                assertThat(open).isTrue();
 
                                 for (Tuple2<Long, IntType> in : input) {
                                     out.collect(
@@ -724,10 +721,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
             // verify the contents of that window, the contents should be:
             // (key + num windows so far)
-            assertEquals(
-                    "Window counts don't match for key " + value.f0 + ".",
-                    value.f0.intValue() + windowCounts.get(value.f0),
-                    value.f3.value);
+            assertThat(value.f3.value)
+                    .as("Window counts don't match for key " + value.f0 + ".")
+                    .isEqualTo(value.f0.intValue() + windowCounts.get(value.f0));
         }
     }
 
@@ -760,8 +756,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 }
             }
 
-            assertEquals(
-                    "Window start: " + value.f1 + " end: " + value.f2, expectedSum, value.f3.value);
+            assertThat(value.f3.value)
+                    .as("Window start: " + value.f1 + " end: " + value.f2)
+                    .isEqualTo(expectedSum);
 
             windowCounts.merge(value.f0, 1, (val, increment) -> val + increment);
         }

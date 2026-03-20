@@ -48,68 +48,73 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getLatestCompletedCheckpointPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test checkpoint rescaling for incremental rocksdb. The implementations of
  * NotifyingDefiniteKeySource, SubtaskIndexFlatMapper and CollectionSink refer to RescalingITCase,
  * because the static fields in these classes can not be shared.
  */
-@RunWith(Parameterized.class)
-public class RescaleCheckpointManuallyITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class RescaleCheckpointManuallyITCase {
 
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int SLOTS_PER_TASK_MANAGER = 2;
 
-    private static MiniClusterWithClientResource cluster;
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    private MiniClusterWithClientResource cluster;
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private File temporaryFolder;
 
-    @Parameterized.Parameter(0)
-    public String statebackendType;
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Parameterized.Parameter(1)
-    public boolean enableAsyncState;
+    private final String statebackendType;
+    private final boolean enableAsyncState;
 
-    @Parameterized.Parameters(name = "statebackend type ={0}, enableAsyncState={1}")
-    public static Collection<Object[]> parameter() {
-        return Arrays.asList(
-                new Object[][] {
-                    {"forst", true}, {"forst", false}, {"rocksdb", true}, {"rocksdb", false}
-                });
+    private RescaleCheckpointManuallyITCase(String statebackendType, boolean enableAsyncState) {
+        this.statebackendType = statebackendType;
+        this.enableAsyncState = enableAsyncState;
     }
 
-    @Before
-    public void setup() throws Exception {
+    @Parameters(name = "statebackend type ={0}, enableAsyncState={1}")
+    private static List<Object[]> parameter() {
+        return Arrays.asList(
+                new Object[] {"forst", true},
+                new Object[] {"forst", false},
+                new Object[] {"rocksdb", true},
+                new Object[] {"rocksdb", false});
+    }
+
+    @BeforeEach
+    void setup() throws Exception {
         Configuration config = new Configuration();
         config.set(StateBackendOptions.STATE_BACKEND, statebackendType);
         config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
@@ -124,21 +129,21 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         cluster.before();
     }
 
-    @After
-    public void shutDownExistingCluster() {
+    @AfterEach
+    void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
         }
     }
 
-    @Test
-    public void testCheckpointRescalingInKeyedState() throws Exception {
+    @TestTemplate
+    void testCheckpointRescalingInKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(false);
     }
 
-    @Test
-    public void testCheckpointRescalingOutKeyedState() throws Exception {
+    @TestTemplate
+    void testCheckpointRescalingOutKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(true);
     }
 
@@ -146,7 +151,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
      * Tests that a job with purely keyed state can be restarted from a checkpoint with a different
      * parallelism.
      */
-    public void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
+    private void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
         final int numberKeys = 42;
         final int numberElements = 1000;
         final int numberElements2 = 500;
@@ -159,7 +164,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                 runJobAndGetCheckpoint(
                         numberKeys, numberElements, parallelism, maxParallelism, miniCluster);
 
-        assertNotNull(checkpointPath);
+        assertThat(checkpointPath).isNotNull();
 
         restoreAndAssert(
                 parallelism2,
@@ -245,7 +250,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                                         maxParallelism, restoreParallelism, keyGroupIndex),
                                 key * numberElementsExpect));
             }
-            assertEquals(expectedResult, actualResult);
+            assertThat(actualResult).isEqualTo(expectedResult);
         } finally {
             if (jobID != null) {
                 CollectionSink.clearElementsSet(jobID);
@@ -265,8 +270,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             throws IOException {
         final Configuration configuration = new Configuration();
         configuration.set(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                temporaryFolder.newFolder().toURI().toString());
+                CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.toURI().toString());
         configuration.set(
                 CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION,
                 ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);

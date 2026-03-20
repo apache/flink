@@ -36,14 +36,16 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Iterator;
@@ -52,22 +54,24 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import static java.util.Collections.singletonList;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of ignoring in-flight data during recovery. */
-public class IgnoreInFlightDataITCase extends TestLogger {
-    @ClassRule
-    public static final MiniClusterWithClientResource CLUSTER =
-            new MiniClusterWithClientResource(
+@ExtendWith(TestLoggerExtension.class)
+class IgnoreInFlightDataITCase {
+    private static final Logger LOG = LoggerFactory.getLogger(IgnoreInFlightDataITCase.class);
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(2)
                             .setNumberSlotsPerTaskManager(2)
                             .build());
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private static final int PARALLELISM = 3;
 
@@ -83,7 +87,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         return config;
     }
 
-    public void setupSharedObjects() {
+    private void setupSharedObjects() {
         checkpointReachSinkLatch = sharedObjects.add(new OneShotLatch());
         resultBeforeFail = sharedObjects.add(new AtomicLong());
         result = sharedObjects.add(new AtomicLong());
@@ -104,7 +108,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
      * attempts.
      */
     @Test
-    public void testIgnoreInFlightDataDuringRecovery() {
+    void testIgnoreInFlightDataDuringRecovery() {
         while (!executeIgnoreInFlightDataDuringRecovery()) {
             // This test can fail if the first checkpoint happens before the Source emits some data.
             // In this case, the test will be restarted until it reach success or the test timeout
@@ -138,7 +142,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         try {
             env.execute("Total sum");
         } catch (Exception ex) {
-            log.error("Execution failed", ex);
+            LOG.error("Execution failed", ex);
             return false;
         }
 
@@ -153,12 +157,12 @@ public class IgnoreInFlightDataITCase extends TestLogger {
 
         // then: Actual result should be less than the ideal result because some of data was
         // ignored.
-        assertThat(result.get().longValue(), lessThan(resultWithoutIgnoringData));
+        assertThat(result.get()).hasValueLessThan(resultWithoutIgnoringData);
 
         // and: Actual result should be equal to sum of result before fail + source value after
         // recovery.
         long expectedResult = resultBeforeFail.get().longValue() + sourceValueAfterRestore;
-        assertEquals(expectedResult, result.get().longValue());
+        assertThat(result.get()).hasValue(expectedResult);
 
         return true;
     }
@@ -203,7 +207,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
          * during the waiting will be sent to the sink before the checkpoint barrier would be
          * handled).
          */
-        public void sinkCheckpointStarted() {
+        private void sinkCheckpointStarted() {
             checkpointReachSinkLatch.get().trigger();
         }
     }
@@ -229,7 +233,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
                     Integer lastValue = stateIt.next();
 
                     // Checking that ListState is recovered correctly.
-                    assertEquals(lastCheckpointValue.get().intValue(), lastValue.intValue());
+                    assertThat(lastValue).isEqualTo(lastCheckpointValue.get().intValue());
 
                     // if it is started after recovery, just send one more value and finish.
                     ctx.collect(lastValue + 1);

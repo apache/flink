@@ -37,12 +37,14 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +52,7 @@ import java.io.File;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -59,30 +62,29 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.fail;
-
-/** Test savepoint migration. */
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Base for testing snapshot migration. The base test supports snapshots types as defined in {@link
  * SnapshotType}.
  */
-public abstract class SnapshotMigrationTestBase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public abstract class SnapshotMigrationTestBase {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir private Path tempFolder;
 
-    @Rule public final MiniClusterWithClientResource miniClusterResource;
+    private MiniClusterWithClientResource miniClusterResource;
 
     private static final Logger LOG = LoggerFactory.getLogger(SnapshotMigrationTestBase.class);
 
-    protected static final int DEFAULT_PARALLELISM = 4;
+    private static final int DEFAULT_PARALLELISM = 4;
 
     /**
      * Modes for migration test execution. This enum is supposed to serve as a switch between two
      * modes of test execution: 1) create snapshots and 2) verify snapshots:
      */
-    public enum ExecutionMode {
+    protected enum ExecutionMode {
         /** Create binary snapshot(s), i.e. run the checkpointing functions. */
         CREATE_SNAPSHOT,
         /** Verify snapshot(s), i.e, restore snapshot and check execution result. */
@@ -90,13 +92,33 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
     }
 
     /** Types of snapshot supported by this base test. */
-    public enum SnapshotType {
+    protected enum SnapshotType {
         /** Savepoints with Flink canonical format. */
         SAVEPOINT_CANONICAL,
         /** Savepoint with native format of respective state backend. */
         SAVEPOINT_NATIVE,
         /** Checkpoint. */
         CHECKPOINT
+    }
+
+    @BeforeEach
+    void setupMiniCluster() throws Exception {
+        miniClusterResource =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(getConfiguration())
+                                .setNumberTaskManagers(1)
+                                .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                                .build());
+        miniClusterResource.before();
+    }
+
+    @AfterEach
+    void destroyMiniCluster() {
+        if (miniClusterResource != null) {
+            miniClusterResource.after();
+            miniClusterResource = null;
+        }
     }
 
     /**
@@ -215,16 +237,6 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         return resource.getFile();
     }
 
-    protected SnapshotMigrationTestBase() throws Exception {
-        miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(getConfiguration())
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                                .build());
-    }
-
     private Configuration getConfiguration() throws Exception {
         // Flink configuration
         final Configuration config = new Configuration();
@@ -233,8 +245,10 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         config.set(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
 
         UUID id = UUID.randomUUID();
-        final File checkpointDir = TEMP_FOLDER.newFolder("checkpoints_" + id).getAbsoluteFile();
-        final File savepointDir = TEMP_FOLDER.newFolder("savepoints_" + id).getAbsoluteFile();
+        final File checkpointDir =
+                TempDirUtils.newFolder(tempFolder, "checkpoints_" + id).getAbsoluteFile();
+        final File savepointDir =
+                TempDirUtils.newFolder(tempFolder, "savepoints_" + id).getAbsoluteFile();
 
         if (!checkpointDir.exists() || !savepointDir.exists()) {
             throw new Exception("Test setup failed: failed to create (temporary) directories.");
@@ -296,9 +310,9 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             }
         }
 
-        if (!done) {
-            fail("Did not see the expected accumulator results within time limit.");
-        }
+        assertThat(done)
+                .as("Did not see the expected accumulator results within time limit.")
+                .isTrue();
 
         LOG.info("Triggering snapshot.");
 
@@ -369,7 +383,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
                                     .get()
                                     .deserializeError(ClassLoader.getSystemClassLoader()));
                 }
-                assertNotEquals(JobStatus.FAILED, jobStatus);
+                assertThat(jobStatus).isNotEqualTo(JobStatus.FAILED);
             } catch (Exception e) {
                 fail("Could not connect to job: " + e);
             }
@@ -396,8 +410,8 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             }
         }
 
-        if (!done) {
-            fail("Did not see the expected accumulator results within time limit.");
-        }
+        assertThat(done)
+                .as("Did not see the expected accumulator results within time limit.")
+                .isTrue();
     }
 }

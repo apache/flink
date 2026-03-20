@@ -29,17 +29,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.SuccessException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 
@@ -50,20 +52,20 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
  * can reconnect successfully. - Test partial records are cleaned up correctly. - Test only
  * downstream are tasks restart.
  */
-@Ignore("Approximate local recovery has currently no scheduler support")
-public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
+@Disabled("Approximate local recovery has currently no scheduler support")
+@ExtendWith(TestLoggerExtension.class)
+@Timeout(value = 5, unit = TimeUnit.MINUTES)
+class ApproximateLocalRecoveryDownstreamITCase {
     private static final int BUFFER_SIZE = 4096;
 
-    @Rule
-    public MiniClusterWithClientResource cluster =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(createConfig())
                             .setNumberTaskManagers(4)
                             .setNumberSlotsPerTaskManager(1)
                             .build());
-
-    @Rule public final Timeout timeout = Timeout.millis(300000L);
 
     /**
      * Test the following topology.
@@ -75,7 +77,7 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
      * <p>(map1/1) fails, (map1/1) and (sink1/1) restart
      */
     @Test
-    public void localTaskFailureRecoveryThreeTasks() throws Exception {
+    void localTaskFailureRecoveryThreeTasks() throws Exception {
         final int failAfterElements = 150;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1).setBufferTimeout(0).setMaxParallelism(128).disableOperatorChaining();
@@ -105,7 +107,7 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
      * <p>(map1/2) fails, (map1/2) and (sink1/1) restart
      */
     @Test
-    public void localTaskFailureRecoveryTwoMapTasks() throws Exception {
+    void localTaskFailureRecoveryTwoMapTasks() throws Exception {
         final int failAfterElements = 20;
         final int keyByChannelNumber = 2;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

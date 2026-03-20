@@ -70,7 +70,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.test.checkpointing.SavepointITCase.waitUntilAllTasksAreRunning;
+import static org.apache.flink.test.util.TestUtils.waitUntilAllTasksAreRunning;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
