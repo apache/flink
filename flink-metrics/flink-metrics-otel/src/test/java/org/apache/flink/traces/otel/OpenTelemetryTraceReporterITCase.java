@@ -29,6 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -58,7 +59,7 @@ public class OpenTelemetryTraceReporterITCase extends OpenTelemetryTestBase {
         reporter.close();
     }
 
-    @Test
+    @RepeatedTest(300)
     public void testReportSpan() throws Exception {
         MetricConfig metricConfig = createMetricConfig();
 
@@ -130,7 +131,7 @@ public class OpenTelemetryTraceReporterITCase extends OpenTelemetryTestBase {
                 });
     }
 
-    @Test
+    @RepeatedTest(300)
     public void testReportNestedSpan() throws Exception {
         String scope = this.getClass().getCanonicalName();
 
