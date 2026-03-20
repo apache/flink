@@ -57,6 +57,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         implements SqlNodeConverter<T> {
     /** Context of create table converters while merging source and derived items. */
     protected interface MergeContext {
+        boolean hasSchemaDefinition();
+
         Schema getMergedSchema();
 
         Map<String, String> getMergedTableOptions();
