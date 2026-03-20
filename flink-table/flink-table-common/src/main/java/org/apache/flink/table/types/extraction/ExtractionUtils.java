@@ -961,17 +961,21 @@ public final class ExtractionUtils {
 
         private static final int OPCODE = Opcodes.ASM9;
 
+        private final String methodName;
+
         private final String methodDescriptor;
 
         private final Map<Integer, String> parameterNamesWithIndex = new TreeMap<>();
 
         ParameterExtractor(Constructor<?> constructor) {
             super(OPCODE);
+            methodName = "<init>";
             methodDescriptor = getConstructorDescriptor(constructor);
         }
 
         ParameterExtractor(Method method) {
             super(OPCODE);
+            methodName = method.getName();
             methodDescriptor = getMethodDescriptor(method);
         }
 
@@ -986,7 +990,7 @@ public final class ExtractionUtils {
         @Override
         public MethodVisitor visitMethod(
                 int access, String name, String descriptor, String signature, String[] exceptions) {
-            if (descriptor.equals(methodDescriptor)) {
+            if (name.equals(methodName) && descriptor.equals(methodDescriptor)) {
                 return new MethodVisitor(OPCODE) {
                     @Override
                     public void visitLocalVariable(
