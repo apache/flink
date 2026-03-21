@@ -268,8 +268,11 @@ public class ActorSystemBootstrapTools {
      */
     private static ActorSystem startActorSystem(
             Config config, String actorSystemName, Logger logger) {
-        Map<String, String> masked = ConfigurationUtils.hideSensitiveValues(toMap(config));
-        logger.debug("Using pekko configuration\n {}", masked);
+        if (logger.isDebugEnabled()) {
+            logger.debug(
+                    "Using pekko configuration\n {}",
+                    ConfigurationUtils.hideSensitiveValues(toMap(config)));
+        }
         ActorSystem actorSystem = PekkoUtils.createActorSystem(actorSystemName, config);
 
         logger.info("Actor system started at {}", PekkoUtils.getAddress(actorSystem));
