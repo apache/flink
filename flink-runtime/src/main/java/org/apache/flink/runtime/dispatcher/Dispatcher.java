@@ -32,7 +32,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -66,9 +65,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -924,10 +921,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private CompletableFuture<Acknowledge> internalSubmitJob(ExecutionPlan executionPlan) {
-        if (executionPlan instanceof JobGraph) {
-            applyParallelismOverrides((JobGraph) executionPlan);
-        }
-
         final JobID jobId = executionPlan.getJobID();
         final String jobName = executionPlan.getName();
         final ApplicationID applicationId = executionPlan.getApplicationId().orElse(null);
@@ -2216,25 +2209,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     public CompletableFuture<Void> onRemovedExecutionPlan(JobID jobId) {
         return CompletableFuture.runAsync(() -> terminateJob(jobId), getMainThreadExecutor(jobId));
-    }
-
-    private void applyParallelismOverrides(JobGraph jobGraph) {
-        Map<String, String> overrides = new HashMap<>();
-        overrides.putAll(configuration.get(PipelineOptions.PARALLELISM_OVERRIDES));
-        overrides.putAll(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES));
-        for (JobVertex vertex : jobGraph.getVertices()) {
-            String override = overrides.get(vertex.getID().toHexString());
-            if (override != null) {
-                int currentParallelism = vertex.getParallelism();
-                int overrideParallelism = Integer.parseInt(override);
-                log.info(
-                        "Changing job vertex {} parallelism from {} to {}",
-                        vertex.getID(),
-                        currentParallelism,
-                        overrideParallelism);
-                vertex.setParallelism(overrideParallelism);
-            }
-        }
     }
 
     private Executor getIoExecutor(JobID jobID) {

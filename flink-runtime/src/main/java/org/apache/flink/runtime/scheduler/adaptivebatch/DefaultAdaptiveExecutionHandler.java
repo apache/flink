@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -35,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -59,8 +62,14 @@ public class DefaultAdaptiveExecutionHandler implements AdaptiveExecutionHandler
 
     private final StreamGraphOptimizer streamGraphOptimizer;
 
+    /** Merged parallelism overrides: master config first, job config wins. */
+    private final Map<String, String> parallelismOverrides;
+
     public DefaultAdaptiveExecutionHandler(
-            ClassLoader userClassloader, StreamGraph streamGraph, Executor serializationExecutor)
+            ClassLoader userClassloader,
+            StreamGraph streamGraph,
+            Executor serializationExecutor,
+            Configuration jobMasterConfiguration)
             throws DynamicCodeLoadingException {
         this.adaptiveGraphManager =
                 new AdaptiveGraphManager(userClassloader, streamGraph, serializationExecutor);
@@ -69,6 +78,14 @@ public class DefaultAdaptiveExecutionHandler implements AdaptiveExecutionHandler
                 new StreamGraphOptimizer(streamGraph.getJobConfiguration(), userClassloader);
         this.streamGraphOptimizer.initializeStrategies(
                 adaptiveGraphManager.getStreamGraphContext());
+
+        // Merge overrides: master config first, job config wins (same precedence as
+        // ParallelismOverrideUtil)
+        Map<String, String> overrides = new HashMap<>();
+        overrides.putAll(jobMasterConfiguration.get(PipelineOptions.PARALLELISM_OVERRIDES));
+        overrides.putAll(
+                streamGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES));
+        this.parallelismOverrides = overrides;
     }
 
     @Override
@@ -150,6 +167,10 @@ public class DefaultAdaptiveExecutionHandler implements AdaptiveExecutionHandler
 
     @Override
     public int getInitialParallelism(JobVertexID jobVertexId) {
+        String override = parallelismOverrides.get(jobVertexId.toHexString());
+        if (override != null) {
+            return Integer.parseInt(override);
+        }
         JobVertex jobVertex = adaptiveGraphManager.getJobGraph().findVertexByID(jobVertexId);
         int vertexInitialParallelism = jobVertex.getParallelism();
         StreamNodeForwardGroup forwardGroup =
