@@ -595,7 +595,7 @@ string:
   - sql: INET_ATON(string)
     table: STRING.inetAton()
     description: |
-      将 IPv4 地址字符串转换为数值表示（BIGINT）。遵循 MySQL INET_ATON 函数行为。
+      将 IPv4 地址字符串转换为数值表示（BIGINT）。部分兼容 MySQL INET_ATON。
 
       支持 MySQL 兼容的短格式地址：a.b 被解释为 a.0.0.b，a.b.c 被解释为 a.b.0.c。
       八位字节中的前导零按十进制解析（而非八进制），与 MySQL 保持一致。

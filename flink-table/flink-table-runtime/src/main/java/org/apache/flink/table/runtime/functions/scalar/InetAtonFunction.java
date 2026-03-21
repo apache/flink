@@ -30,8 +30,8 @@ import javax.annotation.Nullable;
 /**
  * Implementation of {@link BuiltInFunctionDefinitions#INET_ATON}.
  *
- * <p>This function converts an IPv4 address string to its numeric representation. It follows the
- * MySQL INET_ATON function behavior, including support for short-form IPv4 addresses.
+ * <p>This function converts an IPv4 address string to its numeric representation. It is partially
+ * compatible with MySQL INET_ATON, including support for short-form IPv4 addresses.
  *
  * <p>The conversion formula for a standard IP address A.B.C.D is: A * 256^3 + B * 256^2 + C * 256 +
  * D

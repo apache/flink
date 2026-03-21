@@ -500,7 +500,7 @@ string:
   - sql: INET_ATON(string)
     table: STRING.inetAton()
     description: |
-      Converts an IPv4 address string to its numeric representation (BIGINT). Follows MySQL INET_ATON behavior.
+      Converts an IPv4 address string to its numeric representation (BIGINT). Partially compatible with MySQL INET_ATON.
 
       Supports MySQL-compatible short-form addresses: a.b is interpreted as a.0.0.b, and a.b.c is interpreted as a.b.0.c.
       Leading zeros in octets are parsed as decimal (not octal), consistent with MySQL.
