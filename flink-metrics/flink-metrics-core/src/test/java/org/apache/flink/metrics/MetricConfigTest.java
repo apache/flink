@@ -22,6 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.math.BigInteger;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,12 +79,15 @@ class MetricConfigTest {
                 Arguments.of("3.14", (TypedGetter) (c, k) -> c.getFloat(k, 0.0f), 3.14f),
                 Arguments.of(
                         "2.718281828", (TypedGetter) (c, k) -> c.getDouble(k, 0.0), 2.718281828),
-                Arguments.of("true", (TypedGetter) (c, k) -> c.getBoolean(k, false), true));
+                Arguments.of("true", (TypedGetter) (c, k) -> c.getBoolean(k, false), true),
+                Arguments.of("1", (TypedGetter) (c, k) -> c.getBoolean(k, false), false));
     }
 
     private static Stream<Arguments> nativeTypeCases() {
         return Stream.of(
                 Arguments.of(42, (TypedGetter) (c, k) -> c.getInteger(k, 0), 42),
+                Arguments.of((short) 8, (TypedGetter) (c, k) -> c.getInteger(k, 0), 8),
+                Arguments.of((byte) 3, (TypedGetter) (c, k) -> c.getInteger(k, 0), 3),
                 Arguments.of(
                         123456789012345L,
                         (TypedGetter) (c, k) -> c.getLong(k, 0L),
@@ -91,7 +95,13 @@ class MetricConfigTest {
                 Arguments.of(3.14f, (TypedGetter) (c, k) -> c.getFloat(k, 0.0f), 3.14f),
                 Arguments.of(2.718281828, (TypedGetter) (c, k) -> c.getDouble(k, 0.0), 2.718281828),
                 Arguments.of(true, (TypedGetter) (c, k) -> c.getBoolean(k, false), true),
+                Arguments.of(1, (TypedGetter) (c, k) -> c.getBoolean(k, false), false),
+                Arguments.of(0, (TypedGetter) (c, k) -> c.getBoolean(k, true), false),
                 Arguments.of(42, (TypedGetter) (c, k) -> c.getString(k, "default"), "42"),
+                Arguments.of(
+                        new BigInteger("9223372036854775807"),
+                        (TypedGetter) (c, k) -> c.getLong(k, 0L),
+                        9223372036854775807L),
                 Arguments.of(
                         123456789012345L,
                         (TypedGetter) (c, k) -> c.getString(k, "default"),
