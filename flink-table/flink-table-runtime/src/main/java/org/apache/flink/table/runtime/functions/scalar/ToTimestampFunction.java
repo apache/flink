@@ -49,7 +49,7 @@ public class ToTimestampFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.TO_TIMESTAMP, context);
     }
 
-    public @Nullable TimestampData eval(StringData timestamp) {
+    public @Nullable TimestampData eval(@Nullable StringData timestamp) {
         if (timestamp == null) {
             return null;
         }
@@ -57,7 +57,8 @@ public class ToTimestampFunction extends BuiltInScalarFunction {
         return parseTimestampData(timestamp.toString());
     }
 
-    public @Nullable TimestampData eval(StringData timestamp, StringData format) {
+    public @Nullable TimestampData eval(
+            @Nullable StringData timestamp, @Nullable StringData format) {
         if (timestamp == null || format == null) {
             return null;
         }

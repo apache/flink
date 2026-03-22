@@ -41,6 +41,14 @@ class ToTimestampTypeStrategyTest extends TypeStrategiesTestBase {
                                 SpecificTypeStrategies.TO_TIMESTAMP)
                         .inputTypes(DataTypes.STRING(), DataTypes.STRING())
                         .expectDataType(DataTypes.TIMESTAMP(3).nullable()),
+                // Format-based precision: SS → TIMESTAMP(3)
+                TestSpec.forStrategy(
+                                "Format with SS returns TIMESTAMP(3)",
+                                SpecificTypeStrategies.TO_TIMESTAMP)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SS")
+                        .expectDataType(DataTypes.TIMESTAMP(3).nullable()),
+
                 // Format-based precision: SSS → TIMESTAMP(3)
                 TestSpec.forStrategy(
                                 "Format with SSS returns TIMESTAMP(3)",
@@ -55,6 +63,13 @@ class ToTimestampTypeStrategyTest extends TypeStrategiesTestBase {
                         .inputTypes(DataTypes.STRING(), DataTypes.STRING())
                         .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SSSSSS")
                         .expectDataType(DataTypes.TIMESTAMP(6).nullable()),
+                // Format-based precision: SSSSSSS → TIMESTAMP(7)
+                TestSpec.forStrategy(
+                                "Format with SSSSSSS returns TIMESTAMP(7)",
+                                SpecificTypeStrategies.TO_TIMESTAMP)
+                        .inputTypes(DataTypes.STRING(), DataTypes.STRING())
+                        .calledWithLiteralAt(1, "yyyy-MM-dd HH:mm:ss.SSSSSSS")
+                        .expectDataType(DataTypes.TIMESTAMP(7).nullable()),
                 // Format-based precision: SSSSSSSSS → TIMESTAMP(9)
                 TestSpec.forStrategy(
                                 "Format with SSSSSSSSS returns TIMESTAMP(9)",

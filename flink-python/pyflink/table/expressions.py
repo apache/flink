@@ -311,16 +311,19 @@ def to_timestamp(timestamp_str: Union[str, Expression[str]],
     """
     Converts a datetime string to a TIMESTAMP without time zone.
 
-    The output precision depends on the variant used:
+    The output type is precision-aware (TIMESTAMP(3) through TIMESTAMP(9)):
 
     - 1-arg variant: always returns TIMESTAMP(3).
     - 2-arg variant: precision is inferred from the number of trailing 'S' characters
-      in the format pattern, with a minimum of 3. E.g., format
-      'yyyy-MM-dd HH:mm:ss.SSSSSS' returns TIMESTAMP(6).
+      in the format pattern (0-9), with a minimum of 3. E.g., format
+      'yyyy-MM-dd HH:mm:ss.SSSSS' returns TIMESTAMP(5), format
+      'yyyy-MM-dd HH:mm:ss.SSSSSSS' returns TIMESTAMP(7).
 
     :param timestamp_str: The datetime string to parse.
-    :param format: The format pattern (default 'yyyy-MM-dd HH:mm:ss'). 'S' represents
-        fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSS' for microseconds).
+    :param format: The format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows
+        Java's `DateTimeFormatter
+        <https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html>`_
+        syntax, where 'S' represents fractional seconds.
     :return: The timestamp value with TIMESTAMP type.
     """
     if format is None:

@@ -845,6 +845,27 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TO_TIMESTAMP('1970-01-01 00:00:00.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
                                 LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789),
                                 TIMESTAMP(9).nullable())
+                        // 2-arg: precision 2 (clamped to minimum 3)
+                        .testResult(
+                                toTimestamp("2023-01-01 12:30:00.12", "yyyy-MM-dd HH:mm:ss.SS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.12', 'yyyy-MM-dd HH:mm:ss.SS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 120000000),
+                                TIMESTAMP(3).nullable())
+                        // 2-arg: precision 5 from format
+                        .testResult(
+                                toTimestamp(
+                                        "2023-01-01 12:30:00.12345", "yyyy-MM-dd HH:mm:ss.SSSSS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 123450000),
+                                TIMESTAMP(5).nullable())
+                        // 2-arg: precision 7 from format
+                        .testResult(
+                                toTimestamp(
+                                        "2023-01-01 12:30:00.1234567",
+                                        "yyyy-MM-dd HH:mm:ss.SSSSSSS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.1234567', 'yyyy-MM-dd HH:mm:ss.SSSSSSS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 123456700),
+                                TIMESTAMP(7).nullable())
                         // 2-arg: SSS format still returns TIMESTAMP(3)
                         .testResult(
                                 toTimestamp("2017-09-15 00:00:00.12345", "yyyy-MM-dd HH:mm:ss.SSS"),
