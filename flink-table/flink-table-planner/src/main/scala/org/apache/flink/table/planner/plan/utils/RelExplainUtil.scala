@@ -983,8 +983,8 @@ object RelExplainUtil {
    * @return
    *   a formatted string showing field names and their sources
    */
-  def projectFieldsToString(
-      projects: util.List[RexNode],
+  def projectFieldsToString[T <: RexNode](
+      projects: util.List[T],
       inputFieldNames: util.List[String],
       outputFieldNames: util.List[String]): String = {
     val result = new StringBuilder
@@ -1002,10 +1002,30 @@ object RelExplainUtil {
             result.append(s"$inputName AS $outputName")
           }
         case _ =>
-          // For complex expressions, show both expression and output name
-          result.append(s"${project.toString} AS $outputName")
+          // For complex expressions, convert RexInputRef to field names
+          val exprStr = convertRexInputRefToFieldNames(project, inputFieldNames)
+          result.append(s"$exprStr AS $outputName")
       }
     }
     result.toString
+
+  /**
+   * Recursively convert RexInputRef in an expression to field names.
+   */
+  private def convertRexInputRefToFieldNames(
+      expr: RexNode,
+      inputFieldNames: util.List[String]): String = {
+    expr match {
+      case inputRef: RexInputRef =>
+        inputFieldNames.get(inputRef.getIndex)
+      case call: RexCall =>
+        val operands = call.getOperands.map(convertRexInputRefToFieldNames(_, inputFieldNames))
+        s"${call.getOperator.getName}(${operands.mkString(", ")})"
+      case literal: RexLiteral =>
+        literal.toString
+      case _ =>
+        expr.toString
+    }
+  }
   }
 }
