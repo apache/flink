@@ -245,7 +245,7 @@ class JobMasterTriggerSavepointITCase {
 
         // assert that checkpoints are continued to be triggered
         triggerCheckpointLatch = new CountDownLatch(1);
-        assertThat(triggerCheckpointLatch.await(60L, TimeUnit.SECONDS)).isEqualTo(true);
+        assertThat(triggerCheckpointLatch.await(60L, TimeUnit.SECONDS)).isTrue();
 
         // assert that JobId is present in the logs
         waitForDisconnect(clusterClient);
