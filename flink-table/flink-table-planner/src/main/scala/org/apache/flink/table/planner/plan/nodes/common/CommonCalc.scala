@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{conditionToString, preferExpressionFormat}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{conditionToString, preferExpressionFormat, projectFieldsToString}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexProgram}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode, RexProgram}
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util.Collections
@@ -77,29 +77,12 @@ abstract class CommonCalc(
   protected def projectionToString(
       expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
       sqlExplainLevel: SqlExplainLevel): String = {
-    val projectList = calcProgram.getProjectList.toList
-    val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
-    val localExprs = calcProgram.getExprList.toList
-    val outputFieldNames = calcProgram.getOutputRowType.getFieldNames.toList
+    val projectList = calcProgram.getProjectList.map(calcProgram.expandLocalRef(_)).toList
+    val inputFieldNames = calcProgram.getInputRowType.getFieldNames
+    val outputFieldNames = calcProgram.getOutputRowType.getFieldNames
 
-    projectList
-      .map(
-        getExpressionString(
-          _,
-          inputFieldNames,
-          Some(localExprs),
-          expressionFormat,
-          sqlExplainLevel))
-      .zip(outputFieldNames)
-      .map {
-        case (e, o) =>
-          if (e != o) {
-            e + " AS " + o
-          } else {
-            e
-          }
-      }
-      .mkString(", ")
+    // Use enhanced projection field display
+    projectFieldsToString(projectList, inputFieldNames, outputFieldNames)
   }
 
 }
