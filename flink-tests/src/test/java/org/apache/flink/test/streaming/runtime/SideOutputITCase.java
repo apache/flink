@@ -47,7 +47,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.SingleSplitEnumerator;
 import org.apache.flink.test.util.source.TestSourceReader;
@@ -55,27 +55,22 @@ import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration test for streaming programs using side outputs. */
-public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializable {
+class SideOutputITCase extends AbstractTestBase implements Serializable {
 
-    @Rule public transient ExpectedException expectedException = ExpectedException.none();
-
-    static List<Integer> elements = new ArrayList<>();
+    private static List<Integer> elements = new ArrayList<>();
 
     static {
         elements.add(1);
@@ -87,7 +82,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
     /** Verify that watermarks are forwarded to all side outputs. */
     @Test
-    public void testWatermarkForwarding() throws Exception {
+    void testWatermarkForwarding() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side") {};
 
@@ -163,8 +158,8 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
         env.execute();
 
-        assertEquals(
-                Arrays.asList(
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly(
                         "E:sideout-1",
                         "E:sideout-2",
                         "E:sideout-3",
@@ -178,11 +173,10 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         "WM:2",
                         "WM:" + Long.MAX_VALUE,
                         "WM:" + Long.MAX_VALUE,
-                        "WM:" + Long.MAX_VALUE),
-                sideOutputResultSink1.getSortedResult());
+                        "WM:" + Long.MAX_VALUE);
 
-        assertEquals(
-                Arrays.asList(
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly(
                         "E:sideout-1",
                         "E:sideout-2",
                         "E:sideout-3",
@@ -196,11 +190,10 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         "WM:2",
                         "WM:" + Long.MAX_VALUE,
                         "WM:" + Long.MAX_VALUE,
-                        "WM:" + Long.MAX_VALUE),
-                sideOutputResultSink1.getSortedResult());
+                        "WM:" + Long.MAX_VALUE);
 
-        assertEquals(
-                Arrays.asList(
+        assertThat(resultSink.getSortedResult())
+                .containsExactly(
                         "E:1",
                         "E:2",
                         "E:3",
@@ -214,13 +207,12 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                         "WM:2",
                         "WM:" + Long.MAX_VALUE,
                         "WM:" + Long.MAX_VALUE,
-                        "WM:" + Long.MAX_VALUE),
-                resultSink.getSortedResult());
+                        "WM:" + Long.MAX_VALUE);
     }
 
     @Test
-    public void testSideOutputWithMultipleConsumers() throws Exception {
-        final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
+    void testSideOutputWithMultipleConsumers() throws Exception {
+        final OutputTag<String> sideOutputTag = new OutputTag<>("side") {};
 
         TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
         TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
@@ -250,17 +242,15 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         env.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink1.getSortedResult());
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink2.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(sideOutputResultSink2.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
-    public void testSideOutputWithMultipleConsumersWithObjectReuse() throws Exception {
+    void testSideOutputWithMultipleConsumersWithObjectReuse() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
@@ -292,17 +282,15 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         env.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink1.getSortedResult());
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink2.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(sideOutputResultSink2.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
-    public void testDifferentSideOutputTypes() throws Exception {
+    void testDifferentSideOutputTypes() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("string") {};
         final OutputTag<Integer> sideOutputTag2 = new OutputTag<Integer>("int") {};
 
@@ -336,15 +324,14 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         env.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink1.getSortedResult());
-        assertEquals(Arrays.asList(13, 13, 13, 13, 13), sideOutputResultSink2.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(sideOutputResultSink2.getSortedResult()).containsExactly(13, 13, 13, 13, 13);
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     @Test
-    public void testSideOutputNameClash() throws Exception {
+    void testSideOutputNameClash() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side") {};
         final OutputTag<Integer> sideOutputTag2 = new OutputTag<Integer>("side") {};
 
@@ -373,13 +360,17 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
         passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
 
-        expectedException.expect(UnsupportedOperationException.class);
-        passThroughtStream.getSideOutput(sideOutputTag2).addSink(sideOutputResultSink2);
+        assertThatThrownBy(
+                        () ->
+                                passThroughtStream
+                                        .getSideOutput(sideOutputTag2)
+                                        .addSink(sideOutputResultSink2))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Test ProcessFunction side output. */
     @Test
-    public void testProcessFunctionSideOutput() throws Exception {
+    void testProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -408,15 +399,14 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test CoProcessFunction side output. */
     @Test
-    public void testCoProcessFunctionSideOutput() throws Exception {
+    void testCoProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -461,15 +451,15 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly(
+                        "sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test CoProcessFunction side output with multiple consumers. */
     @Test
-    public void testCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+    void testCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2") {};
 
@@ -517,17 +507,16 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout1-1", "sideout1-2", "sideout1-3"),
-                sideOutputResultSink1.getSortedResult());
-        assertEquals(
-                Arrays.asList("sideout2-4", "sideout2-5"), sideOutputResultSink2.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly("sideout1-1", "sideout1-2", "sideout1-3");
+        assertThat(sideOutputResultSink2.getSortedResult())
+                .containsExactly("sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed ProcessFunction side output. */
     @Test
-    public void testKeyedProcessFunctionSideOutput() throws Exception {
+    void testKeyedProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -567,15 +556,14 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed CoProcessFunction side output. */
     @Test
-    public void testLegacyKeyedCoProcessFunctionSideOutput() throws Exception {
+    void testLegacyKeyedCoProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -621,15 +609,15 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly(
+                        "sideout1-1", "sideout1-2", "sideout2-3", "sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed KeyedCoProcessFunction side output. */
     @Test
-    public void testKeyedCoProcessFunctionSideOutput() throws Exception {
+    void testKeyedCoProcessFunctionSideOutput() throws Exception {
         final OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
@@ -681,20 +669,19 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList(
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly(
                         "sideout1-1-1",
                         "sideout1-2-2",
                         "sideout2-3-3",
                         "sideout2-4-4",
-                        "sideout2-5-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+                        "sideout2-5-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed CoProcessFunction side output with multiple consumers. */
     @Test
-    public void testLegacyKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+    void testLegacyKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2") {};
 
@@ -743,17 +730,16 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout1-1", "sideout1-2", "sideout1-3"),
-                sideOutputResultSink1.getSortedResult());
-        assertEquals(
-                Arrays.asList("sideout2-4", "sideout2-5"), sideOutputResultSink2.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly("sideout1-1", "sideout1-2", "sideout1-3");
+        assertThat(sideOutputResultSink2.getSortedResult())
+                .containsExactly("sideout2-4", "sideout2-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test keyed KeyedCoProcessFunction side output with multiple consumers. */
     @Test
-    public void testKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
+    void testKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side1") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("side2") {};
 
@@ -808,18 +794,16 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         passThroughtStream.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout1-1-1", "sideout1-2-2", "sideout1-3-3"),
-                sideOutputResultSink1.getSortedResult());
-        assertEquals(
-                Arrays.asList("sideout2-4-4", "sideout2-5-5"),
-                sideOutputResultSink2.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink1.getSortedResult())
+                .containsExactly("sideout1-1-1", "sideout1-2-2", "sideout1-3-3");
+        assertThat(sideOutputResultSink2.getSortedResult())
+                .containsExactly("sideout2-4-4", "sideout2-5-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4, 5);
     }
 
     /** Test ProcessFunction side outputs with wrong {@code OutputTag}. */
     @Test
-    public void testProcessFunctionSideOutputWithWrongTag() throws Exception {
+    void testProcessFunctionSideOutputWithWrongTag() throws Exception {
         final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side") {};
         final OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side") {};
 
@@ -848,7 +832,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
         see.execute();
 
-        assertEquals(Arrays.asList(), sideOutputResultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult()).isEmpty();
     }
 
     private static class TestWatermarkAssigner
@@ -878,7 +862,7 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
     /** Test window late arriving events stream. */
     @Test
-    public void testAllWindowLateArrivingEvents() throws Exception {
+    void testAllWindowLateArrivingEvents() throws Exception {
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -926,11 +910,11 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
                 .addSink(sideOutputResultSink);
 
         see.execute();
-        assertEquals(sideOutputResultSink.getSortedResult(), Arrays.asList("late-3", "late-4"));
+        assertThat(sideOutputResultSink.getSortedResult()).containsExactly("late-3", "late-4");
     }
 
     @Test
-    public void testKeyedWindowLateArrivingEvents() throws Exception {
+    void testKeyedWindowLateArrivingEvents() throws Exception {
         TestListResultSink<String> resultSink = new TestListResultSink<>();
         TestListResultSink<Integer> lateResultSink = new TestListResultSink<>();
 
@@ -975,12 +959,12 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         windowOperator.getSideOutput(lateDataTag).addSink(lateResultSink);
 
         see.execute();
-        assertEquals(Arrays.asList("1-1", "2-2", "4-4", "5-5"), resultSink.getSortedResult());
-        assertEquals(Collections.singletonList(3), lateResultSink.getSortedResult());
+        assertThat(resultSink.getSortedResult()).containsExactly("1-1", "2-2", "4-4", "5-5");
+        assertThat(lateResultSink.getSortedResult()).containsExactly(3);
     }
 
     @Test
-    public void testProcessdWindowFunctionSideOutput() throws Exception {
+    void testProcessdWindowFunctionSideOutput() throws Exception {
         TestListResultSink<Integer> resultSink = new TestListResultSink<>();
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
@@ -1020,14 +1004,13 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         windowOperator.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 5);
     }
 
     @Test
-    public void testProcessAllWindowFunctionSideOutput() throws Exception {
+    void testProcessAllWindowFunctionSideOutput() throws Exception {
         TestListResultSink<Integer> resultSink = new TestListResultSink<>();
         TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
@@ -1066,14 +1049,13 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         windowOperator.addSink(resultSink);
         see.execute();
 
-        assertEquals(
-                Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
-                sideOutputResultSink.getSortedResult());
-        assertEquals(Arrays.asList(1, 2, 5), resultSink.getSortedResult());
+        assertThat(sideOutputResultSink.getSortedResult())
+                .containsExactly("sideout-1", "sideout-2", "sideout-5");
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 5);
     }
 
     @Test
-    public void testUnionOfTwoSideOutputs() throws Exception {
+    void testUnionOfTwoSideOutputs() throws Exception {
         TestListResultSink<Integer> evensResultSink = new TestListResultSink<>();
         TestListResultSink<Integer> oddsResultSink = new TestListResultSink<>();
         TestListResultSink<Integer> oddsUEvensResultSink = new TestListResultSink<>();
@@ -1124,21 +1106,21 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
         env.execute();
 
-        assertEquals(Arrays.asList(1, 3), oddsResultSink.getSortedResult());
+        assertThat(oddsResultSink.getSortedResult()).containsExactly(1, 3);
 
-        assertEquals(Arrays.asList(2, 4), evensResultSink.getSortedResult());
+        assertThat(evensResultSink.getSortedResult()).containsExactly(2, 4);
 
-        assertEquals(Arrays.asList(1, 2, 3, 4), resultSink.getSortedResult());
+        assertThat(resultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
 
-        assertEquals(Arrays.asList(1, 2, 3, 4), oddsUEvensResultSink.getSortedResult());
+        assertThat(oddsUEvensResultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
 
-        assertEquals(Arrays.asList(1, 2, 3, 4), evensUOddsResultSink.getSortedResult());
+        assertThat(evensUOddsResultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
 
-        assertEquals(Arrays.asList(1, 1, 3, 3), oddsUOddsResultSink.getSortedResult());
+        assertThat(oddsUOddsResultSink.getSortedResult()).containsExactly(1, 1, 3, 3);
 
-        assertEquals(Arrays.asList(2, 2, 4, 4), evensUEvensResultSink.getSortedResult());
+        assertThat(evensUEvensResultSink.getSortedResult()).containsExactly(2, 2, 4, 4);
 
-        assertEquals(Arrays.asList(1, 2, 3, 4), oddsUEvensExternalResultSink.getSortedResult());
+        assertThat(oddsUEvensExternalResultSink.getSortedResult()).containsExactly(1, 2, 3, 4);
     }
 
     /** Source V2 that emits timestamped elements with watermarks for side output testing. */

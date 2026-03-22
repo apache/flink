@@ -19,7 +19,6 @@
 package org.apache.flink.test.streaming.api.datastream;
 
 import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
@@ -27,9 +26,10 @@ import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,15 +42,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * the watermark is not propagated/silently swallowed (as for example in FLINK-28357), the test is
  * expected to livelock.
  */
-public class FinishedSourcesWatermarkITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class FinishedSourcesWatermarkITCase {
 
     private static final AtomicLong CHECKPOINT_10_WATERMARK =
             new AtomicLong(Watermark.MAX_WATERMARK.getTimestamp());
     private static final AtomicBoolean DOWNSTREAM_CHECKPOINT_10_WATERMARK_ACK = new AtomicBoolean();
 
     @Test
-    public void testTwoConsecutiveFinishedTasksShouldPropagateMaxWatermark() throws Exception {
-        Configuration conf = new Configuration();
+    void testTwoConsecutiveFinishedTasksShouldPropagateMaxWatermark() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
         // disable chaining to make sure we will have two consecutive checkpoints with Task ==

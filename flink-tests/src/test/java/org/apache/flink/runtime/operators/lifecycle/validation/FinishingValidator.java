@@ -31,8 +31,8 @@ import java.util.Set;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Checks that {@link StreamOperator#finish()} was called and then only checkpoints were starting or
@@ -67,11 +67,12 @@ public class FinishingValidator implements TestOperatorLifecycleValidator {
                                 operatorId, subtaskIndex, ev));
             }
         }
-        assertTrue(
-                format(
-                        "Operator %s[%d] wasn't finished (events: %s)",
-                        operatorId, subtaskIndex, operatorEvents),
-                opFinished);
+        assertThat(opFinished)
+                .as(
+                        format(
+                                "Operator %s[%d] wasn't finished (events: %s)",
+                                operatorId, subtaskIndex, operatorEvents))
+                .isTrue();
         fail(
                 format(
                         "Operator %s[%d] was finished but didn't finish the checkpoint after that;"

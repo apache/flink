@@ -35,15 +35,16 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.Record;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,12 +58,11 @@ import java.util.stream.LongStream;
 
 import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatCounter;
 import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGauge;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasEntry;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests whether all provided metrics of a {@link Sink} are of the expected values (FLIP-33). */
-public class SinkV2MetricsITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class SinkV2MetricsITCase {
 
     private static final String TEST_SINK_NAME = "MetricTestSink";
     // please refer to SinkTransformationTranslator#WRITER_NAME
@@ -70,20 +70,22 @@ public class SinkV2MetricsITCase extends TestLogger {
     private static final String DEFAULT_COMMITTER_NAME = "Committer";
     private static final int DEFAULT_PARALLELISM = 4;
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    private final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Rule
-    public final MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    private static final InMemoryReporter REPORTER = InMemoryReporter.createWithRetainedMetrics();
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                            .setConfiguration(reporter.addToConfiguration(new Configuration()))
+                            .setConfiguration(REPORTER.addToConfiguration(new Configuration()))
                             .build());
 
     @Test
-    public void testMetrics() throws Exception {
+    void testMetrics() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         int numSplits = Math.max(1, env.getParallelism() - 2);
 
@@ -129,7 +131,7 @@ public class SinkV2MetricsITCase extends TestLogger {
     }
 
     @Test
-    public void testCommitterMetrics() throws Exception {
+    void testCommitterMetrics() throws Exception {
         final int numCommittables = 7;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -182,12 +184,12 @@ public class SinkV2MetricsITCase extends TestLogger {
     @SuppressWarnings("checkstyle:WhitespaceAfter")
     private void assertSinkMetrics(JobID jobId, long processedRecordsPerSubtask, int numSplits) {
         List<OperatorMetricGroup> groups =
-                reporter.findOperatorMetricGroups(
+                REPORTER.findOperatorMetricGroups(
                         jobId, TEST_SINK_NAME + ": " + DEFAULT_WRITER_NAME);
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
-            Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
+            Map<String, Metric> metrics = REPORTER.getMetricsByGroup(group);
             // There are only 2 splits assigned; so two groups will not update metrics.
             if (group.getIOMetricGroup() == null
                     || group.getIOMetricGroup().getNumRecordsOutCounter() == null
@@ -217,11 +219,11 @@ public class SinkV2MetricsITCase extends TestLogger {
             assertThatGauge(metrics.get(MetricNames.CURRENT_SEND_TIME))
                     .isEqualTo((processedRecordsPerSubtask - 1) * MetricWriter.BASE_SEND_TIME);
         }
-        assertThat(subtaskWithMetrics, equalTo(numSplits));
+        assertThat(subtaskWithMetrics).isEqualTo(numSplits);
 
         // Test operator I/O metrics are reused by task metrics
         List<TaskMetricGroup> taskMetricGroups =
-                reporter.findTaskMetricGroups(jobId, TEST_SINK_NAME);
+                REPORTER.findTaskMetricGroups(jobId, TEST_SINK_NAME);
 
         int subtaskWithTaskMetrics = 0;
         for (TaskMetricGroup taskMetricGroup : taskMetricGroups) {
@@ -236,17 +238,17 @@ public class SinkV2MetricsITCase extends TestLogger {
             assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumBytesOutCounter())
                     .isEqualTo(processedRecordsPerSubtask * MetricWriter.RECORD_SIZE_IN_BYTES);
         }
-        assertThat(subtaskWithTaskMetrics, equalTo(numSplits));
+        assertThat(subtaskWithTaskMetrics).isEqualTo(numSplits);
     }
 
     private void assertSinkCommitterMetrics(JobID jobId, Map<String, Long> expected) {
         List<OperatorMetricGroup> groups =
-                reporter.findOperatorMetricGroups(
+                REPORTER.findOperatorMetricGroups(
                         jobId, TEST_SINK_NAME + ": " + DEFAULT_COMMITTER_NAME);
 
         Map<String, Long> aggregated = new HashMap<>(6);
         for (OperatorMetricGroup group : groups) {
-            Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
+            Map<String, Metric> metrics = REPORTER.getMetricsByGroup(group);
 
             for (String metricName :
                     Arrays.asList(
@@ -271,8 +273,7 @@ public class SinkV2MetricsITCase extends TestLogger {
             }
         }
 
-        expected.entrySet()
-                .forEach(e -> assertThat(aggregated, hasEntry(e.getKey(), e.getValue())));
+        expected.forEach((key, value) -> assertThat(aggregated).containsEntry(key, value));
     }
 
     private static class MetricWriter extends TestSinkV2.DefaultSinkWriter<Long> {
