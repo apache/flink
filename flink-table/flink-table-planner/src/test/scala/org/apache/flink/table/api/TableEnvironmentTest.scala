@@ -1922,7 +1922,7 @@ class TableEnvironmentTest {
         |  a int not null,
         |  b varchar,
         |  c int,
-        |  ts AS to_timestamp(b),
+        |  ts AS TO_TIMESTAMP(b),
         |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
@@ -2322,7 +2322,7 @@ class TableEnvironmentTest {
         |  f29 AS LOCALTIMESTAMP,
         |  f30 AS CURRENT_TIMESTAMP,
         |  f31 AS CURRENT_ROW_TIMESTAMP(),
-        |  ts AS to_timestamp(f25),
+        |  ts AS TO_TIMESTAMP(f25),
         |  PRIMARY KEY(f24, f26) NOT ENFORCED,
         |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
@@ -2387,7 +2387,7 @@ class TableEnvironmentTest {
         "TIMESTAMP(3) *ROWTIME*",
         Boolean.box(true),
         null,
-        "AS TO_TIMESTAMP(`f25`)",
+        "AS `TO_TIMESTAMP`(`f25`)",
         "`ts` - INTERVAL '1' SECOND")
     )
     val tableResult1 = tableEnv.executeSql("describe T1")
@@ -2464,7 +2464,7 @@ class TableEnvironmentTest {
         |  c29 AS LOCALTIMESTAMP,
         |  c30 AS CURRENT_TIMESTAMP comment 'notice: computed column',
         |  c31 AS CURRENT_ROW_TIMESTAMP(),
-        |  ts AS to_timestamp(c25) comment 'notice: watermark',
+        |  ts AS TO_TIMESTAMP(c25) comment 'notice: watermark',
         |  PRIMARY KEY(c24, c26) NOT ENFORCED,
         |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
@@ -2540,7 +2540,7 @@ class TableEnvironmentTest {
         "TIMESTAMP(3) *ROWTIME*",
         Boolean.box(true),
         null,
-        "AS TO_TIMESTAMP(`c25`)",
+        "AS `TO_TIMESTAMP`(`c25`)",
         "`ts` - INTERVAL '1' SECOND",
         "notice: watermark")
     )
