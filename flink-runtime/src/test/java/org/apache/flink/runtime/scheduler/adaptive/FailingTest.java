@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
@@ -181,6 +182,11 @@ class FailingTest {
 
         @Override
         public void archiveFailure(RootExceptionHistoryEntry failure) {}
+
+        @Override
+        public RescaleTimeline getRescaleTimeline() {
+            return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
+        }
 
         @Override
         public void goToCanceling(
