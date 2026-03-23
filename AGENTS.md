@@ -261,6 +261,7 @@ This section maps common types of Flink changes to the modules they touch and th
 - **No Java serialization** for new features (except internal RPC message transport).
 - **Use `final`** for variables and fields where applicable.
 - **Comments:** Do not add unnecessary comments that restate what the code does. Add comments that explain "the why" where relevant.
+- **Reuse existing code.** Before implementing new utilities or abstractions, search for existing ones in the codebase. Prioritize architecture consistency and code reusability.
 - Full code style guide: https://flink.apache.org/how-to-contribute/code-style-and-quality-preamble/
 
 ## Testing Standards
@@ -309,6 +310,7 @@ This section maps common types of Flink changes to the modules they touch and th
 - New dependencies
 - Changes to serialization formats (affects state compatibility)
 - Changes to checkpoint/savepoint behavior
+- Changes that could impact performance on hot paths (per-record processing, serialization, state access)
 
 ### Never
 
