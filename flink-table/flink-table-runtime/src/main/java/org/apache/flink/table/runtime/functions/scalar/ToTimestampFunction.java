@@ -27,6 +27,8 @@ import org.apache.flink.table.utils.DateTimeUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.DateTimeException;
+
 import static org.apache.flink.table.utils.DateTimeUtils.parseTimestampData;
 
 /**
@@ -54,7 +56,11 @@ public class ToTimestampFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return parseTimestampData(timestamp.toString());
+        try {
+            return parseTimestampData(timestamp.toString());
+        } catch (DateTimeException e) {
+            return null;
+        }
     }
 
     public @Nullable TimestampData eval(
@@ -63,8 +69,12 @@ public class ToTimestampFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        String formatStr = format.toString();
-        return parseTimestampData(
-                timestamp.toString(), formatStr, DateTimeUtils.precisionFromFormat(formatStr));
+        try {
+            String formatStr = format.toString();
+            return parseTimestampData(
+                    timestamp.toString(), formatStr, DateTimeUtils.precisionFromFormat(formatStr));
+        } catch (DateTimeException e) {
+            return null;
+        }
     }
 }

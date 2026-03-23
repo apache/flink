@@ -851,14 +851,12 @@ temporal:
     description: |
       Converts a datetime string to a TIMESTAMP without time zone.
 
-      - string1: the datetime string to parse
+      - string1: the datetime string to parse. Returns NULL if the string cannot be parsed.
       - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's [DateTimeFormatter](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html) syntax, where 'S' represents fractional seconds (e.g., 'SSSSS' for 5-digit fractional seconds, 'SSSSSSS' for 7-digit, 'SSSSSSSSS' for nanoseconds).
 
       The output type is precision-aware (TIMESTAMP(3) through TIMESTAMP(9)):
       - 1-arg variant: always returns TIMESTAMP(3).
       - 2-arg variant: precision is inferred from the number of trailing 'S' characters in the format pattern (0-9), with a minimum of 3. E.g., format 'yyyy-MM-dd HH:mm:ss.SS' returns TIMESTAMP(3), format 'yyyy-MM-dd HH:mm:ss.SSSSS' returns TIMESTAMP(5), format 'yyyy-MM-dd HH:mm:ss.SSSSSSS' returns TIMESTAMP(7).
-
-      Returns NULL if the input string cannot be parsed.
 
       E.g., TO_TIMESTAMP('2023-01-01 00:00:00') parses using default format and returns TIMESTAMP(3),
       TO_TIMESTAMP('2023-01-01 12:30:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS') returns TIMESTAMP(5),

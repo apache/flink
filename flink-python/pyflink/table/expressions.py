@@ -319,7 +319,7 @@ def to_timestamp(timestamp_str: Union[str, Expression[str]],
       'yyyy-MM-dd HH:mm:ss.SSSSS' returns TIMESTAMP(5), format
       'yyyy-MM-dd HH:mm:ss.SSSSSSS' returns TIMESTAMP(7).
 
-    :param timestamp_str: The datetime string to parse.
+    :param timestamp_str: The datetime string to parse. Returns NULL if the string cannot be parsed.
     :param format: The format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows
         Java's `DateTimeFormatter
         <https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html>`_
