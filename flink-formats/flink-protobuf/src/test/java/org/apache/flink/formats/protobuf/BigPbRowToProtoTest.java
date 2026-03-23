@@ -28,23 +28,21 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for huge proto definition, which may trigger some special optimizations such as code
  * splitting.
  */
-public class BigPbRowToProtoTest {
+class BigPbRowToProtoTest {
 
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         GenericRowData rowData = new GenericRowData(33);
         rowData.setField(0, 20);
         rowData.setField(1, false);
@@ -98,62 +96,59 @@ public class BigPbRowToProtoTest {
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(rowData, BigPbClass.BigPbMessage.class);
 
         BigPbClass.BigPbMessage bigPbMessage = BigPbClass.BigPbMessage.parseFrom(bytes);
-        assertEquals(rowData.getField(0), bigPbMessage.getIntField1());
-        assertEquals(rowData.getField(1), bigPbMessage.getBoolField2());
-        assertEquals(rowData.getField(2).toString(), bigPbMessage.getStringField3());
-        assertArrayEquals(
-                ((byte[]) rowData.getField(3)), bigPbMessage.getBytesField4().toByteArray());
-        assertEquals(rowData.getField(4), bigPbMessage.getDoubleField5());
-        assertEquals(rowData.getField(5), bigPbMessage.getFloatField6());
-        assertEquals(rowData.getField(6), bigPbMessage.getUint32Field7());
-        assertEquals(rowData.getField(7), bigPbMessage.getInt64Field8());
-        assertEquals(rowData.getField(8), bigPbMessage.getUint64Field9());
-        assertArrayEquals(
-                ((byte[]) rowData.getField(9)), bigPbMessage.getBytesField10().toByteArray());
-        assertEquals(rowData.getField(10), bigPbMessage.getDoubleField11());
-        assertArrayEquals(
-                ((byte[]) rowData.getField(11)), bigPbMessage.getBytesField12().toByteArray());
-        assertEquals(rowData.getField(12), bigPbMessage.getBoolField13());
-        assertEquals(rowData.getField(13).toString(), bigPbMessage.getStringField14());
-        assertEquals(rowData.getField(14), bigPbMessage.getFloatField15());
-        assertEquals(rowData.getField(15), bigPbMessage.getInt32Field16());
-        assertArrayEquals(
-                ((byte[]) rowData.getField(16)), bigPbMessage.getBytesField17().toByteArray());
-        assertEquals(rowData.getField(17), bigPbMessage.getBoolField18());
-        assertEquals(rowData.getField(18).toString(), bigPbMessage.getStringField19());
-        assertEquals(rowData.getField(19), bigPbMessage.getFloatField20());
-        assertEquals(rowData.getField(20), bigPbMessage.getFixed32Field21());
-        assertEquals(rowData.getField(21), bigPbMessage.getFixed64Field22());
-        assertEquals(rowData.getField(22), bigPbMessage.getSfixed32Field23());
-        assertEquals(rowData.getField(23), bigPbMessage.getSfixed64Field24());
-        assertEquals(rowData.getField(24), bigPbMessage.getDoubleField25());
-        assertEquals(rowData.getField(25), bigPbMessage.getUint32Field26());
-        assertEquals(rowData.getField(26), bigPbMessage.getUint64Field27());
-        assertEquals(rowData.getField(27), bigPbMessage.getBoolField28());
-        assertEquals(
-                ((GenericArrayData) rowData.getField(28)).getString(0).toString(),
-                bigPbMessage.getField29List().get(0));
-        assertEquals(
-                ((GenericArrayData) rowData.getField(28)).getString(1).toString(),
-                bigPbMessage.getField29List().get(1));
-        assertEquals(
-                ((GenericArrayData) rowData.getField(28)).getString(2).toString(),
-                bigPbMessage.getField29List().get(2));
-        assertEquals(rowData.getField(29), bigPbMessage.getFloatField30());
-        assertEquals(rowData.getField(30).toString(), bigPbMessage.getStringField31());
+        assertThat(bigPbMessage.getIntField1()).isEqualTo(rowData.getField(0));
+        assertThat(bigPbMessage.getBoolField2()).isEqualTo(rowData.getField(1));
+        assertThat(bigPbMessage.getStringField3()).isEqualTo(rowData.getField(2).toString());
+        assertThat(bigPbMessage.getBytesField4().toByteArray())
+                .isEqualTo(((byte[]) rowData.getField(3)));
+        assertThat(bigPbMessage.getDoubleField5()).isEqualTo(rowData.getField(4));
+        assertThat(bigPbMessage.getFloatField6()).isEqualTo(rowData.getField(5));
+        assertThat(bigPbMessage.getUint32Field7()).isEqualTo(rowData.getField(6));
+        assertThat(bigPbMessage.getInt64Field8()).isEqualTo(rowData.getField(7));
+        assertThat(bigPbMessage.getUint64Field9()).isEqualTo(rowData.getField(8));
+        assertThat(bigPbMessage.getBytesField10().toByteArray())
+                .isEqualTo(((byte[]) rowData.getField(9)));
+        assertThat(bigPbMessage.getDoubleField11()).isEqualTo(rowData.getField(10));
+        assertThat(bigPbMessage.getBytesField12().toByteArray())
+                .isEqualTo(((byte[]) rowData.getField(11)));
+        assertThat(bigPbMessage.getBoolField13()).isEqualTo(rowData.getField(12));
+        assertThat(bigPbMessage.getStringField14()).isEqualTo(rowData.getField(13).toString());
+        assertThat(bigPbMessage.getFloatField15()).isEqualTo(rowData.getField(14));
+        assertThat(bigPbMessage.getInt32Field16()).isEqualTo(rowData.getField(15));
+        assertThat(bigPbMessage.getBytesField17().toByteArray())
+                .isEqualTo(((byte[]) rowData.getField(16)));
+        assertThat(bigPbMessage.getBoolField18()).isEqualTo(rowData.getField(17));
+        assertThat(bigPbMessage.getStringField19()).isEqualTo(rowData.getField(18).toString());
+        assertThat(bigPbMessage.getFloatField20()).isEqualTo(rowData.getField(19));
+        assertThat(bigPbMessage.getFixed32Field21()).isEqualTo(rowData.getField(20));
+        assertThat(bigPbMessage.getFixed64Field22()).isEqualTo(rowData.getField(21));
+        assertThat(bigPbMessage.getSfixed32Field23()).isEqualTo(rowData.getField(22));
+        assertThat(bigPbMessage.getSfixed64Field24()).isEqualTo(rowData.getField(23));
+        assertThat(bigPbMessage.getDoubleField25()).isEqualTo(rowData.getField(24));
+        assertThat(bigPbMessage.getUint32Field26()).isEqualTo(rowData.getField(25));
+        assertThat(bigPbMessage.getUint64Field27()).isEqualTo(rowData.getField(26));
+        assertThat(bigPbMessage.getBoolField28()).isEqualTo(rowData.getField(27));
+        assertThat(bigPbMessage.getField29List().get(0))
+                .isEqualTo(((GenericArrayData) rowData.getField(28)).getString(0).toString());
+        assertThat(bigPbMessage.getField29List().get(1))
+                .isEqualTo(((GenericArrayData) rowData.getField(28)).getString(1).toString());
+        assertThat(bigPbMessage.getField29List().get(2))
+                .isEqualTo(((GenericArrayData) rowData.getField(28)).getString(2).toString());
+        assertThat(bigPbMessage.getFloatField30()).isEqualTo(rowData.getField(29));
+        assertThat(bigPbMessage.getStringField31()).isEqualTo(rowData.getField(30).toString());
 
         ArrayData keySet = rowData.getMap(32).keyArray();
         ArrayData valueSet = rowData.getMap(32).valueArray();
-        assertEquals(keySet.getString(0).toString(), "key2");
-        assertEquals(keySet.getString(1).toString(), "key3");
-        assertEquals(keySet.getString(2).toString(), "key1");
-        assertEquals(valueSet.getString(0).toString(), "value2");
-        assertEquals(valueSet.getString(1).toString(), "value3");
-        assertEquals(valueSet.getString(2).toString(), "value1");
+        assertThat(keySet.getString(0).toString()).isEqualTo("key2");
+        assertThat(keySet.getString(1).toString()).isEqualTo("key3");
+        assertThat(keySet.getString(2).toString()).isEqualTo("key1");
+        assertThat(valueSet.getString(0).toString()).isEqualTo("value2");
+        assertThat(valueSet.getString(1).toString()).isEqualTo("value3");
+        assertThat(valueSet.getString(2).toString()).isEqualTo("value1");
     }
 
     @Test
-    public void testSplitInSerialization() throws Exception {
+    void testSplitInSerialization() throws Exception {
         RowType rowType = PbToRowTypeUtil.generateRowType(BigPbClass.BigPbMessage.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(BigPbClass.BigPbMessage.class.getName(), false, false, "");
@@ -161,6 +156,6 @@ public class BigPbRowToProtoTest {
                 new PbRowDataSerializationSchema(rowType, formatConfig);
         pbRowDataSerializationSchema.open(null);
         // make sure code is split
-        assertTrue(pbRowDataSerializationSchema.isCodeSplit());
+        assertThat(pbRowDataSerializationSchema.isCodeSplit()).isTrue();
     }
 }

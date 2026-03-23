@@ -478,6 +478,10 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/state_latency_tracking_section >}}
 
+### State Size Tracking Options
+
+{{< generated/state_size_tracking_section >}}
+
 ### Advanced RocksDB State Backends Options
 
 Advanced options to tune RocksDB and RocksDB checkpoints.

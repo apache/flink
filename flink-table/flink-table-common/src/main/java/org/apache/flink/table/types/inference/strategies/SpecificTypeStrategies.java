@@ -198,6 +198,10 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy ML_PREDICT_OUTPUT_TYPE_STRATEGY =
             MLPredictTypeStrategy.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#TO_CHANGELOG}. */
+    public static final TypeStrategy TO_CHANGELOG_OUTPUT_TYPE_STRATEGY =
+            ToChangelogTypeStrategy.OUTPUT_TYPE_STRATEGY;
+
     private SpecificTypeStrategies() {
         // no instantiation
     }

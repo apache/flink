@@ -37,22 +37,22 @@ import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAcces
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for {@link OperatorStateBackend}. */
-public class StateBackendITCase extends AbstractTestBaseJUnit4 {
+class StateBackendITCase extends AbstractTestBase {
 
     /** Verify that the user-specified state backend is used even if checkpointing is disabled. */
     @Test
-    public void testStateBackendWithoutCheckpointing() throws Exception {
+    void testStateBackendWithoutCheckpointing() throws Exception {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(1);
 
@@ -82,12 +82,15 @@ public class StateBackendITCase extends AbstractTestBaseJUnit4 {
                         })
                 .print();
 
-        try {
-            see.execute();
-            fail();
-        } catch (JobExecutionException e) {
-            assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
-        }
+        assertThatThrownBy(see::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .satisfies(
+                        throwable -> {
+                            assertThat(
+                                            ExceptionUtils.findThrowable(
+                                                    throwable, SuccessException.class))
+                                    .isPresent();
+                        });
     }
 
     public static class FailingStateBackendFactory

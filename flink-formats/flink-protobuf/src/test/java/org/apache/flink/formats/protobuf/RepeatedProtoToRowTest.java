@@ -22,22 +22,22 @@ import org.apache.flink.formats.protobuf.testproto.RepeatedTest;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of proto list of primitive data to flink internal data. */
-public class RepeatedProtoToRowTest {
+class RepeatedProtoToRowTest {
     @Test
-    public void testRepeated() throws Exception {
+    void testRepeated() throws Exception {
         RepeatedTest simple = RepeatedTest.newBuilder().setA(1).addB(1).addB(2).build();
         RowData row = ProtobufTestHelper.pbBytesToRow(RepeatedTest.class, simple.toByteArray());
 
-        assertEquals(6, row.getArity());
-        assertEquals(1, row.getInt(0));
+        assertThat(row.getArity()).isEqualTo(6);
+        assertThat(row.getInt(0)).isEqualTo(1);
         ArrayData arr = row.getArray(1);
-        assertEquals(2, arr.size());
-        assertEquals(1L, arr.getLong(0));
-        assertEquals(2L, arr.getLong(1));
+        assertThat(arr.size()).isEqualTo(2);
+        assertThat(arr.getLong(0)).isEqualTo(1L);
+        assertThat(arr.getLong(1)).isEqualTo(2L);
     }
 }

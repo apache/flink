@@ -313,7 +313,7 @@ public class SchemaBuilderUtil {
                             "Incompatible types for sink column '%s' at position %d. "
                                     + "The source column has type '%s', "
                                     + "while the target column has type '%s'.",
-                            columnName, columnPos, sourceColumnType, sinkColumnType));
+                            columnName, columnPos + 1, sourceColumnType, sinkColumnType));
         }
     }
 }

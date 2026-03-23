@@ -345,7 +345,7 @@ public class MaterializedTableChangeHandler {
                             "When modifying the query of a materialized table, "
                                     + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
                                     + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
-                            oldPosition, column, column));
+                            oldPosition + 1, column, column));
         }
 
         ColumnPosition position = columnWithChangedPosition.getNewPosition();
@@ -525,7 +525,7 @@ public class MaterializedTableChangeHandler {
                         "When modifying the query of a materialized table, "
                                 + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
                                 + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
-                        position, oldColumn, newColumn));
+                        position + 1, oldColumn, newColumn));
     }
 
     private void setColumnAtPosition(UnresolvedColumn column, ColumnPosition position) {

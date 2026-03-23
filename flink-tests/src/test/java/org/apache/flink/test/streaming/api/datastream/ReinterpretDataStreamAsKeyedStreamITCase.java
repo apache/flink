@@ -42,12 +42,11 @@ import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunc
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -56,19 +55,22 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Integration test for {@link DataStreamUtils#reinterpretAsKeyedStream(DataStream, KeySelector,
  * TypeInformation)}.
  */
-public class ReinterpretDataStreamAsKeyedStreamITCase {
+class ReinterpretDataStreamAsKeyedStreamITCase {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     /**
      * This test checks that reinterpreting a data stream to a keyed stream works as expected. This
@@ -78,7 +80,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
      * know they have been partitioned in a keyBy from the first job.
      */
     @Test
-    public void testReinterpretAsKeyedStream() throws Exception {
+    void testReinterpretAsKeyedStream() throws Exception {
 
         final int maxParallelism = 8;
         final int numEventsPerInstance = 100;
@@ -94,7 +96,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         final List<File> partitionFiles = new ArrayList<>(parallelism);
         for (int i = 0; i < parallelism; ++i) {
-            File partitionFile = temporaryFolder.newFile();
+            File partitionFile = TempDirUtils.newFile(temporaryFolder);
             partitionFiles.add(i, partitionFile);
         }
 
@@ -326,7 +328,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void finish() {
-            Assert.assertEquals(expectedSum, runningSum);
+            assertThat(runningSum).isEqualTo(expectedSum);
         }
 
         @Override

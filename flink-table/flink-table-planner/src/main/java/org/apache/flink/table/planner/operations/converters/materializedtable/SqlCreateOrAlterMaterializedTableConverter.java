@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -103,7 +105,9 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ObjectIdentifier identifier) {
         final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
         return new FullAlterMaterializedTableOperation(
-                identifier, buildTableChanges(mergeContext), oldTable);
+                identifier,
+                buildTableChanges(mergeContext, context.getCatalogManager().getSchemaResolver()),
+                oldTable);
     }
 
     private Operation handleCreate(
@@ -117,14 +121,16 @@ public class SqlCreateOrAlterMaterializedTableConverter
     }
 
     private Function<ResolvedCatalogMaterializedTable, List<TableChange>> buildTableChanges(
-            final MergeContext mergeContext) {
+            final MergeContext mergeContext, final SchemaResolver schemaResolver) {
         return oldTable -> {
             final List<TableChange> changes = new ArrayList<>();
 
             final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
             final List<Column> newColumns =
                     MaterializedTableUtils.validateAndExtractNewColumns(
-                            oldSchema, mergeContext.getMergedQuerySchema());
+                            oldSchema,
+                            schemaResolver.resolve(mergeContext.getMergedSchema()),
+                            mergeContext.hasSchemaDefinition());
 
             newColumns.forEach(column -> changes.add(TableChange.add(column)));
             changes.add(
@@ -151,6 +157,19 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 throw new ValidationException("Changing of REFRESH MODE is unsupported");
             }
 
+            final TableDistribution oldDistribution = oldTable.getDistribution().orElse(null);
+            final TableDistribution newDistribution =
+                    mergeContext.getMergedTableDistribution().orElse(null);
+            if (!Objects.equals(oldDistribution, newDistribution)) {
+                if (oldDistribution == null) {
+                    changes.add(TableChange.add(newDistribution));
+                } else if (newDistribution == null) {
+                    changes.add(TableChange.dropDistribution());
+                } else {
+                    changes.add(TableChange.modify(newDistribution));
+                }
+            }
+
             return changes;
         };
     }
@@ -172,6 +191,13 @@ public class SqlCreateOrAlterMaterializedTableConverter
             private final ResolvedSchema querySchema =
                     SqlCreateOrAlterMaterializedTableConverter.this.getQueryResolvedSchema(
                             sqlCreateMaterializedTable, context);
+
+            @Override
+            public boolean hasSchemaDefinition() {
+                final SqlNodeList sqlNodeList = sqlCreateMaterializedTable.getColumnList();
+                return !sqlNodeList.getList().isEmpty()
+                        && sqlNodeList.getList().get(0) instanceof SqlRegularColumn;
+            }
 
             @Override
             public Schema getMergedSchema() {

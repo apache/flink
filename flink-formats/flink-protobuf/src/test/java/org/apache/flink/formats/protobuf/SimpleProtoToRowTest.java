@@ -23,17 +23,14 @@ import org.apache.flink.formats.protobuf.testproto.Status;
 import org.apache.flink.table.data.RowData;
 
 import com.google.protobuf.ByteString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of proto primitive data to flink internal data. */
-public class SimpleProtoToRowTest {
+class SimpleProtoToRowTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         SimpleTestMulti simple =
                 SimpleTestMulti.newBuilder()
                         .setA(1)
@@ -51,22 +48,22 @@ public class SimpleProtoToRowTest {
 
         RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTestMulti.class, simple.toByteArray());
 
-        assertEquals(11, row.getArity());
-        assertEquals(1, row.getInt(0));
-        assertEquals(2L, row.getLong(1));
-        assertFalse(row.getBoolean(2));
-        assertEquals(Float.valueOf(0.1f), Float.valueOf(row.getFloat(3)));
-        assertEquals(Double.valueOf(0.01d), Double.valueOf(row.getDouble(4)));
-        assertEquals("haha", row.getString(5).toString());
-        assertEquals(1, (row.getBinary(6))[0]);
-        assertEquals("IMAGES", row.getString(7).toString());
-        assertEquals("FINISHED", row.getString(8).toString());
-        assertEquals(1, row.getInt(9));
-        assertEquals(2, row.getInt(10));
+        assertThat(row.getArity()).isEqualTo(11);
+        assertThat(row.getInt(0)).isEqualTo(1);
+        assertThat(row.getLong(1)).isEqualTo(2L);
+        assertThat(row.getBoolean(2)).isFalse();
+        assertThat(row.getFloat(3)).isEqualTo(0.1f);
+        assertThat(row.getDouble(4)).isEqualTo(0.01d);
+        assertThat(row.getString(5).toString()).isEqualTo("haha");
+        assertThat(row.getBinary(6)[0]).isEqualTo((byte) 1);
+        assertThat(row.getString(7).toString()).isEqualTo("IMAGES");
+        assertThat(row.getString(8).toString()).isEqualTo("FINISHED");
+        assertThat(row.getInt(9)).isEqualTo(1);
+        assertThat(row.getInt(10)).isEqualTo(2);
     }
 
     @Test
-    public void testNotExistsValueIgnoringDefault() throws Exception {
+    void testNotExistsValueIgnoringDefault() throws Exception {
         SimpleTestMulti simple =
                 SimpleTestMulti.newBuilder()
                         .setB(2L)
@@ -78,12 +75,12 @@ public class SimpleProtoToRowTest {
 
         RowData row = ProtobufTestHelper.pbBytesToRow(SimpleTestMulti.class, simple.toByteArray());
 
-        assertTrue(row.isNullAt(0));
-        assertFalse(row.isNullAt(1));
+        assertThat(row.isNullAt(0)).isTrue();
+        assertThat(row.isNullAt(1)).isFalse();
     }
 
     @Test
-    public void testDefaultValues() throws Exception {
+    void testDefaultValues() throws Exception {
         SimpleTestMulti simple = SimpleTestMulti.newBuilder().build();
 
         RowData row =
@@ -93,28 +90,29 @@ public class SimpleProtoToRowTest {
                         new PbFormatConfig(SimpleTestMulti.class.getName(), false, true, ""),
                         false);
 
-        assertFalse(row.isNullAt(0));
-        assertFalse(row.isNullAt(1));
-        assertFalse(row.isNullAt(2));
-        assertFalse(row.isNullAt(3));
-        assertFalse(row.isNullAt(4));
-        assertFalse(row.isNullAt(5));
-        assertFalse(row.isNullAt(6));
-        assertFalse(row.isNullAt(7));
-        assertFalse(row.isNullAt(8));
-        assertEquals(10, row.getInt(0));
-        assertEquals(100L, row.getLong(1));
-        assertFalse(row.getBoolean(2));
-        assertEquals(0.0f, row.getFloat(3), 0.0001);
-        assertEquals(0.0d, row.getDouble(4), 0.0001);
-        assertEquals("f", row.getString(5).toString());
-        assertArrayEquals(ByteString.EMPTY.toByteArray(), row.getBinary(6));
-        assertEquals(SimpleTestMulti.Corpus.UNIVERSAL.toString(), row.getString(7).toString());
-        assertEquals(Status.UNSPECIFIED.toString(), row.getString(8).toString());
+        assertThat(row.isNullAt(0)).isFalse();
+        assertThat(row.isNullAt(1)).isFalse();
+        assertThat(row.isNullAt(2)).isFalse();
+        assertThat(row.isNullAt(3)).isFalse();
+        assertThat(row.isNullAt(4)).isFalse();
+        assertThat(row.isNullAt(5)).isFalse();
+        assertThat(row.isNullAt(6)).isFalse();
+        assertThat(row.isNullAt(7)).isFalse();
+        assertThat(row.isNullAt(8)).isFalse();
+        assertThat(row.getInt(0)).isEqualTo(10);
+        assertThat(row.getLong(1)).isEqualTo(100L);
+        assertThat(row.getBoolean(2)).isFalse();
+        assertThat(row.getFloat(3)).isEqualTo(0.0f);
+        assertThat(row.getDouble(4)).isEqualTo(0.0d);
+        assertThat(row.getString(5).toString()).isEqualTo("f");
+        assertThat(row.getBinary(6)).isEqualTo(ByteString.EMPTY.toByteArray());
+        assertThat(row.getString(7).toString())
+                .isEqualTo(SimpleTestMulti.Corpus.UNIVERSAL.toString());
+        assertThat(row.getString(8).toString()).isEqualTo(Status.UNSPECIFIED.toString());
     }
 
     @Test
-    public void testIntEnum() throws Exception {
+    void testIntEnum() throws Exception {
         SimpleTestMulti simple =
                 SimpleTestMulti.newBuilder()
                         .setH(SimpleTestMulti.Corpus.IMAGES)
@@ -122,7 +120,7 @@ public class SimpleProtoToRowTest {
                         .build();
         RowData row =
                 ProtobufTestHelper.pbBytesToRow(SimpleTestMulti.class, simple.toByteArray(), true);
-        assertEquals(2, row.getInt(7));
-        assertEquals(1, row.getInt(8));
+        assertThat(row.getInt(7)).isEqualTo(2);
+        assertThat(row.getInt(8)).isEqualTo(1);
     }
 }

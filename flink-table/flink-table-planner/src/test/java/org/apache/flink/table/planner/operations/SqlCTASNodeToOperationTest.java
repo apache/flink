@@ -342,7 +342,7 @@ class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTestBase {
         assertThatThrownBy(() -> parseAndConvert(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Incompatible types for sink column 'f0' at position 0. "
+                        "Incompatible types for sink column 'f0' at position 1. "
                                 + "The source column has type 'INT NOT NULL', while the target "
                                 + "column has type 'BOOLEAN'.");
     }

@@ -279,7 +279,7 @@ public class MaterializedTableUtils {
     }
 
     public static List<Column> validateAndExtractNewColumns(
-            ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+            ResolvedSchema oldSchema, ResolvedSchema newSchema, boolean schemaDefinedInQuery) {
         final List<Column> newColumns = getPersistedColumns(newSchema);
         final List<Column> oldColumns = getPersistedColumns(oldSchema);
         final int originalColumnSize = oldColumns.size();
@@ -310,7 +310,10 @@ public class MaterializedTableUtils {
         final List<Column> newAddedColumns = new ArrayList<>();
         for (int i = oldColumns.size(); i < newColumns.size(); i++) {
             Column newColumn = newColumns.get(i);
-            newAddedColumns.add(newColumn.copy(newColumn.getDataType().nullable()));
+            newAddedColumns.add(
+                    schemaDefinedInQuery
+                            ? newColumn
+                            : newColumn.copy(newColumn.getDataType().nullable()));
         }
 
         return newAddedColumns;

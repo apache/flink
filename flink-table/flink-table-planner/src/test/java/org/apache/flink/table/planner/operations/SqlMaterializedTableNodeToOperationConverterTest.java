@@ -37,6 +37,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.TableDistribution.Kind;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -583,9 +585,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
     @Test
     void testAlterMaterializedTableAsQueryWithConflictColumnName() {
-        String sql5 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, c as a FROM t3";
+        String sql = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, c as a FROM t3";
         AlterMaterializedTableAsQueryOperation sqlAlterMaterializedTableAsQuery =
-                (AlterMaterializedTableAsQueryOperation) parse(sql5);
+                (AlterMaterializedTableAsQueryOperation) parse(sql);
 
         assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
                 .containsExactly(
@@ -594,6 +596,48 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 "SELECT `a`, `b`, `c`, `d`, `c` AS `a`\nFROM `t3`",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryWithDefinedSchema() {
+        String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl ("
+                        + "`a` BIGINT NOT NULL, `b` STRING, `c` INT, `d` STRING, `a1` BIGINT NOT NULL, `f` INT) "
+                        + "AS SELECT a, b, c, d, a as `a1`, 3 as f FROM t3";
+        FullAlterMaterializedTableOperation sqlAlterMaterializedTableAsQuery =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
+                .containsExactly(
+                        // If NOT NULL is defined in schema, it should stay
+                        TableChange.add(Column.physical("a1", DataTypes.BIGINT().notNull())),
+                        TableChange.add(Column.physical("f", DataTypes.INT())),
+                        TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`, 3 AS `f`\nFROM `t3`",
+                                "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`a` AS `a1`, 3 AS `f`\n"
+                                        + "FROM `builtin`.`default`.`t3` AS `t3`"),
+                        TableChange.reset("connector"),
+                        TableChange.reset("format"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryWithoutDefinedSchema() {
+        String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl "
+                        + "AS SELECT a, b, c, d, a as `a1` FROM t3";
+        FullAlterMaterializedTableOperation sqlAlterMaterializedTableAsQuery =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
+                .containsExactly(
+                        // No explicit schema, so nullable will be used
+                        TableChange.add(Column.physical("a1", DataTypes.BIGINT())),
+                        TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`\nFROM `t3`",
+                                "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`a` AS `a1`\n"
+                                        + "FROM `builtin`.`default`.`t3` AS `t3`"),
+                        TableChange.reset("connector"),
+                        TableChange.reset("format"));
     }
 
     @Test
@@ -649,30 +693,38 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
 
-    @Test
-    void testCreateOrAlterMaterializedTableWithChangingRefreshMode() {
-        // Changing refresh mode is not supported
-        final String sql =
-                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
-                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
-                        + ")\n"
-                        + "COMMENT 'materialized table comment'\n"
-                        + "PARTITIONED BY (a, d)\n"
-                        + "WITH (\n"
-                        + "  'connector' = 'filesystem', \n"
-                        + "  'format' = 'json'\n"
-                        + ")\n"
-                        + "FRESHNESS = INTERVAL '30' SECOND\n"
-                        + "REFRESH_MODE = CONTINUOUS\n"
-                        + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
-
-        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
-        // Will be invoked while operation#execute
-        assertThatThrownBy(op::getTableChanges)
-                .isInstanceOf(ValidationException.class)
-                .hasMessage("Changing of REFRESH MODE is unsupported");
+    private static Collection<TestSpec> createOrAlterForExistingMaterializedTableFailedCaseSpecs() {
+        return List.of(
+                TestSpec.of(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
+                                + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                                + ")\n"
+                                + "COMMENT 'materialized table comment'\n"
+                                + "PARTITIONED BY (a, d)\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'filesystem', \n"
+                                + "  'format' = 'json'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '30' SECOND\n"
+                                + "REFRESH_MODE = CONTINUOUS\n"
+                                + "AS SELECT * FROM t1",
+                        "Changing of REFRESH MODE is unsupported"),
+                TestSpec.of(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
+                                + "   a BIGINT, b INT, c INT, d INT, "
+                                + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                                + ")\n"
+                                + "COMMENT 'materialized table comment'\n"
+                                + "PARTITIONED BY (a, d)\n"
+                                + "WITH (\n"
+                                + "  'connector' = 'filesystem', \n"
+                                + "  'format' = 'json'\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '30' SECOND\n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS SELECT * FROM t1",
+                        "Incompatible types for sink column 'b' at position 2. "
+                                + "The source column has type 'STRING', while the target column has type 'INT'."));
     }
 
     @Test
@@ -682,6 +734,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
                         + ")\n"
                         + "COMMENT 'materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH (b) INTO 7 BUCKETS\n"
                         + "PARTITIONED BY (a, d)\n"
                         + "WITH (\n"
                         + "  'format' = 'json2'\n"
@@ -703,7 +756,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"),
                         TableChange.set("format", "json2"),
-                        TableChange.reset("connector"));
+                        TableChange.reset("connector"),
+                        TableChange.add(TableDistribution.of(Kind.HASH, 7, List.of("b"))));
         assertThat(operation.asSummaryString())
                 .isEqualTo(
                         "CREATE OR ALTER MATERIALIZED TABLE builtin.default.base_mtbl\n"
@@ -712,7 +766,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + " MODIFY DEFINITION QUERY TO 'SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                 + "FROM `builtin`.`default`.`t3` AS `t3`',\n"
                                 + "  SET 'format' = 'json2',\n"
-                                + "  RESET 'connector'");
+                                + "  RESET 'connector',\n"
+                                + "  ADD DISTRIBUTED BY HASH(`b`) INTO 7 BUCKETS");
 
         // new table only difference schema & definition query with old table.
         CatalogMaterializedTable oldTable =
@@ -750,6 +805,49 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         new UnresolvedPhysicalColumn("f", DataTypes.VARCHAR(Integer.MAX_VALUE)));
     }
 
+    @Test
+    void testCreateOrAlterMaterializedTableWithDistributionForExistingTable() {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_metadata (\n"
+                        + "   t AS current_timestamp,"
+                        + "   m STRING METADATA VIRTUAL,"
+                        + "   m_p STRING METADATA,"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED,"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '5' SECOND"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH (a) INTO 5 BUCKETS\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT t1.* FROM t1";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges())
+                .containsExactly(
+                        TableChange.modifyDefinitionQuery(
+                                "SELECT `t1`.*\n" + "FROM `t1`",
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`"),
+                        TableChange.set("connector", "filesystem"),
+                        TableChange.set("format", "json"),
+                        TableChange.modify(TableDistribution.of(Kind.HASH, 5, List.of("a"))));
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.base_mtbl_with_metadata\n"
+                                + " MODIFY DEFINITION QUERY TO 'SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`',\n"
+                                + "  SET 'connector' = 'filesystem',\n"
+                                + "  SET 'format' = 'json',\n"
+                                + "  MODIFY DISTRIBUTED BY HASH(`a`) INTO 5 BUCKETS");
+    }
+
     private static Collection<TestSpec> testDataForCreateAlterMaterializedTableFailedCase() {
         final Collection<TestSpec> list = new ArrayList<>();
         list.addAll(createWithInvalidSchema());
@@ -775,21 +873,21 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 2: Original column is [`c` INT], "
+                                + "Column mismatch at position 3: Original column is [`c` INT], "
                                 + "but new column is [`d` STRING]."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST(d AS INT) AS d FROM t3",
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 3: Original column is [`d` STRING], "
+                                + "Column mismatch at position 4: Original column is [`d` STRING], "
                                 + "but new column is [`d` INT]."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST('d' AS STRING) AS d FROM t3",
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 3: Original column is [`d` STRING], "
+                                + "Column mismatch at position 4: Original column is [`d` STRING], "
                                 + "but new column is [`d` STRING NOT NULL]."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT '123'",
@@ -922,7 +1020,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "CREATE MATERIALIZED TABLE users_shops (shop_id STRING, user_id STRING)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
-                        "Incompatible types for sink column 'shop_id' at position 0. The source column has type 'INT NOT NULL', "
+                        "Incompatible types for sink column 'shop_id' at position 1. The source column has type 'INT NOT NULL', "
                                 + "while the target column has type 'STRING'."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id INT, WATERMARK FOR ts AS `ts` - INTERVAL '5' SECOND)"
@@ -1293,6 +1391,16 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         list.add(
                 TestSpec.withExpectedSchema(
+                        "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted (`EXPR$0` INT NOT NULL, `sec` CHAR(1)) AS SELECT 2, 'a' AS sec",
+                        "(\n"
+                                + "  `m` STRING METADATA VIRTUAL,\n"
+                                + "  `calc` AS ['a' || 'b'],\n"
+                                + "  `EXPR$0` INT NOT NULL,\n"
+                                + "  `sec` CHAR(1)\n"
+                                + ")"));
+
+        list.add(
+                TestSpec.withExpectedSchema(
                         // Schema doesn't change, so should be ok
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted_last AS SELECT 123 as a",
                         "(\n"
@@ -1342,6 +1450,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.BIGINT()),
+                                Column.physical("user_id", DataTypes.INT()))),
+                Arguments.of(
+                        operation
+                                + "MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT NOT NULL)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        ResolvedSchema.of(
+                                Column.physical("shop_id", DataTypes.BIGINT().notNull()),
                                 Column.physical("user_id", DataTypes.INT()))),
                 Arguments.of(
                         operation

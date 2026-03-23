@@ -139,6 +139,9 @@ public class RowDataToAvroConverters {
 
                             @Override
                             public Object convert(Schema schema, Object object) {
+                                if (schema.getType() == Schema.Type.ENUM) {
+                                    return new GenericData.EnumSymbol(schema, object.toString());
+                                }
                                 return new Utf8(object.toString());
                             }
                         };
