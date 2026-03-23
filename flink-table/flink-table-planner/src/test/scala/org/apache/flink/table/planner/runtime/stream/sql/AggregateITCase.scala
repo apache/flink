@@ -2190,6 +2190,88 @@ class AggregateITCase(
     val expected = List(s"{4,5,6},{4,8,12}")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @TestTemplate
+  def testBitmapLogicalOpsAgg(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, Int, String)]
+    data.+=((-3, 5, 0, "a"))
+    data.+=((7, 2, 5, "b"))
+    data.+=((-3, 8, -8, "c"))
+    data.+=((2, 1, 7, "b"))
+    data.+=((2, 9, 0, "a"))
+    data.+=((8, 3, -3, "c"))
+    data.+=((7, 6, 2, "b"))
+    data.+=((0, 4, 5, "a"))
+    data.+=((-3, 7, 8, "c"))
+    data.+=((5, 0, 2, "b"))
+    data.+=((0, 10, 5, "a"))
+    data.+=((2, 5, 0, "a"))
+
+    val sql =
+      """
+        |SELECT
+        |  d,
+        |  CAST(BITMAP_AND_AGG(BITMAP_BUILD(ARRAY[a, b, c])) AS STRING),
+        |  CAST(BITMAP_OR_AGG(BITMAP_BUILD(ARRAY[a, b, c])) AS STRING),
+        |  CAST(BITMAP_XOR_AGG(BITMAP_BUILD(ARRAY[a, b, c])) AS STRING)
+        |FROM MyTable
+        |GROUP BY d
+      """.stripMargin
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected =
+      List(
+        s"a,{0},{0,2,4,5,9,10,${Integer.toUnsignedLong(-3)}},{0,4,9,10,${Integer.toUnsignedLong(-3)}}",
+        "b,{2},{0,1,2,5,6,7},{0,1,6,7}",
+        s"c,{8,${Integer.toUnsignedLong(-3)}},{3,7,8,${Integer.toUnsignedLong(-8)},${Integer
+            .toUnsignedLong(-3)}},{3,7,8,${Integer.toUnsignedLong(-8)},${Integer
+            .toUnsignedLong(-3)}}"
+      )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testBitmapLogicalOpsAggWithRetract(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, Int, String)]
+    for (i <- 3 until 0 by -1) {
+      data.+=((i, i + 1, i + 2, "a"))
+      data.+=((i * 2, i * 2 + 1, i * 2 + 2, "b"))
+      data.+=((i * 3, i * 3 + 1, i * 3 + 2, "c"))
+    }
+
+    val inner =
+      """
+        |SELECT
+        |  LAST_VALUE(BITMAP_BUILD(ARRAY[a, b, c])) AS last,
+        |  d
+        |FROM MyTable
+        |GROUP BY d
+      """.stripMargin
+    val sql =
+      s"""
+         |SELECT
+         |  CAST(BITMAP_AND_AGG(last) AS STRING),
+         |  CAST(BITMAP_OR_AGG(last) AS STRING),
+         |  CAST(BITMAP_XOR_AGG(last) AS STRING)
+         |FROM ($inner)
+      """.stripMargin
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(s"{3},{1,2,3,4,5},{1,3,5}")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 }
 
 object AggregateITCase {

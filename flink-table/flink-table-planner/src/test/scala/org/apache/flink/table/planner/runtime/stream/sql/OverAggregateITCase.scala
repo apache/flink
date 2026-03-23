@@ -1538,6 +1538,46 @@ class OverAggregateITCase(mode: StateBackendMode, unboundedOverVersion: Int)
     )
     assertThat(sink.getAppendResults).isEqualTo(expected)
   }
+
+  @TestTemplate
+  def testBitmapLogicalOpsAgg(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  a, c,
+        |  BITMAP_AND_AGG(BITMAP_BUILD(ARRAY[a,c])) OVER (ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW),
+        |  BITMAP_OR_AGG(BITMAP_BUILD(ARRAY[a,c])) OVER (ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW),
+        |  BITMAP_XOR_AGG(BITMAP_BUILD(ARRAY[a,c])) OVER (ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
+        |FROM MyTable
+      """.stripMargin
+
+    val t =
+      failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,0,{0,1},{0,1},{0,1}",
+      "2,1,{1},{0,1,2},{0,2}",
+      "2,2,{},{0,1,2},{0}",
+      "3,3,{},{1,2,3},{1,3}",
+      "3,4,{},{2,3,4},{2,4}",
+      "3,5,{3},{3,4,5},{3,4,5}",
+      "4,6,{},{3,4,5,6},{5,6}",
+      "4,7,{},{3,4,5,6,7},{3,5,6,7}",
+      "4,8,{4},{4,6,7,8},{4,6,7,8}",
+      "4,9,{4},{4,7,8,9},{4,7,8,9}",
+      "5,10,{},{4,5,8,9,10},{5,8,9,10}",
+      "5,11,{},{4,5,9,10,11},{4,9,10,11}",
+      "5,12,{5},{5,10,11,12},{5,10,11,12}",
+      "5,13,{5},{5,11,12,13},{5,11,12,13}",
+      "5,14,{5},{5,12,13,14},{5,12,13,14}"
+    )
+    assertThat(sink.getAppendResults).isEqualTo(expected)
+  }
 }
 
 object OverAggregateITCase {

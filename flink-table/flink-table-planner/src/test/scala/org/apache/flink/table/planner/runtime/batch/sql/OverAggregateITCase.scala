@@ -3004,6 +3004,36 @@ class OverAggregateITCase extends BatchTestBase {
       )
     )
   }
+
+  @Test
+  def testBitmapLogicalOpsAgg(): Unit = {
+    checkResult(
+      "SELECT " +
+        "d, f, " +
+        "BITMAP_AND_AGG(BITMAP_BUILD(ARRAY[d,f])) OVER (ORDER BY e ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), " +
+        "BITMAP_OR_AGG(BITMAP_BUILD(ARRAY[d,f])) OVER (ORDER BY e ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), " +
+        "BITMAP_XOR_AGG(BITMAP_BUILD(ARRAY[d,f])) OVER (ORDER BY e ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) " +
+        "FROM Table5",
+      Seq(
+        row(1, 0, "{0,1}", "{0,1}", "{0,1}"),
+        row(2, 1, "{1}", "{0,1,2}", "{0,2}"),
+        row(2, 2, "{}", "{0,1,2}", "{0}"),
+        row(3, 3, "{}", "{1,2,3}", "{1,3}"),
+        row(3, 4, "{}", "{2,3,4}", "{2,4}"),
+        row(3, 5, "{3}", "{3,4,5}", "{3,4,5}"),
+        row(4, 6, "{}", "{3,4,5,6}", "{5,6}"),
+        row(4, 7, "{}", "{3,4,5,6,7}", "{3,5,6,7}"),
+        row(4, 8, "{4}", "{4,6,7,8}", "{4,6,7,8}"),
+        row(4, 9, "{4}", "{4,7,8,9}", "{4,7,8,9}"),
+        row(5, 10, "{}", "{4,5,8,9,10}", "{5,8,9,10}"),
+        row(5, 11, "{}", "{4,5,9,10,11}", "{4,9,10,11}"),
+        row(5, 12, "{5}", "{5,10,11,12}", "{5,10,11,12}"),
+        row(5, 13, "{5}", "{5,11,12,13}", "{5,11,12,13}"),
+        row(5, 14, "{5}", "{5,12,13,14}", "{5,12,13,14}")
+      )
+    )
+  }
+
 }
 
 /** The initial accumulator for count aggregate function */

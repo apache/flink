@@ -1116,6 +1116,34 @@ class WindowAggregateITCase(
         })
       .map(_.mkString(","))
   }
+
+  @TestTemplate
+  def testBitmapLogicalOpsAggOnEventTimeTumbleWindow(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  window_start,
+        |  window_end,
+        |  BITMAP_AND_AGG(BITMAP_BUILD(ARRAY[`int`, 2*`int`, 4*`int`])),
+        |  BITMAP_OR_AGG(BITMAP_BUILD(ARRAY[`int`, 2*`int`, 4*`int`])),
+        |  BITMAP_XOR_AGG(BITMAP_BUILD(ARRAY[`int`, 2*`int`, 4*`int`]))
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "2020-10-10T00:00,2020-10-10T00:00:05,{},{2,4,5,8,10,20,22,44,88},{2,4,5,8,10,20,22,44,88}",
+      "2020-10-10T00:00:05,2020-10-10T00:00:10,{6,12},{3,6,12,24},{6,12,24}",
+      "2020-10-10T00:00:15,2020-10-10T00:00:20,{4,8,16},{4,8,16},{4,8,16}"
+    )
+    val result = sink.getAppendResults.sorted
+    assertThat(result.mkString("\n")).isEqualTo(expected.mkString("\n"))
+  }
 }
 
 object WindowAggregateITCase {

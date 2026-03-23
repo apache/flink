@@ -1653,12 +1653,40 @@ aggregate:
       ```
 
 bitmapagg:
+  - sql: BITMAP_AND_AGG(bitmap)
+    table: bitmap.bitmapAndAgg()
+    description: |
+      聚合多个位图的交集 (AND)。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BITMAP`。
   - sql: BITMAP_BUILD_AGG(value)
     table: value.bitmapBuildAgg()
     description: |
       将 32 位整数聚合成位图。
       
       `value INT`
+      
+      返回一个 `BITMAP`。
+  - sql: BITMAP_OR_AGG(bitmap)
+    table: bitmap.bitmapOrAgg()
+    description: |
+      聚合多个位图的并集 (OR)。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BITMAP`。
+  - sql: BITMAP_XOR_AGG(bitmap)
+    table: bitmap.bitmapXorAgg()
+    description: |
+      聚合多个位图的异或 (XOR)。
+      
+      `bitmap BITMAP`
       
       返回一个 `BITMAP`。
 
