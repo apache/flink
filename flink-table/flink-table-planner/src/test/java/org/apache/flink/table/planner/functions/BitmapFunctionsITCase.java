@@ -51,7 +51,9 @@ class BitmapFunctionsITCase extends BuiltInFunctionTestBase {
         specs.addAll(bitmapBuildTestCases());
         specs.addAll(bitmapCardinalityTestCases());
         specs.addAll(bitmapFromBytesTestCases());
+        specs.addAll(bitmapToArrayTestCases());
         specs.addAll(bitmapToBytesTestCases());
+        specs.addAll(bitmapToStringTestCases());
         return specs.stream();
     }
 
@@ -98,7 +100,16 @@ class BitmapFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f3").bitmapBuild(),
                                 "BITMAP_BUILD(f3)",
                                 Bitmap.fromArray(new int[] {1, 2, 3, -4}),
-                                DataTypes.BITMAP().notNull()),
+                                DataTypes.BITMAP().notNull())
+                        // round-trip: BUILD -> TO_BYTES -> FROM_BYTES -> TO_ARRAY
+                        .testResult(
+                                $("f3").bitmapBuild()
+                                        .bitmapToBytes()
+                                        .bitmapFromBytes()
+                                        .bitmapToArray(),
+                                "BITMAP_TO_ARRAY(BITMAP_FROM_BYTES(BITMAP_TO_BYTES(BITMAP_BUILD(f3))))",
+                                new Integer[] {1, 2, 3, -4},
+                                DataTypes.ARRAY(DataTypes.INT()).notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_BUILD, "Validation Error")
                         .onFieldsWithData(1024, new long[] {1L, 2L})
                         .andDataTypes(DataTypes.INT(), DataTypes.ARRAY(DataTypes.BIGINT()))
@@ -234,6 +245,67 @@ class BitmapFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "BITMAP_FROM_BYTES(bytes <BINARY_STRING>)"));
     }
 
+    private List<TestSetSpec> bitmapToArrayTestCases() {
+        return Arrays.asList(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_TO_ARRAY)
+                        .onFieldsWithData(
+                                null,
+                                Bitmap.empty(),
+                                Bitmap.fromArray(new int[] {-1}),
+                                Bitmap.fromArray(new int[] {-1, 1, 3, 2, Integer.MIN_VALUE}))
+                        .andDataTypes(
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP().notNull())
+                        // null
+                        .testResult(
+                                $("f0").bitmapToArray(),
+                                "BITMAP_TO_ARRAY(f0)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // empty
+                        .testResult(
+                                $("f1").bitmapToArray(),
+                                "BITMAP_TO_ARRAY(f1)",
+                                new Integer[0],
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // normal cases
+                        .testResult(
+                                $("f2").bitmapToArray(),
+                                "BITMAP_TO_ARRAY(f2)",
+                                new Integer[] {-1},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f3").bitmapToArray(),
+                                "BITMAP_TO_ARRAY(f3)",
+                                new Integer[] {1, 2, 3, Integer.MIN_VALUE, -1},
+                                DataTypes.ARRAY(DataTypes.INT()).notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_TO_ARRAY, "Runtime Error")
+                        .onFieldsWithData(OVERSIZE_BITMAP)
+                        .andDataTypes(DataTypes.BITMAP().notNull())
+                        .testTableApiRuntimeError(
+                                $("f0").bitmapToArray(),
+                                TableRuntimeException.class,
+                                "Failed to convert bitmap to an array.")
+                        .testSqlRuntimeError(
+                                "BITMAP_TO_ARRAY(f0)",
+                                TableRuntimeException.class,
+                                "Failed to convert bitmap to an array."),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.BITMAP_TO_ARRAY, "Validation Error")
+                        .onFieldsWithData(1024, new int[] {1, 2})
+                        .andDataTypes(DataTypes.INT(), DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").bitmapToArray(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BITMAP_TO_ARRAY(bitmap <BITMAP>)")
+                        .testSqlValidationError(
+                                "BITMAP_TO_ARRAY(f1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BITMAP_TO_ARRAY(bitmap <BITMAP>)"));
+    }
+
     private List<TestSetSpec> bitmapToBytesTestCases() {
         return Arrays.asList(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_TO_BYTES)
@@ -280,6 +352,64 @@ class BitmapFunctionsITCase extends BuiltInFunctionTestBase {
                                 "BITMAP_TO_BYTES(f1)",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "BITMAP_TO_BYTES(bitmap <BITMAP>)"));
+    }
+
+    private List<TestSetSpec> bitmapToStringTestCases() {
+        return Arrays.asList(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_TO_STRING)
+                        .onFieldsWithData(
+                                null,
+                                Bitmap.empty(),
+                                Bitmap.fromArray(new int[] {-1}),
+                                Bitmap.fromArray(new int[] {Integer.MIN_VALUE, -1, 1, 3, 2}),
+                                OVERSIZE_BITMAP)
+                        .andDataTypes(
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP().notNull(),
+                                DataTypes.BITMAP().notNull())
+                        // null
+                        .testResult(
+                                $("f0").bitmapToString(),
+                                "BITMAP_TO_STRING(f0)",
+                                null,
+                                DataTypes.STRING())
+                        // empty
+                        .testResult(
+                                $("f1").bitmapToString(),
+                                "BITMAP_TO_STRING(f1)",
+                                "{}",
+                                DataTypes.STRING())
+                        // normal cases
+                        .testResult(
+                                $("f2").bitmapToString(),
+                                "BITMAP_TO_STRING(f2)",
+                                String.format("{%s}", 0xFFFFFFFFL),
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f3").bitmapToString(),
+                                "BITMAP_TO_STRING(f3)",
+                                String.format("{1,2,3,%s,%s}", 0x80000000L, 0xFFFFFFFFL),
+                                DataTypes.STRING().notNull())
+                        // oversize
+                        .testResult(
+                                $("f4").bitmapToString().endsWith(",...}"),
+                                "ENDSWITH(BITMAP_TO_STRING(f4), ',...}')",
+                                true,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.BITMAP_TO_STRING, "Validation Error")
+                        .onFieldsWithData(1024, new int[] {1, 2})
+                        .andDataTypes(DataTypes.INT(), DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").bitmapToString(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BITMAP_TO_STRING(bitmap <BITMAP>)")
+                        .testSqlValidationError(
+                                "BITMAP_TO_STRING(f1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BITMAP_TO_STRING(bitmap <BITMAP>)"));
     }
 
     // ~ Utils --------------------------------------------------------------------

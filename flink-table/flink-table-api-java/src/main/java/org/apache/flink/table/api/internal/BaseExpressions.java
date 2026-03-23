@@ -79,7 +79,9 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_FROM_BYTES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_ARRAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_BYTES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_STRING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -2646,6 +2648,18 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Converts a bitmap to an array of 32-bit integers, the values are sorted by {@link
+     * Integer#compareUnsigned}.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return an ARRAY&lt;INT&gt; expression
+     */
+    public OutType bitmapToArray() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_TO_ARRAY, toExpr()));
+    }
+
+    /**
      * Converts a bitmap to an array of bytes.
      *
      * <p>Following the format defined in <a
@@ -2658,5 +2672,25 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType bitmapToBytes() {
         return toApiSpecificExpression(unresolvedCall(BITMAP_TO_BYTES, toExpr()));
+    }
+
+    /**
+     * Converts a bitmap to a string, the values are sorted by {@link Integer#compareUnsigned}. The
+     * string will be truncated and end with "..." if it is too long.
+     *
+     * <p>For example:
+     *
+     * <ul>
+     *   <li>{@code "{}"}, {@code "{1,2,3,4,5}"}
+     *   <li>Negative values (converted to unsigned): {@code "{0,1,4294967294,4294967295}"}
+     *   <li>String too long: {@code "{1,2,3,...}"}
+     * </ul>
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a STRING expression
+     */
+    public OutType bitmapToString() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_TO_STRING, toExpr()));
     }
 }
