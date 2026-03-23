@@ -78,10 +78,9 @@ public class BinaryLookupHandler extends LookupHandlerBase {
     public void asyncHandle() throws Exception {
         Collection<RowData> allSourceRowData =
                 handlerContext.getSharedMultiInputRowDataBuffer().getData(ownedSourceOrdinals);
-
         Preconditions.checkState(allSourceRowData.size() == 1);
 
-        RowData input = allSourceRowData.stream().findFirst().get();
+        RowData input = allSourceRowData.iterator().next();
 
         fetcher.asyncInvoke(input, createLookupResultFuture(input));
     }

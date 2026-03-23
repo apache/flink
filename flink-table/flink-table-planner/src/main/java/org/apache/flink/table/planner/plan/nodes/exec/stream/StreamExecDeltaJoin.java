@@ -584,6 +584,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                     node.lookupTableBinaryInputOrdinal);
         }
 
+        // TODO FLINK-39233 Support cascaded delta join in runtime
         throw new IllegalStateException("Support later");
     }
 
