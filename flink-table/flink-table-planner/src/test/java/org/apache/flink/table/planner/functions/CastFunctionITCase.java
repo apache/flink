@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.bitmap.Bitmap;
 
 import java.math.BigDecimal;
 import java.time.DateTimeException;
@@ -50,6 +51,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
+import static org.apache.flink.table.api.DataTypes.BITMAP;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.CHAR;
@@ -63,6 +65,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SECOND;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
@@ -113,6 +116,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static final int[] DEFAULT_ARRAY = new int[] {0, 1, 2};
 
+    private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
+
     @Override
     Configuration getConfiguration() {
         return super.getConfiguration().set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId());
@@ -126,6 +131,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(decimalCasts());
         specs.addAll(numericBounds());
         specs.addAll(constructedTypes());
+        specs.addAll(bitmapCasts());
         return specs.stream();
     }
 
@@ -1147,6 +1153,121 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
+    private static List<TestSetSpec> bitmapCasts() {
+        // follow the order in LogicalTypeRoot
+        return Arrays.asList(
+                // to PREDEFINED
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, "{0,1,")
+                        .fromCase(BITMAP(), Bitmap.empty(), "{}   ")
+                        .fromCase(BITMAP(), null, null)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(VARCHAR(5))
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, "{0,1,")
+                        .fromCase(BITMAP(), Bitmap.empty(), "{}")
+                        .fromCase(BITMAP(), null, null)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, "{0,1,2}")
+                        .fromCase(BITMAP(), Bitmap.empty(), "{}")
+                        .fromCase(BITMAP(), null, null)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BOOLEAN())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BINARY(5))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(VARBINARY(5))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, DEFAULT_BITMAP.toBytes())
+                        .fromCase(BITMAP(), Bitmap.empty(), Bitmap.empty().toBytes())
+                        .fromCase(BITMAP(), null, null)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DECIMAL(8, 4))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TINYINT())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(INT())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BIGINT())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(FLOAT())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DATE())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIME())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(INTERVAL(MONTH()))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(INTERVAL(DAY()))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                // to CONSTRUCTED
+                CastTestSpecBuilder.testCastTo(ARRAY(INT()))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(MULTISET(INT()))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(MAP(INT(), BOOLEAN()))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                CastTestSpecBuilder.testCastTo(ROW(ARRAY(INT())))
+                        .failValidation(BITMAP(), DEFAULT_BITMAP)
+                        .build(),
+                // to BITMAP
+                CastTestSpecBuilder.testCastTo(BITMAP())
+                        .failValidation(CHAR(5), "{0,1}")
+                        .failValidation(VARCHAR(5), "{0,1}")
+                        .failValidation(BOOLEAN(), true)
+                        .failValidation(
+                                BINARY(DEFAULT_BITMAP.toBytes().length), DEFAULT_BITMAP.toBytes())
+                        .failValidation(
+                                VARBINARY(DEFAULT_BITMAP.toBytes().length),
+                                DEFAULT_BITMAP.toBytes())
+                        .failValidation(DECIMAL(8, 4), new BigDecimal("12.3456"))
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(MONTH()), 5)
+                        .failValidation(INTERVAL(DAY()), 5)
+                        .failValidation(ARRAY(INT()), new int[] {1, 2})
+                        // MULTISET literal is not supported
+                        .failValidation(MAP(INT(), BOOLEAN()), map(entry(1, true)))
+                        .failValidation(ROW(ARRAY(INT())), Row.of((Object) new int[] {1, 2}))
+                        .build());
+    }
+
     private static List<TestSetSpec> decimalCasts() {
         return Collections.singletonList(
                 CastTestSpecBuilder.testCastTo(DECIMAL(8, 4))
@@ -1412,8 +1533,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             }
             testSetSpec
                     .onFieldsWithData(columnData.toArray())
-                    .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}))
-                    .testResult(testSpecs.toArray(new ResultSpec[0]));
+                    .andDataTypes(columnTypes.toArray(new AbstractDataType<?>[] {}));
+            if (!testSpecs.isEmpty()) {
+                // do not add result test if there are only error test cases
+                testSetSpec.testResult(testSpecs.toArray(new ResultSpec[0]));
+            }
+
             return testSetSpec;
         }
 

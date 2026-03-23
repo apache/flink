@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
+import static org.apache.flink.table.api.DataTypes.BITMAP;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -248,6 +249,16 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("CreateMultiset", $("f0")).cast(STRING()),
                                 "{a=1, b=2}",
                                 STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast MULTISET to BITMAP")
+                        .onFieldsWithData(map(entry("a", 1), entry("b", 2)))
+                        .andDataTypes(MAP(STRING(), INT()))
+                        .withFunction(JsonFunctionsITCase.CreateMultiset.class)
+                        .testTableApiValidationError(
+                                call("CreateMultiset", $("f0")).cast(BITMAP()),
+                                "Unsupported cast from 'MULTISET<STRING>' to 'BITMAP'")
+                        .testSqlValidationError(
+                                "CAST(CreateMultiset(f0) AS BITMAP)",
+                                "Cast function cannot convert value of type VARCHAR(2147483647) MULTISET to type BITMAP"),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
                         .onFieldsWithData("2020-11-11T18:08:01.123")
                         .andDataTypes(STRING())
