@@ -267,6 +267,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
 
         # bitmap functions
         self.assertEqual("BITMAP_BUILD(a)", str(expr1.bitmap_build()))
+        self.assertEqual("BITMAP_CARDINALITY(a)", str(expr1.bitmap_cardinality()))
         self.assertEqual("BITMAP_FROM_BYTES(a)", str(expr1.bitmap_from_bytes()))
         self.assertEqual("BITMAP_TO_BYTES(a)", str(expr1.bitmap_to_bytes()))
 

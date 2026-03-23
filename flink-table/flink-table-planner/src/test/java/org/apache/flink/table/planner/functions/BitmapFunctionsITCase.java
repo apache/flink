@@ -36,10 +36,20 @@ import static org.apache.flink.table.api.Expressions.$;
 /** Test bitmap functions correct behaviour. */
 class BitmapFunctionsITCase extends BuiltInFunctionTestBase {
 
+    private static final Bitmap OVERSIZE_BITMAP;
+
+    static {
+        // size 0x80000000L
+        OVERSIZE_BITMAP = Bitmap.empty();
+        OVERSIZE_BITMAP.add(0L, Integer.MAX_VALUE);
+        OVERSIZE_BITMAP.add(Integer.MAX_VALUE);
+    }
+
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         final List<TestSetSpec> specs = new ArrayList<>();
         specs.addAll(bitmapBuildTestCases());
+        specs.addAll(bitmapCardinalityTestCases());
         specs.addAll(bitmapFromBytesTestCases());
         specs.addAll(bitmapToBytesTestCases());
         return specs.stream();
@@ -102,6 +112,64 @@ class BitmapFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "BITMAP_BUILD(array ARRAY<INT> NOT NULL)\n"
                                         + "BITMAP_BUILD(array ARRAY<INT>)"));
+    }
+
+    private List<TestSetSpec> bitmapCardinalityTestCases() {
+        return Arrays.asList(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_CARDINALITY)
+                        .onFieldsWithData(
+                                null,
+                                Bitmap.empty(),
+                                Bitmap.fromArray(new int[] {-1}),
+                                Bitmap.fromArray(new int[] {1, 2, 3, -4}),
+                                OVERSIZE_BITMAP)
+                        .andDataTypes(
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP(),
+                                DataTypes.BITMAP().notNull(),
+                                DataTypes.BITMAP().notNull())
+                        // null
+                        .testResult(
+                                $("f0").bitmapCardinality(),
+                                "BITMAP_CARDINALITY(f0)",
+                                null,
+                                DataTypes.BIGINT())
+                        // empty
+                        .testResult(
+                                $("f1").bitmapCardinality(),
+                                "BITMAP_CARDINALITY(f1)",
+                                0L,
+                                DataTypes.BIGINT())
+                        // normal cases
+                        .testResult(
+                                $("f2").bitmapCardinality(),
+                                "BITMAP_CARDINALITY(f2)",
+                                1L,
+                                DataTypes.BIGINT())
+                        .testResult(
+                                $("f3").bitmapCardinality(),
+                                "BITMAP_CARDINALITY(f3)",
+                                4L,
+                                DataTypes.BIGINT().notNull())
+                        // oversize
+                        .testResult(
+                                $("f4").bitmapCardinality(),
+                                "BITMAP_CARDINALITY(f4)",
+                                0x80000000L,
+                                DataTypes.BIGINT().notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.BITMAP_CARDINALITY, "Validation Error")
+                        .onFieldsWithData(1024, new int[] {1, 2})
+                        .andDataTypes(DataTypes.INT(), DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").bitmapCardinality(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BITMAP_CARDINALITY(bitmap <BITMAP>)")
+                        .testSqlValidationError(
+                                "BITMAP_CARDINALITY(f1)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "BITMAP_CARDINALITY(bitmap <BITMAP>)"));
     }
 
     private List<TestSetSpec> bitmapFromBytesTestCases() {
