@@ -35,15 +35,15 @@ import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/** Built-in BITMAP_BUILD_AGG with retraction aggregate function. */
+/** Abstract base class for BITMAP_BUILD_AGG and BITMAP_BUILD_CARDINALITY_AGG with retraction. */
 @Internal
-public final class BitmapBuildWithRetractAggFunction
+public abstract class AbstractBitmapBuildWithRetractAggFunction<T>
         extends BuiltInAggregateFunction<
-                Bitmap, BitmapBuildWithRetractAggFunction.BitmapBuildWithRetractAccumulator> {
+                T, AbstractBitmapBuildWithRetractAggFunction.BitmapBuildWithRetractAccumulator> {
 
     private final transient DataType valueDataType;
 
-    public BitmapBuildWithRetractAggFunction(LogicalType valueType) {
+    public AbstractBitmapBuildWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
     }
 
@@ -67,16 +67,11 @@ public final class BitmapBuildWithRetractAggFunction
                                 DataTypes.INT().notNull(), DataTypes.INT().notNull())));
     }
 
-    @Override
-    public DataType getOutputDataType() {
-        return DataTypes.BITMAP();
-    }
-
     // --------------------------------------------------------------------------------------------
     // Accumulator
     // --------------------------------------------------------------------------------------------
 
-    /** Accumulator for BITMAP_BUILD_AGG with retraction. */
+    /** Accumulator for BITMAP_BUILD_AGG and BITMAP_BUILD_CARDINALITY_AGG with retraction. */
     public static class BitmapBuildWithRetractAccumulator {
 
         // bitmap should reflect the actual data based on valueCount
@@ -110,11 +105,6 @@ public final class BitmapBuildWithRetractAggFunction
     public void resetAccumulator(BitmapBuildWithRetractAccumulator acc) {
         acc.bitmap.clear();
         acc.valueCount.clear();
-    }
-
-    @Override
-    public Bitmap getValue(BitmapBuildWithRetractAccumulator acc) {
-        return acc.bitmap.isEmpty() ? null : RoaringBitmapData.from(acc.bitmap);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -194,6 +184,51 @@ public final class BitmapBuildWithRetractAggFunction
                     }
                 }
             }
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Sub-classes
+    // --------------------------------------------------------------------------------------------
+
+    /** Built-in BITMAP_BUILD_AGG with retraction aggregate function that returns bitmap. */
+    public static final class BitmapBuildWithRetractAggFunction
+            extends AbstractBitmapBuildWithRetractAggFunction<Bitmap> {
+
+        public BitmapBuildWithRetractAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BITMAP();
+        }
+
+        @Override
+        public Bitmap getValue(BitmapBuildWithRetractAccumulator acc) {
+            return acc.bitmap.isEmpty() ? null : RoaringBitmapData.from(acc.bitmap);
+        }
+    }
+
+    /**
+     * Built-in BITMAP_BUILD_CARDINALITY_AGG with retraction aggregate function that returns
+     * cardinality.
+     */
+    public static final class BitmapBuildCardinalityWithRetractAggFunction
+            extends AbstractBitmapBuildWithRetractAggFunction<Long> {
+
+        public BitmapBuildCardinalityWithRetractAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BIGINT();
+        }
+
+        @Override
+        public Long getValue(BitmapBuildWithRetractAccumulator acc) {
+            return acc.bitmap.isEmpty() ? null : acc.bitmap.getLongCardinality();
         }
     }
 }

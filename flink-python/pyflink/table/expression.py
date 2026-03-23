@@ -2310,6 +2310,17 @@ class Expression(Generic[T]):
         """
         return _unary_op("bitmapAndAgg")(self)
 
+    def bitmap_and_cardinality_agg(self):
+        """
+        Aggregates the AND (intersection) of multiple bitmaps and returns its 64-bit cardinality.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapAndCardinalityAgg")(self)
+
     def bitmap_build(self) -> 'Expression':
         """
         Creates a bitmap from an array of 32-bit integers.
@@ -2327,6 +2338,14 @@ class Expression(Generic[T]):
         :return: a BITMAP expression
         """
         return _unary_op("bitmapBuildAgg")(self)
+
+    def bitmap_build_cardinality_agg(self):
+        """
+        Aggregates 32-bit integers into a bitmap and returns its 64-bit cardinality.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapBuildCardinalityAgg")(self)
 
     def bitmap_cardinality(self) -> 'Expression':
         """
@@ -2372,6 +2391,17 @@ class Expression(Generic[T]):
         :return: a BITMAP expression
         """
         return _unary_op("bitmapOrAgg")(self)
+
+    def bitmap_or_cardinality_agg(self):
+        """
+        Aggregates the OR (union) of multiple bitmaps and returns its 64-bit cardinality.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapOrCardinalityAgg")(self)
 
     def bitmap_to_array(self) -> 'Expression':
         """
@@ -2432,6 +2462,15 @@ class Expression(Generic[T]):
         :return: a BITMAP expression
         """
         return _unary_op("bitmapXorAgg")(self)
+
+    def bitmap_xor_cardinality_agg(self):
+        """
+        Aggregates the XOR (symmetric difference) of multiple bitmaps and returns its 64-bit
+        cardinality.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapXorCardinalityAgg")(self)
 
 
 # add the docs

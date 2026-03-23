@@ -36,15 +36,15 @@ import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/** Built-in BITMAP_AND_AGG with retraction aggregate function. */
+/** Abstract base class for BITMAP_AND_AGG and BITMAP_AND_CARDINALITY_AGG with retraction. */
 @Internal
-public final class BitmapAndWithRetractAggFunction
+public abstract class AbstractBitmapAndWithRetractAggFunction<T>
         extends BuiltInAggregateFunction<
-                Bitmap, BitmapAndWithRetractAggFunction.BitmapAndWithRetractAccumulator> {
+                T, AbstractBitmapAndWithRetractAggFunction.BitmapAndWithRetractAccumulator> {
 
     private final transient DataType valueDataType;
 
-    public BitmapAndWithRetractAggFunction(LogicalType valueType) {
+    public AbstractBitmapAndWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
     }
 
@@ -68,16 +68,11 @@ public final class BitmapAndWithRetractAggFunction
                                 DataTypes.INT().notNull(), DataTypes.INT().notNull())));
     }
 
-    @Override
-    public DataType getOutputDataType() {
-        return DataTypes.BITMAP();
-    }
-
     // --------------------------------------------------------------------------------------------
     // Accumulator
     // --------------------------------------------------------------------------------------------
 
-    /** Accumulator for BITMAP_AND_AGG with retraction. */
+    /** Accumulator for BITMAP_AND_AGG and BITMAP_AND_CARDINALITY_AGG with retraction. */
     public static class BitmapAndWithRetractAccumulator {
 
         public int bitmapCount = 0;
@@ -109,26 +104,6 @@ public final class BitmapAndWithRetractAggFunction
     public void resetAccumulator(BitmapAndWithRetractAccumulator acc) {
         acc.bitmapCount = 0;
         acc.valueCount.clear();
-    }
-
-    @Override
-    public Bitmap getValue(BitmapAndWithRetractAccumulator acc) {
-        if (acc.bitmapCount <= 0) {
-            return null;
-        }
-
-        RoaringBitmapData bitmap = RoaringBitmapData.empty();
-        try {
-            for (Map.Entry<Integer, Integer> entry : acc.valueCount.entries()) {
-                if (entry.getValue() == acc.bitmapCount) {
-                    bitmap.add(entry.getKey());
-                }
-            }
-        } catch (Exception e) {
-            throw new FlinkRuntimeException(e);
-        }
-
-        return bitmap;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -206,6 +181,81 @@ public final class BitmapAndWithRetractAggFunction
                     acc.valueCount.put(value, curCount);
                 }
             }
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Sub-classes
+    // --------------------------------------------------------------------------------------------
+
+    /** Built-in BITMAP_AND_AGG with retraction aggregate function that returns bitmap. */
+    public static final class BitmapAndWithRetractAggFunction
+            extends AbstractBitmapAndWithRetractAggFunction<Bitmap> {
+
+        public BitmapAndWithRetractAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BITMAP();
+        }
+
+        @Override
+        public Bitmap getValue(BitmapAndWithRetractAccumulator acc) {
+            if (acc.bitmapCount <= 0) {
+                return null;
+            }
+
+            RoaringBitmapData bitmap = RoaringBitmapData.empty();
+            try {
+                for (Map.Entry<Integer, Integer> entry : acc.valueCount.entries()) {
+                    if (entry.getValue() == acc.bitmapCount) {
+                        bitmap.add(entry.getKey());
+                    }
+                }
+            } catch (Exception e) {
+                throw new FlinkRuntimeException(e);
+            }
+
+            return bitmap;
+        }
+    }
+
+    /**
+     * Built-in BITMAP_AND_CARDINALITY_AGG with retraction aggregate function that returns
+     * cardinality.
+     */
+    public static final class BitmapAndCardinalityWithRetractAggFunction
+            extends AbstractBitmapAndWithRetractAggFunction<Long> {
+
+        public BitmapAndCardinalityWithRetractAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BIGINT();
+        }
+
+        @Override
+        public Long getValue(BitmapAndWithRetractAccumulator acc) {
+            if (acc.bitmapCount <= 0) {
+                return null;
+            }
+
+            long cardinality = 0L;
+            try {
+                for (Map.Entry<Integer, Integer> entry : acc.valueCount.entries()) {
+                    if (entry.getValue() == acc.bitmapCount) {
+                        cardinality++;
+                    }
+                }
+            } catch (Exception e) {
+                throw new FlinkRuntimeException(e);
+            }
+
+            return cardinality;
         }
     }
 }

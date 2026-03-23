@@ -176,12 +176,20 @@ class AggFunctionFactory(
             createPercentileAggFunction(argTypes)
           case BuiltInFunctionDefinitions.BITMAP_BUILD_AGG =>
             createBitmapBuildAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_BUILD_CARDINALITY_AGG =>
+            createBitmapBuildCardinalityAggFunction(argTypes, index)
           case BuiltInFunctionDefinitions.BITMAP_AND_AGG =>
             createBitmapAndAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_AND_CARDINALITY_AGG =>
+            createBitmapAndCardinalityAggFunction(argTypes, index)
           case BuiltInFunctionDefinitions.BITMAP_OR_AGG =>
             createBitmapOrAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_OR_CARDINALITY_AGG =>
+            createBitmapOrCardinalityAggFunction(argTypes, index)
           case BuiltInFunctionDefinitions.BITMAP_XOR_AGG =>
             createBitmapXorAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_XOR_CARDINALITY_AGG =>
+            createBitmapXorCardinalityAggFunction(argTypes, index)
           // DeclarativeAggregateFunction & UDF
           case _ =>
             bridge.getDefinition.asInstanceOf[UserDefinedFunction]
@@ -662,9 +670,20 @@ class AggFunctionFactory(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
     if (aggCallNeedRetractions(index)) {
-      new BitmapBuildWithRetractAggFunction(argTypes(0))
+      new AbstractBitmapBuildWithRetractAggFunction.BitmapBuildWithRetractAggFunction(argTypes(0))
     } else {
-      new BitmapBuildAggFunction(argTypes(0))
+      new AbstractBitmapBuildAggFunction.BitmapBuildAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapBuildCardinalityAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new AbstractBitmapBuildWithRetractAggFunction.BitmapBuildCardinalityWithRetractAggFunction(
+        argTypes(0))
+    } else {
+      new AbstractBitmapBuildAggFunction.BitmapBuildCardinalityAggFunction(argTypes(0))
     }
   }
 
@@ -672,9 +691,20 @@ class AggFunctionFactory(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
     if (aggCallNeedRetractions(index)) {
-      new BitmapAndWithRetractAggFunction(argTypes(0))
+      new AbstractBitmapAndWithRetractAggFunction.BitmapAndWithRetractAggFunction(argTypes(0))
     } else {
-      new BitmapAndAggFunction(argTypes(0))
+      new AbstractBitmapAndAggFunction.BitmapAndAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapAndCardinalityAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new AbstractBitmapAndWithRetractAggFunction.BitmapAndCardinalityWithRetractAggFunction(
+        argTypes(0))
+    } else {
+      new AbstractBitmapAndAggFunction.BitmapAndCardinalityAggFunction(argTypes(0))
     }
   }
 
@@ -682,9 +712,20 @@ class AggFunctionFactory(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
     if (aggCallNeedRetractions(index)) {
-      new BitmapOrWithRetractAggFunction(argTypes(0))
+      new AbstractBitmapOrWithRetractAggFunction.BitmapOrWithRetractAggFunction(argTypes(0))
     } else {
-      new BitmapOrAggFunction(argTypes(0))
+      new AbstractBitmapOrAggFunction.BitmapOrAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapOrCardinalityAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new AbstractBitmapOrWithRetractAggFunction.BitmapOrCardinalityWithRetractAggFunction(
+        argTypes(0))
+    } else {
+      new AbstractBitmapOrAggFunction.BitmapOrCardinalityAggFunction(argTypes(0))
     }
   }
 
@@ -692,9 +733,20 @@ class AggFunctionFactory(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
     if (aggCallNeedRetractions(index)) {
-      new BitmapXorWithRetractAggFunction(argTypes(0))
+      new AbstractBitmapXorWithRetractAggFunction.BitmapXorWithRetractAggFunction(argTypes(0))
     } else {
-      new BitmapXorAggFunction(argTypes(0))
+      new AbstractBitmapXorAggFunction.BitmapXorAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapXorCardinalityAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new AbstractBitmapXorWithRetractAggFunction.BitmapXorCardinalityWithRetractAggFunction(
+        argTypes(0))
+    } else {
+      new AbstractBitmapXorAggFunction.BitmapXorCardinalityAggFunction(argTypes(0))
     }
   }
 }

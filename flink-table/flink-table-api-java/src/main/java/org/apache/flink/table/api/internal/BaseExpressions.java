@@ -79,17 +79,21 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_ANDNOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_AND_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_AND_CARDINALITY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD_CARDINALITY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_FROM_BYTES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_OR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_OR_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_OR_CARDINALITY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_ARRAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_BYTES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_STRING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR_CARDINALITY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -2657,6 +2661,18 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Aggregates the AND (intersection) of multiple bitmaps and returns its 64-bit cardinality.
+     *
+     * <p>NOTE: The retraction variant of this function may have significant performance overhead
+     * with large bitmaps.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapAndCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_AND_CARDINALITY_AGG, toExpr()));
+    }
+
+    /**
      * Creates a bitmap from an array of 32-bit integers.
      *
      * <p>If the input is null, the result is null.
@@ -2674,6 +2690,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType bitmapBuildAgg() {
         return toApiSpecificExpression(unresolvedCall(BITMAP_BUILD_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates 32-bit integers into a bitmap and returns its 64-bit cardinality.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapBuildCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_BUILD_CARDINALITY_AGG, toExpr()));
     }
 
     /**
@@ -2725,6 +2750,18 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType bitmapOrAgg() {
         return toApiSpecificExpression(unresolvedCall(BITMAP_OR_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates the OR (union) of multiple bitmaps and returns its 64-bit cardinality.
+     *
+     * <p>NOTE: The retraction variant of this function may have significant performance overhead
+     * with large bitmaps.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapOrCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_OR_CARDINALITY_AGG, toExpr()));
     }
 
     /**
@@ -2794,5 +2831,15 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType bitmapXorAgg() {
         return toApiSpecificExpression(unresolvedCall(BITMAP_XOR_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates the XOR (symmetric difference) of multiple bitmaps and returns its 64-bit
+     * cardinality.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapXorCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_XOR_CARDINALITY_AGG, toExpr()));
     }
 }
