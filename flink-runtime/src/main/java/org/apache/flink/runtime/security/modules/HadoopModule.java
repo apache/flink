@@ -71,8 +71,10 @@ public class HadoopModule implements SecurityModule {
 
         try {
             KerberosLoginProvider kerberosLoginProvider = new KerberosLoginProvider(securityConfig);
-            boolean keytabLoginEnabled = securityConfig.getFlinkConfig().
-                    get(SecurityOptions.KERBEROS_LOGIN_KEYTAB_LOGIN_ENABLED);
+            boolean keytabLoginEnabled =
+                    securityConfig
+                            .getFlinkConfig()
+                            .get(SecurityOptions.KERBEROS_LOGIN_KEYTAB_LOGIN_ENABLED);
             if (keytabLoginEnabled && kerberosLoginProvider.isLoginPossible(true)) {
                 kerberosLoginProvider.doLogin(true);
                 loginUser = UserGroupInformation.getLoginUser();
