@@ -32,6 +32,7 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 
 ### Build
 
+- Fast dev build: `./mvnw clean install -DskipTests -Dfast -Pskip-webui-build -T1C`
 - Full build (Java 17 default): `./mvnw clean package -DskipTests -Djdk17 -Pjava17-target`
 - Java 11: `./mvnw clean package -DskipTests -Djdk11 -Pjava11-target`
 - Java 21: `./mvnw clean package -DskipTests -Djdk21 -Pjava21-target`
@@ -48,7 +49,8 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 
 - Format code (Java + Scala): `./mvnw spotless:apply`
 - Check formatting: `./mvnw spotless:check`
-- Checkstyle config: `tools/maven/checkstyle.xml` (v10.18.2)
+- Checkstyle: `./mvnw checkstyle:check -T1C`
+- Checkstyle config: `tools/maven/checkstyle.xml`
 
 ## Repository Structure
 
@@ -118,7 +120,7 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 
 - `flink-state-backends/`
   - `flink-statebackend-rocksdb` — RocksDB state backend
-  - `flink-statebackend-forst` — ForSt state backend (experimental, RocksDB-based with JNI bindings)
+  - `flink-statebackend-forst` — ForSt state backend (experimental; a fork of RocksDB)
   - `flink-statebackend-heap-spillable` — Heap-based spillable state backend
   - `flink-statebackend-changelog` — Changelog state backend
   - `flink-statebackend-common` — Shared state backend utilities
@@ -186,7 +188,7 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 2. **JobManager** (`flink-runtime`) orchestrates execution: receives jobs, creates the execution graph, manages scheduling, coordinates checkpoints, and handles failover. Never runs user code directly.
 3. **TaskManager** (`flink-runtime`) executes the user's operators in task slots. Manages network buffers, state backends, and I/O.
 4. **Table Planner** (`flink-table-planner`) translates SQL/Table API programs into DataStream programs. The planner is loaded in a separate classloader (`flink-table-planner-loader`) to isolate Calcite dependencies.
-5. **Connectors** communicate with external systems. Source connectors implement the `Source` API (FLIP-27); sinks implement the `SinkV2` API. Most connectors are externalized to separate repositories.
+5. **Connectors** communicate with external systems. Source connectors implement the `Source` API (FLIP-27); sinks implement the `Sink` API (package `sink2`). Most connectors are externalized to separate repositories.
 6. **State Backends** persist keyed state and operator state. RocksDB is the primary backend for production use.
 7. **Checkpointing** provides exactly-once guarantees. The JobManager coordinates barriers through the data stream; TaskManagers snapshot local state to a distributed file system.
 
@@ -203,10 +205,11 @@ This section maps common types of Flink changes to the modules they touch and th
 ### Adding a new SQL built-in function
 
 1. Register in `flink-table-common` in `BuiltInFunctionDefinitions.java` (definition, input/output type strategies, runtime class reference)
-2. Implement in `flink-table-runtime` under `functions/scalar/` (extend `BuiltInScalarFunction`, implement `eval()` method)
-3. Add tests in `flink-table-planner` (planner integration) and `flink-table-runtime` (unit tests)
-4. Document in `flink-docs`
-5. Verify: planner tests + runtime tests + SQL ITCase
+2. Implement in `flink-table-runtime` under `functions/` (extend the appropriate base class: `BuiltInScalarFunction`, `BuiltInTableFunction`, `BuiltInAggregateFunction`, or `BuiltInProcessTableFunction`)
+3. Add tests in `flink-table-planner` and `flink-table-runtime`
+4. Extend Table API support
+5. Document in `flink-docs`
+6. See [flink-table/flink-table-planner/AGENTS.md](flink-table/flink-table-planner/AGENTS.md) and [flink-table/flink-table-runtime/AGENTS.md](flink-table/flink-table-runtime/AGENTS.md) for detailed patterns
 
 ### Adding a new configuration option
 
@@ -218,15 +221,13 @@ This section maps common types of Flink changes to the modules they touch and th
 
 ### Adding a new table operator (e.g., join type, aggregate)
 
-1. **Planner rule** in `flink-table-planner` under `plan/rules/physical/stream/` (match conditions, transform to physical node)
-2. **ExecNode** in `flink-table-planner` under `plan/nodes/exec/stream/` (bridge between planner and runtime; Jackson-serializable with `@ExecNodeMetadata`)
-3. **Runtime operator** in `flink-table-runtime` under `operators/` (extends `TableStreamOperator`, implements `OneInputStreamOperator` or `TwoInputStreamOperator`)
-4. Verify: planner rule tests + ExecNode JSON plan tests + runtime operator tests + SQL ITCase
+1. Involves `flink-table-runtime` (operator), `flink-table-planner` (ExecNode, physical/logical rules), and tests across both
+2. See [flink-table/flink-table-planner/AGENTS.md](flink-table/flink-table-planner/AGENTS.md) and [flink-table/flink-table-runtime/AGENTS.md](flink-table/flink-table-runtime/AGENTS.md) for detailed development order and testing patterns
 
 ### Adding a new connector (Source or Sink)
 
 1. Implement the `Source` API (`flink-connector-base`): `SplitEnumerator`, `SourceReader`, `SourceSplit`, serializers (`SimpleVersionedSerializer`)
-2. Or implement the `SinkV2` API for sinks
+2. Or implement the `Sink` API (package `sink2`) for sinks
 3. Most new connectors go in separate repos under `github.com/apache`, not in the main Flink repo
 4. Verify: unit tests + ITCase with real or embedded external system
 
@@ -258,6 +259,8 @@ This section maps common types of Flink changes to the modules they touch and th
 - **API stability annotations:** Every user-facing API class and method must have a stability annotation. `@Public` (stable across minor releases), `@PublicEvolving` (may change in minor releases), `@Experimental` (may change at any time). These are all part of the public API surface that users build against. `@Internal` marks APIs with no stability guarantees that users should not depend on.
 - **Logging:** Use parameterized log statements (SLF4J `{}` placeholders), never string concatenation.
 - **No Java serialization** for new features (except internal RPC message transport).
+- **Use `final`** for variables and fields where applicable.
+- **Comments:** Do not add unnecessary comments that restate what the code does. Add comments that explain "the why" where relevant.
 - Full code style guide: https://flink.apache.org/how-to-contribute/code-style-and-quality-preamble/
 
 ## Testing Standards
@@ -276,7 +279,7 @@ This section maps common types of Flink changes to the modules they touch and th
 
 - `[FLINK-XXXX][component] Description` where FLINK-XXXX is the JIRA issue number
 - `[hotfix][component] Description` for typo fixes without JIRA
-- Each commit must have a meaningful message including the JIRA ID
+- Each commit must have a meaningful message including the JIRA ID. If you don't know the ticket number, ask.
 - Separate cleanup/refactoring from functional changes into distinct commits
 - When AI tools were used: add `Generated-by: <Tool Name and Version>` trailer per [ASF generative tooling guidance](https://www.apache.org/legal/generative-tooling.html)
 
@@ -314,7 +317,7 @@ This section maps common types of Flink changes to the modules they touch and th
 - Mix unrelated changes into one PR
 - Use Java serialization for new features
 - Edit generated files by hand when a generation workflow exists
-- Use the legacy `SourceFunction` or `SinkFunction` interfaces for connectors; use the `Source` API (FLIP-27) and `SinkV2` API instead
+- Use the legacy `SourceFunction` or `SinkFunction` interfaces for connectors; use the `Source` API (FLIP-27) and `Sink` API (package `sink2`) instead
 - Add `Co-Authored-By` with an AI agent as co-author in commit messages; AI agents are assistants, not authors. Use `Generated-by: <Tool Name and Version>` instead.
 - Suppress or bypass checkstyle rules (no `CHECKSTYLE:ON`/`CHECKSTYLE:OFF` comments, no adding entries to `tools/maven/suppressions.xml`, no `@SuppressWarnings`). Fix the code to satisfy checkstyle instead.
 - Use destructive git operations unless explicitly requested
