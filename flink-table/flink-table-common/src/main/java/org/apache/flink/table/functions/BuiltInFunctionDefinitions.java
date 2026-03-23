@@ -2985,6 +2985,36 @@ public final class BuiltInFunctionDefinitions {
     // Bitmap functions
     // --------------------------------------------------------------------------------------------
 
+    public static final BuiltInFunctionDefinition BITMAP_AND =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_AND")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("bitmap1", "bitmap2"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.BITMAP),
+                                            logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BITMAP())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapAndFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition BITMAP_ANDNOT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_ANDNOT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("bitmap1", "bitmap2"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.BITMAP),
+                                            logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BITMAP())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapAndnotFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition BITMAP_BUILD =
             BuiltInFunctionDefinition.newBuilder()
                     .name("BITMAP_BUILD")
@@ -3034,6 +3064,21 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.BitmapFromBytesFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition BITMAP_OR =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_OR")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("bitmap1", "bitmap2"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.BITMAP),
+                                            logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BITMAP())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapOrFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition BITMAP_TO_ARRAY =
             BuiltInFunctionDefinition.newBuilder()
                     .name("BITMAP_TO_ARRAY")
@@ -3071,6 +3116,21 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.BitmapToStringFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition BITMAP_XOR =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_XOR")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Arrays.asList("bitmap1", "bitmap2"),
+                                    Arrays.asList(
+                                            logical(LogicalTypeRoot.BITMAP),
+                                            logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BITMAP())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapXorFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

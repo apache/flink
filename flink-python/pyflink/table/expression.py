@@ -2277,6 +2277,28 @@ class Expression(Generic[T]):
 
     # ---------------------------- Bitmap functions -----------------------------
 
+    def bitmap_and(self, bitmap2) -> 'Expression':
+        """
+        Computes the AND (intersection) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform AND operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapAnd")(self, bitmap2)
+
+    def bitmap_andnot(self, bitmap2) -> 'Expression':
+        """
+        Computes the AND NOT (difference) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform AND NOT operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapAndnot")(self, bitmap2)
+
     def bitmap_build(self) -> 'Expression':
         """
         Creates a bitmap from an array of 32-bit integers.
@@ -2309,6 +2331,17 @@ class Expression(Generic[T]):
         :return: a BITMAP expression
         """
         return _unary_op("bitmapFromBytes")(self)
+
+    def bitmap_or(self, bitmap2) -> 'Expression':
+        """
+        Computes the OR (union) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform OR operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapOr")(self, bitmap2)
 
     def bitmap_to_array(self) -> 'Expression':
         """
@@ -2350,6 +2383,17 @@ class Expression(Generic[T]):
         :return: a STRING expression
         """
         return _unary_op("bitmapToString")(self)
+
+    def bitmap_xor(self, bitmap2) -> 'Expression':
+        """
+        Computes the XOR (symmetric difference) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform XOR operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapXor")(self, bitmap2)
 
 
 # add the docs
