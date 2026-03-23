@@ -1358,6 +1358,26 @@ bitmap:
       `array ARRAY<INT>`
       
       Returns a `BITMAP`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_FROM_BYTES(bytes)
+    table: bytes.bitmapFromBytes()
+    description: |
+      Converts an array of bytes to a bitmap.
+      
+      Following the format defined in [32-bit RoaringBitmap format specification](https://github.com/RoaringBitmap/RoaringFormatSpec).
+            
+      `bytes <BINARY | VARBINARY>`
+      
+      Returns a `BITMAP`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_TO_BYTES(bitmap)
+    table: bitmap.bitmapToBytes()
+    description: |
+      Converts a bitmap to an array of bytes.
+      
+      Following the format defined in [32-bit RoaringBitmap format specification](https://github.com/RoaringBitmap/RoaringFormatSpec).
+      
+      `bitmap BITMAP`
+      
+      Returns a `VARBINARY`. `NULL` if the argument is `NULL`.
 
 auxilary:
   - table: callSql(STRING)
