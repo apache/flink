@@ -837,7 +837,7 @@ temporal:
       Converts a timestamp string to a TIMESTAMP_LTZ.
 
       - string1: the timestamp string to parse
-      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's [DateTimeFormatter](https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html) syntax, where 'S' represents fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSSSSS' for nanoseconds).
+      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's [DateTimeFormatter](https://github.com/openjdk/jdk/blob/jdk-11%2B28/src/java.base/share/classes/java/time/format/DateTimeFormatter.java) syntax, where 'S' represents fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSSSSS' for nanoseconds).
       - string3: the time zone of the input string (default 'UTC'). Supports zone IDs such as 'UTC', 'Asia/Shanghai', or 'America/Los_Angeles'.
 
       The output precision is inferred from the number of 'S' characters in the format pattern, with a minimum of 3. E.g., format 'yyyy-MM-dd HH:mm:ss.SS' returns TIMESTAMP_LTZ(3), format 'yyyy-MM-dd HH:mm:ss.SSSSSS' returns TIMESTAMP_LTZ(6).
@@ -852,7 +852,7 @@ temporal:
       Converts a datetime string to a TIMESTAMP without time zone.
 
       - string1: the datetime string to parse. Returns NULL if the string cannot be parsed.
-      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's [DateTimeFormatter](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/time/format/DateTimeFormatter.html) syntax, where 'S' represents fractional seconds (e.g., 'SSSSS' for 5-digit fractional seconds, 'SSSSSSS' for 7-digit, 'SSSSSSSSS' for nanoseconds).
+      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's [DateTimeFormatter](https://github.com/openjdk/jdk/blob/jdk-11%2B28/src/java.base/share/classes/java/time/format/DateTimeFormatter.java) syntax, where 'S' represents fractional seconds (e.g., 'SSSSS' for 5-digit fractional seconds, 'SSSSSSS' for 7-digit, 'SSSSSSSSS' for nanoseconds).
 
       The output type is precision-aware (TIMESTAMP(3) through TIMESTAMP(9)):
       - 1-arg variant: always returns TIMESTAMP(3).
