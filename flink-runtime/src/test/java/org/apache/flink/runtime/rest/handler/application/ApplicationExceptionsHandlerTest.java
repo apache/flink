@@ -135,7 +135,7 @@ class ApplicationExceptionsHandlerTest {
                 handler.handleRequest(handlerRequest, testingRestfulGateway).get();
 
         assertThat(response.getExceptionHistory().getEntries()).hasSize(1);
-        final ApplicationExceptionsInfoWithHistory.ExceptionInfo exceptionInfo =
+        final ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo exceptionInfo =
                 response.getExceptionHistory().getEntries().get(0);
         assertThat(exceptionInfo.getExceptionName()).isEqualTo(rootCause.getClass().getName());
         assertThat(exceptionInfo.getTimestamp()).isEqualTo(rootCauseTimestamp);
@@ -172,7 +172,7 @@ class ApplicationExceptionsHandlerTest {
                 handler.handleRequest(handlerRequest, testingRestfulGateway).get();
 
         assertThat(response.getExceptionHistory().getEntries()).hasSize(1);
-        final ApplicationExceptionsInfoWithHistory.ExceptionInfo exceptionInfo =
+        final ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo exceptionInfo =
                 response.getExceptionHistory().getEntries().get(0);
         assertThat(exceptionInfo.getExceptionName()).isEqualTo(rootCause.getClass().getName());
         assertThat(exceptionInfo.getTimestamp()).isEqualTo(rootCauseTimestamp);

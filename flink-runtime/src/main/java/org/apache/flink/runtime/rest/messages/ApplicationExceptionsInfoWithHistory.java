@@ -97,7 +97,7 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
                         exceptions.stream()
                                 .map(
                                         exception ->
-                                                new ExceptionInfo(
+                                                new ApplicationExceptionInfo(
                                                         exception
                                                                 .getException()
                                                                 .getOriginalErrorClassName(),
@@ -112,16 +112,16 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
         public static final String FIELD_NAME_ENTRIES = "entries";
 
         @JsonProperty(FIELD_NAME_ENTRIES)
-        private final List<ExceptionInfo> entries;
+        private final List<ApplicationExceptionInfo> entries;
 
         @JsonCreator
         public ApplicationExceptionHistory(
-                @JsonProperty(FIELD_NAME_ENTRIES) List<ExceptionInfo> entries) {
+                @JsonProperty(FIELD_NAME_ENTRIES) List<ApplicationExceptionInfo> entries) {
             this.entries = entries;
         }
 
         @JsonIgnore
-        public List<ExceptionInfo> getEntries() {
+        public List<ApplicationExceptionInfo> getEntries() {
             return entries;
         }
 
@@ -151,7 +151,7 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
         }
     }
 
-    public static class ExceptionInfo {
+    public static class ApplicationExceptionInfo {
 
         public static final String FIELD_NAME_EXCEPTION_NAME = "exceptionName";
         public static final String FIELD_NAME_EXCEPTION_STACKTRACE = "stacktrace";
@@ -173,12 +173,12 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
         @Nullable
         private final JobID jobId;
 
-        public ExceptionInfo(String exceptionName, String stacktrace, long timestamp) {
+        public ApplicationExceptionInfo(String exceptionName, String stacktrace, long timestamp) {
             this(exceptionName, stacktrace, timestamp, null);
         }
 
         @JsonCreator
-        public ExceptionInfo(
+        public ApplicationExceptionInfo(
                 @JsonProperty(FIELD_NAME_EXCEPTION_NAME) String exceptionName,
                 @JsonProperty(FIELD_NAME_EXCEPTION_STACKTRACE) String stacktrace,
                 @JsonProperty(FIELD_NAME_EXCEPTION_TIMESTAMP) long timestamp,
@@ -221,7 +221,7 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            ExceptionInfo that = (ExceptionInfo) o;
+            ApplicationExceptionInfo that = (ApplicationExceptionInfo) o;
             return exceptionName.equals(that.exceptionName)
                     && stacktrace.equals(that.stacktrace)
                     && Objects.equals(timestamp, that.timestamp)
@@ -235,7 +235,7 @@ public class ApplicationExceptionsInfoWithHistory implements ResponseBody {
 
         @Override
         public String toString() {
-            return new StringJoiner(", ", ExceptionInfo.class.getSimpleName() + "[", "]")
+            return new StringJoiner(", ", ApplicationExceptionInfo.class.getSimpleName() + "[", "]")
                     .add("exceptionName='" + exceptionName + "'")
                     .add("stacktrace='" + stacktrace + "'")
                     .add("timestamp=" + timestamp)
