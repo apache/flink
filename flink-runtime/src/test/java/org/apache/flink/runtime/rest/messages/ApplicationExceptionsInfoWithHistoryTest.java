@@ -49,9 +49,9 @@ class ApplicationExceptionsInfoWithHistoryTest
         return new ApplicationExceptionsInfoWithHistory(
                 new ApplicationExceptionsInfoWithHistory.ApplicationExceptionHistory(
                         Arrays.asList(
-                                new ApplicationExceptionsInfoWithHistory.ExceptionInfo(
+                                new ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo(
                                         "exception #0", "stacktrace #0", 0L, new JobID()),
-                                new ApplicationExceptionsInfoWithHistory.ExceptionInfo(
+                                new ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo(
                                         "exception #1", "stacktrace #1", 1L, null))));
     }
 
@@ -65,7 +65,7 @@ class ApplicationExceptionsInfoWithHistoryTest
         ObjectMapper objMapper = RestMapperUtils.getStrictObjectMapper();
         String json =
                 objMapper.writeValueAsString(
-                        new ApplicationExceptionsInfoWithHistory.ExceptionInfo(
+                        new ApplicationExceptionsInfoWithHistory.ApplicationExceptionInfo(
                                 "exception name", "stacktrace", 0L));
 
         assertThat(json).doesNotContain("jobId");

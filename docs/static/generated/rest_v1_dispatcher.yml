@@ -51,6 +51,24 @@ paths:
       responses:
         "202":
           description: The request was successful.
+  /applications/{applicationid}/exceptions:
+    get:
+      description: Returns exception history for an application.
+      operationId: getApplicationExceptions
+      parameters:
+      - name: applicationid
+        in: path
+        description: 32-character hexadecimal string value that identifies an application.
+        required: true
+        schema:
+          $ref: "#/components/schemas/ApplicationID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationExceptionsInfoWithHistory"
   /applications/{applicationid}/jobmanager/config:
     get:
       description: Returns the jobmanager's configuration of a specific application.
@@ -1842,6 +1860,30 @@ components:
           additionalProperties:
             type: integer
             format: int64
+    ApplicationExceptionHistory:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApplicationExceptionInfo"
+    ApplicationExceptionInfo:
+      type: object
+      properties:
+        exceptionName:
+          type: string
+        jobId:
+          $ref: "#/components/schemas/JobID"
+        stacktrace:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+    ApplicationExceptionsInfoWithHistory:
+      type: object
+      properties:
+        exceptionHistory:
+          $ref: "#/components/schemas/ApplicationExceptionHistory"
     ApplicationID:
       type: object
       properties:
