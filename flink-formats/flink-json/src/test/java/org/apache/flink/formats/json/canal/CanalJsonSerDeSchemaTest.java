@@ -160,6 +160,8 @@ class CanalJsonSerDeSchemaTest {
                                 deserializationSchema.deserialize(
                                         corruptMessage.getBytes(StandardCharsets.UTF_8), collector))
                 .isInstanceOf(IOException.class)
+                .hasMessageContaining("Corrupt Canal JSON message")
+                .cause()
                 .hasMessageContaining("Unknown \"type\" value");
     }
 
