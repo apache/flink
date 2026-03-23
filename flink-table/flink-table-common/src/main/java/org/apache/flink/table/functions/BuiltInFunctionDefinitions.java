@@ -3007,6 +3007,33 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.BitmapBuildFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition BITMAP_FROM_BYTES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_FROM_BYTES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("bytes"),
+                                    Collections.singletonList(
+                                            logical(LogicalTypeFamily.BINARY_STRING))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BITMAP())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapFromBytesFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition BITMAP_TO_BYTES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_TO_BYTES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("bitmap"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BYTES())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapToBytesFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Other functions
     // --------------------------------------------------------------------------------------------
