@@ -1008,10 +1008,9 @@ object RelExplainUtil {
       }
     }
     result.toString
+  }
 
-  /**
-   * Recursively convert RexInputRef in an expression to field names.
-   */
+  /** Recursively convert RexInputRef in an expression to field names. */
   private def convertRexInputRefToFieldNames(
       expr: RexNode,
       inputFieldNames: util.List[String]): String = {
@@ -1026,6 +1025,5 @@ object RelExplainUtil {
       case _ =>
         expr.toString
     }
-  }
   }
 }
