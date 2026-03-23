@@ -1350,6 +1350,22 @@ hashfunctions:
     description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL.
 
 bitmap:
+  - sql: BITMAP_AND(bitmap1, bitmap2)
+    table: bitmap1.bitmapAnd(bitmap2)
+    description: |
+      Computes the AND (intersection) of two bitmaps.
+            
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      Returns a `BITMAP`. `NULL` if any of the arguments are `NULL`.
+  - sql: BITMAP_ANDNOT(bitmap1, bitmap2)
+    table: bitmap1.bitmapAndnot(bitmap2)
+    description: |
+      Computes the AND NOT (difference) of two bitmaps.
+            
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      Returns a `BITMAP`. `NULL` if any of the arguments are `NULL`.
   - sql: BITMAP_BUILD(array)
     table: array.bitmapBuild()
     description: |
@@ -1376,6 +1392,14 @@ bitmap:
       `bytes <BINARY | VARBINARY>`
       
       Returns a `BITMAP`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_OR(bitmap1, bitmap2)
+    table: bitmap1.bitmapOr(bitmap2)
+    description: |
+      Computes the OR (union) of two bitmaps.
+            
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      Returns a `BITMAP`. `NULL` if any of the arguments are `NULL`.
   - sql: BITMAP_TO_ARRAY(bitmap)
     table: bitmap.bitmapToArray()
     description: |
@@ -1408,6 +1432,14 @@ bitmap:
       `bitmap BITMAP`
       
       Returns a `STRING`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_XOR(bitmap1, bitmap2)
+    table: bitmap1.bitmapXor(bitmap2)
+    description: |
+      Computes the XOR (symmetric difference) of two bitmaps.
+            
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      Returns a `BITMAP`. `NULL` if any of the arguments are `NULL`.
 
 auxilary:
   - table: callSql(STRING)

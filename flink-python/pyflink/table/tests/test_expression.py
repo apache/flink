@@ -266,12 +266,16 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                                                   JsonQueryOnEmptyOrError.EMPTY_ARRAY)))
 
         # bitmap functions
+        self.assertEqual("BITMAP_AND(a, b)", str(expr1.bitmap_and(expr2)))
+        self.assertEqual("BITMAP_ANDNOT(a, b)", str(expr1.bitmap_andnot(expr2)))
         self.assertEqual("BITMAP_BUILD(a)", str(expr1.bitmap_build()))
         self.assertEqual("BITMAP_CARDINALITY(a)", str(expr1.bitmap_cardinality()))
         self.assertEqual("BITMAP_FROM_BYTES(a)", str(expr1.bitmap_from_bytes()))
+        self.assertEqual("BITMAP_OR(a, b)", str(expr1.bitmap_or(expr2)))
         self.assertEqual("BITMAP_TO_ARRAY(a)", str(expr1.bitmap_to_array()))
         self.assertEqual("BITMAP_TO_BYTES(a)", str(expr1.bitmap_to_bytes()))
         self.assertEqual("BITMAP_TO_STRING(a)", str(expr1.bitmap_to_string()))
+        self.assertEqual("BITMAP_XOR(a, b)", str(expr1.bitmap_xor(expr2)))
 
     def test_expressions(self):
         expr1 = col('a')

@@ -345,9 +345,13 @@ Bitmap functions
 .. autosummary::
     :toctree: api/
 
+    Expression.bitmap_and
+    Expression.bitmap_andnot
     Expression.bitmap_build
     Expression.bitmap_cardinality
     Expression.bitmap_from_bytes
+    Expression.bitmap_or
     Expression.bitmap_to_array
     Expression.bitmap_to_bytes
     Expression.bitmap_to_string
+    Expression.bitmap_xor
