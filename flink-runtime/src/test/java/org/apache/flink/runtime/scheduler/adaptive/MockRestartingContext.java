@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
@@ -93,6 +94,11 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
 
     @Override
     public void archiveFailure(RootExceptionHistoryEntry failure) {}
+
+    @Override
+    public RescaleTimeline getRescaleTimeline() {
+        return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
+    }
 
     @Override
     public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {

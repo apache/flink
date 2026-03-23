@@ -64,6 +64,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
@@ -609,7 +610,7 @@ class ExecutingTest {
 
             assertThat(actualEvents.poll()).isEqualTo(onChangeEventLabel);
             assertThat(actualEvents.poll()).isEqualTo(onTriggerEventLabel);
-            assertThat(actualEvents.isEmpty()).isTrue();
+            assertThat(actualEvents).isEmpty();
         }
     }
 
@@ -897,6 +898,11 @@ class ExecutingTest {
         }
 
         @Override
+        public State getState() {
+            return null;
+        }
+
+        @Override
         public void close() throws Exception {
             super.close();
             failingStateValidator.close();
@@ -907,6 +913,11 @@ class ExecutingTest {
 
         @Override
         public void archiveFailure(RootExceptionHistoryEntry failure) {}
+
+        @Override
+        public RescaleTimeline getRescaleTimeline() {
+            return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
+        }
     }
 
     static class CancellingArguments {

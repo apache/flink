@@ -34,8 +34,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminatedReason;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -95,16 +98,48 @@ class Executing extends StateWithExecutionGraph
         this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         this.failedCheckpointCountdown = null;
 
+        recordRescaleForJobIntoExecuting(logger, context);
+
         deploy();
 
         // check if new resources have come available in the meantime
         context.runIfState(
                 this,
                 () -> {
-                    stateTransitionManager.onChange();
+                    stateTransitionManager.onChange(true);
                     stateTransitionManager.onTrigger();
                 },
                 Duration.ZERO);
+    }
+
+    private void recordRescaleForJobIntoExecuting(Logger logger, Context context) {
+        // When "AdaptiveScheduler -> stopWithSavepoint" fails, the job is not stopped, but
+        // instead transitions back to the "Executing" state. In this case, there is no
+        // parallelism change, hence we ignore it for rescale.
+        if (context.getState() instanceof StopWithSavepoint) {
+            logger.warn(
+                    "The state switching is caused by {}->{}, the parallelisms would be not changed, so the rescale record is ignored.",
+                    StopWithSavepoint.class.getSimpleName(),
+                    Executing.class.getSimpleName());
+        } else {
+            context.getRescaleTimeline()
+                    .updateRescale(
+                            rescale ->
+                                    rescale.addSchedulerState(this)
+                                            .setTerminatedReason(TerminatedReason.SUCCEEDED)
+                                            .setEndToNow()
+                                            .log());
+        }
+    }
+
+    @Override
+    public State schedulerState() {
+        return this;
+    }
+
+    @Override
+    public RescaleTimeline getRescaleTimeline() {
+        return context.getRescaleTimeline();
     }
 
     @Override
@@ -149,17 +184,29 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void transitionToSubsequentState() {
+        Optional<VertexParallelism> availableVertexParallelism =
+                context.getAvailableVertexParallelism();
+        if (availableVertexParallelism.isEmpty()) {
+            IllegalStateException exception =
+                    new IllegalStateException("Resources must be available when rescaling.");
+            recordRescaleForNoResourcesEnough(exception);
+            throw exception;
+        }
         context.goToRestarting(
                 getExecutionGraph(),
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 Duration.ofMillis(0L),
-                context.getAvailableVertexParallelism()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Resources must be available when rescaling.")),
+                availableVertexParallelism.get(),
                 getFailures());
+    }
+
+    private void recordRescaleForNoResourcesEnough(IllegalStateException exception) {
+        context.getRescaleTimeline()
+                .updateRescale(
+                        rescale ->
+                                rescale.setStringifiedException(
+                                        ExceptionUtils.stringifyException(exception)));
     }
 
     @Override
@@ -219,13 +266,13 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void onNewResourcesAvailable() {
-        stateTransitionManager.onChange();
+        stateTransitionManager.onChange(true);
         initializeFailedCheckpointCountdownIfUnset();
     }
 
     @Override
     public void onNewResourceRequirements() {
-        stateTransitionManager.onChange();
+        stateTransitionManager.onChange(false);
         initializeFailedCheckpointCountdownIfUnset();
     }
 
@@ -331,6 +378,13 @@ class Executing extends StateWithExecutionGraph
          * @return {@code true} if we have sufficient resources; otherwise {@code false}
          */
         boolean hasSufficientResources();
+
+        /**
+         * Get the state of the current context.
+         *
+         * @return the state of transition of the current context.
+         */
+        State getState();
     }
 
     static class Factory implements StateFactory<Executing> {

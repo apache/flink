@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleContext;
 
 import org.slf4j.Logger;
 
@@ -85,7 +86,7 @@ abstract class StateWithoutExecutionGraph implements State {
     }
 
     /** Context of the {@link StateWithoutExecutionGraph} state. */
-    interface Context extends StateTransitions.ToFinished {
+    interface Context extends RescaleContext, StateTransitions.ToFinished {
 
         /**
          * Gets the {@link JobID} of the job.

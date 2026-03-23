@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -73,6 +74,11 @@ class CreatedTest {
         public void afterEach(ExtensionContext extensionContext) throws Exception {
             super.afterEach(extensionContext);
             waitingForResourcesStateValidator.close();
+        }
+
+        @Override
+        public RescaleTimeline getRescaleTimeline() {
+            return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
         }
     }
 }
