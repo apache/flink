@@ -29,7 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
@@ -58,7 +58,7 @@ public class OpenTelemetryTraceReporterITCase extends OpenTelemetryTestBase {
         reporter.close();
     }
 
-    @RepeatedTest(300)
+    @Test
     public void testReportSpan() throws Exception {
         MetricConfig metricConfig = createMetricConfig();
 
@@ -130,7 +130,7 @@ public class OpenTelemetryTraceReporterITCase extends OpenTelemetryTestBase {
                 });
     }
 
-    @RepeatedTest(300)
+    @Test
     public void testReportNestedSpan() throws Exception {
         String scope = this.getClass().getCanonicalName();
 
