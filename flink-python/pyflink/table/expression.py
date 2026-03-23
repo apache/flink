@@ -2299,6 +2299,17 @@ class Expression(Generic[T]):
         """
         return _binary_op("bitmapAndnot")(self, bitmap2)
 
+    def bitmap_and_agg(self):
+        """
+        Aggregates the AND (intersection) of multiple bitmaps.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapAndAgg")(self)
+
     def bitmap_build(self) -> 'Expression':
         """
         Creates a bitmap from an array of 32-bit integers.
@@ -2351,6 +2362,17 @@ class Expression(Generic[T]):
         """
         return _binary_op("bitmapOr")(self, bitmap2)
 
+    def bitmap_or_agg(self):
+        """
+        Aggregates the OR (union) of multiple bitmaps.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapOrAgg")(self)
+
     def bitmap_to_array(self) -> 'Expression':
         """
         Converts a bitmap to an array of 32-bit integers, the values are sorted by \
@@ -2402,6 +2424,14 @@ class Expression(Generic[T]):
         :return: a BITMAP expression
         """
         return _binary_op("bitmapXor")(self, bitmap2)
+
+    def bitmap_xor_agg(self):
+        """
+        Aggregates the XOR (symmetric difference) of multiple bitmaps.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapXorAgg")(self)
 
 
 # add the docs

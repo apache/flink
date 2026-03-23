@@ -176,6 +176,12 @@ class AggFunctionFactory(
             createPercentileAggFunction(argTypes)
           case BuiltInFunctionDefinitions.BITMAP_BUILD_AGG =>
             createBitmapBuildAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_AND_AGG =>
+            createBitmapAndAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_OR_AGG =>
+            createBitmapOrAggFunction(argTypes, index)
+          case BuiltInFunctionDefinitions.BITMAP_XOR_AGG =>
+            createBitmapXorAggFunction(argTypes, index)
           // DeclarativeAggregateFunction & UDF
           case _ =>
             bridge.getDefinition.asInstanceOf[UserDefinedFunction]
@@ -659,6 +665,36 @@ class AggFunctionFactory(
       new BitmapBuildWithRetractAggFunction(argTypes(0))
     } else {
       new BitmapBuildAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapAndAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new BitmapAndWithRetractAggFunction(argTypes(0))
+    } else {
+      new BitmapAndAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapOrAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new BitmapOrWithRetractAggFunction(argTypes(0))
+    } else {
+      new BitmapOrAggFunction(argTypes(0))
+    }
+  }
+
+  private def createBitmapXorAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new BitmapXorWithRetractAggFunction(argTypes(0))
+    } else {
+      new BitmapXorAggFunction(argTypes(0))
     }
   }
 }

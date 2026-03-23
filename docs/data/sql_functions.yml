@@ -1569,12 +1569,40 @@ aggregate:
       ```
 
 bitmapagg:
+  - sql: BITMAP_AND_AGG(bitmap)
+    table: bitmap.bitmapAndAgg()
+    description: |
+      Aggregates the AND (intersection) of multiple bitmaps.
+      
+      NOTE: The retraction variant of this function may have significant performance overhead with large bitmaps.
+      
+      `bitmap BITMAP`
+      
+      Returns a `BITMAP`.
   - sql: BITMAP_BUILD_AGG(value)
     table: value.bitmapBuildAgg()
     description: |
       Aggregates 32-bit integers into a bitmap.
       
       `value INT`
+      
+      Returns a `BITMAP`.
+  - sql: BITMAP_OR_AGG(bitmap)
+    table: bitmap.bitmapOrAgg()
+    description: |
+      Aggregates the OR (union) of multiple bitmaps.
+      
+      NOTE: The retraction variant of this function may have significant performance overhead with large bitmaps.
+      
+      `bitmap BITMAP`
+      
+      Returns a `BITMAP`.
+  - sql: BITMAP_XOR_AGG(bitmap)
+    table: bitmap.bitmapXorAgg()
+    description: |
+      Aggregates the XOR (symmetric difference) of multiple bitmaps.
+      
+      `bitmap BITMAP`
       
       Returns a `BITMAP`.
 
