@@ -1444,6 +1444,14 @@ bitmap:
       `array ARRAY<INT>`
       
       返回一个 `BITMAP`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_CARDINALITY(bitmap)
+    table: bitmap.bitmapCardinality()
+    description: |
+      返回位图的基数。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。如果参数为 `NULL`，则返回 `NULL`。
   - sql: BITMAP_FROM_BYTES(bytes)
     table: bytes.bitmapFromBytes()
     description: |

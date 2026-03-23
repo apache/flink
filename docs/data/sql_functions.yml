@@ -1358,6 +1358,14 @@ bitmap:
       `array ARRAY<INT>`
       
       Returns a `BITMAP`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_CARDINALITY(bitmap)
+    table: bitmap.bitmapCardinality()
+    description: |
+      Returns the cardinality of a bitmap.
+      
+      `bitmap BITMAP`
+      
+      Returns a `BIGINT`. `NULL` if the argument is `NULL`.
   - sql: BITMAP_FROM_BYTES(bytes)
     table: bytes.bitmapFromBytes()
     description: |

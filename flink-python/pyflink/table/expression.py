@@ -2287,6 +2287,16 @@ class Expression(Generic[T]):
         """
         return _unary_op("bitmapBuild")(self)
 
+    def bitmap_cardinality(self) -> 'Expression':
+        """
+        Returns the cardinality of a bitmap.
+
+        If the input is null, the result is null.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapCardinality")(self)
+
     def bitmap_from_bytes(self) -> 'Expression':
         """
         Converts an array of bytes to a bitmap.

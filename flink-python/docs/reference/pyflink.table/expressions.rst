@@ -346,5 +346,6 @@ Bitmap functions
     :toctree: api/
 
     Expression.bitmap_build
+    Expression.bitmap_cardinality
     Expression.bitmap_from_bytes
     Expression.bitmap_to_bytes

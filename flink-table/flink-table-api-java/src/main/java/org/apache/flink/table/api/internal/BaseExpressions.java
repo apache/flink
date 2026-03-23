@@ -77,6 +77,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AVG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_FROM_BYTES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_BYTES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
@@ -2616,6 +2617,17 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType bitmapBuild() {
         return toApiSpecificExpression(unresolvedCall(BITMAP_BUILD, toExpr()));
+    }
+
+    /**
+     * Returns the cardinality of a bitmap.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapCardinality() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_CARDINALITY, toExpr()));
     }
 
     /**
