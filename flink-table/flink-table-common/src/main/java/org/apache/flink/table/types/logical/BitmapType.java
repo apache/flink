@@ -37,6 +37,8 @@ import java.util.Set;
 @PublicEvolving
 public final class BitmapType extends LogicalType {
 
+    private static final long serialVersionUID = 1L;
+
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(Bitmap.class.getName(), RoaringBitmapData.class.getName());
 
