@@ -37,6 +37,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -113,6 +114,10 @@ public final class ApiExpressionUtils {
             return convertArray(expression);
         } else if (expression instanceof List) {
             return convertJavaList((List<?>) expression);
+        } else if (expression instanceof Bitmap) {
+            return unresolvedCall(
+                    BuiltInFunctionDefinitions.BITMAP_FROM_BYTES,
+                    new ValueLiteralExpression(((Bitmap) expression).toBytes()));
         } else {
             return convertScala(expression).orElseGet(() -> valueLiteral(expression));
         }
