@@ -70,6 +70,9 @@ object MetadataTestUtil {
     rootSchema.add(
       "projected_table_source_table_with_partial_pk",
       createProjectedTableSourceTableWithPartialCompositePrimaryKey())
+    rootSchema.add(
+      "projected_table_source_table_with_immutable_cols",
+      createProjectedTableSourceTableWithImmutableCols())
     rootSchema
   }
 
@@ -477,6 +480,46 @@ object MetadataTestUtil {
       flinkContext)
   }
 
+  private def createProjectedTableSourceTableWithImmutableCols(): Table = {
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT().notNull()),
+        Column.physical("c", DataTypes.STRING().notNull()),
+        Column.physical("d", DataTypes.BIGINT().notNull()),
+        Column.physical("rowtime", DataTypes.TIMESTAMP(3))
+      ),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))),
+      ImmutableColumnsConstraint.immutableColumns("imt", util.Arrays.asList("c", "d")))
+
+    val catalogTable = getCatalogTable(resolvedSchema)
+
+    // projected: drop column b, keep a, c, d, rowtime
+    val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a", "c", "d", "rowtime"),
+      Seq(
+        new BigIntType(false),
+        new VarCharType(false, 100),
+        new BigIntType(false),
+        new TimestampType(true, TimestampKind.ROWTIME, 3)))
+
+    new MockTableSourceTable(
+      rowType,
+      new TestTableSource(),
+      true,
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of(
+          "default_catalog",
+          "default_database",
+          "projected_table_source_table_with_immutable_cols"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
+      flinkContext)
+  }
+
   private def getCatalogTable(resolvedSchema: ResolvedSchema) = {
     CatalogTable
       .newBuilder()
@@ -573,4 +616,13 @@ class MockTableSourceTable(
       call: SqlCall,
       parent: SqlNode,
       config: CalciteConnectionConfig): Boolean = false
+
+  def copy(newTableSource: DynamicTableSource, newRowType: RelDataType): MockTableSourceTable = {
+    new MockTableSourceTable(
+      newRowType,
+      newTableSource,
+      isStreamingMode,
+      contextResolvedTable,
+      flinkContext)
+  }
 }

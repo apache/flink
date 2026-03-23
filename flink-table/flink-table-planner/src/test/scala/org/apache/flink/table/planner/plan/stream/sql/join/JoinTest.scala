@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
+import org.apache.flink.table.planner.utils.ImmutableColConstraintTestUtils.addImmutableColConstraint
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -505,6 +506,132 @@ class JoinTest extends TableTestBase {
         | from (select city_id, count(*) customer_cnt from source_customer group by city_id) t1
         | join source_city t2 on t1.city_id = t2.id
         | on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinOutputUpsertKeyInSinkPkWhileJoinOnImmutableCols(): Unit = {
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+
+    util.tableEnv.executeSql("""
+                               |create table source_city (
+                               | id varchar,
+                               | city_name varchar,
+                               | primary key (id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB,D'
+                               |)
+                               |""".stripMargin)
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "source_city", "city_name")
+
+    util.tableEnv.executeSql("""
+                               |create table source_city_detail (
+                               | city_id varchar,
+                               | city_name varchar,
+                               | city_detail varchar,
+                               | primary key (city_id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB,D'
+                               |)
+                               |""".stripMargin)
+    addImmutableColConstraint(
+      catalog,
+      util.tableEnv.getCurrentDatabase,
+      "source_city_detail",
+      "city_name")
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | id varchar,
+                               | city_id varchar,
+                               | city_name varchar,
+                               | city_detail varchar,
+                               | primary key (id, city_id) not enforced
+                               |) with (
+                               | 'connector' = 'values'
+                               | ,'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    // verify UB should be dropped and no upsertMaterialize
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select t1.id, t2.city_id, t1.city_name, t2.city_detail
+        | from source_city t1
+        | join source_city_detail t2 on t1.city_name = t2.city_name
+        |on conflict do deduplicate
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinOutputUpsertKeyInSinkPkWhileJoinOnPartOfImmutableCols(): Unit = {
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+
+    util.tableEnv.executeSql("""
+                               |create table source_city (
+                               | id varchar,
+                               | city_name varchar,
+                               | city_no int,
+                               | primary key (id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB,D'
+                               |)
+                               |""".stripMargin)
+    addImmutableColConstraint(
+      catalog,
+      util.tableEnv.getCurrentDatabase,
+      "source_city",
+      "city_name",
+      "city_no")
+
+    util.tableEnv.executeSql("""
+                               |create table source_city_detail (
+                               | city_id varchar,
+                               | city_name varchar,
+                               | city_no int,
+                               | city_detail varchar,
+                               | primary key (city_id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB,D'
+                               |)
+                               |""".stripMargin)
+    addImmutableColConstraint(
+      catalog,
+      util.tableEnv.getCurrentDatabase,
+      "source_city_detail",
+      "city_name",
+      "city_no")
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | id varchar,
+                               | city_id varchar,
+                               | city_name varchar,
+                               | city_detail varchar,
+                               | primary key (id, city_id) not enforced
+                               |) with (
+                               | 'connector' = 'values'
+                               | ,'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    // verify UB should be dropped and no upsertMaterialize on sink
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select t1.id, t2.city_id, t1.city_name, t2.city_detail
+        | from source_city t1
+        | join source_city_detail t2 on t1.city_name = t2.city_name
+        |on conflict do deduplicate
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )
