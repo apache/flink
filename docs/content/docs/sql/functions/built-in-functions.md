@@ -110,6 +110,10 @@ Known Limitations:
 
 {{< sql_functions "hashfunctions" >}}
 
+### Bitmap Functions
+
+{{< sql_functions "bitmap" >}}
+
 ### Auxiliary Functions
 
 {{< sql_functions "auxiliary" >}}

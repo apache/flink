@@ -2275,6 +2275,18 @@ class Expression(Generic[T]):
         """
         return _varargs_op("objectUpdate")(self, *kv)
 
+    # ---------------------------- Bitmap functions -----------------------------
+
+    def bitmap_build(self) -> 'Expression':
+        """
+        Creates a bitmap from an array of 32-bit integers.
+
+        If the input is null, the result is null.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapBuild")(self)
+
 
 # add the docs
 _make_math_log_doc()
