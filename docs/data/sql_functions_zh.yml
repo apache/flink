@@ -1462,6 +1462,14 @@ bitmap:
       `bytes <BINARY | VARBINARY>`
       
       返回一个 `BITMAP`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_TO_ARRAY(bitmap)
+    table: bitmap.bitmapToArray()
+    description: |
+      将位图转换为 32 位整数数组，值按 `Integer.compareUnsigned` 排序。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `ARRAY<INT>`。如果参数为 `NULL`，则返回 `NULL`。
   - sql: BITMAP_TO_BYTES(bitmap)
     table: bitmap.bitmapToBytes()
     description: |
@@ -1472,6 +1480,20 @@ bitmap:
       `bitmap BITMAP`
       
       返回一个 `VARBINARY`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_TO_STRING(bitmap)
+    table: bitmap.bitmapToString()
+    description: |
+      将位图转换为字符串，值按 `Integer.compareUnsigned` 排序。如果字符串过长，将被截断并以 "..." 结尾。
+      
+      例如：
+      
+      - `"{}"`, `"{1,2,3,4,5}"`
+      - 负值（转换为无符号）: `"{0,1,4294967294,4294967295}"`
+      - 字符串过长: `"{1,2,3,...}"`
+      
+      `bitmap BITMAP`
+      
+      返回一个 `STRING`。如果参数为 `NULL`，则返回 `NULL`。
 
 auxilary:
   - table: callSql(STRING)

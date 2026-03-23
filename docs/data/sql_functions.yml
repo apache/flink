@@ -1376,6 +1376,14 @@ bitmap:
       `bytes <BINARY | VARBINARY>`
       
       Returns a `BITMAP`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_TO_ARRAY(bitmap)
+    table: bitmap.bitmapToArray()
+    description: |
+      Converts a bitmap to an array of 32-bit integers, the values are sorted by `Integer.compareUnsigned`.
+            
+      `bitmap BITMAP`
+      
+      Returns an `ARRAY<INT>`. `NULL` if the argument is `NULL`.
   - sql: BITMAP_TO_BYTES(bitmap)
     table: bitmap.bitmapToBytes()
     description: |
@@ -1386,6 +1394,20 @@ bitmap:
       `bitmap BITMAP`
       
       Returns a `VARBINARY`. `NULL` if the argument is `NULL`.
+  - sql: BITMAP_TO_STRING(bitmap)
+    table: bitmap.bitmapToString()
+    description: |
+      Converts a bitmap to a string, the values are sorted by `Integer.compareUnsigned`. The string will be truncated and end with "..." if it is too long.
+      
+      For example:
+      
+      - `"{}"`, `"{1,2,3,4,5}"`
+      - Negative values (converted to unsigned): `"{0,1,4294967294,4294967295}"`
+      - String too long: `"{1,2,3,...}"`
+      
+      `bitmap BITMAP`
+      
+      Returns a `STRING`. `NULL` if the argument is `NULL`.
 
 auxilary:
   - table: callSql(STRING)

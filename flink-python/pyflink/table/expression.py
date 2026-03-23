@@ -2310,6 +2310,17 @@ class Expression(Generic[T]):
         """
         return _unary_op("bitmapFromBytes")(self)
 
+    def bitmap_to_array(self) -> 'Expression':
+        """
+        Converts a bitmap to an array of 32-bit integers, the values are sorted by \
+        :py:meth:`Integer.compareUnsigned`.
+
+        If the input is null, the result is null.
+
+        :return: an ARRAY<INT> expression
+        """
+        return _unary_op("bitmapToArray")(self)
+
     def bitmap_to_bytes(self) -> 'Expression':
         """
         Converts a bitmap to an array of bytes.
@@ -2322,6 +2333,23 @@ class Expression(Generic[T]):
         :return: a VARBINARY expression
         """
         return _unary_op("bitmapToBytes")(self)
+
+    def bitmap_to_string(self) -> 'Expression':
+        """
+        Converts a bitmap to a string, the values are sorted by `Integer.compareUnsigned` in Java.
+        The string will be truncated and end with "..." if it is too long.
+
+        For example:
+
+        - ``"{}"``, ``"{1,2,3,4,5}"``
+        - Negative values (converted to unsigned): ``"{0,1,4294967294,4294967295}"``
+        - String too long: ``"{1,2,3,...}"``
+
+        If the input is null, the result is null.
+
+        :return: a STRING expression
+        """
+        return _unary_op("bitmapToString")(self)
 
 
 # add the docs
