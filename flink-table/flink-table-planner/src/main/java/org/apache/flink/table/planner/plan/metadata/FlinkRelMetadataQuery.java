@@ -50,6 +50,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
     private FlinkMetadata.ModifiedMonotonicity.Handler modifiedMonotonicityHandler;
     private FlinkMetadata.WindowProperties.Handler windowPropertiesHandler;
     private FlinkMetadata.UpsertKeys.Handler upsertKeysHandler;
+    private FlinkMetadata.ImmutableColumns.Handler immutableColumnsHandler;
 
     /**
      * Returns an instance of FlinkRelMetadataQuery. It ensures that cycles do not occur while
@@ -85,6 +86,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
         this.modifiedMonotonicityHandler = HANDLERS.modifiedMonotonicityHandler;
         this.windowPropertiesHandler = HANDLERS.windowPropertiesHandler;
         this.upsertKeysHandler = HANDLERS.upsertKeysHandler;
+        this.immutableColumnsHandler = HANDLERS.immutableColumnsHandler;
     }
 
     /** Extended handlers. */
@@ -107,6 +109,8 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
                 initialHandler(FlinkMetadata.WindowProperties.Handler.class);
         private FlinkMetadata.UpsertKeys.Handler upsertKeysHandler =
                 initialHandler(FlinkMetadata.UpsertKeys.Handler.class);
+        private FlinkMetadata.ImmutableColumns.Handler immutableColumnsHandler =
+                initialHandler(FlinkMetadata.ImmutableColumns.Handler.class);
     }
 
     /**
@@ -307,5 +311,22 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
             }
         }
         return getUpsertKeys(rel);
+    }
+
+    /**
+     * Returns the columns that will never be updated upstream within each pk.
+     *
+     * @return the columns that will never be updated upstream within each pk, or null if this
+     *     information cannot be determined (whereas empty set indicates that all columns may be
+     *     updated)
+     */
+    public ImmutableBitSet getImmutableColumns(RelNode rel) {
+        for (; ; ) {
+            try {
+                return immutableColumnsHandler.getImmutableColumns(rel, this);
+            } catch (JaninoRelMetadataProvider.NoHandler e) {
+                immutableColumnsHandler = revise(e.relClass, FlinkMetadata.ImmutableColumns.DEF);
+            }
+        }
     }
 }

@@ -48,10 +48,13 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   override def getDef: MetadataDef[UpsertKeys] = UpsertKeys.DEF
 
   def getUpsertKeys(rel: TableScan, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    rel.getTable match {
+    val baseKeys = rel.getTable match {
       case t: IntermediateRelTable => t.upsertKeys
       case _ => mq.getUniqueKeys(rel)
     }
+    enrichWithImmutableColumns(
+      baseKeys,
+      () => FlinkRelMetadataQuery.reuseOrCreate(mq).getImmutableColumns(rel))
   }
 
   def getUpsertKeys(rel: Project, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
@@ -81,11 +84,13 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       () => FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput))
 
   def getUpsertKeys(rel: Exchange, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    val keys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    val upsertKeys = fmq.getUpsertKeys(rel.getInput)
+    val immutableColumns = fmq.getImmutableColumns(rel.getInput)
     rel.getDistribution.getType match {
       case RelDistribution.Type.HASH_DISTRIBUTED =>
-        filterKeys(keys, ImmutableBitSet.of(rel.getDistribution.getKeys))
-      case RelDistribution.Type.SINGLETON => keys
+        filterKeys(upsertKeys, ImmutableBitSet.of(rel.getDistribution.getKeys), immutableColumns)
+      case RelDistribution.Type.SINGLETON => upsertKeys
       case t => throw new UnsupportedOperationException("Unsupported distribution type: " + t)
     }
   }
@@ -95,19 +100,20 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       case rank: StreamPhysicalRank if RankUtil.isDeduplication(rel) =>
         ImmutableSet.of(ImmutableBitSet.of(rank.partitionKey.toArray.map(Integer.valueOf).toList))
       case _ =>
-        val inputKeys = filterKeys(
-          FlinkRelMetadataQuery
-            .reuseOrCreate(mq)
-            .getUpsertKeys(rel.getInput),
-          rel.partitionKey)
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+        val inputUpsertKeys = fmq.getUpsertKeys(rel.getInput)
+        val inputImmutableColumns = fmq.getImmutableColumns(rel.getInput)
+        val inputKeys = filterKeys(inputUpsertKeys, rel.partitionKey, inputImmutableColumns)
         FlinkRelMdUniqueKeys.INSTANCE.getRankUniqueKeys(rel, inputKeys)
     }
   }
 
-  def getUpsertKeys(rel: Sort, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
-    filterKeys(
-      FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput),
-      ImmutableBitSet.of(rel.getCollation.getKeys))
+  def getUpsertKeys(rel: Sort, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    val upsertKeys = fmq.getUpsertKeys(rel.getInput)
+    val immutableColumns = fmq.getImmutableColumns(rel.getInput)
+    filterKeys(upsertKeys, ImmutableBitSet.of(rel.getCollation.getKeys), immutableColumns)
+  }
 
   def getUpsertKeys(
       rel: StreamPhysicalChangelogNormalize,
@@ -206,20 +212,23 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       rel: SingleRel,
       mq: RelMetadataQuery,
       distributionKeys: ImmutableBitSet*): JSet[ImmutableBitSet] = {
-    var inputKeys = FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(rel.getInput)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    var inputUpsertKeys = fmq.getUpsertKeys(rel.getInput)
+    val inputImmutableColumns = fmq.getImmutableColumns(rel.getInput)
     for (distributionKey <- distributionKeys) {
-      inputKeys = filterKeys(inputKeys, distributionKey)
+      inputUpsertKeys = filterKeys(inputUpsertKeys, distributionKey, inputImmutableColumns)
     }
-    inputKeys
+    inputUpsertKeys
   }
 
   def getUpsertKeys(join: Join, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
     val joinInfo = join.analyzeCondition()
     join.getJoinType match {
       case JoinRelType.SEMI | JoinRelType.ANTI =>
-        filterKeys(
-          FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(join.getLeft),
-          joinInfo.leftSet())
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+        val leftInputUpsertKeys = fmq.getUpsertKeys(join.getLeft)
+        val leftInputImmutableColumns = fmq.getImmutableColumns(join.getLeft)
+        filterKeys(leftInputUpsertKeys, joinInfo.leftSet(), leftInputImmutableColumns)
       case _ =>
         getJoinUpsertKeys(joinInfo, join.getJoinType, join.getLeft, join.getRight, mq)
     }
@@ -348,6 +357,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val leftKeys = fmq.getUpsertKeys(left)
     val rightKeys = fmq.getUpsertKeys(right)
+    val leftImmutableColumns = fmq.getImmutableColumns(left)
+    val rightImmutableColumns = fmq.getImmutableColumns(right)
 
     FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
       joinRelType,
@@ -356,8 +367,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       // (the distribution keys), ensuring the result remains an upsert key.
       // Note: An Exchange typically applies this filtering already via fmq.getUpsertKeys(...).
       // We keep it here to be safe in case a join can appear without a preceding Exchange.
-      filterKeys(leftKeys, joinInfo.leftSet),
-      filterKeys(rightKeys, joinInfo.rightSet),
+      filterKeys(leftKeys, joinInfo.leftSet, leftImmutableColumns),
+      filterKeys(rightKeys, joinInfo.rightSet, rightImmutableColumns),
       isSideUnique(leftKeys, joinInfo.leftSet),
       isSideUnique(rightKeys, joinInfo.rightSet)
     )
@@ -392,17 +403,35 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
    *
    * Example:
    * - distributionKey = {k1}
-   * - keys = {{k1}, {k1, k2}, {k2}}
+   * - upsertKeys = {{k1}, {k1, k2}, {k2}}
+   * - immutableColumns = null
    * Result: {{k1}, {k1, k2}} (drops {k2})
+   *
+   * Example:
+   * - distributionKey = {k1, k3}
+   * - upsertKeys = {{k1}, {k1, k2}, {k1, k3}, {k2}}
+   * - immutableColumns = {k3}
+   * Result: {{k1}, {k1, k2}, {k1, k3}} (drops {k2})
    */
   private def filterKeys(
-      keys: JSet[ImmutableBitSet],
-      distributionKey: ImmutableBitSet): JSet[ImmutableBitSet] = {
-    if (keys != null) {
-      keys.filter(k => k.contains(distributionKey))
-    } else {
-      null
+      upsertKeys: JSet[ImmutableBitSet],
+      distributionKey: ImmutableBitSet,
+      immutableColumns: ImmutableBitSet): JSet[ImmutableBitSet] = {
+    if (upsertKeys == null) {
+      return null
     }
+
+    upsertKeys.filter(
+      upsertKey => {
+        val key =
+          if (immutableColumns == null) {
+            upsertKey
+          } else {
+            upsertKey.union(immutableColumns)
+          }
+
+        key.contains(distributionKey)
+      })
   }
 
   /*
@@ -426,6 +455,28 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
 
   // Catch-all rule when none of the others apply.
   def getUpsertKeys(rel: RelNode, mq: RelMetadataQuery): JSet[ImmutableBitSet] = null
+
+  /**
+   * Enriches the given upsert keys with immutable columns as an additional upsert key.
+   *
+   * If baseKeys is null or empty, returns as-is without invoking the supplier (immutable columns
+   * are meaningless without existing upsert keys).
+   */
+  private def enrichWithImmutableColumns(
+      baseKeys: JSet[ImmutableBitSet],
+      immutableColsSupplier: () => ImmutableBitSet): JSet[ImmutableBitSet] = {
+    if (baseKeys == null || baseKeys.isEmpty) {
+      return baseKeys
+    }
+    val immutableCols = immutableColsSupplier()
+    if (immutableCols != null && !immutableCols.isEmpty) {
+      val enriched = new util.HashSet[ImmutableBitSet](baseKeys)
+      enriched.add(immutableCols)
+      enriched
+    } else {
+      baseKeys
+    }
+  }
 }
 
 object FlinkRelMdUpsertKeys {
