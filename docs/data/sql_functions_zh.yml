@@ -1435,6 +1435,16 @@ hashfunctions:
       使用 SHA-2 系列散列函数（SHA-224，SHA-256，SHA-384 或 SHA-512）返回散列值。第一个参数 string 是要散列的字符串，
       第二个参数 hashLength 是结果的位数（224，256，384 或 512）。如果 string 或 hashLength 为 `NULL`，则返回 `NULL`。
 
+bitmap:
+  - sql: BITMAP_BUILD(array)
+    table: array.bitmapBuild()
+    description: |
+      从 32 位整数数组创建位图。
+      
+      `array ARRAY<INT>`
+      
+      返回一个 `BITMAP`。如果参数为 `NULL`，则返回 `NULL`。
+
 auxilary:
   - table: callSql(STRING)
     description: |

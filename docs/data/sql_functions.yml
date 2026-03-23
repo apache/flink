@@ -1349,6 +1349,16 @@ hashfunctions:
     table: STRING.sha2(INT)
     description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL.
 
+bitmap:
+  - sql: BITMAP_BUILD(array)
+    table: array.bitmapBuild()
+    description: |
+      Creates a bitmap from an array of 32-bit integers.
+      
+      `array ARRAY<INT>`
+      
+      Returns a `BITMAP`. `NULL` if the argument is `NULL`.
+
 auxilary:
   - table: callSql(STRING)
     description: |

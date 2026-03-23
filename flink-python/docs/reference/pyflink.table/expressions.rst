@@ -336,3 +336,13 @@ value modification functions
     :toctree: api/
 
     Expression.object_update
+
+Bitmap functions
+----------------
+
+.. currentmodule:: pyflink.table.expression
+
+.. autosummary::
+    :toctree: api/
+
+    Expression.bitmap_build

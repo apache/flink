@@ -2982,6 +2982,32 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+    // Bitmap functions
+    // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition BITMAP_BUILD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_BUILD")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            Collections.singletonList("array"),
+                                            Collections.singletonList(
+                                                    InputTypeStrategies.explicit(
+                                                            DataTypes.ARRAY(DataTypes.INT())
+                                                                    .notNull()))),
+                                    sequence(
+                                            Collections.singletonList("array"),
+                                            Collections.singletonList(
+                                                    InputTypeStrategies.explicit(
+                                                            DataTypes.ARRAY(DataTypes.INT()))))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BITMAP())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.BitmapBuildFunction")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
     // Other functions
     // --------------------------------------------------------------------------------------------
 

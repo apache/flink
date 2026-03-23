@@ -107,6 +107,10 @@ JSON 函数使用符合 ISO/IEC TR 19075-6 SQL标准的 JSON 路径表达式。 
 
 {{< sql_functions_zh "hashfunctions" >}}
 
+### 位图函数
+
+{{< sql_functions_zh "bitmap" >}}
+
 ### 辅助函数
 
 {{< sql_functions_zh "auxiliary" >}}
