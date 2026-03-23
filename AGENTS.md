@@ -23,7 +23,7 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 
 ## Prerequisites
 
-- Java 11, 17 (default), or 21
+- Java 11, 17 (default), or 21. Java 11 syntax must be used in all modules. Java 17 syntax (records, sealed classes, pattern matching) is only permitted in the `flink-tests-java17` module.
 - Maven 3.8.6 (Maven wrapper `./mvnw` included; prefer it)
 - Git
 - Unix-like environment (Linux, macOS, WSL, Cygwin)
@@ -36,13 +36,13 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 - Java 11: `./mvnw clean package -DskipTests -Djdk11 -Pjava11-target`
 - Java 21: `./mvnw clean package -DskipTests -Djdk21 -Pjava21-target`
 - Full build with tests: `./mvnw clean verify`
-- Single module: `./mvnw clean package -DskipTests -pl flink-runtime`
-- Single module with tests: `./mvnw clean verify -pl flink-runtime`
+- Single module: `./mvnw clean package -DskipTests -pl flink-core-api`
+- Single module with tests: `./mvnw clean verify -pl flink-core-api`
 
 ### Testing
 
-- Single test class: `./mvnw -pl flink-runtime -Dtest=MyTestClass test`
-- Single test method: `./mvnw -pl flink-runtime -Dtest=MyTestClass#myTestMethod test`
+- Single test class: `./mvnw -pl flink-core-api -Dtest=MemorySizeTest test`
+- Single test method: `./mvnw -pl flink-core-api -Dtest=MemorySizeTest#testParseBytes test`
 
 ### Code Quality
 
@@ -252,7 +252,8 @@ This section maps common types of Flink changes to the modules they touch and th
 
 - **Format Java files with Spotless immediately after editing:** `./mvnw spotless:apply`. Uses google-java-format with AOSP style.
 - **Scala formatting:** Spotless + scalafmt (config at `.scalafmt.conf`, maxColumn 100).
-- **Checkstyle:** `tools/maven/checkstyle.xml` (v10.18.2). Some modules (flink-core, flink-optimizer, flink-runtime) are not covered by checkstyle enforcement, but conventions should still be followed.
+- **Checkstyle:** `tools/maven/checkstyle.xml` (version defined in root `pom.xml` as `checkstyle.version`). Some modules (flink-core, flink-optimizer, flink-runtime) are not covered by checkstyle enforcement, but conventions should still be followed.
+- **No new Scala code.** All Flink Scala APIs are deprecated per FLIP-265. Write all new code in Java.
 - **Apache License 2.0 header** required on all new files (enforced by Apache Rat). Use an HTML comment for markdown files.
 - **API stability annotations:** Every user-facing API class and method must have a stability annotation. `@Public` (stable across minor releases), `@PublicEvolving` (may change in minor releases), `@Experimental` (may change at any time). These are all part of the public API surface that users build against. `@Internal` marks APIs with no stability guarantees that users should not depend on.
 - **Logging:** Use parameterized log statements (SLF4J `{}` placeholders), never string concatenation.
@@ -265,6 +266,7 @@ This section maps common types of Flink changes to the modules they touch and th
 - Use **JUnit 5** + **AssertJ** assertions. Do not use JUnit 4 or Hamcrest in new test code.
 - Prefer real test implementations over Mockito mocks where possible.
 - **Integration tests:** Name classes with `ITCase` suffix (e.g., `MyFeatureITCase.java`).
+- **Red-green verification:** For bug fixes, verify that new tests actually fail without the fix before confirming they pass with it.
 - **Test location** mirrors source structure within each module.
 - Follow the testing conventions at https://flink.apache.org/how-to-contribute/code-style-and-quality-common/#7-testing
 
@@ -282,7 +284,7 @@ This section maps common types of Flink changes to the modules they touch and th
 
 - Title format: `[FLINK-XXXX][component] Title of the pull request`
 - A corresponding JIRA issue is required (except hotfixes for typos)
-- Fill out the PR template completely: describe purpose, change log, testing approach, impact assessment
+- Fill out the PR template completely but concisely: describe purpose, change log, testing approach, impact assessment
 - Each PR should address exactly one issue
 - Ensure `./mvnw clean verify` passes before opening a PR
 - Always push to your fork, not directly to `apache/flink`
@@ -314,6 +316,7 @@ This section maps common types of Flink changes to the modules they touch and th
 - Edit generated files by hand when a generation workflow exists
 - Use the legacy `SourceFunction` or `SinkFunction` interfaces for connectors; use the `Source` API (FLIP-27) and `SinkV2` API instead
 - Add `Co-Authored-By` with an AI agent as co-author in commit messages; AI agents are assistants, not authors. Use `Generated-by: <Tool Name and Version>` instead.
+- Suppress or bypass checkstyle rules (no `CHECKSTYLE:ON`/`CHECKSTYLE:OFF` comments, no adding entries to `tools/maven/suppressions.xml`, no `@SuppressWarnings`). Fix the code to satisfy checkstyle instead.
 - Use destructive git operations unless explicitly requested
 
 ## References
