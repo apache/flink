@@ -348,14 +348,18 @@ Bitmap functions
     Expression.bitmap_and
     Expression.bitmap_andnot
     Expression.bitmap_and_agg
+    Expression.bitmap_and_cardinality_agg
     Expression.bitmap_build
     Expression.bitmap_build_agg
+    Expression.bitmap_build_cardinality_agg
     Expression.bitmap_cardinality
     Expression.bitmap_from_bytes
     Expression.bitmap_or
     Expression.bitmap_or_agg
+    Expression.bitmap_or_cardinality_agg
     Expression.bitmap_to_array
     Expression.bitmap_to_bytes
     Expression.bitmap_to_string
     Expression.bitmap_xor
     Expression.bitmap_xor_agg
+    Expression.bitmap_xor_cardinality_agg

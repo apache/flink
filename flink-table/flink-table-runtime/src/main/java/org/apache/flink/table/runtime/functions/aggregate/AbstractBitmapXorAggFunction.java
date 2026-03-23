@@ -33,14 +33,14 @@ import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/** Built-in BITMAP_OR_AGG aggregate function. */
+/** Abstract base class for BITMAP_XOR_AGG and BITMAP_XOR_CARDINALITY_AGG. */
 @Internal
-public final class BitmapOrAggFunction
-        extends BuiltInAggregateFunction<Bitmap, BitmapOrAggFunction.BitmapOrAccumulator> {
+public abstract class AbstractBitmapXorAggFunction<T>
+        extends BuiltInAggregateFunction<T, AbstractBitmapXorAggFunction.BitmapXorAccumulator> {
 
     private final transient DataType valueDataType;
 
-    public BitmapOrAggFunction(LogicalType valueType) {
+    public AbstractBitmapXorAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
     }
 
@@ -56,20 +56,15 @@ public final class BitmapOrAggFunction
     @Override
     public DataType getAccumulatorDataType() {
         return DataTypes.STRUCTURED(
-                BitmapOrAccumulator.class, DataTypes.FIELD("bitmap", DataTypes.BITMAP()));
-    }
-
-    @Override
-    public DataType getOutputDataType() {
-        return DataTypes.BITMAP();
+                BitmapXorAccumulator.class, DataTypes.FIELD("bitmap", DataTypes.BITMAP()));
     }
 
     // --------------------------------------------------------------------------------------------
     // Accumulator
     // --------------------------------------------------------------------------------------------
 
-    /** Accumulator for BITMAP_OR_AGG. */
-    public static class BitmapOrAccumulator {
+    /** Accumulator for BITMAP_XOR_AGG and BITMAP_XOR_CARDINALITY_AGG. */
+    public static class BitmapXorAccumulator {
 
         public @Nullable RoaringBitmapData bitmap;
 
@@ -81,8 +76,7 @@ public final class BitmapOrAggFunction
             if (obj == null || getClass() != obj.getClass()) {
                 return false;
             }
-            BitmapOrAggFunction.BitmapOrAccumulator that =
-                    (BitmapOrAggFunction.BitmapOrAccumulator) obj;
+            BitmapXorAccumulator that = (BitmapXorAccumulator) obj;
             return Objects.equals(bitmap, that.bitmap);
         }
 
@@ -93,44 +87,80 @@ public final class BitmapOrAggFunction
     }
 
     @Override
-    public BitmapOrAccumulator createAccumulator() {
-        return new BitmapOrAccumulator();
+    public BitmapXorAccumulator createAccumulator() {
+        return new BitmapXorAccumulator();
     }
 
-    public void resetAccumulator(BitmapOrAccumulator acc) {
+    public void resetAccumulator(BitmapXorAccumulator acc) {
         acc.bitmap = null;
-    }
-
-    @Override
-    public Bitmap getValue(BitmapOrAccumulator acc) {
-        return Bitmap.from(acc.bitmap);
     }
 
     // --------------------------------------------------------------------------------------------
     // Runtime
     // --------------------------------------------------------------------------------------------
 
-    public void accumulate(BitmapOrAccumulator acc, @Nullable Bitmap bitmap) {
+    public void accumulate(BitmapXorAccumulator acc, @Nullable Bitmap bitmap) {
         if (bitmap == null) {
             return;
         }
 
         if (acc.bitmap != null) {
-            acc.bitmap.or(bitmap);
+            acc.bitmap.xor(bitmap);
         } else {
             acc.bitmap = RoaringBitmapData.from(bitmap);
         }
     }
 
-    public void merge(BitmapOrAccumulator acc, Iterable<BitmapOrAccumulator> its) {
-        for (BitmapOrAccumulator other : its) {
+    public void merge(BitmapXorAccumulator acc, Iterable<BitmapXorAccumulator> its) {
+        for (BitmapXorAccumulator other : its) {
             if (other.bitmap != null) {
                 if (acc.bitmap != null) {
-                    acc.bitmap.or(other.bitmap);
+                    acc.bitmap.xor(other.bitmap);
                 } else {
                     acc.bitmap = RoaringBitmapData.from(other.bitmap);
                 }
             }
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Sub-classes
+    // --------------------------------------------------------------------------------------------
+
+    /** Built-in BITMAP_XOR_AGG aggregate function that returns bitmap. */
+    public static final class BitmapXorAggFunction extends AbstractBitmapXorAggFunction<Bitmap> {
+
+        public BitmapXorAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BITMAP();
+        }
+
+        @Override
+        public Bitmap getValue(BitmapXorAccumulator acc) {
+            return Bitmap.from(acc.bitmap);
+        }
+    }
+
+    /** Built-in BITMAP_XOR_CARDINALITY_AGG aggregate function that returns cardinality. */
+    public static final class BitmapXorCardinalityAggFunction
+            extends AbstractBitmapXorAggFunction<Long> {
+
+        public BitmapXorCardinalityAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BIGINT();
+        }
+
+        @Override
+        public Long getValue(BitmapXorAccumulator acc) {
+            return acc.bitmap == null ? null : acc.bitmap.getLongCardinality();
         }
     }
 }

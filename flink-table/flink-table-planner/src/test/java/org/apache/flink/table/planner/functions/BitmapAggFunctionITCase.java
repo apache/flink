@@ -44,6 +44,15 @@ import static org.apache.flink.types.RowKind.UPDATE_BEFORE;
 /** Tests for built-in bitmap aggregation functions. */
 class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
 
+    private static final Bitmap OVERSIZE_BITMAP;
+
+    static {
+        // size 0x80000000L
+        OVERSIZE_BITMAP = Bitmap.empty();
+        OVERSIZE_BITMAP.add(0L, Integer.MAX_VALUE);
+        OVERSIZE_BITMAP.add(Integer.MAX_VALUE);
+    }
+
     @Override
     Stream<TestSpec> getTestCaseSpecs() {
         final List<TestSpec> specs = new ArrayList<>();
@@ -71,23 +80,26 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(INSERT, fromArray(-1, 0, 1), "C"),
                                         Row.ofKind(INSERT, fromArray(-1, -2), "C"),
                                         Row.ofKind(INSERT, null, "C"),
-                                        Row.ofKind(INSERT, null, "D")))
+                                        Row.ofKind(INSERT, null, "D"),
+                                        Row.ofKind(INSERT, OVERSIZE_BITMAP, "E")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_AND_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_AND_AGG(f0), BITMAP_AND_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapAndAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapAndAgg(),
+                                        $("f0").bitmapAndCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", fromArray(3)),
-                                        Row.of("B", fromArray(4, 6)),
-                                        Row.of("C", fromArray(-1)),
-                                        Row.of("D", null))),
+                                        Row.of("A", fromArray(3), 1L),
+                                        Row.of("B", fromArray(4, 6), 2L),
+                                        Row.of("C", fromArray(-1), 1L),
+                                        Row.of("D", null, null),
+                                        Row.of("E", OVERSIZE_BITMAP, 0x80000000L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_AND_AGG)
                         .withDescription("with retraction")
                         .withSource(
@@ -119,19 +131,20 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(UPDATE_AFTER, fromArray(1, 2), "C")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_AND_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_AND_AGG(f0), BITMAP_AND_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapAndAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapAndAgg(),
+                                        $("f0").bitmapAndCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", null),
-                                        Row.of("B", fromArray(3, 4)),
-                                        Row.of("C", fromArray(1, 2)))),
+                                        Row.of("A", null, null),
+                                        Row.of("B", fromArray(3, 4), 2L),
+                                        Row.of("C", fromArray(1, 2), 2L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_AND_AGG)
                         .withDescription("Validation Error")
                         .withSource(
@@ -170,19 +183,20 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(INSERT, null, "C")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_BUILD_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_BUILD_AGG(f0), BITMAP_BUILD_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapBuildAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapBuildAgg(),
+                                        $("f0").bitmapBuildCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", fromArray(-1, 1, 2, 3, 4)),
-                                        Row.of("B", fromArray(-1, 1, 2)),
-                                        Row.of("C", null))),
+                                        Row.of("A", fromArray(-1, 1, 2, 3, 4), 5L),
+                                        Row.of("B", fromArray(-1, 1, 2), 3L),
+                                        Row.of("C", null, null))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_BUILD_AGG)
                         .withDescription("with retraction")
                         .withSource(
@@ -214,19 +228,20 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(UPDATE_AFTER, 1, "C")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_BUILD_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_BUILD_AGG(f0), BITMAP_BUILD_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapBuildAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapBuildAgg(),
+                                        $("f0").bitmapBuildCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", null),
-                                        Row.of("B", fromArray(-1, 1, 2)),
-                                        Row.of("C", fromArray(1)))),
+                                        Row.of("A", null, null),
+                                        Row.of("B", fromArray(-1, 1, 2), 3L),
+                                        Row.of("C", fromArray(1), 1L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_BUILD_AGG)
                         .withDescription("Validation Error")
                         .withSource(
@@ -262,26 +277,29 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(INSERT, fromArray(-1, 0, 1), "C"),
                                         Row.ofKind(INSERT, fromArray(-1, -2), "C"),
                                         Row.ofKind(INSERT, null, "C"),
-                                        Row.ofKind(INSERT, null, "D")))
+                                        Row.ofKind(INSERT, null, "D"),
+                                        Row.ofKind(INSERT, OVERSIZE_BITMAP, "E")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_OR_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_OR_AGG(f0), BITMAP_OR_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapOrAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapOrAgg(),
+                                        $("f0").bitmapOrCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", fromArray(1, 2, 3, 4, 5)),
+                                        Row.of("A", fromArray(1, 2, 3, 4, 5), 5L),
                                         Row.of(
                                                 "B",
-                                                Bitmap.fromArray(
-                                                        new int[] {1, 2, 4, 6, 8, 12, 16})),
-                                        Row.of("C", fromArray(0, 1, -2, -1)),
-                                        Row.of("D", null))),
+                                                Bitmap.fromArray(new int[] {1, 2, 4, 6, 8, 12, 16}),
+                                                7L),
+                                        Row.of("C", fromArray(0, 1, -2, -1), 4L),
+                                        Row.of("D", null, null),
+                                        Row.of("E", OVERSIZE_BITMAP, 0x80000000L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_OR_AGG)
                         .withDescription("with retraction")
                         .withSource(
@@ -313,19 +331,20 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(UPDATE_AFTER, fromArray(1, 2), "C")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_OR_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_OR_AGG(f0), BITMAP_OR_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapOrAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapOrAgg(),
+                                        $("f0").bitmapOrCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", null),
-                                        Row.of("B", fromArray(0, 2, 3, 4, 5, 6, -1)),
-                                        Row.of("C", fromArray(1, 2)))),
+                                        Row.of("A", null, null),
+                                        Row.of("B", fromArray(0, 2, 3, 4, 5, 6, -1), 7L),
+                                        Row.of("C", fromArray(1, 2), 2L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_OR_AGG)
                         .withDescription("Validation Error")
                         .withSource(
@@ -361,23 +380,26 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(INSERT, fromArray(-1, 0, 1), "C"),
                                         Row.ofKind(INSERT, fromArray(-1, -2), "C"),
                                         Row.ofKind(INSERT, null, "C"),
-                                        Row.ofKind(INSERT, null, "D")))
+                                        Row.ofKind(INSERT, null, "D"),
+                                        Row.ofKind(INSERT, OVERSIZE_BITMAP, "E")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_XOR_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_XOR_AGG(f0), BITMAP_XOR_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapXorAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapXorAgg(),
+                                        $("f0").bitmapXorCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", fromArray(3, 4, 5)),
-                                        Row.of("B", fromArray(1, 4, 6, 8, 12, 16)),
-                                        Row.of("C", fromArray(0, 1, -2)),
-                                        Row.of("D", null))),
+                                        Row.of("A", fromArray(3, 4, 5), 3L),
+                                        Row.of("B", fromArray(1, 4, 6, 8, 12, 16), 6L),
+                                        Row.of("C", fromArray(0, 1, -2), 3L),
+                                        Row.of("D", null, null),
+                                        Row.of("E", OVERSIZE_BITMAP, 0x80000000L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_XOR_AGG)
                         .withDescription("with retraction")
                         .withSource(
@@ -409,19 +431,20 @@ class BitmapAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         Row.ofKind(UPDATE_AFTER, fromArray(1, 2), "C")))
                         .testResult(
                                 source ->
-                                        "SELECT f1, BITMAP_XOR_AGG(f0) FROM "
+                                        "SELECT f1, BITMAP_XOR_AGG(f0), BITMAP_XOR_CARDINALITY_AGG(f0) FROM "
                                                 + source
                                                 + " GROUP BY f1",
                                 TableApiAggSpec.groupBySelect(
                                         Collections.singletonList($("f1")),
                                         $("f1"),
-                                        $("f0").bitmapXorAgg()),
-                                ROW(STRING(), BITMAP()),
-                                ROW(STRING(), BITMAP()),
+                                        $("f0").bitmapXorAgg(),
+                                        $("f0").bitmapXorCardinalityAgg()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
+                                ROW(STRING(), BITMAP(), BIGINT()),
                                 Arrays.asList(
-                                        Row.of("A", null),
-                                        Row.of("B", fromArray(0, 3, 4, 6, -1)),
-                                        Row.of("C", fromArray(1, 2)))),
+                                        Row.of("A", null, null),
+                                        Row.of("B", fromArray(0, 3, 4, 6, -1), 5L),
+                                        Row.of("C", fromArray(1, 2), 2L))),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.BITMAP_XOR_AGG)
                         .withDescription("Validation Error")
                         .withSource(

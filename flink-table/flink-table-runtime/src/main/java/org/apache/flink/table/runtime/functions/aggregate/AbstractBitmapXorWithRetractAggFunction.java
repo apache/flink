@@ -33,15 +33,15 @@ import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/** Built-in BITMAP_XOR_AGG with retraction aggregate function. */
+/** Abstract base class for BITMAP_XOR_AGG and BITMAP_XOR_CARDINALITY_AGG with retraction. */
 @Internal
-public final class BitmapXorWithRetractAggFunction
+public abstract class AbstractBitmapXorWithRetractAggFunction<T>
         extends BuiltInAggregateFunction<
-                Bitmap, BitmapXorWithRetractAggFunction.BitmapXorWithRetractAccumulator> {
+                T, AbstractBitmapXorWithRetractAggFunction.BitmapXorWithRetractAccumulator> {
 
     private final transient DataType valueDataType;
 
-    public BitmapXorWithRetractAggFunction(LogicalType valueType) {
+    public AbstractBitmapXorWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
     }
 
@@ -62,16 +62,11 @@ public final class BitmapXorWithRetractAggFunction
                 DataTypes.FIELD("bitmap", DataTypes.BITMAP().notNull()));
     }
 
-    @Override
-    public DataType getOutputDataType() {
-        return DataTypes.BITMAP();
-    }
-
     // --------------------------------------------------------------------------------------------
     // Accumulator
     // --------------------------------------------------------------------------------------------
 
-    /** Accumulator for BITMAP_XOR_AGG with retraction. */
+    /** Accumulator for BITMAP_XOR_AGG and BITMAP_XOR_CARDINALITY_AGG with retraction. */
     public static class BitmapXorWithRetractAccumulator {
 
         public int bitmapCount = 0;
@@ -105,11 +100,6 @@ public final class BitmapXorWithRetractAggFunction
         acc.bitmap.clear();
     }
 
-    @Override
-    public Bitmap getValue(BitmapXorWithRetractAccumulator acc) {
-        return acc.bitmapCount <= 0 ? null : RoaringBitmapData.from(acc.bitmap);
-    }
-
     // --------------------------------------------------------------------------------------------
     // Runtime
     // --------------------------------------------------------------------------------------------
@@ -137,6 +127,51 @@ public final class BitmapXorWithRetractAggFunction
         for (BitmapXorWithRetractAccumulator other : its) {
             acc.bitmapCount += other.bitmapCount;
             acc.bitmap.xor(other.bitmap);
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Sub-classes
+    // --------------------------------------------------------------------------------------------
+
+    /** Built-in BITMAP_XOR_AGG with retraction aggregate function that returns bitmap. */
+    public static final class BitmapXorWithRetractAggFunction
+            extends AbstractBitmapXorWithRetractAggFunction<Bitmap> {
+
+        public BitmapXorWithRetractAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BITMAP();
+        }
+
+        @Override
+        public Bitmap getValue(BitmapXorWithRetractAccumulator acc) {
+            return acc.bitmapCount <= 0 ? null : RoaringBitmapData.from(acc.bitmap);
+        }
+    }
+
+    /**
+     * Built-in BITMAP_XOR_CARDINALITY_AGG with retraction aggregate function that returns
+     * cardinality.
+     */
+    public static final class BitmapXorCardinalityWithRetractAggFunction
+            extends AbstractBitmapXorWithRetractAggFunction<Long> {
+
+        public BitmapXorCardinalityWithRetractAggFunction(LogicalType valueType) {
+            super(valueType);
+        }
+
+        @Override
+        public DataType getOutputDataType() {
+            return DataTypes.BIGINT();
+        }
+
+        @Override
+        public Long getValue(BitmapXorWithRetractAccumulator acc) {
+            return acc.bitmapCount <= 0 ? null : acc.bitmap.getLongCardinality();
         }
     }
 }

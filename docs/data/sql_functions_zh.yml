@@ -1439,7 +1439,7 @@ bitmap:
   - sql: BITMAP_AND(bitmap1, bitmap2)
     table: bitmap1.bitmapAnd(bitmap2)
     description: |
-      计算两个位图的交集 (AND)。
+      计算两个位图的交集（AND）。
             
       `bitmap1 BITMAP, bitmap2 BITMAP`
       
@@ -1447,7 +1447,7 @@ bitmap:
   - sql: BITMAP_ANDNOT(bitmap1, bitmap2)
     table: bitmap1.bitmapAndnot(bitmap2)
     description: |
-      计算两个位图的差集 (AND NOT)。
+      计算两个位图的差集（AND NOT）。
       
       `bitmap1 BITMAP, bitmap2 BITMAP`
       
@@ -1481,7 +1481,7 @@ bitmap:
   - sql: BITMAP_OR(bitmap1, bitmap2)
     table: bitmap1.bitmapOr(bitmap2)
     description: |
-      计算两个位图的并集 (OR)。
+      计算两个位图的并集（OR）。
       
       `bitmap1 BITMAP, bitmap2 BITMAP`
       
@@ -1521,7 +1521,7 @@ bitmap:
   - sql: BITMAP_XOR(bitmap1, bitmap2)
     table: bitmap1.bitmapXor(bitmap2)
     description: |
-      计算两个位图的异或 (XOR)。
+      计算两个位图的异或（XOR）。
       
       `bitmap1 BITMAP, bitmap2 BITMAP`
       
@@ -1663,6 +1663,16 @@ bitmapagg:
       `bitmap BITMAP`
       
       返回一个 `BITMAP`。
+  - sql: BITMAP_AND_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapAndCardinalityAgg()
+    description: |
+      聚合多个位图的交集（AND）并返回其 64 位基数。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。
   - sql: BITMAP_BUILD_AGG(value)
     table: value.bitmapBuildAgg()
     description: |
@@ -1671,6 +1681,14 @@ bitmapagg:
       `value INT`
       
       返回一个 `BITMAP`。
+  - sql: BITMAP_BUILD_CARDINALITY_AGG(value)
+    table: value.bitmapBuildCardinalityAgg()
+    description: |
+      将 32 位整数聚合成位图并返回其 64 位基数。
+      
+      `value INT`
+      
+      返回一个 `BIGINT`。
   - sql: BITMAP_OR_AGG(bitmap)
     table: bitmap.bitmapOrAgg()
     description: |
@@ -1681,6 +1699,16 @@ bitmapagg:
       `bitmap BITMAP`
       
       返回一个 `BITMAP`。
+  - sql: BITMAP_OR_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapOrCardinalityAgg()
+    description: |
+      聚合多个位图的并集（OR）并返回其 64 位基数。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。
   - sql: BITMAP_XOR_AGG(bitmap)
     table: bitmap.bitmapXorAgg()
     description: |
@@ -1689,6 +1717,14 @@ bitmapagg:
       `bitmap BITMAP`
       
       返回一个 `BITMAP`。
+  - sql: BITMAP_XOR_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapXorCardinalityAgg()
+    description: |
+      聚合多个位图的异或（XOR）并返回其 64 位基数。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。
 
 catalog:
   - sql: CURRENT_DATABASE()

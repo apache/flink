@@ -1579,6 +1579,16 @@ bitmapagg:
       `bitmap BITMAP`
       
       Returns a `BITMAP`.
+  - sql: BITMAP_AND_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapAndCardinalityAgg()
+    description: |
+      Aggregates the AND (intersection) of multiple bitmaps and returns its 64-bit cardinality.
+      
+      NOTE: The retraction variant of this function may have significant performance overhead with large bitmaps.
+      
+      `bitmap BITMAP`
+      
+      Returns a `BIGINT`.
   - sql: BITMAP_BUILD_AGG(value)
     table: value.bitmapBuildAgg()
     description: |
@@ -1587,6 +1597,14 @@ bitmapagg:
       `value INT`
       
       Returns a `BITMAP`.
+  - sql: BITMAP_BUILD_CARDINALITY_AGG(value)
+    table: value.bitmapBuildCardinalityAgg()
+    description: |
+      Aggregates 32-bit integers into a bitmap and returns its 64-bit cardinality.
+      
+      `value INT`
+      
+      Returns a `BIGINT`.
   - sql: BITMAP_OR_AGG(bitmap)
     table: bitmap.bitmapOrAgg()
     description: |
@@ -1597,6 +1615,16 @@ bitmapagg:
       `bitmap BITMAP`
       
       Returns a `BITMAP`.
+  - sql: BITMAP_OR_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapOrCardinalityAgg()
+    description: |
+      Aggregates the OR (union) of multiple bitmaps and returns its 64-bit cardinality.
+      
+      NOTE: The retraction variant of this function may have significant performance overhead with large bitmaps.
+      
+      `bitmap BITMAP`
+      
+      Returns a `BIGINT`.
   - sql: BITMAP_XOR_AGG(bitmap)
     table: bitmap.bitmapXorAgg()
     description: |
@@ -1605,6 +1633,14 @@ bitmapagg:
       `bitmap BITMAP`
       
       Returns a `BITMAP`.
+  - sql: BITMAP_XOR_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapXorCardinalityAgg()
+    description: |
+      Aggregates the XOR (symmetric difference) of multiple bitmaps and returns its 64-bit cardinality.
+      
+      `bitmap BITMAP`
+      
+      Returns a `BIGINT`.
 
 catalog:
   - sql: CURRENT_DATABASE()

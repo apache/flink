@@ -3027,6 +3027,18 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition BITMAP_AND_CARDINALITY_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_AND_CARDINALITY_AGG")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("bitmap"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(explicit(DataTypes.BIGINT()))
+                    .runtimeProvided()
+                    .build();
+
     public static final BuiltInFunctionDefinition BITMAP_BUILD =
             BuiltInFunctionDefinition.newBuilder()
                     .name("BITMAP_BUILD")
@@ -3058,6 +3070,18 @@ public final class BuiltInFunctionDefinitions {
                                     Collections.singletonList("value"),
                                     Collections.singletonList(logical(LogicalTypeRoot.INTEGER))))
                     .outputTypeStrategy(explicit(DataTypes.BITMAP()))
+                    .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition BITMAP_BUILD_CARDINALITY_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_BUILD_CARDINALITY_AGG")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("value"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.INTEGER))))
+                    .outputTypeStrategy(explicit(DataTypes.BIGINT()))
                     .runtimeProvided()
                     .build();
 
@@ -3112,6 +3136,18 @@ public final class BuiltInFunctionDefinitions {
                                     Collections.singletonList("bitmap"),
                                     Collections.singletonList(logical(LogicalTypeRoot.BITMAP))))
                     .outputTypeStrategy(explicit(DataTypes.BITMAP()))
+                    .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition BITMAP_OR_CARDINALITY_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_OR_CARDINALITY_AGG")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("bitmap"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(explicit(DataTypes.BIGINT()))
                     .runtimeProvided()
                     .build();
 
@@ -3178,6 +3214,18 @@ public final class BuiltInFunctionDefinitions {
                                     Collections.singletonList("bitmap"),
                                     Collections.singletonList(logical(LogicalTypeRoot.BITMAP))))
                     .outputTypeStrategy(explicit(DataTypes.BITMAP()))
+                    .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition BITMAP_XOR_CARDINALITY_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_XOR_CARDINALITY_AGG")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("bitmap"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.BITMAP))))
+                    .outputTypeStrategy(explicit(DataTypes.BIGINT()))
                     .runtimeProvided()
                     .build();
 
