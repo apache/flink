@@ -980,8 +980,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
             // Step 4: perform application cleanup and mark result clean after all cleanup
             // (including job cleanup) is done
-            applicationDirtyResultFuture.thenCompose(
-                    ignored -> removeApplication(applicationId, application.getJobs()));
+            applicationDirtyResultFuture.thenComposeAsync(
+                    ignored -> removeApplication(applicationId, application.getJobs()),
+                    getMainThreadExecutor());
         }
     }
 

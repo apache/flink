@@ -130,7 +130,7 @@ public class DispatcherApplicationResourceCleanupTest {
         CompletableFuture<?> applicationTerminationFuture =
                 dispatcher.getApplicationTerminationFuture(applicationId);
 
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         applicationTerminationFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
@@ -161,7 +161,7 @@ public class DispatcherApplicationResourceCleanupTest {
 
         submitApplicationAndWait();
 
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         assertThatNoCleanupWasTriggered();
 
@@ -213,7 +213,7 @@ public class DispatcherApplicationResourceCleanupTest {
         CompletableFuture<?> applicationTerminationFuture =
                 dispatcher.getApplicationTerminationFuture(applicationId);
 
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // Mark as clean should not have been called yet
         assertFalse(markAsCleanFuture.isDone());
@@ -258,7 +258,7 @@ public class DispatcherApplicationResourceCleanupTest {
 
         submitApplicationAndWait();
 
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // Fatal error should be reported
         final CompletableFuture<? extends Throwable> errorFuture =
@@ -291,7 +291,7 @@ public class DispatcherApplicationResourceCleanupTest {
 
         submitApplicationAndWait();
 
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // No fatal error should be reported (mark as clean failure is handled gracefully)
         final CompletableFuture<? extends Throwable> errorFuture =
@@ -330,7 +330,7 @@ public class DispatcherApplicationResourceCleanupTest {
         CompletableFuture<?> applicationTerminationFuture =
                 dispatcher.getApplicationTerminationFuture(applicationId);
 
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // Before the archiving is finished, the cleanup is not finished and the application is not
         // terminated
@@ -385,5 +385,16 @@ public class DispatcherApplicationResourceCleanupTest {
 
     private void submitApplicationAndWait() {
         submitApplication().join();
+    }
+
+    private void mockApplicationFinished() throws Exception {
+        dispatcher
+                .callAsyncInMainThread(
+                        () -> {
+                            dispatcher.notifyApplicationStatusChange(
+                                    applicationId, ApplicationState.FINISHED);
+                            return CompletableFuture.completedFuture(null);
+                        })
+                .get();
     }
 }

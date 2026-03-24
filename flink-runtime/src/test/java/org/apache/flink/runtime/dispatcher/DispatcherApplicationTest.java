@@ -53,8 +53,10 @@ import org.apache.flink.runtime.messages.FlinkApplicationTerminatedWithoutCancel
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingApplicationResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;
@@ -211,11 +213,9 @@ public class DispatcherApplicationTest {
         // wait for archive to complete
         applicationTerminationFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
-        assertThrows(
-                IllegalStateException.class,
-                () ->
-                        dispatcher.notifyApplicationStatusChange(
-                                applicationId, ApplicationState.FAILED));
+        assertThatThrownBy(() -> mockApplicationStatusChange(ApplicationState.FAILED))
+                .extracting(ExceptionUtils::stripExecutionException)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -581,14 +581,7 @@ public class DispatcherApplicationTest {
                 .isTrue();
 
         // complete the application - this should trigger cleanup of the remaining recovered job
-        dispatcher
-                .callAsyncInMainThread(
-                        () -> {
-                            dispatcher.notifyApplicationStatusChange(
-                                    applicationId, ApplicationState.FINISHED);
-                            return CompletableFuture.completedFuture(Acknowledge.get());
-                        })
-                .get();
+        mockApplicationStatusChange(ApplicationState.FINISHED);
 
         // verify that no jobs are recovered
         assertThat(jobManagerRunnerFactory.getQueueSize()).isZero();
@@ -654,13 +647,14 @@ public class DispatcherApplicationTest {
                                 .anyMatch(r -> r.getJobId().equals(jobId)))
                 .isTrue();
 
+        CompletableFuture<?> applicationTerminationFuture =
+                dispatcher.getApplicationTerminationFuture(applicationId);
+
         // complete the application
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationStatusChange(ApplicationState.FINISHED);
 
         // wait for application termination
-        dispatcher
-                .getApplicationTerminationFuture(applicationId)
-                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        applicationTerminationFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         // wait for job termination
         dispatcher
@@ -781,12 +775,12 @@ public class DispatcherApplicationTest {
         assertThat(application.getApplicationId()).isEqualTo(applicationId);
         assertThat(application.getApplicationStatus()).isEqualTo(ApplicationState.FINISHED);
 
-        assertThatFuture(
+        CommonTestUtils.waitUntilCondition(
+                () ->
                         haServices
                                 .getApplicationResultStore()
-                                .hasCleanApplicationResultEntryAsync(applicationId))
-                .eventuallySucceeds()
-                .isEqualTo(true);
+                                .hasCleanApplicationResultEntryAsync(applicationId)
+                                .get());
     }
 
     @Test
@@ -827,7 +821,13 @@ public class DispatcherApplicationTest {
     }
 
     private void mockApplicationStatusChange(ApplicationState targetState) throws Exception {
-        dispatcher.notifyApplicationStatusChange(applicationId, targetState);
+        dispatcher
+                .callAsyncInMainThread(
+                        () -> {
+                            dispatcher.notifyApplicationStatusChange(applicationId, targetState);
+                            return CompletableFuture.completedFuture(null);
+                        })
+                .get();
     }
 
     private TestingDispatcher.Builder createTestingDispatcherBuilder() {
