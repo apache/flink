@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
+import org.apache.flink.table.planner.utils.ImmutableColConstraintTestUtils.addImmutableColConstraint
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -265,4 +266,27 @@ class ChangelogModeInferenceTest extends TableTestBase {
     util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testFilterAppliedOnOneOfManyUpsertKeys(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "name")
+
+    val sql =
+      """
+        |select * from src where name <> 'Tom'
+        |""".stripMargin
+
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
 }

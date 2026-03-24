@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.InsertConflictStrategy
 import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
@@ -1559,10 +1558,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       // there are no upsert keys, so all columns are non-primary key columns
       true
     } else {
-      val upsertKey = upsertKeys.head
-      RexNodeExtractor
-        .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
-        .exists(i => !upsertKey.get(i))
+      val inputRefIndices =
+        RexNodeExtractor
+          .extractRefInputFields(JavaScalaConversionUtil.toJava(Seq(condition)))
+      val inputRefSet = ImmutableBitSet.of(inputRefIndices: _*)
+      !upsertKeys.stream().anyMatch(uk => uk.contains(inputRefSet))
     }
   }
 
