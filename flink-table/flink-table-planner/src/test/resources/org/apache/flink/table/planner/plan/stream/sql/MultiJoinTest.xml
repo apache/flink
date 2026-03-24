@@ -1952,6 +1952,46 @@ Calc(select=[user_id, amount, name, age])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testThreeWayComplexJoinWithConditionsRelPlan">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    A.id,
+    A.a,
+    B.b,
+    C.c
+FROM A
+LEFT JOIN B
+    ON A.id = B.id and B.id > 1 
+INNER JOIN C
+    ON B.id = C.id and C.id > 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], a=[$1], b=[$3], c=[$5])
++- LogicalJoin(condition=[AND(=($2, $4), >($4, 3))], joinType=[inner])
+   :- LogicalJoin(condition=[AND(=($0, $2), >($2, 1))], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, C]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[id, a, b, c])
++- MultiJoin(commonJoinKey=[id], joinTypes=[INNER, INNER], inputUniqueKeys=[(id), (id), (id)], joinConditions=[=(id, id0), =(id0, id1)], select=[id,a,id0,b,id1,c], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) a, INTEGER id0, VARCHAR(2147483647) b, INTEGER id1, VARCHAR(2147483647) c)])
+   :- Exchange(distribution=[hash[id]])
+   :  +- Calc(select=[id, a], where=[>(id, 3)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A, filter=[]]], fields=[id, a])
+   :- Exchange(distribution=[hash[id]])
+   :  +- Calc(select=[id, b], where=[>(id, 3)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, B, filter=[]]], fields=[id, b])
+   +- Exchange(distribution=[hash[id]])
+      +- Calc(select=[id, c], where=[>(id, 3)])
+         +- TableSourceScan(table=[[default_catalog, default_database, C, filter=[]]], fields=[id, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testThreeWayInnerJoinExecPlan">
     <Resource name="sql">
       <![CDATA[
