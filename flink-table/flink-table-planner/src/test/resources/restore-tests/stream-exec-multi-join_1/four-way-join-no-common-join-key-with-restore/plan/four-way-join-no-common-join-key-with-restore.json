@@ -228,7 +228,7 @@
         "rightFieldIndex" : 0
       } ]
     },
-    "inputUpsertKeys" : [ [ [ 1 ] ], [ ], [ ] ],
+    "inputUniqueKeys" : [ [ [ 1 ] ], [ [ 0 ] ], [ [ 1 ] ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
@@ -344,7 +344,7 @@
         "rightFieldIndex" : 1
       } ]
     },
-    "inputUpsertKeys" : [ [ ], [ ] ],
+    "inputUniqueKeys" : [ [ ], [ ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
