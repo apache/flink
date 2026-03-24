@@ -208,7 +208,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                         "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt\n"
                                 + "  ADD `e` STRING ,\n"
                                 + "  ADD `f` STRING ,\n"
-                                + " MODIFY DEFINITION QUERY TO 'SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `t1`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
+                                + "  MODIFY DEFINITION QUERY TO 'SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `t1`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                 + "FROM `builtin`.`default`.`t1` AS `t1`',\n"
                                 + "  SET 'format' = 'json2',\n"
                                 + "  RESET 'connector',\n"
