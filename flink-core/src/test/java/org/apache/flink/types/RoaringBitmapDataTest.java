@@ -66,12 +66,6 @@ class RoaringBitmapDataTest {
         // fromArray
         assertThat(RoaringBitmapData.fromArray(new int[0]).toArray()).containsExactly();
         assertThat(RoaringBitmapData.fromArray(new int[] {1, 2}).toArray()).containsExactly(1, 2);
-
-        // wrap
-        assertThatThrownBy(() -> RoaringBitmapData.wrap(null))
-                .isInstanceOf(NullPointerException.class);
-        assertThat(RoaringBitmapData.wrap(RoaringBitmap.bitmapOf(1, 2)).toArray())
-                .containsExactly(1, 2);
     }
 
     @Test

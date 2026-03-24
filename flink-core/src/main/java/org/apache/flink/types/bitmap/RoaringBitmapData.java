@@ -20,7 +20,6 @@ package org.apache.flink.types.bitmap;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.DeserializationException;
-import org.apache.flink.util.Preconditions;
 
 import org.roaringbitmap.IntConsumer;
 import org.roaringbitmap.RoaringBitmap;
@@ -28,6 +27,7 @@ import org.roaringbitmap.RoaringBitmap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
@@ -36,7 +36,9 @@ import java.util.Objects;
  * modifications.
  */
 @Internal
-public final class RoaringBitmapData implements Bitmap {
+public final class RoaringBitmapData implements Bitmap, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final RoaringBitmap roaringBitmap;
 
@@ -46,10 +48,6 @@ public final class RoaringBitmapData implements Bitmap {
 
     private RoaringBitmapData(RoaringBitmapData other) {
         this.roaringBitmap = other.roaringBitmap.clone();
-    }
-
-    private RoaringBitmapData(RoaringBitmap roaringBitmap) {
-        this.roaringBitmap = roaringBitmap;
     }
 
     // ~ Static Methods ----------------------------------------------------------------
@@ -79,17 +77,7 @@ public final class RoaringBitmapData implements Bitmap {
         return rb32;
     }
 
-    /**
-     * Wraps the given {@link RoaringBitmap} without copying. The returned {@link RoaringBitmapData}
-     * shares the same internal object as the input.
-     */
-    public static RoaringBitmapData wrap(@Nonnull RoaringBitmap roaringBitmap) {
-        Preconditions.checkNotNull(roaringBitmap);
-        return new RoaringBitmapData(roaringBitmap);
-    }
-
-    private static RoaringBitmapData toRoaringBitmapData(Bitmap bm)
-            throws IllegalArgumentException {
+    public static RoaringBitmapData toRoaringBitmapData(Bitmap bm) throws IllegalArgumentException {
         if (!(bm instanceof RoaringBitmapData)) {
             throw new IllegalArgumentException("Unsupported bitmap type: " + bm.getClass() + ".");
         }
