@@ -364,6 +364,109 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                                 + "  ADD CONSTRAINT `new_constraint` PRIMARY KEY (`id`) NOT ENFORCED");
     }
 
+    @Test
+    void testCreateOrAlterMaterializedTableWithAddedWatermark()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                "CREATE MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3)"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3),\n"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '5' SECOND"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
+                                + "  ADD WATERMARK FOR `t`: TIMESTAMP_LTZ(3) NOT NULL AS CURRENT_TIMESTAMP - INTERVAL '5' SECOND");
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableWithModifiedWatermark()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                "CREATE MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3),\n"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '5' SECOND\n"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3),\n"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '12' HOUR\n"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
+                                + "  MODIFY WATERMARK FOR `t`: TIMESTAMP_LTZ(3) NOT NULL AS CURRENT_TIMESTAMP - INTERVAL '12' HOUR");
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableWithDroppedWatermark()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                "CREATE MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3),\n"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '5' SECOND"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3)"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
+                                + "  DROP WATERMARK");
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableWithDroppedWatermarkByNoExplicitSchema()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                "CREATE MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3),\n"
+                        + "   WATERMARK FOR t as current_timestamp - INTERVAL '5' SECOND"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt1\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
+                                + "  DROP WATERMARK");
+    }
+
     private void createMaterializedTableInCatalog(String sql, String materializedTableName)
             throws TableAlreadyExistException, DatabaseNotExistException {
         final ObjectPath objectPath =
