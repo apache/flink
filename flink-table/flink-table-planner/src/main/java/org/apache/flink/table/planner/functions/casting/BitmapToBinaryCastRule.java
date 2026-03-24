@@ -18,21 +18,20 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.types.bitmap.Bitmap;
 
-import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldPad;
-import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.couldTrim;
-import static org.apache.flink.table.planner.functions.casting.BinaryToBinaryCastRule.trimOrPadByteArray;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.arrayLength;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 
-/** {@link LogicalTypeRoot#BITMAP} to {@link LogicalTypeFamily#BINARY_STRING} cast rule. */
-class BitmapToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Bitmap, byte[]> {
+/**
+ * {@link LogicalTypeRoot#BITMAP} to BYTES cast rule.
+ *
+ * <p>Only casting to BYTES (unbounded VARBINARY) is supported. Casting to BINARY(n) or VARBINARY(n)
+ * is intentionally disabled because trimming or padding would corrupt the serialized bitmap data.
+ */
+class BitmapToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<Bitmap, byte[]> {
 
     static final BitmapToBinaryCastRule INSTANCE = new BitmapToBinaryCastRule();
 
@@ -40,49 +39,16 @@ class BitmapToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Bitm
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.BITMAP)
-                        .target(LogicalTypeFamily.BINARY_STRING)
+                        .target(VarBinaryType.BYTES_TYPE)
                         .build());
     }
 
     @Override
-    protected String generateCodeBlockInternal(
+    public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
-            String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
-        final String byteArrayTerm =
-                CodeGenUtils.newName(context.getCodeGeneratorContext(), "bitmapBytes");
-
-        if (context.legacyBehaviour()
-                || !(couldTrim(targetLength) || couldPad(targetLogicalType, targetLength))) {
-            return new CastRuleUtils.CodeWriter()
-                    .assignStmt(returnVariable, methodCall(inputTerm, "toBytes"))
-                    .toString();
-        } else {
-            return new CastRuleUtils.CodeWriter()
-                    .declStmt(byte[].class, byteArrayTerm, methodCall(inputTerm, "toBytes"))
-                    .ifStmt(
-                            arrayLength(byteArrayTerm) + " <= " + targetLength,
-                            thenWriter -> {
-                                if (couldPad(targetLogicalType, targetLength)) {
-                                    trimOrPadByteArray(
-                                            returnVariable,
-                                            targetLength,
-                                            byteArrayTerm,
-                                            thenWriter);
-                                } else {
-                                    thenWriter.assignStmt(returnVariable, byteArrayTerm);
-                                }
-                            },
-                            elseWriter ->
-                                    trimOrPadByteArray(
-                                            returnVariable,
-                                            targetLength,
-                                            byteArrayTerm,
-                                            elseWriter))
-                    .toString();
-        }
+        return methodCall(inputTerm, "toBytes");
     }
 }

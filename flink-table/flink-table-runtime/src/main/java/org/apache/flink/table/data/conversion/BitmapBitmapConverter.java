@@ -22,10 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.bitmap.RoaringBitmapData;
 
-/**
- * Converter for {@link org.apache.flink.table.types.logical.BitmapType BitmapType} of unknown
- * {@link Bitmap} external type.
- */
+/** Converter for {@link Bitmap} type that only accepts {@link RoaringBitmapData} as input. */
 @Internal
 public class BitmapBitmapConverter implements DataStructureConverter<Bitmap, Bitmap> {
 

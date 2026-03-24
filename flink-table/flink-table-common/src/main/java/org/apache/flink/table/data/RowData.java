@@ -109,6 +109,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
  * +--------------------------------+-----------------------------------------+
  * | RAW                            | {@link RawValueData}                    |
  * +--------------------------------+-----------------------------------------+
+ * | BITMAP                         | {@link Bitmap}                          |
+ * +--------------------------------+-----------------------------------------+
  * </pre>
  *
  * <p>Nullability is always handled by the container data structure.
@@ -208,7 +210,8 @@ public interface RowData {
 
     /** Returns the bitmap value at the given position. */
     default Bitmap getBitmap(int pos) {
-        throw new UnsupportedOperationException("Bitmap is not supported yet.");
+        throw new UnsupportedOperationException(
+                "This RowData implementation does not support Bitmap type.");
     }
 
     // ------------------------------------------------------------------------------------------

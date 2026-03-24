@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.types.bitmap.Bitmap;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -64,6 +65,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
+import static org.apache.flink.table.api.DataTypes.BITMAP;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.CHAR;
@@ -143,6 +145,8 @@ class CastRulesTest {
             timestampDataFromInstant(2022, 1, 4, 12, 34, 56, 123456780);
     private static final StringData TIMESTAMP_STRING = fromString("2021-09-24 12:34:56.123456");
     private static final StringData TIMESTAMP_STRING_CET = fromString("2021-09-24 14:34:56.123456");
+
+    private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
 
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
@@ -1485,7 +1489,24 @@ class CastRulesTest {
                                                     TIMESTAMP_STRING,
                                                     TIMESTAMP_STRING,
                                                     TIMESTAMP_STRING
-                                                }))));
+                                                }))),
+                // BITMAP cast rules
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, fromString("{0,1,"))
+                        .fromCase(BITMAP(), Bitmap.empty(), fromString("{}   "))
+                        .fromCase(BITMAP(), null, EMPTY_UTF8),
+                CastTestSpecBuilder.testCastTo(VARCHAR(5))
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, fromString("{0,1,"))
+                        .fromCase(BITMAP(), Bitmap.empty(), fromString("{}"))
+                        .fromCase(BITMAP(), null, EMPTY_UTF8),
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, fromString("{0,1,2}"))
+                        .fromCase(BITMAP(), Bitmap.empty(), fromString("{}"))
+                        .fromCase(BITMAP(), null, null),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(BITMAP(), DEFAULT_BITMAP, DEFAULT_BITMAP.toBytes())
+                        .fromCase(BITMAP(), Bitmap.empty(), Bitmap.empty().toBytes())
+                        .fromCase(BITMAP(), null, null));
     }
 
     @TestFactory

@@ -205,7 +205,7 @@ public final class LogicalTypeCasts {
         castTo(BINARY)
                 .implicitFrom(BINARY)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(VARBINARY, RAW, BITMAP)
+                .explicitFrom(VARBINARY, RAW)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY)
                 .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
@@ -213,7 +213,7 @@ public final class LogicalTypeCasts {
         castTo(VARBINARY)
                 .implicitFromFamily(BINARY_STRING)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(BINARY, RAW, BITMAP)
+                .explicitFrom(BINARY, RAW)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY, VARBINARY)
                 .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
@@ -617,6 +617,10 @@ public final class LogicalTypeCasts {
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
             // the two symbol types are not equal (from initial invariant), casting is not possible
             return false;
+        } else if (sourceRoot == BITMAP && targetRoot == VARBINARY) {
+            // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
+            // would corrupt the serialized bitmap data.
+            return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {

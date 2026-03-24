@@ -119,7 +119,8 @@ public interface ArrayData {
 
     /** Returns the bitmap value at the given position. */
     default Bitmap getBitmap(int pos) {
-        throw new UnsupportedOperationException("Bitmap is not supported yet.");
+        throw new UnsupportedOperationException(
+                "This ArrayData implementation does not support Bitmap type.");
     }
 
     // ------------------------------------------------------------------------------------------

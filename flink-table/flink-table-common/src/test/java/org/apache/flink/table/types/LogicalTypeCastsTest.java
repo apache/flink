@@ -267,8 +267,9 @@ class LogicalTypeCastsTest {
                 // bitmap, remove these cases when built-in functions are introduced to build bitmap
                 Arguments.of(new BitmapType(), new CharType(), false, true),
                 Arguments.of(new BitmapType(), VarCharType.STRING_TYPE, false, true),
-                Arguments.of(new BitmapType(), new BinaryType(), false, true),
-                Arguments.of(new BitmapType(), new VarBinaryType(), false, true),
+                Arguments.of(new BitmapType(), new BinaryType(), false, false),
+                Arguments.of(new BitmapType(), new VarBinaryType(), false, false),
+                Arguments.of(new BitmapType(), VarBinaryType.BYTES_TYPE, false, true),
                 Arguments.of(new BitmapType(), new ArrayType(new IntType()), false, false),
                 Arguments.of(new CharType(), new BitmapType(), false, false),
                 Arguments.of(VarCharType.STRING_TYPE, new BitmapType(), false, false),
