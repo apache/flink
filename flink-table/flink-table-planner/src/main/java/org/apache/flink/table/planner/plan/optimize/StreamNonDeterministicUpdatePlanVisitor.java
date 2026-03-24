@@ -202,8 +202,10 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         } else if (rel instanceof StreamPhysicalMLPredictTableFunction) {
             return visitMLPredictTableFunction(
                     (StreamPhysicalMLPredictTableFunction) rel, requireDeterminism);
-        } else if (rel instanceof StreamPhysicalChangelogNormalize
-                || rel instanceof StreamPhysicalDropUpdateBefore
+        } else if (rel instanceof StreamPhysicalChangelogNormalize) {
+            return visitChangelogNormalize(
+                    (StreamPhysicalChangelogNormalize) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalDropUpdateBefore
                 || rel instanceof StreamPhysicalMiniBatchAssigner
                 || rel instanceof StreamPhysicalUnion
                 || rel instanceof StreamPhysicalSort
@@ -340,6 +342,21 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                     "ML_PREDICT", predictTableFunction.getMLPredictCall(), predictTableFunction);
         }
         return transmitDeterminismRequirement(predictTableFunction, NO_REQUIRED_DETERMINISM);
+    }
+
+    /**
+     * ChangelogNormalize may have a filter condition pushed down by the optimizer. A
+     * non-deterministic filter (e.g. NOW()) can asymmetrically drop -U and +U records, corrupting
+     * the retract contract for downstream operators.
+     */
+    private StreamPhysicalRel visitChangelogNormalize(
+            final StreamPhysicalChangelogNormalize changelogNormalize,
+            final ImmutableBitSet requireDeterminism) {
+        final RexNode filterCondition = changelogNormalize.filterCondition();
+        if (filterCondition != null) {
+            checkNonDeterministicCondition(filterCondition, changelogNormalize);
+        }
+        return transmitDeterminismRequirement(changelogNormalize, requireDeterminism);
     }
 
     private StreamPhysicalRel visitCorrelate(
