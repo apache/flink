@@ -146,6 +146,31 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
     }
 
     @Test
+    void testCreateOrAlterMaterializedTableForExistingTableNoChanges() {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges()).isEmpty();
+        assertThat(operation.asSummaryString())
+                .isEqualTo("CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt\n");
+    }
+
+    @Test
     void testCreateOrAlterMaterializedTableForExistingTable() throws TableNotExistException {
         final String sql =
                 "CREATE OR ALTER MATERIALIZED TABLE mt (\n"

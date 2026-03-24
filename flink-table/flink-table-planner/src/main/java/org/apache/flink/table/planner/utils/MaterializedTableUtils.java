@@ -38,6 +38,7 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ColumnPosition;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
@@ -278,7 +279,7 @@ public class MaterializedTableUtils {
         }
     }
 
-    public static List<Column> validateAndExtractNewColumns(
+    public static List<TableChange> validateAndExtractColumnChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema, boolean schemaDefinedInQuery) {
         final List<Column> newColumns = getPersistedColumns(newSchema);
         final List<Column> oldColumns = getPersistedColumns(oldSchema);
@@ -294,29 +295,46 @@ public class MaterializedTableUtils {
                             originalColumnSize, newColumnSize));
         }
 
+        final List<TableChange> columnChanges = new ArrayList<>();
         for (int i = 0; i < oldColumns.size(); i++) {
-            Column oldColumn = oldColumns.get(i);
-            Column newColumn = newColumns.get(i);
+            final Column oldColumn = oldColumns.get(i);
+            final Column newColumn = newColumns.get(i);
+            final DataType newColumnDataType =
+                    getNewColumnDatatype(oldColumn, newColumns.get(i), schemaDefinedInQuery);
             if (!oldColumn.equals(newColumn)) {
-                throw new ValidationException(
-                        String.format(
-                                "When modifying the query of a materialized table, "
-                                        + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                        + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
-                                i, oldColumn, newColumn));
+                if (!oldColumn.getName().equals(newColumn.getName())
+                        || !oldColumn.getDataType().equals(newColumnDataType)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "When modifying the query of a materialized table, "
+                                            + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                            + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
+                                    i + 1, oldColumn, newColumn));
+                }
             }
         }
 
-        final List<Column> newAddedColumns = new ArrayList<>();
         for (int i = oldColumns.size(); i < newColumns.size(); i++) {
             Column newColumn = newColumns.get(i);
-            newAddedColumns.add(
-                    schemaDefinedInQuery
-                            ? newColumn
-                            : newColumn.copy(newColumn.getDataType().nullable()));
+            columnChanges.add(
+                    TableChange.add(
+                            schemaDefinedInQuery
+                                    ? newColumn
+                                    : newColumn.copy(newColumn.getDataType().nullable())));
         }
 
-        return newAddedColumns;
+        return columnChanges;
+    }
+
+    private static DataType getNewColumnDatatype(
+            Column oldColumn, Column newColumn, boolean schemaDefinedInQuery) {
+        if (schemaDefinedInQuery) {
+            return newColumn.getDataType();
+        }
+        if (oldColumn.getDataType().nullable().equals(newColumn.getDataType().nullable())) {
+            return oldColumn.getDataType();
+        }
+        return newColumn.getDataType();
     }
 
     public static ResolvedSchema getQueryOperationResolvedSchema(

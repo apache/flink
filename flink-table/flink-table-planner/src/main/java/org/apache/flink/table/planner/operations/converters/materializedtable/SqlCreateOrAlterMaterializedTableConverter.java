@@ -24,7 +24,6 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -124,15 +123,12 @@ public class SqlCreateOrAlterMaterializedTableConverter
     private Function<ResolvedCatalogMaterializedTable, List<TableChange>> buildTableChanges(
             final MergeContext mergeContext, final SchemaResolver schemaResolver) {
         return oldTable -> {
-            final List<TableChange> changes = new ArrayList<>();
-
             final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
             final ResolvedSchema newSchema = schemaResolver.resolve(mergeContext.getMergedSchema());
-            final List<Column> newColumns =
-                    MaterializedTableUtils.validateAndExtractNewColumns(
-                            oldSchema, newSchema, mergeContext.hasSchemaDefinition());
-
-            newColumns.forEach(column -> changes.add(TableChange.add(column)));
+            final List<TableChange> changes =
+                    new ArrayList<>(
+                            MaterializedTableUtils.validateAndExtractColumnChanges(
+                                    oldSchema, newSchema, mergeContext.hasSchemaDefinition()));
 
             final UniqueConstraint oldConstraint = oldSchema.getPrimaryKey().orElse(null);
             final UniqueConstraint newConstraint = newSchema.getPrimaryKey().orElse(null);
