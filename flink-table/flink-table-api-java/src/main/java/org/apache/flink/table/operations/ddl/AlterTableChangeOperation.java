@@ -97,7 +97,9 @@ public class AlterTableChangeOperation extends AlterTableOperation {
             return String.format(
                     "  MODIFY %s COMMENT '%s'",
                     EncodingUtils.escapeIdentifier(modifyColumnComment.getNewColumn().getName()),
-                    modifyColumnComment.getNewComment());
+                    modifyColumnComment.getNewComment() == null
+                            ? ""
+                            : modifyColumnComment.getNewComment());
         } else if (tableChange instanceof TableChange.ModifyPhysicalColumnType) {
             TableChange.ModifyPhysicalColumnType modifyPhysicalColumnType =
                     (TableChange.ModifyPhysicalColumnType) tableChange;

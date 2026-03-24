@@ -45,6 +45,7 @@ import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -310,6 +311,14 @@ public class MaterializedTableUtils {
                                             + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
                                             + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
                                     i + 1, oldColumn, newColumn));
+                }
+                final String oldComment = oldColumn.getComment().orElse(null);
+                final String newComment = newColumn.getComment().orElse(null);
+
+                if (StringUtils.isEmpty(oldComment) != StringUtils.isEmpty(newComment)
+                        || StringUtils.isNotEmpty(oldComment)
+                                && !Objects.equals(oldComment, newComment)) {
+                    columnChanges.add(TableChange.modifyColumnComment(oldColumn, newComment));
                 }
             }
         }
