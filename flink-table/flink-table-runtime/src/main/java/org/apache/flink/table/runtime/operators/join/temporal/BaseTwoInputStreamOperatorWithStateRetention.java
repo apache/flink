@@ -89,6 +89,7 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
     @Override
     public void open() throws Exception {
         initializeTimerService();
+        super.open();
 
         if (stateCleaningEnabled) {
             ValueStateDescriptor<Long> cleanupStateDescriptor =
