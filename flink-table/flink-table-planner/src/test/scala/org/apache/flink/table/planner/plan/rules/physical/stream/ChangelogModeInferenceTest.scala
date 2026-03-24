@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
+import org.apache.flink.table.planner.utils.ImmutableColConstraintTestUtils.addImmutableColConstraint
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -265,4 +266,165 @@ class ChangelogModeInferenceTest extends TableTestBase {
     util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testFilterSubsetOfUpsertKey(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "name")
+
+    val sql =
+      """
+        |select * from src where name <> 'Tom'
+        |""".stripMargin
+
+    // upsert keys: {{name, id}, {id}}
+    // filter references: {name}
+    // upsert key {name, id} contains {name}, so UB can be dropped
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterSubsetOfUpsertKey2(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | score int,
+                               | note string,
+                               | name string,
+                               | id int,
+                               | primary key (name, id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "score")
+
+    val sql =
+      """
+        |select * from src where name <> 'Tom' and score > 90
+        |""".stripMargin
+
+    // upsert keys: {{score, name, id}, {name, id}}
+    // filter references: {score, name}
+    // upsert key {score, name, id} contains {score, name}, so UB can be dropped
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterNotContainedByAnyUpsertKey(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | score int,
+                               | note string,
+                               | name string,
+                               | id int,
+                               | primary key (id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "score")
+
+    val sql =
+      """
+        |select * from src where name <> 'Tom' and score > 90
+        |""".stripMargin
+
+    // upsert keys: {{score, id}, {id}}
+    // filter references: {score, name}
+    // upsert key {score, id} or {id} does not contain {score, name}, so UB cannot be dropped
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterOneEntireUpsertKey(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | score int,
+                               | note string,
+                               | name string,
+                               | id int,
+                               | primary key (name, id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "score")
+
+    val sql =
+      """
+        |select * from src where score > 90 and name = 'Tom' and id > 0
+        |""".stripMargin
+
+    // upsert keys: {{score, name, id}, {name, id}}
+    // filter references: {score, name, id}
+    // upsert key {score, name, id} fully contains {score, name, id}, so UB can be dropped
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterOnPrimaryKeyOnly(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val sql =
+      """
+        |select * from src where id > 5
+        |""".stripMargin
+
+    // upsert keys: {{id}}
+    // filter references: {id}
+    // upsert key {id} fully contains {id}, so UB can be dropped
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeyColOnly(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val sql =
+      """
+        |select * from src where name <> 'Tom'
+        |""".stripMargin
+
+    // upsert keys: {{id}}
+    // filter references: {name}
+    // upsert key {id} does not contain {name}, so UB cannot be dropped
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
 }
