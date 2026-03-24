@@ -119,7 +119,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         } else if (tableChange instanceof ModifyDefinitionQuery) {
             ModifyDefinitionQuery definitionQuery = (ModifyDefinitionQuery) tableChange;
             return String.format(
-                    " MODIFY DEFINITION QUERY TO '%s'", definitionQuery.getDefinitionQuery());
+                    "  MODIFY DEFINITION QUERY TO '%s'", definitionQuery.getDefinitionQuery());
         } else {
             return AlterTableChangeOperation.toString(tableChange);
         }
