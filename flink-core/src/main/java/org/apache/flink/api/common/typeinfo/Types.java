@@ -37,6 +37,7 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.lang.reflect.Field;
@@ -158,6 +159,12 @@ public class Types {
     public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
 
     public static final TypeInformation<Variant> VARIANT = VariantTypeInfo.INSTANCE;
+
+    /**
+     * Returns type information for {@link org.apache.flink.types.bitmap.Bitmap}. Does not support a
+     * null value.
+     */
+    public static final TypeInformation<Bitmap> BITMAP = BitmapTypeInfo.INSTANCE;
 
     // CHECKSTYLE.OFF: MethodName
 
