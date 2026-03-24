@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.bitmap.Bitmap;
 
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /** {@link LogicalTypeRoot#BITMAP} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 class BitmapToStringCastRule extends AbstractCharacterFamilyTargetRule<Bitmap> {
@@ -34,7 +35,7 @@ class BitmapToStringCastRule extends AbstractCharacterFamilyTargetRule<Bitmap> {
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.BITMAP)
-                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .target(STRING_TYPE)
                         .build());
     }
 

@@ -2730,10 +2730,10 @@ class TypeInferenceExtractorTest {
         public void addN(int[] values, int offset, int n) {}
 
         @Override
-        public void and(@org.jetbrains.annotations.Nullable Bitmap other) {}
+        public void and(@Nullable Bitmap other) {}
 
         @Override
-        public void andNot(@org.jetbrains.annotations.Nullable Bitmap other) {}
+        public void andNot(@Nullable Bitmap other) {}
 
         @Override
         public void clear() {}
@@ -2759,7 +2759,7 @@ class TypeInferenceExtractorTest {
         }
 
         @Override
-        public void or(@org.jetbrains.annotations.Nullable Bitmap other) {}
+        public void or(@Nullable Bitmap other) {}
 
         @Override
         public void remove(int value) {}
@@ -2775,6 +2775,6 @@ class TypeInferenceExtractorTest {
         }
 
         @Override
-        public void xor(@org.jetbrains.annotations.Nullable Bitmap other) {}
+        public void xor(@Nullable Bitmap other) {}
     }
 }
