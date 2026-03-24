@@ -467,6 +467,41 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                                 + "  DROP WATERMARK");
     }
 
+    @Test
+    void testCreateOrAlterMaterializedTableWithCommentChange()
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final String prepSql =
+                "CREATE MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT COMMENT 'INT comment', t TIMESTAMP_LTZ(3)\n"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        createMaterializedTableInCatalog(prepSql, "mt1");
+
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt1 (\n"
+                        + "   id INT, t TIMESTAMP_LTZ(3) COMMENT 'Timestamp Comment'\n"
+                        + ")\n"
+                        + "AS SELECT 1 as id, current_timestamp as t";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges())
+                .containsExactly(
+                        TableChange.modifyColumnComment(
+                                Column.physical("id", DataTypes.INT()).withComment("INT comment"),
+                                null),
+                        TableChange.modifyColumnComment(
+                                Column.physical("t", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+                                "Timestamp Comment"));
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
+                                + "  MODIFY `id` COMMENT '',\n"
+                                + "  MODIFY `t` COMMENT 'Timestamp Comment'");
+    }
+
     private void createMaterializedTableInCatalog(String sql, String materializedTableName)
             throws TableAlreadyExistException, DatabaseNotExistException {
         final ObjectPath objectPath =
