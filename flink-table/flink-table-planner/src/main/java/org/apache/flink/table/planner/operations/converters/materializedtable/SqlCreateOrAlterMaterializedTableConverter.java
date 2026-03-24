@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.FullAlterMaterializedTableOperation;
@@ -126,13 +127,25 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final List<TableChange> changes = new ArrayList<>();
 
             final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+            final ResolvedSchema newSchema = schemaResolver.resolve(mergeContext.getMergedSchema());
             final List<Column> newColumns =
                     MaterializedTableUtils.validateAndExtractNewColumns(
-                            oldSchema,
-                            schemaResolver.resolve(mergeContext.getMergedSchema()),
-                            mergeContext.hasSchemaDefinition());
+                            oldSchema, newSchema, mergeContext.hasSchemaDefinition());
 
             newColumns.forEach(column -> changes.add(TableChange.add(column)));
+
+            final UniqueConstraint oldConstraint = oldSchema.getPrimaryKey().orElse(null);
+            final UniqueConstraint newConstraint = newSchema.getPrimaryKey().orElse(null);
+            if (!Objects.equals(oldConstraint, newConstraint)) {
+                if (newConstraint == null) {
+                    changes.add(TableChange.dropConstraint(oldConstraint.getName()));
+                } else if (oldConstraint == null) {
+                    changes.add(TableChange.add(newConstraint));
+                } else {
+                    changes.add(TableChange.modify(newConstraint));
+                }
+            }
+
             changes.add(
                     TableChange.modifyDefinitionQuery(
                             mergeContext.getMergedOriginalQuery(),
@@ -142,7 +155,10 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final Map<String, String> newOptions = mergeContext.getMergedTableOptions();
 
             for (Map.Entry<String, String> newOptionEntry : newOptions.entrySet()) {
-                changes.add(TableChange.set(newOptionEntry.getKey(), newOptionEntry.getValue()));
+                if (!newOptionEntry.getValue().equals(oldOptions.get(newOptionEntry.getKey()))) {
+                    changes.add(
+                            TableChange.set(newOptionEntry.getKey(), newOptionEntry.getValue()));
+                }
             }
 
             for (Map.Entry<String, String> oldOptionEntry : oldOptions.entrySet()) {
