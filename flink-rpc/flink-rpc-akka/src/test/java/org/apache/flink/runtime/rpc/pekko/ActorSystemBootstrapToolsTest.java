@@ -18,11 +18,14 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.ActorSystem;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -32,6 +35,7 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -40,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ActorSystemBootstrapTools}. */
@@ -110,5 +115,36 @@ class ActorSystemBootstrapToolsTest {
         } finally {
             portOccupier.close();
         }
+    }
+
+    @Test
+    void testToMaskedMapMasksOnlySensitiveKeys() {
+        Config config =
+                ConfigFactory.parseMap(
+                        Map.of(
+                                "pekko.loglevel", "OFF",
+                                "pekko.remote.artery.enabled", "false",
+                                "pekko.remote.classic.netty.ssl.security.key-password", "secret",
+                                "pekko.remote.classic.netty.ssl.security.key-store-password",
+                                        "secret2",
+                                "pekko.remote.classic.netty.ssl.security.trust-store-password",
+                                        "secret3"));
+
+        Map<String, String> result = ActorSystemBootstrapTools.toMaskedMap(config);
+
+        // Non-sensitive values should remain the same
+        assertThat(result.get("pekko.loglevel")).isEqualTo("OFF");
+        assertThat(result.get("pekko.remote.artery.enabled")).isEqualTo("false");
+
+        // Sensitive values should be masked
+        assertThat(result.get("pekko.remote.classic.netty.ssl.security.key-password"))
+                .isNotEqualTo("secret")
+                .isEqualTo(GlobalConfiguration.HIDDEN_CONTENT);
+        assertThat(result.get("pekko.remote.classic.netty.ssl.security.key-store-password"))
+                .isNotEqualTo("secret2")
+                .isEqualTo(GlobalConfiguration.HIDDEN_CONTENT);
+        assertThat(result.get("pekko.remote.classic.netty.ssl.security.trust-store-password"))
+                .isNotEqualTo("secret3")
+                .isEqualTo(GlobalConfiguration.HIDDEN_CONTENT);
     }
 }

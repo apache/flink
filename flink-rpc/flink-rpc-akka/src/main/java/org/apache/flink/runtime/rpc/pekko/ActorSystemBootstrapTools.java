@@ -250,12 +250,13 @@ public class ActorSystemBootstrapTools {
      * @param config The Pekko configuration
      * @return A map of configuration keys to string values
      */
-    private static Map<String, String> toMap(Config config) {
-        return config.entrySet().stream()
-                .collect(
-                        Collectors.toMap(
-                                Map.Entry::getKey,
-                                entry -> String.valueOf(entry.getValue().unwrapped())));
+    static Map<String, String> toMaskedMap(Config config) {
+        return ConfigurationUtils.hideSensitiveValues(
+                config.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        entry -> String.valueOf(entry.getValue().unwrapped()))));
     }
 
     /**
@@ -269,9 +270,7 @@ public class ActorSystemBootstrapTools {
     private static ActorSystem startActorSystem(
             Config config, String actorSystemName, Logger logger) {
         if (logger.isDebugEnabled()) {
-            logger.debug(
-                    "Using pekko configuration\n {}",
-                    ConfigurationUtils.hideSensitiveValues(toMap(config)));
+            logger.debug("Using pekko configuration\n {}", toMaskedMap(config));
         }
         ActorSystem actorSystem = PekkoUtils.createActorSystem(actorSystemName, config);
 
