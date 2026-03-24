@@ -48,6 +48,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -850,14 +851,14 @@ public class JsonRowDataSerDeSchemaTest {
                 .hasMessageContaining(spec.errorMessage);
     }
 
-    @TestTemplate
+    @Test
     void testIgnoreParseErrorsLogsDebugMessage() throws Exception {
         RowType rowType = (RowType) ROW(FIELD("id", INT())).getLogicalType();
-        String invalidJson = "{\"id\":\"not_a_number\"}";
+        String invalidJson = "not valid json";
 
         DeserializationSchema<RowData> schema =
-                createDeserializationSchema(
-                        isJsonParser, rowType, false, true, TimestampFormat.SQL);
+                new JsonRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), false, true, TimestampFormat.SQL);
         schema.open(new DummyInitializationContext());
 
         // Deserialize invalid JSON - should not throw but should log
@@ -872,6 +873,37 @@ public class JsonRowDataSerDeSchemaTest {
                         msg ->
                                 msg.contains("Failed to deserialize JSON")
                                         && msg.contains(invalidJson));
+    }
+
+    @TestTemplate
+    void testIgnoreParseErrorsFieldReturnsNull() throws Exception {
+        RowType rowType = (RowType) ROW(FIELD("id", INT())).getLogicalType();
+        String invalidFieldJson = "{\"id\":\"not_a_number\"}";
+
+        DeserializationSchema<RowData> schema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, true, TimestampFormat.SQL);
+        schema.open(new DummyInitializationContext());
+
+        // With ignoreParseErrors=true, invalid field values should be set to null
+        RowData result = schema.deserialize(invalidFieldJson.getBytes());
+        assertThat(result).isNotNull();
+        assertThat(result.isNullAt(0)).isTrue();
+    }
+
+    @TestTemplate
+    void testDeserializationThrowsExceptionWhenIgnoreParseErrorsIsFalse() throws Exception {
+        RowType rowType = (RowType) ROW(FIELD("id", INT())).getLogicalType();
+        String invalidFieldJson = "{\"id\":\"not_a_number\"}";
+
+        DeserializationSchema<RowData> schema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.SQL);
+        schema.open(new DummyInitializationContext());
+
+        assertThatThrownBy(() -> schema.deserialize(invalidFieldJson.getBytes()))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Failed to deserialize JSON");
     }
 
     private static List<TestSpec> testData =
