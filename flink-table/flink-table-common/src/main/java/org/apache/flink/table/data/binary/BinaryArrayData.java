@@ -31,6 +31,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.lang.reflect.Array;
@@ -93,6 +94,7 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
             case STRUCTURED_TYPE:
             case RAW:
             case VARIANT:
+            case BITMAP:
                 // long and double are 8 bytes;
                 // otherwise it stores the length and offset of the variable-length part for types
                 // such as is string, map, etc.
@@ -285,6 +287,14 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
         int fieldOffset = getElementOffset(pos, 8);
         final long offsetAndSize = BinarySegmentUtils.getLong(segments, fieldOffset);
         return BinarySegmentUtils.readRowData(segments, numFields, offset, offsetAndSize);
+    }
+
+    @Override
+    public Bitmap getBitmap(int pos) {
+        assertIndexIsValid(pos);
+        int fieldOffset = getElementOffset(pos, 8);
+        final long offsetAndSize = BinarySegmentUtils.getLong(segments, fieldOffset);
+        return BinarySegmentUtils.readBitmap(segments, offset, offsetAndSize);
     }
 
     @Override

@@ -543,6 +543,7 @@ final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                 case STRUCTURED_TYPE:
                 case NULL:
                 case DESCRIPTOR:
+                case BITMAP:
                     return true;
                 default:
                     // fall back to generic serialization

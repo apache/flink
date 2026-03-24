@@ -40,6 +40,7 @@ import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 
@@ -132,6 +133,12 @@ abstract class AbstractBinaryWriter implements BinaryWriter {
         buffer.putInt(metadataLen).put(metadata).put(value);
 
         writeBytesToVarLenPart(pos, buffer.array(), length);
+    }
+
+    @Override
+    public void writeBitmap(int pos, Bitmap bitmap) {
+        byte[] bytes = bitmap.toBytes();
+        writeBytesToVarLenPart(pos, bytes, bytes.length);
     }
 
     private DataOutputViewStreamWrapper getOutputView() {

@@ -97,6 +97,9 @@ public class CastRuleProvider {
                 .addRule(RowToRowCastRule.INSTANCE)
                 // Variant rules
                 .addRule(VariantToStringCastRule.INSTANCE)
+                // Bitmap rules
+                .addRule(BitmapToStringCastRule.INSTANCE)
+                .addRule(BitmapToBinaryCastRule.INSTANCE)
                 // Special rules
                 .addRule(CharVarCharTrimPadCastRule.INSTANCE)
                 .addRule(NullToStringCastRule.INSTANCE);

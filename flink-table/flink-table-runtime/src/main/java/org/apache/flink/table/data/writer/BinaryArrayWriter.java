@@ -246,6 +246,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
             case STRUCTURED_TYPE:
             case RAW:
             case VARIANT:
+            case BITMAP:
                 return BinaryArrayWriter::setNullLong;
             case BOOLEAN:
                 return BinaryArrayWriter::setNullBoolean;

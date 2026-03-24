@@ -55,6 +55,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BITMAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DATE;
@@ -184,7 +185,7 @@ public final class LogicalTypeCasts {
         castTo(CHAR)
                 .implicitFrom(CHAR)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .build();
@@ -192,7 +193,7 @@ public final class LogicalTypeCasts {
         castTo(VARCHAR)
                 .implicitFromFamily(CHARACTER_STRING)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR, VARCHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .build();
@@ -616,6 +617,10 @@ public final class LogicalTypeCasts {
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
             // the two symbol types are not equal (from initial invariant), casting is not possible
             return false;
+        } else if (sourceRoot == BITMAP && targetRoot == VARBINARY) {
+            // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
+            // would corrupt the serialized bitmap data.
+            return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {

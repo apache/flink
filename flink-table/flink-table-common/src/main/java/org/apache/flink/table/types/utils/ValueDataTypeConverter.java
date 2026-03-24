@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.types.bitmap.RoaringBitmapData;
 import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
@@ -93,6 +94,8 @@ public final class ValueDataTypeConverter {
                     .map(dt -> dt.notNull().bridgedTo(value.getClass()));
         } else if (value instanceof Variant) {
             convertedDataType = DataTypes.VARIANT();
+        } else if (value instanceof RoaringBitmapData) {
+            convertedDataType = DataTypes.BITMAP();
         }
 
         final Optional<DataType> resultType;

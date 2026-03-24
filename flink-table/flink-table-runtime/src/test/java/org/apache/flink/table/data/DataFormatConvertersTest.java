@@ -49,6 +49,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 
 import org.junit.jupiter.api.Test;
 
@@ -128,7 +129,8 @@ class DataFormatConvertersTest {
                         new LegacyTypeInformationType<>(
                                 LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
                                 new LegacyTimestampTypeInfo(7))),
-                DataTypes.TIMESTAMP(3).bridgedTo(TimestampData.class)
+                DataTypes.TIMESTAMP(3).bridgedTo(TimestampData.class),
+                DataTypes.BITMAP()
             };
 
     private Object[] dataValues =
@@ -140,7 +142,8 @@ class DataFormatConvertersTest {
                 buildTimestamp(4000L, 123456789),
                 Timestamp.valueOf("1970-01-01 00:00:00.123"),
                 Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
-                TimestampData.fromEpochMillis(1000L)
+                TimestampData.fromEpochMillis(1000L),
+                Bitmap.fromArray(new int[] {1, 2, 3})
             };
 
     private static Timestamp buildTimestamp(long mills, int nanos) {

@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.io.Serializable;
@@ -87,6 +88,8 @@ public interface BinaryWriter {
     void writeRawValue(int pos, RawValueData<?> value, RawValueDataSerializer<?> serializer);
 
     void writeVariant(int pos, Variant variant);
+
+    void writeBitmap(int pos, Bitmap bitmap);
 
     /** Finally, complete write to set real size to binary. */
     void complete();
@@ -168,6 +171,9 @@ public interface BinaryWriter {
             case VARIANT:
                 writer.writeVariant(pos, (Variant) o);
                 break;
+            case BITMAP:
+                writer.writeBitmap(pos, (Bitmap) o);
+                break;
             default:
                 throw new UnsupportedOperationException("Not support type: " + type);
         }
@@ -245,6 +251,8 @@ public interface BinaryWriter {
                                 (RawValueDataSerializer<?>) rawSerializer);
             case VARIANT:
                 return (writer, pos, value) -> writer.writeVariant(pos, (Variant) value);
+            case BITMAP:
+                return (writer, pos, value) -> writer.writeBitmap(pos, (Bitmap) value);
             case NULL:
             case SYMBOL:
             case UNRESOLVED:

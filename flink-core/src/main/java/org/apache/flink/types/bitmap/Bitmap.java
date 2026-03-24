@@ -25,6 +25,10 @@ import javax.annotation.Nullable;
 /**
  * A compressed data structure for storing sets of 32-bit integers.
  *
+ * <p>Currently, the only supported implementation is {@link RoaringBitmapData}, which is backed by
+ * <a href="https://roaringbitmap.org/">Roaring Bitmap</a>. Custom implementations of this interface
+ * are not supported.
+ *
  * <p>The modifying methods in this interface modify the bitmap in place by default. Consider using
  * {@link Bitmap#from(Bitmap other)} to create a copied bitmap before modification if immutability
  * is required.

@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.ColumnList;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Preconditions;
 
@@ -112,6 +113,8 @@ public final class LogicalTypeUtils {
                 return ColumnList.class;
             case VARIANT:
                 return Variant.class;
+            case BITMAP:
+                return Bitmap.class;
             case SYMBOL:
             case UNRESOLVED:
             default:
