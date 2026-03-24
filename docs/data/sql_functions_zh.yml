@@ -1652,6 +1652,16 @@ aggregate:
       FROM orders
       ```
 
+bitmapagg:
+  - sql: BITMAP_BUILD_AGG(value)
+    table: value.bitmapBuildAgg()
+    description: |
+      将 32 位整数聚合成位图。
+      
+      `value INT`
+      
+      返回一个 `BITMAP`。
+
 catalog:
   - sql: CURRENT_DATABASE()
     table: currentDatabase()

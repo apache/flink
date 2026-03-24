@@ -269,6 +269,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("BITMAP_AND(a, b)", str(expr1.bitmap_and(expr2)))
         self.assertEqual("BITMAP_ANDNOT(a, b)", str(expr1.bitmap_andnot(expr2)))
         self.assertEqual("BITMAP_BUILD(a)", str(expr1.bitmap_build()))
+        self.assertEqual("BITMAP_BUILD_AGG(a)", str(expr1.bitmap_build_agg()))
         self.assertEqual("BITMAP_CARDINALITY(a)", str(expr1.bitmap_cardinality()))
         self.assertEqual("BITMAP_FROM_BYTES(a)", str(expr1.bitmap_from_bytes()))
         self.assertEqual("BITMAP_OR(a, b)", str(expr1.bitmap_or(expr2)))

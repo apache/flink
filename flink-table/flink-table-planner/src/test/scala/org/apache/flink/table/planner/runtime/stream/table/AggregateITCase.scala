@@ -606,4 +606,33 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       }
     }
   }
+
+  @TestTemplate
+  def testBitmapBuildAgg(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, String)]
+    for (i <- 0 until 5) {
+      data.+=((i, -i, "a"))
+      data.+=((i * 2, -i * 2, "b"))
+    }
+
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('c)
+      .select(
+        'c,
+        'a.bitmapBuildAgg().cast(DataTypes.STRING()),
+        'b.bitmapBuildAgg().cast(DataTypes.STRING()))
+
+    val sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      s"a,{0,1,2,3,4},{0,${Integer.toUnsignedLong(-4)},${Integer.toUnsignedLong(-3)},${Integer
+          .toUnsignedLong(-2)},${Integer.toUnsignedLong(-1)}}",
+      s"b,{0,2,4,6,8},{0,${Integer.toUnsignedLong(-8)},${Integer.toUnsignedLong(-6)},${Integer
+          .toUnsignedLong(-4)},${Integer.toUnsignedLong(-2)}}"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 }

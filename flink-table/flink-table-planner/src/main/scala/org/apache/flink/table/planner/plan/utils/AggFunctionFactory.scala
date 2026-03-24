@@ -174,6 +174,8 @@ class AggFunctionFactory(
           // built-in imperativeFunction
           case BuiltInFunctionDefinitions.PERCENTILE =>
             createPercentileAggFunction(argTypes)
+          case BuiltInFunctionDefinitions.BITMAP_BUILD_AGG =>
+            createBitmapBuildAggFunction(argTypes, index)
           // DeclarativeAggregateFunction & UDF
           case _ =>
             bridge.getDefinition.asInstanceOf[UserDefinedFunction]
@@ -647,6 +649,16 @@ class AggFunctionFactory(
       new MultiPercentileAggFunction(firstArg, secondArg)
     } else {
       new SinglePercentileAggFunction(firstArg, secondArg)
+    }
+  }
+
+  private def createBitmapBuildAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      new BitmapBuildWithRetractAggFunction(argTypes(0))
+    } else {
+      new BitmapBuildAggFunction(argTypes(0))
     }
   }
 }
