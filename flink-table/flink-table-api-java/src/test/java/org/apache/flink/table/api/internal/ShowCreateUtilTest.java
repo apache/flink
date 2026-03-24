@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -80,6 +81,16 @@ class ShowCreateUtilTest {
             ResolvedSchema.of(
                     Column.physical("id", DataTypes.INT()),
                     Column.physical("name", DataTypes.STRING()));
+
+    private static final ResolvedSchema TWO_COLUMNS_SCHEMA_WITH_PRIMARY_KEY_AND_IMMUTABLE_COLS =
+            new ResolvedSchema(
+                    List.of(
+                            Column.physical("id", DataTypes.INT()),
+                            Column.physical("name", DataTypes.STRING())),
+                    List.of(),
+                    UniqueConstraint.primaryKey("pk", List.of("id")),
+                    List.of(),
+                    ImmutableColumnsConstraint.immutableColumns("imt", List.of("name")));
 
     @ParameterizedTest(name = "{index}: {2}")
     @MethodSource("argsForShowCreateTable")
@@ -214,6 +225,23 @@ class ShowCreateUtilTest {
                         + "COMMENT 'Table comment'\n"
                         + "DISTRIBUTED BY RANGE(`1`, `10`) INTO 2 BUCKETS\n");
 
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedTable(
+                        TWO_COLUMNS_SCHEMA_WITH_PRIMARY_KEY_AND_IMMUTABLE_COLS,
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        TableDistribution.of(
+                                TableDistribution.Kind.RANGE, 2, Arrays.asList("1", "10")),
+                        "Table comment"),
+                "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647),\n"
+                        + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
+                        + ")\n"
+                        + "COMMENT 'Table comment'\n"
+                        + "DISTRIBUTED BY RANGE(`1`, `10`) INTO 2 BUCKETS\n");
+
         final Map<String, String> options = new HashMap<>();
         options.put("option_key_a", "option_value_a");
         options.put("option_key_b", "option_value_b");
@@ -310,6 +338,26 @@ class ShowCreateUtilTest {
                         "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
                                 + "  `id` INT,\n"
                                 + "  `mt_column` VARCHAR(2147483647) METADATA VIRTUAL,\n"
+                                + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                                + "REFRESH_MODE = CONTINUOUS\n"
+                                + "AS SELECT 1\n"));
+
+        argList.add(
+                Arguments.of(
+                        createResolvedMaterialized(
+                                TWO_COLUMNS_SCHEMA_WITH_PRIMARY_KEY_AND_IMMUTABLE_COLS,
+                                null,
+                                List.of(),
+                                null,
+                                IntervalFreshness.ofMinute("1"),
+                                RefreshMode.CONTINUOUS,
+                                "SELECT 1",
+                                "SELECT 1"),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                                + "  `id` INT,\n"
+                                + "  `name` VARCHAR(2147483647),\n"
                                 + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")\n"
                                 + "FRESHNESS = INTERVAL '1' MINUTE\n"

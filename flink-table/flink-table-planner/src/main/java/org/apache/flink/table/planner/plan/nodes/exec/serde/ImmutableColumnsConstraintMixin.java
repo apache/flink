@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.Constraint;
 import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -32,15 +31,17 @@ import java.util.List;
 @Internal
 abstract class ImmutableColumnsConstraintMixin extends AbstractConstraintMixin {
 
+    static final String TYPE = "type";
     static final String COLUMNS = "columns";
 
     @JsonCreator
     private ImmutableColumnsConstraintMixin(
             @JsonProperty(NAME) String name,
             @JsonProperty(ENFORCED) boolean enforced,
+            @JsonProperty(TYPE) Constraint.ConstraintType type,
             @JsonProperty(COLUMNS) List<String> columns) {}
 
-    @JsonIgnore
+    @JsonProperty(TYPE)
     public abstract Constraint.ConstraintType getType();
 
     @JsonProperty(COLUMNS)

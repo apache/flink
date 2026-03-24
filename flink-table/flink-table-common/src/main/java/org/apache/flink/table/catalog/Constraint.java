@@ -55,8 +55,8 @@ public interface Constraint {
      *             in specified columns be a null value. Moreover there can be only a single PRIMARY
      *             KEY defined for a Table.
      *       </ul>
-     *   <li>Immutable constraint - is satisfied iff these specific columns corresponding each pk
-     *       will not be modified with new values.
+     *   <li>Immutable constraint - is satisfied iff these specific columns are not allowed to be
+     *       modified.
      * </ul>
      */
     @PublicEvolving

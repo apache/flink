@@ -26,8 +26,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * A constraint for immutable columns. All columns within each pk in this constraint will not be
- * modified with new values.
+ * Immutable columns constraint is used to identify which columns in a table are not allowed to be
+ * modified.
  *
  * @see ConstraintType
  */
@@ -35,15 +35,24 @@ import java.util.stream.Collectors;
 public final class ImmutableColumnsConstraint extends AbstractConstraint {
 
     private final List<String> columns;
-
-    public ImmutableColumnsConstraint(String name, boolean enforced, List<String> columns) {
-        super(name, enforced);
-        this.columns = columns;
-    }
+    private final ConstraintType type;
 
     /** Creates a non enforced {@link ConstraintType#IMMUTABLE_COLUMNS} constraint. */
     public static ImmutableColumnsConstraint immutableColumns(String name, List<String> columns) {
-        return new ImmutableColumnsConstraint(name, false, columns);
+        return new ImmutableColumnsConstraint(
+                name, false, ConstraintType.IMMUTABLE_COLUMNS, columns);
+    }
+
+    private ImmutableColumnsConstraint(
+            String name, boolean enforced, ConstraintType type, List<String> columns) {
+        super(name, enforced);
+
+        this.columns = columns;
+        this.type = type;
+
+        if (type != ConstraintType.IMMUTABLE_COLUMNS) {
+            throw new IllegalStateException("Unknown key type: " + getType());
+        }
     }
 
     public List<String> getColumns() {
