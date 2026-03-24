@@ -18,20 +18,15 @@
 
 package org.apache.flink.table.planner.plan.metadata;
 
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 
-import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.core.JoinInfo;
@@ -50,12 +45,9 @@ import java.util.List;
 
 import scala.Option;
 
-import static java.util.Objects.requireNonNull;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
 /** Tests for {@link FlinkRelMdImmutableColumns}. */
 public class FlinkRelMdImmutableColumnsTest extends FlinkRelMdHandlerTestBase {
@@ -97,35 +89,6 @@ public class FlinkRelMdImmutableColumnsTest extends FlinkRelMdHandlerTestBase {
     public void testGetImmutableColumnsOnNonTableSourceTableScan() {
         // student uses MockMetaTable (not TableSourceTable) → null
         assertNull(mq().getImmutableColumns(studentLogicalScan()));
-    }
-
-    @Test
-    public void testGetImmutableColumnsOnSourceWithDelete() {
-        MockTableSourceTable tst =
-                (MockTableSourceTable)
-                        requireNonNull(((CalciteCatalogReader) relBuilder().getRelOptSchema()))
-                                .getTable(
-                                        Collections.singletonList(
-                                                "projected_table_source_table_with_immutable_cols"));
-        assertNotNull(tst);
-
-        DynamicTableSource newTableSource =
-                new TestTableSource() {
-                    @Override
-                    public ChangelogMode getChangelogMode() {
-                        return ChangelogMode.all();
-                    }
-                };
-
-        tst = tst.copy(newTableSource, tst.getRowType());
-        TableScan scan =
-                new StreamPhysicalDataStreamScan(
-                        cluster(), logicalTraits(), Collections.emptyList(), tst, tst.getRowType());
-
-        assertThrowsExactly(
-                ValidationException.class,
-                () -> mq().getImmutableColumns(scan),
-                "The immutable constraint cannot be defined on the table with changelog mode [DELETE]");
     }
 
     // -------------------------------------------------------------------------------------

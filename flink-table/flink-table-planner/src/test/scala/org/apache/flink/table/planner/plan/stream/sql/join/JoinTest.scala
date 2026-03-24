@@ -522,7 +522,7 @@ class JoinTest extends TableTestBase {
                                | primary key (id) not enforced
                                |) with (
                                | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,UB,D'
+                               | 'changelog-mode' = 'I,UA,UB'
                                |)
                                |""".stripMargin)
     addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "source_city", "city_name")
@@ -535,7 +535,7 @@ class JoinTest extends TableTestBase {
                                | primary key (city_id) not enforced
                                |) with (
                                | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,UB,D'
+                               | 'changelog-mode' = 'I,UA,UB'
                                |)
                                |""".stripMargin)
     addImmutableColConstraint(
@@ -582,7 +582,7 @@ class JoinTest extends TableTestBase {
                                | primary key (id) not enforced
                                |) with (
                                | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,UB,D'
+                               | 'changelog-mode' = 'I,UA,UB'
                                |)
                                |""".stripMargin)
     addImmutableColConstraint(
@@ -601,7 +601,7 @@ class JoinTest extends TableTestBase {
                                | primary key (city_id) not enforced
                                |) with (
                                | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,UB,D'
+                               | 'changelog-mode' = 'I,UA,UB'
                                |)
                                |""".stripMargin)
     addImmutableColConstraint(

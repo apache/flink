@@ -722,14 +722,14 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_id, 
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_name, city_detail], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
-+- Calc(select=[id, city_id, city_name, city_detail], changelogMode=[I,UA,D])
-   +- Join(joinType=[InnerJoin], where=[=(city_name, city_name0)], select=[id, city_name, city_id, city_name0, city_detail], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
-      :- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA,D])
-      :  +- DropUpdateBefore(changelogMode=[I,UA,D])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UB,UA,D])
-      +- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA,D])
-         +- DropUpdateBefore(changelogMode=[I,UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail]], fields=[city_id, city_name, city_detail], changelogMode=[I,UB,UA,D])
++- Calc(select=[id, city_id, city_name, city_detail], changelogMode=[I,UA])
+   +- Join(joinType=[InnerJoin], where=[=(city_name, city_name0)], select=[id, city_name, city_id, city_name0, city_detail], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA])
+      :- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA])
+      :  +- DropUpdateBefore(changelogMode=[I,UA])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA])
+         +- DropUpdateBefore(changelogMode=[I,UA])
+            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail]], fields=[city_id, city_name, city_detail], changelogMode=[I,UB,UA])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_name, city_detail], conflictStrategy=[DEDUPLICATE])
@@ -755,14 +755,14 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_id, 
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_name, city_detail], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
-+- Calc(select=[id, city_id, city_name, city_detail], changelogMode=[I,UA,D])
-   +- Join(joinType=[InnerJoin], where=[=(city_name, city_name0)], select=[id, city_name, city_id, city_name0, city_detail], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D])
-      :- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA,D])
-      :  +- DropUpdateBefore(changelogMode=[I,UA,D])
-      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city, project=[id, city_name], metadata=[]]], fields=[id, city_name], changelogMode=[I,UB,UA,D])
-      +- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA,D])
-         +- DropUpdateBefore(changelogMode=[I,UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail, project=[city_id, city_name, city_detail], metadata=[]]], fields=[city_id, city_name, city_detail], changelogMode=[I,UB,UA,D])
++- Calc(select=[id, city_id, city_name, city_detail], changelogMode=[I,UA])
+   +- Join(joinType=[InnerJoin], where=[=(city_name, city_name0)], select=[id, city_name, city_id, city_name0, city_detail], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], changelogMode=[I,UA])
+      :- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA])
+      :  +- DropUpdateBefore(changelogMode=[I,UA])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, source_city, project=[id, city_name], metadata=[]]], fields=[id, city_name], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[city_name]], changelogMode=[I,UA])
+         +- DropUpdateBefore(changelogMode=[I,UA])
+            +- TableSourceScan(table=[[default_catalog, default_database, source_city_detail, project=[city_id, city_name, city_detail], metadata=[]]], fields=[city_id, city_name, city_detail], changelogMode=[I,UB,UA])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.sink], fields=[id, city_id, city_name, city_detail], conflictStrategy=[DEDUPLICATE])

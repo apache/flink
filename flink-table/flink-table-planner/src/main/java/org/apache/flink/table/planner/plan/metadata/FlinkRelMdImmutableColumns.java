@@ -18,17 +18,13 @@
 
 package org.apache.flink.table.planner.plan.metadata;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner;
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -270,12 +266,6 @@ public class FlinkRelMdImmutableColumns implements MetadataHandler<FlinkMetadata
                 new HashSet<>(schema.getPrimaryKey().get().getColumns());
         // add constraint for immutable columns
         if (schema.getImmutableColumns().isPresent()) {
-            DynamicTableSource source = tst.tableSource();
-            if (source instanceof ScanTableSource
-                    && ((ScanTableSource) source).getChangelogMode().contains(RowKind.DELETE)) {
-                throw new ValidationException(
-                        "The immutable constraint cannot be defined on the table with changelog mode [DELETE].");
-            }
             allImmutableFieldsInSchema.addAll(schema.getImmutableColumns().get().getColumns());
         }
 

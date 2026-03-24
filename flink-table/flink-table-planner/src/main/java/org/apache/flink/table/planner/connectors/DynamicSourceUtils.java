@@ -533,6 +533,7 @@ public final class DynamicSourceUtils {
                 hasChangelogMode && changelogMode.contains(RowKind.UPDATE_BEFORE);
         final boolean hasUpdateAfter =
                 hasChangelogMode && changelogMode.contains(RowKind.UPDATE_AFTER);
+        final boolean hasDelete = hasChangelogMode && changelogMode.contains(RowKind.DELETE);
         if (!hasUpdateBefore && hasUpdateAfter) {
             // only UPDATE_AFTER
             if (!schema.getPrimaryKey().isPresent()) {
@@ -562,6 +563,12 @@ public final class DynamicSourceUtils {
                                         + "However, table '%s' doesn't have a primary key.",
                                 ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE.key(),
                                 tableDebugName));
+            }
+        }
+        if (hasDelete) {
+            if (schema.getImmutableColumns().isPresent()) {
+                throw new ValidationException(
+                        "The immutable constraint cannot be defined on the table with changelog mode [DELETE].");
             }
         }
     }
