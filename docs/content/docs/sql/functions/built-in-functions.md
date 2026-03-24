@@ -125,6 +125,10 @@ The aggregate functions take an expression across all the rows as the input and 
 
 {{< sql_functions "aggregate" >}}
 
+### Bitmap Aggregate Functions
+
+{{< sql_functions "bitmapagg" >}}
+
 Time Interval and Point Unit Specifiers
 ---------------------------------------
 

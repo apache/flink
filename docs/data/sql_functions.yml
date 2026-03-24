@@ -1568,6 +1568,16 @@ aggregate:
       FROM orders
       ```
 
+bitmapagg:
+  - sql: BITMAP_BUILD_AGG(value)
+    table: value.bitmapBuildAgg()
+    description: |
+      Aggregates 32-bit integers into a bitmap.
+      
+      `value INT`
+      
+      Returns a `BITMAP`.
+
 catalog:
   - sql: CURRENT_DATABASE()
     table: currentDatabase()

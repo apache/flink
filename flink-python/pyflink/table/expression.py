@@ -2309,6 +2309,14 @@ class Expression(Generic[T]):
         """
         return _unary_op("bitmapBuild")(self)
 
+    def bitmap_build_agg(self):
+        """
+        Aggregates 32-bit integers into a bitmap.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapBuildAgg")(self)
+
     def bitmap_cardinality(self) -> 'Expression':
         """
         Returns the cardinality of a bitmap.

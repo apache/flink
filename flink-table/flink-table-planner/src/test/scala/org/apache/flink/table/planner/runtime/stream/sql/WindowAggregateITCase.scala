@@ -988,6 +988,32 @@ class WindowAggregateITCase(
     }
   }
 
+  @TestTemplate
+  def testBitmapBuildAggOnEventTimeTumbleWindow(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  window_start,
+        |  window_end,
+        |  BITMAP_BUILD_AGG(`int`) as `bitmap`
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "2020-10-10T00:00,2020-10-10T00:00:05,{2,5,22}",
+      "2020-10-10T00:00:05,2020-10-10T00:00:10,{3,6}",
+      "2020-10-10T00:00:15,2020-10-10T00:00:20,{4}"
+    )
+    val result = sink.getAppendResults.sorted
+    assertThat(result.mkString("\n")).isEqualTo(expected.mkString("\n"))
+  }
+
   private def verifyWindowAgg(
       tvfFromClause: String,
       allExpectedData: Seq[String],

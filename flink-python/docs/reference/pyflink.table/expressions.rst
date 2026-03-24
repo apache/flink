@@ -348,6 +348,7 @@ Bitmap functions
     Expression.bitmap_and
     Expression.bitmap_andnot
     Expression.bitmap_build
+    Expression.bitmap_build_agg
     Expression.bitmap_cardinality
     Expression.bitmap_from_bytes
     Expression.bitmap_or

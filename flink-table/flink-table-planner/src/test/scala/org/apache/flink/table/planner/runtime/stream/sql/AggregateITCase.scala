@@ -2119,6 +2119,77 @@ class AggregateITCase(
 
     tEnv.dropTemporarySystemFunction("PERCENTILE")
   }
+
+  @TestTemplate
+  def testBitmapBuildAgg(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, String)]
+    for (i <- 0 until 5) {
+      data.+=((i, -i, "a"))
+      data.+=((i * 2, -i * 2, "b"))
+    }
+
+    val sql =
+      """
+        |SELECT
+        |  c,
+        |  CAST(BITMAP_BUILD_AGG(a) AS STRING),
+        |  CAST(BITMAP_BUILD_AGG(b) AS STRING)
+        |FROM MyTable
+        |GROUP BY c
+      """.stripMargin
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      s"a,{0,1,2,3,4},{0,${Integer.toUnsignedLong(-4)},${Integer.toUnsignedLong(-3)},${Integer
+          .toUnsignedLong(-2)},${Integer.toUnsignedLong(-1)}}",
+      s"b,{0,2,4,6,8},{0,${Integer.toUnsignedLong(-8)},${Integer.toUnsignedLong(-6)},${Integer
+          .toUnsignedLong(-4)},${Integer.toUnsignedLong(-2)}}"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testBitmapBuildAggWithRetract(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, String)]
+    for (i <- 0 until 5) {
+      data.+=((i, i, "a"))
+      data.+=((i + 1, i * 2, "b"))
+      data.+=((i + 2, i * 3, "c"))
+    }
+
+    val inner =
+      """
+        |SELECT
+        |  MAX(a) AS ma,
+        |  LAST_VALUE(b) AS la,
+        |  c
+        |FROM MyTable
+        |GROUP BY c
+      """.stripMargin
+    val sql =
+      s"""
+         |SELECT
+         |  CAST(BITMAP_BUILD_AGG(ma) AS STRING),
+         |  CAST(BITMAP_BUILD_AGG(la) AS STRING)
+         |FROM ($inner)
+      """.stripMargin
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(s"{4,5,6},{4,8,12}")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 }
 
 object AggregateITCase {

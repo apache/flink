@@ -122,6 +122,10 @@ JSON 函数使用符合 ISO/IEC TR 19075-6 SQL标准的 JSON 路径表达式。 
 
 {{< sql_functions_zh "aggregate" >}}
 
+### 位图聚合函数
+
+{{< sql_functions_zh "bitmapagg" >}}
+
 时间间隔单位和时间点单位标识符
 ---------------------------------------
 

@@ -3037,6 +3037,18 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.BitmapBuildFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition BITMAP_BUILD_AGG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("BITMAP_BUILD_AGG")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(
+                            sequence(
+                                    Collections.singletonList("value"),
+                                    Collections.singletonList(logical(LogicalTypeRoot.INTEGER))))
+                    .outputTypeStrategy(explicit(DataTypes.BITMAP()))
+                    .runtimeProvided()
+                    .build();
+
     public static final BuiltInFunctionDefinition BITMAP_CARDINALITY =
             BuiltInFunctionDefinition.newBuilder()
                     .name("BITMAP_CARDINALITY")
