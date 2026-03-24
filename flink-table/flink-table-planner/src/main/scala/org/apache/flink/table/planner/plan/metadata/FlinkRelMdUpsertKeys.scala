@@ -44,6 +44,7 @@ import scala.collection.JavaConversions._
  * for the standard logical algebra.
  */
 class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
+  private val MaxGeneratedEnrichedKeys = 128
 
   override def getDef: MetadataDef[UpsertKeys] = UpsertKeys.DEF
 
@@ -348,10 +349,12 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val leftKeys = fmq.getUpsertKeys(left)
     val rightKeys = fmq.getUpsertKeys(right)
+    val leftFieldCount = left.getRowType.getFieldCount
 
-    FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
+    // First get the base join unique keys
+    val baseKeys = FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
       joinRelType,
-      left.getRowType.getFieldCount,
+      leftFieldCount,
       // Retain only keys whose columns are contained in the join's equi-join columns
       // (the distribution keys), ensuring the result remains an upsert key.
       // Note: An Exchange typically applies this filtering already via fmq.getUpsertKeys(...).
@@ -361,6 +364,97 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       isSideUnique(leftKeys, joinInfo.leftSet),
       isSideUnique(rightKeys, joinInfo.rightSet)
     )
+
+    // Enrich the keys by substituting equivalent columns from equi-join conditions
+    // The base keys are in joined output space, so enrichment works directly
+    enrichJoinedKeys(baseKeys, joinInfo, joinRelType, leftFieldCount)
+  }
+
+  /**
+   * Enriches join result keys by substituting columns with their equivalents from equi-join
+   * conditions.
+   *
+   * @param keys
+   *   The upsert keys in joined output coordinate space
+   * @param joinInfo
+   *   The join information containing equi-join column pairs
+   * @param joinRelType
+   *   The join type (to check nullability constraints)
+   * @param leftFieldCount
+   *   The number of fields from the left side
+   * @return
+   *   The enriched set of upsert keys
+   */
+  private def enrichJoinedKeys(
+      keys: JSet[ImmutableBitSet],
+      joinInfo: JoinInfo,
+      joinRelType: JoinRelType,
+      leftFieldCount: Int): JSet[ImmutableBitSet] = {
+    val pairs = joinInfo.leftKeys.zip(joinInfo.rightKeys).map {
+      case (l, r) => (l.intValue(), r.intValue() + leftFieldCount)
+    }
+    enrichKeysWithEquivalences(keys, pairs, joinRelType)
+  }
+
+  /**
+   * Core enrichment logic: for each key and each column equivalence pair, generates enriched
+   * versions by substituting one column with its equivalent.
+   *
+   * For example, if a key is {a2, b2} and there's an equivalence a1 = a2, this generates the
+   * additional key {a1, b2}.
+   *
+   * The enrichment respects join type nullability by controlling substitution directions:
+   *   - Right→Left (replace right col with left): only if left side is never NULL
+   *   - Left→Right (replace left col with right): only if right side is never NULL
+   *
+   * This prevents invalid keys where the substituted column might be NULL, causing the remaining
+   * columns (which may not be unique by themselves) to incorrectly appear as a valid key.
+   *
+   * @param keys
+   *   The upsert keys to enrich
+   * @param equivalentPairs
+   *   Column equivalence pairs (leftCol, rightCol) in joined output coordinate space
+   * @param joinRelType
+   *   The join type (determines allowed substitution directions)
+   * @return
+   *   The enriched set of upsert keys (includes original keys)
+   */
+  private def enrichKeysWithEquivalences(
+      keys: JSet[ImmutableBitSet],
+      equivalentPairs: java.lang.Iterable[(Int, Int)],
+      joinRelType: JoinRelType): JSet[ImmutableBitSet] = {
+
+    if (keys == null) return null
+
+    val allowRightToLeft = !joinRelType.generatesNullsOnLeft()
+    val allowLeftToRight = !joinRelType.generatesNullsOnRight()
+
+    val seen = new util.HashSet[ImmutableBitSet](keys.size() * 2)
+    val queue = new util.ArrayDeque[ImmutableBitSet]()
+
+    @inline def enqueue(k: ImmutableBitSet): Unit =
+      if (seen.size() < MaxGeneratedEnrichedKeys && seen.add(k)) queue.add(k)
+
+    @inline def expand(key: ImmutableBitSet): Unit = {
+      val it = equivalentPairs.iterator()
+      while (it.hasNext) {
+        val (l, r) = it.next()
+        if (allowRightToLeft && key.get(r)) enqueue(key.clear(r).set(l))
+        if (allowLeftToRight && key.get(l)) enqueue(key.clear(l).set(r))
+      }
+    }
+
+    // seed
+    val seedIt = keys.iterator()
+    while (seedIt.hasNext) enqueue(seedIt.next())
+
+    // fixpoint
+    while (!queue.isEmpty) {
+      expand(queue.poll())
+      if (seen.size() >= MaxGeneratedEnrichedKeys) return seen
+    }
+
+    seen
   }
 
   def getUpsertKeys(rel: SetOp, mq: RelMetadataQuery): JSet[ImmutableBitSet] =

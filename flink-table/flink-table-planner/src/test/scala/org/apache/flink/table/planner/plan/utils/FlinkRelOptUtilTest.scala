@@ -127,7 +127,7 @@ class FlinkRelOptUtilTest {
     val optimized = planner.optimize(rel)
     val expected1 =
       """
-        |Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, cnt, a0, b], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], upsertKeys=[[a, c, a0], [a, c]])
+        |Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, cnt, a0, b], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], upsertKeys=[[a, c, a0], [a, c], [c, a0]])
         |:- Exchange(distribution=[hash[a]], upsertKeys=[[a, c]])
         |:  +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt], upsertKeys=[[a, c]])
         |:     +- Exchange(distribution=[hash[a, c]])
