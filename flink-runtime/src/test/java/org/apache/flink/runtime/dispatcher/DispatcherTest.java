@@ -510,7 +510,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .build())));
 
         // mock application termination so that its jobs can be marked clean and terminate
-        mockApplicationStatusChange(ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // wait for job to finish
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -549,7 +549,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         .build())));
 
         // mock application termination so that its jobs can be marked clean and terminate
-        mockApplicationStatusChange(ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // wait for job to finish
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -618,8 +618,15 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 .get();
     }
 
-    private void mockApplicationStatusChange(ApplicationState targetState) throws Exception {
-        dispatcher.notifyApplicationStatusChange(applicationId, targetState);
+    private void mockApplicationFinished() throws Exception {
+        dispatcher
+                .callAsyncInMainThread(
+                        () -> {
+                            dispatcher.notifyApplicationStatusChange(
+                                    applicationId, ApplicationState.FINISHED);
+                            return CompletableFuture.completedFuture(null);
+                        })
+                .get();
     }
 
     @Test
@@ -659,7 +666,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         testFailure));
 
         // mock application termination so that its jobs can be marked clean and terminate
-        mockApplicationStatusChange(ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         // wait till job has failed
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
@@ -1270,7 +1277,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
         // mock application termination so that its jobs can be marked clean and terminate
-        mockApplicationStatusChange(ApplicationState.FINISHED);
+        mockApplicationFinished();
 
         dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 

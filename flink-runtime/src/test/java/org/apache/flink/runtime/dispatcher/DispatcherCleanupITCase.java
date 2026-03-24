@@ -417,7 +417,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitApplication(application, TIMEOUT).get();
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished(dispatcher, applicationId);
 
         successfulCleanupLatch.await();
 
@@ -524,7 +524,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitApplication(application, TIMEOUT).get();
-        dispatcher.notifyApplicationStatusChange(applicationId, ApplicationState.FINISHED);
+        mockApplicationFinished(dispatcher, applicationId);
 
         firstCleanupTriggered.await();
 
@@ -620,5 +620,17 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
     private void submitApplicationWithJob(
             DispatcherGateway dispatcherGateway, ExecutionPlan executionPlan) throws Exception {
         dispatcherGateway.submitApplication(new SingleJobApplication(executionPlan), TIMEOUT).get();
+    }
+
+    private void mockApplicationFinished(TestingDispatcher dispatcher, ApplicationID applicationId)
+            throws Exception {
+        dispatcher
+                .callAsyncInMainThread(
+                        () -> {
+                            dispatcher.notifyApplicationStatusChange(
+                                    applicationId, ApplicationState.FINISHED);
+                            return CompletableFuture.completedFuture(null);
+                        })
+                .get();
     }
 }
