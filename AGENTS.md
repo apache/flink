@@ -167,7 +167,8 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 - `flink-python` — PyFlink (Python API)
 - `flink-runtime-web` — Web UI for JobManager dashboard
 - `flink-external-resources` — External resource management (e.g., GPU)
-- `flink-docs` — Documentation sources
+- `docs/` — Documentation content (Hugo site). This is where user-facing docs are written.
+- `flink-docs` — Documentation build module (auto-generated config reference docs)
 - `flink-examples` — Example programs
 - `flink-quickstart` — Maven archetype for new projects
 - `flink-walkthroughs` — Tutorial walkthrough projects
@@ -208,7 +209,7 @@ This section maps common types of Flink changes to the modules they touch and th
 2. Implement in `flink-table-runtime` under `functions/` (extend the appropriate base class: `BuiltInScalarFunction`, `BuiltInTableFunction`, `BuiltInAggregateFunction`, or `BuiltInProcessTableFunction`)
 3. Add tests in `flink-table-planner` and `flink-table-runtime`
 4. Extend Table API support
-5. Document in `flink-docs`
+5. Document in `docs/`
 6. See [flink-table/flink-table-planner/AGENTS.md](flink-table/flink-table-planner/AGENTS.md) and [flink-table/flink-table-runtime/AGENTS.md](flink-table/flink-table-runtime/AGENTS.md) for detailed patterns
 
 ### Adding a new configuration option
@@ -216,7 +217,7 @@ This section maps common types of Flink changes to the modules they touch and th
 1. Define `ConfigOption<T>` in the relevant config class (e.g., `ExecutionConfigOptions.java` in `flink-table-api-java`)
 2. Use `ConfigOptions.key("table.exec....")` builder with type, default value, and description
 3. Add `@Documentation.TableOption` annotation for auto-generated docs
-4. Document in `flink-docs` if user-facing
+4. Document in `docs/` if user-facing
 5. Verify: unit test for default value, ITCase for behavior change
 
 ### Adding a new table operator (e.g., join type, aggregate)
