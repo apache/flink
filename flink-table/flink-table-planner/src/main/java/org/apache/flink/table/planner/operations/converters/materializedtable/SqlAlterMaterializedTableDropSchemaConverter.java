@@ -38,6 +38,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -50,12 +51,11 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
     @Override
     protected Operation convertToOperation(
             T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
-        Set<String> columnsToDrop = getColumnsToDrop(alterTableSchema);
-        List<TableChange> tableChanges =
-                validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
 
         return new AlterMaterializedTableChangeOperation(
-                resolveIdentifier(alterTableSchema, context), tableChanges, oldTable);
+                resolveIdentifier(alterTableSchema, context),
+                gatherTableChanges(alterTableSchema, context),
+                oldTable);
     }
 
     protected abstract List<TableChange> validateAndGatherDropChanges(
@@ -65,6 +65,15 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
             ConvertContext context);
 
     protected abstract Set<String> getColumnsToDrop(T alterTableSchema);
+
+    @Override
+    protected Function<ResolvedCatalogMaterializedTable, List<TableChange>> gatherTableChanges(
+            T alterTableSchema, ConvertContext context) {
+        return oldTable -> {
+            Set<String> columnsToDrop = getColumnsToDrop(alterTableSchema);
+            return validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
+        };
+    }
 
     /**
      * Convert {@code ALTER TABLE MATERIALIZED TABLE DROP PRIMARY KEY} to generate an updated

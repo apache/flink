@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
@@ -72,6 +73,12 @@ import java.util.concurrent.CompletableFuture;
  * invocations will originate from a thread in the {@link ComponentMainThreadExecutor}.
  */
 public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
+
+    /**
+     * Get the {@link org.apache.flink.configuration.JobManagerOptions.SchedulerType} of the current
+     * job.
+     */
+    JobManagerOptions.SchedulerType getSchedulerType();
 
     void startScheduling();
 

@@ -21,6 +21,8 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
@@ -55,9 +57,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import javax.annotation.Nullable;
-
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -72,6 +74,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -176,7 +179,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         getProgram(2),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false,
@@ -269,7 +271,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         getProgram(2),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false,
@@ -481,7 +482,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         getProgram(1),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false,
@@ -491,6 +491,9 @@ public class PackagedProgramApplicationTest {
         application.cancel();
 
         assertApplicationCanceled(application);
+
+        // verify exception history is empty when application is canceled
+        assertThat(application.getExceptionHistory()).isEmpty();
     }
 
     @Test
@@ -584,6 +587,9 @@ public class PackagedProgramApplicationTest {
         assertThat(applicationExecutionFuture.isDone()).isTrue();
         assertThat(canceledJobIds).containsExactlyInAnyOrderElementsOf(submittedJobIds);
         assertApplicationCanceled(application);
+
+        // verify exception history is empty when application is canceled
+        assertThat(application.getExceptionHistory()).isEmpty();
     }
 
     @Test
@@ -836,44 +842,6 @@ public class PackagedProgramApplicationTest {
     }
 
     @Test
-    void testErrorHandlerIsNotCalledWhenApplicationStatusIsUnknown() throws Exception {
-        final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
-        final TestingDispatcherGateway.Builder dispatcherBuilder =
-                canceledJobGatewayBuilder()
-                        .setRequestJobResultFunction(
-                                jobID ->
-                                        CompletableFuture.completedFuture(
-                                                createUnknownJobResult(jobID)))
-                        .setClusterShutdownFunction(
-                                status -> {
-                                    shutdownCalled.set(true);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
-                                });
-
-        final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
-        final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
-        final PackagedProgramApplication application =
-                createAndExecuteApplication(
-                        3,
-                        dispatcherGateway,
-                        scheduledExecutor,
-                        errorHandlerFuture::completeExceptionally);
-
-        // check that application completes exceptionally
-        assertException(
-                application.getApplicationCompletionFuture(), UnsuccessfulExecutionException.class);
-
-        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        assertApplicationFailed(application);
-
-        // we do not call the error handler
-        assertThat(errorHandlerFuture.isDone()).isFalse();
-
-        // verify that we shut down the cluster
-        assertThat(shutdownCalled.get()).isTrue();
-    }
-
-    @Test
     void testErrorHandlerIsNotCalled() throws Exception {
         final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
         // Job submission error
@@ -1081,7 +1049,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         FailingJob.getProgram(),
-                        Collections.emptyList(),
                         configuration,
                         true,
                         true /* enforceSingleJobExecution */,
@@ -1100,7 +1067,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         FailingJob.getProgram(),
-                        Collections.emptyList(),
                         getConfiguration(),
                         true,
                         false /* enforceSingleJobExecution */,
@@ -1126,6 +1092,171 @@ public class PackagedProgramApplicationTest {
 
         application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertApplicationFailed(application);
+    }
+
+    @Test
+    void testExceptionHistoryWhenJobFails() throws Exception {
+        final ConcurrentLinkedDeque<JobID> submittedJobIds = new ConcurrentLinkedDeque<>();
+
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                failedJobGatewayBuilder()
+                        .setSubmitFunction(
+                                jobGraph -> {
+                                    submittedJobIds.add(jobGraph.getJobID());
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
+
+        final PackagedProgramApplication application =
+                createAndExecuteApplication(2, dispatcherBuilder.build());
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFailed(application);
+
+        // verify exception history contains the job failure
+        assertThat(application.getExceptionHistory()).hasSize(1);
+        assertThat(application.getExceptionHistory().get(0).getJobId().isPresent()).isTrue();
+        assertThat(application.getExceptionHistory().get(0).getJobId().get())
+                .isEqualTo(submittedJobIds.peek());
+        assertThat(application.getExceptionHistory().get(0).getExceptionAsString())
+                .contains("Job execution failed");
+    }
+
+    @Test
+    void testExceptionHistoryWhenApplicationFails() throws Exception {
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                TestingDispatcherGateway.newBuilder()
+                        .setSubmitFunction(
+                                jobGraph ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkRuntimeException(
+                                                        "Application execution failed")));
+
+        final PackagedProgramApplication application =
+                createAndExecuteApplication(1, dispatcherBuilder.build());
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFailed(application);
+
+        // verify exception history contains the application failure (without jobId)
+        assertThat(application.getExceptionHistory()).hasSize(1);
+        assertThat(application.getExceptionHistory().get(0).getJobId().isPresent()).isFalse();
+        assertThat(application.getExceptionHistory().get(0).getExceptionAsString())
+                .contains("Application execution failed");
+    }
+
+    @Test
+    void testExceptionHistoryEmptyWhenJobIsCanceled() throws Exception {
+        final TestingDispatcherGateway.Builder dispatcherBuilder = canceledJobGatewayBuilder();
+
+        PackagedProgramApplication application =
+                createAndExecuteApplication(3, dispatcherBuilder.build());
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationCanceled(application);
+
+        // verify exception history is empty when job is canceled
+        assertThat(application.getExceptionHistory()).isEmpty();
+    }
+
+    @Test
+    void testRecoveredTerminalJobsAreNotResubmitted() throws Exception {
+        final JobID recoveredTerminalJobId = new JobID();
+
+        final Configuration configuration = getConfiguration();
+        configuration.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID,
+                recoveredTerminalJobId.toHexString());
+
+        final List<JobID> submittedJobs = new ArrayList<>();
+        final List<JobID> recoveredJobs = new ArrayList<>();
+
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                finishedJobGatewayBuilder()
+                        .setSubmitFunction(
+                                jobGraph -> {
+                                    submittedJobs.add(jobGraph.getJobID());
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setRecoverJobFunction(
+                                jobId -> {
+                                    recoveredJobs.add(jobId);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
+
+        // create application with a recovered terminal job
+        final JobInfo recoveredTerminalJobInfo =
+                new JobInfoImpl(recoveredTerminalJobId, DEFAULT_STREAMING_JOB_NAME);
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        getProgram(1),
+                        Collections.emptyList(),
+                        Collections.singletonList(recoveredTerminalJobInfo),
+                        configuration,
+                        true,
+                        false,
+                        false,
+                        true);
+
+        executeApplication(
+                application, dispatcherBuilder.build(), scheduledExecutor, exception -> {});
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFinished(application);
+
+        // verify that the terminal job was not submitted or recovered
+        assertThat(submittedJobs).isEmpty();
+        assertThat(recoveredJobs).isEmpty();
+    }
+
+    @Test
+    void testRecoveredRunningJobsAreRecovered() throws Exception {
+        final JobID recoveredRunningJobId = new JobID();
+
+        final Configuration configuration = getConfiguration();
+        configuration.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, recoveredRunningJobId.toHexString());
+
+        final List<JobID> submittedJobs = new ArrayList<>();
+        final List<JobID> recoveredJobs = new ArrayList<>();
+
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                finishedJobGatewayBuilder()
+                        .setSubmitFunction(
+                                jobGraph -> {
+                                    submittedJobs.add(jobGraph.getJobID());
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .setRecoverJobFunction(
+                                jobId -> {
+                                    recoveredJobs.add(jobId);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
+
+        // create application with a recovered running job
+        final JobInfo recoveredRunningJobInfo =
+                new JobInfoImpl(recoveredRunningJobId, DEFAULT_STREAMING_JOB_NAME);
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        getProgram(1),
+                        Collections.singletonList(recoveredRunningJobInfo),
+                        Collections.emptyList(),
+                        configuration,
+                        true,
+                        false,
+                        false,
+                        true);
+
+        executeApplication(
+                application, dispatcherBuilder.build(), scheduledExecutor, exception -> {});
+
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertApplicationFinished(application);
+
+        // verify that the running job was recovered, not submitted
+        assertThat(submittedJobs).isEmpty();
+        assertThat(recoveredJobs).containsExactly(recoveredRunningJobId);
     }
 
     private TestingDispatcherGateway.Builder finishedJobGatewayBuilder() {
@@ -1234,7 +1365,6 @@ public class PackagedProgramApplicationTest {
                 new PackagedProgramApplication(
                         new ApplicationID(),
                         program,
-                        Collections.emptyList(),
                         configuration,
                         handleFatalError,
                         enforceSingleJobExecution,
@@ -1275,20 +1405,16 @@ public class PackagedProgramApplicationTest {
         return createJobResult(jobId, JobStatus.CANCELED);
     }
 
-    private static JobResult createUnknownJobResult(final JobID jobId) {
-        return createJobResult(jobId, null);
-    }
-
-    private static JobResult createJobResult(
-            final JobID jobID, @Nullable final JobStatus jobStatus) {
+    private static JobResult createJobResult(final JobID jobID, final JobStatus jobStatus) {
         JobResult.Builder builder =
                 new JobResult.Builder().jobId(jobID).netRuntime(2L).jobStatus(jobStatus);
         if (jobStatus == JobStatus.CANCELED) {
             builder.serializedThrowable(
                     new SerializedThrowable(new JobCancellationException(jobID, "Hello", null)));
-        } else if (jobStatus == JobStatus.FAILED || jobStatus == null) {
+        } else if (jobStatus == JobStatus.FAILED) {
             builder.serializedThrowable(
-                    new SerializedThrowable(new JobExecutionException(jobID, "bla bla bla")));
+                    new SerializedThrowable(
+                            new JobExecutionException(jobID, "Job execution failed")));
         }
         return builder.build();
     }

@@ -325,34 +325,52 @@ def to_timestamp(timestamp_str: Union[str, Expression[str]],
 @PublicEvolving()
 def to_timestamp_ltz(*args) -> Expression:
     """
-    Converts a value to a timestamp with local time zone.
+    Converts a value to a TIMESTAMP_LTZ (timestamp with local time zone).
 
-    Supported functions:
-    1. to_timestamp_ltz(Numeric) -> DataTypes.TIMESTAMP_LTZ
-    Converts a numeric value of epoch milliseconds to a TIMESTAMP_LTZ. The default precision is 3.
-    2. to_timestamp_ltz(Numeric, Integer) -> DataTypes.TIMESTAMP_LTZ
-    Converts a numeric value of epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ.
-    Valid precisions are 0 or 3.
-    3. to_timestamp_ltz(String) -> DataTypes.TIMESTAMP_LTZ
-    Converts a timestamp string using default format 'yyyy-MM-dd HH:mm:ss.SSS' to a TIMESTAMP_LTZ.
-    4. to_timestamp_ltz(String, String) -> DataTypes.TIMESTAMP_LTZ
-    Converts a timestamp string using format (default 'yyyy-MM-dd HH:mm:ss.SSS') to a TIMESTAMP_LTZ.
-    5. to_timestamp_ltz(String, String, String) -> DataTypes.TIMESTAMP_LTZ
-    Converts a timestamp string string1 using format string2 (default 'yyyy-MM-dd HH:mm:ss.SSS')
-    in time zone string3 (default 'UTC') to a TIMESTAMP_LTZ.
-    Supports any timezone that is available in Java's TimeZone database.
+    Supported signatures:
+
+    1. to_timestamp_ltz(numeric) -> TIMESTAMP_LTZ(3)
+       Converts a numeric epoch value to a TIMESTAMP_LTZ. The value is interpreted as
+       milliseconds since epoch (default precision 3).
+
+    2. to_timestamp_ltz(numeric, precision) -> TIMESTAMP_LTZ(max(precision, 3))
+       Converts a numeric epoch value to a TIMESTAMP_LTZ. The precision parameter (0-9)
+       determines the unit of the numeric value:
+
+       - precision 0: the numeric value represents seconds since epoch
+       - precision 3: the numeric value represents milliseconds since epoch
+       - precision 6: the numeric value represents microseconds since epoch
+       - precision 9: the numeric value represents nanoseconds since epoch
+
+       Other precision values between 0 and 9 are also supported, where the numeric
+       value represents units of 10^(-precision) seconds. The output type is
+       TIMESTAMP_LTZ(3) for precision 0-3, and TIMESTAMP_LTZ(precision) for 4-9.
+
+    3. to_timestamp_ltz(string) -> TIMESTAMP_LTZ(3)
+       Parses a timestamp string using default format 'yyyy-MM-dd HH:mm:ss'.
+
+    4. to_timestamp_ltz(string, format) -> TIMESTAMP_LTZ(max(fractional_digits, 3))
+       Parses a timestamp string using the given format pattern. The output precision
+       is inferred from the number of 'S' characters in the format (e.g., 'SSS' -> 3,
+       'SSSSSS' -> 6, 'SSSSSSSSS' -> 9), with a minimum of 3.
+
+    5. to_timestamp_ltz(string, format, timezone) -> TIMESTAMP_LTZ(max(fractional_digits, 3))
+       Parses a timestamp string using the given format pattern in the specified time zone.
+       The output precision is inferred from the format pattern as in signature 4.
+
+    Returns NULL if any input is NULL.
 
     Example:
     ::
 
-        >>> table.select(to_timestamp_ltz(100))  # numeric with default precision
-        >>> table.select(to_timestamp_ltz(100, 0))  # numeric with second precision
-        >>> table.select(to_timestamp_ltz(100, 3))  # numeric with millisecond precision
+        >>> table.select(to_timestamp_ltz(1234567890, 0))   # epoch seconds
+        >>> table.select(to_timestamp_ltz(1234567890123, 3)) # epoch milliseconds
+        >>> table.select(to_timestamp_ltz(1234567890123456789, 9)) # epoch nanoseconds
         >>> table.select(to_timestamp_ltz("2023-01-01 00:00:00"))  # string with default format
         >>> table.select(to_timestamp_ltz("01/01/2023", "MM/dd/yyyy"))  # string with format
         >>> table.select(to_timestamp_ltz("2023-01-01 00:00:00",
-                                        "yyyy-MM-dd HH:mm:ss",
-                                        "UTC"))  # string with format and timezone
+        ...                              "yyyy-MM-dd HH:mm:ss",
+        ...                              "Asia/Shanghai"))  # string with format and timezone
     """
     if len(args) == 1:
         return _unary_op("toTimestampLtz", args[0])

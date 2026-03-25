@@ -78,6 +78,7 @@ class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetailsInfo>
                 true,
                 JobStatus.values()[random.nextInt(JobStatus.values().length)],
                 JobType.STREAMING,
+                null,
                 1L,
                 2L,
                 1L,

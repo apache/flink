@@ -27,6 +27,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,8 @@ import java.util.Optional;
 @Internal
 public class ToTimestampLtzTypeStrategy implements TypeStrategy {
 
+    private static final int MIN_PRECISION = 0;
+    private static final int MAX_PRECISION = 9;
     private static final int DEFAULT_PRECISION = 3;
 
     @Override
@@ -52,44 +55,79 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
 
         LogicalType firstType = argumentTypes.get(0).getLogicalType();
         LogicalTypeRoot firstTypeRoot = firstType.getTypeRoot();
+        int outputPrecision = DEFAULT_PRECISION;
 
-        if (argCount == 1) {
-            if (!isCharacterType(firstTypeRoot) && !firstType.is(LogicalTypeFamily.NUMERIC)) {
-                throw new ValidationException(
-                        "Unsupported argument type. "
-                                + "When taking 1 argument, TO_TIMESTAMP_LTZ accepts an argument of type <VARCHAR>, <CHAR>, or <NUMERIC>.");
-            }
-        } else if (argCount == 2) {
-            LogicalType secondType = argumentTypes.get(1).getLogicalType();
-            LogicalTypeRoot secondTypeRoot = secondType.getTypeRoot();
-            if (firstType.is(LogicalTypeFamily.NUMERIC)) {
-                if (secondTypeRoot != LogicalTypeRoot.INTEGER) {
+        switch (argCount) {
+            case 1:
+                if (!isCharacterType(firstTypeRoot) && !firstType.is(LogicalTypeFamily.NUMERIC)) {
                     throw new ValidationException(
                             "Unsupported argument type. "
-                                    + "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) requires the second argument to be <INTEGER>.");
+                                    + "When taking 1 argument, TO_TIMESTAMP_LTZ accepts an argument of type <VARCHAR>, <CHAR>, or <NUMERIC>.");
                 }
-            } else if (isCharacterType(firstTypeRoot)) {
-                if (!isCharacterType(secondTypeRoot)) {
+                break;
+            case 2:
+                LogicalType secondType = argumentTypes.get(1).getLogicalType();
+                LogicalTypeRoot secondTypeRoot = secondType.getTypeRoot();
+                if (firstType.is(LogicalTypeFamily.NUMERIC)) {
+                    if (secondTypeRoot != LogicalTypeRoot.INTEGER) {
+                        throw new ValidationException(
+                                "Unsupported argument type. "
+                                        + "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) requires the second argument to be <INTEGER>.");
+                    }
+                    Optional<Integer> precisionOpt = callContext.getArgumentValue(1, Integer.class);
+                    if (precisionOpt.isPresent()) {
+                        int precision = precisionOpt.get();
+                        validatePrecision(precision);
+                        outputPrecision = Math.max(precision, DEFAULT_PRECISION);
+                    }
+                } else if (isCharacterType(firstTypeRoot)) {
+                    if (!isCharacterType(secondTypeRoot)) {
+                        throw new ValidationException(
+                                "Unsupported argument type. "
+                                        + "If the first argument is of type <VARCHAR> or <CHAR>, TO_TIMESTAMP_LTZ requires the second argument to be of type <VARCHAR> or <CHAR>.");
+                    }
+                    outputPrecision = inferPrecisionFromFormat(callContext);
+                } else {
                     throw new ValidationException(
                             "Unsupported argument type. "
-                                    + "If the first argument is of type <VARCHAR> or <CHAR>, TO_TIMESTAMP_LTZ requires the second argument to be of type <VARCHAR> or <CHAR>.");
+                                    + "When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be of type <VARCHAR>, <CHAR>, or <NUMERIC>.");
                 }
-            } else {
-                throw new ValidationException(
-                        "Unsupported argument type. "
-                                + "When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be of type <VARCHAR>, <CHAR>, or <NUMERIC>.");
-            }
-        } else if (argCount == 3) {
-            if (!isCharacterType(firstTypeRoot)
-                    || !isCharacterType(argumentTypes.get(1).getLogicalType().getTypeRoot())
-                    || !isCharacterType(argumentTypes.get(2).getLogicalType().getTypeRoot())) {
-                throw new ValidationException(
-                        "Unsupported argument type. "
-                                + "When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <VARCHAR> or <CHAR>.");
-            }
+                break;
+            case 3:
+                if (!isCharacterType(firstTypeRoot)
+                        || !isCharacterType(argumentTypes.get(1).getLogicalType().getTypeRoot())
+                        || !isCharacterType(argumentTypes.get(2).getLogicalType().getTypeRoot())) {
+                    throw new ValidationException(
+                            "Unsupported argument type. "
+                                    + "When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <VARCHAR> or <CHAR>.");
+                }
+                outputPrecision = inferPrecisionFromFormat(callContext);
         }
 
-        return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION).nullable());
+        return Optional.of(DataTypes.TIMESTAMP_LTZ(outputPrecision).nullable());
+    }
+
+    /**
+     * Infers the output precision from a format string literal. Returns at least {@link
+     * #DEFAULT_PRECISION}.
+     */
+    private static int inferPrecisionFromFormat(CallContext callContext) {
+        if (!callContext.isArgumentLiteral(1)) {
+            return DEFAULT_PRECISION;
+        }
+        return callContext
+                .getArgumentValue(1, String.class)
+                .map(DateTimeUtils::precisionFromFormat)
+                .orElse(DEFAULT_PRECISION);
+    }
+
+    private static void validatePrecision(final int precision) {
+        if (precision < MIN_PRECISION || precision > MAX_PRECISION) {
+            throw new ValidationException(
+                    String.format(
+                            "Precision for TO_TIMESTAMP_LTZ must be between %d and %d but was %d.",
+                            MIN_PRECISION, MAX_PRECISION, precision));
+        }
     }
 
     private boolean isCharacterType(LogicalTypeRoot typeRoot) {

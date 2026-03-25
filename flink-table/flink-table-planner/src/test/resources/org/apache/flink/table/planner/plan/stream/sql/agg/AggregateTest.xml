@@ -263,7 +263,29 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, cnt])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStartWithHaving">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) FROM src HAVING COUNT(*) > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 1)])
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0], where=[(EXPR$0 > 1)])
++- GroupAggregate(select=[COUNT(*) AS EXPR$0])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[0 AS $f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
 ]]>
     </Resource>
   </TestCase>
@@ -282,7 +304,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]], fields=[id, cnt, sys_col])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id])
 ]]>
     </Resource>
   </TestCase>
@@ -301,7 +324,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[cnt, id, sys_col]]], fields=[cnt, id, sys_col])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[], metadata=[cnt]]], fields=[cnt])
 ]]>
     </Resource>
   </TestCase>
@@ -320,7 +344,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[sys_col]]], fields=[nested, id, cnt, sys_col])
+   +- Calc(select=[0 AS $f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[nested], metadata=[]]], fields=[nested])
 ]]>
     </Resource>
   </TestCase>
@@ -355,6 +380,25 @@ GroupAggregate(select=[SUM_RETRACT(uv) FILTER $f1 AS all_uv])
          +- Exchange(distribution=[hash[c]])
             +- Calc(select=[c])
                +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGlobalAggOverEmptyInputReplacedByValues">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), SUM(a), AVG(a) FROM T WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[SUM($0)], EXPR$2=[AVG($0)])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, CASE(($f2 = 0), null:INTEGER, EXPR$1) AS EXPR$1, CAST(($f3 / $f2) AS INTEGER) AS EXPR$2])
++- Values(tuples=[[{ 0, 0, 0, null }]])
 ]]>
     </Resource>
   </TestCase>

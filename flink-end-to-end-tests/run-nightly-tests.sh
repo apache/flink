@@ -223,6 +223,8 @@ function run_group_2 {
     #     run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
     # fi
 
+    run_test "Flink Table API with custom type end-to-end test" "$END_TO_END_DIR/test-scripts/test_table_api.sh"
+
     ################################################################################
     # Sticky Scheduling
     ################################################################################

@@ -590,8 +590,26 @@ string:
   - sql: URL_ENCODE(string)
     table: STRING.urlEncode()
     description:
-      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式。
+      使用 UTF-8 编码方案将字符串转换为"application/x-www-form-urlencoded"格式。
       如果输入为 NULL，或者编码过程出现问题，或者不支持编码方案，则会返回 NULL。
+  - sql: INET_ATON(string)
+    table: STRING.inetAton()
+    description: |
+      将 IPv4 地址字符串转换为数值表示（BIGINT）。部分兼容 MySQL INET_ATON。
+
+      支持 MySQL 兼容的短格式地址：a.b 被解释为 a.0.0.b，a.b.c 被解释为 a.b.0.c。
+      八位字节中的前导零按十进制解析（而非八进制），与 MySQL 保持一致。
+      如果输入为 NULL 或无效，则返回 NULL。
+
+      例如，INET_ATON('127.0.0.1') 返回 2130706433；INET_ATON('127.1') 返回 2130706433（短格式）。
+  - sql: INET_NTOA(integer)
+    table: INTEGER.inetNtoa()
+    description: |
+      将数值 IPv4 地址表示转换回字符串格式。
+
+      输入必须在有效的 IPv4 范围内 [0, 4294967295]。如果输入为 NULL 或超出范围，则返回 NULL。
+
+      例如，INET_NTOA(2130706433) 返回 '127.0.0.1'；INET_NTOA(0) 返回 '0.0.0.0'。
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
@@ -812,11 +830,40 @@ temporal:
     table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
   - sql: TO_TIMESTAMP_LTZ(numeric[, precision])
-    table: toTimestampLtz(NUMERIC, PRECISION)
-    description: Converts an epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3). If no precision is provided, the default precision is 3. If any input is null, the function will return null.
+    table: toTimestampLtz(NUMERIC[, PRECISION])
+    description: |
+      Converts a numeric epoch value to a TIMESTAMP_LTZ.
+
+      - numeric: the epoch value to convert. The meaning of this value depends on the precision parameter.
+      - precision: an integer (0-9) that determines the unit of the numeric value (default 3). The precision changes how the numeric input is interpreted:
+
+        - TO_TIMESTAMP_LTZ(epochSeconds, 0) interprets the value as seconds since epoch
+        - TO_TIMESTAMP_LTZ(epochMillis, 3) interprets the value as milliseconds since epoch
+        - TO_TIMESTAMP_LTZ(epochMicros, 6) interprets the value as microseconds since epoch
+        - TO_TIMESTAMP_LTZ(epochNanos, 9) interprets the value as nanoseconds since epoch
+
+      Other precision values between 0 and 9 are also supported, where the numeric value represents units of 10^(-precision) seconds.
+      The output type is TIMESTAMP_LTZ(3) for precision 0-3, and TIMESTAMP_LTZ(precision) for precision 4-9.
+      Returns NULL if any input is NULL.
+
+      E.g., TO_TIMESTAMP_LTZ(1234567890, 0) returns TIMESTAMP_LTZ(3) '2009-02-13 23:31:30.000',
+      TO_TIMESTAMP_LTZ(1234567890123, 3) returns TIMESTAMP_LTZ(3) '2009-02-13 23:31:30.123',
+      TO_TIMESTAMP_LTZ(1234567890123456789, 9) returns TIMESTAMP_LTZ(9) '2009-02-13 23:31:30.123456789'.
   - sql: TO_TIMESTAMP_LTZ(string1[, string2[, string3]])
     table: toTimestampLtz(STRING1[, STRING2[, STRING3]])
-    description: Converts a timestamp string string1 with format string2 (by default 'yyyy-MM-dd HH:mm:ss.SSS') in time zone string3 (by default 'UTC') to a TIMESTAMP_LTZ. If any input is null, the function will return null.
+    description: |
+      Converts a timestamp string to a TIMESTAMP_LTZ.
+
+      - string1: the timestamp string to parse
+      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's DateTimeFormatter syntax, where 'S' represents fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSSSSS' for nanoseconds).
+      - string3: the time zone of the input string (default 'UTC'). Supports zone IDs such as 'UTC', 'Asia/Shanghai', or 'America/Los_Angeles'.
+
+      The output precision is inferred from the number of 'S' characters in the format pattern, with a minimum of 3. E.g., format 'yyyy-MM-dd HH:mm:ss.SS' returns TIMESTAMP_LTZ(3), format 'yyyy-MM-dd HH:mm:ss.SSSSSS' returns TIMESTAMP_LTZ(6).
+      Returns NULL if any input is NULL.
+
+      E.g., TO_TIMESTAMP_LTZ('2023-01-01 00:00:00') parses using default format and UTC,
+      TO_TIMESTAMP_LTZ('2023-01-01 12:30:00.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS') parses with nanosecond precision,
+      TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai') parses in Shanghai time zone.
   - sql: TO_TIMESTAMP(string1[, string2])
     table: toTimestamp(STRING1[, STRING2])
     description: 将格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为 timestamp，不带时区。

@@ -150,20 +150,16 @@ security.ssl.rest.authentication-enabled: false
 
 ### Cipher suites
 
-{{< hint warning >}}
-The [IETF RFC 7525](https://tools.ietf.org/html/rfc7525) recommends to use a specific set of cipher suites for strong security.
-Because these cipher suites were not available on many setups out of the box, Flink's default value is set to a slightly
-weaker but more compatible cipher suite.
-We recommend that SSL setups update to the stronger cipher suites, if possible, by adding the below entry to the Flink configuration:
+For strong security, it is crucial to use modern and robust cipher suites. [IETF RFC 9325](https://www.rfc-editor.org/info/rfc9325), which supersedes the older RFC 7525, provides current recommendations for the secure use of TLS.
 
+In response to evolving security standards and to ensure compatibility with modern Java versions, Flink has updated its default cipher suites. Recent JDK updates (affecting versions like 11.0.30+, 17.0.18+, etc.) have disabled older `TLS_RSA_*` cipher suites that lack forward secrecy.
 
-```yaml
-security.ssl.algorithms: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-```
+To support these secure-by-default JDK versions and align with best practices, Flink's default value for `security.ssl.algorithms` is now:
 
+`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
+
+This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements.
 If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
-
-{{< /hint >}}
 
 ### Complete List of SSL Options
 

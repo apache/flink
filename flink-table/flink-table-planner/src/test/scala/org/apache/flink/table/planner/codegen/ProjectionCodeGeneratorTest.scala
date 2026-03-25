@@ -22,7 +22,8 @@ import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, Timest
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.runtime.generated.Projection
-import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
+import org.apache.flink.table.types.logical._
+import org.apache.flink.types.bitmap.Bitmap
 
 import org.junit.jupiter.api.{Assertions, Test}
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -40,15 +41,17 @@ class ProjectionCodeGeneratorTest {
       .generateProjection(
         new CodeGeneratorContext(new Configuration, classLoader),
         "name",
-        RowType.of(new IntType(), new BigIntType()),
-        RowType.of(new BigIntType(), new IntType()),
-        Array(1, 0)
+        RowType.of(new IntType(), new BigIntType(), new BitmapType()),
+        RowType.of(new BitmapType(), new IntType(), new BigIntType()),
+        Array(2, 0, 1)
       )
       .newInstance(classLoader)
       .asInstanceOf[Projection[RowData, BinaryRowData]]
-    val row: BinaryRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
+    val row: BinaryRowData =
+      projection.apply(GenericRowData.of(ji(5), jl(8), Bitmap.fromArray(Array(1, 2))))
     Assertions.assertEquals(5, row.getInt(1))
-    Assertions.assertEquals(8, row.getLong(0))
+    Assertions.assertEquals(8, row.getLong(2))
+    Assertions.assertEquals(Bitmap.fromArray(Array(1, 2)), row.getBitmap(0))
   }
 
   @Test

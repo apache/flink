@@ -42,6 +42,11 @@ import java.io.OutputStream;
  * Instances of {@code FSDataOutputStream} should not be passed between threads, because there are
  * no guarantees about the order of visibility of operations across threads.
  *
+ * <p><b>Exception:</b> The {@link #close()} method may be called from a thread other than the
+ * writing thread (for example, during task cancellation). Implementations should ensure that {@code
+ * close()} can be safely invoked concurrently with ongoing write operations, typically by guarding
+ * shared mutable state with a lock. See {@link RecoverableFsDataOutputStream} for details.
+ *
  * @see FileSystem
  * @see FSDataInputStream
  */

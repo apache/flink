@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 /** A row that repeats the columns of a given row by the given count. */
@@ -147,5 +148,10 @@ public class RepeatedRowData implements RowData {
     @Override
     public Variant getVariant(int pos) {
         return row.getVariant(pos / count);
+    }
+
+    @Override
+    public Bitmap getBitmap(int pos) {
+        return row.getBitmap(pos / count);
     }
 }

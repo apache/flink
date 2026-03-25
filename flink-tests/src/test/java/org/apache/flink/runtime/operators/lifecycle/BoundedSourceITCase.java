@@ -19,27 +19,31 @@ package org.apache.flink.runtime.operators.lifecycle;
 
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
 import org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.TestingGraphBuilder;
 import org.apache.flink.runtime.operators.lifecycle.validation.DrainingValidator;
 import org.apache.flink.runtime.operators.lifecycle.validation.FinishingValidator;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
@@ -57,55 +61,50 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  * StopWithSavepointITCase#withDrain withDrain} except that final checkpoint doesn't have to be the
  * same.
  */
-@RunWith(Parameterized.class)
-public class BoundedSourceITCase extends TestLogger {
+@ExtendWith({ParameterizedTestExtension.class, TestLoggerExtension.class})
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
+class BoundedSourceITCase {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private static Path temporaryFolder;
 
-    @Rule
-    public final MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(configuration())
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(4)
-                            .build());
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setConfiguration(configuration())
+                                    .setNumberTaskManagers(1)
+                                    .setNumberSlotsPerTaskManager(4)
+                                    .build());
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.MINUTES);
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private static Configuration configuration() {
         Configuration conf = new Configuration();
-
-        try {
-            FsStateChangelogStorageFactory.configure(
-                    conf, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
+        FsStateChangelogStorageFactory.configure(
+                conf, temporaryFolder.toFile(), Duration.ofMinutes(1), 10);
         return conf;
     }
 
-    @Parameter public TestingGraphBuilder graphBuilder;
+    @Parameter private TestingGraphBuilder graphBuilder;
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Object[] parameters() {
-        return new Object[] {SIMPLE_GRAPH_BUILDER, COMPLEX_GRAPH_BUILDER};
+    @Parameters(name = "{0}")
+    private static Collection<TestingGraphBuilder> parameters() {
+        return Arrays.asList(SIMPLE_GRAPH_BUILDER, COMPLEX_GRAPH_BUILDER);
     }
 
-    @Test
-    public void test() throws Exception {
+    @TestTemplate
+    void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         TestJobWithDescription testJob =
                 graphBuilder.build(
                         sharedObjects,
                         cfg -> {},
                         env ->
                                 CheckpointStorageUtils.configureFileSystemCheckpointStorage(
-                                        env, TEMPORARY_FOLDER.newFolder().toURI()));
+                                        env, temporaryFolder.toUri()));
 
-        TestJobExecutor.execute(testJob, miniClusterResource)
+        TestJobExecutor.execute(testJob, miniCluster)
                 .waitForEvent(CheckpointCompletedEvent.class)
                 .sendBroadcastCommand(FINISH_SOURCES, ALL_SUBTASKS)
                 .waitForTermination()

@@ -80,7 +80,8 @@ class ApplicationDetailsHandlerTest {
                         "Test Application",
                         ApplicationState.FINISHED,
                         new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
-                        Collections.emptyMap());
+                        Collections.emptyMap(),
+                        Collections.emptyList());
 
         handlerRequest = createRequest(archivedApplication.getApplicationId());
 

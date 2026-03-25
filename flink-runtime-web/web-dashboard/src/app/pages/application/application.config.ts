@@ -23,7 +23,10 @@ import { ModuleConfig } from '@flink-runtime-web/core/module-config';
 export type ApplicationModuleConfig = Pick<ModuleConfig, 'routerTabs'>;
 
 export const APPLICATION_MODULE_DEFAULT_CONFIG: Required<ApplicationModuleConfig> = {
-  routerTabs: [{ title: 'Overview', path: 'overview' }]
+  routerTabs: [
+    { title: 'Overview', path: 'overview' },
+    { title: 'Exceptions', path: 'exceptions' }
+  ]
 };
 
 export const APPLICATION_MODULE_CONFIG = new InjectionToken<ApplicationModuleConfig>('application-module-config', {

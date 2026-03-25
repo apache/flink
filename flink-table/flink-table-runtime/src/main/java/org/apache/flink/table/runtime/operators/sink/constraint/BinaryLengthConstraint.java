@@ -59,6 +59,9 @@ final class BinaryLengthConstraint implements Constraint {
 
         for (int i = 0; i < fieldLengths.length; i++) {
             final int fieldIdx = fieldIndices[i];
+            if (rowData.isNullAt(fieldIdx)) {
+                continue;
+            }
             final int expectedLength = fieldLengths[i];
             final byte[] binaryData = rowData.getBinary(fieldIdx);
             final int actualLength = binaryData.length;

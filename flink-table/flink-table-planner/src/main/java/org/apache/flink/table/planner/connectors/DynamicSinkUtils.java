@@ -420,7 +420,7 @@ public final class DynamicSinkUtils {
                 throw createSchemaMismatchException(
                         String.format(
                                 "Incompatible types for sink column '%s' at position %s.",
-                                sinkFields.get(i).getName(), i),
+                                sinkFields.get(i).getName(), i + 1),
                         tableDebugName,
                         queryFields,
                         sinkFields);

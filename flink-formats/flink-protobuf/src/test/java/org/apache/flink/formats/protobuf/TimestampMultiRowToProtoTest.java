@@ -22,23 +22,23 @@ import org.apache.flink.formats.protobuf.testproto.TimestampTestMulti;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test conversion of flink internal primitive data to proto timestamp data with multiple_files
  * options.
  */
-public class TimestampMultiRowToProtoTest {
+class TimestampMultiRowToProtoTest {
 
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row = GenericRowData.of(GenericRowData.of(1672498800L, 123));
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, TimestampTestMulti.class);
         TimestampTestMulti timestampTestMulti = TimestampTestMulti.parseFrom(bytes);
-        assertEquals(1672498800, timestampTestMulti.getTs().getSeconds());
-        assertEquals(123, timestampTestMulti.getTs().getNanos());
+        assertThat(timestampTestMulti.getTs().getSeconds()).isEqualTo(1672498800);
+        assertThat(timestampTestMulti.getTs().getNanos()).isEqualTo(123);
     }
 }

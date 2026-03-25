@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableApplicationResource;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -89,7 +91,8 @@ public class BlobServer extends Thread
                 PermanentBlobService,
                 TransientBlobService,
                 LocallyCleanableResource,
-                GloballyCleanableResource {
+                GloballyCleanableResource,
+                GloballyCleanableApplicationResource {
 
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
@@ -294,6 +297,21 @@ public class BlobServer extends Thread
     }
 
     /**
+     * Returns a file handle to the file associated with the given blob key on the blob server.
+     *
+     * <p><strong>This is only called from unit tests.</strong>
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param key identifying the file
+     * @return file handle to the file
+     * @throws IOException if creating the directory fails
+     */
+    @VisibleForTesting
+    public File getStorageLocation(ApplicationID applicationId, BlobKey key) throws IOException {
+        return BlobUtils.getStorageLocation(storageDir.deref(), applicationId, key);
+    }
+
+    /**
      * Returns a temporary file inside the BLOB server's incoming directory.
      *
      * @return a temporary file inside the BLOB server's incoming directory
@@ -431,7 +449,7 @@ public class BlobServer extends Thread
      */
     @Override
     public File getFile(TransientBlobKey key) throws IOException {
-        return getFileInternalWithReadLock(null, key);
+        return getFileInternalWithReadLock((JobID) null, key);
     }
 
     /**
@@ -567,9 +585,96 @@ public class BlobServer extends Thread
                         + "and failed to copy from blob store.");
     }
 
+    /**
+     * Returns the path to a local copy of the file associated with the provided application ID and
+     * blob key.
+     *
+     * <p>We will first attempt to serve the BLOB from the local storage. If the BLOB is not in
+     * there, we will try to download it from the HA store.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param key BLOB key associated with the requested file
+     * @return The path to the file.
+     * @throws java.io.FileNotFoundException if the BLOB does not exist;
+     * @throws IOException if any other error occurs when retrieving the file
+     */
+    @Override
+    public File getFile(ApplicationID applicationId, PermanentBlobKey key) throws IOException {
+        checkNotNull(applicationId);
+        return getFileInternalWithReadLock(applicationId, key);
+    }
+
+    /**
+     * Retrieves the local path of a file associated with an application and a blob key.
+     *
+     * <p>The blob server looks the blob key up in its local storage. If the file exists, it is
+     * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
+     * or a {@link FileNotFoundException} is thrown.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey blob key associated with the requested file
+     * @return file referring to the local storage location of the BLOB
+     * @throws IOException Thrown if the file retrieval failed.
+     */
+    private File getFileInternalWithReadLock(ApplicationID applicationId, BlobKey blobKey)
+            throws IOException {
+        checkArgument(blobKey instanceof PermanentBlobKey, "BLOB must be permanent.");
+        readWriteLock.readLock().lock();
+
+        try {
+            return getFileInternal(applicationId, blobKey);
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
+    File getFileInternal(ApplicationID applicationId, BlobKey blobKey) throws IOException {
+        // assume readWriteLock.readLock() was already locked (cannot really check that)
+
+        final File localFile =
+                BlobUtils.getStorageLocation(storageDir.deref(), applicationId, blobKey);
+
+        if (localFile.exists()) {
+            return localFile;
+        }
+
+        // Try the HA blob store
+        // first we have to release the read lock in order to acquire the write lock
+        readWriteLock.readLock().unlock();
+
+        // use a temporary file (thread-safe without locking)
+        File incomingFile = null;
+        try {
+            incomingFile = createTemporaryFilename();
+            blobStore.get(applicationId, blobKey, incomingFile);
+
+            readWriteLock.writeLock().lock();
+            try {
+                BlobUtils.moveTempFileToStore(
+                        incomingFile, applicationId, blobKey, localFile, LOG, null);
+            } finally {
+                readWriteLock.writeLock().unlock();
+            }
+
+            return localFile;
+        } finally {
+            // delete incomingFile from a failed download
+            if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
+                LOG.warn(
+                        "Could not delete the staging file {} for blob key {} and application {}.",
+                        incomingFile,
+                        blobKey,
+                        applicationId);
+            }
+
+            // re-acquire lock so that it can be unlocked again outside
+            readWriteLock.readLock().lock();
+        }
+    }
+
     @Override
     public TransientBlobKey putTransient(byte[] value) throws IOException {
-        return (TransientBlobKey) putBuffer(null, value, TRANSIENT_BLOB);
+        return (TransientBlobKey) putBuffer((JobID) null, value, TRANSIENT_BLOB);
     }
 
     @Override
@@ -580,7 +685,7 @@ public class BlobServer extends Thread
 
     @Override
     public TransientBlobKey putTransient(InputStream inputStream) throws IOException {
-        return (TransientBlobKey) putInputStream(null, inputStream, TRANSIENT_BLOB);
+        return (TransientBlobKey) putInputStream((JobID) null, inputStream, TRANSIENT_BLOB);
     }
 
     @Override
@@ -599,6 +704,38 @@ public class BlobServer extends Thread
     public PermanentBlobKey putPermanent(JobID jobId, InputStream inputStream) throws IOException {
         checkNotNull(jobId);
         return (PermanentBlobKey) putInputStream(jobId, inputStream, PERMANENT_BLOB);
+    }
+
+    /**
+     * Uploads the data of the given byte array for the given application to the BLOB server.
+     *
+     * @param applicationId the ID of the application the BLOB belongs to
+     * @param value the buffer to upload
+     * @return the computed BLOB key identifying the BLOB on the server
+     * @throws IOException thrown if an I/O error occurs while writing it to a local file, or
+     *     uploading it to the HA store
+     */
+    @VisibleForTesting
+    public PermanentBlobKey putPermanent(ApplicationID applicationId, byte[] value)
+            throws IOException {
+        checkNotNull(applicationId);
+        return (PermanentBlobKey) putBuffer(applicationId, value, PERMANENT_BLOB);
+    }
+
+    /**
+     * Uploads the data from the given input stream for the given application to the BLOB server.
+     *
+     * @param applicationId the ID of the application the BLOB belongs to
+     * @param inputStream the input stream to read the data from
+     * @return the computed BLOB key identifying the BLOB on the server
+     * @throws IOException thrown if an I/O error occurs while reading the data from the input
+     *     stream, writing it to a local file, or uploading it to the HA store
+     */
+    @VisibleForTesting
+    public PermanentBlobKey putPermanent(ApplicationID applicationId, InputStream inputStream)
+            throws IOException {
+        checkNotNull(applicationId);
+        return (PermanentBlobKey) putInputStream(applicationId, inputStream, PERMANENT_BLOB);
     }
 
     /**
@@ -650,6 +787,57 @@ public class BlobServer extends Thread
     }
 
     /**
+     * Uploads the data of the given byte array for the given application to the BLOB server.
+     *
+     * @param applicationId the ID of the application the BLOB belongs to
+     * @param value the buffer to upload
+     * @param blobType whether to make the data permanent or transient
+     * @return the computed BLOB key identifying the BLOB on the server
+     * @throws IOException thrown if an I/O error occurs while writing it to a local file, or
+     *     uploading it to the HA store
+     */
+    private BlobKey putBuffer(ApplicationID applicationId, byte[] value, BlobKey.BlobType blobType)
+            throws IOException {
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Received PUT call for BLOB of application {}.", applicationId);
+        }
+
+        File incomingFile = createTemporaryFilename();
+        MessageDigest md = BlobUtils.createMessageDigest();
+        BlobKey blobKey = null;
+        try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
+            md.update(value);
+            fos.write(value);
+        } catch (IOException ioe) {
+            // delete incomingFile from a failed download
+            if (!incomingFile.delete() && incomingFile.exists()) {
+                LOG.warn(
+                        "Could not delete the staging file {} for application {}.",
+                        incomingFile,
+                        applicationId);
+            }
+            throw ioe;
+        }
+
+        try {
+            // persist file
+            blobKey = moveTempFileToStore(incomingFile, applicationId, md.digest(), blobType);
+
+            return blobKey;
+        } finally {
+            // delete incomingFile from a failed download
+            if (!incomingFile.delete() && incomingFile.exists()) {
+                LOG.warn(
+                        "Could not delete the staging file {} for blob key {} and application {}.",
+                        incomingFile,
+                        blobKey,
+                        applicationId);
+            }
+        }
+    }
+
+    /**
      * Uploads the data from the given input stream for the given job to the BLOB server.
      *
      * @param jobId the ID of the job the BLOB belongs to
@@ -684,6 +872,45 @@ public class BlobServer extends Thread
                         incomingFile,
                         blobKey,
                         jobId);
+            }
+        }
+    }
+
+    /**
+     * Uploads the data from the given input stream for the given application to the BLOB server.
+     *
+     * @param applicationId the ID of the application the BLOB belongs to
+     * @param inputStream the input stream to read the data from
+     * @param blobType whether to make the data permanent or transient
+     * @return the computed BLOB key identifying the BLOB on the server
+     * @throws IOException thrown if an I/O error occurs while reading the data from the input
+     *     stream, writing it to a local file, or uploading it to the HA store
+     */
+    private BlobKey putInputStream(
+            ApplicationID applicationId, InputStream inputStream, BlobKey.BlobType blobType)
+            throws IOException {
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Received PUT call for BLOB of application {}.", applicationId);
+        }
+
+        File incomingFile = createTemporaryFilename();
+        BlobKey blobKey = null;
+        try {
+            MessageDigest md = writeStreamToFileAndCreateDigest(inputStream, incomingFile);
+
+            // persist file
+            blobKey = moveTempFileToStore(incomingFile, applicationId, md.digest(), blobType);
+
+            return blobKey;
+        } finally {
+            // delete incomingFile from a failed download
+            if (!incomingFile.delete() && incomingFile.exists()) {
+                LOG.warn(
+                        "Could not delete the staging file {} for blob key {} and application {}.",
+                        incomingFile,
+                        blobKey,
+                        applicationId);
             }
         }
     }
@@ -770,6 +997,68 @@ public class BlobServer extends Thread
                     LOG.debug(
                             "Trying to find a unique key for BLOB of job {} (retry {}, last tried {})",
                             jobId,
+                            attempt,
+                            storageFile.getAbsolutePath());
+                }
+            }
+        }
+    }
+
+    /**
+     * Moves the temporary <tt>incomingFile</tt> to its permanent location where it is available for
+     * use.
+     *
+     * @param incomingFile temporary file created during transfer
+     * @param applicationId ID of the application this blob belongs to
+     * @param digest BLOB content digest, i.e. hash
+     * @param blobType whether this file is a permanent or transient BLOB
+     * @return unique BLOB key that identifies the BLOB on the server
+     * @throws IOException thrown if an I/O error occurs while moving the file or uploading it to
+     *     the HA store
+     */
+    BlobKey moveTempFileToStore(
+            File incomingFile,
+            ApplicationID applicationId,
+            byte[] digest,
+            BlobKey.BlobType blobType)
+            throws IOException {
+
+        int retries = 10;
+
+        int attempt = 0;
+        while (true) {
+            // add unique component independent of the BLOB content
+            BlobKey blobKey = BlobKey.createKey(blobType, digest);
+            File storageFile =
+                    BlobUtils.getStorageLocation(storageDir.deref(), applicationId, blobKey);
+
+            // try again until the key is unique (put the existence check into the lock!)
+            readWriteLock.writeLock().lock();
+            try {
+                if (!storageFile.exists()) {
+                    BlobUtils.moveTempFileToStore(
+                            incomingFile, applicationId, blobKey, storageFile, LOG, blobStore);
+                    return blobKey;
+                }
+            } finally {
+                readWriteLock.writeLock().unlock();
+            }
+
+            ++attempt;
+            if (attempt >= retries) {
+                String message =
+                        "Failed to find a unique key for BLOB of application "
+                                + applicationId
+                                + " (last tried "
+                                + storageFile.getAbsolutePath()
+                                + ".";
+                LOG.error(message + " No retries left.");
+                throw new IOException(message);
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Trying to find a unique key for BLOB of application {} (retry {}, last tried {})",
+                            applicationId,
                             attempt,
                             storageFile.getAbsolutePath());
                 }
@@ -944,6 +1233,51 @@ public class BlobServer extends Thread
                 executor);
     }
 
+    @GuardedBy("readWriteLock")
+    private void internalLocalCleanup(ApplicationID applicationId) throws IOException {
+        final File applicationDir =
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.deref().getAbsolutePath(), applicationId));
+        FileUtils.deleteDirectory(applicationDir);
+    }
+
+    /**
+     * Removes all BLOBs from local and HA store belonging to the given {@link ApplicationID}.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     */
+    @Override
+    public CompletableFuture<Void> globalCleanupAsync(
+            ApplicationID applicationId, Executor executor) {
+        checkNotNull(applicationId);
+
+        return runAsyncWithWriteLock(
+                () -> {
+                    IOException exception = null;
+
+                    try {
+                        internalLocalCleanup(applicationId);
+                    } catch (IOException e) {
+                        exception = e;
+                    }
+
+                    if (!blobStore.deleteAll(applicationId)) {
+                        exception =
+                                ExceptionUtils.firstOrSuppressed(
+                                        new IOException(
+                                                "Error while cleaning up the BlobStore for application "
+                                                        + applicationId),
+                                        exception);
+                    }
+
+                    if (exception != null) {
+                        throw new IOException(exception);
+                    }
+                },
+                executor);
+    }
+
     private CompletableFuture<Void> runAsyncWithWriteLock(
             ThrowingRunnable<IOException> runnable, Executor executor) {
         return CompletableFuture.runAsync(
@@ -970,6 +1304,29 @@ public class BlobServer extends Thread
                     new ArrayList<>(jobsToRemove.size());
             for (JobID jobToRemove : jobsToRemove) {
                 cleanupResultFutures.add(globalCleanupAsync(jobToRemove, ioExecutor));
+            }
+
+            try {
+                FutureUtils.completeAll(cleanupResultFutures).get();
+            } catch (InterruptedException | ExecutionException e) {
+                ExceptionUtils.rethrowIOException(e);
+            }
+        }
+    }
+
+    public void retainApplications(
+            Collection<ApplicationID> applicationsToRetain, Executor ioExecutor)
+            throws IOException {
+        if (storageDir.deref().exists()) {
+            final Set<ApplicationID> applicationsToRemove =
+                    BlobUtils.listExistingApplications(storageDir.deref().toPath());
+
+            applicationsToRemove.removeAll(applicationsToRetain);
+
+            final Collection<CompletableFuture<Void>> cleanupResultFutures =
+                    new ArrayList<>(applicationsToRemove.size());
+            for (ApplicationID applicationToRemove : applicationsToRemove) {
+                cleanupResultFutures.add(globalCleanupAsync(applicationToRemove, ioExecutor));
             }
 
             try {

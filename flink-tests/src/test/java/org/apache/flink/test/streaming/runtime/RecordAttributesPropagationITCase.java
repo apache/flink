@@ -54,7 +54,7 @@ import java.util.concurrent.Executors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for {@link RecordAttributes} propagation. */
-public class RecordAttributesPropagationITCase {
+class RecordAttributesPropagationITCase {
 
     @Test
     void testRecordAttributesPropagation() throws Exception {

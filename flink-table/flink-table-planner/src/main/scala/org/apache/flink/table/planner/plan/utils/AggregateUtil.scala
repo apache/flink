@@ -917,7 +917,7 @@ object AggregateUtil extends Enumeration {
         case CHAR | VARCHAR | BOOLEAN | DECIMAL | TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT |
             DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
             TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME | ARRAY |
-            VARIANT =>
+            VARIANT | BITMAP =>
           argTypes(0)
         case t =>
           throw new TableException(

@@ -130,7 +130,8 @@ public class ArchivedApplicationStoreTestUtils {
                             "test-application-" + i,
                             state,
                             new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
-                            jobs));
+                            jobs,
+                            Collections.emptyList()));
         }
 
         return archivedApplications;
@@ -227,7 +228,6 @@ public class ArchivedApplicationStoreTestUtils {
             Collection<ArchivedApplication> archivedApplications) {
         return archivedApplications.stream()
                 .flatMap(archivedApplication -> archivedApplication.getJobs().values().stream())
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }

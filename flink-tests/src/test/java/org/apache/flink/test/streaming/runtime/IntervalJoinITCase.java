@@ -48,18 +48,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Integration tests for interval joins. */
-public class IntervalJoinITCase {
+class IntervalJoinITCase {
 
     private static List<String> testResults;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         testResults = new ArrayList<>();
     }
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    public void testCanJoinOverSameKey(boolean enableAsyncState) throws Exception {
+    void testCanJoinOverSameKey(boolean enableAsyncState) throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -123,7 +123,7 @@ public class IntervalJoinITCase {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    public void testJoinsCorrectlyWithMultipleKeys(boolean enableAsyncState) throws Exception {
+    void testJoinsCorrectlyWithMultipleKeys(boolean enableAsyncState) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -296,7 +296,7 @@ public class IntervalJoinITCase {
     }
 
     @Test
-    public void testFailsWithoutUpperBound() {
+    void testFailsWithoutUpperBound() {
         assertThrows(
                 NullPointerException.class,
                 () -> {
@@ -315,7 +315,7 @@ public class IntervalJoinITCase {
     }
 
     @Test
-    public void testFailsWithoutLowerBound() {
+    void testFailsWithoutLowerBound() {
         assertThrows(
                 NullPointerException.class,
                 () -> {
@@ -335,7 +335,7 @@ public class IntervalJoinITCase {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    public void testBoundsCanBeExclusive(boolean enableAsyncState) throws Exception {
+    void testBoundsCanBeExclusive(boolean enableAsyncState) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -369,7 +369,7 @@ public class IntervalJoinITCase {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    public void testBoundsCanBeInclusive(boolean enableAsyncState) throws Exception {
+    void testBoundsCanBeInclusive(boolean enableAsyncState) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -407,7 +407,7 @@ public class IntervalJoinITCase {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    public void testBoundsAreInclusiveByDefault(boolean enableAsyncState) throws Exception {
+    void testBoundsAreInclusiveByDefault(boolean enableAsyncState) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -444,7 +444,7 @@ public class IntervalJoinITCase {
     }
 
     @Test
-    public void testExecutionFailsInProcessingTime() {
+    void testExecutionFailsInProcessingTime() {
         assertThrows(
                 UnsupportedTimeCharacteristicException.class,
                 () -> {

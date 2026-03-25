@@ -258,7 +258,7 @@ class WindowAggregateITCase(
         |    window_end,
         |    COUNT(DISTINCT `string`) AS cnt
         |    FROM TABLE(
-        |      TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
+        |      TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '30' SECONDS, INTERVAL '15' SECONDS))
         |    GROUP BY `name`, window_start, window_end
         |) GROUP BY cnt, window_start, window_end
       """.stripMargin
@@ -268,7 +268,12 @@ class WindowAggregateITCase(
     env.execute()
 
     val expected =
-      Seq("0,2020-10-09T08:00,2020-10-10T08:00,1", "3,2020-10-09T08:00,2020-10-10T08:00,2")
+      Seq(
+        "2,2020-10-09T23:59:45,2020-10-10T00:00:15,1",
+        "3,2020-10-09T23:59:45,2020-10-10T00:00:15,1",
+        "2,2020-10-10T00:00:15,2020-10-10T00:00:45,1",
+        "0,2020-10-10T00:00:15,2020-10-10T00:00:45,1"
+      )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
   }

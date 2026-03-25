@@ -20,6 +20,7 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.program.PackagedProgram;
@@ -49,6 +50,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -89,7 +91,8 @@ public enum ClientUtils {
                 program,
                 enforceSingleJobExecution,
                 suppressSysout,
-                null);
+                null,
+                Collections.emptyList());
     }
 
     public static void executeProgram(
@@ -98,7 +101,8 @@ public enum ClientUtils {
             PackagedProgram program,
             boolean enforceSingleJobExecution,
             boolean suppressSysout,
-            @Nullable ApplicationID applicationId)
+            @Nullable ApplicationID applicationId,
+            Collection<JobInfo> allRecoveredJobInfos)
             throws ProgramInvocationException {
         checkNotNull(executorServiceLoader);
         final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
@@ -116,7 +120,8 @@ public enum ClientUtils {
                     userCodeClassLoader,
                     enforceSingleJobExecution,
                     suppressSysout,
-                    applicationId);
+                    applicationId,
+                    allRecoveredJobInfos);
 
             // For DataStream v2.
             ExecutionContextEnvironment.setAsContext(

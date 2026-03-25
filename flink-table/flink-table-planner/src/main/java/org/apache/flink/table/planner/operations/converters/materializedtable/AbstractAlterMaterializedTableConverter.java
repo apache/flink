@@ -22,17 +22,18 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTab
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.utils.ValidationUtils;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
+import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Abstract converter for {@link SqlAlterMaterializedTable}. */
 public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlterMaterializedTable>
@@ -43,6 +44,9 @@ public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlter
 
     protected abstract Operation convertToOperation(
             T sqlAlterTable, ResolvedCatalogMaterializedTable oldTable, ConvertContext context);
+
+    protected abstract Function<ResolvedCatalogMaterializedTable, List<TableChange>>
+            gatherTableChanges(T sqlAlterTable, ConvertContext context);
 
     @Override
     public final Operation convertSqlNode(T sqlAlterMaterializedTable, ConvertContext context) {
@@ -74,30 +78,5 @@ public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlter
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterMaterializedTable.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-    }
-
-    protected CatalogMaterializedTable buildUpdatedMaterializedTable(
-            ResolvedCatalogMaterializedTable oldTable,
-            Consumer<CatalogMaterializedTable.Builder> consumer) {
-
-        CatalogMaterializedTable.Builder builder =
-                CatalogMaterializedTable.newBuilder()
-                        .schema(oldTable.getUnresolvedSchema())
-                        .comment(oldTable.getComment())
-                        .partitionKeys(oldTable.getPartitionKeys())
-                        .options(oldTable.getOptions())
-                        .originalQuery(oldTable.getOriginalQuery())
-                        .expandedQuery(oldTable.getExpandedQuery())
-                        .distribution(oldTable.getDistribution().orElse(null))
-                        .freshness(oldTable.getDefinitionFreshness())
-                        .logicalRefreshMode(oldTable.getLogicalRefreshMode())
-                        .refreshMode(oldTable.getRefreshMode())
-                        .refreshStatus(oldTable.getRefreshStatus())
-                        .refreshHandlerDescription(
-                                oldTable.getRefreshHandlerDescription().orElse(null))
-                        .serializedRefreshHandler(oldTable.getSerializedRefreshHandler());
-
-        consumer.accept(builder);
-        return builder.build();
     }
 }

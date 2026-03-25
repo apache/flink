@@ -43,6 +43,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalCon
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.{ColumnList, Row, RowKind}
+import org.apache.flink.types.bitmap.Bitmap
 import org.apache.flink.types.variant.Variant
 
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
@@ -275,6 +276,7 @@ object CodeGenUtils {
     case RAW => className[BinaryRawValueData[_]]
     case DESCRIPTOR => className[ColumnList]
     case VARIANT => className[Variant]
+    case BITMAP => className[Bitmap]
     case SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t)
   }
@@ -380,6 +382,8 @@ object CodeGenUtils {
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
         s"$term.toObject($serTerm).hashCode()"
+      case BITMAP =>
+        s"$term.hashCode()"
       case NULL | SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
     }
@@ -530,6 +534,8 @@ object CodeGenUtils {
         s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
       case VARIANT =>
         s"$rowTerm.getVariant($indexTerm)"
+      case BITMAP =>
+        s"$rowTerm.getBitmap($indexTerm)"
       case NULL | SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
     }
@@ -825,6 +831,8 @@ object CodeGenUtils {
       s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
     case VARIANT =>
       s"$writerTerm.writeVariant($indexTerm, $fieldValTerm)"
+    case BITMAP =>
+      s"$writerTerm.writeBitmap($indexTerm, $fieldValTerm)"
     case NULL | SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t);
   }

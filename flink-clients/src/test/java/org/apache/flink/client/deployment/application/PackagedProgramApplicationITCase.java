@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment.application;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ClientOptions;
@@ -27,12 +28,11 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.testjar.BlockingJob;
 import org.apache.flink.client.testjar.ErrorHandlingSubmissionJob;
 import org.apache.flink.client.testjar.FailingJob;
+import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
-import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -52,7 +52,6 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rest.ApplicationRestEndpointFactory;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
@@ -67,7 +66,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
+import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Integration tests related to {@link PackagedProgramApplication}. */
 class PackagedProgramApplicationITCase {
@@ -155,22 +156,28 @@ class PackagedProgramApplicationITCase {
     void testDirtyJobResultRecoveryInApplicationMode() throws Exception {
         final Configuration configuration = new Configuration();
         final JobID jobId = new JobID();
+        final ApplicationID applicationId = new ApplicationID();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
         configuration.set(ClientOptions.CLIENT_RETRY_PERIOD, Duration.ofMillis(100));
         configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+        configuration.set(
+                ApplicationOptionsInternal.FIXED_APPLICATION_ID, applicationId.toHexString());
         final TestingMiniClusterConfiguration clusterConfiguration =
                 TestingMiniClusterConfiguration.newBuilder()
                         .setConfiguration(configuration)
                         .build();
 
-        // having a dirty entry in the JobResultStore should make the ApplicationDispatcherBootstrap
-        // implementation fail to submit the job
         final JobResultStore jobResultStore = new EmbeddedJobResultStore();
-        jobResultStore
-                .createDirtyResultAsync(
-                        new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)))
-                .get();
+        final JobResult jobResult =
+                new JobResult.Builder()
+                        .jobId(jobId)
+                        .applicationId(applicationId)
+                        .jobName(DEFAULT_STREAMING_JOB_NAME)
+                        .jobStatus(JobStatus.FINISHED)
+                        .netRuntime(1)
+                        .build();
+        jobResultStore.createDirtyResultAsync(new JobResultEntry(jobResult)).get();
         final EmbeddedHaServicesWithLeadershipControl haServices =
                 new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor()) {
 
@@ -195,10 +202,10 @@ class PackagedProgramApplicationITCase {
             awaitClusterStopped(cluster);
         }
 
-        FlinkAssertions.assertThatChainOfCauses(ErrorHandlingSubmissionJob.getSubmissionException())
-                .as(
-                        "The job's main method shouldn't have been succeeded due to a DuplicateJobSubmissionException.")
-                .hasAtLeastOneElementOfType(DuplicateJobSubmissionException.class);
+        // submission should succeed because the EmbeddedExecutor skips resubmitting jobs that were
+        // already in a terminal state in a previous application execution and instead retrieves
+        // their JobClient directly
+        assertNull(ErrorHandlingSubmissionJob.getSubmissionException());
 
         assertThat(jobResultStore.hasDirtyJobResultEntryAsync(jobId).get()).isFalse();
         assertThat(jobResultStore.hasCleanJobResultEntryAsync(jobId).get()).isTrue();

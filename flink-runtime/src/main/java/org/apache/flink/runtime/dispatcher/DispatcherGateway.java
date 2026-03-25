@@ -48,6 +48,15 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
             ExecutionPlan executionPlan, @RpcTimeout Duration timeout);
 
     /**
+     * Recover a previously submitted job.
+     *
+     * @param jobId JobID of the job to recover
+     * @param timeout RPC timeout
+     * @return A future acknowledge if the recover succeeded
+     */
+    CompletableFuture<Acknowledge> recoverJob(JobID jobId, @RpcTimeout Duration timeout);
+
+    /**
      * Submit an application to the dispatcher.
      *
      * @param application AbstractApplication to submit

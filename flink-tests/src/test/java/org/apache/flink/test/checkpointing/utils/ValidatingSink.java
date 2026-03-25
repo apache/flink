@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Generalized sink for validation of window checkpointing IT cases. */
 public class ValidatingSink<T> extends RichSinkFunction<T>
@@ -79,7 +79,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
     @Override
     public void open(OpenContext openContext) throws Exception {
         // this sink can only work with DOP 1
-        assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
+        assertThat(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
         if (usingProcessingTime && resultChecker.checkResult(windowCounts)) {
             throw new SuccessException();
         }
@@ -112,7 +112,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
 
     @Override
     public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-        if (state.isEmpty() || state.size() > 1) {
+        if (state.size() != 1) {
             throw new RuntimeException(
                     "Test failed due to unexpected recovered state size " + state.size());
         }

@@ -28,10 +28,11 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
@@ -44,12 +45,13 @@ import java.util.stream.LongStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** An integration test for rate limiting built into the DataGeneratorSource. */
-public class RateLimitedSourceReaderITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class RateLimitedSourceReaderITCase {
 
     private static final int PARALLELISM = 4;
 
     @RegisterExtension
-    private static final MiniClusterExtension miniClusterExtension =
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -60,7 +62,7 @@ public class RateLimitedSourceReaderITCase extends TestLogger {
 
     @Test
     @DisplayName("Rate limiter is used correctly.")
-    public void testRateLimitingParallelExecution() throws Exception {
+    void testRateLimitingParallelExecution() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
 

@@ -485,4 +485,25 @@ class AggregateTest extends TableTestBase {
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src")
   }
+
+  @Test
+  def testGlobalAggOverEmptyInputReplacedByValues(): Unit = {
+    // When the planner can statically determine the input is empty (WHERE 1=0),
+    // AGGREGATE_VALUES rule should replace the global aggregate with literal defaults
+    // (e.g. COUNT(*)=0, SUM=null) and remove the aggregate node entirely.
+    util.verifyExecPlan("SELECT COUNT(*), SUM(a), AVG(a) FROM T WHERE 1=0")
+  }
+
+  @Test
+  def testCountStartWithHaving(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src HAVING COUNT(*) > 1")
+  }
 }

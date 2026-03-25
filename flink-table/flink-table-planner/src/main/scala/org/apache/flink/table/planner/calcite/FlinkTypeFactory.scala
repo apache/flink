@@ -24,7 +24,6 @@ import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema._
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
@@ -87,7 +86,8 @@ class FlinkTypeFactory(
 
       // temporal types
       case LogicalTypeRoot.DATE => createSqlType(DATE)
-      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
+      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE =>
+        createSqlType(TIME, t.asInstanceOf[TimeType].getPrecision)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -158,6 +158,9 @@ class FlinkTypeFactory(
 
       case LogicalTypeRoot.VARIANT =>
         createSqlType(SqlTypeName.VARIANT)
+
+      case LogicalTypeRoot.BITMAP =>
+        new BitmapRelDataType(t.asInstanceOf[BitmapType])
 
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")
@@ -419,6 +422,10 @@ class FlinkTypeFactory(
     canonize(relDataType)
   }
 
+  override def createBitmapType(): RelDataType = {
+    canonize(new BitmapRelDataType(new BitmapType()))
+  }
+
   override def createSqlType(typeName: SqlTypeName): RelDataType = {
     if (typeName == DECIMAL) {
       // if we got here, the precision and scale are not specified, here we
@@ -446,6 +453,9 @@ class FlinkTypeFactory(
 
       case structured: StructuredRelDataType =>
         structured.createWithNullability(isNullable)
+
+      case bitmap: BitmapRelDataType =>
+        bitmap.createWithNullability(isNullable)
 
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
@@ -630,11 +640,7 @@ object FlinkTypeFactory {
       // temporal types
       case DATE => new DateType()
       case TIME =>
-        if (relDataType.getPrecision > 3) {
-          throw new TableException(s"TIME precision is not supported: ${relDataType.getPrecision}")
-        }
-        // the planner supports precision 3, but for consistency with old planner, we set it to 0.
-        new TimeType()
+        new TimeType(relDataType.getPrecision)
       case TIMESTAMP =>
         new TimestampType(relDataType.getPrecision)
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
@@ -685,6 +691,9 @@ object FlinkTypeFactory {
 
       case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
         relDataType.asInstanceOf[RawRelDataType].getRawType
+
+      case OTHER if relDataType.isInstanceOf[BitmapRelDataType] =>
+        relDataType.asInstanceOf[BitmapRelDataType].getBitmapType
 
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")

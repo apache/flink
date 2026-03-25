@@ -34,6 +34,7 @@ import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -1061,6 +1062,17 @@ public final class DataTypes {
      */
     public static DataType VARIANT() {
         return new AtomicDataType(new VariantType());
+    }
+
+    /**
+     * Data type of bitmap data.
+     *
+     * <p>The type supports storing 32-bit integers in a compressed form.
+     *
+     * @see BitmapType
+     */
+    public static DataType BITMAP() {
+        return new AtomicDataType(new BitmapType());
     }
 
     // --------------------------------------------------------------------------------------------

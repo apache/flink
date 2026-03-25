@@ -38,12 +38,16 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -55,7 +59,8 @@ import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterable
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.LOCAL;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.MIXED;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.REMOTE;
-import static org.hamcrest.Matchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * Integration test for performing the unaligned checkpoint.
@@ -102,8 +107,8 @@ import static org.hamcrest.Matchers.equalTo;
  *   <li>The number of successful checkpoints is indeed {@code >=n}.
  * </ul>
  */
-@RunWith(Parameterized.class)
-public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     enum Topology implements DagCreator {
         PIPELINE {
             @Override
@@ -228,8 +233,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         }
     }
 
-    @Parameterized.Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
-    public static Object[][] parameters() {
+    @Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
+    private static Object[][] parameters() {
         Object[] defaults = {Topology.PIPELINE, 1, MIXED, 0};
 
         Object[][] runs = {
@@ -257,10 +262,21 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 params, ArrayUtils.subarray(defaults, params.length, defaults.length));
     }
 
-    private final UnalignedSettings settings;
+    @Parameter private Topology topology;
 
-    public UnalignedCheckpointITCase(
-            Topology topology, int parallelism, ChannelType channelType, int timeout) {
+    @Parameter(1)
+    private Integer parallelism;
+
+    @Parameter(2)
+    private ChannelType channelType;
+
+    @Parameter(3)
+    private Integer timeout;
+
+    private UnalignedSettings settings;
+
+    @BeforeEach
+    void setupSettings() {
         settings =
                 new UnalignedSettings(topology)
                         .setParallelism(parallelism)
@@ -275,23 +291,37 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         .setAlignmentTimeout(timeout);
     }
 
-    @Test
-    public void execute() throws Exception {
-        execute(settings);
+    @TestTemplate
+    void execute(TestInfo testInfo) throws Exception {
+        // Phase 1: Run with WAIT_FOR_CHECKPOINT_AND_CANCEL to produce a checkpoint
+        settings.setCheckpointGenerationMode(
+                CheckpointGenerationMode.WAIT_FOR_CHECKPOINT_AND_CANCEL);
+        String checkpointPath = super.execute(settings, testInfo);
+
+        // Phase 2: Restore from the checkpoint and run normally
+        settings.setCheckpointGenerationMode(CheckpointGenerationMode.NONE);
+        settings.setRestoreCheckpoint(checkpointPath);
+        super.execute(settings, testInfo);
     }
 
     protected void checkCounters(JobExecutionResult result) {
-        collector.checkThat(
-                "NUM_OUT_OF_ORDER",
-                result.<Long>getAccumulatorResult(NUM_OUT_OF_ORDER),
-                equalTo(0L));
-        collector.checkThat(
-                "NUM_DUPLICATES", result.<Long>getAccumulatorResult(NUM_DUPLICATES), equalTo(0L));
-        collector.checkThat("NUM_LOST", result.<Long>getAccumulatorResult(NUM_LOST), equalTo(0L));
-        collector.checkThat(
-                "NUM_FAILURES",
-                result.<Integer>getAccumulatorResult(NUM_FAILURES),
-                equalTo(settings.expectedFailures));
+        assertAll(
+                () ->
+                        assertThat(result.<Long>getAccumulatorResult(NUM_OUT_OF_ORDER))
+                                .as("NUM_OUT_OF_ORDER")
+                                .isEqualTo(0L),
+                () ->
+                        assertThat(result.<Long>getAccumulatorResult(NUM_DUPLICATES))
+                                .as("NUM_DUPLICATES")
+                                .isEqualTo(0L),
+                () ->
+                        assertThat(result.<Long>getAccumulatorResult(NUM_LOST))
+                                .as("NUM_LOST")
+                                .isEqualTo(0L),
+                () ->
+                        assertThat(result.<Integer>getAccumulatorResult(NUM_FAILURES))
+                                .as("NUM_FAILURES")
+                                .isEqualTo(settings.expectedFailures));
     }
 
     private static DataStreamSink<Long> addFailingPipeline(

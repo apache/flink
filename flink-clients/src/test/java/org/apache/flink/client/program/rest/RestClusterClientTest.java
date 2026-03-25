@@ -1272,6 +1272,7 @@ class RestClusterClientTest {
                         false,
                         JobStatus.RUNNING,
                         JobType.STREAMING,
+                        null,
                         1,
                         2,
                         1,

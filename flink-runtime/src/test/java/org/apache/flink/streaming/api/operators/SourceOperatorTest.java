@@ -53,6 +53,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +62,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -69,6 +71,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Collections.singletonMap;
+import static org.apache.flink.streaming.runtime.io.DataInputStatus.END_OF_INPUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -248,11 +251,63 @@ class SourceOperatorTest {
 
     @TestTemplate
     public void testPausingUntilCheckpoint() throws Exception {
+        testRestoredSourceOperator(
+                (operator, out) -> {
+                    MockSourceSplit split = new MockSourceSplit(0);
+                    split.addRecord(0);
+                    operator.handleOperatorEvent(
+                            new AddSplitEvent<>(
+                                    Collections.singletonList(split),
+                                    new MockSourceSplitSerializer()));
+
+                    operator.emitNext(new DataOutputToOutput<>(operator.output));
+
+                    if (pauseSourcesUntilCheckpoint) {
+                        assertThat(out).isEmpty();
+                        assertThat(operator.isAvailable()).isFalse();
+                        // un-pause
+                        operator.snapshotState(
+                                2L,
+                                2L,
+                                CheckpointOptions.alignedNoTimeout(
+                                        CheckpointType.CHECKPOINT,
+                                        CheckpointStorageLocationReference.getDefault()),
+                                new MemCheckpointStreamFactory(10240));
+                        operator.emitNext(new DataOutputToOutput<>(operator.output));
+                    }
+
+                    assertThat(operator.isAvailable()).isTrue();
+                    assertThat(out.stream().map(element -> element.asRecord().getValue()))
+                            .containsExactly(0);
+                });
+    }
+
+    @TestTemplate
+    public void testFinalSavepointRestoredSourceOperator() throws Exception {
+        testRestoredSourceOperator(
+                (operator, out) -> {
+                    DataOutputToOutput<Integer> output = new DataOutputToOutput<>(operator.output);
+                    operator.stop(StopMode.NO_DRAIN); // emulate stop with savepoint
+                    DataInputStatus status;
+                    do {
+                        status = operator.emitNext(output); // should not fail
+                    } while (status != END_OF_INPUT);
+                });
+    }
+
+    private void testRestoredSourceOperator(
+            BiConsumerWithException<
+                            SourceOperator<Integer, MockSourceSplit>,
+                            List<StreamElement>,
+                            Exception>
+                    test)
+            throws Exception {
         final List<StreamElement> out = new ArrayList<>();
         try (SourceOperatorTestContext context =
                 SourceOperatorTestContext.builder()
                         .setWatermarkStrategy(
                                 WatermarkStrategy.<Integer>forMonotonousTimestamps()
+                                        .withWatermarkAlignment("ag-1", Duration.ofMillis(50))
                                         .withTimestampAssigner(
                                                 (element, recordTimestamp) -> element))
                         .setOutput(new CollectorOutput<>(out))
@@ -277,32 +332,7 @@ class SourceOperatorTest {
 
             final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             operator.open();
-
-            MockSourceSplit split = new MockSourceSplit(0);
-            split.addRecord(0);
-            operator.handleOperatorEvent(
-                    new AddSplitEvent<>(
-                            Collections.singletonList(split), new MockSourceSplitSerializer()));
-
-            operator.emitNext(new DataOutputToOutput<>(operator.output));
-
-            if (pauseSourcesUntilCheckpoint) {
-                assertThat(out).isEmpty();
-                assertThat(operator.isAvailable()).isFalse();
-                // un-pause
-                operator.snapshotState(
-                        2L,
-                        2L,
-                        CheckpointOptions.alignedNoTimeout(
-                                CheckpointType.CHECKPOINT,
-                                CheckpointStorageLocationReference.getDefault()),
-                        new MemCheckpointStreamFactory(10240));
-                operator.emitNext(new DataOutputToOutput<>(operator.output));
-            }
-
-            assertThat(operator.isAvailable()).isTrue();
-            assertThat(out.stream().map(element -> element.asRecord().getValue()))
-                    .containsExactly(0);
+            test.accept(operator, out);
         }
     }
 

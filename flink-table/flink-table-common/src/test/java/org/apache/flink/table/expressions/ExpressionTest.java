@@ -24,6 +24,9 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +45,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -278,6 +282,17 @@ class ExpressionTest {
                 .isEqualTo(expected);
     }
 
+    @ParameterizedTest(name = "precision {1}: {2}")
+    @MethodSource("timestampLtzPrecisionTestCases")
+    void testTimestampLtzPrecisionAsSerializableString(
+            Instant instant, int precision, String expected) {
+        assertThat(
+                        new ValueLiteralExpression(
+                                        instant, DataTypes.TIMESTAMP_LTZ(precision).notNull())
+                                .asSerializableString(DefaultSqlFactory.INSTANCE))
+                .isEqualTo(expected);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static Expression createExpressionTree(Integer nestedValue) {
@@ -303,5 +318,43 @@ class ExpressionTest {
                                                 DataTypes.INT())),
                                 DataTypes.BOOLEAN())),
                 DataTypes.BOOLEAN());
+    }
+
+    private static Stream<Arguments> timestampLtzPrecisionTestCases() {
+        return Stream.of(
+                // Precision 0-2: numeric variant wrapped in CAST to match data type
+                Arguments.of(
+                        Instant.ofEpochSecond(1234),
+                        0,
+                        "CAST(TO_TIMESTAMP_LTZ(1234, 0) AS TIMESTAMP_LTZ(0))"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 100_000_000),
+                        1,
+                        "CAST(TO_TIMESTAMP_LTZ(11, 1) AS TIMESTAMP_LTZ(1))"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 120_000_000),
+                        2,
+                        "CAST(TO_TIMESTAMP_LTZ(112, 2) AS TIMESTAMP_LTZ(2))"),
+                // Precision 3+: numeric variant without CAST
+                Arguments.of(Instant.ofEpochMilli(1234567), 3, "TO_TIMESTAMP_LTZ(1234567, 3)"),
+                Arguments.of(Instant.ofEpochSecond(1, 123400000), 4, "TO_TIMESTAMP_LTZ(11234, 4)"),
+                Arguments.of(Instant.ofEpochSecond(1, 123450000), 5, "TO_TIMESTAMP_LTZ(112345, 5)"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 123456000), 6, "TO_TIMESTAMP_LTZ(1123456, 6)"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 123456700), 7, "TO_TIMESTAMP_LTZ(11234567, 7)"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 123456780), 8, "TO_TIMESTAMP_LTZ(112345678, 8)"),
+                Arguments.of(
+                        Instant.ofEpochSecond(1, 123456789), 9, "TO_TIMESTAMP_LTZ(1123456789, 9)"),
+                // Edge cases: large instants fall back to string variant to avoid long overflow
+                Arguments.of(
+                        Instant.parse("9999-12-31T23:59:59.999999999Z"),
+                        9,
+                        "TO_TIMESTAMP_LTZ('9999-12-31 23:59:59.999999999', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"),
+                Arguments.of(
+                        Instant.parse("2262-04-12T00:00:00Z"),
+                        9,
+                        "TO_TIMESTAMP_LTZ('2262-04-12 00:00:00.000000000', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', 'UTC')"));
     }
 }

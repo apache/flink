@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -35,9 +36,13 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
+import org.apache.flink.runtime.jobmanager.DefaultApplicationStore;
 import org.apache.flink.runtime.jobmanager.DefaultExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.jobmanager.ZooKeeperApplicationStoreUtil;
 import org.apache.flink.runtime.jobmanager.ZooKeeperExecutionPlanStoreUtil;
 import org.apache.flink.runtime.jobmanager.ZooKeeperExecutionPlanStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
@@ -101,6 +106,9 @@ public class ZooKeeperUtils {
     /** The prefix of the submitted job graph file. */
     public static final String HA_STORAGE_SUBMITTED_EXECUTION_PLAN_PREFIX =
             "submittedExecutionPlan";
+
+    /** The prefix of the submitted application file. */
+    public static final String HA_STORAGE_SUBMITTED_APPLICATION_PREFIX = "submittedApplication";
 
     /** The prefix of the completed checkpoint file. */
     public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
@@ -562,6 +570,44 @@ public class ZooKeeperUtils {
     }
 
     /**
+     * Creates a {@link DefaultApplicationStore} instance with {@link ZooKeeperStateHandleStore},
+     * and {@link ZooKeeperApplicationStoreUtil}.
+     *
+     * @param client The {@link CuratorFramework} ZooKeeper client to use
+     * @param configuration {@link Configuration} object
+     * @return {@link DefaultApplicationStore} instance
+     * @throws Exception if the submitted application store cannot be created
+     */
+    public static ApplicationStore createApplicationStore(
+            CuratorFramework client, Configuration configuration) throws Exception {
+
+        checkNotNull(configuration, "Configuration");
+
+        RetrievableStateStorageHelper<ApplicationStoreEntry> stateStorage =
+                createFileSystemStateStorage(
+                        configuration, HA_STORAGE_SUBMITTED_APPLICATION_PREFIX);
+
+        // ZooKeeper submitted applications root dir
+        String zooKeeperApplicationsPath =
+                configuration.get(HighAvailabilityOptions.HA_ZOOKEEPER_APPLICATIONS_PATH);
+
+        // Ensure that the applications path exists
+        client.newNamespaceAwareEnsurePath(zooKeeperApplicationsPath)
+                .ensure(client.getZookeeperClient());
+
+        // All operations will have the path as root
+        CuratorFramework facade =
+                client.usingNamespace(client.getNamespace() + zooKeeperApplicationsPath);
+
+        final ZooKeeperStateHandleStore<ApplicationStoreEntry>
+                zooKeeperApplicationStateHandleStore =
+                        new ZooKeeperStateHandleStore<>(facade, stateStorage);
+
+        return new DefaultApplicationStore<>(
+                zooKeeperApplicationStateHandleStore, ZooKeeperApplicationStoreUtil.INSTANCE);
+    }
+
+    /**
      * Creates a {@link DefaultCompletedCheckpointStore} instance with {@link
      * ZooKeeperStateHandleStore}.
      *
@@ -614,6 +660,12 @@ public class ZooKeeperUtils {
     public static String getPathForJob(JobID jobId) {
         checkNotNull(jobId, "Job ID");
         return String.format("/%s", jobId);
+    }
+
+    /** Returns the ApplicationID as a String (with leading slash). */
+    public static String getPathForApplication(ApplicationID applicationId) {
+        checkNotNull(applicationId, "Application ID");
+        return String.format("/%s", applicationId);
     }
 
     /**

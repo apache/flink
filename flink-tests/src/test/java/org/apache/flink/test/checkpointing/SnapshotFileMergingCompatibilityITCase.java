@@ -37,11 +37,14 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -60,11 +63,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * FileMerging Compatibility IT case which tests recovery from a checkpoint created in different
  * fileMerging mode (i.e. fileMerging enabled/disabled).
  */
-public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class SnapshotFileMergingCompatibilityITCase {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(SnapshotFileMergingCompatibilityITCase.class);
 
     private static final long DELETE_TIMEOUT_MILLS = 120000;
 
-    public static Collection<Object[]> parameters() {
+    private static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[][] {
                     {RecoveryClaimMode.CLAIM, true},
@@ -76,7 +82,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
 
     @ParameterizedTest(name = "RecoveryClaimMode = {0}, fileMergingAcrossBoundary = {1}")
     @MethodSource("parameters")
-    public void testSwitchFromDisablingToEnablingFileMerging(
+    void testSwitchFromDisablingToEnablingFileMerging(
             RecoveryClaimMode recoveryClaimMode,
             boolean fileMergingAcrossBoundary,
             @TempDir Path checkpointDir)
@@ -87,7 +93,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
 
     @ParameterizedTest(name = "RecoveryClaimMode = {0}, fileMergingAcrossBoundary = {1}")
     @MethodSource("parameters")
-    public void testSwitchFromEnablingToDisablingFileMerging(
+    void testSwitchFromEnablingToDisablingFileMerging(
             RecoveryClaimMode recoveryClaimMode,
             boolean fileMergingAcrossBoundary,
             @TempDir Path checkpointDir)
@@ -373,7 +379,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                                                         return exist == p.getFileSystem().exists(p);
                                                     }
                                                 } catch (IOException e) {
-                                                    log.warn(
+                                                    LOG.warn(
                                                             "An error occurred when trying to check the file existence.",
                                                             e);
                                                     return false;
@@ -408,7 +414,7 @@ public class SnapshotFileMergingCompatibilityITCase extends TestLogger {
                                 result.set(false);
                             }
                         } catch (IOException e) {
-                            log.warn(
+                            LOG.warn(
                                     "An error occurred when trying to check the file existence.",
                                     e);
                             result.set(false);

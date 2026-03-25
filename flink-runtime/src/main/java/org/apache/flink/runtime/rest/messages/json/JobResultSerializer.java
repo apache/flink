@@ -45,6 +45,8 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
     static final String FIELD_NAME_JOB_ID = "id";
 
+    static final String FIELD_NAME_JOB_NAME = "name";
+
     static final String FIELD_NAME_APPLICATION_STATUS = "application-status";
 
     static final String FIELD_NAME_NET_RUNTIME = "net-runtime";
@@ -53,7 +55,15 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
     static final String FIELD_NAME_FAILURE_CAUSE = "failure-cause";
 
+    static final String FIELD_NAME_APPLICATION_ID = "application-id";
+
+    static final String FIELD_NAME_START_TIME = "start-time";
+
+    static final String FIELD_NAME_END_TIME = "end-time";
+
     private final JobIDSerializer jobIdSerializer = new JobIDSerializer();
+
+    private final ApplicationIDSerializer applicationIdSerializer = new ApplicationIDSerializer();
 
     private final SerializedValueSerializer serializedValueSerializer;
 
@@ -78,6 +88,9 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
         gen.writeFieldName(FIELD_NAME_JOB_ID);
         jobIdSerializer.serialize(result.getJobId(), gen, provider);
+
+        gen.writeFieldName(FIELD_NAME_JOB_NAME);
+        gen.writeString(result.getJobName());
 
         // use application status to maintain backward compatibility
         gen.writeFieldName(FIELD_NAME_APPLICATION_STATUS);
@@ -105,6 +118,14 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
             final SerializedThrowable serializedThrowable = result.getSerializedThrowable().get();
             serializedThrowableSerializer.serialize(serializedThrowable, gen, provider);
         }
+
+        if (result.getApplicationId().isPresent()) {
+            gen.writeFieldName(FIELD_NAME_APPLICATION_ID);
+            applicationIdSerializer.serialize(result.getApplicationId().get(), gen, provider);
+        }
+
+        gen.writeNumberField(FIELD_NAME_START_TIME, result.getStartTime());
+        gen.writeNumberField(FIELD_NAME_END_TIME, result.getEndTime());
 
         gen.writeEndObject();
     }

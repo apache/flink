@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.function.TriFunctionWithException;
 
@@ -35,6 +36,16 @@ public class TestingBlobStoreBuilder {
     private static final Function<JobID, Boolean> DEFAULT_DELETE_ALL_FUNCTION = ignored -> true;
     private static final TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException>
             DEFAULT_GET_FUNCTION = (ignoredA, ignoredB, ignoredC) -> true;
+    private static final TriFunctionWithException<
+                    File, ApplicationID, BlobKey, Boolean, IOException>
+            DEFAULT_PUT_FOR_APPLICATION_FUNCTION = (ignoredA, ignoredB, ignoredC) -> true;
+    private static final BiFunction<ApplicationID, BlobKey, Boolean>
+            DEFAULT_DELETE_FOR_APPLICATION_FUNCTION = (ignoredA, ignoredB) -> true;
+    private static final Function<ApplicationID, Boolean>
+            DEFAULT_DELETE_ALL_FOR_APPLICATION_FUNCTION = ignored -> true;
+    private static final TriFunctionWithException<
+                    ApplicationID, BlobKey, File, Boolean, IOException>
+            DEFAULT_GET_FOR_APPLICATION_FUNCTION = (ignoredA, ignoredB, ignoredC) -> true;
 
     private TriFunctionWithException<File, JobID, BlobKey, Boolean, IOException> putFunction =
             DEFAULT_PUT_FUNCTION;
@@ -42,6 +53,14 @@ public class TestingBlobStoreBuilder {
     private Function<JobID, Boolean> deleteAllFunction = DEFAULT_DELETE_ALL_FUNCTION;
     private TriFunctionWithException<JobID, BlobKey, File, Boolean, IOException> getFunction =
             DEFAULT_GET_FUNCTION;
+    private TriFunctionWithException<File, ApplicationID, BlobKey, Boolean, IOException>
+            putForApplicationFunction = DEFAULT_PUT_FOR_APPLICATION_FUNCTION;
+    private BiFunction<ApplicationID, BlobKey, Boolean> deleteForApplicationFunction =
+            DEFAULT_DELETE_FOR_APPLICATION_FUNCTION;
+    private Function<ApplicationID, Boolean> deleteAllForApplicationFunction =
+            DEFAULT_DELETE_ALL_FOR_APPLICATION_FUNCTION;
+    private TriFunctionWithException<ApplicationID, BlobKey, File, Boolean, IOException>
+            getForApplicationFunction = DEFAULT_GET_FOR_APPLICATION_FUNCTION;
 
     public TestingBlobStoreBuilder setPutFunction(
             TriFunctionWithException<File, JobID, BlobKey, Boolean, IOException> putFunction) {
@@ -67,7 +86,41 @@ public class TestingBlobStoreBuilder {
         return this;
     }
 
+    public TestingBlobStoreBuilder setPutForApplicationFunction(
+            TriFunctionWithException<File, ApplicationID, BlobKey, Boolean, IOException>
+                    putForApplicationFunction) {
+        this.putForApplicationFunction = putForApplicationFunction;
+        return this;
+    }
+
+    public TestingBlobStoreBuilder setDeleteForApplicationFunction(
+            BiFunction<ApplicationID, BlobKey, Boolean> deleteForApplicationFunction) {
+        this.deleteForApplicationFunction = deleteForApplicationFunction;
+        return this;
+    }
+
+    public TestingBlobStoreBuilder setDeleteAllForApplicationFunction(
+            Function<ApplicationID, Boolean> deleteAllForApplicationFunction) {
+        this.deleteAllForApplicationFunction = deleteAllForApplicationFunction;
+        return this;
+    }
+
+    public TestingBlobStoreBuilder setGetForApplicationFunction(
+            TriFunctionWithException<ApplicationID, BlobKey, File, Boolean, IOException>
+                    getForApplicationFunction) {
+        this.getForApplicationFunction = getForApplicationFunction;
+        return this;
+    }
+
     public TestingBlobStore createTestingBlobStore() {
-        return new TestingBlobStore(putFunction, deleteFunction, deleteAllFunction, getFunction);
+        return new TestingBlobStore(
+                putFunction,
+                deleteFunction,
+                deleteAllFunction,
+                getFunction,
+                putForApplicationFunction,
+                deleteForApplicationFunction,
+                deleteAllForApplicationFunction,
+                getForApplicationFunction);
     }
 }

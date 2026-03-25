@@ -115,7 +115,9 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return parseTimestampData(timestamp.toString(), format.toString());
+        String formatStr = format.toString();
+        return parseTimestampData(
+                timestamp.toString(), formatStr, DateTimeUtils.precisionFromFormat(formatStr));
     }
 
     public @Nullable TimestampData eval(
@@ -124,7 +126,12 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        TimestampData ts = parseTimestampData(dateStr.toString(), format.toString());
+        String formatStr = format.toString();
+        TimestampData ts =
+                parseTimestampData(
+                        dateStr.toString(),
+                        formatStr,
+                        DateTimeUtils.precisionFromFormat(formatStr));
         if (ts == null) {
             return null;
         }

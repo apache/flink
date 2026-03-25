@@ -231,6 +231,21 @@ PrometheusPushGatewayReporter 发送器将运行指标发送给 [Pushgateway](ht
 
 更多使用方法可查看 [Prometheus 的文档](https://prometheus.io/docs/practices/pushing/)
 
+#### HTTP Basic 认证
+
+该发送器支持通过 HTTP Basic 认证连接到需要安全验证的 PushGateway 实例。要启用认证功能，需要同时配置 `username` 和 `password`：
+
+```yaml
+metrics.reporter.promgateway.factory.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory
+metrics.reporter.promgateway.hostUrl: https://pushgateway.example.com:9091
+metrics.reporter.promgateway.jobName: myJob
+metrics.reporter.promgateway.username: flink-reporter
+metrics.reporter.promgateway.password: ${PUSHGATEWAY_PASSWORD}
+metrics.reporter.promgateway.interval: 60 SECONDS
+```
+
+<span class="label label-info">注意</span> 只有同时配置了 `username` 和 `password` 时，Basic 认证才会启用。建议在启用认证时使用 HTTPS 以保护传输中的凭据安全。
+
 <a name="statsd"></a>
 
 ### StatsD

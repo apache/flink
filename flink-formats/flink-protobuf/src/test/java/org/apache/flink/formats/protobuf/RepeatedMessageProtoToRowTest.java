@@ -22,14 +22,14 @@ import org.apache.flink.formats.protobuf.testproto.RepeatedMessageTest;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of proto repeated message data to flink internal data. */
-public class RepeatedMessageProtoToRowTest {
+class RepeatedMessageProtoToRowTest {
     @Test
-    public void testRepeatedMessage() throws Exception {
+    void testRepeatedMessage() throws Exception {
         RepeatedMessageTest.InnerMessageTest innerMessageTest =
                 RepeatedMessageTest.InnerMessageTest.newBuilder().setA(1).setB(2L).build();
 
@@ -48,10 +48,10 @@ public class RepeatedMessageProtoToRowTest {
 
         ArrayData objs = row.getArray(0);
         RowData subRow = objs.getRow(0, 2);
-        assertEquals(1, subRow.getInt(0));
-        assertEquals(2L, subRow.getLong(1));
+        assertThat(subRow.getInt(0)).isEqualTo(1);
+        assertThat(subRow.getLong(1)).isEqualTo(2L);
         subRow = objs.getRow(1, 2);
-        assertEquals(3, subRow.getInt(0));
-        assertEquals(4L, subRow.getLong(1));
+        assertThat(subRow.getInt(0)).isEqualTo(3);
+        assertThat(subRow.getLong(1)).isEqualTo(4L);
     }
 }

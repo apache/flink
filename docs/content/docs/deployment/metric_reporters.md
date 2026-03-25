@@ -219,6 +219,21 @@ The PrometheusPushGatewayReporter pushes metrics to a [Pushgateway](https://gith
 
 Please see the [Prometheus documentation](https://prometheus.io/docs/practices/pushing/) for use-cases.
 
+#### HTTP Basic Authentication
+
+The reporter supports HTTP Basic Authentication for connecting to secured PushGateway instances. To enable authentication, configure both `username` and `password`:
+
+```yaml
+metrics.reporter.promgateway.factory.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterFactory
+metrics.reporter.promgateway.hostUrl: https://pushgateway.example.com:9091
+metrics.reporter.promgateway.jobName: myJob
+metrics.reporter.promgateway.username: flink-reporter
+metrics.reporter.promgateway.password: ${PUSHGATEWAY_PASSWORD}
+metrics.reporter.promgateway.interval: 60 SECONDS
+```
+
+<span class="label label-info">Note</span> Basic authentication is enabled only when both `username` and `password` are configured. It is recommended to use HTTPS when authentication is enabled to protect credentials in transit.
+
 ### StatsD
 #### (org.apache.flink.metrics.statsd.StatsDReporter)
 

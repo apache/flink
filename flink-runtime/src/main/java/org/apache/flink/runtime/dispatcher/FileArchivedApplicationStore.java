@@ -217,9 +217,7 @@ public class FileArchivedApplicationStore implements ArchivedApplicationStore {
             applicationIdToJobIds
                     .computeIfAbsent(applicationId, ignored -> new ArrayList<>())
                     .add(jobId);
-            jobDetailsCache.put(
-                    jobId,
-                    JobDetails.createDetailsForJob(executionGraphInfo.getArchivedExecutionGraph()));
+            jobDetailsCache.put(jobId, JobDetails.createDetailsForJob(executionGraphInfo));
         }
 
         storeArchivedApplication(archivedApplication);

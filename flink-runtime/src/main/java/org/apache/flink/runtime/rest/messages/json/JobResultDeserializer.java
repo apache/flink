@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.json;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -54,6 +55,9 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
 
     private final JobIDDeserializer jobIdDeserializer = new JobIDDeserializer();
 
+    private final ApplicationIDDeserializer applicationIdDeserializer =
+            new ApplicationIDDeserializer();
+
     private final SerializedThrowableDeserializer serializedThrowableDeserializer =
             new SerializedThrowableDeserializer();
 
@@ -71,10 +75,14 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
     public JobResult deserialize(final JsonParser p, final DeserializationContext ctxt)
             throws IOException {
         JobID jobId = null;
+        String jobName = "unknown";
         JobStatus jobStatus = null;
         long netRuntime = -1;
         SerializedThrowable serializedThrowable = null;
         Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults = null;
+        ApplicationID applicationId = null;
+        long startTime = -1;
+        long endTime = -1;
 
         while (true) {
             final JsonToken jsonToken = p.nextToken();
@@ -88,6 +96,10 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
                 case JobResultSerializer.FIELD_NAME_JOB_ID:
                     assertNextToken(p, JsonToken.VALUE_STRING);
                     jobId = jobIdDeserializer.deserialize(p, ctxt);
+                    break;
+                case JobResultSerializer.FIELD_NAME_JOB_NAME:
+                    assertNextToken(p, JsonToken.VALUE_STRING);
+                    jobName = p.getValueAsString();
                     break;
                 case JobResultSerializer.FIELD_NAME_APPLICATION_STATUS:
                     assertNextToken(p, JsonToken.VALUE_STRING);
@@ -111,6 +123,18 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
                     assertNextToken(p, JsonToken.START_OBJECT);
                     serializedThrowable = serializedThrowableDeserializer.deserialize(p, ctxt);
                     break;
+                case JobResultSerializer.FIELD_NAME_APPLICATION_ID:
+                    assertNextToken(p, JsonToken.VALUE_STRING);
+                    applicationId = applicationIdDeserializer.deserialize(p, ctxt);
+                    break;
+                case JobResultSerializer.FIELD_NAME_START_TIME:
+                    assertNextToken(p, JsonToken.VALUE_NUMBER_INT);
+                    startTime = p.getLongValue();
+                    break;
+                case JobResultSerializer.FIELD_NAME_END_TIME:
+                    assertNextToken(p, JsonToken.VALUE_NUMBER_INT);
+                    endTime = p.getLongValue();
+                    break;
                 default:
                     // ignore unknown fields
             }
@@ -119,10 +143,14 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
         try {
             return new JobResult.Builder()
                     .jobId(jobId)
+                    .jobName(jobName)
                     .jobStatus(jobStatus)
                     .netRuntime(netRuntime)
                     .accumulatorResults(accumulatorResults)
                     .serializedThrowable(serializedThrowable)
+                    .applicationId(applicationId)
+                    .startTime(startTime)
+                    .endTime(endTime)
                     .build();
         } catch (final RuntimeException e) {
             throw new JsonMappingException(

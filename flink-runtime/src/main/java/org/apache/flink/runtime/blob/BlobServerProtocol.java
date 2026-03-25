@@ -65,6 +65,9 @@ public class BlobServerProtocol {
      */
     static final byte JOB_RELATED_CONTENT = 2;
 
+    /** Internal code to identify an application-related (permanent) BLOBs. */
+    static final byte APPLICATION_RELATED_CONTENT = 3;
+
     // --------------------------------------------------------------------------------------------
 
     private BlobServerProtocol() {}

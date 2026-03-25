@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -56,6 +57,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** Utility class to work with blob data. */
 public class BlobUtils {
 
@@ -67,6 +70,9 @@ public class BlobUtils {
 
     /** The prefix of all job-specific directories created by the BLOB server. */
     static final String JOB_DIR_PREFIX = "job_";
+
+    /** The prefix of all application-specific directories created by the BLOB server. */
+    static final String APPLICATION_DIR_PREFIX = "application_";
 
     /** The prefix of all job-unrelated directories created by the BLOB server. */
     static final String NO_JOB_DIR_PREFIX = "no_job";
@@ -270,6 +276,63 @@ public class BlobUtils {
                     "%s/%s%s/%s%s",
                     storageDir, JOB_DIR_PREFIX, jobId.toString(), BLOB_FILE_PREFIX, key.toString());
         }
+    }
+
+    /**
+     * Returns the (designated) physical storage location of the BLOB with the given key.
+     *
+     * @param storageDir storage directory used be the BLOB service
+     * @param key the key identifying the BLOB
+     * @param applicationId ID of the application for the incoming files
+     * @return the (designated) physical storage location of the BLOB
+     * @throws IOException if creating the directory fails
+     */
+    static File getStorageLocation(File storageDir, ApplicationID applicationId, BlobKey key)
+            throws IOException {
+        File file =
+                new File(getStorageLocationPath(storageDir.getAbsolutePath(), applicationId, key));
+
+        Files.createDirectories(file.getParentFile().toPath());
+
+        return file;
+    }
+
+    /**
+     * Returns the BLOB server's storage directory for BLOBs belonging to the application with the
+     * given ID <em>without</em> creating the directory.
+     *
+     * @param storageDir storage directory used be the BLOB service
+     * @param applicationId the ID of the job to return the storage directory for
+     * @return the storage directory for BLOBs belonging to the job with the given ID
+     */
+    static String getStorageLocationPath(String storageDir, ApplicationID applicationId) {
+        // format: $base/application_$applicationId
+        return String.format(
+                "%s/%s%s", storageDir, APPLICATION_DIR_PREFIX, applicationId.toString());
+    }
+
+    /**
+     * Returns the path for the given blob key.
+     *
+     * <p>The returned path can be used with the (local or HA) BLOB store file system back-end for
+     * recovery purposes and follows the same scheme as {@link #getStorageLocation(File,
+     * ApplicationID, BlobKey)}.
+     *
+     * @param storageDir storage directory used be the BLOB service
+     * @param key the key identifying the BLOB
+     * @param applicationId ID of the application for the incoming files
+     * @return the path to the given BLOB
+     */
+    static String getStorageLocationPath(
+            String storageDir, ApplicationID applicationId, BlobKey key) {
+        // format: $base/application_$applicationId/blob_$key
+        return String.format(
+                "%s/%s%s/%s%s",
+                storageDir,
+                APPLICATION_DIR_PREFIX,
+                applicationId.toString(),
+                BLOB_FILE_PREFIX,
+                key.toString());
     }
 
     /**
@@ -479,6 +542,94 @@ public class BlobUtils {
         }
     }
 
+    /**
+     * Moves the temporary <tt>incomingFile</tt> to its permanent location where it is available for
+     * use (not thread-safe!).
+     *
+     * @param incomingFile temporary file created during transfer
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey BLOB key identifying the file
+     * @param storageFile (local) file where the blob is/should be stored
+     * @param log logger for debug information
+     * @param blobStore HA store (or <tt>null</tt> if unavailable)
+     * @throws IOException thrown if an I/O error occurs while moving the file or uploading it to
+     *     the HA store
+     */
+    static void moveTempFileToStore(
+            File incomingFile,
+            ApplicationID applicationId,
+            BlobKey blobKey,
+            File storageFile,
+            Logger log,
+            @Nullable BlobStore blobStore)
+            throws IOException {
+        internalMoveTempFileToStore(
+                incomingFile,
+                applicationId,
+                blobKey,
+                storageFile,
+                log,
+                blobStore,
+                (source, target) -> Files.move(source.toPath(), target.toPath()));
+    }
+
+    @VisibleForTesting
+    static void internalMoveTempFileToStore(
+            File incomingFile,
+            ApplicationID applicationId,
+            BlobKey blobKey,
+            File storageFile,
+            Logger log,
+            @Nullable BlobStore blobStore,
+            MoveFileOperation moveFileOperation)
+            throws IOException {
+
+        boolean success = false;
+        try {
+            // first check whether the file already exists
+            if (!storageFile.exists()) {
+                // persist the blob via the blob store
+                if (blobStore != null) {
+                    blobStore.put(incomingFile, applicationId, blobKey);
+                }
+
+                try {
+                    moveFileOperation.moveFile(incomingFile, storageFile);
+                    incomingFile = null;
+
+                } catch (FileAlreadyExistsException ignored) {
+                    log.warn(
+                            "Detected concurrent file modifications. This should only happen if multiple"
+                                    + "BlobServer use the same storage directory.");
+                }
+            } else {
+                log.warn(
+                        "File upload for an existing file with key {} for application {}. This may indicate a duplicate upload or a hash collision. Ignoring newest upload.",
+                        blobKey,
+                        applicationId);
+            }
+            success = true;
+        } finally {
+            if (!success) {
+                if (blobStore != null) {
+                    blobStore.delete(applicationId, blobKey);
+                }
+
+                if (!storageFile.delete() && storageFile.exists()) {
+                    log.warn("Could not delete the storage file {}.", storageFile);
+                }
+            }
+
+            if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
+                log.warn(
+                        "Could not delete the staging file {} for blob key {} and application {}.",
+                        incomingFile,
+                        blobKey,
+                        applicationId);
+            }
+        }
+    }
+
     interface MoveFileOperation {
         void moveFile(File source, File target) throws IOException;
     }
@@ -542,30 +693,41 @@ public class BlobUtils {
                                             blobPath.getFileName()
                                                     .toString()
                                                     .substring(BLOB_FILE_PREFIX.length()));
-                            final String jobDirectory =
+                            final String subDirectory =
                                     blobPath.getParent().getFileName().toString();
 
                             @Nullable final JobID jobId;
+                            @Nullable final ApplicationID applicationId;
 
-                            if (jobDirectory.equals(NO_JOB_DIR_PREFIX)) {
+                            if (subDirectory.equals(NO_JOB_DIR_PREFIX)) {
                                 jobId = null;
-                            } else if (jobDirectory.startsWith(JOB_DIR_PREFIX)) {
+                                applicationId = null;
+                            } else if (subDirectory.startsWith(JOB_DIR_PREFIX)) {
                                 jobId =
                                         new JobID(
                                                 StringUtils.hexStringToByte(
-                                                        jobDirectory.substring(
+                                                        subDirectory.substring(
                                                                 JOB_DIR_PREFIX.length())));
+                                applicationId = null;
+                            } else if (subDirectory.startsWith(APPLICATION_DIR_PREFIX)) {
+                                applicationId =
+                                        new ApplicationID(
+                                                StringUtils.hexStringToByte(
+                                                        subDirectory.substring(
+                                                                APPLICATION_DIR_PREFIX.length())));
+                                jobId = null;
                             } else {
                                 throw new IllegalStateException(
-                                        String.format("Unknown job path %s.", jobDirectory));
+                                        String.format("Unknown path %s.", subDirectory));
                             }
 
                             if (blobKey instanceof TransientBlobKey) {
+                                checkState(applicationId == null);
                                 return new TransientBlob(
                                         (TransientBlobKey) blobKey, blobPath, jobId);
                             } else if (blobKey instanceof PermanentBlobKey) {
                                 return new PermanentBlob(
-                                        (PermanentBlobKey) blobKey, blobPath, jobId);
+                                        (PermanentBlobKey) blobKey, blobPath, jobId, applicationId);
                             } else {
                                 throw new IllegalStateException(
                                         String.format(
@@ -600,15 +762,29 @@ public class BlobUtils {
                 .collect(Collectors.toSet());
     }
 
+    static Set<ApplicationID> listExistingApplications(java.nio.file.Path directory)
+            throws IOException {
+        return listBlobsInDirectory(directory).stream()
+                .map(Blob::getApplicationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
     abstract static class Blob<T extends BlobKey> {
         private final T blobKey;
         private final java.nio.file.Path path;
         @Nullable private final JobID jobId;
+        @Nullable private final ApplicationID applicationId;
 
-        Blob(T blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
+        Blob(
+                T blobKey,
+                java.nio.file.Path path,
+                @Nullable JobID jobId,
+                @Nullable ApplicationID applicationId) {
             this.blobKey = blobKey;
             this.path = path;
             this.jobId = jobId;
+            this.applicationId = applicationId;
         }
 
         public T getBlobKey() {
@@ -623,17 +799,26 @@ public class BlobUtils {
         public JobID getJobId() {
             return jobId;
         }
+
+        @Nullable
+        public ApplicationID getApplicationId() {
+            return applicationId;
+        }
     }
 
     static final class TransientBlob extends Blob<TransientBlobKey> {
         TransientBlob(TransientBlobKey blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
-            super(blobKey, path, jobId);
+            super(blobKey, path, jobId, null);
         }
     }
 
     static final class PermanentBlob extends Blob<PermanentBlobKey> {
-        PermanentBlob(PermanentBlobKey blobKey, java.nio.file.Path path, @Nullable JobID jobId) {
-            super(blobKey, path, jobId);
+        PermanentBlob(
+                PermanentBlobKey blobKey,
+                java.nio.file.Path path,
+                @Nullable JobID jobId,
+                @Nullable ApplicationID applicationId) {
+            super(blobKey, path, jobId, applicationId);
         }
     }
 }

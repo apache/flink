@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -37,6 +39,8 @@ public class StandaloneDispatcher extends Dispatcher {
             DispatcherId fencingToken,
             Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobResults,
+            Collection<AbstractApplication> recoveredApplications,
+            Collection<ApplicationResult> recoveredDirtyApplicationResults,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
@@ -45,6 +49,8 @@ public class StandaloneDispatcher extends Dispatcher {
                 fencingToken,
                 recoveredJobs,
                 recoveredDirtyJobResults,
+                recoveredApplications,
+                recoveredDirtyApplicationResults,
                 dispatcherBootstrapFactory,
                 dispatcherServices);
     }

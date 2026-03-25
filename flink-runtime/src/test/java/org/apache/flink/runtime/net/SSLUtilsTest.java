@@ -523,11 +523,6 @@ public class SSLUtilsTest {
     private static void addSslProviderConfig(Configuration config, String sslProvider) {
         if (sslProvider.equalsIgnoreCase("OPENSSL")) {
             OpenSsl.ensureAvailability();
-
-            // Flink's default algorithm set is not available for openSSL - choose a different one:
-            config.set(
-                    SecurityOptions.SSL_ALGORITHMS,
-                    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         }
         config.set(SecurityOptions.SSL_PROVIDER, sslProvider);
     }

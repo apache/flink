@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -195,6 +196,11 @@ public abstract class LogicalTypeDefaultVisitor<R> implements LogicalTypeVisitor
     @Override
     public R visit(SymbolType<?> symbolType) {
         return defaultMethod(symbolType);
+    }
+
+    @Override
+    public R visit(BitmapType bitmapType) {
+        return defaultMethod(bitmapType);
     }
 
     @Override

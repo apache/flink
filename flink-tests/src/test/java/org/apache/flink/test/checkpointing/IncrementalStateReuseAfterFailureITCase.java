@@ -20,6 +20,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.operators.lifecycle.TestJobExecutor;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
@@ -36,15 +37,15 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 import static java.util.Collections.emptyMap;
@@ -67,11 +68,37 @@ import static org.apache.flink.runtime.operators.lifecycle.command.TestCommandDi
  * | Recover from CP1 |            | read File 1 |
  * </pre>
  */
-public class IncrementalStateReuseAfterFailureITCase {
+class IncrementalStateReuseAfterFailureITCase {
+
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+
+    private static final String UID_SRC = asUidHash(0);
+    private static final String UID_OP1 = asUidHash(1);
+    private static final String UID_OP2 = asUidHash(2);
+
+    @TempDir private static Path temporaryFolder;
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setConfiguration(configuration())
+                                    .setNumberTaskManagers(1)
+                                    .setNumberSlotsPerTaskManager(4)
+                                    .build());
+
+    private static Configuration configuration() {
+        Configuration conf = new Configuration();
+        FsStateChangelogStorageFactory.configure(
+                conf, temporaryFolder.toFile(), Duration.ofMinutes(1), 10);
+        return conf;
+    }
 
     @Test
-    public void testChangelogStateReuse() throws Exception {
-        TestJobExecutor.execute(createJob(), miniClusterResource)
+    void testChangelogStateReuse(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
+        TestJobExecutor.execute(createJob(), miniCluster)
                 .waitForAllRunning()
 
                 // 1st checkpoint: accumulate some state and snapshot it
@@ -138,35 +165,6 @@ public class IncrementalStateReuseAfterFailureITCase {
                 emptyMap(),
                 evQueue,
                 cmdQueue);
-    }
-
-    private static final String UID_SRC = asUidHash(0);
-    private static final String UID_OP1 = asUidHash(1);
-    private static final String UID_OP2 = asUidHash(2);
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-
-    private MiniClusterWithClientResource miniClusterResource;
-
-    @Before
-    public void before() throws Exception {
-        Configuration configuration = new Configuration();
-        FsStateChangelogStorageFactory.configure(
-                configuration, temporaryFolder.newFolder(), Duration.ofMinutes(1), 10);
-        miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(configuration)
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(1)
-                                .build());
-        miniClusterResource.before();
-    }
-
-    @After
-    public void after() {
-        miniClusterResource.after();
     }
 
     private static String asUidHash(int num) {

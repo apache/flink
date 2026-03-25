@@ -20,9 +20,13 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleConfigInfo;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -38,6 +42,13 @@ public class ExecutionGraphInfo implements Serializable {
 
     private final ArchivedExecutionGraph executionGraph;
     private final Iterable<RootExceptionHistoryEntry> exceptionHistory;
+    @Nullable private final JobManagerOptions.SchedulerType schedulerType;
+
+    /**
+     * The value is null when the job is not enabled {@link
+     * org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler}.
+     */
+    @Nullable private final JobRescaleConfigInfo jobRescaleConfigInfo;
 
     public ExecutionGraphInfo(ArchivedExecutionGraph executionGraph) {
         this(
@@ -52,8 +63,18 @@ public class ExecutionGraphInfo implements Serializable {
     public ExecutionGraphInfo(
             ArchivedExecutionGraph executionGraph,
             Iterable<RootExceptionHistoryEntry> exceptionHistory) {
+        this(executionGraph, exceptionHistory, null, null);
+    }
+
+    public ExecutionGraphInfo(
+            ArchivedExecutionGraph executionGraph,
+            Iterable<RootExceptionHistoryEntry> exceptionHistory,
+            @Nullable JobManagerOptions.SchedulerType schedulerType,
+            @Nullable JobRescaleConfigInfo jobRescaleConfigInfo) {
         this.executionGraph = executionGraph;
         this.exceptionHistory = exceptionHistory;
+        this.schedulerType = schedulerType;
+        this.jobRescaleConfigInfo = jobRescaleConfigInfo;
     }
 
     public JobID getJobId() {
@@ -68,7 +89,23 @@ public class ExecutionGraphInfo implements Serializable {
         return exceptionHistory;
     }
 
+    @Nullable
+    public JobRescaleConfigInfo getJobRescaleConfigInfo() {
+        return jobRescaleConfigInfo;
+    }
+
     public Optional<ApplicationID> getApplicationId() {
         return executionGraph.getApplicationId();
+    }
+
+    /**
+     * Returns the scheduler type of the current execution graph info.
+     *
+     * @return The scheduler type of the current execution graph info. Returns null if exceptions
+     *     occurred.
+     */
+    @Nullable
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return schedulerType;
     }
 }

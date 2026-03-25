@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.BitmapSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
@@ -126,6 +127,8 @@ public final class InternalSerializers {
                                 + "Any other use is unsupported.");
             case VARIANT:
                 return VariantSerializer.INSTANCE;
+            case BITMAP:
+                return BitmapSerializer.INSTANCE;
             case NULL:
             case SYMBOL:
             case UNRESOLVED:

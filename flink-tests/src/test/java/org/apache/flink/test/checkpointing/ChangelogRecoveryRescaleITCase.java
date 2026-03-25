@@ -18,28 +18,23 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 /**
  * This verifies that rescale works correctly for Changelog state backend with materialized state /
  * non-materialized state.
  */
-public class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTestBase {
+class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTestBase {
 
-    public ChangelogRecoveryRescaleITCase(AbstractStateBackend delegatedStateBackend) {
-        super(delegatedStateBackend);
-    }
-
-    @Test
-    public void testRescaleOut() throws Exception {
+    @TestTemplate
+    void testRescaleOut() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(NUM_SLOTS / 2), getEnv(NUM_SLOTS));
     }
 
-    @Test
-    public void testRescaleIn() throws Exception {
+    @TestTemplate
+    void testRescaleIn() throws Exception {
         testSwitchEnv(delegatedStateBackend, getEnv(NUM_SLOTS), getEnv(NUM_SLOTS / 2));
     }
 
