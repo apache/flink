@@ -634,8 +634,8 @@ public class StreamingDeltaJoinOperatorTestBase {
         }
     }
 
-    /** Base test specification shared by binary and cascaded delta join test specs. */
-    protected abstract static class AbstractBaseTestSpec {
+    /** Base test specification shared by binary and cascaded delta join. */
+    protected abstract static class AbstractTestSpec {
 
         abstract RowType getLeftInputRowType();
 

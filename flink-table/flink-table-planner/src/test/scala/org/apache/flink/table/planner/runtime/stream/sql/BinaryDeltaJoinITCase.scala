@@ -18,23 +18,16 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.core.execution.CheckpointingMode
-import org.apache.flink.table.api.Schema
-import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.config.OptimizerConfigOptions.DeltaJoinStrategy
-import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedCatalogTable}
 import org.apache.flink.table.planner.{JHashMap, JMap}
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AsyncTestValueLookupFunction
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
-import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingTestBase}
-import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.util.Maps
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
-import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.TestTemplate
 
 import javax.annotation.Nullable
 
@@ -46,23 +39,8 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 
-@ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
-
-  @BeforeEach
-  override def before(): Unit = {
-    super.before()
-
-    tEnv.getConfig.set(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
-      DeltaJoinStrategy.FORCE)
-
-    tEnv.getConfig.set(
-      ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED,
-      Boolean.box(enableCache))
-
-    AsyncTestValueLookupFunction.invokeCount.set(0)
-  }
+/** Tests for binary delta join with two tables. */
+class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(enableCache) {
 
   @TestTemplate
   def testJoinKeyEqualsIndex(): Unit = {
@@ -886,38 +864,6 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
         .build())
   }
 
-  /** TODO add index in DDL. */
-  private def addIndex(tableName: String, indexColumns: List[String]): Unit = {
-    if (indexColumns.isEmpty) {
-      return
-    }
-
-    val catalogName = tEnv.getCurrentCatalog
-    val databaseName = tEnv.getCurrentDatabase
-    val tablePath = new ObjectPath(databaseName, tableName)
-    val catalog = tEnv.getCatalog(catalogName).get()
-    val catalogManager = tEnv.asInstanceOf[StreamTableEnvironmentImpl].getCatalogManager
-    val schemaResolver = catalogManager.getSchemaResolver
-
-    val resolvedTable = catalog.getTable(tablePath).asInstanceOf[ResolvedCatalogTable]
-    val originTable = resolvedTable.getOrigin
-    val originSchema = originTable.getUnresolvedSchema
-
-    val newSchema = Schema.newBuilder().fromSchema(originSchema).index(indexColumns).build()
-
-    val newTable = CatalogTable
-      .newBuilder()
-      .schema(newSchema)
-      .comment(originTable.getComment)
-      .partitionKeys(originTable.getPartitionKeys)
-      .options(originTable.getOptions)
-      .build()
-    val newResolvedTable = new ResolvedCatalogTable(newTable, schemaResolver.resolve(newSchema))
-
-    catalog.dropTable(tablePath, false)
-    catalog.createTable(tablePath, newResolvedTable, false)
-  }
-
   private def testUpsertResult(testSpec: TestSpec): Unit = {
     prepareTable(
       testSpec.leftIndex,
@@ -1046,7 +992,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
          |  $leftExtraOptionsStr
          |)
          |""".stripMargin)
-    addIndex("testLeft", leftIndex)
+    addIndexesAndImmutableCols("testLeft", List(leftIndex), List())
 
     tEnv.executeSql("drop table if exists testRight")
     val rightExtraOptionsStr =
@@ -1080,7 +1026,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
          |  $rightExtraOptionsStr
          |)
          |""".stripMargin)
-    addIndex("testRight", rightIndex)
+    addIndexesAndImmutableCols("testRight", List(rightIndex), List())
 
     tEnv.executeSql("drop table if exists testSnk")
     tEnv.executeSql(s"""
@@ -1266,12 +1212,5 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
       )
     }
 
-  }
-}
-
-object DeltaJoinITCase {
-  @Parameters(name = "EnableCache={0}")
-  def parameters(): java.util.Collection[Boolean] = {
-    Seq[Boolean](true, false)
   }
 }
