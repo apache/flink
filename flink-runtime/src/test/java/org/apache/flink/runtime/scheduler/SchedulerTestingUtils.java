@@ -340,6 +340,28 @@ public class SchedulerTestingUtils {
                 RETRY_ATTEMPTS);
     }
 
+    /**
+     * Waits until all task executions in the given ExecutionGraph reach RUNNING state.
+     *
+     * @param executionGraph the ExecutionGraph to check
+     * @throws Exception if the condition is not met within the timeout period
+     */
+    public static void waitForAllTasksRunning(final ExecutionGraph executionGraph)
+            throws Exception {
+        waitUntilCondition(
+                () -> {
+                    for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
+                        if (vertex.getCurrentExecutionAttempt().getState()
+                                != ExecutionState.RUNNING) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                RETRY_INTERVAL_MILLIS,
+                RETRY_ATTEMPTS);
+    }
+
     private static ExecutionJobVertex getJobVertex(
             DefaultScheduler scheduler, JobVertexID jobVertexId) {
         final ExecutionVertexID id = new ExecutionVertexID(jobVertexId, 0);
