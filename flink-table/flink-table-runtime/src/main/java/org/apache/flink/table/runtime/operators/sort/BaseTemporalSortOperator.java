@@ -46,6 +46,7 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void open() throws Exception {
+        super.open();
         InternalTimerService<VoidNamespace> internalTimerService =
                 getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
         timerService = new SimpleTimerService(internalTimerService);
