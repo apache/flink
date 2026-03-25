@@ -34,19 +34,19 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for the {@link JobMaster}. */
-public class JobMasterITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class JobMasterITCase {
 
     @Test
-    public void testRejectionOfEmptyJobGraphs() throws Exception {
+    void testRejectionOfEmptyJobGraphs() throws Exception {
         MiniClusterResource miniCluster =
                 new MiniClusterResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -57,10 +57,8 @@ public class JobMasterITCase extends TestLogger {
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         try {
-            miniCluster.getMiniCluster().submitJob(jobGraph).get();
-            Assertions.fail("Expect failure");
-        } catch (Throwable t) {
-            assertThat(t).hasRootCauseMessage("The given job is empty");
+            assertThatThrownBy(() -> miniCluster.getMiniCluster().submitJob(jobGraph).get())
+                    .hasRootCauseMessage("The given job is empty");
         } finally {
             miniCluster.after();
         }
@@ -73,7 +71,7 @@ public class JobMasterITCase extends TestLogger {
      * <p>TODO: This test relies on an internal error. Replace it with a more robust approach.
      */
     @Test
-    public void testJobManagerInitializationExceptionsAreForwardedToTheUser() {
+    void testJobManagerInitializationExceptionsAreForwardedToTheUser() {
         // we must use the LocalStreamEnvironment to reproduce this issue.
         // It passes with the TestStreamEnvironment (which is initialized by the
         // MiniClusterResource). The LocalStreamEnvironment is polling the JobManager for the job

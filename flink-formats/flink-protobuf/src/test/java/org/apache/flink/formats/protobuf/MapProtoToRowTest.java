@@ -23,15 +23,14 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
 import com.google.protobuf.ByteString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of proto map data to flink internal data. */
-public class MapProtoToRowTest {
+class MapProtoToRowTest {
     @Test
-    public void testMessage() throws Exception {
+    void testMessage() throws Exception {
         MapTest.InnerMessageTest innerMessageTest =
                 MapTest.InnerMessageTest.newBuilder().setA(1).setB(2).build();
         MapTest mapTest =
@@ -45,20 +44,20 @@ public class MapProtoToRowTest {
         RowData row = ProtobufTestHelper.pbBytesToRow(MapTest.class, mapTest.toByteArray());
 
         MapData map1 = row.getMap(1);
-        assertEquals("a", map1.keyArray().getString(0).toString());
-        assertEquals("b", map1.valueArray().getString(0).toString());
-        assertEquals("c", map1.keyArray().getString(1).toString());
-        assertEquals("d", map1.valueArray().getString(1).toString());
+        assertThat(map1.keyArray().getString(0).toString()).isEqualTo("a");
+        assertThat(map1.valueArray().getString(0).toString()).isEqualTo("b");
+        assertThat(map1.keyArray().getString(1).toString()).isEqualTo("c");
+        assertThat(map1.valueArray().getString(1).toString()).isEqualTo("d");
 
         MapData map2 = row.getMap(2);
-        assertEquals("f", map2.keyArray().getString(0).toString());
+        assertThat(map2.keyArray().getString(0).toString()).isEqualTo("f");
         RowData rowData2 = map2.valueArray().getRow(0, 2);
 
-        assertEquals(1, rowData2.getInt(0));
-        assertEquals(2L, rowData2.getLong(1));
+        assertThat(rowData2.getInt(0)).isEqualTo(1);
+        assertThat(rowData2.getLong(1)).isEqualTo(2L);
 
         MapData map3 = row.getMap(3);
-        assertEquals("e", map3.keyArray().getString(0).toString());
-        assertArrayEquals(new byte[] {1, 2, 3}, map3.valueArray().getBinary(0));
+        assertThat(map3.keyArray().getString(0).toString()).isEqualTo("e");
+        assertThat(map3.valueArray().getBinary(0)).isEqualTo(new byte[] {1, 2, 3});
     }
 }

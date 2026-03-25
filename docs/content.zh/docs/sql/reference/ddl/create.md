@@ -876,7 +876,7 @@ CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
-  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+  [USING [JAR|ARTIFACT] '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
   [WITH (key1=val1, key2=val2, ...)]
 ```
 
@@ -966,6 +966,22 @@ WITH (
     'api-key' = '<YOUR KEY>',
     'model'='gpt-3.5-turbo',
     'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
+
+```sql
+CREATE MODEL triton_text_classifier
+INPUT (input STRING COMMENT '用于分类的输入文本')
+OUTPUT (output STRING COMMENT '分类结果')
+COMMENT '基于 Triton 的文本分类模型'
+WITH (
+    'provider' = 'triton',
+    'endpoint' = 'http://localhost:8000/v2/models',
+    'model-name' = 'text-classification',
+    'headers.Authorization' = 'Bearer ${TRITON_TOKEN}',
+    'model-version' = '1',
+    'timeout' = '10000',
+    'max-retries' = '3'
 );
 ```
 

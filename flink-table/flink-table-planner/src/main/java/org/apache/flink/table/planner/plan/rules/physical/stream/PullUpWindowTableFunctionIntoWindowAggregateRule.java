@@ -130,7 +130,7 @@ public class PullUpWindowTableFunctionIntoWindowAggregateRule
         //  1. transpose Calc and WindowTVF, build the new Calc node
         // -------------------------------------------------------------------------
         ImmutableBitSet windowColumns = fmq.getRelWindowProperties(windowTVF).getWindowColumns();
-        Tuple4<RexProgram, int[], Object, Object> programInfo =
+        Tuple4<RexProgram, int[], Integer, Boolean> programInfo =
                 WindowUtil.buildNewProgramWithoutWindowColumns(
                         cluster.getRexBuilder(),
                         calc.getProgram(),
@@ -139,7 +139,7 @@ public class PullUpWindowTableFunctionIntoWindowAggregateRule
                         windowColumns.toArray());
         RexProgram newProgram = programInfo._1();
         int[] aggInputFieldsShift = programInfo._2();
-        int timeAttributeIndex = (int) programInfo._3();
+        int timeAttributeIndex = programInfo._3();
 
         StreamPhysicalCalc newCalc =
                 new StreamPhysicalCalc(

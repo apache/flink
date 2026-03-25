@@ -44,6 +44,7 @@ public class CustomPartitionerWrapper<K, T> extends StreamPartitioner<T> {
     public CustomPartitionerWrapper(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
         this.partitioner = partitioner;
         this.keySelector = keySelector;
+        disableUnalignedCheckpoints();
     }
 
     @Override

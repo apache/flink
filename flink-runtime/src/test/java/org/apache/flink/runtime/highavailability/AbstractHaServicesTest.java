@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
@@ -169,6 +171,28 @@ class AbstractHaServicesTest {
         public boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException {
             return false;
         }
+
+        @Override
+        public boolean put(File localFile, ApplicationID applicationId, BlobKey blobKey)
+                throws IOException {
+            return false;
+        }
+
+        @Override
+        public boolean delete(ApplicationID applicationId, BlobKey blobKey) {
+            return false;
+        }
+
+        @Override
+        public boolean deleteAll(ApplicationID applicationId) {
+            return false;
+        }
+
+        @Override
+        public boolean get(ApplicationID applicationId, BlobKey blobKey, File localFile)
+                throws IOException {
+            return false;
+        }
     }
 
     private static final class TestingHaServices extends AbstractHaServices {
@@ -195,7 +219,8 @@ class AbstractHaServicesTest {
                                         throw new AssertionError(
                                                 "Marking the job as clean shouldn't happen in the HaServices cleanup");
                                     })
-                            .build());
+                            .build(),
+                    new EmbeddedApplicationResultStore());
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
@@ -213,6 +238,11 @@ class AbstractHaServicesTest {
 
         @Override
         protected ExecutionPlanStore createExecutionPlanStore() throws Exception {
+            throw new UnsupportedOperationException("Not supported by this test implementation.");
+        }
+
+        @Override
+        protected ApplicationStore createApplicationStore() throws Exception {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 
 /** Read-only information about an {@link AbstractApplication}. */
@@ -42,17 +43,21 @@ public class ArchivedApplication implements Serializable {
 
     private final Map<JobID, ExecutionGraphInfo> jobs;
 
+    private final Collection<ApplicationExceptionHistoryEntry> exceptionHistory;
+
     public ArchivedApplication(
             ApplicationID applicationId,
             String applicationName,
             ApplicationState applicationState,
             long[] statusTimestamps,
-            Map<JobID, ExecutionGraphInfo> jobs) {
+            Map<JobID, ExecutionGraphInfo> jobs,
+            Collection<ApplicationExceptionHistoryEntry> exceptionHistory) {
         this.applicationId = applicationId;
         this.applicationName = applicationName;
         this.applicationState = applicationState;
         this.statusTimestamps = statusTimestamps;
         this.jobs = jobs;
+        this.exceptionHistory = exceptionHistory;
     }
 
     public ApplicationID getApplicationId() {
@@ -75,6 +80,10 @@ public class ArchivedApplication implements Serializable {
         return jobs;
     }
 
+    public Collection<ApplicationExceptionHistoryEntry> getExceptionHistory() {
+        return exceptionHistory;
+    }
+
     @Override
     public String toString() {
         return "ArchivedApplication{"
@@ -89,6 +98,8 @@ public class ArchivedApplication implements Serializable {
                 + Arrays.toString(statusTimestamps)
                 + ", jobs="
                 + jobs
+                + ", exceptionHistory="
+                + exceptionHistory
                 + '}';
     }
 
@@ -105,7 +116,8 @@ public class ArchivedApplication implements Serializable {
                 && applicationName.equals(that.applicationName)
                 && applicationState == that.applicationState
                 && Arrays.equals(statusTimestamps, that.statusTimestamps)
-                && jobs.equals(that.jobs);
+                && jobs.equals(that.jobs)
+                && exceptionHistory.equals(that.exceptionHistory);
     }
 
     @Override
@@ -114,6 +126,7 @@ public class ArchivedApplication implements Serializable {
                 + 31 * applicationName.hashCode()
                 + 31 * applicationState.hashCode()
                 + 31 * Arrays.hashCode(statusTimestamps)
-                + 31 * jobs.hashCode();
+                + 31 * jobs.hashCode()
+                + 31 * exceptionHistory.hashCode();
     }
 }

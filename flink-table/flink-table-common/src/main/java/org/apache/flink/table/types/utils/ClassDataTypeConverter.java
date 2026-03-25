@@ -28,6 +28,8 @@ import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.bitmap.RoaringBitmapData;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 
@@ -80,6 +82,8 @@ public final class ClassDataTypeConverter {
         addDefaultDataType(ColumnList.class, DataTypes.DESCRIPTOR());
         addDefaultDataType(BinaryVariant.class, DataTypes.VARIANT());
         addDefaultDataType(Variant.class, DataTypes.VARIANT());
+        addDefaultDataType(Bitmap.class, DataTypes.BITMAP());
+        addDefaultDataType(RoaringBitmapData.class, DataTypes.BITMAP());
     }
 
     private static void addDefaultDataType(Class<?> clazz, DataType rootType) {

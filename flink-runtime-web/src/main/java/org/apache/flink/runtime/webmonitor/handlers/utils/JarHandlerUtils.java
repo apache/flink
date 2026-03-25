@@ -238,6 +238,10 @@ public class JarHandlerUtils {
         public Optional<ApplicationID> getApplicationId() {
             return Optional.ofNullable(applicationId);
         }
+
+        public Path getJarFile() {
+            return jarFile;
+        }
     }
 
     private static List<URL> getClasspaths(Configuration configuration) {

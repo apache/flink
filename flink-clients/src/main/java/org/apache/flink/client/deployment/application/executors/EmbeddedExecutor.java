@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A base class for {@link PipelineExecutor executors} that invoke directly methods of the {@link
@@ -68,7 +70,11 @@ public class EmbeddedExecutor implements PipelineExecutor {
 
     public static final String NAME = "embedded";
 
-    private final Collection<JobID> submittedJobIds;
+    private final Collection<JobID> applicationJobIds;
+
+    private final Collection<JobID> suspendedJobIds;
+
+    private final Collection<JobID> terminalJobIds;
 
     private final DispatcherGateway dispatcherGateway;
 
@@ -92,7 +98,41 @@ public class EmbeddedExecutor implements PipelineExecutor {
             final DispatcherGateway dispatcherGateway,
             final Configuration configuration,
             final EmbeddedJobClientCreator jobClientCreator) {
-        this.submittedJobIds = checkNotNull(submittedJobIds);
+        this(
+                submittedJobIds,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                dispatcherGateway,
+                configuration,
+                jobClientCreator);
+    }
+
+    /**
+     * Creates a {@link EmbeddedExecutor}.
+     *
+     * @param applicationJobIds a list that is going to be filled by the {@link EmbeddedExecutor}
+     *     with job ids of all jobs that are part of the current application execution. This is
+     *     essentially used to return the job ids to the caller.
+     * @param suspendedJobIds ids of jobs that are suspended from a previous application execution,
+     *     which are not supposed to be modified by the {@link EmbeddedExecutor}.
+     * @param terminalJobIds ids of jobs that are already in a terminal state in a previous
+     *     application execution, which are not supposed to be modified by the {@link
+     *     EmbeddedExecutor}.
+     * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit
+     *     jobs.
+     * @param configuration the flink application configuration
+     * @param jobClientCreator the job client creator
+     */
+    public EmbeddedExecutor(
+            final Collection<JobID> applicationJobIds,
+            final Collection<JobID> suspendedJobIds,
+            final Collection<JobID> terminalJobIds,
+            final DispatcherGateway dispatcherGateway,
+            final Configuration configuration,
+            final EmbeddedJobClientCreator jobClientCreator) {
+        this.applicationJobIds = checkNotNull(applicationJobIds);
+        this.suspendedJobIds = checkNotNull(suspendedJobIds);
+        this.terminalJobIds = checkNotNull(terminalJobIds);
         this.dispatcherGateway = checkNotNull(dispatcherGateway);
         this.jobClientCreator = checkNotNull(jobClientCreator);
         this.jobStatusChangedListeners =
@@ -110,22 +150,45 @@ public class EmbeddedExecutor implements PipelineExecutor {
             throws Exception {
         checkNotNull(pipeline);
         checkNotNull(configuration);
+        checkState(pipeline instanceof StreamGraph);
+
+        StreamGraph streamGraph = (StreamGraph) pipeline;
 
         final Optional<JobID> optJobId =
                 configuration
                         .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
                         .map(JobID::fromHexString);
 
-        if (optJobId.isPresent() && submittedJobIds.contains(optJobId.get())) {
-            return getJobClientFuture(optJobId.get(), userCodeClassloader);
+        // Skip resubmission if the job is recovered via HA.
+        // When optJobId is present, the streamGraph's ID is deterministically derived from it. In
+        // this case, if the streamGraph's ID is in terminalJobIds or submittedJobIds, it means the
+        // job was submitted in a previous run and should not be resubmitted.
+        if (optJobId.isPresent()) {
+            final JobID actualJobId = streamGraph.getJobID();
+            if (terminalJobIds.contains(actualJobId)) {
+                LOG.info("Job {} reached a terminal state in a previous execution.", actualJobId);
+                return addJobAndGetJobClientFuture(actualJobId, userCodeClassloader);
+            }
+
+            if (suspendedJobIds.contains(actualJobId)) {
+                final Duration timeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
+                return dispatcherGateway
+                        .recoverJob(actualJobId, timeout)
+                        .thenCompose(
+                                ack -> {
+                                    LOG.info("Job {} is recovered successfully.", actualJobId);
+                                    return addJobAndGetJobClientFuture(
+                                            actualJobId, userCodeClassloader);
+                                });
+            }
         }
 
         return submitAndGetJobClientFuture(pipeline, configuration, userCodeClassloader);
     }
 
-    private CompletableFuture<JobClient> getJobClientFuture(
+    private CompletableFuture<JobClient> addJobAndGetJobClientFuture(
             final JobID jobId, final ClassLoader userCodeClassloader) {
-        LOG.info("Job {} was recovered successfully.", jobId);
+        applicationJobIds.add(jobId);
         return CompletableFuture.completedFuture(
                 jobClientCreator.getJobClient(jobId, userCodeClassloader));
     }
@@ -141,7 +204,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
                 PipelineExecutorUtils.getStreamGraph(pipeline, configuration);
         final JobID actualJobId = streamGraph.getJobID();
 
-        this.submittedJobIds.add(actualJobId);
+        this.applicationJobIds.add(actualJobId);
         LOG.info("Job {} is submitted.", actualJobId);
 
         if (LOG.isDebugEnabled()) {

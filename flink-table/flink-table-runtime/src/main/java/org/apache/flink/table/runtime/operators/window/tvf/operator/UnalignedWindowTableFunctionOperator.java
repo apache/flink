@@ -120,8 +120,9 @@ public class UnalignedWindowTableFunctionOperator extends WindowTableFunctionOpe
             TypeSerializer<TimeWindow> windowSerializer,
             TypeSerializer<RowData> inputSerializer,
             int rowtimeIndex,
+            int timestampPrecision,
             ZoneId shiftTimeZone) {
-        super(windowAssigner, rowtimeIndex, shiftTimeZone);
+        super(windowAssigner, rowtimeIndex, timestampPrecision, shiftTimeZone);
         this.trigger = createTrigger(windowAssigner);
         this.windowSerializer = checkNotNull(windowSerializer);
         this.inputSerializer = checkNotNull(inputSerializer);
@@ -202,7 +203,7 @@ public class UnalignedWindowTableFunctionOperator extends WindowTableFunctionOpe
                 numNullRowTimeRecordsDropped.inc();
                 return;
             }
-            timestamp = inputRow.getTimestamp(rowtimeIndex, 3).getMillisecond();
+            timestamp = inputRow.getTimestamp(rowtimeIndex, timestampPrecision).getMillisecond();
         } else {
             timestamp = getProcessingTimeService().getCurrentProcessingTime();
         }

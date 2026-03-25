@@ -85,7 +85,10 @@ public class LiteralExpressionsSerializationITCase {
                                 lit(localTimeWithoutSeconds, DataTypes.TIME().notNull()),
                                 lit(localDateTime, DataTypes.TIMESTAMP(3).notNull()),
                                 lit(localDateTimeWithoutSeconds, DataTypes.TIMESTAMP(3).notNull()),
+                                lit(instant, DataTypes.TIMESTAMP_LTZ(0).notNull()),
                                 lit(instant, DataTypes.TIMESTAMP_LTZ(3).notNull()),
+                                lit(instant, DataTypes.TIMESTAMP_LTZ(6).notNull()),
+                                lit(instant, DataTypes.TIMESTAMP_LTZ(9).notNull()),
                                 lit(
                                         duration,
                                         DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(9))
@@ -122,7 +125,10 @@ public class LiteralExpressionsSerializationITCase {
                                 + "TIME '12:12:00',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:12.333',\n"
                                 + "TIMESTAMP '2024-02-03 12:12:00',\n"
+                                + "CAST(TO_TIMESTAMP_LTZ(1234, 0) AS TIMESTAMP_LTZ(0)),\n"
                                 + "TO_TIMESTAMP_LTZ(1234567, 3),\n"
+                                + "TO_TIMESTAMP_LTZ(1234567000, 6),\n"
+                                + "TO_TIMESTAMP_LTZ(1234567000000, 9),\n"
                                 + "INTERVAL '99 00:00:34.999' DAY TO SECOND(3),\n"
                                 + "INTERVAL '39-2' YEAR TO MONTH");
 
@@ -148,6 +154,9 @@ public class LiteralExpressionsSerializationITCase {
                                 localTimeWithoutSeconds,
                                 localDateTime,
                                 localDateTimeWithoutSeconds,
+                                Instant.ofEpochSecond(1234),
+                                instant,
+                                instant,
                                 instant,
                                 duration,
                                 period));

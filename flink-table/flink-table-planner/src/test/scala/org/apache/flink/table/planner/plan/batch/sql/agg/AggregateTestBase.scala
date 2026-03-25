@@ -62,6 +62,17 @@ abstract class AggregateTestBase extends TableTestBase {
   )
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
 
+  // the test values table source supports projection push down by default
+  util.tableEnv.executeSql("""
+                             |CREATE TABLE src (
+                             | id VARCHAR,
+                             | cnt BIGINT
+                             |) WITH (
+                             | 'connector' = 'values'
+                             | ,'bounded' = 'true'
+                             |)
+                             |""".stripMargin)
+
   @TestTemplate
   def testAvg(): Unit = {
     util.verifyRelPlanWithType("""
@@ -119,17 +130,16 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @TestTemplate
   def testCountStartWithProjectPushDown(): Unit = {
-    // the test values table source supports projection push down by default
-    util.tableEnv.executeSql("""
-                               |CREATE TABLE src (
-                               | id VARCHAR,
-                               | cnt BIGINT
-                               |) WITH (
-                               | 'connector' = 'values'
-                               | ,'bounded' = 'true'
-                               |)
-                               |""".stripMargin)
     util.verifyRelPlanWithType("SELECT COUNT(*) FROM src")
+  }
+
+  @TestTemplate
+  def testCountStarWithHavingAndProjectPushDown(): Unit = {
+    val sql =
+      """
+        |SELECT COUNT(*) FROM src HAVING COUNT(*) > 1
+      """.stripMargin
+    util.verifyRelPlanWithType(sql)
   }
 
   @TestTemplate
@@ -239,6 +249,14 @@ abstract class AggregateTestBase extends TableTestBase {
         |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, c
       """.stripMargin
     util.verifyExecPlan(sql)
+  }
+
+  @TestTemplate
+  def testGlobalAggOverEmptyInputReplacedByValues(): Unit = {
+    // When the planner can statically determine the input is empty (WHERE 1=0),
+    // AGGREGATE_VALUES rule should replace the global aggregate with literal defaults
+    // (e.g. COUNT(*)=0, SUM=null) and remove the aggregate node entirely.
+    util.verifyExecPlan("SELECT COUNT(*), SUM(`int`), AVG(`int`) FROM MyTable WHERE 1=0")
   }
 
   // TODO supports group sets

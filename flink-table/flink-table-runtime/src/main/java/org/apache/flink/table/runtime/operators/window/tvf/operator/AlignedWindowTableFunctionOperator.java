@@ -46,8 +46,9 @@ public class AlignedWindowTableFunctionOperator extends WindowTableFunctionOpera
     public AlignedWindowTableFunctionOperator(
             GroupWindowAssigner<TimeWindow> windowAssigner,
             int rowtimeIndex,
+            int timestampPrecision,
             ZoneId shiftTimeZone) {
-        super(windowAssigner, rowtimeIndex, shiftTimeZone);
+        super(windowAssigner, rowtimeIndex, timestampPrecision, shiftTimeZone);
     }
 
     @Override
@@ -60,7 +61,7 @@ public class AlignedWindowTableFunctionOperator extends WindowTableFunctionOpera
                 numNullRowTimeRecordsDropped.inc();
                 return;
             }
-            timestamp = inputRow.getTimestamp(rowtimeIndex, 3).getMillisecond();
+            timestamp = inputRow.getTimestamp(rowtimeIndex, timestampPrecision).getMillisecond();
         } else {
             timestamp = getProcessingTimeService().getCurrentProcessingTime();
         }

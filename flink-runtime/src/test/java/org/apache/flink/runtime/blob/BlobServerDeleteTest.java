@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
@@ -50,6 +51,7 @@ import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEq
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForApplication;
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForJob;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -310,6 +312,54 @@ class BlobServerDeleteTest {
 
             // calling a second time should not fail
             server.globalCleanupAsync(jobId2, executorService).join();
+        } finally {
+            assertThat(executorService.shutdownNow()).isEmpty();
+        }
+    }
+
+    @Test
+    void testApplicationCleanup() throws IOException {
+        ApplicationID applicationId1 = new ApplicationID();
+        ApplicationID applicationId2 = new ApplicationID();
+        BlobKey.BlobType blobType = PERMANENT_BLOB;
+
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
+            server.start();
+
+            final byte[] data = new byte[128];
+            byte[] data2 = Arrays.copyOf(data, data.length);
+            data2[0] ^= 1;
+
+            BlobKey key1a = put(server, applicationId1, data, blobType);
+            BlobKey key2 = put(server, applicationId2, data, blobType);
+            assertThat(key1a.getHash()).isEqualTo(key2.getHash());
+
+            BlobKey key1b = put(server, applicationId1, data2, blobType);
+
+            verifyContents(server, applicationId1, key1a, data);
+            verifyContents(server, applicationId1, key1b, data2);
+            checkFileCountForApplication(2, applicationId1, server);
+
+            verifyContents(server, applicationId2, key2, data);
+            checkFileCountForApplication(1, applicationId2, server);
+
+            server.globalCleanupAsync(applicationId1, executorService).join();
+
+            verifyDeleted(server, applicationId1, key1a);
+            verifyDeleted(server, applicationId1, key1b);
+            checkFileCountForApplication(0, applicationId1, server);
+            verifyContents(server, applicationId2, key2, data);
+            checkFileCountForApplication(1, applicationId2, server);
+
+            server.globalCleanupAsync(applicationId2, executorService).join();
+
+            checkFileCountForApplication(0, applicationId1, server);
+            verifyDeleted(server, applicationId2, key2);
+            checkFileCountForApplication(0, applicationId2, server);
+
+            // calling a second time should not fail
+            server.globalCleanupAsync(applicationId2, executorService).join();
         } finally {
             assertThat(executorService.shutdownNow()).isEmpty();
         }

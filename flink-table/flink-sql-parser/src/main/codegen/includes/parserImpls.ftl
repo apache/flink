@@ -450,7 +450,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
             if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
                 throw SqlUtil.newContextException(
                     functionLanguagePos,
-                    ParserResource.RESOURCE.createFunctionUsingJar(functionLanguage));
+                    ParserResource.RESOURCE.createFunction(functionLanguage));
             }
             List<SqlNode> resourceList = new ArrayList<SqlNode>();
             SqlResource sqlResource = null;
@@ -492,13 +492,21 @@ SqlResource SqlResourceInfo() :
     String resourcePath;
 }
 {
-    <JAR> <QUOTED_STRING> {
+    (<JAR> <QUOTED_STRING> {
         resourcePath = SqlParserUtil.parseString(token.image);
         return new SqlResource(
                     getPos(),
                     SqlResourceType.JAR.symbol(getPos()),
                     SqlLiteral.createCharString(resourcePath, getPos()));
     }
+    |
+    <ARTIFACT> <QUOTED_STRING> {
+        resourcePath = SqlParserUtil.parseString(token.image);
+        return new SqlResource(
+                    getPos(),
+                    SqlResourceType.ARTIFACT.symbol(getPos()),
+                    SqlLiteral.createCharString(resourcePath, getPos()));
+    })
 }
 
 SqlDrop SqlDropFunction(Span s, boolean replace, boolean isTemporary) :
@@ -2549,6 +2557,17 @@ SqlTypeNameSpec SqlRawTypeName() :
     <RPAREN>
     {
         return new SqlRawTypeNameSpec(className, serializerString, getPos());
+    }
+}
+
+/** Parses BITMAP type. */
+SqlTypeNameSpec SqlBitmapTypeName() :
+{
+}
+{
+    <BITMAP>
+    {
+        return new SqlBitmapTypeNameSpec(getPos());
     }
 }
 

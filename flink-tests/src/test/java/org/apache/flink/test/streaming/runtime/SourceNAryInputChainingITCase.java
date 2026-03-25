@@ -39,32 +39,30 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for chaining the source operators / inputs. */
-@SuppressWarnings("serial")
-public class SourceNAryInputChainingITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class SourceNAryInputChainingITCase {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
-
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(PARALLELISM)
@@ -76,15 +74,15 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     // because those are the only ones where the runtime supports chaining at the moment.
 
     @Test
-    public void testDirectSourcesOnlyChainCreation() throws Exception {
+    void testDirectSourcesOnlyChainCreation() {
         final DataStream<Long> stream = createProgramWithSourcesOnly();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
-        assertEquals(1, jobGraph.getNumberOfVertices());
+        assertThat(jobGraph.getNumberOfVertices()).isOne();
     }
 
     @Test
-    public void testDirectSourcesOnlyExecution() throws Exception {
+    void testDirectSourcesOnlyExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithSourcesOnly();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");
@@ -93,15 +91,15 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     }
 
     @Test
-    public void testMixedInputsChainCreation() throws Exception {
+    void testMixedInputsChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithMixedInputs();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
-        assertEquals(3, jobGraph.getNumberOfVertices());
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(3);
     }
 
     @Test
-    public void testMixedInputsExecution() throws Exception {
+    void testMixedInputsExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithMixedInputs();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");
@@ -110,15 +108,15 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     }
 
     @Test
-    public void testMixedInputsWithUnionChainCreation() throws Exception {
+    void testMixedInputsWithUnionChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithUnionInput();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
-        assertEquals(4, jobGraph.getNumberOfVertices());
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(4);
     }
 
     @Test
-    public void testMixedInputsWithUnionExecution() throws Exception {
+    void testMixedInputsWithUnionExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithUnionInput();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");
@@ -127,15 +125,15 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     }
 
     @Test
-    public void testMixedInputsWithMultipleUnionsChainCreation() throws Exception {
+    void testMixedInputsWithMultipleUnionsChainCreation() throws Exception {
         final DataStream<Long> stream = createProgramWithMultipleUnionInputs();
         final JobGraph jobGraph = sinkAndCompileJobGraph(stream);
 
-        assertEquals(6, jobGraph.getNumberOfVertices());
+        assertThat(jobGraph.getNumberOfVertices()).isEqualTo(6);
     }
 
     @Test
-    public void testMixedInputsWithMultipleUnionsExecution() throws Exception {
+    void testMixedInputsWithMultipleUnionsExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithMultipleUnionInputs();
         final CloseableIterator<Long> result =
                 stream.executeAndCollect("N-Ary Source Chaining Test Program");

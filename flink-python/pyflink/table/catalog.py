@@ -1251,6 +1251,29 @@ class ObjectPath(object):
     def get_full_name(self) -> str:
         return self._j_object_path.getFullName()
 
+    def compare_to(self, other: 'ObjectPath') -> int:
+        return self._j_object_path.compareTo(other._j_object_path)
+
+    def __lt__(self, other):
+        if not isinstance(other, ObjectPath):
+            return NotImplemented
+        return self.compare_to(other) < 0
+
+    def __le__(self, other):
+        if not isinstance(other, ObjectPath):
+            return NotImplemented
+        return self.compare_to(other) <= 0
+
+    def __gt__(self, other):
+        if not isinstance(other, ObjectPath):
+            return NotImplemented
+        return self.compare_to(other) > 0
+
+    def __ge__(self, other):
+        if not isinstance(other, ObjectPath):
+            return NotImplemented
+        return self.compare_to(other) >= 0
+
     @staticmethod
     def from_string(full_name: str) -> 'ObjectPath':
         gateway = get_gateway()
@@ -1559,11 +1582,11 @@ class Column(metaclass=ABCMeta):
             raise TypeError("The input %s is not an instance of Column." % j_column)
 
         if get_java_class(JPhysicalColumn).isAssignableFrom(j_column.getClass()):
-            return PhysicalColumn(j_physical_column=j_column.getClass())
+            return PhysicalColumn(j_physical_column=j_column)
         elif get_java_class(JComputedColumn).isAssignableFrom(j_column.getClass()):
-            return ComputedColumn(j_computed_column=j_column.getClass())
+            return ComputedColumn(j_computed_column=j_column)
         elif get_java_class(JMetadataColumn).isAssignableFrom(j_column.getClass()):
-            return MetadataColumn(j_metadata_column=j_column.getClass())
+            return MetadataColumn(j_metadata_column=j_column)
         else:
             return None
 

@@ -70,6 +70,10 @@ public class PackagedProgramDescriptor implements Serializable {
         return mainClassName;
     }
 
+    public String[] getProgramArgs() {
+        return programArgs;
+    }
+
     public PackagedProgram toPackageProgram() throws ProgramInvocationException {
         return PackagedProgram.newBuilder()
                 .setJarFile(jarFile)

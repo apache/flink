@@ -104,10 +104,12 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         client.getConnectionStateListenable().addListener(connectionStateListener);
 
-        LOG.debug(
-                "Monitoring data change in {}",
-                ZooKeeperUtils.generateZookeeperPath(
-                        client.getNamespace(), connectionInformationPath));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Monitoring data change in {}",
+                    ZooKeeperUtils.generateZookeeperPath(
+                            client.getNamespace(), connectionInformationPath));
+        }
 
         running = true;
     }
@@ -142,7 +144,9 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
     private void retrieveLeaderInformationFromZooKeeper() {
         try {
-            LOG.debug("Leader node has changed.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Leader node has changed.");
+            }
 
             final ChildData childData = cache.getCurrentData(connectionInformationPath);
 
@@ -170,7 +174,9 @@ public class ZooKeeperLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private void handleStateChange(ConnectionState newState) {
         switch (newState) {
             case CONNECTED:
-                LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
+                }
                 break;
             case SUSPENDED:
                 LOG.warn("Connection to ZooKeeper suspended, waiting for reconnection.");

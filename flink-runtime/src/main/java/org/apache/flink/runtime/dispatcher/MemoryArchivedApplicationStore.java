@@ -135,7 +135,6 @@ public class MemoryArchivedApplicationStore implements ArchivedApplicationStore 
     public Collection<JobDetails> getJobDetails() {
         return archivedApplicationCache.asMap().values().stream()
                 .flatMap(archivedApplication -> archivedApplication.getJobs().values().stream())
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }

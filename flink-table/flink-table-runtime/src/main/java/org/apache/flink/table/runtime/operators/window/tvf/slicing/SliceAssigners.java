@@ -194,6 +194,11 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getWindowOffset() {
+            return offset;
+        }
+
+        @Override
         public String getDescription() {
             return String.format("TumblingWindow(size=%dms, offset=%dms)", size, offset);
         }
@@ -267,6 +272,11 @@ public final class SliceAssigners {
         @Override
         public long getSliceEndInterval() {
             return sliceSize;
+        }
+
+        @Override
+        public long getWindowOffset() {
+            return offset;
         }
 
         @Override
@@ -395,6 +405,11 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getWindowOffset() {
+            return offset;
+        }
+
+        @Override
         public void mergeSlices(long sliceEnd, MergeCallback<Long, Iterable<Long>> callback)
                 throws Exception {
             prepareReusableMergedList(sliceEnd);
@@ -498,6 +513,11 @@ public final class SliceAssigners {
         @Override
         public long getSliceEndInterval() {
             return innerAssigner.getSliceEndInterval();
+        }
+
+        @Override
+        public long getWindowOffset() {
+            return innerAssigner.getWindowOffset();
         }
 
         @Override
@@ -625,6 +645,11 @@ public final class SliceAssigners {
         @Override
         public long getSliceEndInterval() {
             return innerAssigner.getSliceEndInterval();
+        }
+
+        @Override
+        public long getWindowOffset() {
+            return innerAssigner.getWindowOffset();
         }
 
         @Override

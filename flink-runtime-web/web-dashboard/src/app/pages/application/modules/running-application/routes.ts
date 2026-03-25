@@ -34,6 +34,16 @@ export const RUNNING_APPLICATION_ROUTES: Routes = [
           path: 'overview'
         }
       },
+      {
+        path: 'exceptions',
+        loadComponent: () =>
+          import('@flink-runtime-web/pages/application/exceptions/application-exceptions.component').then(
+            m => m.ApplicationExceptionsComponent
+          ),
+        data: {
+          path: 'exceptions'
+        }
+      },
       { path: '**', redirectTo: 'overview', pathMatch: 'full' }
     ]
   }

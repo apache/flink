@@ -29,12 +29,14 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Map;
 
@@ -51,12 +53,18 @@ import static org.apache.flink.runtime.state.KeyGroupRange.EMPTY_KEY_GROUP_RANGE
  * org.apache.flink.runtime.checkpoint.CheckpointCoordinator} which doesn't expect to receive the
  * same object.
  */
-public class StateHandleReuseITCase extends AbstractTestBaseJUnit4 {
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+class StateHandleReuseITCase extends AbstractTestBase {
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new InternalMiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder().build());
+
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     @Test
-    public void runTest() throws Exception {
-        TestJobExecutor.execute(buildJob(), MINI_CLUSTER_RESOURCE)
+    void runTest() throws Exception {
+        TestJobExecutor.execute(buildJob(), MINI_CLUSTER_RESOURCE.getMiniCluster())
                 // register once: should succeed
                 .waitForEvent(CheckpointCompletedEvent.class)
                 // register again: might fail without serialization

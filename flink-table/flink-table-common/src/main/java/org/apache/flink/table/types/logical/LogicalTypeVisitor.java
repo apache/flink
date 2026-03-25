@@ -97,5 +97,9 @@ public interface LogicalTypeVisitor<R> {
         return visit((LogicalType) variantType);
     }
 
+    default R visit(BitmapType bitmapType) {
+        return visit((LogicalType) bitmapType);
+    }
+
     R visit(LogicalType other);
 }

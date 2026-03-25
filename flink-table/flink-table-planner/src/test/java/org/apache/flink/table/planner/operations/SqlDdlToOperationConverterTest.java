@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.TableDistribution.Kind;
@@ -104,6 +105,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.planner.operations.SqlDdlToOperationConverterTest.TestItem.createTestItem;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
 import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
 import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
@@ -807,10 +809,10 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + " ROW<`tmstmp` TIMESTAMP(3)>.");
     }
 
-    @Test // TODO: tweak the tests when FLINK-13604 is fixed.
+    @Test
     void testCreateTableWithFullDataTypes() {
         final List<TestItem> testItems =
-                Arrays.asList(
+                List.of(
                         createTestItem("CHAR", DataTypes.CHAR(1)),
                         createTestItem("CHAR NOT NULL", DataTypes.CHAR(1).notNull()),
                         createTestItem("CHAR NULL", DataTypes.CHAR(1)),
@@ -844,10 +846,8 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         createTestItem("DATE", DataTypes.DATE()),
                         createTestItem("TIME", DataTypes.TIME()),
                         createTestItem("TIME WITHOUT TIME ZONE", DataTypes.TIME()),
-                        // Expect to be TIME(3).
-                        createTestItem("TIME(3)", DataTypes.TIME()),
-                        // Expect to be TIME(3).
-                        createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME()),
+                        createTestItem("TIME(3)", DataTypes.TIME(3)),
+                        createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME(3)),
                         createTestItem("TIMESTAMP", DataTypes.TIMESTAMP(6)),
                         createTestItem("TIMESTAMP WITHOUT TIME ZONE", DataTypes.TIMESTAMP(6)),
                         createTestItem("TIMESTAMP(3)", DataTypes.TIMESTAMP(3)),
@@ -951,11 +951,15 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
-        Operation operation =
-                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
-        TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
-        Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
-        assertThat(schema.getFieldDataTypes()).isEqualTo(expectedDataTypes);
+        final Optional<Operation> convert =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node);
+        assertThat(convert).isPresent();
+        Operation operation = convert.get();
+        ResolvedSchema schema =
+                ((CreateTableOperation) operation).getCatalogTable().getResolvedSchema();
+        List<DataType> expectedDataTypes =
+                testItems.stream().map(item -> item.expectedType).collect(Collectors.toList());
+        assertThat(schema.getColumnDataTypes()).isEqualTo(expectedDataTypes);
     }
 
     @Test
@@ -1549,9 +1553,13 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 "tb2", false, 1, TableDistribution.of(Kind.HASH, 1, List.of("a")), "SELECT 1");
 
         assertThatThrownBy(
-                        () ->
-                                parse(
-                                        "alter materialized table cat1.db1.tb2 add distribution into 3 buckets"))
+                        () -> {
+                            AlterMaterializedTableChangeOperation tableChangeOperation =
+                                    (AlterMaterializedTableChangeOperation)
+                                            parse(
+                                                    "alter materialized table cat1.db1.tb2 add distribution into 3 buckets");
+                            tableChangeOperation.getTableChanges();
+                        })
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "The current materialized table has already defined the distribution "
@@ -2716,18 +2724,6 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
 
     // ~ Tool Methods ----------------------------------------------------------
 
-    private static TestItem createTestItem(Object... args) {
-        assertThat(args).hasSize(2);
-        final String testExpr = (String) args[0];
-        TestItem testItem = TestItem.fromTestExpr(testExpr);
-        if (args[1] instanceof String) {
-            testItem.withExpectedError((String) args[1]);
-        } else {
-            testItem.withExpectedType(args[1]);
-        }
-        return testItem;
-    }
-
     private CatalogTable prepareTable(boolean hasConstraint) throws Exception {
         return prepareTable("tb1", hasConstraint ? 1 : 0);
     }
@@ -2952,27 +2948,34 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
 
     // ~ Inner Classes ----------------------------------------------------------
 
-    private static class TestItem {
+    static class TestItem {
         private final String testExpr;
-        @Nullable private Object expectedType;
-        @Nullable private String expectedError;
+        @Nullable private final DataType expectedType;
+        @Nullable private final String expectedError;
 
-        private TestItem(String testExpr) {
+        private TestItem(
+                final String testExpr,
+                @Nullable final DataType expectedType,
+                @Nullable final String expectedError) {
             this.testExpr = testExpr;
-        }
-
-        static TestItem fromTestExpr(String testExpr) {
-            return new TestItem(testExpr);
-        }
-
-        TestItem withExpectedType(Object expectedType) {
             this.expectedType = expectedType;
-            return this;
+            this.expectedError = expectedError;
         }
 
-        TestItem withExpectedError(String expectedError) {
-            this.expectedError = expectedError;
-            return this;
+        private TestItem(final String testExpr, @Nullable final DataType expectedType) {
+            this(testExpr, expectedType, null);
+        }
+
+        private TestItem(final String testExpr, @Nullable final String expectedError) {
+            this(testExpr, null, expectedError);
+        }
+
+        static TestItem createTestItem(String testExpr, DataType dataType) {
+            return new TestItem(testExpr, dataType);
+        }
+
+        static TestItem createTestItem(String testExpr, String expectedError) {
+            return new TestItem(testExpr, expectedError);
         }
 
         @Override

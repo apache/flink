@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
@@ -89,6 +90,11 @@ public class TestingSchedulerNG implements SchedulerNG {
         this.handleGlobalFailureConsumer = handleGlobalFailureConsumer;
         this.requestJobResourceRequirementsSupplier = requestJobResourceRequirementsSupplier;
         this.updateJobResourceRequirementsConsumer = updateJobResourceRequirementsConsumer;
+    }
+
+    @Override
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return JobManagerOptions.SchedulerType.Default;
     }
 
     @Override

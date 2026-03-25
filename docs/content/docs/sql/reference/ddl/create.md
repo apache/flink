@@ -857,10 +857,10 @@ If the view already exists, nothing happens.
 
 ## CREATE FUNCTION
 ```sql
-CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
-  [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
-  AS identifier [LANGUAGE JAVA|SCALA|PYTHON] 
-  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
+  [IF NOT EXISTS] [catalog_name.][db_name.]function_name
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
+  [USING [JAR|ARTIFACT] '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
   [WITH (key1=val1, key2=val2, ...)]
 ```
 
@@ -949,6 +949,21 @@ WITH (
     'api-key' = '<YOUR KEY>',
     'model'='gpt-3.5-turbo',
     'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
+
+```sql
+CREATE MODEL triton_text_classifier
+INPUT (input STRING COMMENT 'Input text for classification')
+OUTPUT (output STRING COMMENT 'Classification result')
+COMMENT 'A Triton-based text classification model'
+WITH (
+    'provider' = 'triton',
+    'endpoint' = 'http://localhost:8000/v2/models',
+    'model-name' = 'text-classification',
+    'model-version' = '1',
+    'timeout' = '10000',
+    'max-retries' = '3'
 );
 ```
 

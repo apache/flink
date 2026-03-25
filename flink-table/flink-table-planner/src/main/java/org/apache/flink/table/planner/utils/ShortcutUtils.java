@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -115,6 +116,10 @@ public final class ShortcutUtils {
 
     public static ClassLoader unwrapClassLoader(RelNode relNode) {
         return unwrapContext(relNode).getClassLoader();
+    }
+
+    public static DataTypeFactory unwrapDataTypeFactory(RelBuilder relBuilder) {
+        return unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
     }
 
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(

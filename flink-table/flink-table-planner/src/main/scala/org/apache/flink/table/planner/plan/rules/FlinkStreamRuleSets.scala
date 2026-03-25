@@ -84,7 +84,9 @@ object FlinkStreamRuleSets {
     RemoveUnreachableCoalesceArgumentsRule.PROJECT_INSTANCE,
     RemoveUnreachableCoalesceArgumentsRule.FILTER_INSTANCE,
     RemoveUnreachableCoalesceArgumentsRule.JOIN_INSTANCE,
-    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE
+    RemoveUnreachableCoalesceArgumentsRule.CALC_INSTANCE,
+    SimplifyCoalesceWithEquiJoinConditionRule.PROJECT_INSTANCE,
+    SimplifyCoalesceWithEquiJoinConditionRule.CALC_INSTANCE
   )
 
   /** RuleSet to simplify predicate expressions in filters and joins */
@@ -133,7 +135,9 @@ object FlinkStreamRuleSets {
           // rewrite constant table function scan to correlate
           JoinTableFunctionScanToCorrelateRule.INSTANCE,
           // Wrap arguments for JSON aggregate functions
-          WrapJsonAggFunctionArgumentsRule.INSTANCE
+          WrapJsonAggFunctionArgumentsRule.INSTANCE,
+          // prune COUNT(*) input to project a constant before aggregation
+          PruneCountStarInputRule.INSTANCE
         )
     ).asJava)
 
@@ -191,7 +195,11 @@ object FlinkStreamRuleSets {
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
-    PruneEmptyRules.JOIN_RIGHT_INSTANCE
+    PruneEmptyRules.JOIN_RIGHT_INSTANCE,
+    // Replaces global Aggregate over empty Values with default literal values
+    // (e.g. COUNT(*)=0). Handles the plan-time case where the planner can
+    // statically determine the input is empty.
+    CoreRules.AGGREGATE_VALUES
   )
 
   /** RuleSet about project */

@@ -68,6 +68,8 @@ public final class Documentation {
                 "common_high_availability_zk";
         public static final String COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE =
                 "common_high_availability_jrs";
+        public static final String COMMON_HIGH_AVAILABILITY_APPLICATION_RESULT_STORE =
+                "common_high_availability_ars";
         public static final String COMMON_MEMORY = "common_memory";
         public static final String COMMON_MISCELLANEOUS = "common_miscellaneous";
 
@@ -120,6 +122,10 @@ public final class Documentation {
         public static final String MODEL_OPENAI_CHAT = "model_openai_chat";
 
         public static final String MODEL_OPENAI_EMBEDDING = "model_openai_embedding";
+
+        public static final String MODEL_TRITON_COMMON = "model_triton_common";
+
+        public static final String MODEL_TRITON_ADVANCED = "model_triton_advanced";
 
         private Sections() {}
     }

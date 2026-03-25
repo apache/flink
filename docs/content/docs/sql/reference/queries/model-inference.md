@@ -131,4 +131,11 @@ The function will throw an exception in the following cases:
 - [Model Creation]({{< ref "docs/sql/reference/ddl/create#create-model" >}})
 - [Model Alteration]({{< ref "docs/sql/reference/ddl/alter#alter-model" >}})
 
+### Supported Model Providers
+
+Flink currently supports the following model providers:
+
+- **OpenAI**: For calling OpenAI API services. See [OpenAI Model Documentation]({{< ref "docs/connectors/models/openai" >}}) for details.
+- **Triton**: For calling NVIDIA Triton Inference Server. See [Triton Model Documentation]({{< ref "docs/connectors/models/triton" >}}) for details.
+
 {{< top >}} 

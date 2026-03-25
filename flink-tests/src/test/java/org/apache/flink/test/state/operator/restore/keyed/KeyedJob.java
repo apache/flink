@@ -43,11 +43,11 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ParameterTool;
 
-import org.junit.Assert;
-
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Savepoint generator to create the savepoint used by the {@link
@@ -206,15 +206,15 @@ public class KeyedJob {
                     while (input.hasNext() && restored.hasNext()) {
                         Tuple2<Integer, Integer> value = input.next();
                         Integer rValue = restored.next();
-                        Assert.assertEquals(rValue, value.f1);
+                        assertThat(value.f1).isEqualTo(rValue);
                     }
-                    Assert.assertEquals(restored.hasNext(), input.hasNext());
+                    assertThat(restored.hasNext()).isEqualTo(input.hasNext());
             }
         }
 
         @Override
         public void close() {
-            Assert.assertTrue("Apply was never called.", applyCalled);
+            assertThat(applyCalled).as("Apply was never called.").isTrue();
         }
     }
 
@@ -248,17 +248,18 @@ public class KeyedJob {
                     break;
                 case MIGRATE:
                 case RESTORE:
-                    Assert.assertEquals(
-                            "Failed for "
-                                    + valueToStore
-                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                            1,
-                            state.size());
-                    String value = state.get(0);
-                    Assert.assertEquals(
-                            valueToStore
-                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
-                            value);
+                    assertThat(state)
+                            .as(
+                                    "Failed for "
+                                            + valueToStore
+                                            + getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask())
+                            .containsExactly(
+                                    valueToStore
+                                            + getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask());
             }
         }
     }

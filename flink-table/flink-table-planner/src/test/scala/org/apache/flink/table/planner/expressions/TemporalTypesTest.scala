@@ -610,7 +610,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testDateAndTime(): Unit = {
     testSqlApi("DATE '2018-03-14'", "2018-03-14")
-    testSqlApi("TIME '19:01:02.123'", "19:01:02")
+    testSqlApi("TIME '19:01:02.123'", "19:01:02.123")
 
     // DATE & TIME
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")
@@ -1282,24 +1282,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       toTimestampLtz(253402300800000L, 3),
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
       "NULL")
-
-    // invalid precision
-    testExpectedAllApisException(
-      toTimestampLtz(12, 1),
-      "TO_TIMESTAMP_LTZ(12, 1)",
-      "The precision value '1' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
-        " the supported value is '0' for second or '3' for millisecond.",
-      classOf[TableException]
-    )
-
-    // invalid precision
-    testExpectedAllApisException(
-      toTimestampLtz(1000000000, 9),
-      "TO_TIMESTAMP_LTZ(1000000000, 9)",
-      "The precision value '9' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
-        " the supported value is '0' for second or '3' for millisecond.",
-      classOf[TableException]
-    )
 
     // invalid type for the first input
     testExpectedSqlException(

@@ -142,7 +142,7 @@ public class DateTimeUtils {
                     .optionalEnd()
                     .toFormatter();
 
-    private static final Integer DEFAULT_PRECISION = 3;
+    private static final int DEFAULT_PRECISION = 3;
 
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
@@ -327,76 +327,76 @@ public class DateTimeUtils {
     // Numeric -> Timestamp conversion
     // --------------------------------------------------------------------------------------------
 
-    public static TimestampData toTimestampData(long v, int precision) {
-        switch (precision) {
-            case 0:
-                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
-                    return timestampDataFromEpochMills(v * MILLIS_PER_SECOND);
-                } else {
-                    return null;
-                }
-            case 3:
-                return timestampDataFromEpochMills(v);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
-        }
+    /**
+     * Converts a numeric epoch value to {@link TimestampData}. The precision specifies the unit of
+     * the epoch value: 0 for seconds, 3 for milliseconds, 6 for microseconds, 9 for nanoseconds,
+     * and any value in between. Returns {@code null} if the value is out of the valid timestamp
+     * range.
+     */
+    public static TimestampData toTimestampData(long epoch, int precision) {
+        return epochToTimestampData(epoch, precision);
     }
 
-    public static TimestampData toTimestampData(double v, int precision) {
-        switch (precision) {
-            case 0:
-                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
-                    return timestampDataFromEpochMills((long) (v * MILLIS_PER_SECOND));
-                } else {
-                    return null;
-                }
-            case 3:
-                return timestampDataFromEpochMills((long) v);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
+    /**
+     * See {@link #toTimestampData(long, int)}. The double value is first converted to nanoseconds
+     * to preserve fractional parts, then processed at nanosecond precision. Returns {@code null} if
+     * the value is out of the valid timestamp range.
+     */
+    public static TimestampData toTimestampData(double epoch, int precision) {
+        double factor = Math.pow(10, precision);
+        double epochSeconds = epoch / factor;
+        if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
+            return null;
         }
+        double nanoFactor = Math.pow(10, 9 - precision);
+        long epochNanos = (long) (epoch * nanoFactor);
+        return epochToTimestampData(epochNanos, 9);
     }
 
-    public static TimestampData toTimestampData(DecimalData v, int precision) {
-        long epochMills;
-        switch (precision) {
-            case 0:
-                epochMills =
-                        v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue()
-                                * MILLIS_PER_SECOND;
-                return timestampDataFromEpochMills(epochMills);
-            case 3:
-                epochMills = toMillis(v);
-                return timestampDataFromEpochMills(epochMills);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
-        }
+    /** See {@link #toTimestampData(long, int)}. The decimal value is truncated to a long. */
+    public static TimestampData toTimestampData(DecimalData epoch, int precision) {
+        long epochValue = epoch.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
+        return epochToTimestampData(epochValue, precision);
     }
 
-    private static TimestampData timestampDataFromEpochMills(long epochMills) {
-        if (MIN_EPOCH_MILLS <= epochMills && epochMills <= MAX_EPOCH_MILLS) {
-            return TimestampData.fromEpochMillis(epochMills);
+    private static TimestampData epochToTimestampData(long epoch, int precision) {
+        long factor = (long) Math.pow(10, precision);
+        long epochSeconds = Math.floorDiv(epoch, factor);
+
+        if (epochSeconds < MIN_EPOCH_SECONDS || epochSeconds > MAX_EPOCH_SECONDS) {
+            return null;
         }
-        return null;
+
+        long remainder = Math.floorMod(epoch, factor);
+        long nanoMultiplier = (long) Math.pow(10, 9 - precision);
+        long nanoAdjustment = remainder * nanoMultiplier;
+
+        return TimestampData.fromInstant(Instant.ofEpochSecond(epochSeconds, nanoAdjustment));
     }
 
-    private static long toMillis(DecimalData v) {
-        return v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
+    /**
+     * Converts an {@link Instant} to an epoch value at the given precision. This is the inverse of
+     * {@link #toTimestampData(long, int)}.
+     */
+    public static long toEpochValue(Instant instant, int precision) {
+        long factor = (long) Math.pow(10, precision);
+        long nanoDivisor = (long) Math.pow(10, 9 - precision);
+        return (instant.getEpochSecond() * factor) + (instant.getNano() / nanoDivisor);
+    }
+
+    /**
+     * Infers fractional second precision from a format pattern by counting trailing 'S' characters.
+     * Returns at least {@link #DEFAULT_PRECISION} (3) and at most 9.
+     */
+    public static int precisionFromFormat(String format) {
+        int sCount = 0;
+        for (int i = format.length() - 1; i >= 0; i--) {
+            if (format.charAt(i) != 'S') {
+                break;
+            }
+            sCount++;
+        }
+        return Math.max(Math.min(sCount, 9), DEFAULT_PRECISION);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -423,7 +423,18 @@ public class DateTimeUtils {
                         .toInstant());
     }
 
+    /**
+     * Parses a timestamp string with the given format, truncating to millisecond precision.
+     * Precision is hardcoded to match signature of TO_TIMESTAMP.
+     *
+     * @see <a href="https://issues.apache.org/jira/browse/FLINK-14925">FLINK-14925</a>
+     */
     public static TimestampData parseTimestampData(String dateStr, String format) {
+        return parseTimestampData(dateStr, format, 3);
+    }
+
+    /** Parses a timestamp string with the given format, truncating to the specified precision. */
+    public static TimestampData parseTimestampData(String dateStr, String format, int precision) {
         DateTimeFormatter formatter;
         try {
             formatter = DATETIME_FORMATTER_CACHE.get(format);
@@ -432,9 +443,7 @@ public class DateTimeUtils {
         }
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
-            // Precision is hardcoded to match signature of TO_TIMESTAMP
-            //  https://issues.apache.org/jira/browse/FLINK-14925
-            LocalDateTime ldt = fromTemporalAccessor(accessor, 3);
+            LocalDateTime ldt = fromTemporalAccessor(accessor, precision);
             return TimestampData.fromLocalDateTime(ldt);
         } catch (DateTimeParseException e) {
             // fall back to support cases like '1999-9-10 05:20:10' or '1999-9-10'
@@ -1696,6 +1705,10 @@ public class DateTimeUtils {
                         (int) zeroLastDigits(ts.getNanoOfMillisecond(), 9 - precision));
             }
         }
+    }
+
+    public static int truncate(int time, int precision) {
+        return (int) zeroLastDigits(time, 3 - precision);
     }
 
     private static long zeroLastDigits(long l, int n) {

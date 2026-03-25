@@ -142,16 +142,50 @@ public class DataGeneratorSource<OUT>
                 rateLimiterStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
     }
 
+    /**
+     * Instantiates a new {@code DataGeneratorSource}.
+     *
+     * @param generatorFunction The {@code GeneratorFunction} function.
+     * @param numberSource The number source.
+     * @param rateLimiterStrategy The strategy for rate limiting.
+     * @param typeInfo The type of the produced data points.
+     */
+    public DataGeneratorSource(
+            GeneratorFunction<Long, OUT> generatorFunction,
+            NumberSequenceSource numberSource,
+            RateLimiterStrategy rateLimiterStrategy,
+            TypeInformation<OUT> typeInfo) {
+        this(
+                new GeneratorSourceReaderFactory<>(generatorFunction, rateLimiterStrategy),
+                generatorFunction,
+                typeInfo,
+                numberSource);
+        ClosureCleaner.clean(
+                rateLimiterStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    }
+
     DataGeneratorSource(
             SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory,
             GeneratorFunction<Long, OUT> generatorFunction,
             long count,
             TypeInformation<OUT> typeInfo) {
+        this(
+                sourceReaderFactory,
+                generatorFunction,
+                typeInfo,
+                // a noop source (0 elements) is used in Table tests
+                new NumberSequenceSource(0, count > 0 ? count - 1 : 0));
+    }
+
+    DataGeneratorSource(
+            SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory,
+            GeneratorFunction<Long, OUT> generatorFunction,
+            TypeInformation<OUT> typeInfo,
+            NumberSequenceSource numberSource) {
         this.sourceReaderFactory = checkNotNull(sourceReaderFactory);
         this.generatorFunction = checkNotNull(generatorFunction);
         this.typeInfo = checkNotNull(typeInfo);
-        long to = count > 0 ? count - 1 : 0; // a noop source (0 elements) is used in Table tests
-        this.numberSource = new NumberSequenceSource(0, to);
+        this.numberSource = numberSource;
         ClosureCleaner.clean(
                 generatorFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         ClosureCleaner.clean(

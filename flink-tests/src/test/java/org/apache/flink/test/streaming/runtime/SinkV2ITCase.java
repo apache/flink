@@ -60,8 +60,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.Serializable;
@@ -83,9 +81,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink2.Sink} run time implementation.
  */
-public class SinkV2ITCase extends AbstractTestBase {
-    private static final Logger LOG = LoggerFactory.getLogger(SinkV2ITCase.class);
-
+class SinkV2ITCase extends AbstractTestBase {
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,
@@ -106,10 +102,10 @@ public class SinkV2ITCase extends AbstractTestBase {
                     .collect(Collectors.toList());
 
     @RegisterExtension
-    static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
+    private static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
 
     @Test
-    public void writerAndCommitterExecuteInStreamingMode() throws Exception {
+    void writerAndCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
@@ -131,7 +127,7 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndPrecommitToplogyAndCommitterExecuteInStreamingMode() throws Exception {
+    void writerAndPrecommitToplogyAndCommitterExecuteInStreamingMode() throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
@@ -162,7 +158,7 @@ public class SinkV2ITCase extends AbstractTestBase {
 
     @ParameterizedTest
     @CsvSource({"1, 2", "2, 1", "1, 1"})
-    public void writerAndCommitterExecuteInStreamingModeWithScaling(
+    void writerAndCommitterExecuteInStreamingModeWithScaling(
             int initialParallelism,
             int scaledParallelism,
             @TempDir File checkpointDir,
@@ -204,7 +200,7 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndCommitterExecuteInBatchMode() throws Exception {
+    void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
@@ -231,7 +227,7 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @Test
-    public void writerAndPrecommitToplogyAndCommitterExecuteInBatchMode() throws Exception {
+    void writerAndPrecommitToplogyAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
         SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
                 SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());

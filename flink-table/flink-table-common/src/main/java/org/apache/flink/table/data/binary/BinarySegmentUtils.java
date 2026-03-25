@@ -29,6 +29,7 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.BinaryVariant;
 
 import java.io.IOException;
@@ -1189,5 +1190,13 @@ public final class BinarySegmentUtils {
         buffer.get(value, 0, valueLen);
 
         return new BinaryVariant(value, meta);
+    }
+
+    /** Gets an instance of {@link Bitmap} from underlying {@link MemorySegment}. */
+    public static Bitmap readBitmap(MemorySegment[] segments, int baseOffset, long offsetAndSize) {
+        final int size = ((int) offsetAndSize);
+        int offset = (int) (offsetAndSize >> 32);
+        byte[] bytes = copyToBytes(segments, offset + baseOffset, size);
+        return Bitmap.fromBytes(bytes);
     }
 }

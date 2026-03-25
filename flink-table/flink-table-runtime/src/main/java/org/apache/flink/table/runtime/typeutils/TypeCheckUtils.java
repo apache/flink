@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BITMAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
@@ -37,6 +38,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
@@ -140,6 +142,10 @@ public class TypeCheckUtils {
         return type.getTypeRoot() == VARIANT;
     }
 
+    private static boolean isBitmapType(LogicalType type) {
+        return type.getTypeRoot() == BITMAP;
+    }
+
     public static boolean isComparable(LogicalType type) {
         return !isRaw(type)
                 && !isMap(type)
@@ -147,7 +153,8 @@ public class TypeCheckUtils {
                 && !isRow(type)
                 && !isArray(type)
                 && !isStructuredType(type)
-                && !isVariantType(type);
+                && !isVariantType(type)
+                && !isBitmapType(type);
     }
 
     public static boolean isMutable(LogicalType type) {
@@ -161,6 +168,7 @@ public class TypeCheckUtils {
             case ROW:
             case STRUCTURED_TYPE:
             case RAW:
+            case BITMAP:
                 return true;
             case TIMESTAMP_WITH_TIME_ZONE:
                 throw new UnsupportedOperationException("Unsupported type: " + type);
@@ -195,5 +203,9 @@ public class TypeCheckUtils {
             default:
                 return true;
         }
+    }
+
+    public static boolean isTime(LogicalType type) {
+        return type.getTypeRoot() == TIME_WITHOUT_TIME_ZONE;
     }
 }

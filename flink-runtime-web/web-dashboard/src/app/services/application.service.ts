@@ -28,6 +28,7 @@ import {
   JobStatus,
   TaskStatus
 } from '@flink-runtime-web/interfaces';
+import { ApplicationExceptions } from '@flink-runtime-web/interfaces/application-exception';
 
 import { ConfigService } from './config.service';
 
@@ -90,6 +91,12 @@ export class ApplicationService {
         return data;
       }),
       catchError(() => EMPTY)
+    );
+  }
+
+  public loadExceptions(applicationId: string): Observable<ApplicationExceptions> {
+    return this.httpClient.get<ApplicationExceptions>(
+      `${this.configService.BASE_URL}/applications/${applicationId}/exceptions`
     );
   }
 }

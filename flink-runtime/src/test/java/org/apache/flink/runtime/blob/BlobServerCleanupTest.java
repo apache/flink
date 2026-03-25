@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -57,6 +58,7 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForApplication;
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForJob;
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -292,6 +294,74 @@ class BlobServerCleanupTest {
                 blobStore);
     }
 
+    @Test
+    void testGlobalCleanupForApplication() throws Exception {
+        final Set<ApplicationID> actuallyDeletedApplicationData = new HashSet<>();
+        final ApplicationID applicationId = new ApplicationID();
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllForApplicationFunction(
+                                applicationDataToDelete -> {
+                                    actuallyDeletedApplicationData.add(applicationDataToDelete);
+                                    return true;
+                                })
+                        .createTestingBlobStore();
+        testSuccessfulCleanupForApplication(
+                applicationId,
+                (testInstance, applicationIdForCleanup, executor) ->
+                        testInstance.globalCleanupAsync(applicationIdForCleanup, executor).join(),
+                blobStore);
+
+        assertThat(actuallyDeletedApplicationData).containsExactlyInAnyOrder(applicationId);
+    }
+
+    @Test
+    void testGlobalCleanupApplicationUnsuccessfulInBlobStore() throws Exception {
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllForApplicationFunction(applicationDataToDelete -> false)
+                        .createTestingBlobStore();
+
+        testFailedCleanupForApplication(
+                new ApplicationID(),
+                (testInstance, applicationId, executor) ->
+                        assertThatThrownBy(
+                                        () ->
+                                                testInstance
+                                                        .globalCleanupAsync(
+                                                                new ApplicationID(), executor)
+                                                        .get())
+                                .isInstanceOf(ExecutionException.class)
+                                .hasCauseInstanceOf(IOException.class),
+                blobStore);
+    }
+
+    @Test
+    void testGlobalCleanupApplicationFailureInBlobStore() throws Exception {
+        final RuntimeException actualException =
+                new RuntimeException("Expected RuntimeException for application");
+        final TestingBlobStore blobStore =
+                createTestingBlobStoreBuilder()
+                        .setDeleteAllForApplicationFunction(
+                                applicationDataToDelete -> {
+                                    throw actualException;
+                                })
+                        .createTestingBlobStore();
+
+        testFailedCleanupForApplication(
+                new ApplicationID(),
+                (testInstance, applicationId, executor) ->
+                        assertThatThrownBy(
+                                        () ->
+                                                testInstance
+                                                        .globalCleanupAsync(
+                                                                new ApplicationID(), executor)
+                                                        .get())
+                                .isInstanceOf(ExecutionException.class)
+                                .hasCause(actualException),
+                blobStore);
+    }
+
     private TestingBlobStoreBuilder createTestingBlobStoreBuilder() {
         return new TestingBlobStoreBuilder()
                 .setDeleteFunction(
@@ -357,6 +427,64 @@ class BlobServerCleanupTest {
             checkFilesExist(
                     otherJobId,
                     Arrays.asList(otherTransientDataBlobKey, otherPermanentDataBlobKey),
+                    testInstance,
+                    true);
+        } finally {
+            assertThat(executorService.shutdownNow()).isEmpty();
+        }
+    }
+
+    private void testFailedCleanupForApplication(
+            ApplicationID applicationId,
+            TriConsumerWithException<BlobServer, ApplicationID, Executor, ? extends Exception>
+                    callback,
+            BlobStore blobStore)
+            throws Exception {
+        testCleanupForApplication(applicationId, callback, blobStore, 1);
+    }
+
+    private void testSuccessfulCleanupForApplication(
+            ApplicationID applicationId,
+            TriConsumerWithException<BlobServer, ApplicationID, Executor, ? extends Exception>
+                    callback,
+            BlobStore blobStore)
+            throws Exception {
+        testCleanupForApplication(applicationId, callback, blobStore, 0);
+    }
+
+    private void testCleanupForApplication(
+            ApplicationID applicationId,
+            TriConsumerWithException<BlobServer, ApplicationID, Executor, ? extends Exception>
+                    callback,
+            BlobStore blobStore,
+            int expectedFileCountAfterCleanup)
+            throws Exception {
+        final ApplicationID otherApplicationId = new ApplicationID();
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        try (BlobServer testInstance =
+                createTestInstance(
+                        temporaryFolder.getAbsolutePath(), Integer.MAX_VALUE, blobStore)) {
+            testInstance.start();
+
+            final PermanentBlobKey blobKey =
+                    testInstance.putPermanent(applicationId, createRandomData());
+            final PermanentBlobKey otherBlobKey =
+                    testInstance.putPermanent(otherApplicationId, createRandomData());
+
+            checkFilesExist(applicationId, Collections.singletonList(blobKey), testInstance, true);
+            checkFilesExist(
+                    otherApplicationId,
+                    Collections.singletonList(otherBlobKey),
+                    testInstance,
+                    true);
+
+            callback.accept(testInstance, applicationId, executorService);
+
+            checkFileCountForApplication(
+                    expectedFileCountAfterCleanup, applicationId, testInstance);
+            checkFilesExist(
+                    otherApplicationId,
+                    Collections.singletonList(otherBlobKey),
                     testInstance,
                     true);
         } finally {

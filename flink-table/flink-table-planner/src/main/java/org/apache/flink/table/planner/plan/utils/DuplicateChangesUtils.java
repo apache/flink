@@ -53,7 +53,7 @@ public class DuplicateChangesUtils {
      *       | origin_1    | origin_2    | merge result  |
      *       +-------------+-------------+---------------+
      *       | NONE        |   *         |     *         |
-     *       | `ANY`       |  NONE       |   `ANY`       |
+     *       |   *         |  NONE       |     *         |
      *       | DISALLOW    |   *         |   DISALLOW    |
      *       |   *         |  DISALLOW   |   DISALLOW    |
      *       | ALLOW       | ALLOW       |   ALLOW       |

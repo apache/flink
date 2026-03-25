@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.api.TableException;
@@ -36,7 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoinOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -44,6 +45,8 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** {@link BatchExecNode} for adaptive join. */
 public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
@@ -87,6 +90,14 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
         this.leftIsBuild = leftIsBuild;
         this.tryDistinctBuildRow = tryDistinctBuildRow;
         this.description = description;
+        checkState(
+                originalJoin == OperatorType.ShuffleHashJoin
+                        || originalJoin == OperatorType.SortMergeJoin,
+                String.format(
+                        "Adaptive join "
+                                + "currently only supports adaptive optimization for ShuffleHashJoin and "
+                                + "SortMergeJoin, not including %s.",
+                        originalJoin.toString()));
         this.originalJoin = originalJoin;
     }
 
@@ -113,11 +124,10 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
                         leftType,
                         rightType);
 
-        AdaptiveJoinOperatorGenerator adaptiveJoin =
+        AdaptiveJoinOperatorGenerator adaptiveJoinGenerator =
                 new AdaptiveJoinOperatorGenerator(
                         joinSpec.getLeftKeys(),
                         joinSpec.getRightKeys(),
-                        joinSpec.getJoinType(),
                         joinSpec.getFilterNulls(),
                         leftType,
                         rightType,
@@ -127,16 +137,19 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
                         estimatedLeftRowCount,
                         estimatedRightRowCount,
                         tryDistinctBuildRow,
-                        managedMemory,
-                        leftIsBuild,
-                        originalJoin);
+                        managedMemory);
 
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
                 rightInputTransform,
                 createTransformationName(config),
                 createTransformationDescription(config),
-                getAdaptiveJoinOperatorFactory(adaptiveJoin),
+                getAdaptiveJoinOperatorFactory(
+                        adaptiveJoinGenerator,
+                        config.get(CoreOptions.CHECK_LEAKED_CLASSLOADER),
+                        joinSpec.getJoinType(),
+                        originalJoin,
+                        leftIsBuild),
                 InternalTypeInfo.of(getOutputType()),
                 // Given that the probe side might be decided at runtime, we choose the larger
                 // parallelism here.
@@ -146,10 +159,20 @@ public class BatchExecAdaptiveJoin extends ExecNodeBase<RowData>
     }
 
     private StreamOperatorFactory<RowData> getAdaptiveJoinOperatorFactory(
-            AdaptiveJoin adaptiveJoin) {
+            AdaptiveJoinOperatorGenerator adaptiveJoinGenerator,
+            boolean checkClassLoaderLeak,
+            FlinkJoinType joinType,
+            OperatorType originalJoin,
+            boolean leftIsBuild) {
         try {
-            byte[] adaptiveJoinSerialized = InstantiationUtil.serializeObject(adaptiveJoin);
-            return new AdaptiveJoinOperatorFactory<>(adaptiveJoinSerialized);
+            byte[] adaptiveJoinGeneratorSerialized =
+                    InstantiationUtil.serializeObject(adaptiveJoinGenerator);
+            return new AdaptiveJoinOperatorFactory<>(
+                    adaptiveJoinGeneratorSerialized,
+                    joinType,
+                    originalJoin == OperatorType.SortMergeJoin,
+                    leftIsBuild,
+                    checkClassLoaderLeak);
         } catch (IOException e) {
             throw new TableException("The adaptive join operator failed to serialize.", e);
         }

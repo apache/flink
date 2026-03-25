@@ -29,9 +29,10 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
@@ -47,7 +48,7 @@ import java.util.concurrent.CompletableFuture;
 public class JobsOverviewHandler
         extends AbstractRestHandler<
                 RestfulGateway, EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters>
-        implements OnlyExecutionGraphJsonArchivist {
+        implements JsonArchivist {
 
     public JobsOverviewHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -66,11 +67,12 @@ public class JobsOverviewHandler
     }
 
     @Override
-    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+    public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
+        final AccessExecutionGraph graph = executionGraphInfo.getArchivedExecutionGraph();
         ResponseBody json =
                 new MultipleJobsDetails(
-                        Collections.singleton(JobDetails.createDetailsForJob(graph)));
+                        Collections.singleton(JobDetails.createDetailsForJob(executionGraphInfo)));
         String path =
                 getMessageHeaders()
                         .getTargetRestEndpointURL()

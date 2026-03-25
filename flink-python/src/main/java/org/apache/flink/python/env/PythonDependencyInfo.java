@@ -39,6 +39,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTION_MODE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES_DISTRIBUTED_CACHE_INFO;
 import static org.apache.flink.python.PythonOptions.PYTHON_PATH;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO;
+import static org.apache.flink.python.util.PythonDependencyUtils.getArchiveTargetDirName;
 
 /** PythonDependencyInfo contains the information of third-party dependencies. */
 @Internal
@@ -202,5 +203,33 @@ public final class PythonDependencyInfo {
                 pythonExec,
                 config.get(PYTHON_EXECUTION_MODE),
                 config.get(PYTHON_PATH));
+    }
+
+    /**
+     * Checks whether the configured python executable path is located within one of the shipped
+     * archives.
+     *
+     * <p>This is determined by comparing the first path component of the python executable (the
+     * base directory) against the target directory names of all registered archives.
+     *
+     * @return {@code true} if the python executable's base directory matches an archive target
+     *     directory
+     */
+    public boolean isPythonExecFromArchives() {
+        if (archives.isEmpty()) {
+            return false;
+        }
+        int index = pythonExec.indexOf(File.separator);
+        if (index == -1) {
+            index = pythonExec.length();
+        }
+        String pythonExecBaseDir = pythonExec.substring(0, index);
+        for (Map.Entry<String, String> entry : archives.entrySet()) {
+            String targetDirName = getArchiveTargetDirName(entry.getValue());
+            if (targetDirName.equals(pythonExecBaseDir)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

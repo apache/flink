@@ -229,6 +229,40 @@ public class AbstractApplicationTest {
                 listener.getTargetStates());
     }
 
+    @Test
+    void testInitialExceptionHistory() {
+        AbstractApplication application = new MockApplication(new ApplicationID());
+        assertTrue(application.getExceptionHistory().isEmpty());
+    }
+
+    @Test
+    void testAddExceptionHistoryEntryWithoutJobId() {
+        AbstractApplication application = new MockApplication(new ApplicationID());
+        Throwable exception = new RuntimeException("Test exception");
+
+        application.addExceptionHistoryEntry(exception, null);
+
+        assertEquals(1, application.getExceptionHistory().size());
+        ApplicationExceptionHistoryEntry entry = application.getExceptionHistory().get(0);
+        assertTrue(entry.getExceptionAsString().contains("Test exception"));
+        assertFalse(entry.getJobId().isPresent());
+    }
+
+    @Test
+    void testAddExceptionHistoryEntryWithJobId() {
+        AbstractApplication application = new MockApplication(new ApplicationID());
+        JobID jobId = JobID.generate();
+        Throwable exception = new RuntimeException("Test exception with job");
+
+        application.addExceptionHistoryEntry(exception, jobId);
+
+        assertEquals(1, application.getExceptionHistory().size());
+        ApplicationExceptionHistoryEntry entry = application.getExceptionHistory().get(0);
+        assertTrue(entry.getExceptionAsString().contains("Test exception with job"));
+        assertTrue(entry.getJobId().isPresent());
+        assertEquals(jobId, entry.getJobId().get());
+    }
+
     private static class MockApplication extends AbstractApplication {
         public MockApplication(ApplicationID applicationId) {
             super(applicationId);

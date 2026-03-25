@@ -25,7 +25,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 public enum SqlResourceType {
     FILE("FILE"),
     JAR("JAR"),
-    ARCHIVE("ARCHIVE");
+    ARCHIVE("ARCHIVE"),
+    ARTIFACT("ARTIFACT");
 
     private final String digest;
 
