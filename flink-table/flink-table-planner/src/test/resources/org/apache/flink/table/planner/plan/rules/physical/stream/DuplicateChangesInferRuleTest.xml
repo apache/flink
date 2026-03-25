@@ -540,9 +540,9 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
 Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[ALLOW])
-      +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
-         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
 ]]>
     </Resource>
   </TestCase>
