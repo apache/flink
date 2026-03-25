@@ -105,126 +105,49 @@
     "description" : "Exchange(distribution=[hash[b1, b2]])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-delta-join_1",
+    "type" : "stream-exec-delta-join_2",
     "configuration" : {
       "table.exec.async-lookup.buffer-capacity" : "100",
       "table.exec.async-lookup.timeout" : "3 min"
     },
     "joinType" : "INNER",
     "leftJoinKeys" : [ 1, 2 ],
-    "lookupRightTableJoinSpec" : {
-      "lookupTable" : {
-        "lookupTableSource" : {
-          "table" : {
-            "identifier" : "`default_catalog`.`default_database`.`src2`",
-            "resolvedTable" : {
-              "schema" : {
-                "columns" : [ {
-                  "name" : "b0",
-                  "dataType" : "INT NOT NULL"
-                }, {
-                  "name" : "b2",
-                  "dataType" : "VARCHAR(2147483647)"
-                }, {
-                  "name" : "b1",
-                  "dataType" : "DOUBLE"
-                } ],
-                "indexes" : [ {
-                  "name" : "INDEX_b2",
-                  "columns" : [ "b2" ]
-                } ]
-              },
-              "comment" : "test comment",
-              "options" : {
-                "async" : "true",
-                "bounded" : "false",
-                "connector" : "values",
-                "failing-source" : "true",
-                "sink-changelog-mode-enforced" : "I,UA,D",
-                "sink-insert-only" : "false"
-              }
-            }
-          }
-        },
-        "outputType" : "ROW<`b0` INT NOT NULL, `b2` VARCHAR(2147483647), `b1` DOUBLE> NOT NULL"
-      },
-      "lookupKeys" : {
-        "1" : {
-          "type" : "FieldRef",
-          "index" : 2
-        },
-        "2" : {
-          "type" : "FieldRef",
-          "index" : 1
-        }
-      },
-      "remainingCondition" : {
-        "kind" : "CALL",
-        "syntax" : "BINARY",
-        "internalName" : "$>$1",
-        "operands" : [ {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 4,
-          "type" : "INT NOT NULL"
-        }, {
-          "kind" : "INPUT_REF",
-          "inputIndex" : 0,
-          "type" : "INT NOT NULL"
-        } ],
-        "type" : "BOOLEAN NOT NULL"
-      }
-    },
     "rightJoinKeys" : [ 2, 1 ],
-    "lookupLeftTableJoinSpec" : {
-      "lookupTable" : {
-        "lookupTableSource" : {
-          "table" : {
-            "identifier" : "`default_catalog`.`default_database`.`src1`",
-            "resolvedTable" : {
-              "schema" : {
-                "columns" : [ {
-                  "name" : "a0",
-                  "dataType" : "INT NOT NULL"
-                }, {
-                  "name" : "a1",
-                  "dataType" : "DOUBLE NOT NULL"
-                }, {
-                  "name" : "a2",
-                  "dataType" : "VARCHAR(2147483647)"
-                }, {
-                  "name" : "a3",
-                  "dataType" : "INT"
-                } ],
-                "indexes" : [ {
-                  "name" : "INDEX_a1_a2",
-                  "columns" : [ "a1", "a2" ]
-                } ]
-              },
-              "comment" : "test comment",
-              "options" : {
-                "async" : "true",
-                "bounded" : "false",
-                "connector" : "values",
-                "failing-source" : "true",
-                "sink-changelog-mode-enforced" : "I,UA,D",
-                "sink-insert-only" : "false"
-              }
-            }
-          }
-        },
-        "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `a3` INT> NOT NULL"
-      },
-      "lookupKeys" : {
-        "1" : {
-          "type" : "FieldRef",
-          "index" : 2
-        },
-        "2" : {
-          "type" : "FieldRef",
-          "index" : 1
-        }
-      },
-      "remainingCondition" : {
+    "lookupRightTableJoinSpec" : null,
+    "lookupLeftTableJoinSpec" : null,
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 6,
+          "type" : "DOUBLE"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
         "kind" : "CALL",
         "syntax" : "BINARY",
         "internalName" : "$>$1",
@@ -238,6 +161,298 @@
           "type" : "INT NOT NULL"
         } ],
         "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN"
+    },
+    "leftAllBinaryInputOrdinals" : [ 0 ],
+    "rightAllBinaryInputOrdinals" : [ 0 ],
+    "left2RightLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 0 ],
+        "lookupTableBinaryInputOrdinal" : 1,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`src2`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "b0",
+                      "dataType" : "INT NOT NULL"
+                    }, {
+                      "name" : "b2",
+                      "dataType" : "VARCHAR(2147483647)"
+                    }, {
+                      "name" : "b1",
+                      "dataType" : "DOUBLE"
+                    } ],
+                    "indexes" : [ {
+                      "name" : "INDEX_b2",
+                      "columns" : [ "b2" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "connector" : "values",
+                    "failing-source" : "true",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              }
+            },
+            "outputType" : "ROW<`b0` INT NOT NULL, `b2` VARCHAR(2147483647), `b1` DOUBLE> NOT NULL"
+          },
+          "lookupKeys" : {
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 2
+            },
+            "2" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 4,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "right2LeftLookupChain" : {
+      "nodes" : [ {
+        "inputTableBinaryInputOrdinals" : [ 1 ],
+        "lookupTableBinaryInputOrdinal" : 0,
+        "deltaJoinSpec" : {
+          "lookupTable" : {
+            "lookupTableSource" : {
+              "table" : {
+                "identifier" : "`default_catalog`.`default_database`.`src1`",
+                "resolvedTable" : {
+                  "schema" : {
+                    "columns" : [ {
+                      "name" : "a0",
+                      "dataType" : "INT NOT NULL"
+                    }, {
+                      "name" : "a1",
+                      "dataType" : "DOUBLE NOT NULL"
+                    }, {
+                      "name" : "a2",
+                      "dataType" : "VARCHAR(2147483647)"
+                    }, {
+                      "name" : "a3",
+                      "dataType" : "INT"
+                    } ],
+                    "indexes" : [ {
+                      "name" : "INDEX_a1_a2",
+                      "columns" : [ "a1", "a2" ]
+                    } ]
+                  },
+                  "comment" : "test comment",
+                  "options" : {
+                    "async" : "true",
+                    "bounded" : "false",
+                    "connector" : "values",
+                    "failing-source" : "true",
+                    "sink-changelog-mode-enforced" : "I,UA,D",
+                    "sink-insert-only" : "false"
+                  }
+                }
+              }
+            },
+            "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `a3` INT> NOT NULL"
+          },
+          "lookupKeys" : {
+            "1" : {
+              "type" : "FieldRef",
+              "index" : 2
+            },
+            "2" : {
+              "type" : "FieldRef",
+              "index" : 1
+            }
+          },
+          "remainingCondition" : {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 4,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          }
+        },
+        "joinType" : "INNER"
+      } ]
+    },
+    "allBinaryInputTables" : [ {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`src1`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "a0",
+                "dataType" : "INT NOT NULL"
+              }, {
+                "name" : "a1",
+                "dataType" : "DOUBLE NOT NULL"
+              }, {
+                "name" : "a2",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "a3",
+                "dataType" : "INT"
+              } ],
+              "indexes" : [ {
+                "name" : "INDEX_a1_a2",
+                "columns" : [ "a1", "a2" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "connector" : "values",
+              "failing-source" : "true",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `a3` INT> NOT NULL"
+    }, {
+      "lookupTableSource" : {
+        "table" : {
+          "identifier" : "`default_catalog`.`default_database`.`src2`",
+          "resolvedTable" : {
+            "schema" : {
+              "columns" : [ {
+                "name" : "b0",
+                "dataType" : "INT NOT NULL"
+              }, {
+                "name" : "b2",
+                "dataType" : "VARCHAR(2147483647)"
+              }, {
+                "name" : "b1",
+                "dataType" : "DOUBLE"
+              } ],
+              "indexes" : [ {
+                "name" : "INDEX_b2",
+                "columns" : [ "b2" ]
+              } ]
+            },
+            "comment" : "test comment",
+            "options" : {
+              "async" : "true",
+              "bounded" : "false",
+              "connector" : "values",
+              "failing-source" : "true",
+              "sink-changelog-mode-enforced" : "I,UA,D",
+              "sink-insert-only" : "false"
+            }
+          }
+        }
+      },
+      "outputType" : "ROW<`b0` INT NOT NULL, `b2` VARCHAR(2147483647), `b1` DOUBLE> NOT NULL"
+    } ],
+    "deltaJoinTree" : {
+      "root" : {
+        "type" : "JoinNode",
+        "joinType" : "INNER",
+        "condition" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$AND$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 1,
+              "type" : "DOUBLE NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 6,
+              "type" : "DOUBLE"
+            } ],
+            "type" : "BOOLEAN"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$=$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 5,
+              "type" : "VARCHAR(2147483647)"
+            } ],
+            "type" : "BOOLEAN"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$>$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 4,
+              "type" : "INT NOT NULL"
+            }, {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "projection" : null,
+        "filter" : null,
+        "rowTypeAfterCalc" : null,
+        "leftJoinKey" : [ 1, 2 ],
+        "rightJoinKey" : [ 2, 1 ],
+        "left" : {
+          "type" : "BinaryInputNode",
+          "inputOrdinal" : 0,
+          "projection" : null,
+          "filter" : null,
+          "rowTypeAfterCalc" : null,
+          "rowType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `a3` INT>"
+        },
+        "right" : {
+          "type" : "BinaryInputNode",
+          "inputOrdinal" : 1,
+          "projection" : null,
+          "filter" : null,
+          "rowTypeAfterCalc" : null,
+          "rowType" : "ROW<`b0` INT NOT NULL, `b2` VARCHAR(2147483647), `b1` DOUBLE>"
+        }
       }
     },
     "inputProperties" : [ {

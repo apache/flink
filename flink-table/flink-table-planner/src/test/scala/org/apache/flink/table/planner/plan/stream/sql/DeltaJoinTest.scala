@@ -1559,7 +1559,16 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCalcBetweenDeltaJoin(): Unit = {
+  def testCalcBetweenCascadedDeltaJoin(): Unit = {
+    testCalcBetweenCascadedDeltaJoinInner(dml => util.verifyRelPlanInsert(dml))
+  }
+
+  @Test
+  def testCalcBetweenCascadedDeltaJoinJsonPlan(): Unit = {
+    testCalcBetweenCascadedDeltaJoinInner(dml => util.verifyJsonPlan(dml))
+  }
+
+  private def testCalcBetweenCascadedDeltaJoinInner(verifyFunc: String => Unit): Unit = {
     //        DT-3
     //      /      \
     //   DT-1      DT-2
@@ -1588,14 +1597,15 @@ class DeltaJoinTest extends TableTestBase {
     tEnv.executeSql("""
                       |alter table snk_for_cdc_src add (mix_ab_cd int)
                       |""".stripMargin)
-    util.verifyRelPlanInsert(
-      """
-        |insert into snk_for_cdc_src
-        |  select a0, a1, a2, a3, b0, b2, b1, mix_ab + cast(mix_cd as int) from tmp_ab
-        |    join tmp_cd
-        |     on a1 = d1 and a2 = d2
-        |""".stripMargin
-    )
+
+    val dml = """
+                |insert into snk_for_cdc_src
+                |  select a0, a1, a2, a3, b0, b2, b1, mix_ab + cast(mix_cd as int) from tmp_ab
+                |    join tmp_cd
+                |     on a1 = d1 and a2 = d2
+                |""".stripMargin
+
+    verifyFunc.apply(dml)
   }
 
   @Test

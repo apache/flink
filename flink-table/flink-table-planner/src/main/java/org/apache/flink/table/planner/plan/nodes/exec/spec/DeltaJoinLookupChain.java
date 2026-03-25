@@ -157,5 +157,29 @@ public class DeltaJoinLookupChain {
                     deltaJoinSpec,
                     joinType);
         }
+
+        /**
+         * Return whether all source ordinals are in left side, and the lookup ordinal is in right
+         * side.
+         */
+        @JsonIgnore
+        public boolean isLeftLookupRight() {
+            if (Arrays.stream(inputTableBinaryInputOrdinals)
+                    .allMatch(i -> i < lookupTableBinaryInputOrdinal)) {
+                return true;
+            } else if (Arrays.stream(inputTableBinaryInputOrdinals)
+                    .allMatch(i -> i > lookupTableBinaryInputOrdinal)) {
+                return false;
+            } else {
+                // should not happen
+                throw new IllegalStateException(
+                        String.format(
+                                "Could not judge the direction of this lookup.\n"
+                                        + "All input ordinals in the stream side is %s\n"
+                                        + "The input ordinals in the lookup side is '%d'",
+                                Arrays.toString(inputTableBinaryInputOrdinals),
+                                lookupTableBinaryInputOrdinal));
+            }
+        }
     }
 }

@@ -376,9 +376,31 @@ object LookupJoinCodeGenerator {
       condition: RexNode,
       outputType: RowType,
       tableSourceRowType: RowType): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+    generateCalcMapFunction(
+      tableConfig,
+      classLoader,
+      projection,
+      condition,
+      outputType,
+      tableSourceRowType,
+      "TableCalcMapFunction")
+  }
+
+  /**
+   * Generates calculate flatmap function for temporal join which is used to projection/filter the
+   * dimension table results
+   */
+  def generateCalcMapFunction(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      projection: Seq[RexNode],
+      condition: RexNode,
+      outputType: RowType,
+      tableSourceRowType: RowType,
+      name: String): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     CalcCodeGenerator.generateFunction(
       tableSourceRowType,
-      "TableCalcMapFunction",
+      name,
       outputType,
       classOf[GenericRowData],
       projection,

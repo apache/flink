@@ -19,24 +19,29 @@
 package org.apache.flink.table.runtime.operators;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.deltajoin.AsyncDeltaJoinRunner;
 import org.apache.flink.table.runtime.operators.join.deltajoin.StreamingDeltaJoinOperator;
 import org.apache.flink.table.types.logical.RowType;
+
+import java.util.Map;
 
 /** The factory of {@link StreamingDeltaJoinOperator}. */
 public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFactory<RowData>
         implements TwoInputStreamOperatorFactory<RowData, RowData, RowData>,
                 YieldingOperatorFactory<RowData> {
 
-    private final AsyncDeltaJoinRunner rightLookupTableAsyncFunction;
-    private final AsyncDeltaJoinRunner leftLookupTableAsyncFunction;
+    private final AsyncDeltaJoinRunner left2RightRunner;
+    private final AsyncDeltaJoinRunner right2LeftRunner;
+    private final Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>> generatedFetchers;
 
     private final RowDataKeySelector leftJoinKeySelector;
     private final RowDataKeySelector rightJoinKeySelector;
@@ -51,8 +56,9 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
     private final RowType rightStreamType;
 
     public StreamingDeltaJoinOperatorFactory(
-            AsyncDeltaJoinRunner rightLookupTableAsyncFunction,
-            AsyncDeltaJoinRunner leftLookupTableAsyncFunction,
+            AsyncDeltaJoinRunner left2RightRunner,
+            AsyncDeltaJoinRunner right2LeftRunner,
+            Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>> generatedFetchers,
             RowDataKeySelector leftJoinKeySelector,
             RowDataKeySelector rightJoinKeySelector,
             long timeout,
@@ -61,8 +67,9 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
             long rightSideCacheSize,
             RowType leftStreamType,
             RowType rightStreamType) {
-        this.rightLookupTableAsyncFunction = rightLookupTableAsyncFunction;
-        this.leftLookupTableAsyncFunction = leftLookupTableAsyncFunction;
+        this.left2RightRunner = left2RightRunner;
+        this.right2LeftRunner = right2LeftRunner;
+        this.generatedFetchers = generatedFetchers;
         this.leftJoinKeySelector = leftJoinKeySelector;
         this.rightJoinKeySelector = rightJoinKeySelector;
         this.timeout = timeout;
@@ -79,8 +86,9 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
         MailboxExecutor mailboxExecutor = getMailboxExecutor();
         StreamingDeltaJoinOperator deltaJoinOperator =
                 new StreamingDeltaJoinOperator(
-                        rightLookupTableAsyncFunction,
-                        leftLookupTableAsyncFunction,
+                        left2RightRunner,
+                        right2LeftRunner,
+                        generatedFetchers,
                         leftJoinKeySelector,
                         rightJoinKeySelector,
                         timeout,
