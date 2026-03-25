@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
@@ -45,7 +46,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -87,6 +90,7 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.slf4j.event.Level.DEBUG;
 
 /**
  * Tests for {@link JsonRowDataDeserializationSchema}, {@link
@@ -96,6 +100,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class JsonRowDataSerDeSchemaTest {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+
+    @RegisterExtension
+    public final LoggerAuditingExtension loggerExtension =
+            new LoggerAuditingExtension(AbstractJsonDeserializationSchema.class, DEBUG);
 
     @Parameter public boolean isJsonParser;
 
@@ -841,6 +849,61 @@ public class JsonRowDataSerDeSchemaTest {
 
         assertThatThrownBy(() -> failingSchema.deserialize(spec.json.getBytes()))
                 .hasMessageContaining(spec.errorMessage);
+    }
+
+    @Test
+    void testIgnoreParseErrorsLogsDebugMessage() throws Exception {
+        RowType rowType = (RowType) ROW(FIELD("id", INT())).getLogicalType();
+        String invalidJson = "not valid json";
+
+        DeserializationSchema<RowData> schema =
+                new JsonRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), false, true, TimestampFormat.SQL);
+        schema.open(new DummyInitializationContext());
+
+        // Deserialize invalid JSON - should not throw but should log
+        RowData result = schema.deserialize(invalidJson.getBytes());
+
+        // Result should be null since parsing failed
+        assertThat(result).isNull();
+
+        // Verify the error was logged at DEBUG level
+        assertThat(loggerExtension.getMessages())
+                .anyMatch(
+                        msg ->
+                                msg.contains("Failed to deserialize JSON")
+                                        && msg.contains(invalidJson));
+    }
+
+    @TestTemplate
+    void testIgnoreParseErrorsFieldReturnsNull() throws Exception {
+        RowType rowType = (RowType) ROW(FIELD("id", INT())).getLogicalType();
+        String invalidFieldJson = "{\"id\":\"not_a_number\"}";
+
+        DeserializationSchema<RowData> schema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, true, TimestampFormat.SQL);
+        schema.open(new DummyInitializationContext());
+
+        // With ignoreParseErrors=true, invalid field values should be set to null
+        RowData result = schema.deserialize(invalidFieldJson.getBytes());
+        assertThat(result).isNotNull();
+        assertThat(result.isNullAt(0)).isTrue();
+    }
+
+    @TestTemplate
+    void testDeserializationThrowsExceptionWhenIgnoreParseErrorsIsFalse() throws Exception {
+        RowType rowType = (RowType) ROW(FIELD("id", INT())).getLogicalType();
+        String invalidFieldJson = "{\"id\":\"not_a_number\"}";
+
+        DeserializationSchema<RowData> schema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, false, TimestampFormat.SQL);
+        schema.open(new DummyInitializationContext());
+
+        assertThatThrownBy(() -> schema.deserialize(invalidFieldJson.getBytes()))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Failed to deserialize JSON");
     }
 
     private static List<TestSpec> testData =
