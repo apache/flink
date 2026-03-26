@@ -142,6 +142,36 @@ class SingleInputGateTest extends InputGateTestBase {
                 .isInstanceOf(CheckpointException.class);
     }
 
+    @Test
+    void testBufferFilteringCompleteFutureAggregation() throws Exception {
+        final NettyShuffleEnvironment environment = createNettyShuffleEnvironment();
+        final SingleInputGate inputGate = createInputGate(environment);
+        try (Closer closer = Closer.create()) {
+            closer.register(environment::close);
+            closer.register(inputGate::close);
+
+            // Enable unaligned during recovery for this test so that
+            // bufferFilteringCompleteFuture is completed by finishReadRecoveredState()
+            inputGate.setUnalignedDuringRecoveryEnabled(true);
+            inputGate.setup();
+
+            // Initially, the aggregated future should not be completed
+            assertThat(inputGate.getBufferFilteringCompleteFuture()).isNotDone();
+
+            // After finishing read recovered state, bufferFilteringCompleteFuture should be
+            // completed (only when config is enabled)
+            inputGate.finishReadRecoveredState();
+            assertThat(inputGate.getBufferFilteringCompleteFuture()).isDone();
+
+            // stateConsumedFuture should not be completed until data is consumed
+            assertThat(inputGate.getStateConsumedFuture()).isNotDone();
+
+            // Consuming the EndOfInputChannelStateEvent should complete stateConsumedFuture
+            inputGate.pollNext();
+            assertThat(inputGate.getStateConsumedFuture()).isDone();
+        }
+    }
+
     /**
      * Tests {@link InputGate#setup()} should create the respective {@link BufferPool} and assign
      * exclusive buffers for {@link RemoteInputChannel}s, but should not request partitions.

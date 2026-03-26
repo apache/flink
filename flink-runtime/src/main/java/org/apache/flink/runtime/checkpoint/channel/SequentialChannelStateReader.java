@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 
 import java.io.IOException;
 
@@ -27,7 +28,14 @@ import java.io.IOException;
 @Internal
 public interface SequentialChannelStateReader extends AutoCloseable {
 
-    void readInputData(InputGate[] inputGates) throws IOException, InterruptedException;
+    /**
+     * Reads input channel state with filtering support.
+     *
+     * @param inputGates The input gates to recover state for.
+     * @param filterContext The filter context containing input configs and rescaling info.
+     */
+    void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
+            throws IOException, InterruptedException;
 
     void readOutputData(ResultPartitionWriter[] writers, boolean notifyAndBlockOnCompletion)
             throws IOException, InterruptedException;
@@ -39,7 +47,8 @@ public interface SequentialChannelStateReader extends AutoCloseable {
             new SequentialChannelStateReader() {
 
                 @Override
-                public void readInputData(InputGate[] inputGates) {}
+                public void readInputData(
+                        InputGate[] inputGates, RecordFilterContext filterContext) {}
 
                 @Override
                 public void readOutputData(

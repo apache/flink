@@ -545,6 +545,80 @@ class PipelinedSubpartitionWithReadViewTest {
         assertNoNextBuffer(readView);
     }
 
+    @TestTemplate
+    void testPriorityEventBypassesBlockedSubpartition() throws Exception {
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+
+        // Block the subpartition by consuming an aligned checkpoint barrier
+        blockSubpartitionByCheckpoint(1);
+        assertThat(availablityListener.getNumPriorityEvents()).isZero();
+
+        // While blocked, add an unaligned checkpoint barrier (priority event).
+        // Even though isBlocked=true, the priority event notification should NOT
+        // be suppressed — priority events must bypass blocking.
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
+        BufferConsumer barrierBuffer =
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+        subpartition.add(barrierBuffer);
+        // Priority notification should fire immediately despite isBlocked=true
+        assertThat(availablityListener.getNumPriorityEvents()).isOne();
+
+        assertNextEvent(
+                readView,
+                barrierBuffer.getWrittenBytes(),
+                CheckpointBarrier.class,
+                false,
+                0,
+                false,
+                true);
+        assertNoNextBuffer(readView);
+    }
+
+    @TestTemplate
+    void testDataStillBlockedAfterPriorityEventBypasses() throws Exception {
+        final RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+        subpartition.setChannelStateWriter(channelStateWriter);
+
+        // Block the subpartition
+        blockSubpartitionByCheckpoint(1);
+        subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+        assertNoNextBuffer(readView);
+
+        // Add priority event while blocked — should notify and be pollable
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
+        channelStateWriter.start(0, options);
+        BufferConsumer barrierBuffer =
+                EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+        subpartition.add(barrierBuffer);
+        assertThat(availablityListener.getNumPriorityEvents()).isOne();
+
+        // Recycle inflight buffer copies held by channel state writer
+        final List<Buffer> inflight =
+                channelStateWriter.getAddedOutput().get(subpartition.getSubpartitionInfo());
+        assertThat(inflight).hasSize(1);
+        inflight.forEach(Buffer::recycleBuffer);
+
+        assertNextEvent(
+                readView,
+                barrierBuffer.getWrittenBytes(),
+                CheckpointBarrier.class,
+                false,
+                0,
+                false,
+                true);
+        assertNoNextBuffer(readView);
+
+        // After resumeConsumption, data becomes available
+        readView.resumeConsumption();
+        assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
+    }
+
     // ------------------------------------------------------------------------
 
     private void blockSubpartitionByCheckpoint(int numNotifications)
