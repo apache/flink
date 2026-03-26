@@ -266,6 +266,34 @@ class UserDefinedFunctionTests(object):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 1]", "+I[2, 4]", "+I[3, 3]"])
 
+    def test_function_context_runtime_info(self):
+        runtime_info_func = udf(RuntimeInfoFunc(), result_type=DataTypes.STRING())
+
+        sink_table = generate_random_table_name()
+        sink_table_ddl = f"""
+            CREATE TABLE {sink_table}(a STRING) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
+        t = self.t_env.from_elements([(1,)], ['a'])
+        t.select(runtime_info_func(t.a)).execute_insert(sink_table).wait()
+        actual = source_sink_utils.results()
+        result = actual[0]
+        # The result should contain task_name, number_of_parallel_subtasks, and
+        # index_of_this_subtask info, verifying that FunctionContext runtime info
+        # is properly propagated from Java to Python.
+        self.assertTrue(result.startswith("+I["))
+        # Extract the value between +I[ and ]
+        value = result[3:-1]
+        parts = value.split(",")
+        self.assertEqual(len(parts), 3)
+        # task_name should be non-empty
+        self.assertTrue(len(parts[0].strip()) > 0)
+        # number_of_parallel_subtasks should be a positive integer
+        self.assertTrue(int(parts[1].strip()) > 0)
+        # index_of_this_subtask should be a non-negative integer
+        self.assertTrue(int(parts[2].strip()) >= 0)
+
     def test_udf_without_arguments(self):
         one = udf(lambda: 1, result_type=DataTypes.BIGINT(), deterministic=True)
         two = udf(lambda: 2, result_type=DataTypes.BIGINT(), deterministic=False)
@@ -1145,6 +1173,17 @@ class Subtract(ScalarFunction, unittest.TestCase):
         # counter
         self.counter_sum += i
         return i - self.subtracted_value
+
+
+class RuntimeInfoFunc(ScalarFunction):
+
+    def open(self, function_context: FunctionContext):
+        self.task_name = function_context.get_task_name()
+        self.num_parallel = function_context.get_number_of_parallel_subtasks()
+        self.subtask_index = function_context.get_index_of_this_subtask()
+
+    def eval(self, i):
+        return "%s,%d,%d" % (self.task_name, self.num_parallel, self.subtask_index)
 
 
 class CallablePlus(object):
