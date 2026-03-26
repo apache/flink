@@ -284,6 +284,37 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSinkPkCoveredByUpsertKeyAndImmutableCols">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id])
++- LogicalProject(name=[$0], score=[$1], detail=[$2], id=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id], changelogMode=[NONE])
++- DropUpdateBefore(changelogMode=[I,UA])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, score, detail, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSinkPkNotCoveredByUpsertKeyAndImmutableCols">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id])
++- LogicalProject(name=[$0], score=[$1], detail=[$2], id=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, score, detail, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTemporalJoinWithChangelog">
     <Resource name="sql">
       <![CDATA[
@@ -522,6 +553,21 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS freq
                +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertKeyExceedsSinkPk">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, id])
++- LogicalProject(name=[$0], score=[$1], id=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, score, id], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, score, id], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>
