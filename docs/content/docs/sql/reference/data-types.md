@@ -218,6 +218,7 @@ The default planner supports the following set of SQL types:
 | `RAW`            |                                                    |
 | Structured types | Only exposed in user-defined functions yet.        |
 | `VARIANT`        |                                                    |
+| `BITMAP`         |                                                    |
 
 ### Character Strings
 
@@ -1551,6 +1552,45 @@ DataTypes.VARIANT()
 {{< /tab >}}
 {{< /tabs >}}
 
+#### `BITMAP`
+
+Data type of bitmap data that stores 32-bit integers in a compressed form using [RoaringBitmap](https://roaringbitmap.org/).
+
+The bitmap type is useful for efficiently representing and querying large sets of integers. It supports
+a variety of built-in [scalar functions]({{< ref "docs/sql/functions/built-in-functions" >}}#bitmap-functions) and
+[aggregate functions]({{< ref "docs/sql/functions/built-in-functions" >}}#bitmap-aggregate-functions).
+
+The bitmap type is an extension to the SQL standard.
+
+**Declaration**
+
+{{< tabs "c8a3f1e2-7d5b-4a9e-b6c0-1e2f3a4b5c6d" >}}
+{{< tab "SQL" >}}
+```text
+BITMAP
+```
+
+Bitmap type can be created from an `ARRAY<INT>` using the `BITMAP_BUILD` function. For example:
+
+```sql
+SELECT BITMAP_BUILD(ARRAY[1, 2, 3, 4, 5])
+```
+
+{{< /tab >}}
+{{< tab "Java/Scala" >}}
+```java
+DataTypes.BITMAP()
+```
+
+**Bridging to JVM Types**
+
+| Java Type                                      | Input | Output | Remarks   |
+|:-----------------------------------------------|:-----:|:------:|:----------|
+| `org.apache.flink.types.bitmap.Bitmap`         |   X   |   X    | *Default* |
+
+{{< /tab >}}
+{{< /tabs >}}
+
 #### `RAW`
 
 Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
@@ -1675,30 +1715,31 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- returns 0 of type INT NOT NULL
 
 The matrix below describes the supported cast pairs, where "Y" means supported, "!" means fallible, "N" means unsupported:
 
-| Input\Target                           | `CHAR`¹/<br/>`VARCHAR`¹/<br/>`STRING` | `BINARY`¹/<br/>`VARBINARY`¹/<br/>`BYTES` | `BOOLEAN` | `DECIMAL` | `TINYINT` | `SMALLINT` | `INTEGER` | `BIGINT` | `FLOAT` | `DOUBLE` | `DATE` | `TIME` | `TIMESTAMP` | `TIMESTAMP_LTZ` | `INTERVAL` | `ARRAY` | `MULTISET` | `MAP` | `ROW` | `STRUCTURED` | `RAW` | `VARIANT` |
-|:---------------------------------------|:-------------------------------------:|:----------------------------------------:|:---------:|:---------:|:---------:|:----------:|:---------:|:--------:|:-------:|:--------:|:------:|:------:|:-----------:|:---------------:|:----------:|:-------:|:----------:|:-----:|:-----:|:------------:|:-----:|:---------:|
-| `CHAR`/<br/>`VARCHAR`/<br/>`STRING`    |                   Y                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `BINARY`/<br/>`VARBINARY`/<br/>`BYTES` |                   Y                   |                    Y                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `BOOLEAN`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `DECIMAL`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `TINYINT`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `SMALLINT`                             |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `INTEGER`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁵     |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `BIGINT`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁶     |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `FLOAT`                                |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `DOUBLE`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `INTERVAL`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |    Y⁵     |    Y⁶    |    N    |    N     |   N    |   N    |      N      |        N        |     Y      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     N     |
-| `MULTISET`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     !³     |   N   |   N   |      N       |   N   |     N     |
-| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |     N     |
-| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |
-| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |
-| `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |
-| `VARIANT`                              |                   N                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |
+| Input\Target                           | `CHAR`¹/<br/>`VARCHAR`¹/<br/>`STRING` | `BINARY`¹/<br/>`VARBINARY`¹/<br/>`BYTES` | `BOOLEAN` | `DECIMAL` | `TINYINT` | `SMALLINT` | `INTEGER` | `BIGINT` | `FLOAT` | `DOUBLE` | `DATE` | `TIME` | `TIMESTAMP` | `TIMESTAMP_LTZ` | `INTERVAL` | `ARRAY` | `MULTISET` | `MAP` | `ROW` | `STRUCTURED` | `RAW` | `VARIANT` | `BITMAP` |
+|:---------------------------------------|:-------------------------------------:|:----------------------------------------:|:---------:|:---------:|:---------:|:----------:|:---------:|:--------:|:-------:|:--------:|:------:|:------:|:-----------:|:---------------:|:----------:|:-------:|:----------:|:-----:|:-----:|:------------:|:-----:|:---------:|:--------:|
+| `CHAR`/<br/>`VARCHAR`/<br/>`STRING`    |                   Y                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `BINARY`/<br/>`VARBINARY`/<br/>`BYTES` |                   Y                   |                    Y                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `BOOLEAN`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `DECIMAL`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `TINYINT`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `SMALLINT`                             |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `INTEGER`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁵     |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `BIGINT`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁶     |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `FLOAT`                                |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `DOUBLE`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `INTERVAL`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |    Y⁵     |    Y⁶    |    N    |    N     |   N    |   N    |      N      |        N        |     Y      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `MULTISET`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     !³     |   N   |   N   |      N       |   N   |     N     |    N     |
+| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |     N     |    N     |
+| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
+| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
+| `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
+| `VARIANT`                              |                   N                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 Notes:
 
@@ -1708,6 +1749,7 @@ Notes:
 4. Supported iff the `RAW` class and serializer are equals.
 5. Supported iff `INTERVAL` is a `MONTH TO YEAR` range.
 6. Supported iff `INTERVAL` is a `DAY TO TIME` range.
+7. Supported only for unbounded `VARBINARY` (`BYTES`), because trimming or padding would corrupt the serialized bitmap data.
 
 Also note that a cast of a `NULL` value will always return `NULL`, 
 regardless of whether the function used is `CAST` or `TRY_CAST`.
