@@ -800,11 +800,11 @@ public class CheckpointingOptions {
      * execution.
      *
      * @param config the configuration to check
-     * @return {@code true} if unaligned checkpoint during recovery is enabled, {@code false}
+     * @return {@code true} if unaligned checkpointing during recovery is enabled, {@code false}
      *     otherwise
      */
     @Internal
-    public static boolean isUnalignedDuringRecoveryEnabled(Configuration config) {
+    public static boolean isCheckpointingDuringRecoveryEnabled(Configuration config) {
         if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
             return false;
         }
