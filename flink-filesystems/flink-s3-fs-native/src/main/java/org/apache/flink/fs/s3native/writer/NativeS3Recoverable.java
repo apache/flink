@@ -55,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * is final, while {@code lastPartObjectLength} is not (for serialization compatibility), but in
  * practice both are set once during construction and not modified afterwards.
  */
-public final class NativeS3Recoverable
+final class NativeS3Recoverable
         implements RecoverableWriter.ResumeRecoverable, RecoverableWriter.CommitRecoverable {
 
     private final String uploadId;
@@ -78,7 +78,7 @@ public final class NativeS3Recoverable
         this(objectName, uploadId, parts, numBytesInParts, null, -1L);
     }
 
-    public NativeS3Recoverable(
+    NativeS3Recoverable(
             String objectName,
             String uploadId,
             List<PartETag> parts,

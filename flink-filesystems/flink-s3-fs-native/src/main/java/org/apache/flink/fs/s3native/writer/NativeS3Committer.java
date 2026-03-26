@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
  * <p>The "empty parts" check is a defensive measure against programming errors - in normal
  * operation, a multipart upload should always have at least one part before committing.
  */
-public class NativeS3Committer implements RecoverableFsDataOutputStream.Committer {
+class NativeS3Committer implements RecoverableFsDataOutputStream.Committer {
 
     private final NativeS3AccessHelper s3AccessHelper;
     private final NativeS3Recoverable recoverable;
