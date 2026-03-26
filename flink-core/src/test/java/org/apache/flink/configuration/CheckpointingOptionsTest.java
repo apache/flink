@@ -333,14 +333,16 @@ class CheckpointingOptionsTest {
     void testIsUnalignedDuringRecoveryEnabled() {
         // Test when both options are disabled (default) - should return false
         Configuration defaultConfig = new Configuration();
-        assertThat(CheckpointingOptions.isUnalignedDuringRecoveryEnabled(defaultConfig))
+        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(defaultConfig))
                 .as("During-recovery should be disabled by default")
                 .isFalse();
 
         // Test when during-recovery is enabled but recover-output-on-downstream is disabled
         Configuration onlyDuringRecoveryConfig = new Configuration();
         onlyDuringRecoveryConfig.set(CheckpointingOptions.UNALIGNED_DURING_RECOVERY_ENABLED, true);
-        assertThat(CheckpointingOptions.isUnalignedDuringRecoveryEnabled(onlyDuringRecoveryConfig))
+        assertThat(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
+                                onlyDuringRecoveryConfig))
                 .as(
                         "During-recovery should be disabled when recover-output-on-downstream is not enabled")
                 .isFalse();
@@ -350,7 +352,7 @@ class CheckpointingOptionsTest {
         onlyRecoverOnDownstreamConfig.set(
                 CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
         assertThat(
-                        CheckpointingOptions.isUnalignedDuringRecoveryEnabled(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
                                 onlyRecoverOnDownstreamConfig))
                 .as("During-recovery should be disabled when during-recovery option is not enabled")
                 .isFalse();
@@ -359,7 +361,7 @@ class CheckpointingOptionsTest {
         Configuration bothEnabledConfig = new Configuration();
         bothEnabledConfig.set(CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
         bothEnabledConfig.set(CheckpointingOptions.UNALIGNED_DURING_RECOVERY_ENABLED, true);
-        assertThat(CheckpointingOptions.isUnalignedDuringRecoveryEnabled(bothEnabledConfig))
+        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(bothEnabledConfig))
                 .as(
                         "During-recovery should be enabled when both recover-output-on-downstream and during-recovery are enabled")
                 .isTrue();
@@ -369,7 +371,9 @@ class CheckpointingOptionsTest {
         explicitlyDisabledConfig.set(
                 CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, false);
         explicitlyDisabledConfig.set(CheckpointingOptions.UNALIGNED_DURING_RECOVERY_ENABLED, true);
-        assertThat(CheckpointingOptions.isUnalignedDuringRecoveryEnabled(explicitlyDisabledConfig))
+        assertThat(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
+                                explicitlyDisabledConfig))
                 .as(
                         "During-recovery should be disabled when recover-output-on-downstream is explicitly false")
                 .isFalse();
