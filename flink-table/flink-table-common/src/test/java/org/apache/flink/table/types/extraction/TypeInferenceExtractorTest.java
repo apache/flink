@@ -231,6 +231,17 @@ class TypeInferenceExtractorTest {
                                 TypeStrategies.explicit(
                                         DataTypes.BIGINT().notNull().bridgedTo(long.class))),
                 // ---
+                // test eval method with lambda capture whose synthetic method shares the
+                // same bytecode descriptor, previously causing "Argument name conflict"
+                TestSpec.forScalarFunction(
+                                "ScalarFunctionWithLambdaCapture",
+                                ScalarFunctionWithLambdaCapture.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("id", DataTypes.BIGINT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar("field", DataTypes.STRING(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 // test overloaded arguments extraction async
                 TestSpec.forAsyncScalarFunction(OverloadedFunctionAsync.class)
                         .expectOutputMapping(
@@ -1587,6 +1598,13 @@ class TypeInferenceExtractorTest {
 
         public long eval(String s) {
             return 0L;
+        }
+    }
+
+    private static class ScalarFunctionWithLambdaCapture extends ScalarFunction {
+        public String eval(Long id, String field) {
+            Supplier<String> supplier = () -> String.valueOf(id) + field;
+            return supplier.get();
         }
     }
 
