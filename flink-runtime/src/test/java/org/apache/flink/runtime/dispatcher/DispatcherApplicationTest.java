@@ -633,6 +633,10 @@ public class DispatcherApplicationTest {
                                 .build());
         jobManagerRunner.completeResultFuture(completedExecutionGraphInfo);
 
+        // wait until the dirty job result is created
+        CommonTestUtils.waitUntilCondition(
+                () -> haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get());
+
         // job termination future should not be completed
         assertThatThrownBy(
                         () ->
@@ -642,10 +646,8 @@ public class DispatcherApplicationTest {
                 .isInstanceOf(TimeoutException.class);
 
         // verify that the job result is NOT marked clean yet
-        assertThat(
-                        haServices.getJobResultStore().getDirtyResults().stream()
-                                .anyMatch(r -> r.getJobId().equals(jobId)))
-                .isTrue();
+        assertThat(haServices.getJobResultStore().hasCleanJobResultEntryAsync(jobId).get())
+                .isFalse();
 
         CompletableFuture<?> applicationTerminationFuture =
                 dispatcher.getApplicationTerminationFuture(applicationId);
@@ -662,9 +664,7 @@ public class DispatcherApplicationTest {
                 .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         // verify that the job result is now marked clean
-        assertThat(
-                        haServices.getJobResultStore().getDirtyResults().stream()
-                                .noneMatch(r -> r.getJobId().equals(jobId)))
+        assertThat(haServices.getJobResultStore().hasCleanJobResultEntryAsync(jobId).get())
                 .isTrue();
     }
 
