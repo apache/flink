@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import scala.Enumeration;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static scala.runtime.BoxedUnit.UNIT;
@@ -423,5 +424,87 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                 assertThrows(TableException.class, () -> util.verifyJsonPlan(sql));
 
         assertEquals(expectedOverAggNduErrorMsg, tableException.getMessage());
+    }
+
+    @Test
+    void testNowFilterPushedIntoChangelogNormalizeOnUpsertSource() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE upsert_src (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c STRING,\n"
+                        + "  ts TIMESTAMP(3),\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D'\n"
+                        + ")");
+
+        final String sql =
+                "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src"
+                        + " WHERE ts >= NOW() - INTERVAL '90' DAY";
+
+        assertThatThrownBy(() -> util.verifyJsonPlan(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("NOW");
+    }
+
+    @Test
+    void testCurrentTimestampFilterPushedIntoChangelogNormalizeOnUpsertSource() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE upsert_src2 (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c STRING,\n"
+                        + "  ts TIMESTAMP(3),\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D'\n"
+                        + ")");
+
+        final String sql =
+                "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src2"
+                        + " WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '90' DAY";
+
+        assertThatThrownBy(() -> util.verifyJsonPlan(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("CURRENT_TIMESTAMP");
+    }
+
+    @Test
+    void testDeterministicFilterOnUpsertSourceIsAllowed() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE upsert_src3 (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c STRING,\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D'\n"
+                        + ")");
+
+        // Deterministic filter should compile without error
+        final String sql = "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src3 WHERE b > 100";
+
+        util.verifyJsonPlan(sql);
     }
 }
