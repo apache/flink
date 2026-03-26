@@ -629,7 +629,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                                 .mapToInt(
                                         key -> {
                                             Preconditions.checkState(
-                                                    key instanceof FunctionCallUtil.FieldRef);
+                                                    key instanceof FunctionCallUtil.FieldRef,
+                                                    "Currently, delta join only supports to use field "
+                                                            + "reference as lookup key, but found %s",
+                                                    key.getClass().getName());
                                             return ((FunctionCallUtil.FieldRef) key).index;
                                         })
                                 .toArray(),

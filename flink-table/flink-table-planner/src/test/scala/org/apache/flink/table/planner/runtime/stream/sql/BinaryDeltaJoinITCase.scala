@@ -864,10 +864,123 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
         .build())
   }
 
+  @TestTemplate
+  def testJoinKeysContainNull(): Unit = {
+    val data1 = List(
+      // both join keys are null
+      changelogRow(
+        "+I",
+        null.asInstanceOf[java.lang.Double],
+        null.asInstanceOf[java.lang.Integer],
+        LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      // one of join keys is null
+      changelogRow(
+        "+I",
+        null.asInstanceOf[java.lang.Double],
+        Int.box(21),
+        LocalDateTime.of(2022, 2, 2, 2, 2, 21)),
+      changelogRow(
+        "+I",
+        Double.box(22.0),
+        null.asInstanceOf[java.lang.Integer],
+        LocalDateTime.of(2022, 2, 2, 2, 2, 22)),
+      // both join keys are not null
+      changelogRow("+I", Double.box(3.0), Int.box(3), LocalDateTime.of(2033, 3, 3, 3, 3, 3))
+    )
+
+    val data2 = List(
+      // both join keys are null
+      changelogRow(
+        "+I",
+        null.asInstanceOf[java.lang.Integer],
+        null.asInstanceOf[java.lang.Double],
+        LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      // one of join keys is null
+      changelogRow(
+        "+I",
+        Int.box(21),
+        null.asInstanceOf[java.lang.Double],
+        LocalDateTime.of(2022, 2, 2, 2, 2, 21)),
+      changelogRow(
+        "+I",
+        null.asInstanceOf[java.lang.Integer],
+        Double.box(22.0),
+        LocalDateTime.of(2022, 2, 2, 2, 2, 22)),
+      // both join keys are not null
+      changelogRow("+I", Int.box(3), Double.box(3.0), LocalDateTime.of(2033, 3, 3, 3, 3, 3))
+    )
+
+    val expected = List("+I[3.0, 3, 2033-03-03T03:03:03, 3, 3.0, 2033-03-03T03:03:03]")
+
+    testUpsertResult(
+      newTestSpecBuilder()
+        .withLeftIndex(List("a0", "a1"))
+        .withRightIndex(List("b0", "b1"))
+        .withLeftPk(List("a2"))
+        .withRightPk(List("b2"))
+        .withLeftImmutableCols(List("a0", "a1"))
+        .withRightImmutableCols(List("b0", "b1"))
+        .withLeftData(data1)
+        .withRightData(data2)
+        .withJoinCondition("a0 = b0 and a1 = b1")
+        .withSinkPk(List("l2", "r2"))
+        .withExpectedData(expected)
+        .build())
+  }
+
+  @TestTemplate
+  def testLeftTableEmpty(): Unit = {
+    testOneTableEmpty(true)
+  }
+
+  @TestTemplate
+  def testRightTableEmpty(): Unit = {
+    testOneTableEmpty(false)
+  }
+
+  def testOneTableEmpty(isLeftTableEmpty: Boolean): Unit = {
+    val data1 = if (isLeftTableEmpty) {
+      List()
+    } else {
+      List(
+        // both join keys are null
+        changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1))
+      )
+    }
+
+    val data2 = if (isLeftTableEmpty) {
+      List(
+        // both join keys are null
+        changelogRow("+I", Int.box(1), Double.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1))
+      )
+    } else {
+      List()
+    }
+
+    val expected = List()
+
+    testUpsertResult(
+      newTestSpecBuilder()
+        .withLeftIndex(List("a0", "a1"))
+        .withRightIndex(List("b0", "b1"))
+        .withLeftPk(List("a2"))
+        .withRightPk(List("b2"))
+        .withLeftImmutableCols(List("a0", "a1"))
+        .withRightImmutableCols(List("b0", "b1"))
+        .withLeftData(data1)
+        .withRightData(data2)
+        .withJoinCondition("a0 = b0 and a1 = b1")
+        .withSinkPk(List("l2", "r2"))
+        .withExpectedData(expected)
+        .build())
+  }
+
   private def testUpsertResult(testSpec: TestSpec): Unit = {
     prepareTable(
       testSpec.leftIndex,
       testSpec.rightIndex,
+      testSpec.leftImmutableCols.getOrElse(List()),
+      testSpec.rightImmutableCols.getOrElse(List()),
       testSpec.leftPk.orNull,
       testSpec.rightPk.orNull,
       testSpec.sinkPk,
@@ -932,6 +1045,8 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
     prepareTable(
       leftIndex,
       rightIndex,
+      List(),
+      List(),
       null,
       null,
       List("l0", "r0"),
@@ -948,6 +1063,8 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
   private def prepareTable(
       leftIndex: List[String],
       rightIndex: List[String],
+      leftImmutableCols: List[String],
+      rightImmutableCols: List[String],
       @Nullable leftPk: List[String],
       @Nullable rightPk: List[String],
       sinkPk: List[String],
@@ -992,7 +1109,7 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
          |  $leftExtraOptionsStr
          |)
          |""".stripMargin)
-    addIndexesAndImmutableCols("testLeft", List(leftIndex), List())
+    addIndexesAndImmutableCols("testLeft", List(leftIndex), leftImmutableCols)
 
     tEnv.executeSql("drop table if exists testRight")
     val rightExtraOptionsStr =
@@ -1026,7 +1143,7 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
          |  $rightExtraOptionsStr
          |)
          |""".stripMargin)
-    addIndexesAndImmutableCols("testRight", List(rightIndex), List())
+    addIndexesAndImmutableCols("testRight", List(rightIndex), rightImmutableCols)
 
     tEnv.executeSql("drop table if exists testSnk")
     tEnv.executeSql(s"""
@@ -1053,6 +1170,8 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
   private case class TestSpec(
       leftIndex: List[String],
       rightIndex: List[String],
+      leftImmutableCols: Option[List[String]],
+      rightImmutableCols: Option[List[String]],
       leftPk: Option[List[String]],
       rightPk: Option[List[String]],
       partialInsertCols: Option[List[String]],
@@ -1075,6 +1194,8 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
   private class TestSpecBuilder {
     private var leftIndex: Option[List[String]] = None
     private var rightIndex: Option[List[String]] = None
+    private var leftImmutableCols: Option[List[String]] = None
+    private var rightImmutableCols: Option[List[String]] = None
     private var leftPk: Option[List[String]] = None
     private var rightPk: Option[List[String]] = None
     private var partialInsertCols: Option[List[String]] = None
@@ -1100,6 +1221,15 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
 
     def withRightIndex(index: List[String]): TestSpecBuilder = {
       rightIndex = Some(requireNonNull(index))
+      this
+    }
+    def withLeftImmutableCols(immutableCols: List[String]): TestSpecBuilder = {
+      leftImmutableCols = Some(requireNonNull(immutableCols))
+      this
+    }
+
+    def withRightImmutableCols(immutableCols: List[String]): TestSpecBuilder = {
+      rightImmutableCols = Some(requireNonNull(immutableCols))
       this
     }
 
@@ -1192,6 +1322,8 @@ class BinaryDeltaJoinITCase(enableCache: Boolean) extends DeltaJoinITCaseBase(en
       TestSpec(
         requireNonNull(leftIndex.orNull),
         requireNonNull(rightIndex.orNull),
+        leftImmutableCols,
+        rightImmutableCols,
         leftPk,
         rightPk,
         partialInsertCols,

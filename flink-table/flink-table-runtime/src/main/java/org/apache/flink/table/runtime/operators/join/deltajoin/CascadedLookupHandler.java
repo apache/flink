@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -60,7 +61,7 @@ public class CascadedLookupHandler extends LookupHandlerBase {
     private static final Logger LOG = LoggerFactory.getLogger(CascadedLookupHandler.class);
 
     // used for debug and start with 1
-    protected final int id;
+    private final int id;
     private @Nullable final GeneratedFilterCondition generatedRemainingCondition;
     private final RowDataKeySelector streamSideLookupKeySelector;
     private final boolean leftLookupRight;
@@ -69,8 +70,8 @@ public class CascadedLookupHandler extends LookupHandlerBase {
     private transient Map<RowData, List<RowData>> allInputsWithLookupKey;
     private transient Map<RowData, Collection<RowData>> lookupResults;
 
-    protected @Nullable transient Integer totalNumShouldBeHandledThisRound = null;
-    protected @Nullable transient Integer handledNum = null;
+    private @Nullable transient Integer totalNumShouldBeHandledThisRound = null;
+    private @Nullable transient Integer handledNum = null;
 
     public CascadedLookupHandler(
             int id,
@@ -221,16 +222,7 @@ public class CascadedLookupHandler extends LookupHandlerBase {
     }
 
     private boolean noFurtherInput() {
-        Preconditions.checkState(
-                totalNumShouldBeHandledThisRound != null && handledNum != null,
-                "This function is called without be handled");
-        Preconditions.checkState(
-                handledNum <= totalNumShouldBeHandledThisRound,
-                String.format(
-                        "The handled num is greater than the total num. The handledNum is %d, the totalNumShouldBeHandledThisRound is %d",
-                        handledNum, totalNumShouldBeHandledThisRound));
-
-        return handledNum.equals(totalNumShouldBeHandledThisRound);
+        return Objects.equals(handledNum, totalNumShouldBeHandledThisRound);
     }
 
     private void finish() throws Exception {
