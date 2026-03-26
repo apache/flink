@@ -85,6 +85,18 @@ class BaseOperation(Operation):
             self.base_metric_group = None
         self.func, self.user_defined_funcs = self.generate_func(serialized_fn)
         self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
+        if serialized_fn.HasField('runtime_context'):
+            rc = serialized_fn.runtime_context
+            self.runtime_context = {
+                'task_name': rc.task_name,
+                'task_name_with_subtasks': rc.task_name_with_subtasks,
+                'number_of_parallel_subtasks': rc.number_of_parallel_subtasks,
+                'max_number_of_parallel_subtasks': rc.max_number_of_parallel_subtasks,
+                'index_of_this_subtask': rc.index_of_this_subtask,
+                'attempt_number': rc.attempt_number,
+            }
+        else:
+            self.runtime_context = {}
 
     def finish(self):
         self._update_gauge(self.base_metric_group)
@@ -104,7 +116,9 @@ class BaseOperation(Operation):
     def open(self):
         for user_defined_func in self.user_defined_funcs:
             if hasattr(user_defined_func, 'open'):
-                user_defined_func.open(FunctionContext(self.base_metric_group, self.job_parameters))
+                user_defined_func.open(FunctionContext(
+                    self.base_metric_group, self.job_parameters,
+                    **self.runtime_context))
 
     def close(self):
         for user_defined_func in self.user_defined_funcs:
@@ -326,11 +340,25 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
         self.state_cleaning_enabled = serialized_fn.state_cleaning_enabled
         self.data_view_specs = extract_data_view_specs(serialized_fn.udfs)
         self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
+        if serialized_fn.HasField('runtime_context'):
+            rc = serialized_fn.runtime_context
+            self.runtime_context = {
+                'task_name': rc.task_name,
+                'task_name_with_subtasks': rc.task_name_with_subtasks,
+                'number_of_parallel_subtasks': rc.number_of_parallel_subtasks,
+                'max_number_of_parallel_subtasks': rc.max_number_of_parallel_subtasks,
+                'index_of_this_subtask': rc.index_of_this_subtask,
+                'attempt_number': rc.attempt_number,
+            }
+        else:
+            self.runtime_context = {}
         super(AbstractStreamGroupAggregateOperation, self).__init__(
             serialized_fn, keyed_state_backend)
 
     def open(self):
-        self.group_agg_function.open(FunctionContext(self.base_metric_group, self.job_parameters))
+        self.group_agg_function.open(FunctionContext(
+            self.base_metric_group, self.job_parameters,
+            **self.runtime_context))
 
     def close(self):
         self.group_agg_function.close()

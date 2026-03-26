@@ -273,6 +273,19 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                                                 .setValue(entry.getValue())
                                                 .build())
                         .collect(Collectors.toList()));
+        builder.setRuntimeContext(
+                FlinkFnApi.UserDefinedDataStreamFunction.RuntimeContext.newBuilder()
+                        .setTaskName(getRuntimeContext().getTaskInfo().getTaskName())
+                        .setTaskNameWithSubtasks(
+                                getRuntimeContext().getTaskInfo().getTaskNameWithSubtasks())
+                        .setNumberOfParallelSubtasks(
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks())
+                        .setMaxNumberOfParallelSubtasks(
+                                getRuntimeContext().getTaskInfo().getMaxNumberOfParallelSubtasks())
+                        .setIndexOfThisSubtask(
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask())
+                        .setAttemptNumber(getRuntimeContext().getTaskInfo().getAttemptNumber())
+                        .build());
         // add windows
         for (int i = 0; i < lowerBoundary.length; i++) {
             FlinkFnApi.OverWindow.Builder windowBuilder = FlinkFnApi.OverWindow.newBuilder();

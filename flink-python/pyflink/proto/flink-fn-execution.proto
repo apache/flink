@@ -82,6 +82,9 @@ message UserDefinedFunctions {
   bool profile_enabled = 4;
   repeated JobParameter job_parameters = 5;
   AsyncOptions async_options = 6;
+  // The runtime context of the user-defined functions, providing task info such as
+  // task_name, parallelism, subtask_index, etc.
+  UserDefinedDataStreamFunction.RuntimeContext runtime_context = 7;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation
@@ -200,6 +203,9 @@ message UserDefinedAggregateFunctions {
 
   bool profile_enabled = 13;
   repeated JobParameter job_parameters = 14;
+  // The runtime context of the user-defined aggregate functions, providing task info such as
+  // task_name, parallelism, subtask_index, etc.
+  UserDefinedDataStreamFunction.RuntimeContext runtime_context = 15;
 }
 
 // A representation of the data schema.
