@@ -427,4 +427,123 @@ class ChangelogModeInferenceTest extends TableTestBase {
     // upsert key {id} does not contain {name}, so UB cannot be dropped
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testSinkPkCoveredByUpsertKeyAndImmutableCols(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | detail string,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "name", "score")
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | name string,
+                               | score int,
+                               | detail string,
+                               | id int,
+                               | primary key (id, name) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    val statementSet = util.tableEnv.createStatementSet()
+    statementSet.addInsertSql("INSERT INTO sink SELECT * FROM src")
+
+    // upsert keys of input: {{id}, {id, name, score}}
+    // immutable cols of input: {id, name , score}
+    // sink pk: {id, name}
+    // upsert key {id} is subset of sink pk, and {id} union immutable cols covers sink pk
+    // so ONLY_UPDATE_AFTER is safe
+    util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testSinkPkNotCoveredByUpsertKeyAndImmutableCols(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | detail string,
+                               | id int primary key not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "name")
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | name string,
+                               | score int,
+                               | detail string,
+                               | id int,
+                               | primary key (id, name, score) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    val statementSet = util.tableEnv.createStatementSet()
+    statementSet.addInsertSql("INSERT INTO sink SELECT * FROM src")
+
+    // upsert keys of input: {{id}, {id, name}}
+    // sink pk: {id, name, score}
+    // {id} union immutable {name} = {id, name}, does NOT cover {id, name, score}
+    // so BEFORE_AND_AFTER is required
+    util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUpsertKeyExceedsSinkPk(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table src (
+                               | name string,
+                               | score int,
+                               | id int,
+                               | primary key (id, name) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB'
+                               |)
+                               |""".stripMargin)
+
+    val catalog = util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+    addImmutableColConstraint(catalog, util.tableEnv.getCurrentDatabase, "src", "score")
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | name string,
+                               | score int,
+                               | id int,
+                               | primary key (id) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    val statementSet = util.tableEnv.createStatementSet()
+    statementSet.addInsertSql("INSERT INTO sink SELECT * FROM src ON CONFLICT DO DEDUPLICATE")
+
+    // upsert keys of input: {{id, name}, {id, name, score}}
+    // sink pk: {id}
+    // upsert key {id, name} is NOT a subset of sink pk {id}, so BEFORE_AND_AFTER is required
+    util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
+  }
 }
