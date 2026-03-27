@@ -243,6 +243,8 @@ public class SingleInputGate extends IndexedInputGate {
      */
     private final int[] endOfPartitions;
 
+    private volatile boolean checkpointingDuringRecoveryEnabled = false;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -327,6 +329,16 @@ public class SingleInputGate extends IndexedInputGate {
             }
             return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         }
+    }
+
+    @Override
+    public void setCheckpointingDuringRecoveryEnabled(boolean enabled) {
+        this.checkpointingDuringRecoveryEnabled = enabled;
+    }
+
+    @Override
+    public boolean isCheckpointingDuringRecoveryEnabled() {
+        return checkpointingDuringRecoveryEnabled;
     }
 
     @Override
