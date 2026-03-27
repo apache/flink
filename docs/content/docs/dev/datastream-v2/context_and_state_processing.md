@@ -162,7 +162,7 @@ For example:
 
 ```java
 // create a value state declaration
-ValueStateDeclaration<Integer> valueStateDeclaration = StateDeclarations.valueState("example-value-state", TypeDescriptors.LONG);
+ValueStateDeclaration<Long> valueStateDeclaration = StateDeclarations.valueState("example-value-state", TypeDescriptors.LONG);
 
 // create a map state declaration
 MapStateDeclaration<Long, String> mapStateDeclaration = StateDeclarations.mapState(
