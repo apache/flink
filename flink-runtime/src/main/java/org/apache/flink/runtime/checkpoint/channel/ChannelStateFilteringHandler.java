@@ -58,6 +58,206 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ChannelStateFilteringHandler {
 
+    // Wildcard allows heterogeneous record types across gates.
+    private final GateFilterHandler<?>[] gateHandlers;
+
+    ChannelStateFilteringHandler(GateFilterHandler<?>[] gateHandlers) {
+        this.gateHandlers = checkNotNull(gateHandlers);
+    }
+
+    /**
+     * Creates a handler from the recovery context, building per-gate virtual channels based on
+     * rescaling descriptors. Returns {@code null} if no filtering is needed (e.g., source tasks or
+     * no rescaling).
+     */
+    @Nullable
+    public static ChannelStateFilteringHandler createFromContext(
+            RecordFilterContext filterContext, InputGate[] inputGates) {
+        // Source tasks have no network inputs
+        if (filterContext.getNumberOfGates() == 0) {
+            return null;
+        }
+
+        InflightDataRescalingDescriptor rescalingDescriptor =
+                filterContext.getRescalingDescriptor();
+
+        GateFilterHandler<?>[] gateHandlers = new GateFilterHandler<?>[inputGates.length];
+        boolean hasAnyVirtualChannels = false;
+
+        for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
+            gateHandlers[gateIndex] =
+                    createGateHandler(filterContext, inputGates, rescalingDescriptor, gateIndex);
+            if (gateHandlers[gateIndex] != null) {
+                hasAnyVirtualChannels = true;
+            }
+        }
+
+        if (!hasAnyVirtualChannels) {
+            return null;
+        }
+
+        return new ChannelStateFilteringHandler(gateHandlers);
+    }
+
+    /**
+     * Filters a recovered buffer from the specified virtual channel, returning new buffers
+     * containing only the records that belong to the current subtask.
+     *
+     * @return filtered buffers, possibly empty if all records were filtered out.
+     */
+    public List<Buffer> filterAndRewrite(
+            int gateIndex,
+            int oldSubtaskIndex,
+            int oldChannelIndex,
+            Buffer sourceBuffer,
+            BufferSupplier bufferSupplier)
+            throws IOException, InterruptedException {
+
+        if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
+            throw new IllegalStateException(
+                    "Invalid gateIndex: "
+                            + gateIndex
+                            + ", number of gates: "
+                            + gateHandlers.length);
+        }
+
+        GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
+        if (gateHandler == null) {
+            throw new IllegalStateException(
+                    "No handler for gateIndex "
+                            + gateIndex
+                            + ". This gate is not a network input and should not have recovered buffers.");
+        }
+        return gateHandler.filterAndRewrite(
+                oldSubtaskIndex, oldChannelIndex, sourceBuffer, bufferSupplier);
+    }
+
+    /** Returns {@code true} if any virtual channel has a partial (spanning) record pending. */
+    public boolean hasPartialData() {
+        for (GateFilterHandler<?> handler : gateHandlers) {
+            if (handler != null && handler.hasPartialData()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void clear() {
+        for (GateFilterHandler<?> handler : gateHandlers) {
+            if (handler != null) {
+                handler.clear();
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Private static helper methods
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Creates a {@link GateFilterHandler} for a single gate. The method-level type parameter
+     * ensures type safety within each gate while allowing different gates to have different types.
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    private static <T> GateFilterHandler<T> createGateHandler(
+            RecordFilterContext filterContext,
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor rescalingDescriptor,
+            int gateIndex) {
+        RecordFilterContext.InputFilterConfig inputConfig = filterContext.getInputConfig(gateIndex);
+        if (inputConfig == null) {
+            throw new IllegalStateException(
+                    "No InputFilterConfig for gateIndex "
+                            + gateIndex
+                            + ". This indicates a bug in RecordFilterContext initialization.");
+        }
+
+        InputGate gate = inputGates[gateIndex];
+        int[] oldSubtaskIndexes = rescalingDescriptor.getOldSubtaskIndexes(gateIndex);
+        RescaleMappings channelMapping = rescalingDescriptor.getChannelMapping(gateIndex);
+
+        TypeSerializer<T> typeSerializer = (TypeSerializer<T>) inputConfig.getTypeSerializer();
+        StreamElementSerializer<T> elementSerializer =
+                new StreamElementSerializer<>(typeSerializer);
+
+        VirtualChannelRecordFilterFactory<T> filterFactory =
+                VirtualChannelRecordFilterFactory.fromContext(filterContext, gateIndex);
+
+        Map<SubtaskConnectionDescriptor, VirtualChannel<T>> gateVirtualChannels = new HashMap<>();
+
+        for (int oldSubtaskIndex : oldSubtaskIndexes) {
+            int numChannels = gate.getNumberOfInputChannels();
+            int[] oldChannelIndexes = getOldChannelIndexes(channelMapping, numChannels);
+
+            for (int oldChannelIndex : oldChannelIndexes) {
+                SubtaskConnectionDescriptor key =
+                        new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
+
+                if (gateVirtualChannels.containsKey(key)) {
+                    continue;
+                }
+
+                // Only ambiguous channels need actual filtering; non-ambiguous ones pass through
+                boolean isAmbiguous = rescalingDescriptor.isAmbiguous(gateIndex, oldSubtaskIndex);
+
+                RecordFilter<T> recordFilter =
+                        isAmbiguous
+                                ? filterFactory.createFilter()
+                                : VirtualChannelRecordFilterFactory.createPassThroughFilter();
+
+                RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
+                        createDeserializer(filterContext.getTmpDirectories());
+
+                VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
+                gateVirtualChannels.put(key, vc);
+            }
+        }
+
+        if (gateVirtualChannels.isEmpty()) {
+            return null;
+        }
+
+        return new GateFilterHandler<>(gateVirtualChannels, elementSerializer);
+    }
+
+    /**
+     * Collects all old channel indexes that are mapped from any new channel index in this gate.
+     * channelMapping is new-to-old, so we iterate new indexes and collect their old counterparts.
+     */
+    private static int[] getOldChannelIndexes(RescaleMappings channelMapping, int numChannels) {
+        List<Integer> oldIndexes = new ArrayList<>();
+        for (int newIndex = 0; newIndex < numChannels; newIndex++) {
+            int[] mapped = channelMapping.getMappedIndexes(newIndex);
+            for (int oldIndex : mapped) {
+                if (!oldIndexes.contains(oldIndex)) {
+                    oldIndexes.add(oldIndex);
+                }
+            }
+        }
+        return oldIndexes.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private static RecordDeserializer<DeserializationDelegate<StreamElement>> createDeserializer(
+            String[] tmpDirectories) {
+        if (tmpDirectories != null && tmpDirectories.length > 0) {
+            return new SpillingAdaptiveSpanningRecordDeserializer<>(tmpDirectories);
+        } else {
+            String[] defaultDirs = new String[] {System.getProperty("java.io.tmpdir")};
+            return new SpillingAdaptiveSpanningRecordDeserializer<>(defaultDirs);
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // Inner classes
+    // -------------------------------------------------------------------------------------------
+
+    /** Provides buffers for re-serializing filtered records. Implementations may block. */
+    @FunctionalInterface
+    public interface BufferSupplier {
+        Buffer requestBufferBlocking() throws IOException, InterruptedException;
+    }
+
     /**
      * Handles record filtering for a single input gate. Each gate has its own serializer and set of
      * virtual channels, allowing different gates to handle different record types independently.
@@ -222,197 +422,5 @@ public class ChannelStateFilteringHandler {
         void clear() {
             virtualChannels.values().forEach(VirtualChannel::clear);
         }
-    }
-
-    // Wildcard allows heterogeneous record types across gates.
-    private final GateFilterHandler<?>[] gateHandlers;
-
-    ChannelStateFilteringHandler(GateFilterHandler<?>[] gateHandlers) {
-        this.gateHandlers = checkNotNull(gateHandlers);
-    }
-
-    /**
-     * Creates a handler from the recovery context, building per-gate virtual channels based on
-     * rescaling descriptors. Returns {@code null} if no filtering is needed (e.g., source tasks or
-     * no rescaling).
-     */
-    @Nullable
-    public static ChannelStateFilteringHandler createFromContext(
-            RecordFilterContext filterContext, InputGate[] inputGates) {
-        // Source tasks have no network inputs
-        if (filterContext.getNumberOfGates() == 0) {
-            return null;
-        }
-
-        InflightDataRescalingDescriptor rescalingDescriptor =
-                filterContext.getRescalingDescriptor();
-
-        GateFilterHandler<?>[] gateHandlers = new GateFilterHandler<?>[inputGates.length];
-        boolean hasAnyVirtualChannels = false;
-
-        for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
-            gateHandlers[gateIndex] =
-                    createGateHandler(filterContext, inputGates, rescalingDescriptor, gateIndex);
-            if (gateHandlers[gateIndex] != null) {
-                hasAnyVirtualChannels = true;
-            }
-        }
-
-        if (!hasAnyVirtualChannels) {
-            return null;
-        }
-
-        return new ChannelStateFilteringHandler(gateHandlers);
-    }
-
-    /**
-     * Creates a {@link GateFilterHandler} for a single gate. The method-level type parameter
-     * ensures type safety within each gate while allowing different gates to have different types.
-     */
-    @SuppressWarnings("unchecked")
-    @Nullable
-    private static <T> GateFilterHandler<T> createGateHandler(
-            RecordFilterContext filterContext,
-            InputGate[] inputGates,
-            InflightDataRescalingDescriptor rescalingDescriptor,
-            int gateIndex) {
-        RecordFilterContext.InputFilterConfig inputConfig = filterContext.getInputConfig(gateIndex);
-        if (inputConfig == null) {
-            throw new IllegalStateException(
-                    "No InputFilterConfig for gateIndex "
-                            + gateIndex
-                            + ". This indicates a bug in RecordFilterContext initialization.");
-        }
-
-        InputGate gate = inputGates[gateIndex];
-        int[] oldSubtaskIndexes = rescalingDescriptor.getOldSubtaskIndexes(gateIndex);
-        RescaleMappings channelMapping = rescalingDescriptor.getChannelMapping(gateIndex);
-
-        TypeSerializer<T> typeSerializer = (TypeSerializer<T>) inputConfig.getTypeSerializer();
-        StreamElementSerializer<T> elementSerializer =
-                new StreamElementSerializer<>(typeSerializer);
-
-        VirtualChannelRecordFilterFactory<T> filterFactory =
-                VirtualChannelRecordFilterFactory.fromContext(filterContext, gateIndex);
-
-        Map<SubtaskConnectionDescriptor, VirtualChannel<T>> gateVirtualChannels = new HashMap<>();
-
-        for (int oldSubtaskIndex : oldSubtaskIndexes) {
-            int numChannels = gate.getNumberOfInputChannels();
-            int[] oldChannelIndexes = getOldChannelIndexes(channelMapping, numChannels);
-
-            for (int oldChannelIndex : oldChannelIndexes) {
-                SubtaskConnectionDescriptor key =
-                        new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
-
-                if (gateVirtualChannels.containsKey(key)) {
-                    continue;
-                }
-
-                // Only ambiguous channels need actual filtering; non-ambiguous ones pass through
-                boolean isAmbiguous = rescalingDescriptor.isAmbiguous(gateIndex, oldSubtaskIndex);
-
-                RecordFilter<T> recordFilter =
-                        isAmbiguous
-                                ? filterFactory.createFilter()
-                                : VirtualChannelRecordFilterFactory.createPassThroughFilter();
-
-                RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =
-                        createDeserializer(filterContext.getTmpDirectories());
-
-                VirtualChannel<T> vc = new VirtualChannel<>(deserializer, recordFilter);
-                gateVirtualChannels.put(key, vc);
-            }
-        }
-
-        if (gateVirtualChannels.isEmpty()) {
-            return null;
-        }
-
-        return new GateFilterHandler<>(gateVirtualChannels, elementSerializer);
-    }
-
-    /**
-     * Collects all old channel indexes that are mapped from any new channel index in this gate.
-     * channelMapping is new-to-old, so we iterate new indexes and collect their old counterparts.
-     */
-    private static int[] getOldChannelIndexes(RescaleMappings channelMapping, int numChannels) {
-        List<Integer> oldIndexes = new ArrayList<>();
-        for (int newIndex = 0; newIndex < numChannels; newIndex++) {
-            int[] mapped = channelMapping.getMappedIndexes(newIndex);
-            for (int oldIndex : mapped) {
-                if (!oldIndexes.contains(oldIndex)) {
-                    oldIndexes.add(oldIndex);
-                }
-            }
-        }
-        return oldIndexes.stream().mapToInt(Integer::intValue).toArray();
-    }
-
-    private static RecordDeserializer<DeserializationDelegate<StreamElement>> createDeserializer(
-            String[] tmpDirectories) {
-        if (tmpDirectories != null && tmpDirectories.length > 0) {
-            return new SpillingAdaptiveSpanningRecordDeserializer<>(tmpDirectories);
-        } else {
-            String[] defaultDirs = new String[] {System.getProperty("java.io.tmpdir")};
-            return new SpillingAdaptiveSpanningRecordDeserializer<>(defaultDirs);
-        }
-    }
-
-    /**
-     * Filters a recovered buffer from the specified virtual channel, returning new buffers
-     * containing only the records that belong to the current subtask.
-     *
-     * @return filtered buffers, possibly empty if all records were filtered out.
-     */
-    public List<Buffer> filterAndRewrite(
-            int gateIndex,
-            int oldSubtaskIndex,
-            int oldChannelIndex,
-            Buffer sourceBuffer,
-            BufferSupplier bufferSupplier)
-            throws IOException, InterruptedException {
-
-        if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
-            throw new IllegalStateException(
-                    "Invalid gateIndex: "
-                            + gateIndex
-                            + ", number of gates: "
-                            + gateHandlers.length);
-        }
-
-        GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
-        if (gateHandler == null) {
-            throw new IllegalStateException(
-                    "No handler for gateIndex "
-                            + gateIndex
-                            + ". This gate is not a network input and should not have recovered buffers.");
-        }
-        return gateHandler.filterAndRewrite(
-                oldSubtaskIndex, oldChannelIndex, sourceBuffer, bufferSupplier);
-    }
-
-    /** Returns {@code true} if any virtual channel has a partial (spanning) record pending. */
-    public boolean hasPartialData() {
-        for (GateFilterHandler<?> handler : gateHandlers) {
-            if (handler != null && handler.hasPartialData()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public void clear() {
-        for (GateFilterHandler<?> handler : gateHandlers) {
-            if (handler != null) {
-                handler.clear();
-            }
-        }
-    }
-
-    /** Provides buffers for re-serializing filtered records. Implementations may block. */
-    @FunctionalInterface
-    public interface BufferSupplier {
-        Buffer requestBufferBlocking() throws IOException, InterruptedException;
     }
 }
