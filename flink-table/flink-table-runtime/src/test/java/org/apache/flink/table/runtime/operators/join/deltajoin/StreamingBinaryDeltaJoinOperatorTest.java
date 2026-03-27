@@ -1056,12 +1056,12 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
                 .isEqualTo(expectedException);
     }
 
-    private void initTestHarness(AbstractBinaryTestSpec testSpec) throws Exception {
+    private void initTestHarness(BinaryTestSpec testSpec) throws Exception {
         initTestHarness(testSpec, null, true);
     }
 
     private void initTestHarness(
-            AbstractBinaryTestSpec testSpec,
+            BinaryTestSpec testSpec,
             @Nullable Throwable expectedThrownException,
             boolean insertTableDataAfterEmit)
             throws Exception {
@@ -1087,12 +1087,12 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
                         }));
     }
 
-    private void initAssertor(AbstractBinaryTestSpec testSpec) {
+    private void initAssertor(BinaryTestSpec testSpec) {
         assertor = createAssertor(testSpec.getOutputRowType());
     }
 
     private void verifyCacheData(
-            AbstractBinaryTestSpec testSpec,
+            BinaryTestSpec testSpec,
             DeltaJoinCache actualCache,
             Map<RowData, Map<RowData, RowData>> expectedLeftCacheData,
             Map<RowData, Map<RowData, RowData>> expectedRightCacheData,
@@ -1133,7 +1133,7 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
 
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             createBinaryDeltaJoinOperatorTestHarness(
-                    AbstractBinaryTestSpec testSpec, @Nullable Throwable expectedThrownException)
+                    BinaryTestSpec testSpec, @Nullable Throwable expectedThrownException)
                     throws Exception {
         int[] eachBinaryInputFieldSize =
                 new int[] {
@@ -1241,16 +1241,16 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
                 enableCache);
     }
 
-    private void insertLeftTable(AbstractBinaryTestSpec testSpec, StreamRecord<RowData> record) {
+    private void insertLeftTable(BinaryTestSpec testSpec, StreamRecord<RowData> record) {
         insertTableData(testSpec, record.getValue(), true);
     }
 
-    private void insertRightTable(AbstractBinaryTestSpec testSpec, StreamRecord<RowData> record) {
+    private void insertRightTable(BinaryTestSpec testSpec, StreamRecord<RowData> record) {
         insertTableData(testSpec, record.getValue(), false);
     }
 
     private void insertTableData(
-            AbstractBinaryTestSpec testSpec, RowData rowData, boolean insertLeftTable) {
+            BinaryTestSpec testSpec, RowData rowData, boolean insertLeftTable) {
         try {
             synchronized (tableCurrentDataMap) {
                 if (insertLeftTable) {
@@ -1279,7 +1279,7 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
         return binaryrow(fields);
     }
 
-    private abstract static class AbstractBinaryTestSpec extends AbstractBaseTestSpec {
+    private abstract static class BinaryTestSpec extends AbstractTestSpec {
 
         abstract Optional<Function<RowData, Boolean>> getFilterOnLeftTable();
 
@@ -1347,7 +1347,7 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
      *      and left_jk2_index = right_jk2
      * </pre>
      */
-    private static class LogLogTableJoinTestSpec extends AbstractBinaryTestSpec {
+    private static class LogLogTableJoinTestSpec extends BinaryTestSpec {
 
         private static final LogLogTableJoinTestSpec WITHOUT_FILTER_ON_TABLE =
                 new LogLogTableJoinTestSpec(false);
@@ -1451,7 +1451,7 @@ public class StreamingBinaryDeltaJoinOperatorTest extends StreamingDeltaJoinOper
      *     ) on left_pk2_jk_index = right_pk2_jk_index
      * </pre>
      */
-    private static class PkPkTableJoinTestSpec extends AbstractBinaryTestSpec {
+    private static class PkPkTableJoinTestSpec extends BinaryTestSpec {
 
         private static final PkPkTableJoinTestSpec WITHOUT_FILTER_ON_TABLE =
                 new PkPkTableJoinTestSpec(false);

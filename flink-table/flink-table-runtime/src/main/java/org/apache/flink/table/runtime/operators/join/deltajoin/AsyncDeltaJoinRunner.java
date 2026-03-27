@@ -237,6 +237,11 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         return cache;
     }
 
+    @VisibleForTesting
+    public List<DeltaJoinProcessor> getAllProcessors() {
+        return allProcessors;
+    }
+
     private Optional<Collection<RowData>> tryGetDataFromCache(RowData joinKey) {
         Preconditions.checkState(enableCache);
 
@@ -417,6 +422,16 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         @Override
         public void complete(CollectionSupplier<RowData> supplier) {
             throw new UnsupportedOperationException();
+        }
+
+        @VisibleForTesting
+        public DeltaJoinHandlerChain getDeltaJoinHandlerChain() {
+            return handlerChain;
+        }
+
+        @VisibleForTesting
+        public MultiInputRowDataBuffer getMultiInputRowDataBuffer() {
+            return multiInputRowDataBuffer;
         }
 
         private void updateCacheIfNecessary(Collection<RowData> lookupRows) throws Exception {

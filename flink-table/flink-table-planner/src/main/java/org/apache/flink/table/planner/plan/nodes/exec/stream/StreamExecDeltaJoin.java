@@ -49,6 +49,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.DeltaJoinUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.AsyncOptions;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -60,9 +61,12 @@ import org.apache.flink.table.runtime.operators.StreamingDeltaJoinOperatorFactor
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.deltajoin.AsyncDeltaJoinRunner;
 import org.apache.flink.table.runtime.operators.join.deltajoin.BinaryLookupHandler;
+import org.apache.flink.table.runtime.operators.join.deltajoin.CascadedLookupHandler;
+import org.apache.flink.table.runtime.operators.join.deltajoin.DeltaJoinHandlerBase;
 import org.apache.flink.table.runtime.operators.join.deltajoin.DeltaJoinHandlerChain;
 import org.apache.flink.table.runtime.operators.join.deltajoin.DeltaJoinRuntimeTree;
 import org.apache.flink.table.runtime.operators.join.deltajoin.LookupHandlerBase;
+import org.apache.flink.table.runtime.operators.join.deltajoin.TailOutputDataHandler;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -499,6 +503,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
     private static LookupHandlerBase generateLookupHandler(
             boolean isBinaryLookup,
+            @Nullable Integer id, // used for debug. `null` if it is a binary lookup
             DeltaJoinLookupChain.Node node,
             Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>>
                     generatedFetcherCollector,
@@ -507,6 +512,9 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             FlinkTypeFactory typeFactory,
             ClassLoader classLoader,
             ExecNodeConfig config) {
+        Preconditions.checkArgument(
+                isBinaryLookup == (id == null), "Id should be null if it is binary lookup");
+
         final int[] sourceInputOrdinals = node.inputTableBinaryInputOrdinals;
         final int lookupTableOrdinal = node.lookupTableBinaryInputOrdinal;
         final RowType sourceStreamType =
@@ -584,8 +592,64 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                     node.lookupTableBinaryInputOrdinal);
         }
 
-        // TODO FLINK-39233 Support cascaded delta join in runtime
-        throw new IllegalStateException("Support later");
+        final RowType lookupResultPassThroughCalcRowType;
+        if (node.isLeftLookupRight()) {
+            lookupResultPassThroughCalcRowType =
+                    combineOutputRowType(
+                            sourceStreamType,
+                            lookupSidePassThroughCalcRowType,
+                            node.joinType,
+                            typeFactory);
+        } else {
+            lookupResultPassThroughCalcRowType =
+                    combineOutputRowType(
+                            lookupSidePassThroughCalcRowType,
+                            sourceStreamType,
+                            swapJoinType(node.joinType),
+                            typeFactory);
+        }
+
+        GeneratedFilterCondition generatedRemainingCondition =
+                node.deltaJoinSpec
+                        .getRemainingCondition()
+                        .map(
+                                remainCond ->
+                                        FilterCodeGenerator.generateFilterCondition(
+                                                config,
+                                                planner.getFlinkContext().getClassLoader(),
+                                                remainCond,
+                                                lookupResultPassThroughCalcRowType,
+                                                GENERATED_JOIN_CONDITION_CLASS_NAME))
+                        .orElse(null);
+
+        final RowDataKeySelector streamSideLookupKeySelector =
+                KeySelectorUtil.getRowDataSelector(
+                        classLoader,
+                        lookupKeysOnInputSide.stream()
+                                .mapToInt(
+                                        key -> {
+                                            Preconditions.checkState(
+                                                    key instanceof FunctionCallUtil.FieldRef,
+                                                    "Currently, delta join only supports to use field "
+                                                            + "reference as lookup key, but found %s",
+                                                    key.getClass().getName());
+                                            return ((FunctionCallUtil.FieldRef) key).index;
+                                        })
+                                .toArray(),
+                        InternalTypeInfo.of(sourceStreamType));
+
+        return new CascadedLookupHandler(
+                id,
+                TypeConversions.fromLogicalToDataType(sourceStreamType),
+                lookupSideGeneratedFetcherWithType.dataType(),
+                TypeConversions.fromLogicalToDataType(lookupSidePassThroughCalcRowType),
+                InternalSerializers.create(lookupSidePassThroughCalcRowType),
+                lookupSideGeneratedCalc,
+                generatedRemainingCondition,
+                streamSideLookupKeySelector,
+                node.inputTableBinaryInputOrdinals,
+                node.lookupTableBinaryInputOrdinal,
+                node.isLeftLookupRight());
     }
 
     private static RowDataKeySelector getUpsertKeySelector(
@@ -598,23 +662,6 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
         }
         return KeySelectorUtil.getRowDataSelector(
                 classLoader, finalUpsertKeys, InternalTypeInfo.of(rowType));
-    }
-
-    private boolean enableCache(ReadableConfig config) {
-        return config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED);
-    }
-
-    /** Get the left cache size and right size. */
-    private Tuple2<Long, Long> getCacheSize(ReadableConfig config) {
-        long leftCacheSize =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_LEFT_CACHE_SIZE);
-        long rightCacheSize =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_RIGHT_CACHE_SIZE);
-        if ((leftCacheSize <= 0 || rightCacheSize <= 0) && enableCache(config)) {
-            throw new IllegalArgumentException(
-                    "Cache size in delta join must be positive when enabling cache.");
-        }
-        return Tuple2.of(leftCacheSize, rightCacheSize);
     }
 
     private abstract static class DeltaJoinOperatorFactoryBuilder {
@@ -651,6 +698,23 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
         }
 
         protected abstract StreamOperatorFactory<RowData> build();
+
+        /** Get the left cache size and right size. */
+        protected Tuple2<Long, Long> getCacheSize(ReadableConfig config) {
+            long leftCacheSize =
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_LEFT_CACHE_SIZE);
+            long rightCacheSize =
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_RIGHT_CACHE_SIZE);
+            if ((leftCacheSize <= 0 || rightCacheSize <= 0) && enableCache(config)) {
+                throw new IllegalArgumentException(
+                        "Cache size in delta join must be positive when enabling cache.");
+            }
+            return Tuple2.of(leftCacheSize, rightCacheSize);
+        }
+
+        protected boolean enableCache(ReadableConfig config) {
+            return config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED);
+        }
     }
 
     private class DeltaJoinOperatorFactoryBuilderV1 extends DeltaJoinOperatorFactoryBuilder {
@@ -798,6 +862,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                     Collections.singletonList(
                             generateLookupHandler(
                                     true, // isBinaryLookup
+                                    null,
                                     node,
                                     generatedFetcherCollector,
                                     deltaJoinTree,
@@ -926,9 +991,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>>
                     generatedFetcherCollector = new HashMap<>();
             DeltaJoinHandlerChain left2RightHandlerChain =
-                    generateDeltaJoinHandlerChain(true, generatedFetcherCollector);
+                    generateDeltaJoinHandlerChain(true, leftStreamType, generatedFetcherCollector);
             DeltaJoinHandlerChain right2LeftHandlerChain =
-                    generateDeltaJoinHandlerChain(false, generatedFetcherCollector);
+                    generateDeltaJoinHandlerChain(
+                            false, rightStreamType, generatedFetcherCollector);
             Preconditions.checkState(
                     generatedFetcherCollector.size()
                             == leftAllBinaryInputOrdinals.size()
@@ -1008,6 +1074,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
         private DeltaJoinHandlerChain generateDeltaJoinHandlerChain(
                 boolean lookupRight,
+                RowType streamRowType,
                 Map<Integer, GeneratedFunction<AsyncFunction<RowData, Object>>>
                         generatedFetcherCollector) {
             int[] streamOwnedSourceOrdinals =
@@ -1029,6 +1096,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         Collections.singletonList(
                                 generateLookupHandler(
                                         true, // isBinaryLookup
+                                        null, // debug id
                                         nodes.get(0),
                                         generatedFetcherCollector,
                                         deltaJoinTree,
@@ -1039,7 +1107,40 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         streamOwnedSourceOrdinals);
             }
 
-            throw new UnsupportedOperationException("Support cascaded delta join operator later");
+            final List<DeltaJoinHandlerBase> lookupJoinHandlers = new ArrayList<>();
+
+            // build delta join handler chain
+            for (int i = 0; i < nodes.size(); i++) {
+                DeltaJoinLookupChain.Node node = nodes.get(i);
+                LookupHandlerBase lookupHandler =
+                        generateLookupHandler(
+                                false, // isBinaryLookup
+                                i + 1, // debug id
+                                node,
+                                generatedFetcherCollector,
+                                deltaJoinTree,
+                                planner,
+                                typeFactory,
+                                classLoader,
+                                config);
+                lookupJoinHandlers.add(lookupHandler);
+            }
+            List<Integer> lookupSideAllBinaryInputOrdinals =
+                    lookupRight ? rightAllBinaryInputOrdinals : leftAllBinaryInputOrdinals;
+            int lookupSideTableOffset = lookupRight ? leftAllBinaryInputOrdinals.size() : 0;
+            lookupJoinHandlers.add(
+                    new TailOutputDataHandler(
+                            lookupSideAllBinaryInputOrdinals.stream()
+                                    .mapToInt(i -> i + lookupSideTableOffset)
+                                    .toArray()));
+
+            Preconditions.checkArgument(
+                    streamRowType.getFieldCount()
+                            == deltaJoinTree
+                                    .getOutputRowTypeOnNode(streamOwnedSourceOrdinals, typeFactory)
+                                    .getFieldCount());
+
+            return DeltaJoinHandlerChain.build(lookupJoinHandlers, streamOwnedSourceOrdinals);
         }
 
         private Set<Set<Integer>> getAllDrivenInputsWhenLookup(boolean lookupRight) {
