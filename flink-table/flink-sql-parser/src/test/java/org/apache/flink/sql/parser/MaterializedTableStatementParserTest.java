@@ -665,6 +665,67 @@ class MaterializedTableStatementParserTest {
         sql(sql).fails("DROP TEMPORARY MATERIALIZED TABLE is not supported.");
     }
 
+    @Test
+    void testStartMode() {
+        final String sql1 =
+                "create materialized table tbl1 start_mode = from_beginning as select * from t";
+        sql(sql1)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = FROM_BEGINNING\nAS\nSELECT *\nFROM `T`");
+
+        final String sql2 =
+                "create materialized table tbl1 start_mode = from_now as select * from t";
+        sql(sql2)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = FROM_NOW\nAS\nSELECT *\nFROM `T`");
+
+        final String sql3 =
+                "create materialized table tbl1 start_mode = from_now(INTERVAL '1' HOUR) as select * from t";
+        sql(sql3)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = FROM_NOW(INTERVAL '1' HOUR)\nAS\nSELECT *\nFROM `T`");
+
+        final String sql4 =
+                "create materialized table tbl1 start_mode = from_timestamp(TIMESTAMP '2023-04-22 21:37:58') as select * from t";
+        sql(sql4)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = FROM_TIMESTAMP(TIMESTAMP '2023-04-22 21:37:58')\nAS\nSELECT *\nFROM `T`");
+
+        final String sql5 =
+                // allowed on parser level, in operation there is a validation for CREATE OR ALTER
+                // support only
+                "create materialized table tbl1 start_mode = resume_or_from_beginning as select * from t";
+        sql(sql5)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = RESUME_OR_FROM_BEGINNING\nAS\nSELECT *\nFROM `T`");
+
+        final String sql6 =
+                // allowed on parser level, in operation there is a validation for CREATE OR ALTER
+                // support only
+                "create materialized table tbl1 start_mode = resume_or_from_now as select * from t";
+        sql(sql6)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = RESUME_OR_FROM_NOW\nAS\nSELECT *\nFROM `T`");
+
+        final String sql7 =
+                // allowed on parser level, in operation there is a validation for CREATE OR ALTER
+                // support only
+                "create materialized table tbl1 start_mode = resume_or_from_now(interval '2' minutes) as select * from t";
+        sql(sql7)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nSTART_MODE = RESUME_OR_FROM_NOW(INTERVAL '2' MINUTE)\nAS\nSELECT *\nFROM `T`");
+
+        final String sql8 =
+                // allowed on parser level, in operation there is a validation for CREATE OR ALTER
+                // support only
+                "create materialized table tbl1 with ('format' = 'json') start_mode = resume_or_from_timestamp(TIMESTAMP WITH LOCAL TIME ZONE '2023-04-22 21:37:58') as select * from t";
+        sql(sql8)
+                .ok(
+                        "CREATE MATERIALIZED TABLE `TBL1`\nWITH (\n"
+                                + "  'format' = 'json'\n"
+                                + ")\nSTART_MODE = RESUME_OR_FROM_TIMESTAMP(TIMESTAMP WITH LOCAL TIME ZONE '2023-04-22 21:37:58')\nAS\nSELECT *\nFROM `T`");
+    }
+
     public SqlParserFixture fixture() {
         return SqlParserFixture.DEFAULT.withConfig(
                 c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));

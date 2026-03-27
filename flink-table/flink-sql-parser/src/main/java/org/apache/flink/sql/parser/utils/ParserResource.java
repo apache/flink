@@ -71,6 +71,10 @@ public interface ParserResource {
             "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.")
     Resources.ExInst<ParseException> unsupportedFreshnessType();
 
+    @Resources.BaseMessage(
+            "START_MODE literal must be an interval for FROM_NOW and RESUME_OR_FROM_NOW modes.")
+    Resources.ExInst<ParseException> unsupportedStartModeType();
+
     @Resources.BaseMessage("CREATE TEMPORARY MATERIALIZED TABLE is not supported.")
     Resources.ExInst<ParseException> createTemporaryMaterializedTableUnsupported();
 

@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.ddl.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
+import org.apache.flink.sql.parser.ddl.SqlStartMode;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
@@ -55,6 +56,7 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
             SqlNodeList propertyList,
             @Nullable SqlIntervalLiteral freshness,
             @Nullable SqlRefreshMode refreshMode,
+            @Nullable SqlStartMode startMode,
             SqlNode asQuery,
             boolean isOrAlter) {
         super(
@@ -70,6 +72,7 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
                 propertyList,
                 freshness,
                 refreshMode,
+                startMode,
                 asQuery);
     }
 
