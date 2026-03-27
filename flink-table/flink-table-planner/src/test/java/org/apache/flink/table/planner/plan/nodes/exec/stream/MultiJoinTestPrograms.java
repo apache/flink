@@ -36,7 +36,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTes
 public class MultiJoinTestPrograms {
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN =
             TableTestProgram.of("three-way-left-outer-join", "three way left outer join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -67,7 +66,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-join-updating",
                             "three way left outer join updating")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -110,7 +108,6 @@ public class MultiJoinTestPrograms {
 
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN =
             TableTestProgram.of("three-way-inner-join", "three way inner join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -140,7 +137,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-where",
                             "three way inner join with where clause")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -169,7 +165,6 @@ public class MultiJoinTestPrograms {
 
     public static final TableTestProgram MULTI_JOIN_FOUR_WAY_COMPLEX =
             TableTestProgram.of("four-way-complex-updating-join", "four way complex updating join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -281,7 +276,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-join-with-restore",
                             "three way left outer join with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -335,7 +329,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-restore",
                             "three way inner join with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -388,7 +381,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-no-join-key",
                             "three way inner join with no join key")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -462,7 +454,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-join-no-common-join-key-with-restore",
                             "four way join no common join key with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
@@ -545,7 +536,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -572,7 +563,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-no-common-join-key-updating-join",
                             "four way no common join key updating join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -650,7 +640,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -675,7 +665,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-complex-updating-join-with-restore",
                             "four way complex updating join with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
@@ -758,7 +747,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, payment1, London]",
                                             "+I[1, Gus, order1, payment1, London]",
@@ -784,7 +773,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-join-with-time-attributes",
                             "three way join with time attributes materialization")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("UsersWithProctime")
                                     .addSchema(
@@ -912,7 +900,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "left-outer-join-with-cte",
                             "CTE with three-way left outer join and aggregation")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
@@ -976,7 +963,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-with-null-keys",
                             "left outer join with NULL keys on multiple inputs")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupSql(
                             "CREATE VIEW UsersNulls AS SELECT * FROM (VALUES "
                                     + "('1','Gus'),"
@@ -1018,7 +1004,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "null-safe-join-with-null-keys",
                             "join with IS NOT DISTINCT FROM to match NULL keys")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupSql(
                             "CREATE VIEW UsersNullSafe AS SELECT * FROM (VALUES "
                                     + "('1','Gus'),"
@@ -1042,4 +1027,161 @@ public class MultiJoinTestPrograms {
                                     + "FROM UsersNullSafe u "
                                     + "INNER JOIN OrdersNullSafe o ON u.user_id IS NOT DISTINCT FROM o.user_id")
                     .build();
+
+    public static final TableTestProgram MULTI_JOIN_MIXED_CHANGELOG_MODES =
+            TableTestProgram.of(
+                            "three-way-mixed-changelog-modes",
+                            "three way join with mixed changelog modes and primary key configurations")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("AppendTable")
+                                    .addSchema("id STRING PRIMARY KEY NOT ENFORCED, val STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "append1"),
+                                            Row.ofKind(RowKind.INSERT, "2", "append2"),
+                                            Row.ofKind(RowKind.INSERT, "3", "append3"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("RetractTable")
+                                    .addSchema("ref_id STRING, data STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "retract1"),
+                                            Row.ofKind(RowKind.INSERT, "2", "retract2"),
+                                            Row.ofKind(RowKind.INSERT, "3", "retract3"),
+                                            Row.ofKind(RowKind.DELETE, "3", "retract3"),
+                                            Row.ofKind(RowKind.INSERT, "1", "retract1_new"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("UpsertTable")
+                                    .addSchema(
+                                            "key_id STRING PRIMARY KEY NOT ENFORCED, status STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "active"),
+                                            Row.ofKind(RowKind.INSERT, "2", "pending"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "2", "active"),
+                                            Row.ofKind(RowKind.INSERT, "3", "inactive"),
+                                            Row.ofKind(RowKind.DELETE, "3", "inactive"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "id STRING",
+                                            "val STRING",
+                                            "data STRING",
+                                            "status STRING")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
+                                    .consumedValues(
+                                            "+I[1, append1, retract1, active]",
+                                            "+I[2, append2, retract2, active]",
+                                            "+I[1, append1, retract1_new, active]",
+                                            "+I[3, append3, null, null]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT a.id, a.val, r.data, u.status "
+                                    + "FROM AppendTable a "
+                                    + "LEFT JOIN RetractTable r ON a.id = r.ref_id "
+                                    + "LEFT JOIN UpsertTable u ON a.id = u.key_id")
+                    .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_WITH_TIME_ATTRIBUTES_IN_CONDITIONS_MATERIALIZATION =
+                    TableTestProgram.of(
+                                    "three-way-join-with-time-attributes-in-join-conditions",
+                                    "A query from the nexmark benchmark: "
+                                            + "auction and bid aggregation with time-based filtering")
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("auctions")
+                                            .addSchema(
+                                                    "id BIGINT PRIMARY KEY NOT ENFORCED",
+                                                    "category STRING",
+                                                    "auctionTimestamp STRING",
+                                                    "expiresTimestamp STRING",
+                                                    "auctionDateTime AS TO_TIMESTAMP(auctionTimestamp)",
+                                                    "expires AS TO_TIMESTAMP(expiresTimestamp)",
+                                                    "WATERMARK FOR auctionDateTime AS auctionDateTime - INTERVAL '1' SECOND")
+                                            .addOption("changelog-mode", "I")
+                                            .producedValues(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            "Electronics",
+                                                            "2024-01-01 12:00:00",
+                                                            "2024-01-01 12:30:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            3L,
+                                                            "Electronics",
+                                                            "2024-01-01 12:10:00",
+                                                            "2024-01-01 12:40:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            2L,
+                                                            "Books",
+                                                            "2024-01-01 12:05:00",
+                                                            "2024-01-01 12:35:00"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("bids")
+                                            .addSchema(
+                                                    "auction BIGINT",
+                                                    "price DOUBLE",
+                                                    "bidTimestamp STRING",
+                                                    "bidDateTime AS TO_TIMESTAMP(bidTimestamp)",
+                                                    "WATERMARK FOR bidDateTime AS bidDateTime - INTERVAL '1' SECOND")
+                                            .addOption("changelog-mode", "I")
+                                            .producedValues(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            12.0,
+                                                            "2024-01-01 12:15:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            15.0,
+                                                            "2024-01-01 12:20:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            2L,
+                                                            25.0,
+                                                            "2024-01-01 12:25:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            3L,
+                                                            18.0,
+                                                            "2024-01-01 12:30:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            20.0,
+                                                            "2024-01-01 12:45:00"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addSchema("category STRING", "avg_final DOUBLE")
+                                            .consumedValues(
+                                                    // Electronics: AVG(MAX(12.0, 15.0), MAX(18.0))
+                                                    // =
+                                                    // AVG(15.0, 18.0) = 16.5
+                                                    "+I[Electronics, 16.5]",
+                                                    // Books: MAX(25.0) = 25.0, AVG(25.0) = 25.0
+                                                    "+I[Books, 25.0]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink "
+                                            + "SELECT Q.category, AVG(Q.final) "
+                                            + "FROM ( "
+                                            + "    SELECT MAX(B.price) AS final, A.category "
+                                            + "    FROM auctions A, bids B "
+                                            + "    WHERE A.id = B.auction AND B.bidDateTime BETWEEN A.auctionDateTime AND A.expires "
+                                            + "    GROUP BY A.id, A.category "
+                                            + ") Q "
+                                            + "GROUP BY Q.category")
+                            .build();
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -25,6 +27,14 @@ import java.util.List;
 
 /** Semantic tests for {@link StreamExecMultiJoin}. */
 public class MultiJoinSemanticTests extends SemanticTestBase {
+
+    @Override
+    protected void applyDefaultEnvironmentOptions(TableConfig config) {
+        config.set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true);
+    }
 
     @Override
     public List<TableTestProgram> programs() {
@@ -39,6 +49,9 @@ public class MultiJoinSemanticTests extends SemanticTestBase {
                 MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_NO_COMMON_JOIN_KEY,
                 MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_CTE,
                 MultiJoinTestPrograms.MULTI_JOIN_LEFT_OUTER_WITH_NULL_KEYS,
-                MultiJoinTestPrograms.MULTI_JOIN_NULL_SAFE_JOIN_WITH_NULL_KEYS);
+                MultiJoinTestPrograms.MULTI_JOIN_NULL_SAFE_JOIN_WITH_NULL_KEYS,
+                MultiJoinTestPrograms.MULTI_JOIN_MIXED_CHANGELOG_MODES,
+                MultiJoinTestPrograms
+                        .MULTI_JOIN_WITH_TIME_ATTRIBUTES_IN_CONDITIONS_MATERIALIZATION);
     }
 }
