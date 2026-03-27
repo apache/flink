@@ -1,0 +1,103 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-tabs
+  *ngIf="rescalesConfig"
+  [nzSize]="'small'"
+  [nzAnimated]="{ inkBar: true, tabPane: false }"
+  [nzTabBarExtraContent]="extraTemplate"
+>
+  <nz-tab nzTitle="Configuration">
+    <nz-table
+      class="no-border small"
+      [nzData]="rescalesConfig ? [''] : []"
+      [nzSize]="'small'"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false"
+    >
+      <thead>
+        <tr>
+          <th><strong>Option</strong></th>
+          <th><strong>Value</strong></th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngIf="rescalesConfig">
+          <tr>
+            <td>Scheduler Execution Mode</td>
+            <td *ngIf="rescalesConfig['schedulerExecutionMode'] === 'REACTIVE'">REACTIVE</td>
+            <td *ngIf="rescalesConfig['schedulerExecutionMode'] !== 'REACTIVE'"></td>
+          </tr>
+          <tr>
+            <td>Submission Resource Wait Timeout</td>
+            <td>
+              {{ rescalesConfig['submissionResourceWaitTimeoutInMillis'] | humanizeDuration }}
+            </td>
+          </tr>
+          <tr>
+            <td>Submission ResourceStabilization Timeout</td>
+            <td>
+              {{
+                rescalesConfig['submissionResourceStabilizationTimeoutInMillis'] | humanizeDuration
+              }}
+            </td>
+          </tr>
+          <tr>
+            <td>Slot Idle Timeout</td>
+            <td>{{ rescalesConfig['slotIdleTimeoutInMillis'] | humanizeDuration }}</td>
+          </tr>
+          <tr>
+            <td>Executing Cooldown Timeout</td>
+            <td>{{ rescalesConfig['executingCooldownTimeoutInMillis'] | humanizeDuration }}</td>
+          </tr>
+          <tr>
+            <td>Executing Resource Stabilization Timeout</td>
+            <td>
+              {{
+                rescalesConfig['executingResourceStabilizationTimeoutInMillis'] | humanizeDuration
+              }}
+            </td>
+          </tr>
+          <tr>
+            <td>Maximum Delay For Triggering Rescale</td>
+            <td>
+              {{ rescalesConfig['maximumDelayForTriggeringRescaleInMillis'] | humanizeDuration }}
+            </td>
+          </tr>
+          <tr>
+            <td>Rescale On Failed Checkpoint Count</td>
+            <td>{{ rescalesConfig['rescaleOnFailedCheckpointCount'] }}</td>
+          </tr>
+          <tr>
+            <td>History Max</td>
+            <td>{{ rescalesConfig['rescaleHistoryMax'] }}</td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </nz-table>
+  </nz-tab>
+</nz-tabs>
+
+<ng-template #extraTemplate>
+  <button nz-button nzType="primary" class="refresh" nzSize="small" (click)="refresh()">
+    <i nz-icon nzType="sync"></i>
+    Refresh
+  </button>
+</ng-template>
+
+<nz-empty *ngIf="!rescalesConfig"></nz-empty>

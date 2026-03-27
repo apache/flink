@@ -26,6 +26,7 @@ import {
   CheckpointConfig,
   CheckpointDetail,
   CheckpointSubTask,
+  RescalesConfig,
   JobAccumulators,
   JobBackpressure,
   JobConfig,
@@ -176,6 +177,10 @@ export class JobService {
     return this.httpClient.get<CheckpointSubTask>(
       `${this.configService.BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
+  }
+
+  public loadRescalesConfig(jobId: string): Observable<RescalesConfig> {
+    return this.httpClient.get<RescalesConfig>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/config`);
   }
 
   public loadJobResourceRequirements(jobId: string): Observable<JobResourceRequirements> {

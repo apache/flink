@@ -27,6 +27,7 @@ export * from './job-vertex';
 export * from './job-checkpoint';
 export * from './job-backpressure';
 export * from './job-flamegraph';
+export * from './job-rescales';
 export * from './plan';
 export * from './overview';
 export * from './task-manager';
