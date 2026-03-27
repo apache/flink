@@ -44,6 +44,7 @@ import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManage
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.filemerging.EmptyFileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageLocation;
@@ -487,6 +488,124 @@ class OperatorStateBackendTest {
                 FutureUtils.runIfNotDoneAndGet(snapshot);
         OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
         assertThat(stateHandle).isInstanceOf(FileMergingOperatorStreamStateHandle.class);
+    }
+
+    @Test
+    void testSnapshotWithEmptyRegisteredOperatorState() throws Exception {
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+
+        Environment env = createMockEnvironment();
+        final OperatorStateBackend operatorStateBackend =
+                abstractStateBackend.createOperatorStateBackend(
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
+
+        ListStateDescriptor<Integer> stateDescriptor =
+                new ListStateDescriptor<>("test-empty-list-state", IntSerializer.INSTANCE);
+        try {
+            ListState<Integer> listState = operatorStateBackend.getListState(stateDescriptor);
+            assertThat(listState.get()).isEmpty();
+
+            CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
+
+            RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
+                    operatorStateBackend.snapshot(
+                            0L,
+                            0L,
+                            streamFactory,
+                            CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            SnapshotResult<OperatorStateHandle> snapshotResult =
+                    FutureUtils.runIfNotDoneAndGet(snapshot);
+            OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
+            assertThat(stateHandle).isNull();
+        } finally {
+            operatorStateBackend.close();
+            operatorStateBackend.dispose();
+        }
+    }
+
+    @Test
+    void testFileMergingSnapshotRestoreWithEmptyRegisteredUnionState(@TempDir File tmpFolder)
+            throws Exception {
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+
+        Environment env = createMockEnvironment();
+        OperatorStateBackend operatorStateBackend =
+                abstractStateBackend.createOperatorStateBackend(
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
+
+        ListStateDescriptor<Integer> stateDescriptor =
+                new ListStateDescriptor<>("test-empty-union-state", IntSerializer.INSTANCE);
+        ListState<Integer> unionState = operatorStateBackend.getUnionListState(stateDescriptor);
+        assertThat(unionState.get()).isEmpty();
+
+        Path checkpointBaseDir = new Path(tmpFolder.toString());
+        Path sharedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR);
+        Path taskOwnedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
+
+        JobID jobId = JobID.generate();
+        final FileMergingSnapshotManager.SubtaskKey subtaskKey =
+                new FileMergingSnapshotManager.SubtaskKey(jobId.toHexString(), "opId", 1, 1);
+        LocalFileSystem fs = getSharedInstance();
+        CheckpointStorageLocationReference cslReference =
+                AbstractFsCheckpointStorageAccess.encodePathAsReference(
+                        fromLocalFile(fs.pathToFile(checkpointBaseDir)));
+        FileMergingSnapshotManager snapshotManager =
+                createFileMergingSnapshotManager(
+                        checkpointBaseDir, sharedStateDir, taskOwnedStateDir, subtaskKey);
+        CheckpointStreamFactory streamFactory =
+                new FsMergingCheckpointStorageLocation(
+                        subtaskKey,
+                        fs,
+                        checkpointBaseDir,
+                        sharedStateDir,
+                        taskOwnedStateDir,
+                        cslReference,
+                        1024,
+                        1024,
+                        snapshotManager,
+                        0);
+
+        OperatorStateHandle stateHandle = null;
+        try {
+            RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
+                    operatorStateBackend.snapshot(
+                            0L,
+                            0L,
+                            streamFactory,
+                            CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            SnapshotResult<OperatorStateHandle> snapshotResult =
+                    FutureUtils.runIfNotDoneAndGet(snapshot);
+            stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
+
+            assertThat(stateHandle).isInstanceOf(EmptyFileMergingOperatorStreamStateHandle.class);
+
+            operatorStateBackend =
+                    recreateOperatorStateBackend(
+                            operatorStateBackend,
+                            abstractStateBackend,
+                            StateObjectCollection.singleton(stateHandle));
+
+            unionState = operatorStateBackend.getUnionListState(stateDescriptor);
+            assertThat(unionState.get()).isEmpty();
+        } finally {
+            operatorStateBackend.close();
+            operatorStateBackend.dispose();
+            if (stateHandle != null) {
+                stateHandle.discardState();
+            }
+        }
     }
 
     @Test
