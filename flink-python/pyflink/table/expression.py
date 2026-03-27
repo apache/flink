@@ -1362,6 +1362,18 @@ class Expression(Generic[T]):
         """
         return _binary_op("regexpSubstr")(self, regex)
 
+    def regexp_split(self, regex) -> 'Expression':
+        """
+        Splits the string by the regular expression regex and returns an array of strings.
+        null if any of the arguments are null or regex is invalid.
+
+        E.g., regexp_split('Hello123World456', '[0-9]+') returns ['Hello', 'World', ''].
+
+        :param regex: A STRING expression with a matching pattern.
+        :return: An ARRAY<STRING> of split substrings.
+        """
+        return _binary_op("regexpSplit")(self, regex)
+
     @property
     def from_base64(self) -> 'Expression[str]':
         """
