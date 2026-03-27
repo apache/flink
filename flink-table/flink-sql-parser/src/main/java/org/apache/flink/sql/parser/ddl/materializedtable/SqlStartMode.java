@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.ddl.materializedtable;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.SqlParseUtils;

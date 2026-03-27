@@ -2039,7 +2039,7 @@ SqlCreate SqlCreateOrAlterMaterializedTable(Span s, boolean replace, boolean isT
         (
             <FULL>
             {
-                 refreshMode = SqlRefreshMode.FULL;
+                refreshMode = SqlRefreshMode.FULL;
             }
             |
             <CONTINUOUS>

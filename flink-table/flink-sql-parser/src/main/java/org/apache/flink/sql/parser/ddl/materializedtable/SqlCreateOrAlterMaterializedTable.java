@@ -20,7 +20,6 @@ package org.apache.flink.sql.parser.ddl.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
-import org.apache.flink.sql.parser.ddl.SqlStartMode;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 

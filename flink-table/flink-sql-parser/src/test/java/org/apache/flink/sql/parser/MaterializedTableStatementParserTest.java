@@ -724,6 +724,21 @@ class MaterializedTableStatementParserTest {
                         "CREATE MATERIALIZED TABLE `TBL1`\nWITH (\n"
                                 + "  'format' = 'json'\n"
                                 + ")\nSTART_MODE = RESUME_OR_FROM_TIMESTAMP(TIMESTAMP WITH LOCAL TIME ZONE '2023-04-22 21:37:58')\nAS\nSELECT *\nFROM `T`");
+
+        final String sql9 =
+                "create materialized table tbl1 start_mode = from_now(timestamp ^'2023-04-22 21:37:58'^) as select * from t";
+        sql(sql9)
+                .fails(
+                        "START_MODE literal must be an interval for FROM_NOW and RESUME_OR_FROM_NOW modes.");
+
+        final String sql10 =
+                "create materialized table tbl1 start_mode = resume_or_from_timestamp(^interval^ '2' minutes) as select * from t";
+        sql(sql10)
+                .fails(
+                        "Encountered \"interval\" at line 1, column 70.\n"
+                                + "Was expecting:\n"
+                                + "    \"TIMESTAMP\" ...\n"
+                                + "    ");
     }
 
     public SqlParserFixture fixture() {

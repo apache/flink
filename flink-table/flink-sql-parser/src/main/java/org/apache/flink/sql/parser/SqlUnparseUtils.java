@@ -20,9 +20,9 @@ package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
-import org.apache.flink.sql.parser.ddl.SqlStartMode;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlStartMode;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIntervalLiteral;
