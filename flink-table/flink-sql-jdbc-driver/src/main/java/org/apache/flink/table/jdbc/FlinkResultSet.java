@@ -29,9 +29,11 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.jdbc.utils.CloseableResultIterator;
 import org.apache.flink.table.jdbc.utils.StatementResultIterator;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -49,6 +51,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -431,6 +434,38 @@ public class FlinkResultSet extends BaseResultSet {
                                         valueType));
                     }
                     return mapResult;
+                }
+            case ROW:
+                {
+                    RowType rowType = (RowType) dataType;
+                    RowData rowData = (RowData) object;
+                    List<RowType.RowField> fields = rowType.getFields();
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    for (int i = 0; i < fields.size(); i++) {
+                        RowType.RowField field = fields.get(i);
+                        RowData.FieldGetter getter = RowData.createFieldGetter(field.getType(), i);
+                        result.put(
+                                field.getName(),
+                                convertToJavaObject(
+                                        getter.getFieldOrNull(rowData), field.getType()));
+                    }
+                    return result;
+                }
+            case ARRAY:
+                {
+                    ArrayType arrayType = (ArrayType) dataType;
+                    LogicalType elementType = arrayType.getElementType();
+                    ArrayData arrayData = (ArrayData) object;
+                    ArrayData.ElementGetter elementGetter =
+                            ArrayData.createElementGetter(elementType);
+                    int size = arrayData.size();
+                    List<Object> list = new ArrayList<>();
+                    for (int i = 0; i < size; i++) {
+                        list.add(
+                                convertToJavaObject(
+                                        elementGetter.getElementOrNull(arrayData, i), elementType));
+                    }
+                    return list;
                 }
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
