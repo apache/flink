@@ -998,7 +998,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
     /**
      * Infer sink required traits by the sink node and its input. Sink required traits is based on
-     * the sink node's changelog mode, the only exception is when sink's pk(s) are not covered by
+     * the sink node's changelog mode, the only exception is when sink's pk(s) are not satisfied by
      * the input's upsert keys (considering immutable columns) and sink's changelog mode is
      * ONLY_UPDATE_AFTER.
      */
@@ -1010,9 +1010,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         sink.tableSink.getChangelogMode(childModifyKindSet.toDefaultChangelogMode))
 
       val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
-        // if sink's pk(s) are not covered by input upsert keys (considering immutable columns),
+        // if sink's pk(s) are not satisfied by input upsert keys (considering immutable columns),
         // fallback to beforeAndAfter mode for correctness
-        val requireBeforeAndAfter = areUpsertKeysWithImmutableColsDifferentFromPk(sink)
+        val requireBeforeAndAfter = !canUpsertKeysWithImmutableColsSatisfyPk(sink)
         if (requireBeforeAndAfter) {
           Seq(beforeAndAfter)
         } else {
@@ -1024,6 +1024,51 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         Seq(UpdateKindTrait.NONE)
       }
       sinkRequiredTraits
+    }
+
+    /**
+     * Check whether input's upsert keys (together with immutable columns) can satisfy sink's
+     * primary keys.
+     *
+     * <p>A sink pk is considered "satisfied" when there exists an upsert key `uk` such that:
+     *   - `uk` is a subset of sink pk (no extra columns that could cause key collision)
+     *   - the remaining sink pk columns not in `uk` are all immutable (immutable columns never
+     *     change, so they effectively act as part of the key for upsert semantics)
+     *
+     * <p>Example: sink pk = {a, b, c}, uk = {a, b}, immutable columns = {a, b, c, d}.
+     *   - Step 1: uk {a, b} ⊆ sink pk {a, b, c} → true
+     *   - Step 2: sink pk \ uk = {c}, immutable columns contain {c} → true
+     *   - Result: satisfied
+     *
+     * <p>Notice: even if sink pk is a subset of the upsert key, the pk is NOT considered satisfied
+     * when the upsert key has columns outside sink pk. This differs from batch job's unique key
+     * inference.
+     */
+    private def canUpsertKeysWithImmutableColsSatisfyPk(sink: StreamPhysicalSink): Boolean = {
+      val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
+      if (sinkDefinedPks.isEmpty) {
+        return true
+      }
+      val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
+      val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
+      val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+      // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
+      if (changeLogUpsertKeys == null) {
+        return false
+      }
+      val immutableCols =
+        Option.apply(fmq.getImmutableColumns(sink.getInput)).getOrElse(ImmutableBitSet.of())
+
+      // when input immutableCols is empty, this degrades to uk.equals(sinkPks)
+      changeLogUpsertKeys.exists(
+        uk => {
+          // 1. uk ⊆ sinkPks
+          val isSinkPkContainsUk = sinkPks.contains(uk)
+          // 2. (sinkPks \ uk) ⊆ immutableCols
+          val extraSinkPkCols = sinkPks.except(uk)
+          val areExtraSinkPkColsImmutable = immutableCols.contains(extraSinkPkCols)
+          isSinkPkContainsUk && areExtraSinkPkColsImmutable
+        })
     }
 
     /**
@@ -1499,7 +1544,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       val fullDelete = fullDeleteOrNone(childModifyKindSet)
       if (sinkDeleteTrait.equals(DeleteKindTrait.DELETE_BY_KEY)) {
-        if (areUpsertKeysWithImmutableColsDifferentFromPk(sink)) {
+        if (areUpsertKeysDifferentFromPk(sink)) {
           Seq(fullDelete)
         } else {
           Seq(sinkDeleteTrait, fullDelete)
@@ -1509,39 +1554,28 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
     }
 
-  }
+    // -------------------------------------------------------------------------------------------
 
-  /**
-   * Check whether input's upsert keys differ from sink's primary keys, considering immutable
-   * columns.
-   *
-   * <p>A sink pk is considered "covered" when there exists an upsert key `uk` such that: <ul>
-   * <li>`uk` is a subset of sink pk (no extra columns that could cause key collision)</li> <li>`uk`
-   * union immutable columns covers all sink pk columns (immutable columns never change, so they
-   * effectively act as part of the key for upsert semantics)</li> </ul>
-   *
-   * <p>Notice: even if sink pk(s) contains input upsert key we cannot optimize to UA only when the
-   * upsert key has columns outside sink pk, this differs from batch job's unique key inference.
-   */
-  private def areUpsertKeysWithImmutableColsDifferentFromPk(sink: StreamPhysicalSink): Boolean = {
-    val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
-    if (sinkDefinedPks.isEmpty) {
-      return false
+    private def areUpsertKeysDifferentFromPk(sink: StreamPhysicalSink) = {
+      // if sink's pk(s) are not exactly match input changeLogUpsertKeys then it will fallback
+      // to beforeAndAfter mode for the correctness
+      var upsertKeyDifferentFromPk: Boolean = false
+      val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
+
+      if (sinkDefinedPks.nonEmpty) {
+        val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
+        val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
+        val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+        // if input is UA only, primary key != upsert key (upsert key can be null) we should
+        // fallback to beforeAndAfter.
+        // Notice: even sink pk(s) contains input upsert key we cannot optimize to UA only,
+        // this differs from batch job's unique key inference
+        if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(_.equals(sinkPks))) {
+          upsertKeyDifferentFromPk = true
+        }
+      }
+      upsertKeyDifferentFromPk
     }
-    val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
-    val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-    val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
-    // if upsert key is null, we should fall back to beforeAndAfter
-    if (changeLogUpsertKeys == null) {
-      return true
-    }
-    val immutableCols = fmq.getImmutableColumns(sink.getInput)
-    val effectiveImmutableCols =
-      if (immutableCols != null) immutableCols else ImmutableBitSet.of()
-    // check: uk ⊆ sinkPks AND sinkPks ⊆ (uk ∪ immutableCols)
-    // when immutableCols is empty, this degrades to uk.equals(sinkPks)
-    !changeLogUpsertKeys.exists(
-      uk => sinkPks.contains(uk) && uk.union(effectiveImmutableCols).contains(sinkPks))
   }
 
   private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
