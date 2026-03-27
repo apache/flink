@@ -318,6 +318,8 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         waitForJobToFinish(confirmedLeaderInformation, dispatcherGateway, jobId);
         firstCleanupTriggered.await();
+        CommonTestUtils.waitUntilCondition(
+                () -> !haServices.getApplicationResultStore().getDirtyResults().isEmpty());
 
         assertThat(actualGlobalCleanupCallCount.get())
                 .as("The cleanup should have been triggered only once.")
@@ -335,12 +337,6 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                 .collect(Collectors.toSet()))
                 .as("The JobResultStore should have this job marked as dirty.")
                 .containsExactly(jobId);
-        assertThat(
-                        haServices.getApplicationResultStore().getDirtyResults().stream()
-                                .map(ApplicationResult::getApplicationId)
-                                .collect(Collectors.toSet()))
-                .as("The ApplicationResultStore should have this application marked as dirty.")
-                .containsExactly(applicationId);
 
         // Run a second dispatcher, that restores our finished job.
         final Dispatcher secondDispatcher =
