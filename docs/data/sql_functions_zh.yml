@@ -784,12 +784,12 @@ temporal:
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
-    description: Returns the timestamp with the interval added. The unit for the interval is given by the first argument, which should be one of the following values. SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.
+    description: Returns the timestamp with the interval added. The unit for the interval is given by the first argument, which should be one of the following values. SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, or YEAR. E.g., TIMESTAMPADD(WEEK, 1, TIMESTAMP '2020-01-01 00:00:00') returns TIMESTAMP '2020-01-08 00:00:00'; TIMESTAMPADD(QUARTER, 1, TIMESTAMP '2020-01-01 00:00:00') returns TIMESTAMP '2020-04-01 00:00:00'.
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: |
       返回 timepoint1 和 timepoint2 之间时间间隔。间隔的单位由第一个参数给出，它应该是以下值之一：
-      SECOND，MINUTE，HOUR，DAY，MONTH 或 YEAR。
+      SECOND，MINUTE，HOUR，DAY，WEEK，MONTH，QUARTER 或 YEAR。
   - sql: CONVERT_TZ(string1, string2, string3)
     table: convertTz(STRING1, STRING2, STRING3)
     description: |
