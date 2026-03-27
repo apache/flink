@@ -881,6 +881,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 INITIALIZE_STATE_DURATION, initializeStateEndTs - readOutputDataTs);
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
 
+        boolean checkpointingDuringRecoveryEnabled =
+                CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
+        for (IndexedInputGate inputGate : inputGates) {
+            inputGate.setCheckpointingDuringRecoveryEnabled(checkpointingDuringRecoveryEnabled);
+        }
+
         channelIOExecutor.execute(
                 () -> {
                     try {
