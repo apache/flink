@@ -95,14 +95,12 @@ class BlobServerCleanupTest {
     }
 
     @Test
-    void testTransientBlobNoJobCleanup()
-            throws IOException, InterruptedException, ExecutionException {
+    void testTransientBlobNoJobCleanup() throws Exception {
         testTransientBlobCleanup(null);
     }
 
     @Test
-    void testTransientBlobForJobCleanup()
-            throws IOException, InterruptedException, ExecutionException {
+    void testTransientBlobForJobCleanup() throws Exception {
         testTransientBlobCleanup(new JobID());
     }
 
@@ -110,8 +108,7 @@ class BlobServerCleanupTest {
      * Tests that {@link TransientBlobCache} cleans up after a default TTL and keeps files which are
      * constantly accessed.
      */
-    private void testTransientBlobCleanup(@Nullable final JobID jobId)
-            throws IOException, InterruptedException, ExecutionException {
+    private void testTransientBlobCleanup(@Nullable final JobID jobId) throws Exception {
 
         // 1s should be a safe-enough buffer to still check for existence after a BLOB's last access
         long cleanupInterval = 1L; // in seconds
@@ -150,9 +147,11 @@ class BlobServerCleanupTest {
             final JobID jobIdHA = (jobId == null) ? new JobID() : jobId;
             final BlobKey keyHA = put(server, jobIdHA, data, PERMANENT_BLOB);
 
-            // access key1, verify expiry times (delay at least 1ms to also verify key2 expiry is
-            // unchanged)
-            Thread.sleep(1);
+            // access key1, verify expiry times (wait until wall-clock advances so we can assert
+            // key2 expiry is unchanged even on slow or contended CI hosts)
+            final long afterKey2PutMillis = System.currentTimeMillis();
+            CommonTestUtils.waitUntilCondition(
+                    () -> System.currentTimeMillis() > afterKey2PutMillis, 1L);
             cleanupLowerBound = System.currentTimeMillis() + cleanupInterval;
             verifyContents(server, jobId, key1, data);
             final Long key1ExpiryAfterGet = transientBlobExpiryTimes.get(Tuple2.of(jobId, key1));
@@ -161,9 +160,11 @@ class BlobServerCleanupTest {
             assertThat(key2ExpiryAfterPut)
                     .isEqualTo(transientBlobExpiryTimes.get(Tuple2.of(jobId, key2)));
 
-            // access key2, verify expiry times (delay at least 1ms to also verify key1 expiry is
-            // unchanged)
-            Thread.sleep(1);
+            // access key2, verify expiry times (wait until wall-clock advances so we can assert
+            // key1 expiry is unchanged even on slow or contended CI hosts)
+            final long afterKey1AccessMillis = System.currentTimeMillis();
+            CommonTestUtils.waitUntilCondition(
+                    () -> System.currentTimeMillis() > afterKey1AccessMillis, 1L);
             cleanupLowerBound = System.currentTimeMillis() + cleanupInterval;
             verifyContents(server, jobId, key2, data2);
             assertThat(key1ExpiryAfterGet)
