@@ -128,14 +128,14 @@ export class JobStatusComponent implements OnInit, OnDestroy {
 
   private handleJobDetailChanged(data: JobDetailCorrect): void {
     this.jobDetail = data;
-    const index = this.checkpointIndexOfNav();
-    if (data.plan.type == 'STREAMING' && index == -1) {
+    const checkpointNavIndex = this.checkpointIndexOfNav();
+    if (data.plan.type == 'STREAMING' && checkpointNavIndex == -1) {
       this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {
         path: 'checkpoints',
         title: 'Checkpoints'
       });
-    } else if (data.plan.type == 'BATCH' && index > -1) {
-      this.listOfNavigation.splice(index, 1);
+    } else if (data.plan.type == 'BATCH' && checkpointNavIndex > -1) {
+      this.listOfNavigation.splice(checkpointNavIndex, 1);
     }
     this.cdr.markForCheck();
   }
