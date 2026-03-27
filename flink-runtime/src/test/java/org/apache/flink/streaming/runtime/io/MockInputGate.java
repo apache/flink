@@ -199,4 +199,12 @@ public class MockInputGate extends IndexedInputGate {
     public List<InputChannelInfo> getUnfinishedChannels() {
         return Collections.emptyList();
     }
+
+    @Override
+    public void setCheckpointingDuringRecoveryEnabled(boolean enabled) {}
+
+    @Override
+    public boolean isCheckpointingDuringRecoveryEnabled() {
+        return false;
+    }
 }
