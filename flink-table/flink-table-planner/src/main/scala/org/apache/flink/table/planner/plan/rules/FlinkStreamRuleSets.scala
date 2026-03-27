@@ -248,6 +248,11 @@ object FlinkStreamRuleSets {
     JoinToMultiJoinRule.INSTANCE
   )
 
+  val BINARY_MULTI_JOIN_RULES: RuleSet = RuleSets.ofList(
+    // transform binary MultiJoin back into regular join
+    BinaryMultiJoinToJoinRule.INSTANCE
+  )
+
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
