@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.blob.TestingBlobWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -30,6 +32,8 @@ import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.Either;
+import org.apache.flink.util.SerializedValue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -58,6 +62,28 @@ class ExecutionJobVertexTest {
         assertThatThrownBy(() -> ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex))
                 .isInstanceOf(JobException.class)
                 .hasMessageContaining("higher than the max parallelism");
+    }
+
+    @Test
+    void testTaskInformationBlobKeyIsReusedAcrossExecutionGraphRebuilds() throws Exception {
+        JobVertex jobVertex = new JobVertex("testVertex");
+        jobVertex.setInvokableClass(AbstractInvokable.class);
+        jobVertex.getOrCreateResultDataSet(
+                new IntermediateDataSetID(), ResultPartitionType.BLOCKING);
+
+        final ExecutionJobVertex ejv1 = createExecutionJobVertex(jobVertex, 1);
+
+        Either<SerializedValue<TaskInformation>, PermanentBlobKey> key1 =
+                ejv1.getTaskInformationOrBlobKey();
+        assertThat(key1.isRight()).isTrue();
+
+        final ExecutionJobVertex ejv2 = createExecutionJobVertex(jobVertex, 1);
+
+        Either<SerializedValue<TaskInformation>, PermanentBlobKey> key2 =
+                ejv2.getTaskInformationOrBlobKey();
+        assertThat(key2.isRight()).isTrue();
+
+        assertThat(key2.right()).isEqualTo(key1.right());
     }
 
     @Test
@@ -164,6 +190,27 @@ class ExecutionJobVertexTest {
 
     private static ExecutionJobVertex createDynamicExecutionJobVertex() throws Exception {
         return createDynamicExecutionJobVertex(-1, -1, 1);
+    }
+
+    public static ExecutionJobVertex createExecutionJobVertex(
+            JobVertex jobVertex, int defaultMaxParallelism) throws Exception {
+
+        final DefaultExecutionGraph eg =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setBlobWriter(new TestingBlobWriter())
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        final VertexParallelismStore vertexParallelismStore =
+                AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph(
+                        Collections.singletonList(jobVertex), defaultMaxParallelism);
+        final VertexParallelismInformation vertexParallelismInfo =
+                vertexParallelismStore.getParallelismInfo(jobVertex.getID());
+
+        return new ExecutionJobVertex(
+                eg,
+                jobVertex,
+                vertexParallelismInfo,
+                new CoordinatorStoreImpl(),
+                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
     }
 
     public static ExecutionJobVertex createDynamicExecutionJobVertex(
