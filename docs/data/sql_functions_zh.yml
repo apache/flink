@@ -161,7 +161,7 @@ arithmetic:
   - sql: numeric1 - numeric2
     table: NUMERIC1 - NUMERIC2
     description: 返回 numeric1 减 numeric2。
-  - sql: numeric1 * numberic2
+  - sql: numeric1 * numeric2
     table: NUMERIC1 * NUMERIC2
     description: 返回 numeric1 乘以 numeric2。
   - sql: numeric1 / numeric2
@@ -276,7 +276,7 @@ arithmetic:
     table: randInteger(INT1, INT2)
     description: |
       返回范围为 [0, INT2) 的伪随机整数，初始种子为 INT1。
-      如果两个 RAND_INTGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
+      如果两个 RAND_INTEGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
   - sql: UUID()
     table: uuid()
     description: |
@@ -504,7 +504,7 @@ string:
     description: |
       将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
 
-      E.g., SELECT TRANSLATE3('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
+      E.g., SELECT TRANSLATE('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
       
       `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
 
@@ -720,9 +720,9 @@ temporal:
   - sql: CURRENT_ROW_TIMESTAMP()
     description: |
       返回本地时区的当前 SQL 时间戳，返回类型为 TIMESTAMP_LTZ(3)。无论是在批处理模式还是流模式下，都会为每条记录进行取值。
-  - sql: EXTRACT(timeinteravlunit FROM temporal)
+  - sql: EXTRACT(timeintervalunit FROM temporal)
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
-    description: 返回从时间 temporal 的时间间隔单位部分 timeinteravlunit 提取的 long 值。例如 `EXTRACT(DAY FROM DATE '2006-06-05')` 返回 5。
+    description: 返回从时间 temporal 的时间间隔单位部分 timeintervalunit 提取的 long 值。例如 `EXTRACT(DAY FROM DATE '2006-06-05')` 返回 5。
   - sql: YEAR(date)
     description: |
       从 SQL 日期 date 返回年份。相当于 EXTRACT(YEAR FROM date)。例如 `YEAR(DATE '1994-09-27')` 返回 1994。
@@ -757,7 +757,7 @@ temporal:
   - sql: MINUTE(timestamp)
     description: |
       从 SQL 时间戳 timestamp 返回分钟单位的分钟数（0 到 59 之间的整数）。相当于 EXTRACT(MINUTE FROM timestamp)。
-      例如 `MINUTE(TIMESTAMP '1994-09-27 13:14:15')` 返回 14。
+      例如 `HOUR(TIMESTAMP '1994-09-27 13:14:15')` 返回 13。
   - sql: SECOND(timestamp)
     description: |
       从 SQL 时间戳 timestamp 返回秒单位部分的秒数（0 到 59 之间的整数）。相当于 EXTRACT(SECOND FROM timestamp)。
@@ -767,10 +767,10 @@ temporal:
     description: |
       返回将时间点 timepoint 向下取值到时间单位 timeintervalunit 的值。例如 `FLOOR(TIME '12:44:31' TO MINUTE)`
       返回 12:44:00。
-  - sql: CEIL(timespoint TO timeintervaluntit)
+  - sql: CEIL(timepoint TO timeintervalunit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: |
-      返回将时间点 timespoint 向上取值到时间单位 timeintervaluntit 的值。例如 `CEIL(TIME '12:44:31' TO MINUTE)`
+      返回将时间点 timepoint 向上取值到时间单位 timeintervalunit 的值。例如 `CEIL(TIME '12:44:31' TO MINUTE)`
       返回 12:45:00。
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
     table: temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
@@ -784,6 +784,7 @@ temporal:
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
+    description: Returns the timestamp with the interval added. The unit for the interval is given by the first argument, which should be one of the following values. SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: |
@@ -1527,7 +1528,7 @@ bitmap:
       
       返回一个 `BITMAP`。如果任一参数为 `NULL`，则返回 `NULL`。
 
-auxilary:
+auxiliary:
   - table: callSql(STRING)
     description: |
       对 SQL 表达式的调用。
