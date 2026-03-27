@@ -289,7 +289,12 @@ public class ChannelStateFilteringHandler implements Closeable {
 
         /**
          * Deserializes records from {@code sourceBuffer}, applies the virtual channel's record
-         * filter, and re-serializes the surviving records into new buffers.
+         * filter, and immediately re-serializes each surviving record into output buffers.
+         *
+         * <p>Uses streaming processing: each record is deserialized and re-serialized one at a
+         * time, so only one deserialized Java object is held in memory at any point. This avoids
+         * accumulating all deserialized records in a list, which could cause memory pressure when
+         * deserialized objects are significantly larger than their serialized form.
          */
         List<Buffer> filterAndRewrite(
                 int oldSubtaskIndex,
@@ -311,64 +316,70 @@ public class ChannelStateFilteringHandler implements Closeable {
 
             vc.setNextBuffer(sourceBuffer);
 
-            List<StreamElement> filteredElements = new ArrayList<>();
+            List<Buffer> resultBuffers = new ArrayList<>();
+            Buffer currentBuffer = null;
 
             while (true) {
                 DeserializationResult result = vc.getNextRecord(deserializationDelegate);
                 if (result.isFullRecord()) {
-                    filteredElements.add(deserializationDelegate.getInstance());
+                    if (currentBuffer == null) {
+                        currentBuffer = bufferSupplier.requestBufferBlocking();
+                    }
+                    currentBuffer =
+                            serializeElement(
+                                    deserializationDelegate.getInstance(),
+                                    currentBuffer,
+                                    resultBuffers,
+                                    bufferSupplier);
                 }
                 if (result.isBufferConsumed()) {
                     break;
                 }
             }
 
-            return serializeToBuffers(filteredElements, bufferSupplier);
+            if (currentBuffer != null) {
+                if (currentBuffer.readableBytes() > 0) {
+                    resultBuffers.add(currentBuffer);
+                } else {
+                    currentBuffer.recycleBuffer();
+                }
+            }
+
+            return resultBuffers;
         }
 
         /**
-         * Serializes stream elements into buffers using the length-prefixed format (4-byte
-         * big-endian length + record bytes) expected by Flink's record deserializers.
+         * Serializes a single stream element into the current buffer using the length-prefixed
+         * format (4-byte big-endian length + record bytes) expected by Flink's record
+         * deserializers. Spills into new buffers from {@code bufferSupplier} when needed.
+         *
+         * @return the buffer to continue writing into (may differ from the input buffer).
          */
-        private List<Buffer> serializeToBuffers(
-                List<StreamElement> elements, BufferSupplier bufferSupplier)
+        private Buffer serializeElement(
+                StreamElement element,
+                Buffer currentBuffer,
+                List<Buffer> resultBuffers,
+                BufferSupplier bufferSupplier)
                 throws IOException, InterruptedException {
+            outputSerializer.clear();
+            serializer.serialize(element, outputSerializer);
+            int recordLength = outputSerializer.length();
 
-            List<Buffer> resultBuffers = new ArrayList<>();
+            writeLengthToBuffer(recordLength);
+            currentBuffer =
+                    writeDataToBuffer(
+                            lengthBuffer, 0, 4, currentBuffer, resultBuffers, bufferSupplier);
 
-            if (elements.isEmpty()) {
-                return resultBuffers;
-            }
-
-            Buffer currentBuffer = bufferSupplier.requestBufferBlocking();
-
-            for (StreamElement element : elements) {
-                outputSerializer.clear();
-                serializer.serialize(element, outputSerializer);
-                int recordLength = outputSerializer.length();
-
-                writeLengthToBuffer(recordLength);
-                currentBuffer =
-                        writeDataToBuffer(
-                                lengthBuffer, 0, 4, currentBuffer, resultBuffers, bufferSupplier);
-
-                byte[] serializedData = outputSerializer.getSharedBuffer();
-                currentBuffer =
-                        writeDataToBuffer(
-                                serializedData,
-                                0,
-                                recordLength,
-                                currentBuffer,
-                                resultBuffers,
-                                bufferSupplier);
-            }
-
-            if (currentBuffer.readableBytes() > 0) {
-                resultBuffers.add(currentBuffer.retainBuffer());
-            }
-            currentBuffer.recycleBuffer();
-
-            return resultBuffers;
+            byte[] serializedData = outputSerializer.getSharedBuffer();
+            currentBuffer =
+                    writeDataToBuffer(
+                            serializedData,
+                            0,
+                            recordLength,
+                            currentBuffer,
+                            resultBuffers,
+                            bufferSupplier);
+            return currentBuffer;
         }
 
         private void writeLengthToBuffer(int length) {
@@ -399,10 +410,8 @@ public class ChannelStateFilteringHandler implements Closeable {
                 int writableBytes = currentBuffer.getMaxCapacity() - currentBuffer.getSize();
 
                 if (writableBytes == 0) {
-                    if (currentBuffer.readableBytes() > 0) {
-                        resultBuffers.add(currentBuffer.retainBuffer());
-                    }
-                    currentBuffer.recycleBuffer();
+                    // Buffer is full, transfer ownership to resultBuffers
+                    resultBuffers.add(currentBuffer);
                     currentBuffer = bufferSupplier.requestBufferBlocking();
                     writableBytes = currentBuffer.getMaxCapacity();
                 }
