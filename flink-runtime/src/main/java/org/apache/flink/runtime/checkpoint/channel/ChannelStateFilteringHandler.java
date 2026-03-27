@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * deserialize different record types on different gates.
  */
 @Internal
-public class ChannelStateFilteringHandler {
+public class ChannelStateFilteringHandler implements Closeable {
 
     // Wildcard allows heterogeneous record types across gates.
     private final GateFilterHandler<?>[] gateHandlers;
@@ -103,6 +104,12 @@ public class ChannelStateFilteringHandler {
      * Filters a recovered buffer from the specified virtual channel, returning new buffers
      * containing only the records that belong to the current subtask.
      *
+     * <p>One source buffer may produce 0 to N result buffers: 0 if all records are filtered out,
+     * and potentially more than 1 when a spanning record completes in this buffer. The deserializer
+     * caches partial record data from previous buffers, so the output may contain data that was not
+     * in the current source buffer, causing the total output size to exceed one buffer capacity.
+     * This can happen with any spanning record regardless of its size.
+     *
      * @return filtered buffers, possibly empty if all records were filtered out.
      */
     public List<Buffer> filterAndRewrite(
@@ -142,7 +149,8 @@ public class ChannelStateFilteringHandler {
         return false;
     }
 
-    public void clear() {
+    @Override
+    public void close() {
         for (GateFilterHandler<?> handler : gateHandlers) {
             if (handler != null) {
                 handler.clear();
