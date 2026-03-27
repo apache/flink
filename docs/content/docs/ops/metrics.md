@@ -1026,7 +1026,7 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="5"><strong>JobManager</strong></th>
+      <th rowspan="7"><strong>JobManager</strong></th>
       <td>numRegisteredTaskManagers</td>
       <td>The number of registered taskmanagers.</td>
       <td>Gauge</td>
@@ -1050,6 +1050,16 @@ Metrics related to data exchange between task executors using netty network comm
       <td>taskSlotsTotal</td>
       <td>The total number of task slots.</td>
       <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>totalRequestTaskManagers</td>
+      <td>The total number of task manager create request</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>totalReleaseTaskManagers</td>
+      <td>The total number of task manager release request</td>
+      <td>Counter</td>
     </tr>
   </tbody>
 </table>
