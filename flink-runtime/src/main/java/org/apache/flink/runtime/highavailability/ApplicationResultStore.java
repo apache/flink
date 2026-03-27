@@ -109,4 +109,21 @@ public interface ApplicationResultStore {
      * @throws IOException if collecting the set of dirty results failed for IO reasons.
      */
     Set<ApplicationResult> getDirtyResults() throws IOException;
+
+    /**
+     * Asynchronously gets the persisted {@link ApplicationResult} instance that is marked as {@code
+     * clean} for the given {@code ApplicationID}.
+     *
+     * <p>This method is used to determine whether the application has already completed and been
+     * cleaned up, thereby avoiding duplicate execution. Note that it only works when {@link
+     * ApplicationResultStoreOptions#DELETE_ON_COMMIT} is set to {@code false}; otherwise clean
+     * entries are deleted upon commit and cannot be retrieved.
+     *
+     * @param applicationId Ident of the application we wish to get.
+     * @return a {@link CompletableFuture} that completes with the {@link ApplicationResult} if a
+     *     clean entry exists for the given {@code applicationId}; otherwise a successfully
+     *     completed future with {@code null}.
+     */
+    CompletableFuture<ApplicationResult> getCleanApplicationResultAsync(
+            ApplicationID applicationId);
 }

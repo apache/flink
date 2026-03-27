@@ -208,4 +208,54 @@ public interface ApplicationResultStoreContractTest {
                 .singleElement()
                 .isEqualTo(otherDirtyApplicationResultEntry.getApplicationId());
     }
+
+    @Test
+    default void testGetCleanApplicationResultWithCleanEntry() throws IOException {
+        ApplicationResultStore applicationResultStore = createApplicationResultStore();
+        applicationResultStore.createDirtyResultAsync(DUMMY_APPLICATION_RESULT_ENTRY).join();
+        applicationResultStore
+                .markResultAsCleanAsync(DUMMY_APPLICATION_RESULT_ENTRY.getApplicationId())
+                .join();
+
+        final ApplicationResult result =
+                applicationResultStore
+                        .getCleanApplicationResultAsync(
+                                DUMMY_APPLICATION_RESULT_ENTRY.getApplicationId())
+                        .join();
+        assertThat(result).isNotNull();
+        assertThat(result.getApplicationId())
+                .isEqualTo(DUMMY_APPLICATION_RESULT_ENTRY.getApplicationId());
+        assertThat(result.getApplicationState())
+                .isEqualTo(
+                        DUMMY_APPLICATION_RESULT_ENTRY
+                                .getApplicationResult()
+                                .getApplicationState());
+        assertThat(result.getApplicationName())
+                .isEqualTo(
+                        DUMMY_APPLICATION_RESULT_ENTRY.getApplicationResult().getApplicationName());
+    }
+
+    @Test
+    default void testGetCleanApplicationResultWithNoEntry() throws IOException {
+        ApplicationResultStore applicationResultStore = createApplicationResultStore();
+        final ApplicationResult result =
+                applicationResultStore
+                        .getCleanApplicationResultAsync(
+                                DUMMY_APPLICATION_RESULT_ENTRY.getApplicationId())
+                        .join();
+        assertThat(result).isNull();
+    }
+
+    @Test
+    default void testGetCleanApplicationResultWithDirtyEntry() throws IOException {
+        ApplicationResultStore applicationResultStore = createApplicationResultStore();
+        applicationResultStore.createDirtyResultAsync(DUMMY_APPLICATION_RESULT_ENTRY).join();
+
+        final ApplicationResult result =
+                applicationResultStore
+                        .getCleanApplicationResultAsync(
+                                DUMMY_APPLICATION_RESULT_ENTRY.getApplicationId())
+                        .join();
+        assertThat(result).isNull();
+    }
 }

@@ -230,6 +230,23 @@ public class FileSystemApplicationResultStore extends AbstractThreadsafeApplicat
         return dirtyResults;
     }
 
+    @Override
+    protected ApplicationResult getCleanApplicationResultInternal(ApplicationID applicationId)
+            throws IOException {
+        if (deleteOnCommit) {
+            return null;
+        }
+
+        Path cleanPath = constructCleanPath(applicationId);
+        if (!fileSystem.exists(cleanPath)) {
+            return null;
+        }
+
+        JsonApplicationResultEntry jre =
+                mapper.readValue(fileSystem.open(cleanPath), JsonApplicationResultEntry.class);
+        return jre.getApplicationResult();
+    }
+
     /**
      * Wrapper class around {@link ApplicationResultEntry} to allow for serialization of a schema
      * version, so that future schema changes can be handled in a backwards compatible manner.

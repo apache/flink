@@ -128,6 +128,16 @@ public abstract class AbstractThreadsafeApplicationResultStore implements Applic
     @GuardedBy("readWriteLock")
     protected abstract Set<ApplicationResult> getDirtyResultsInternal() throws IOException;
 
+    @Override
+    public CompletableFuture<ApplicationResult> getCleanApplicationResultAsync(
+            ApplicationID applicationId) {
+        return withReadLockAsync(() -> getCleanApplicationResultInternal(applicationId));
+    }
+
+    @GuardedBy("readWriteLock")
+    protected abstract ApplicationResult getCleanApplicationResultInternal(
+            ApplicationID applicationId) throws IOException;
+
     private CompletableFuture<Void> withWriteLockAsync(ThrowingRunnable<IOException> runnable) {
         return FutureUtils.runAsync(
                 () -> {
