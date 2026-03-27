@@ -22,6 +22,17 @@ export interface JarList {
   error?: boolean;
 }
 
+export interface JarPlanRequestBody {
+  entryClass?: string;
+  programArgsList?: string[];
+  parallelism?: number;
+}
+
+export interface JarRunRequestBody extends JarPlanRequestBody {
+  savepointPath?: string;
+  allowNonRestoredState?: boolean;
+}
+
 export interface JarFilesItem {
   id: string;
   name: string;
