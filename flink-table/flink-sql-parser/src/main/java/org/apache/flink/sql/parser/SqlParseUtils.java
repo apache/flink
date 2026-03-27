@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,5 +115,36 @@ public class SqlParseUtils {
             return Set.of();
         }
         return sqlNodeList.getList().stream().map(mapper).collect(Collectors.toSet());
+    }
+
+    @Nullable
+    public static <T extends Enum<T>> T extractEnum(
+            @Nullable SqlLiteral literal, Class<T> enumClass) {
+        if (literal == null) {
+            return null;
+        }
+
+        final String value = literal.toValue();
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            return Enum.valueOf(enumClass, value);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException(
+                    String.format(
+                            "Invalid value '%s' for enum %s. Valid values are: %s",
+                            value,
+                            enumClass.getSimpleName(),
+                            String.join(", ", getEnumValues(enumClass))),
+                    e);
+        }
+    }
+
+    private static <T extends Enum<T>> List<String> getEnumValues(Class<T> enumClass) {
+        return Arrays.stream(enumClass.getEnumConstants())
+                .map(Enum::name)
+                .collect(Collectors.toList());
     }
 }

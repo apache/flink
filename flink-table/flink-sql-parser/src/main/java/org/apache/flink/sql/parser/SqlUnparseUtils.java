@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlStartMode;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIntervalLiteral;
@@ -114,6 +115,16 @@ public class SqlUnparseUtils {
         writer.keyword("FRESHNESS");
         writer.keyword("=");
         freshness.unparse(writer, leftPrec, rightPrec);
+    }
+
+    public static void unparseStartMode(SqlStartMode sqlStartMode, SqlWriter writer) {
+        if (sqlStartMode == null) {
+            return;
+        }
+        writer.newlineAndIndent();
+        writer.keyword("START_MODE");
+        writer.keyword("=");
+        writer.keyword(sqlStartMode.toString());
     }
 
     public static void unparseRefreshMode(SqlRefreshMode refreshMode, SqlWriter writer) {

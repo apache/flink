@@ -55,6 +55,7 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
             SqlNodeList propertyList,
             @Nullable SqlIntervalLiteral freshness,
             @Nullable SqlRefreshMode refreshMode,
+            @Nullable SqlStartMode startMode,
             SqlNode asQuery,
             boolean isOrAlter) {
         super(
@@ -70,6 +71,7 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
                 propertyList,
                 freshness,
                 refreshMode,
+                startMode,
                 asQuery);
     }
 
