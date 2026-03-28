@@ -1511,7 +1511,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         reflector.setAttemptFailuresValidityInterval(
                 appContext,
                 flinkConfiguration.get(
-                        YarnConfigOptions.APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL));
+                        YarnConfigOptions.APPLICATION_ATTEMPT_FAILURES_GLOBAL_VALIDITY_INTERVAL));
     }
 
     private void setApplicationTags(final ApplicationSubmissionContext appContext)
