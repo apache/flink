@@ -33,7 +33,7 @@ Flink SQL 目前支持以下物化表操作：
 
 # CREATE [OR ALTER] MATERIALIZED TABLE
 
-```
+```text
 CREATE [OR ALTER] MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 
 [(
@@ -43,6 +43,8 @@ CREATE [OR ALTER] MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 )]
 
 [COMMENT table_comment]
+
+[ <distribution> ]
 
 [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
 
@@ -71,6 +73,12 @@ AS <select_statement>
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+  
+<distribution>:
+{
+    DISTRIBUTED BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) [INTO n BUCKETS]
+  | DISTRIBUTED INTO n BUCKETS
+}
 ```
 
 ## PRIMARY KEY
@@ -383,15 +391,123 @@ CREATE OR ALTER MATERIALIZED TABLE my_materialized_table
 
 # ALTER MATERIALIZED TABLE
 
-```
+```text
 ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name
-    SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)] |
-    REFRESH [PARTITION partition_spec] |
-    AS <select_statement>
+    ADD { <schema_component> | (<schema_component> [, ...]) | <distribution> }
+    | MODIFY { <schema_component> | (<schema_component> [, ...]) | <distribution> }
+    | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | DISTRIBUTION }
+    | SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)] |
+    | REFRESH [PARTITION partition_spec] |
+    | AS <select_statement>
+<schema_component>:
+  { <column_component> | <constraint_component> | <watermark_component> }
+
+<column_component>:
+  column_name <column_definition> [FIRST | AFTER column_name]
+
+<constraint_component>:
+  [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
+
+<watermark_component>:
+  WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+
+<column_definition>:
+  { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> } [COMMENT column_comment]
+
+<physical_column_definition>:
+  column_type
+
+<metadata_column_definition>:
+  column_type METADATA [ FROM metadata_key ] [ VIRTUAL ]
+
+<computed_column_definition>:
+  AS computed_column_expression
+  
+<distribution>:
+{
+    DISTRIBUTION BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) ] [INTO n BUCKETS]
+  | DISTRIBUTION INTO n BUCKETS
+} 
 ```
 
 `ALTER MATERIALIZED TABLE` 用于管理物化表。用户可以使用此命令暂停和恢复物化表的刷新管道，并手动触发数据刷新，以及修改物化表的查询定义。
 
+## ADD
+Use `ADD` clause to add [columns]({{< ref "docs/sql/reference/ddl/create" >}}#columns) (only non persisted), [constraints]({{< ref "docs/sql/reference/ddl/create" >}}#primary-key), a [watermark]({{< ref "docs/sql/reference/ddl/create" >}}#watermark), and a [distribution]({{< ref "docs/sql/reference/ddl/create" >}}#distributed) to an existing materialized table.
+
+To add a column at the specified position, use `FIRST` or `AFTER col_name`. By default, the column is appended at last.
+
+The following examples illustrate the usage of the `ADD` statements.
+
+```sql
+-- add a new column 
+ALTER MATERIALIZED TABLE MyMateralizedTable ADD category_id STRING METADATA VIRTUAL;
+
+-- add columns, constraint, and watermark
+ALTER MATERIALIZED TABLE MyMateralizedTable ADD (
+    log_ts STRING METADATA VIRTUAL FIRST,
+    ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+    PRIMARY KEY (id) NOT ENFORCED,
+    WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
+);
+
+-- add new distribution using a hash on uid into 4 buckets
+ALTER MATERIALIZED TABLE MyMateralizedTable ADD DISTRIBUTION BY HASH(uid) INTO 4 BUCKETS;
+
+-- add new distribution on uid into 4 buckets
+ALTER MATERIALIZED TABLE MyMateralizedTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
+
+-- add new distribution on uid.
+ALTER MATERIALIZED TABLE MyMateralizedTable ADD DISTRIBUTION BY (uid);
+
+-- add new distribution into 4 buckets
+ALTER MATERIALIZED TABLE MyMateralizedTable ADD DISTRIBUTION INTO 4 BUCKETS;
+```
+<span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
+
+## MODIFY
+Use `MODIFY` clause to change column's comment, position, type (non persisted column), change primary key columns and watermark strategy to an existing table.
+
+To modify an existent column to a new position, use `FIRST` or `AFTER col_name`. By default, the position remains unchanged.
+
+The following examples illustrate the usage of the `MODIFY` statements.
+
+```sql
+-- modify a column type, comment and position
+ALTER MATERIALIZED TABLE MyMateralizedTable MODIFY measurement double METADATA COMMENT 'unit is bytes per second' AFTER `id`;
+
+-- modify definition of column log_ts and ts, primary key, watermark. They must exist in table schema
+ALTER MATERIALIZED TABLE MyMateralizedTable MODIFY (
+    log_ts STRING METADATA COMMENT 'log timestamp string' AFTER `id`,  -- reorder columns
+    ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
+    PRIMARY KEY (id) NOT ENFORCED,
+    WATERMARK FOR ts AS ts -- modify watermark strategy
+);
+```
+
+<span class="label label-danger">Note</span> Modify a column to be primary key will change the column's nullability to false implicitly.
+
+## DROP
+Use the `DROP` clause to drop columns(only non persisted), primary key, partitions, and watermark strategy to an existing table.
+
+The following examples illustrate the usage of the `DROP` statements.
+
+```sql
+-- drop a column
+ALTER MATERIALIZED TABLE MyMateralizedTable DROP measurement;
+
+-- drop columns
+ALTER MATERIALIZED TABLE MyMateralizedTable DROP (col1, col2, col3);
+
+-- drop primary key
+ALTER MATERIALIZED TABLE MyMateralizedTable DROP PRIMARY KEY;
+
+-- drop a watermark
+ALTER MATERIALIZED TABLE MyMateralizedTable DROP WATERMARK;
+
+-- drop distribution
+ALTER MATERIALIZED TABLE MyMateralizedTable DROP DISTRIBUTION;
+```
 
 ## SUSPEND
 

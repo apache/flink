@@ -34,6 +34,7 @@ ALTER statements are used to modify the definition of a table, view or function 
 Flink SQL supports the following ALTER statements for now:
 
 - ALTER TABLE
+- ALTER MATERIALIZED TABLE
 - ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
@@ -507,6 +508,9 @@ ALTER TABLE DataGenSource RESET ('rows-per-second');
 ```
 
 {{< top >}}
+
+## ALTER MATERIALIZED TABLE
+See a dedicated page for [Materialized tables]({{< ref "docs/sql/materialized-table/statements" >}}#alter-materialized-table).
 
 ## ALTER VIEW
 

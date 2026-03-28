@@ -33,6 +33,7 @@ Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
 - [CREATE OR] REPLACE TABLE
+- CREATE [OR ALTER ]MATERIALIZED TABLE
 - CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
@@ -791,6 +792,9 @@ If you want to enable atomicity for RTAS, then you should make sure:
 * Set option [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) to `true`.
 
 {{< top >}}
+
+## CREATE [OR ALTER ]MATERIALIZED TABLE
+See a dedicated page for [Materialized tables]({{< ref "docs/sql/materialized-table/statements" >}}#create-materialized-table).
 
 ## CREATE CATALOG
 
