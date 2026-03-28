@@ -1,0 +1,35 @@
+/* * Licensed to the Apache Software Foundation (ASF) under one * or more contributor license
+agreements. See the NOTICE file * distributed with this work for additional information * regarding
+copyright ownership. The ASF licenses this file * to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance * with the License. You may obtain a
+copy of the License at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless required by
+applicable law or agreed to in writing, software * distributed under the License is distributed on
+an "AS IS" BASIS, * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. * See
+the License for the specific language governing permissions and * limitations under the License. */
+
+<div class="diagnosis-demo-container">
+  <h2>Diagnosis Advisor Demo</h2>
+
+  <div class="demo-section">
+    <h3>Diagnostic Scenarios</h3>
+    <p>This demo showcases the Diagnosis Advisor feature with sample diagnostic scenarios.</p>
+
+    <nz-radio-group [(ngModel)]="selectedScenario" (ngModelChange)="onScenarioChange()">
+      <label nz-radio-button nzValue="gcIssue">High CPU + High Memory (GC Issue)</label>
+      <label nz-radio-button nzValue="computation">High CPU + Normal Memory (Computation)</label>
+      <label nz-radio-button nzValue="ioBottleneck">Low CPU + High Backpressure (I/O)</label>
+      <label nz-radio-button nzValue="normal">Normal Metrics (No Issues)</label>
+    </nz-radio-group>
+
+    <div class="diagnosis-display">
+      <flink-diagnosis [diagnosis]="currentDiagnosis" [loading]="loading"></flink-diagnosis>
+    </div>
+
+    <nz-alert
+      nzType="info"
+      nzMessage="This is a demo with sample diagnostic scenarios. In production, connect to actual jobs to view real-time diagnosis."
+      nzShowIcon
+      nzCloseable
+    ></nz-alert>
+  </div>
+</div>

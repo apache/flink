@@ -16,26 +16,9 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './job-rescales';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
-export * from './application-exception';
-export * from './topn-metrics';
-export * from './diagnosis';
+package org.apache.flink.runtime.rest.messages.job.diagnosis;
+
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+
+/** MessageParameters for Diagnosis Advisor. */
+public class DiagnosisMessageParameters extends JobMessageParameters {}

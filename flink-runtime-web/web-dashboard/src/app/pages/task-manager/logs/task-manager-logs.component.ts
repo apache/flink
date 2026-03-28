@@ -17,29 +17,27 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
-import {catchError, takeUntil} from 'rxjs/operators';
+import { catchError, takeUntil } from 'rxjs/operators';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
 import { EditorOptions } from 'ng-zorro-antd/code-editor';
-import {of, Subject} from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import {
   TASK_MANAGER_MODULE_CONFIG,
-  TASK_MANAGER_MODULE_DEFAULT_CONFIG,
+  TASK_MANAGER_MODULE_DEFAULT_CONFIG
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
-import {ModuleConfig} from "@flink-runtime-web/core/module-config";
-import {NzCodeEditorModule} from "ng-zorro-antd/code-editor";
-import {AutoResizeDirective} from "@flink-runtime-web/components/editor/auto-resize.directive";
-import {FormsModule} from "@angular/forms";
-import {
-  AddonCompactComponent
-} from "@flink-runtime-web/components/addon-compact/addon-compact.component";
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
+import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
+import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
+import { FormsModule } from '@angular/forms';
+import { AddonCompactComponent } from '@flink-runtime-web/components/addon-compact/addon-compact.component';
 
 @Component({
-    selector: 'flink-task-manager-logs',
-    templateUrl: './task-manager-logs.component.html',
-    styleUrls: ['./task-manager-logs.component.less'],
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
+  selector: 'flink-task-manager-logs',
+  templateUrl: './task-manager-logs.component.html',
+  styleUrls: ['./task-manager-logs.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class TaskManagerLogsComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

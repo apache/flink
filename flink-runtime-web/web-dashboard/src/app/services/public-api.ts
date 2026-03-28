@@ -25,3 +25,5 @@ export * from './task-manager.service';
 export * from './metrics.service';
 export * from './config.service';
 export * from './application.service';
+export * from './topn-metrics.service';
+export * from './diagnosis.service';

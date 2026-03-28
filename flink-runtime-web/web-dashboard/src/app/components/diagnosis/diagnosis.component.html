@@ -1,0 +1,95 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div class="diagnosis-container">
+  <div *ngIf="loading" class="loading-state">
+    <nz-spin nzSimple></nz-spin>
+    <p>Analyzing metrics...</p>
+  </div>
+
+  <div *ngIf="!loading && !diagnosis" class="empty-state">
+    <nz-empty nzNotFoundText="No diagnostic suggestions available"></nz-empty>
+  </div>
+
+  <div *ngIf="!loading && diagnosis" class="diagnosis-content">
+    <div class="diagnosis-header">
+      <h3>Diagnosis Advisor</h3>
+      <span class="timestamp">Last updated: {{ diagnosis.timestamp }}</span>
+    </div>
+
+    <div *ngIf="diagnosis.diagnostics.length === 0" class="no-issues">
+      <nz-result
+        nzStatus="success"
+        nzTitle="No Issues Detected"
+        nzSubTitle="Your job metrics appear to be within normal ranges."
+      >
+        <nz-result-extra>
+          <p>Continue monitoring for any changes.</p>
+        </nz-result-extra>
+      </nz-result>
+    </div>
+
+    <div class="diagnosis-list">
+      <nz-alert
+        *ngFor="let suggestion of diagnosis.diagnostics"
+        [nzType]="
+          suggestion.severity === 'error'
+            ? 'error'
+            : suggestion.severity === 'warning'
+            ? 'warning'
+            : 'info'
+        "
+        [nzMessage]="suggestion.title"
+        [nzDescription]="suggestion.message"
+        [nzShowIcon]="true"
+        [nzIcon]="getSeverityIcon(suggestion.severity)"
+        [nzCloseable]="false"
+        class="diagnosis-alert"
+      >
+        <ng-template #description>
+          <div class="diagnosis-detail">
+            <p class="message">{{ suggestion.message }}</p>
+
+            <div
+              *ngIf="suggestion.metrics && Object.keys(suggestion.metrics).length > 0"
+              class="metrics-info"
+            >
+              <h4>Related Metrics:</h4>
+              <div class="metrics-grid">
+                <div *ngFor="let entry of suggestion.metrics | keyvalue" class="metric-item">
+                  <span class="metric-label">{{ getMetricLabel(entry.key) }}:</span>
+                  <span class="metric-value">{{ formatMetricValue(entry.key, entry.value) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              *ngIf="suggestion.actions && suggestion.actions.length > 0"
+              class="recommended-actions"
+            >
+              <h4>Recommended Actions:</h4>
+              <ul>
+                <li *ngFor="let action of suggestion.actions">{{ action }}</li>
+              </ul>
+            </div>
+          </div>
+        </ng-template>
+      </nz-alert>
+    </div>
+  </div>
+</div>

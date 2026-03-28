@@ -16,26 +16,46 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './job-rescales';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
-export * from './application-exception';
-export * from './topn-metrics';
-export * from './diagnosis';
+.topn-metrics-container {
+  padding: 16px;
+  background: #fff;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.topn-metrics-section {
+  margin-bottom: 24px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #262626;
+  }
+
+  .no-data {
+    padding: 20px;
+    text-align: center;
+    color: #8c8c8c;
+    font-style: italic;
+  }
+}
+
+.high-cpu {
+  color: #cf1322;
+  font-weight: 600;
+}
+
+.high-backpressure {
+  color: #d4380d;
+  font-weight: 600;
+}
+
+.high-gc {
+  color: #d46b08;
+  font-weight: 600;
+}
