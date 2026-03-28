@@ -262,6 +262,12 @@ under the License.
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
 								</relocation>
+								<!-- Relocate Jackson to prevent conflicts with user jobs that depend on newer
+								     Jackson versions. -->
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.jackson</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
