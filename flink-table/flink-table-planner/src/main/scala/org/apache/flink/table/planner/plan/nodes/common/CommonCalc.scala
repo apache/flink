@@ -27,8 +27,8 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexProgram}
-import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexLocalRef, RexNode, RexProgram, RexShuttle}
+import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 
 import java.util.Collections
 
@@ -49,12 +49,26 @@ abstract class CommonCalc(
     // conditions, etc. We only want to account for computations, not for simple projections.
     // CASTs in RexProgram are reduced as far as possible by ReduceExpressionsRule
     // in normalization stage. So we should ignore CASTs here in optimization stage.
-    val compCnt = calcProgram.getProjectList.map(calcProgram.expandLocalRef).toList.count {
+    val map = new java.util.HashMap[RexNode, Integer]()
+    val shuttle = new FunctionCounter(calcProgram.getExprList, map)
+    calcProgram.getProjectList.map(rf => rf.accept(shuttle))
+    val compCnt1 = calcProgram.getProjectList.map(calcProgram.expandLocalRef).toList.count {
       case _: RexInputRef => false
       case _: RexLiteral => false
       case c: RexCall if c.getOperator.getName.equals("CAST") => false
       case _ => true
     }
+    val offset = map
+      .filterKeys {
+        case _: RexInputRef => false
+        case _: RexLiteral => false
+        case c: RexCall if c.getOperator.getName.equals("CAST") => false
+        case _ => true
+      }
+      .values
+      .foldLeft(0)(_ + _)
+
+    val compCnt = Math.max(compCnt1, offset)
     val newRowCnt = mq.getRowCount(this)
     // TODO use inputRowCnt to compute cpu cost
     planner.getCostFactory.makeCost(newRowCnt, newRowCnt * compCnt, 0)
@@ -100,6 +114,23 @@ abstract class CommonCalc(
           }
       }
       .mkString(", ")
+  }
+
+  class FunctionCounter(
+      private val exprs: java.util.List[RexNode],
+      val map: java.util.Map[RexNode, Integer])
+    extends RexShuttle {
+    override def visitLocalRef(localRef: RexLocalRef): RexNode = {
+      val tree: RexNode = this.exprs.get(localRef.getIndex)
+      if (
+        SqlKind.FUNCTION.contains(tree.getKind)
+        && tree.isInstanceOf[RexCall]
+        && tree.asInstanceOf[RexCall].op.isDeterministic
+      ) {
+        map.merge(tree, 1, (x, y) => x + y)
+      }
+      tree.accept(this)
+    }
   }
 
 }
