@@ -36,6 +36,7 @@ ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/sql/catalogs" >}
 Flink SQL 目前支持以下 ALTER 语句：
 
 - ALTER TABLE
+- ALTER MATERIALIZED TABLE
 - ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
@@ -509,6 +510,9 @@ ALTER TABLE DataGenSource RESET ('rows-per-second');
 ```
 
 {{< top >}}
+
+## ALTER MATERIALIZED TABLE
+See a dedicated page for [Materialized tables]({{< ref "docs/sql/materialized-table/statements" >}}#alter-materialized-table).
 
 ## ALTER VIEW
 
