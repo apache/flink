@@ -26,6 +26,8 @@ public enum Command {
     CLEAR,
     /** Command to print help message. */
     HELP,
+    /** Command to show SQL execution history. */
+    SHOW_HISTORY,
     /** Unknown command. */
     OTHER
 }

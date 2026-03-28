@@ -318,7 +318,7 @@ public class CliClient implements AutoCloseable {
 
     private LineReader createLineReader(Terminal terminal, ExecutionMode mode) {
         SqlMultiLineParser parser =
-                new SqlMultiLineParser(new SqlCommandParserImpl(), executor, mode);
+                new SqlMultiLineParser(new SqlCommandParserImpl(), executor, mode, historyFilePath);
 
         // initialize line lineReader
         LineReaderBuilder builder =
