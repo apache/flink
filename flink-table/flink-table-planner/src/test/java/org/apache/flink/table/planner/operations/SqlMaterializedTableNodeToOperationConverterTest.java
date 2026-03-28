@@ -214,14 +214,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 createResolvedCatalogMaterializedTable(sql);
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
-        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofSecond("30"));
+        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofSecond(30));
 
         final RefreshMode resolvedRefreshMode = materializedTable.getRefreshMode();
         assertThat(resolvedRefreshMode).isSameAs(RefreshMode.FULL);
 
         final CatalogMaterializedTable expected =
                 getDefaultMaterializedTableBuilder()
-                        .freshness(IntervalFreshness.ofSecond("30"))
+                        .freshness(IntervalFreshness.ofSecond(30))
                         .logicalRefreshMode(LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(RefreshStatus.INITIALIZING)
@@ -248,7 +248,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         // The resolved freshness should default to 1 minute
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
-        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofHour("1"));
+        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofHour(1));
 
         final RefreshMode resolvedRefreshMode = materializedTable.getRefreshMode();
         assertThat(resolvedRefreshMode).isSameAs(RefreshMode.FULL);
@@ -279,7 +279,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 createResolvedCatalogMaterializedTable(sql);
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
-        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofMinute("3"));
+        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofMinute(3));
         final CatalogMaterializedTable expected =
                 getDefaultMaterializedTableBuilder()
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
@@ -641,7 +641,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         final CatalogMaterializedTable expected =
                 getDefaultMaterializedTableBuilder()
-                        .freshness(IntervalFreshness.ofSecond("30"))
+                        .freshness(IntervalFreshness.ofSecond(30))
                         .logicalRefreshMode(LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(RefreshStatus.INITIALIZING)
@@ -936,17 +936,17 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL -'30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t1",
-                        "Materialized table freshness doesn't support negative value."),
+                        "The freshness interval currently only supports positive integer type values. But was: -30"),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "FRESHNESS = INTERVAL '30' YEAR\n"
                                 + "AS SELECT * FROM t1",
-                        "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit."),
+                        "Materialized table freshness only supports SECOND, MINUTE, HOUR, DAY, WEEK as the time unit."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "FRESHNESS = INTERVAL '30' DAY TO HOUR\n"
                                 + "AS SELECT * FROM t1",
-                        "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit."));
+                        "Materialized table freshness only supports SECOND, MINUTE, HOUR, DAY, WEEK as the time unit."));
     }
 
     private static Collection<TestSpec> alterDrop() {

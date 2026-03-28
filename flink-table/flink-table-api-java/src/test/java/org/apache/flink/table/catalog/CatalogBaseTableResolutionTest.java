@@ -257,7 +257,7 @@ class CatalogBaseTableResolutionTest {
         assertThat(resolvedCatalogMaterializedTable.getResolvedSchema())
                 .isEqualTo(RESOLVED_MATERIALIZED_TABLE_SCHEMA);
         assertThat(resolvedCatalogMaterializedTable.getDefinitionFreshness())
-                .isEqualTo(IntervalFreshness.ofSecond("30"));
+                .isEqualTo(IntervalFreshness.ofSecond(30));
         assertThat(resolvedCatalogMaterializedTable.getOriginalQuery())
                 .isEqualTo(DEFAULT_ORIGINAL_QUERY);
         assertThat(resolvedCatalogMaterializedTable.getExpandedQuery())
@@ -502,7 +502,7 @@ class CatalogBaseTableResolutionTest {
                 .options(Collections.emptyMap())
                 .originalQuery(DEFAULT_ORIGINAL_QUERY)
                 .expandedQuery(DEFAULT_EXPANDED_QUERY)
-                .freshness(IntervalFreshness.ofSecond("30"))
+                .freshness(IntervalFreshness.ofSecond(30))
                 .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
                 .refreshMode(RefreshMode.CONTINUOUS)
                 .refreshStatus(RefreshStatus.INITIALIZING)

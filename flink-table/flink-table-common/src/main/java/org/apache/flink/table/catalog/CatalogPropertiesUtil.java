@@ -288,8 +288,8 @@ public final class CatalogPropertiesUtil {
             final String expandedQuery = properties.get(EXPANDED_QUERY);
 
             final String freshnessInterval = properties.get(FRESHNESS_INTERVAL);
-            final IntervalFreshness.TimeUnit timeUnit =
-                    IntervalFreshness.TimeUnit.valueOf(properties.get(FRESHNESS_UNIT));
+            final Interval.TimeUnit timeUnit =
+                    Interval.TimeUnit.valueOf(properties.get(FRESHNESS_UNIT));
             final IntervalFreshness freshness = IntervalFreshness.of(freshnessInterval, timeUnit);
 
             final LogicalRefreshMode logicalRefreshMode =
