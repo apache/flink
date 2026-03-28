@@ -100,10 +100,14 @@ public class RegistryAvroFormatFactory
                     int[][] projections) {
                 producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
+                // When no explicit schema is provided, pass null so that the
+                // writer schema from the registry is used for deserialization.
+                // This avoids schema resolution failures when Avro types (e.g.
+                // enums) are lossy-converted through Flink's type system.
                 final Schema schema =
                         schemaString
                                 .map(s -> getAvroSchema(s, rowType))
-                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
+                                .orElse(null);
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
