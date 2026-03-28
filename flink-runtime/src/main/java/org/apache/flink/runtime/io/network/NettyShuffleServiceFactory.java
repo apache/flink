@@ -88,7 +88,7 @@ public class NettyShuffleServiceFactory
                 shuffleEnvironmentContext.getIoExecutor(),
                 shuffleEnvironmentContext.getScheduledExecutor(),
                 shuffleEnvironmentContext.getNumberOfSlots(),
-                shuffleEnvironmentContext.getTmpDirPaths());
+                shuffleEnvironmentContext.getTmpDirs().length);
     }
 
     @VisibleForTesting
@@ -100,7 +100,7 @@ public class NettyShuffleServiceFactory
             Executor ioExecutor,
             ScheduledExecutor scheduledExecutor,
             int numberOfSlots,
-            String[] tmpDirPaths) {
+            int numberOfTmpDirs) {
         return createNettyShuffleEnvironment(
                 config,
                 taskExecutorResourceId,
@@ -110,7 +110,7 @@ public class NettyShuffleServiceFactory
                 metricGroup,
                 ioExecutor,
                 numberOfSlots,
-                tmpDirPaths);
+                numberOfTmpDirs);
     }
 
     @VisibleForTesting
@@ -122,7 +122,7 @@ public class NettyShuffleServiceFactory
             MetricGroup metricGroup,
             Executor ioExecutor,
             int numberOfSlots,
-            String[] tmpDirPaths) {
+            int numberOfTmpDirs) {
         NettyConfig nettyConfig = config.nettyConfig();
         ConnectionManager connectionManager =
                 nettyConfig != null
@@ -141,7 +141,7 @@ public class NettyShuffleServiceFactory
                 metricGroup,
                 ioExecutor,
                 numberOfSlots,
-                tmpDirPaths);
+                numberOfTmpDirs);
     }
 
     @VisibleForTesting
@@ -154,7 +154,7 @@ public class NettyShuffleServiceFactory
             MetricGroup metricGroup,
             Executor ioExecutor,
             int numberOfSlots,
-            String[] tmpDirPaths) {
+            int numberOfTmpDirs) {
         checkNotNull(config);
         checkNotNull(taskExecutorResourceId);
         checkNotNull(taskEventPublisher);
@@ -195,7 +195,7 @@ public class NettyShuffleServiceFactory
                                 1,
                                 Math.min(
                                         batchShuffleReadBufferPool.getMaxConcurrentRequests(),
-                                        Math.max(numberOfSlots, tmpDirPaths.length))),
+                                        Math.max(numberOfSlots, numberOfTmpDirs))),
                         new ExecutorThreadFactory("blocking-shuffle-io"));
 
         registerShuffleMetrics(metricGroup, networkBufferPool);
