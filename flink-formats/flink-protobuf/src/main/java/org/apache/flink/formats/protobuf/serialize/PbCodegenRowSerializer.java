@@ -23,6 +23,7 @@ import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.util.PbFieldConflictResolver;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -64,6 +65,9 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                         + ".newBuilder()");
         int index = 0;
         PbCodegenAppender splitAppender = new PbCodegenAppender(indent);
+        // Get cached accessor mappings for performance optimization
+        PbFieldConflictResolver.AccessorMappings accessorMappings =
+                PbFieldConflictResolver.getAccessorMappings(descriptor);
         for (String fieldName : rowType.getFieldNames()) {
             Descriptors.FieldDescriptor elementFd = descriptor.findFieldByName(fieldName);
             LogicalType subType = rowType.getTypeAt(rowType.getFieldIndex(fieldName));
@@ -77,7 +81,9 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                         PbCodegenUtils.getTypeStrFromProto(
                                 elementFd, PbFormatUtils.isArrayType(subType));
             }
-            String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
+            String strongCamelFieldName =
+                    PbFieldConflictResolver.resolveSetterSegment(
+                            elementFd, fieldName, accessorMappings);
 
             // Only set non-null element of flink row to proto object. The real value in proto
             // result depends on protobuf implementation.
