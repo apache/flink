@@ -23,6 +23,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
+
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
@@ -32,9 +34,12 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.immutables.value.Value;
 
 import java.util.List;
@@ -100,6 +105,10 @@ public class RemoveUnreachableCoalesceArgumentsRule
                 }
             }
 
+            if (containsFunctionCalls(call)) {
+                return convertToCaseWhen(call);
+            }
+
             // If it's the last argument, or no non-null argument was found, return the original
             // call
             if (firstNonNullableArgIndex == call.operands.size() - 1
@@ -120,6 +129,57 @@ public class RemoveUnreachableCoalesceArgumentsRule
                 }
             }
             return -1;
+        }
+
+        private RexNode convertToCaseWhen(RexCall call) {
+            List<RexNode> operands = call.operands;
+
+            if (operands.size() == 1) {
+                return operands.get(0);
+            }
+
+            RexBuilder rexBuilder = this.rexBuilder;
+            ImmutableList.Builder<RexNode> caseArgs = ImmutableList.builder();
+
+            for (int i = 0; i < operands.size() - 1; i++) {
+                RexNode operand = operands.get(i);
+                RexNode isNotNullCheck =
+                        rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, operand);
+                caseArgs.add(isNotNullCheck);
+                caseArgs.add(operand);
+            }
+
+            caseArgs.add(operands.get(operands.size() - 1));
+
+            return rexBuilder.makeCall(SqlStdOperatorTable.CASE, caseArgs.build());
+        }
+
+        private boolean containsFunctionCalls(RexCall call) {
+            for (RexNode operand : call.operands) {
+                if (isFunctionCall(operand)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean isFunctionCall(RexNode node) {
+            return node instanceof RexCall
+                    && !isSimpleCast((RexCall) node)
+                    && !isFieldReference(node)
+                    && !isLiteral(node);
+        }
+
+        private boolean isSimpleCast(RexCall call) {
+            return call.getOperator().getName().equalsIgnoreCase("CAST");
+        }
+
+        private boolean isFieldReference(RexNode node) {
+            return node instanceof RexInputRef;
+        }
+
+        private boolean isLiteral(RexNode node) {
+            return node instanceof RexLiteral;
         }
     }
 
