@@ -61,7 +61,7 @@ public final class ImmutableColumnsConstraint extends AbstractConstraint {
 
     @Override
     public ConstraintType getType() {
-        return ConstraintType.IMMUTABLE_COLUMNS;
+        return type;
     }
 
     @Override
@@ -87,11 +87,11 @@ public final class ImmutableColumnsConstraint extends AbstractConstraint {
             return false;
         }
         ImmutableColumnsConstraint that = (ImmutableColumnsConstraint) o;
-        return Objects.equals(columns, that.columns);
+        return Objects.equals(columns, that.columns) && type == that.type;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), columns);
+        return Objects.hash(super.hashCode(), columns, type);
     }
 }
