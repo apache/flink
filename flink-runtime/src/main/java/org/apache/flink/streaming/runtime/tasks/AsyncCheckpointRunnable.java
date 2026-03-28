@@ -147,13 +147,24 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
             finishedFuture.complete(null);
         } catch (Exception e) {
-            LOG.info(
-                    "{} - asynchronous part of checkpoint {} could not be completed.",
-                    taskName,
-                    checkpointMetaData.getCheckpointId(),
-                    e);
-            handleExecutionException(e);
-            finishedFuture.completeExceptionally(e);
+            try {
+                LOG.info(
+                        "{} - asynchronous part of checkpoint {} could not be completed.",
+                        taskName,
+                        checkpointMetaData.getCheckpointId(),
+                        e);
+                handleExecutionException(e);
+            } catch (IllegalStateException ignored) {
+                // in case the classloader is already closed
+                // and we can not log the exception properly
+                LOG.info(
+                        "{} - asynchronous part of checkpoint {} could not be completed. {}",
+                        taskName,
+                        checkpointMetaData.getCheckpointId(),
+                        ExceptionUtils.stringifyException(e));
+            } finally {
+                finishedFuture.completeExceptionally(e);
+            }
         } finally {
             unregisterConsumer.accept(this);
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
