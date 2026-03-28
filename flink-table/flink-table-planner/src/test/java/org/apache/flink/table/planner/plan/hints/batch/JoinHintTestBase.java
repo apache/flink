@@ -31,8 +31,7 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.PlanKind;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.collect.Lists;
-
+import com.google.common.collect.Lists;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.logging.log4j.util.Strings;
