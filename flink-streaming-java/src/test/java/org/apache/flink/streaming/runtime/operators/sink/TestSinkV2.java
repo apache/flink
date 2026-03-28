@@ -531,6 +531,18 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
     }
 
+    /** A {@link Committer} that always signals failure with unknown reason. */
+    static class FailWithUnknownReasonCommitter<CommT> extends DefaultCommitter<CommT> {
+
+        @Override
+        public void commit(Collection<CommitRequest<CommT>> committables) {
+            committables.forEach(
+                    c ->
+                            c.signalFailedWithUnknownReason(
+                                    new RuntimeException("Simulated unknown failure")));
+        }
+    }
+
     /** A {@link Committer} that always re-commits the committables data it received. */
     static class RetryOnceCommitter<CommT> extends DefaultCommitter<CommT> {
 

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.configuration.CommitFailureStrategy;
 import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
@@ -78,6 +79,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     private CommittableCollector<CommT> committableCollector;
     private long lastCompletedCheckpointId = CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1;
     private int maxRetries;
+    private CommitFailureStrategy failureStrategy;
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> STREAMING_COMMITTER_RAW_STATES_DESC =
@@ -114,6 +116,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         metricGroup = InternalSinkCommitterMetricGroup.wrap(getMetricGroup());
         committableCollector = CommittableCollector.of(metricGroup);
         maxRetries = config.getConfiguration().get(SinkOptions.COMMITTER_RETRIES);
+        failureStrategy = config.getConfiguration().get(SinkOptions.COMMITTER_FAILURE_STRATEGY);
     }
 
     @Override
@@ -175,7 +178,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     private void commitAndEmit(CheckpointCommittableManager<CommT> committableManager)
             throws IOException, InterruptedException {
-        committableManager.commit(committer, maxRetries);
+        committableManager.commit(committer, maxRetries, failureStrategy);
         if (emitDownstream) {
             emit(committableManager);
         }

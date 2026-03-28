@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.configuration.CommitFailureStrategy;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -142,10 +143,12 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     }
 
     @Override
-    public void commit(Committer<CommT> committer, int maxRetries)
+    public void commit(
+            Committer<CommT> committer, int maxRetries, CommitFailureStrategy failureStrategy)
             throws IOException, InterruptedException {
         Collection<CommitRequestImpl<CommT>> requests =
                 getPendingRequests().collect(Collectors.toList());
+        requests.forEach(r -> r.setFailureStrategy(failureStrategy));
         for (int retry = 0; !requests.isEmpty() && retry <= maxRetries; retry++) {
             requests.forEach(CommitRequestImpl::setSelected);
             committer.commit(Collections.unmodifiableCollection(requests));
