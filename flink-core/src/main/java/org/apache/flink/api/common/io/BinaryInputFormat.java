@@ -129,10 +129,12 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
         }
 
         if (inputSplits.size() < minNumSplits) {
-            LOG.warn(
-                    String.format(
-                            "With the given block size %d, the files %s cannot be split into %d blocks. Filling up with empty splits...",
-                            blockSize, Arrays.toString(getFilePaths()), minNumSplits));
+            if (LOG.isWarnEnabled()){
+                LOG.warn(
+                        String.format(
+                                "With the given block size %d, the files %s cannot be split into %d blocks. Filling up with empty splits...",
+                                blockSize, Arrays.toString(getFilePaths()), minNumSplits));
+            }
             FileStatus last = files.get(files.size() - 1);
             final BlockLocation[] blocks =
                     last.getPath().getFileSystem().getFileBlockLocations(last, 0, last.getLen());
