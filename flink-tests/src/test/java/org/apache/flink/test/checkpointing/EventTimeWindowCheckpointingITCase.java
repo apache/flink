@@ -28,7 +28,9 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -262,6 +264,14 @@ class EventTimeWindowCheckpointingITCase {
 
         Configuration config = new Configuration();
         config.set(RpcOptions.FRAMESIZE, MAX_MEM_STATE_SIZE + "b");
+
+        // FLINK-38727: Add timeout configurations to handle slow TaskManager registration
+        // under CI load, preventing premature NoResourceAvailableException
+        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, Duration.ofMinutes(5));
+        config.set(
+                ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME,
+                Duration.ofMinutes(2));
+        config.set(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofSeconds(30));
 
         if (zkServer != null) {
             config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
