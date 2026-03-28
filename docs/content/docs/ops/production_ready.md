@@ -81,6 +81,10 @@ It is a single point of failure within the cluster, and if it crashes, no new jo
 
 Configuring [High Availability]({{< ref "docs/deployment/ha/overview" >}}), in conjunction with Apache Zookeeper or Flinks Kubernetes based service, allows for a swift recovery and is highly recommended for production setups.
 
+### Harden Kryo Serialization
+
+[Disable support for generic Kryo types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#disabling-kryo-fallback), as this is a security and performance concern.
+
 ### Secure Flink Cluster Access
 
 Flink is intentionally designed to support remote code execution. 
