@@ -29,7 +29,14 @@ under the License.
 # 高可用
 
 JobManager 高可用（HA）模式加强了 Flink 集群防止 JobManager 故障的能力。
-此特性确保 Flink 集群将始终持续执行你提交的作业。
+此特性确保 Flink 集群将始终重新执行在故障发生时正在运行的应用程序。
+
+{{< hint warning >}}
+恢复后，应用程序在故障前提交的作业可能会继续执行或被弃用，具体取决于应用程序 main() 方法采取的执行路径。
+
+故障前后的作业按照名称进行匹配，相同名称的作业按照提交顺序进一步匹配。
+为避免匹配错误——尤其是在作业提交顺序不确定的情况下——建议通过 execute(jobName) 为每个作业指定唯一名称。
+{{< /hint >}}
 
 ## JobManager 高可用
 
@@ -70,7 +77,18 @@ Flink 提供了两种高可用服务实现：
 
 ## 高可用数据生命周期
 
-为了恢复提交的作业，Flink 持久化元数据和 job 组件。高可用数据将一直保存，直到相应的作业执行成功、被取消或最终失败。当这些情况发生时，将删除所有高可用数据，包括存储在高可用服务中的元数据。
+为了恢复提交的应用程序，Flink 持久化应用程序的元数据。
+高可用数据将一直保存，直到相应的应用程序执行成功、被取消或最终失败。
+当这些情况发生时，将删除所有高可用数据，包括存储在高可用服务中的元数据。
+类似的生命周期也适用于单个作业的高可用数据。
+
+{{< top >}}
+
+## 应用程序结果存储
+
+应用程序结果存储用于归档达到终止状态（即完成、取消或失败）的应用程序的最终结果，其数据存储在文件系统上（请参阅 [application-result-store.storage-path]({{< ref "docs/deployment/config#application-result-store-storage-path" >}})）。
+只要没有正确清理相应的应用程序，此数据条目就是脏数据（数据位于应用程序的子文件夹中 [high-availability.storageDir]({{< ref "docs/deployment/config#high-availability-storagedir" >}})）。
+脏数据将被清理，即相应的应用程序要么在当前时刻被清理，要么在应用程序恢复过程中被清理。一旦清理成功，这些脏数据条目将被删除。请参阅 [HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) 下应用程序结果存储的配置参数以获取有关如何调整行为的更多详细信息。
 
 {{< top >}}
 
@@ -78,5 +96,5 @@ Flink 提供了两种高可用服务实现：
 
 作业结果存储用于归档达到全局结束状态作业（即完成、取消或失败）的最终结果，其数据存储在文件系统上 (请参阅[job-result-store.storage-path]({{< ref "docs/deployment/config#job-result-store-storage-path" >}}))。
 只要没有正确清理相应的作业，此数据条目就是脏数据 (数据位于作业的子文件夹中 [high-availability.storageDir]({{< ref "docs/deployment/config#high-availability-storagedir" >}}))。
-脏数据将被清理，即相应的作业要么在当前时刻被清理，要么在作业恢复过程中被清理。一旦清理成功，这些脏数据条目将被删除。请参阅 [HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) 下作业结果存储的配置参数以获取有关如何调整行为的更多详细信息。
+脏数据将被清理，即相应的作业要么在当前时刻被清理，要么在作业恢复过程中被清理。这些条目将在清理成功且对应的应用程序已创建脏条目后被删除。
 {{< top >}}

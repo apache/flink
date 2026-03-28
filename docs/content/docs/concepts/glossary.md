@@ -111,6 +111,13 @@ The JobResultStore is a Flink component that persists the results of globally te
 a finished job. These results are then used by Flink to determine whether jobs should
 be subject to recovery in highly-available clusters.
 
+#### ApplicationResultStore
+
+The ApplicationResultStore is a Flink component that persists the results of terminated
+(i.e. finished, cancelled or failed) applications to a filesystem, allowing the results to outlive
+a terminated application. These results are then used by Flink to determine whether applications should
+be subject to recovery in highly-available clusters.
+
 #### Logical Graph
 
 A logical graph is a directed graph where the nodes are  [Operators](#operator)
