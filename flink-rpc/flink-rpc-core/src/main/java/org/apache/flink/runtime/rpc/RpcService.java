@@ -34,6 +34,18 @@ import java.util.concurrent.CompletableFuture;
 public interface RpcService extends AutoCloseableAsync {
 
     /**
+     * Installs an observer for RPC response frame-size metrics.
+     *
+     * <p>The observer is used for endpoints/actors created after this method is called. Existing
+     * endpoints/actors may continue using the previously configured observer.
+     *
+     * <p>The default implementation is a no-op so existing {@link RpcService} implementations
+     * remain backwards compatible.
+     */
+    default void setRpcResponseFrameSizeObserver(
+            RpcResponseFrameSizeObserver rpcResponseFrameSizeObserver) {}
+
+    /**
      * Return the hostname or host address under which the rpc service can be reached. If the rpc
      * service cannot be contacted remotely, then it will return an empty string.
      *

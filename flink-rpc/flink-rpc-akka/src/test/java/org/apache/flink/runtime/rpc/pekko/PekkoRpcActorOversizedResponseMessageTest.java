@@ -23,6 +23,7 @@ import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcResponseFrameSizeObserver;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
@@ -31,11 +32,19 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +53,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PekkoRpcActorOversizedResponseMessageTest {
 
     private static final int FRAMESIZE = 32000;
+    private static final int CONCURRENT_OVERSIZED_REQUEST_PARALLELISM = 16;
+    private static final int CONCURRENT_OVERSIZED_REQUEST_STRESS_ROUNDS = 20;
 
     private static final String OVERSIZED_PAYLOAD = new String(new byte[FRAMESIZE]);
 
@@ -52,6 +63,7 @@ class PekkoRpcActorOversizedResponseMessageTest {
     private static RpcService rpcService1;
 
     private static RpcService rpcService2;
+    private TestingRpcResponseFrameSizeObserver testingRpcResponseFrameSizeObserver;
 
     @BeforeAll
     static void setupClass() throws Exception {
@@ -73,6 +85,12 @@ class PekkoRpcActorOversizedResponseMessageTest {
         RpcUtils.terminateRpcService(rpcService1, rpcService2);
     }
 
+    @BeforeEach
+    void setUp() {
+        testingRpcResponseFrameSizeObserver = new TestingRpcResponseFrameSizeObserver();
+        rpcService1.setRpcResponseFrameSizeObserver(testingRpcResponseFrameSizeObserver);
+    }
+
     @Test
     void testOverSizedResponseMsgAsync() throws Exception {
         assertThatThrownBy(
@@ -84,12 +102,18 @@ class PekkoRpcActorOversizedResponseMessageTest {
                 .isInstanceOf(RpcException.class)
                 .extracting(Throwable::getMessage)
                 .satisfies(message -> assertThat(message).contains(String.valueOf(FRAMESIZE)));
+        assertThat(testingRpcResponseFrameSizeObserver.getLatestSerializedResponseFrameSize())
+                .isGreaterThan(FRAMESIZE);
+        assertThat(testingRpcResponseFrameSizeObserver.getNumOversizedResponses()).isEqualTo(1L);
     }
 
     @Test
     void testNormalSizedResponseMsgAsync() throws Exception {
         final String message = runRemoteMessageResponseTest(PAYLOAD, this::requestMessageAsync);
         assertThat(message).isEqualTo(PAYLOAD);
+        assertThat(testingRpcResponseFrameSizeObserver.getLatestSerializedResponseFrameSize())
+                .isGreaterThan(0L);
+        assertThat(testingRpcResponseFrameSizeObserver.getNumOversizedResponses()).isZero();
     }
 
     @Test
@@ -97,6 +121,9 @@ class PekkoRpcActorOversizedResponseMessageTest {
         final String message =
                 runRemoteMessageResponseTest(PAYLOAD, MessageRpcGateway::messageSync);
         assertThat(message).isEqualTo(PAYLOAD);
+        assertThat(testingRpcResponseFrameSizeObserver.getLatestSerializedResponseFrameSize())
+                .isGreaterThan(0L);
+        assertThat(testingRpcResponseFrameSizeObserver.getNumOversizedResponses()).isZero();
     }
 
     @Test
@@ -108,6 +135,21 @@ class PekkoRpcActorOversizedResponseMessageTest {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 RpcException.class, String.valueOf(FRAMESIZE)));
+        assertThat(testingRpcResponseFrameSizeObserver.getLatestSerializedResponseFrameSize())
+                .isGreaterThan(FRAMESIZE);
+        assertThat(testingRpcResponseFrameSizeObserver.getNumOversizedResponses()).isEqualTo(1L);
+    }
+
+    @Test
+    void testConcurrentOverSizedResponseMsgAsync() throws Exception {
+        runConcurrentRemoteOverSizedResponseMsgTest(CONCURRENT_OVERSIZED_REQUEST_PARALLELISM, 1);
+    }
+
+    @Test
+    void testConcurrentOverSizedResponseMsgAsyncStress() throws Exception {
+        runConcurrentRemoteOverSizedResponseMsgTest(
+                CONCURRENT_OVERSIZED_REQUEST_PARALLELISM,
+                CONCURRENT_OVERSIZED_REQUEST_STRESS_ROUNDS);
     }
 
     /**
@@ -171,6 +213,94 @@ class PekkoRpcActorOversizedResponseMessageTest {
         }
     }
 
+    private void runConcurrentRemoteOverSizedResponseMsgTest(int parallelism, int rounds)
+            throws Exception {
+        final List<MessageRpcEndpoint> endpoints = new ArrayList<>(parallelism);
+        final List<MessageRpcGateway> rpcGateways = new ArrayList<>(parallelism);
+        final ExecutorService executor = Executors.newFixedThreadPool(parallelism);
+
+        try {
+            for (int i = 0; i < parallelism; i++) {
+                final MessageRpcEndpoint rpcEndpoint =
+                        new MessageRpcEndpoint(rpcService1, OVERSIZED_PAYLOAD);
+                rpcEndpoint.start();
+                endpoints.add(rpcEndpoint);
+
+                rpcGateways.add(
+                        rpcService2
+                                .connect(rpcEndpoint.getAddress(), MessageRpcGateway.class)
+                                .get());
+            }
+
+            for (int round = 0; round < rounds; round++) {
+                assertConcurrentOversizedResponses(rpcGateways, executor);
+            }
+
+            assertThat(testingRpcResponseFrameSizeObserver.getLatestSerializedResponseFrameSize())
+                    .isGreaterThan(FRAMESIZE);
+            assertThat(testingRpcResponseFrameSizeObserver.getNumOversizedResponses())
+                    .isEqualTo((long) parallelism * rounds);
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(30L, TimeUnit.SECONDS);
+            terminateRpcEndpoints(endpoints);
+        }
+    }
+
+    private void assertConcurrentOversizedResponses(
+            List<MessageRpcGateway> rpcGateways, ExecutorService executor) throws Exception {
+        final CountDownLatch startLatch = new CountDownLatch(1);
+        final List<CompletableFuture<Throwable>> responseFailures =
+                new ArrayList<>(rpcGateways.size());
+
+        for (MessageRpcGateway rpcGateway : rpcGateways) {
+            responseFailures.add(
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    startLatch.await();
+                                    requestMessageAsync(rpcGateway);
+                                    return null;
+                                } catch (Throwable throwable) {
+                                    return throwable;
+                                }
+                            },
+                            executor));
+        }
+
+        startLatch.countDown();
+        CompletableFuture.allOf(responseFailures.toArray(new CompletableFuture[0]))
+                .get(30L, TimeUnit.SECONDS);
+
+        for (CompletableFuture<Throwable> responseFailure : responseFailures) {
+            assertThat(responseFailure.get())
+                    .as("Every oversized response request should fail")
+                    .isNotNull()
+                    .satisfies(
+                            FlinkAssertions.anyCauseMatches(
+                                    RpcException.class, String.valueOf(FRAMESIZE)));
+        }
+    }
+
+    private void terminateRpcEndpoints(List<MessageRpcEndpoint> rpcEndpoints) throws Exception {
+        Exception firstException = null;
+        for (MessageRpcEndpoint rpcEndpoint : rpcEndpoints) {
+            try {
+                RpcUtils.terminateRpcEndpoint(rpcEndpoint);
+            } catch (Exception exception) {
+                if (firstException == null) {
+                    firstException = exception;
+                } else {
+                    firstException.addSuppressed(exception);
+                }
+            }
+        }
+
+        if (firstException != null) {
+            throw firstException;
+        }
+    }
+
     // -------------------------------------------------------------------------
 
     interface MessageRpcGateway extends RpcGateway {
@@ -196,6 +326,30 @@ class PekkoRpcActorOversizedResponseMessageTest {
         @Override
         public String messageSync() throws RpcException {
             return message;
+        }
+    }
+
+    private static class TestingRpcResponseFrameSizeObserver
+            implements RpcResponseFrameSizeObserver {
+        private final AtomicLong latestSerializedResponseFrameSize = new AtomicLong(0L);
+        private final AtomicLong numOversizedResponses = new AtomicLong(0L);
+
+        @Override
+        public void onSerializedResponseFrameSize(long serializedResponseSize) {
+            latestSerializedResponseFrameSize.set(serializedResponseSize);
+        }
+
+        @Override
+        public void onOversizedResponse() {
+            numOversizedResponses.incrementAndGet();
+        }
+
+        long getLatestSerializedResponseFrameSize() {
+            return latestSerializedResponseFrameSize.get();
+        }
+
+        long getNumOversizedResponses() {
+            return numOversizedResponses.get();
         }
     }
 }

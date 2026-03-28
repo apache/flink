@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcResponseFrameSizeObserver;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -112,6 +113,10 @@ public class PekkoRpcService implements RpcService {
 
     private volatile boolean stopped;
 
+    @GuardedBy("lock")
+    private RpcResponseFrameSizeObserver rpcResponseFrameSizeObserver =
+            RpcResponseFrameSizeObserver.NO_OP;
+
     @VisibleForTesting
     public PekkoRpcService(
             final ActorSystem actorSystem, final PekkoRpcServiceConfiguration configuration) {
@@ -194,6 +199,14 @@ public class PekkoRpcService implements RpcService {
     @Override
     public int getPort() {
         return port;
+    }
+
+    @Override
+    public void setRpcResponseFrameSizeObserver(
+            RpcResponseFrameSizeObserver rpcResponseFrameSizeObserver) {
+        synchronized (lock) {
+            this.rpcResponseFrameSizeObserver = checkNotNull(rpcResponseFrameSizeObserver);
+        }
     }
 
     public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer) {
@@ -360,6 +373,7 @@ public class PekkoRpcService implements RpcService {
                                             getVersion(),
                                             configuration.getMaximumFramesize(),
                                             configuration.isForceRpcInvocationSerialization(),
+                                            rpcResponseFrameSizeObserver,
                                             flinkClassLoader,
                                             loggingContext),
                             rpcEndpoint.getEndpointId());

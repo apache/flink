@@ -1054,6 +1054,33 @@ Metrics related to data exchange between task executors using netty network comm
   </tbody>
 </table>
 
+### RPC
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 22%">Metrics</th>
+      <th class="text-left" style="width: 30%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="2">Status.RPC</td>
+      <td>latestResponseFrameSizeBytes</td>
+      <td>Latest observed serialized RPC response size in bytes (remote or forced-serialization paths).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>oversizedResponseRejections</td>
+      <td>Total number of serialized RPC responses rejected because they exceeded <tt>pekko.framesize</tt>.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Availability
 
 The metrics in this table are available for each of the following job states: INITIALIZING, CREATED, RUNNING, RESTARTING, CANCELLING, FAILING.
