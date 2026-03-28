@@ -40,9 +40,9 @@ LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, +(d, 1) AS EXPR$1], where=[AND(=(f0, +(a, d)), =(f1, *(a, d)))])
+FlinkLogicalCalc(select=[a, +(d, 1) AS EXPR$1], where=[f0 = +(a, d) AND f1 = *(a, d)])
 +- FlinkLogicalCalc(select=[a, d, pyFunc(a, a) AS f0, pyFunc(a, d) AS f1])
-   +- FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
+   +- FlinkLogicalJoin(Type=[INNER], Condition=[a = d])
       :- FlinkLogicalCalc(select=[a])
       :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])
@@ -64,9 +64,9 @@ LogicalProject(a=[$0], b=[$1], d=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, d], where=[=(f0, b)])
+FlinkLogicalCalc(select=[a, b, d], where=[f0 = b])
 +- FlinkLogicalCalc(select=[a, b, d, pyFunc(a, d) AS f0])
-   +- FlinkLogicalJoin(condition=[=($0, $2)], joinType=[inner])
+   +- FlinkLogicalJoin(Type=[INNER], Condition=[a = d])
       :- FlinkLogicalCalc(select=[a, b])
       :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])

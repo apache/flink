@@ -31,7 +31,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, c, x, y], where=[AND(=(f0, 2), =(+(y, 1), *(y, y)), =(x, a))])
+FlinkLogicalCalc(select=[a, b, c, x, y], where=[f0 = 2 AND +(y, 1) = *(y, y) AND x = a])
 +- FlinkLogicalCalc(select=[a, b, c, x, y, pyFunc(x, x) AS f0])
    +- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
       :- FlinkLogicalCalc(select=[a, b, c, *(a, a) AS f0])

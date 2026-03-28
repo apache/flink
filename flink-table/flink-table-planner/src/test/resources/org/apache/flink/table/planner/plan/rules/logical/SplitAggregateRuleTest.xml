@@ -107,7 +107,7 @@ LogicalProject(c=[$0], b=[$1], d=[$2], a=[$3], a0=[$4], b0=[$5], c0=[$6])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
+FlinkLogicalJoin(Type=[INNER], Condition=[b = a])
 :- FlinkLogicalCalc(select=[$f2 AS c, $f1 AS b, $f1 AS d, $f2_0 AS a])
 :  +- FlinkLogicalAggregate(group=[{0}], agg#0=[SUM($2)], agg#1=[$SUM0($3)])
 :     +- FlinkLogicalAggregate(group=[{2, 3}], agg#0=[SUM($1)], agg#1=[COUNT(DISTINCT $0)])

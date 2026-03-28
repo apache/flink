@@ -446,9 +446,9 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery3,
       "Temporal Table Join requires primary key in versioned table, " +
         "but no primary key can be found. The physical plan is:\n" +
-        "FlinkLogicalJoin(condition=[AND(=($1, $4), " +
-        "__INITIAL_TEMPORAL_JOIN_CONDITION($2, $6, __TEMPORAL_JOIN_LEFT_KEY($1), " +
-        "__TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])",
+        "FlinkLogicalJoin(Type=[INNER], Condition=[currency = currency AND " +
+        "__INITIAL_TEMPORAL_JOIN_CONDITION(rowtime, rowtime, __TEMPORAL_JOIN_LEFT_KEY(currency), " +
+        "__TEMPORAL_JOIN_RIGHT_KEY(currency))])",
       classOf[ValidationException]
     )
 
