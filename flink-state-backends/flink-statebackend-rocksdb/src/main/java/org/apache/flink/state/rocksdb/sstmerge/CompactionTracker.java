@@ -82,6 +82,10 @@ class CompactionTracker {
         }
     }
 
+    public synchronized void addManualCompaction() {
+        pendingManualCompactions++;
+    }
+
     public synchronized boolean haveManualCompactions() {
         return runningManualCompactions > 0 || pendingManualCompactions > 0;
     }
