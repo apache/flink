@@ -219,10 +219,10 @@ In streaming mode, the time attribute field must be either [event or processing 
 In batch mode, the time attribute field of window table function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 The return value of `CUMULATE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
-`CUMULATE` takes four required parameters, one optional parameter:
+`CUMULATE` takes four required parameters and two optional parameters:
 
 ```sql
-CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
+CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size [, offset [, emitOnlyOnUpdate]])
 ```
 
 - `data`: is a table parameter that can be any relation with an time attribute column.
@@ -230,6 +230,7 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 - `step`: is a duration specifying the increased window size between the end of sequential cumulating windows.
 - `size`: is a duration specifying the max width of the cumulating windows. `size` must be an integral multiple of `step`.
 - `offset`: is an optional parameter to specify the offset which window start would be shifted by.
+- `emitOnlyOnUpdate`: is an optional boolean parameter (default `false`). When set to `true`, the window only emits results when new data arrives within the step interval. This is useful for reducing unnecessary outputs in sparse data streams. Note: this parameter is only supported in streaming mode.
 
 Here is an example invocation on the Bid table:
 
@@ -282,6 +283,42 @@ Here is an example invocation on the Bid table:
 | 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 |       10.00 |
 +------------------+------------------+-------------+
+
+-- apply aggregation with emit-only-on-update mode
+-- this reduces outputs when no new data arrives within a step interval
+> SELECT window_start, window_end, SUM(price) AS total_price
+  FROM CUMULATE(
+    TABLE Bid, 
+    DESCRIPTOR(bidtime), 
+    INTERVAL '2' MINUTES, 
+    INTERVAL '10' MINUTES,
+    INTERVAL '0' SECOND,  -- offset
+    true                  -- emitOnlyOnUpdate
+  )
+  GROUP BY window_start, window_end;
+-- or with the named params
+> SELECT window_start, window_end, SUM(price) AS total_price
+  FROM CUMULATE(
+    DATA => TABLE Bid,
+    TIMECOL => DESCRIPTOR(bidtime),
+    STEP => INTERVAL '2' MINUTES,
+    SIZE => INTERVAL '10' MINUTES,
+    `OFFSET` => INTERVAL '0' SECOND,
+    EMITONLYONUPDATE => true
+  )
+  GROUP BY window_start, window_end;
++------------------+------------------+-------------+
+|     window_start |       window_end | total_price |
++------------------+------------------+-------------+
+| 2020-04-15 08:00 | 2020-04-15 08:06 |        4.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:08 |        6.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |       11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:12 |        3.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:14 |        4.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:18 |       10.00 |
++------------------+------------------+-------------+
+-- Note: compared to the previous result, windows [08:10, 08:16) and [08:10, 08:20) are skipped
+-- because no new data arrived in those step intervals.
 ```
 
 ### SESSION
