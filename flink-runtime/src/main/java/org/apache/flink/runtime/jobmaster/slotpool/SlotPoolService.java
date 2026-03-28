@@ -71,14 +71,14 @@ public interface SlotPoolService extends AutoCloseable {
      *
      * @param taskManagerLocation from which the slot offers originate
      * @param taskManagerGateway to talk to the slot offerer
-     * @param offers slot offers which are offered to the {@link SlotPoolService}
+     * @param slotOffers slot offers which are offered to the {@link SlotPoolService}
      * @return A collection of accepted slot offers. The remaining slot offers are implicitly
      *     rejected.
      */
     Collection<SlotOffer> offerSlots(
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
-            Collection<SlotOffer> offers);
+            Collection<SlotOffer> slotOffers);
 
     /**
      * Fails the allocation with the given allocationId.

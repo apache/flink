@@ -740,7 +740,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
             final ResourceID taskManagerId,
-            final Collection<SlotOffer> slots,
+            final Collection<SlotOffer> slotOffers,
             final Duration timeout) {
 
         TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.get(taskManagerId);
@@ -758,7 +758,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 slotPoolService.offerSlots(
                         taskManagerRegistration.getTaskManagerLocation(),
                         rpcTaskManagerGateway,
-                        slots));
+                        slotOffers));
     }
 
     @Override

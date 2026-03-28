@@ -130,16 +130,17 @@ public interface JobMasterGateway
             final ResourceManagerId resourceManagerId, final Exception cause);
 
     /**
-     * Offers the given slots to the job manager. The response contains the set of accepted slots.
+     * Offers the given slots to the job manager. The response contains the set of accepted slot
+     * offers.
      *
      * @param taskManagerId identifying the task manager
-     * @param slots to offer to the job manager
+     * @param slotOffers the slot offers to the job manager
      * @param timeout for the rpc call
-     * @return Future set of accepted slots.
+     * @return Future set of accepted slot offers.
      */
     CompletableFuture<Collection<SlotOffer>> offerSlots(
             final ResourceID taskManagerId,
-            final Collection<SlotOffer> slots,
+            final Collection<SlotOffer> slotOffers,
             @RpcTimeout final Duration timeout);
 
     /**

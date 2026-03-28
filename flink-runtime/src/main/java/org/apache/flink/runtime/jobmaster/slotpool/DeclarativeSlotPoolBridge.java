@@ -191,7 +191,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     public Collection<SlotOffer> offerSlots(
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
-            Collection<SlotOffer> offers) {
+            Collection<SlotOffer> slotOffers) {
         assertHasBeenStarted();
 
         if (!isTaskManagerRegistered(taskManagerLocation.getResourceID())) {
@@ -204,7 +204,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         if (isJobRestarting) {
             return getDeclarativeSlotPool()
                     .registerSlots(
-                            offers,
+                            slotOffers,
                             taskManagerLocation,
                             taskManagerGateway,
                             getRelativeTimeMillis());
@@ -212,7 +212,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         } else {
             return getDeclarativeSlotPool()
                     .offerSlots(
-                            offers,
+                            slotOffers,
                             taskManagerLocation,
                             taskManagerGateway,
                             getRelativeTimeMillis());
