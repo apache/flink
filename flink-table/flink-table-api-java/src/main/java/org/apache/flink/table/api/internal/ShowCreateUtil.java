@@ -61,7 +61,7 @@ public class ShowCreateUtil {
                 new StringBuilder()
                         .append(
                                 buildCreateFormattedPrefix(
-                                        "MODEL", isTemporary, modelIdentifier, false));
+                                        "MODEL", isTemporary, modelIdentifier, false, false));
         extractFormattedColumns(model.getResolvedInputSchema())
                 .ifPresent(
                         c -> sb.append(String.format("INPUT (%s)%s", c, System.lineSeparator())));
@@ -93,7 +93,7 @@ public class ShowCreateUtil {
                 new StringBuilder()
                         .append(
                                 buildCreateFormattedPrefix(
-                                        "TABLE", isTemporary, tableIdentifier, true));
+                                        "TABLE", isTemporary, tableIdentifier, false, true));
         sb.append(extractFormattedColumns(table, PRINT_INDENT));
         extractFormattedWatermarkSpecs(table, PRINT_INDENT, sqlFactory)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
@@ -117,13 +117,18 @@ public class ShowCreateUtil {
             ResolvedCatalogMaterializedTable table,
             ObjectIdentifier tableIdentifier,
             boolean isTemporary,
+            boolean createOrAlter,
             SqlFactory sqlFactory) {
         validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
         StringBuilder sb =
                 new StringBuilder()
                         .append(
                                 buildCreateFormattedPrefix(
-                                        "MATERIALIZED TABLE", isTemporary, tableIdentifier, true));
+                                        "MATERIALIZED TABLE",
+                                        isTemporary,
+                                        tableIdentifier,
+                                        createOrAlter,
+                                        true));
         sb.append(extractFormattedColumns(table, PRINT_INDENT));
         extractFormattedWatermarkSpecs(table, PRINT_INDENT, sqlFactory)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
@@ -162,7 +167,7 @@ public class ShowCreateUtil {
                 new StringBuilder()
                         .append(
                                 buildCreateFormattedPrefix(
-                                        "VIEW", isTemporary, viewIdentifier, true));
+                                        "VIEW", isTemporary, viewIdentifier, false, true));
         sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
         extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         sb.append("AS ").append(((CatalogView) origin).getExpandedQuery()).append("\n");
@@ -186,9 +191,11 @@ public class ShowCreateUtil {
             String type,
             boolean isTemporary,
             ObjectIdentifier identifier,
+            boolean createOrAlter,
             boolean openParenthesis) {
         return String.format(
-                "CREATE %s%s %s%s%s",
+                "CREATE %s%s%s %s%s%s",
+                createOrAlter ? "OR ALTER " : "",
                 isTemporary ? "TEMPORARY " : "",
                 type,
                 identifier.asSerializableString(),

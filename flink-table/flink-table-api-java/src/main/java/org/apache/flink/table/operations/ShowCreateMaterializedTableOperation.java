@@ -27,19 +27,23 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
-/** Operation to describe a SHOW CREATE MATERIALIZED TABLE statement. */
+/** Operation to describe a SHOW CREATE [OR ALTER ]MATERIALIZED TABLE statement. */
 @Internal
 public class ShowCreateMaterializedTableOperation implements ShowOperation {
     private final ObjectIdentifier tableIdentifier;
+    private final boolean createOrAlter;
 
-    public ShowCreateMaterializedTableOperation(ObjectIdentifier sqlIdentifier) {
+    public ShowCreateMaterializedTableOperation(
+            ObjectIdentifier sqlIdentifier, boolean createOrAlter) {
         this.tableIdentifier = sqlIdentifier;
+        this.createOrAlter = createOrAlter;
     }
 
     @Override
     public String asSummaryString() {
         return String.format(
-                "SHOW CREATE MATERIALIZED TABLE %s", tableIdentifier.asSummaryString());
+                "SHOW CREATE %sMATERIALIZED TABLE %s",
+                createOrAlter ? "OR ALTER " : "", tableIdentifier.asSummaryString());
     }
 
     @Override
@@ -51,13 +55,15 @@ public class ShowCreateMaterializedTableOperation implements ShowOperation {
                                 () ->
                                         new ValidationException(
                                                 String.format(
-                                                        "Could not execute SHOW CREATE MATERIALIZED TABLE. Materialized table with identifier %s does not exist.",
+                                                        "Could not execute %s. Materialized table with identifier %s does not exist.",
+                                                        asSummaryString(),
                                                         tableIdentifier.asSerializableString())));
         String resultRow =
                 ShowCreateUtil.buildShowCreateMaterializedTableRow(
                         table.getResolvedTable(),
                         tableIdentifier,
                         table.isTemporary(),
+                        createOrAlter,
                         ctx.getCatalogManager().getSqlFactory());
 
         return buildStringArrayResult("result", new String[] {resultRow});

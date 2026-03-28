@@ -741,6 +741,22 @@ class MaterializedTableStatementParserTest {
                                 + "    ");
     }
 
+    @Test
+    void testShowCreateMaterializedTable() {
+        sql("show create materialized table mt1").ok("SHOW CREATE MATERIALIZED TABLE `MT1`");
+        sql("show create materialized table db1.mt1")
+                .ok("SHOW CREATE MATERIALIZED TABLE `DB1`.`MT1`");
+        sql("show create materialized table catalog1.db1.mt1")
+                .ok("SHOW CREATE MATERIALIZED TABLE `CATALOG1`.`DB1`.`MT1`");
+
+        sql("show create or alter materialized table mt1")
+                .ok("SHOW CREATE OR ALTER MATERIALIZED TABLE `MT1`");
+        sql("show create or alter materialized table db1.mt1")
+                .ok("SHOW CREATE OR ALTER MATERIALIZED TABLE `DB1`.`MT1`");
+        sql("show create or alter materialized table catalog1.db1.mt1")
+                .ok("SHOW CREATE OR ALTER MATERIALIZED TABLE `CATALOG1`.`DB1`.`MT1`");
+    }
+
     public SqlParserFixture fixture() {
         return SqlParserFixture.DEFAULT.withConfig(
                 c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));

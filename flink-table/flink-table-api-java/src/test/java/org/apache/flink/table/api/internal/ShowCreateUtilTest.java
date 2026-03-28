@@ -115,7 +115,7 @@ class ShowCreateUtilTest {
         assertThat(createViewString).isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "{index}: {2}")
+    @ParameterizedTest(name = "{index}: {1}")
     @MethodSource("argsForShowCreateMaterializedTable")
     void showCreateMaterializedTable(
             ResolvedCatalogMaterializedTable materializedTable, String expected) {
@@ -124,8 +124,19 @@ class ShowCreateUtilTest {
                         materializedTable,
                         MATERIALIZED_TABLE_IDENTIFIER,
                         false,
+                        false,
                         DefaultSqlFactory.INSTANCE);
         assertThat(createMaterializedTableString).isEqualTo(expected);
+
+        final String createOrAlterMaterializedTableString =
+                ShowCreateUtil.buildShowCreateMaterializedTableRow(
+                        materializedTable,
+                        MATERIALIZED_TABLE_IDENTIFIER,
+                        false,
+                        true,
+                        DefaultSqlFactory.INSTANCE);
+        assertThat(createOrAlterMaterializedTableString)
+                .isEqualTo(expected.replaceFirst("CREATE ", "CREATE OR ALTER "));
     }
 
     @ParameterizedTest(name = "{index}: {1}")
