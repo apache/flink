@@ -141,6 +141,12 @@ public class MetricConfig extends Properties {
      * <p>If the value is a {@link Boolean}, it is returned directly. Otherwise, the value's string
      * representation is parsed via {@link Boolean#parseBoolean(String)}.
      *
+     * <p>Note: values stored as {@link Number} (for example {@link Integer} values produced by a
+     * configuration parser) are not interpreted as numeric booleans. They are converted with {@link
+     * Object#toString()} first, so {@code 1} becomes the string {@code "1"}, which {@link
+     * Boolean#parseBoolean(String)} treats as {@code false} (only {@code "true"}, case-insensitive,
+     * is {@code true}).
+     *
      * @param key the hashtable key.
      * @param defaultValue a default value.
      * @return the value in this property list with the specified key value as a boolean.
