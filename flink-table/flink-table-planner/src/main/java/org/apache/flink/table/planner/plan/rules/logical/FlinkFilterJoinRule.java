@@ -269,7 +269,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
 
         // Create a project on top of the join if some of the columns have become
         // NOT NULL due to the join-type getting stricter.
-        relBuilder.convert(join.getRowType(), false);
+        relBuilder.convert(join.getRowType(), false, true);
 
         // create a FilterRel on top of the join if needed
         relBuilder.filter(

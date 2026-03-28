@@ -45,6 +45,7 @@ import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
@@ -214,8 +215,13 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
     @Override
     public void onMatch(RelOptRuleCall call) {
         final Join origJoin = call.rel(0);
-        final RelNode left = call.rel(1);
-        final RelNode right = call.rel(2);
+        RelNode left = call.rel(1);
+        RelNode right = call.rel(2);
+
+        // Ignore some project rel nodes, that can be ignored.
+        // For example, CAST expression generated in FlinkFilterJoinRule
+        left = skipIgnoredProjections(left);
+        right = skipIgnoredProjections(right);
 
         // inputNullGenFieldList records whether the field in originJoin is null generate field.
         List<Boolean> inputNullGenFieldList = new ArrayList<>();
@@ -272,6 +278,18 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                         RexUtil.composeConjunction(rexBuilder, newPostJoinFilters, true));
 
         call.transformTo(multiJoin);
+    }
+
+    /**
+     * @param relNode maybe project node that can be ignored
+     * @return input of ignored project node or the same relNode
+     */
+    private static RelNode skipIgnoredProjections(RelNode relNode) {
+        if (relNode instanceof LogicalProject
+                && ((LogicalProject) relNode).canBeIgnoredForMultiJoin()) {
+            relNode = ((HepRelVertex) relNode.getInput(0)).getCurrentRel();
+        }
+        return relNode;
     }
 
     private void buildInputNullGenFieldList(

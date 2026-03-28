@@ -194,6 +194,42 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayComplexJoinWithConditionsRelPlan() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE A ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  a STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE B ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  b STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE C ("
+                                + "  id INT PRIMARY KEY NOT ENFORCED,"
+                                + "  c STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.verifyRelPlan(
+                "\nSELECT\n"
+                        + "    A.id,\n"
+                        + "    A.a,\n"
+                        + "    B.b,\n"
+                        + "    C.c\n"
+                        + "FROM A\n"
+                        + "LEFT JOIN B\n"
+                        + "    ON A.id = B.id and B.id > 1 \n"
+                        + "INNER JOIN C\n"
+                        + "    ON B.id = C.id and C.id > 3");
+    }
+
+    @Test
     @Tag("no-common-join-key")
     void testThreeWayInnerJoinRelPlanNoCommonJoinKey() {
         util.verifyRelPlan(
