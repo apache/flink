@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -65,6 +66,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
@@ -72,6 +74,8 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -135,6 +139,13 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
+    public static final String STATE_NAME = "groupWindowAggregateState";
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
+
     public StreamExecGroupWindowAggregate(
             ReadableConfig tableConfig,
             int[] grouping,
@@ -155,6 +166,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                 window,
                 namedWindowProperties,
                 needRetraction,
+                StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -171,6 +183,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
                     NamedWindowProperty[] namedWindowProperties,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -181,6 +194,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         this.window = checkNotNull(window);
         this.namedWindowProperties = checkNotNull(namedWindowProperties);
         this.needRetraction = needRetraction;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -263,10 +277,13 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         final LogicalType[] aggValueTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] accTypes = extractLogicalTypes(aggInfoList.getAccTypes());
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
+        final long stateRetentionTime =
+                StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
 
         final WindowOperator<?, ?> operator =
                 createWindowOperator(
                         config,
+                        stateRetentionTime,
                         aggCodeGenerator,
                         equaliser,
                         accTypes,
@@ -368,6 +385,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
     private WindowOperator<?, ?> createWindowOperator(
             ReadableConfig config,
+            long stateRetentionTime,
             GeneratedClass<?> aggsHandler,
             GeneratedRecordEqualiser recordEqualiser,
             LogicalType[] accTypes,
@@ -381,7 +399,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFields)
                         .withShiftTimezone(shiftTimeZone)
-                        .withInputCountIndex(inputCountIndex);
+                        .withInputCountIndex(inputCountIndex)
+                        .withStateRetentionTime(stateRetentionTime);
 
         if (window instanceof TumblingGroupWindow) {
             TumblingGroupWindow tumblingWindow = (TumblingGroupWindow) window;

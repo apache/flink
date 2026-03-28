@@ -225,7 +225,8 @@ class WindowOperatorContractTest {
                             sendRetraction,
                             allowedLateness,
                             UTC_ZONE_ID,
-                            -1);
+                            -1,
+                            0);
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);
         } else {
@@ -243,7 +244,8 @@ class WindowOperatorContractTest {
                             sendRetraction,
                             allowedLateness,
                             UTC_ZONE_ID,
-                            -1);
+                            -1,
+                            0);
 
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);
