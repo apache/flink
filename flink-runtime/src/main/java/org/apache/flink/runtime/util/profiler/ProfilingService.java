@@ -89,6 +89,14 @@ public class ProfilingService implements Closeable {
         return instance;
     }
 
+    @VisibleForTesting
+    public static ProfilingService getInstanceForTest(Configuration configs) {
+        synchronized (ProfilingService.class) {
+            instance = new ProfilingService(configs);
+        }
+        return instance;
+    }
+
     public CompletableFuture<ProfilingInfo> requestProfiling(
             String resourceID, long duration, ProfilingInfo.ProfilingMode mode) {
         if (profilingFuture != null && !profilingFuture.isDone()) {
