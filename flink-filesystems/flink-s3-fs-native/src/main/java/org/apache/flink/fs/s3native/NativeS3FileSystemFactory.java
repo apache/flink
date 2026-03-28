@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 
 public class NativeS3FileSystemFactory implements FileSystemFactory {
 
@@ -191,6 +192,23 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "Uses the AWS SDK's default retry strategy (exponential backoff with jitter). "
                                     + "Set to 0 to disable retries.");
 
+    public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
+            ConfigOptions.key("s3.client.connection-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(60))
+                    .withDescription(
+                            "Connection timeout for establishing connections to S3. "
+                                    + "Default: 60 seconds.");
+
+    public static final ConfigOption<Duration> SOCKET_TIMEOUT =
+            ConfigOptions.key("s3.client.socket-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(300))
+                    .withDescription(
+                            "Socket (read) timeout for S3 operations. Increase this for large state "
+                                    + "uploads (e.g. checkpoints/savepoints) to avoid 'Read timed out' errors. "
+                                    + "Default: 300 seconds (5 minutes).");
+
     public static final ConfigOption<String> AWS_CREDENTIALS_PROVIDER =
             ConfigOptions.key("fs.s3.aws.credentials.provider")
                     .stringType()
@@ -206,6 +224,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "static credentials (if configured) -> DefaultCredentialsProvider.");
 
     private Configuration flinkConfig;
+    private BucketConfigProvider bucketConfigProvider;
 
     @Override
     public String getScheme() {
@@ -221,6 +240,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
     @Override
     public void configure(Configuration config) {
         this.flinkConfig = config;
+        this.bucketConfigProvider = new BucketConfigProvider(config);
     }
 
     @Override
@@ -305,6 +325,8 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .region(region)
                         .endpoint(endpoint)
                         .pathStyleAccess(pathStyleAccess)
+                        .connectionTimeout(config.get(CONNECTION_TIMEOUT))
+                        .socketTimeout(config.get(SOCKET_TIMEOUT))
                         .assumeRoleArn(config.get(ASSUME_ROLE_ARN))
                         .assumeRoleExternalId(config.get(ASSUME_ROLE_EXTERNAL_ID))
                         .assumeRoleSessionName(config.get(ASSUME_ROLE_SESSION_NAME))
@@ -315,24 +337,33 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .encryptionConfig(encryptionConfig)
                         .build();
 
-        NativeS3BulkCopyHelper bulkCopyHelper = null;
-        if (config.get(BULK_COPY_ENABLED)) {
-            bulkCopyHelper =
-                    new NativeS3BulkCopyHelper(
-                            clientProvider.getTransferManager(),
-                            config.get(BULK_COPY_MAX_CONCURRENT));
-        }
+        boolean bulkCopyEnabled = config.get(BULK_COPY_ENABLED);
+        int bulkCopyMaxConcurrent = config.get(BULK_COPY_MAX_CONCURRENT);
 
-        return new NativeS3FileSystem(
-                clientProvider,
-                fsUri,
-                entropyInjectionKey,
-                numEntropyChars,
-                localTmpDirectory,
-                s3minPartSize,
-                maxConcurrentUploads,
-                bulkCopyHelper,
-                useAsyncOperations,
-                readBufferSize);
+        try {
+            return new NativeS3FileSystem(
+                    clientProvider,
+                    bucketConfigProvider,
+                    config.get(CONNECTION_TIMEOUT),
+                    config.get(SOCKET_TIMEOUT),
+                    fsUri,
+                    entropyInjectionKey,
+                    numEntropyChars,
+                    localTmpDirectory,
+                    s3minPartSize,
+                    maxConcurrentUploads,
+                    null,
+                    bulkCopyEnabled,
+                    bulkCopyMaxConcurrent,
+                    useAsyncOperations,
+                    readBufferSize);
+        } catch (Throwable t) {
+            try {
+                clientProvider.closeAsync().join();
+            } catch (Throwable e) {
+                t.addSuppressed(e);
+            }
+            throw t;
+        }
     }
 }
