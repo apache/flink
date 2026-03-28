@@ -59,7 +59,15 @@ class FlinkScalaKryoInstantiator {
   def newKryo: Kryo = {
     val k = new Kryo
     k.setRegistrationRequired(false)
-    k.setInstantiatorStrategy(new org.objenesis.strategy.StdInstantiatorStrategy)
+    // Use DefaultInstantiatorStrategy as the primary strategy (which tries no-arg constructors
+    // first via reflection), and only falls back to StdInstantiatorStrategy (Objenesis, which
+    // bypasses constructors entirely) when no suitable constructor is found.
+    // Previously this was set to pure StdInstantiatorStrategy, which bypasses all constructors
+    // and can leave fields uninitialized (e.g., causing NPE in classes like Iceberg's
+    // SerializableByteBufferMap that rely on constructor initialization).
+    val initStrategy = new com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy()
+    initStrategy.setFallbackInstantiatorStrategy(new org.objenesis.strategy.StdInstantiatorStrategy)
+    k.setInstantiatorStrategy(initStrategy)
     k.register(classOf[Unit], new VoidSerializer)
     // The wrappers are private classes:
     useFieldSerializer(k, List(1, 2, 3).asJava.getClass)
