@@ -361,10 +361,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         this.registeredTaskManagers = new HashMap<>();
         this.blocklistHandler =
                 blocklistHandlerFactory.create(
-                        new JobMasterBlocklistContext(),
-                        this::getNodeIdOfTaskManager,
-                        getMainThreadExecutor(),
-                        log);
+                        new JobMasterBlocklistContext(), this::getNodeIdOfTaskManager, log);
 
         this.slotPoolService =
                 checkNotNull(slotPoolServiceSchedulerFactory)
@@ -1188,6 +1185,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private void startJobMasterServices() throws Exception {
         try {
+            blocklistHandler.start(getMainThreadExecutor());
             this.taskManagerHeartbeatManager = createTaskManagerHeartbeatManager(heartbeatServices);
             this.resourceManagerHeartbeatManager =
                     createResourceManagerHeartbeatManager(heartbeatServices);
