@@ -1226,39 +1226,39 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_JOIN(f0)",
                                 "No match found for function signature ARRAY_JOIN(<VARCHAR(2147483647) ARRAY>).\n"
                                         + "Supported signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN()",
                                 "No match found for function signature ARRAY_JOIN().\n"
                                         + "Supported signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f5, '+')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f5"), "+"),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f6, '+')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f6"), "+", "abc"),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f7, '+', 'abc')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f7"), "+"),
                                 "Invalid function call:\n"
@@ -1266,38 +1266,38 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f8, '+', 'abc')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f8"), "+"),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f9, '+', 'abc')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f9"), "+"),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f10, '+', 'abc')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f10"), "+"),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testTableApiValidationError(
                                 call("ARRAY_JOIN", $("f0"), "+", "+", "+"),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
-                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)"));
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<<CHARACTER_STRING>>, <CHARACTER_STRING>, <CHARACTER_STRING>)"));
     }
 
     public static class CreateEmptyArray extends ScalarFunction {
