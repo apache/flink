@@ -323,6 +323,46 @@ public class ToChangelogTestPrograms {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+    // Use case: deletion flag pattern (comma-separated RowKind keys)
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Kafka Connect style deletion flag: INSERT and UPDATE_AFTER both produce deleted='false',
+     * DELETE produces deleted='true', and UPDATE_BEFORE is silently dropped.
+     */
+    public static final TableTestProgram DELETION_FLAG =
+            TableTestProgram.of(
+                            "to-changelog-deletion-flag",
+                            "comma-separated RowKinds produce deletion flag output")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("name STRING", "deleted STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[Alice, false, 10]",
+                                            "+I[Bob, false, 20]",
+                                            "+I[Alice, false, 30]",
+                                            "+I[Bob, true, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "op => DESCRIPTOR(deleted), "
+                                    + "op_mapping => MAP['INSERT, UPDATE_AFTER', 'false', 'DELETE', 'true'])")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
     // Error validation tests
     // --------------------------------------------------------------------------------------------
 
@@ -360,6 +400,19 @@ public class ToChangelogTestPrograms {
                                     + "input => TABLE t PARTITION BY id, "
                                     + "op_mapping => MAP['INVALID_KIND', 'X'])",
                             ValidationException.class,
-                            "Invalid target mapping for argument 'op_mapping'.")
+                            "Unknown RowKind: 'INVALID_KIND'")
+                    .build();
+
+    public static final TableTestProgram DUPLICATE_ROW_KIND =
+            TableTestProgram.of(
+                            "to-changelog-duplicate-rowkind",
+                            "fails when a RowKind appears in multiple op_mapping entries")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingSql(
+                            "SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY id, "
+                                    + "op_mapping => MAP['INSERT, DELETE', 'A', 'DELETE', 'B'])",
+                            ValidationException.class,
+                            "Duplicate RowKind: 'DELETE'")
                     .build();
 }

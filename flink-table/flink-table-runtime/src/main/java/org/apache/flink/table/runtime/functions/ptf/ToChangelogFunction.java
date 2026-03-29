@@ -109,13 +109,22 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         return IntStream.range(0, fieldCount).filter(i -> !partitionKeySet.contains(i)).toArray();
     }
 
+    /**
+     * Builds a RowKind-to-output-code map. Keys may be comma-separated (e.g., "INSERT,
+     * UPDATE_AFTER") to map multiple RowKinds to the same output code.
+     */
     private static Map<RowKind, String> buildOpMap(@Nullable final Map<String, String> opMapping) {
         if (opMapping == null) {
             return new EnumMap<>(DEFAULT_OP_MAPPING);
         }
-        final Map<RowKind, String> map = new EnumMap<>(RowKind.class);
-        opMapping.forEach((name, code) -> map.put(RowKind.valueOf(name), code));
-        return map;
+        final Map<RowKind, String> result = new EnumMap<>(RowKind.class);
+        opMapping.forEach(
+                (commaSeparatedRowKinds, outputCode) -> {
+                    for (final String rawName : commaSeparatedRowKinds.split(",")) {
+                        result.put(RowKind.valueOf(rawName.trim()), outputCode);
+                    }
+                });
+        return result;
     }
 
     public void eval(
