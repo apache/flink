@@ -63,7 +63,7 @@ public class NettyShuffleServiceFactory
         implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
     private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleServiceFactory.class);
-    private static final String DIR_NAME_PREFIX = "netty-shuffle";
+    private static final String COMPONENT_DIR_NAME = "netty-shuffle";
 
     @Override
     public NettyShuffleMaster createShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
@@ -163,7 +163,7 @@ public class NettyShuffleServiceFactory
         checkNotNull(connectionManager);
 
         FileChannelManager fileChannelManager =
-                new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
+                new FileChannelManagerImpl(config.getTempDirs(), COMPONENT_DIR_NAME);
         if (LOG.isInfoEnabled()) {
             LOG.info(
                     "Created a new {} for storing result partitions of BLOCKING shuffles. Used directories:\n\t{}",
