@@ -24,13 +24,21 @@ import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.io.Encoder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.io.ByteArrayOutputStream;
 import java.time.Instant;
 import java.util.Random;
 
+import static org.apache.flink.formats.avro.utils.AvroTestUtils.createEncoder;
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -84,5 +92,227 @@ class AvroDeserializationSchemaTest {
         byte[] encodedData = writeRecord(data, encoding);
         UnionLogicalType deserializedData = deserializer.deserialize(encodedData);
         assertThat(deserializedData).isEqualTo(data);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testFastReadWithGenericRecord(AvroEncoding encoding) throws Exception {
+        // Create a schema with multiple fields
+        Schema schema =
+                SchemaBuilder.record("TestRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredString("name")
+                        .requiredInt("age")
+                        .requiredDouble("score")
+                        .endRecord();
+
+        // Create a GenericRecord with test data
+        GenericRecord record = new GenericData.Record(schema);
+        record.put("name", "Alice");
+        record.put("age", 30);
+        record.put("score", 95.5);
+
+        // Serialize the record
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
+        Encoder encoder = createEncoder(encoding, schema, outputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] encodedData = outputStream.toByteArray();
+
+        // Create deserializer with fast read enabled
+        DeserializationSchema<GenericRecord> deserializer =
+                AvroDeserializationSchema.forGeneric(null, schema, encoding, null, true);
+
+        // Deserialize and verify
+        GenericRecord deserializedRecord = deserializer.deserialize(encodedData);
+        assertThat(deserializedRecord).isNotNull();
+        assertThat(deserializedRecord.get("name").toString()).isEqualTo("Alice");
+        assertThat(deserializedRecord.get("age")).isEqualTo(30);
+        assertThat(deserializedRecord.get("score")).isEqualTo(95.5);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testFastReadWithSpecificRecord(AvroEncoding encoding) throws Exception {
+        // Use the existing Address test data
+        Address address = TestDataGenerator.generateRandomAddress(new Random(42));
+
+        // Serialize the address
+        byte[] encodedAddress = writeRecord(address, encoding);
+
+        // Create deserializer with fast read enabled
+        DeserializationSchema<Address> deserializer =
+                new AvroDeserializationSchema<>(Address.class, null, null, encoding, null, true);
+
+        // Deserialize and verify
+        Address deserializedAddress = deserializer.deserialize(encodedAddress);
+        assertThat(deserializedAddress).isEqualTo(address);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testColumnPruningWithGenericRecord(AvroEncoding encoding) throws Exception {
+        // Create a full schema with 5 fields
+        Schema fullSchema =
+                SchemaBuilder.record("FullRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredLong("id")
+                        .requiredString("name")
+                        .requiredInt("age")
+                        .requiredString("email")
+                        .requiredDouble("score")
+                        .endRecord();
+
+        // Create a projected schema with only 3 fields (id, name, score)
+        Schema projectedSchema =
+                SchemaBuilder.record("ProjectedRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredLong("id")
+                        .requiredString("name")
+                        .requiredDouble("score")
+                        .endRecord();
+
+        // Create a GenericRecord with all 5 fields
+        GenericRecord fullRecord = new GenericData.Record(fullSchema);
+        fullRecord.put("id", 123L);
+        fullRecord.put("name", "Bob");
+        fullRecord.put("age", 25);
+        fullRecord.put("email", "bob@example.com");
+        fullRecord.put("score", 88.5);
+
+        // Serialize the full record
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, outputStream);
+        datumWriter.write(fullRecord, encoder);
+        encoder.flush();
+        byte[] encodedData = outputStream.toByteArray();
+
+        // Create deserializer with column pruning (writer schema = full, reader schema
+        // = projected)
+        DeserializationSchema<GenericRecord> deserializer =
+                AvroDeserializationSchema.forGeneric(
+                        fullSchema, projectedSchema, encoding, null, false);
+
+        // Deserialize and verify only projected fields are present
+        GenericRecord deserializedRecord = deserializer.deserialize(encodedData);
+        assertThat(deserializedRecord).isNotNull();
+        assertThat(deserializedRecord.get("id")).isEqualTo(123L);
+        assertThat(deserializedRecord.get("name").toString()).isEqualTo("Bob");
+        assertThat(deserializedRecord.get("score")).isEqualTo(88.5);
+
+        // Verify that the projected schema only has 3 fields
+        assertThat(deserializedRecord.getSchema().getFields()).hasSize(3);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testFastReadAndColumnPruningCombined(AvroEncoding encoding) throws Exception {
+        // Create a full schema with 4 fields
+        Schema fullSchema =
+                SchemaBuilder.record("FullRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredLong("id")
+                        .requiredString("name")
+                        .requiredInt("age")
+                        .requiredDouble("score")
+                        .endRecord();
+
+        // Create a projected schema with only 2 fields (id, score)
+        Schema projectedSchema =
+                SchemaBuilder.record("ProjectedRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredLong("id")
+                        .requiredDouble("score")
+                        .endRecord();
+
+        // Create a GenericRecord with all 4 fields
+        GenericRecord fullRecord = new GenericData.Record(fullSchema);
+        fullRecord.put("id", 789L);
+        fullRecord.put("name", "David");
+        fullRecord.put("age", 35);
+        fullRecord.put("score", 87.3);
+
+        // Serialize the full record
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, outputStream);
+        datumWriter.write(fullRecord, encoder);
+        encoder.flush();
+        byte[] encodedData = outputStream.toByteArray();
+
+        // Create deserializer with both fast read and column pruning enabled
+        DeserializationSchema<GenericRecord> deserializer =
+                AvroDeserializationSchema.forGeneric(
+                        fullSchema, projectedSchema, encoding, null, true);
+
+        // Deserialize and verify
+        GenericRecord deserializedRecord = deserializer.deserialize(encodedData);
+        assertThat(deserializedRecord).isNotNull();
+        assertThat(deserializedRecord.getSchema().getFields()).hasSize(2);
+        assertThat(deserializedRecord.get("id")).isEqualTo(789L);
+        assertThat(deserializedRecord.get("score")).isEqualTo(87.3);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSchemaEvolution(AvroEncoding encoding) throws Exception {
+        // Writer schema (older version)
+        Schema writerSchema =
+                SchemaBuilder.record("EvolutionRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredLong("id")
+                        .requiredString("name")
+                        .endRecord();
+
+        // Reader schema (newer version with reordered fields and a new field with default)
+        Schema readerSchema =
+                SchemaBuilder.record("EvolutionRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .name("name")
+                        .type()
+                        .stringType()
+                        .noDefault()
+                        .name("new_field")
+                        .type()
+                        .stringType()
+                        .stringDefault("default_val")
+                        .name("id")
+                        .type()
+                        .longType()
+                        .noDefault()
+                        .endRecord();
+
+        GenericRecord writerRecord = new GenericData.Record(writerSchema);
+        writerRecord.put("id", 101L);
+        writerRecord.put("name", "Eve");
+
+        // Serialize with writer schema
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(writerSchema);
+        Encoder encoder = createEncoder(encoding, writerSchema, outputStream);
+        datumWriter.write(writerRecord, encoder);
+        encoder.flush();
+        byte[] encodedData = outputStream.toByteArray();
+
+        // Create deserializer with writer and reader schema
+        DeserializationSchema<GenericRecord> deserializer =
+                AvroDeserializationSchema.forGeneric(
+                        writerSchema, readerSchema, encoding, null, false);
+
+        // Deserialize and verify
+        GenericRecord deserializedRecord = deserializer.deserialize(encodedData);
+        assertThat(deserializedRecord).isNotNull();
+        assertThat(deserializedRecord.get("name").toString()).isEqualTo("Eve");
+        assertThat(deserializedRecord.get("id")).isEqualTo(101L);
+        assertThat(deserializedRecord.get("new_field").toString()).isEqualTo("default_val");
     }
 }

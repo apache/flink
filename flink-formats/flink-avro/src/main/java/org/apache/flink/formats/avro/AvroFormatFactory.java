@@ -45,7 +45,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_ENCODING;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_FAST_READ;
 import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_TIMESTAMP_LEGACY_MAPPING;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_WRITER_SCHEMA_STRING;
 
 /**
  * Table format factory for providing configured instances of Avro to RowData {@link
@@ -63,6 +65,8 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
 
         AvroEncoding encoding = formatOptions.get(AVRO_ENCODING);
         boolean legacyTimestampMapping = formatOptions.get(AVRO_TIMESTAMP_LEGACY_MAPPING);
+        boolean fastRead = formatOptions.get(AVRO_FAST_READ);
+        String writerSchemaString = formatOptions.get(AVRO_WRITER_SCHEMA_STRING);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -75,8 +79,18 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
+                // producedDataType denotes the schema after column pruning, whereas
+                // actualRowType
+                // maintains the upstream table's original structure.
+                final RowType actualRowType = (RowType) physicalDataType.getLogicalType();
                 return new AvroRowDataDeserializationSchema(
-                        rowType, rowDataTypeInfo, encoding, legacyTimestampMapping);
+                        actualRowType,
+                        rowType,
+                        rowDataTypeInfo,
+                        encoding,
+                        legacyTimestampMapping,
+                        fastRead,
+                        writerSchemaString);
             }
 
             @Override
@@ -125,6 +139,8 @@ public class AvroFormatFactory implements DeserializationFormatFactory, Serializ
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(AVRO_ENCODING);
         options.add(AVRO_TIMESTAMP_LEGACY_MAPPING);
+        options.add(AVRO_FAST_READ);
+        options.add(AVRO_WRITER_SCHEMA_STRING);
         return options;
     }
 }
