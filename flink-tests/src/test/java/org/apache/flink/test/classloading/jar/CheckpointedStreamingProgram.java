@@ -18,14 +18,23 @@
 
 package org.apache.flink.test.classloading.jar;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.SingleSplitEnumerator;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 
 import java.util.Collections;
 import java.util.List;
@@ -46,37 +55,14 @@ public class CheckpointedStreamingProgram {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 100L);
         env.disableOperatorChaining();
 
-        DataStream<String> text = env.addSource(new SimpleStringGenerator());
+        DataStream<String> text =
+                env.fromSource(
+                        new SimpleStringGenerator(),
+                        WatermarkStrategy.noWatermarks(),
+                        "String Generator");
         text.map(new StatefulMapper()).sinkTo(new DiscardingSink<>());
         env.setParallelism(1);
         env.execute("Checkpointed Streaming Program");
-    }
-
-    // with Checkpointing
-    private static class SimpleStringGenerator
-            implements SourceFunction<String>, ListCheckpointed<Integer> {
-        public boolean running = true;
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            while (running) {
-                Thread.sleep(1);
-                ctx.collect("someString");
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-
-        @Override
-        public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-            return Collections.emptyList();
-        }
-
-        @Override
-        public void restoreState(List<Integer> state) throws Exception {}
     }
 
     private static class StatefulMapper
@@ -132,7 +118,50 @@ public class CheckpointedStreamingProgram {
         public void notifyCheckpointAborted(long checkpointId) {}
     }
 
-    // --------------------------------------------------------------------------------------------
+    private static class SimpleStringGenerator extends AbstractTestSource<String> {
+
+        @Override
+        public SplitEnumerator<TestSplit, Void> createEnumerator(
+                SplitEnumeratorContext<TestSplit> enumContext) {
+            return new SingleSplitEnumerator(enumContext);
+        }
+
+        @Override
+        public TestSourceReader<String> createReader(SourceReaderContext readerContext) {
+            return new TestSourceReader<>(readerContext) {
+                private boolean splitReceived = false;
+
+                @Override
+                public void addSplits(List<TestSplit> splits) {
+                    if (!splits.isEmpty()) {
+                        splitReceived = true;
+                    }
+                }
+
+                @Override
+                public InputStatus pollNext(ReaderOutput<String> output) {
+                    if (!splitReceived) {
+                        return InputStatus.NOTHING_AVAILABLE;
+                    }
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return InputStatus.END_OF_INPUT;
+                    }
+                    output.collect("someString");
+                    return InputStatus.MORE_AVAILABLE;
+                }
+
+                @Override
+                public List<TestSplit> snapshotState(long checkpointId) {
+                    return splitReceived
+                            ? Collections.singletonList(TestSplit.INSTANCE)
+                            : Collections.emptyList();
+                }
+            };
+        }
+    }
 
     /** We intentionally use a user specified failure exception. */
     private static class SuccessException extends Exception {}
