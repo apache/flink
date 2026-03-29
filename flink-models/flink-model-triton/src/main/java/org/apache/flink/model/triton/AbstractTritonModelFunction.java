@@ -426,7 +426,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     protected void checkCircuitBreaker() {
         if (circuitBreaker != null && circuitBreakerEnabled) {
-            circuitBreaker.allowRequest();
+            circuitBreaker.isRequestAllowed();
         }
     }
 

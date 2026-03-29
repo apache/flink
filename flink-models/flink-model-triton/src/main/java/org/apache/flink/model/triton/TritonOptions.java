@@ -253,5 +253,4 @@ public class TritonOptions {
                             "Number of successful test requests required in HALF_OPEN state to close the circuit. "
                                     + "If any request fails in HALF_OPEN state, the circuit immediately reopens. "
                                     + "Defaults to 3 requests. Only effective when circuit-breaker-enabled is true.");
-
 }
