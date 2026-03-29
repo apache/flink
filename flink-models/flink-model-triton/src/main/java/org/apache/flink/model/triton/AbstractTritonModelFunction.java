@@ -85,6 +85,9 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String compression;
     private final String authToken;
     private final Map<String, String> customHeaders;
+    private final int maxRetries;
+    private final Duration retryBackoff;
+    private final String defaultValue;
 
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
@@ -100,6 +103,9 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.compression = config.get(TritonOptions.COMPRESSION);
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
+        this.maxRetries = config.get(TritonOptions.MAX_RETRIES);
+        this.retryBackoff = config.get(TritonOptions.RETRY_BACKOFF);
+        this.defaultValue = config.get(TritonOptions.DEFAULT_VALUE);
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
@@ -224,12 +230,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     "%s column '%s' has nested array type: %s\n"
                             + "Multi-dimensional tensors (ARRAY<ARRAY<T>>) are not supported in v1.\n"
                             + "=== Supported Types ===\n"
-                            + "  • Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
-                            + "  • 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
+                            + "  - Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
+                            + "  - 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
                             + "=== Workarounds ===\n"
-                            + "  • Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
-                            + "  • Use JSON STRING encoding for complex structures\n"
-                            + "  • Wait for v2+ which will support ROW<...> types",
+                            + "  - Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
+                            + "  - Use JSON STRING encoding for complex structures\n"
+                            + "  - Wait for v2+ which will support ROW<...> types",
                     inputOrOutput,
                     columnName,
                     type);
@@ -318,5 +324,17 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected Map<String, String> getCustomHeaders() {
         return customHeaders;
+    }
+
+    protected int getMaxRetries() {
+        return maxRetries;
+    }
+
+    protected Duration getRetryBackoff() {
+        return retryBackoff;
+    }
+
+    protected String getDefaultValue() {
+        return defaultValue;
     }
 }
