@@ -42,7 +42,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * can be safely invoked from another thread (e.g. during task cancellation) per {@link
  * org.apache.flink.core.fs.FSDataOutputStream} contract.
  */
-public class NativeS3OutputStream extends FSDataOutputStream {
+class NativeS3OutputStream extends FSDataOutputStream {
 
     private static final int BUFFER_SIZE = 64 * 1024;
 

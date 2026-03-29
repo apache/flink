@@ -51,7 +51,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * corrupting S3 state.
  */
 @NotThreadSafe
-public class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(NativeS3RecoverableFsDataOutputStream.class);

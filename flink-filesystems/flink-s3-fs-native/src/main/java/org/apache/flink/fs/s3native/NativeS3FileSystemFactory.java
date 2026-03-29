@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.s3native;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -33,6 +34,17 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 
+/**
+ * Factory for creating Native S3 FileSystem instances.
+ *
+ * <p>This factory creates {@link NativeS3FileSystem} instances for accessing Amazon S3 buckets
+ * using AWS SDK v2. The Native S3 FileSystem provides a drop-in replacement for Presto and Hadoop
+ * S3 implementations with minimal external dependencies.
+ *
+ * @see NativeS3FileSystem
+ * @see org.apache.flink.core.fs.FileSystemFactory
+ */
+@Experimental
 public class NativeS3FileSystemFactory implements FileSystemFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystemFactory.class);

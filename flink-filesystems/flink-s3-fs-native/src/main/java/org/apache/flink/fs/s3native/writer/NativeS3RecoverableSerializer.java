@@ -66,8 +66,7 @@ import java.util.List;
  *   - incompleteObjectLength: long
  * </pre>
  */
-public class NativeS3RecoverableSerializer
-        implements SimpleVersionedSerializer<NativeS3Recoverable> {
+class NativeS3RecoverableSerializer implements SimpleVersionedSerializer<NativeS3Recoverable> {
 
     public static final NativeS3RecoverableSerializer INSTANCE =
             new NativeS3RecoverableSerializer();
