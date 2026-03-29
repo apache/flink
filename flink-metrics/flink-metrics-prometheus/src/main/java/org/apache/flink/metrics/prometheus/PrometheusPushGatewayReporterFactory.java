@@ -87,6 +87,7 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                     new PrometheusPushGatewayReporter(
                             new URL(hostUrl),
                             jobName,
+                            !randomSuffix,
                             groupingKey,
                             deleteOnShutdown,
                             username,
