@@ -32,6 +32,7 @@ under the License.
 
 	<properties>
 		<fs.s3.aws.version>1.12.779</fs.s3.aws.version>
+		<fs.s3.aws.sdk2.version>2.29.52</fs.s3.aws.sdk2.version>
 		<japicmp.skip>true</japicmp.skip>
 		<surefire.module.config> <!--
 			S5CmdOnMinioITCase uses ArraysAsListSerializer indirectly
@@ -234,6 +235,11 @@ under the License.
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-bundle</artifactId>
 				</exclusion>
+				<!-- Exclude SDK V2 bundle - use individual modules instead to reduce JAR size -->
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>bundle</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>ch.qos.reload4j</groupId>
 					<artifactId>reload4j</artifactId>
@@ -243,6 +249,43 @@ under the License.
 					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- AWS SDK V2 individual modules (instead of bundle to reduce JAR size from 611MB to ~13MB) -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>kms</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>dynamodb</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sso</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>auth</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3-transfer-manager</artifactId>
+			<version>${fs.s3.aws.sdk2.version}</version>
 		</dependency>
 
 		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnMinioS3StoreITCase -->
