@@ -817,8 +817,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                     "Keyed state store not found when initializing keyed state store handlers.");
         }
 
-        boolean prohibitReuseRow = isHeapBackend();
-        if (prohibitReuseRow) {
+        boolean requiresKeyDeepCopy = isHeapBackend();
+        if (requiresKeyDeepCopy) {
             this.keyExtractor.requiresKeyDeepCopy();
         }
 
@@ -835,7 +835,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                             inputSpecs.get(i),
                             joinKeyType,
                             inputTypes.get(i),
-                            stateRetentionTime[i]);
+                            stateRetentionTime[i],
+                            requiresKeyDeepCopy);
             stateHandlers.add(stateView);
         }
     }

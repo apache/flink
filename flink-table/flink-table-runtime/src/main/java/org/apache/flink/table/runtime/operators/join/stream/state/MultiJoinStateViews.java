@@ -68,7 +68,8 @@ public final class MultiJoinStateViews {
                     RowType
                             joinKeyType, /* joinKeyType is null for inputId = 0, see {@link InputSideHasUniqueKey}*/
             RowType recordType,
-            long retentionTime) {
+            long retentionTime,
+            boolean requiresKeyDeepCopy) {
         StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 
         if (inputSideSpec.hasUniqueKey()) {
@@ -83,10 +84,12 @@ public final class MultiJoinStateViews {
                         recordType,
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
-                        ttlConfig);
+                        ttlConfig,
+                        requiresKeyDeepCopy);
             }
         } else {
-            return new InputSideHasNoUniqueKey(ctx, stateName, joinKeyType, recordType, ttlConfig);
+            return new InputSideHasNoUniqueKey(
+                    ctx, stateName, joinKeyType, recordType, ttlConfig, requiresKeyDeepCopy);
         }
     }
 
@@ -182,7 +185,9 @@ public final class MultiJoinStateViews {
         private final MapState<RowData, RowData> recordState;
         private final KeySelector<RowData, RowData> uniqueKeySelector;
         private RowDataSerializer joinKeySerializer; // Null if joinKeyType is null
+        private RowDataSerializer stateKeySerializer; // Null if joinKeyType is null
         private int joinKeyFieldCount = 0; // 0 if joinKeyType is null
+        private final boolean requiresKeyDeepCopy;
 
         private InputSideHasUniqueKey(
                 RuntimeContext ctx,
@@ -191,7 +196,8 @@ public final class MultiJoinStateViews {
                 final RowType recordType,
                 final InternalTypeInfo<RowData> uniqueKeyType,
                 final KeySelector<RowData, RowData> uniqueKeySelector,
-                final StateTtlConfig ttlConfig) {
+                final StateTtlConfig ttlConfig,
+                final boolean requiresKeyDeepCopy) {
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             this.uniqueKeySelector = uniqueKeySelector;
@@ -208,6 +214,7 @@ public final class MultiJoinStateViews {
                 // Composite key type: RowData with 2 fields (joinKey, uniqueKey)
                 // The composite key is a RowData with joinKey at index 0 and uniqueKey at index 1.
                 final RowType keyRowType = RowType.of(joinKeyType, uniqueKeyType.toRowType());
+                this.stateKeySerializer = new RowDataSerializer(keyRowType);
                 keyStateType = InternalTypeInfo.of(keyRowType);
             }
 
@@ -216,6 +223,7 @@ public final class MultiJoinStateViews {
                             stateName, keyStateType, InternalTypeInfo.of(recordType), ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
+            this.requiresKeyDeepCopy = requiresKeyDeepCopy;
         }
 
         private boolean joinKeysEqual(RowData joinKey, RowData currentJoinKeyInState) {
@@ -231,7 +239,14 @@ public final class MultiJoinStateViews {
                 GenericRowData compositeKey = new GenericRowData(2);
                 compositeKey.setField(0, joinKey);
                 compositeKey.setField(1, uniqueKey);
-                return compositeKey;
+
+                // need to make deep copy when heap state backend is used
+                // because generic row data and binary row data are not equivalent
+                if (requiresKeyDeepCopy) {
+                    return stateKeySerializer.toBinaryRow(compositeKey, true);
+                } else {
+                    return compositeKey;
+                }
             }
         }
 
@@ -313,16 +328,19 @@ public final class MultiJoinStateViews {
     private static final class InputSideHasNoUniqueKey implements MultiJoinStateView {
         private final MapState<RowData, Integer> recordState;
         private RowDataSerializer joinKeySerializer; // Null if joinKeyType is null
+        private RowDataSerializer stateKeySerializer; // Null if joinKeyType is null
         private int joinKeyFieldCount; // 0 if joinKeyType is null
         private final int recordFieldCount;
         @Nullable private final RowType joinKeyType; // Store to check for null
+        private final boolean requiresKeyDeepCopy;
 
         private InputSideHasNoUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
                 @Nullable final RowType joinKeyType, // Can be null
                 final RowType recordType,
-                final StateTtlConfig ttlConfig) {
+                final StateTtlConfig ttlConfig,
+                final boolean requiresKeyDeepCopy) {
             this.joinKeyType = joinKeyType;
             this.recordFieldCount = recordType.getFieldCount();
 
@@ -335,6 +353,7 @@ public final class MultiJoinStateViews {
                 this.joinKeyFieldCount = this.joinKeyType.getFieldCount();
                 // Composite key type: RowData with 2 fields (joinKey, record)
                 final RowType keyRowType = RowType.of(this.joinKeyType, recordType);
+                this.stateKeySerializer = new RowDataSerializer(keyRowType);
                 keyStateType = InternalTypeInfo.of(keyRowType);
             }
 
@@ -342,6 +361,7 @@ public final class MultiJoinStateViews {
                     createStateDescriptor(stateName, keyStateType, Types.INT, ttlConfig);
 
             this.recordState = ctx.getMapState(recordStateDesc);
+            this.requiresKeyDeepCopy = requiresKeyDeepCopy;
         }
 
         private boolean joinKeysEqual(RowData joinKeyToLookup, RowData currentJoinKeyInState) {
@@ -357,7 +377,14 @@ public final class MultiJoinStateViews {
                 GenericRowData compositeKey = new GenericRowData(2);
                 compositeKey.setField(0, joinKey);
                 compositeKey.setField(1, record);
-                return compositeKey;
+
+                // need to make deep copy when heap state backend is used
+                // because generic row data and binary row data are not equivalent
+                if (requiresKeyDeepCopy) {
+                    return stateKeySerializer.toBinaryRow(compositeKey, true);
+                } else {
+                    return compositeKey;
+                }
             }
         }
 
