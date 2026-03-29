@@ -365,6 +365,42 @@ class DefaultStateTransitionManagerTest {
     }
 
     @Test
+    void testManagerResetsToIdlingWhenTransitionToSubsequentStateFails() {
+        final TestingStateTransitionManagerContext ctx =
+                TestingStateTransitionManagerContext.stableContext().withDesiredResources();
+        // Make transitionToSubsequentState() throw to simulate e.g. OOM during
+        // ExecutionGraph creation (FLINK-38997).
+        ctx.failOnTransition(new RuntimeException("Simulated failure during state transition"));
+        final DefaultStateTransitionManager testInstance =
+                ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertPhaseWithoutStateTransition(ctx, testInstance, Idling.class);
+
+        // Trigger a change event to move to Stabilizing
+        testInstance.onChange();
+        assertPhaseWithoutStateTransition(ctx, testInstance, Stabilizing.class);
+
+        // onTrigger would normally transition to Transitioning, but the context throws
+        try {
+            testInstance.onTrigger();
+        } catch (RuntimeException expected) {
+            // expected: the exception from transitionToSubsequentState propagates
+        }
+
+        // The manager should have recovered to Idling, NOT stuck in Transitioning
+        assertThat(testInstance.getPhase()).isInstanceOf(Idling.class);
+
+        // Now stop failing and verify the manager can still process events
+        ctx.stopFailingOnTransition();
+        ctx.clearStateTransition();
+        ctx.withDesiredResources();
+        testInstance.onChange();
+        assertPhaseWithoutStateTransition(ctx, testInstance, Stabilizing.class);
+        testInstance.onTrigger();
+        assertFinalStateTransitionHappened(ctx, testInstance);
+    }
+
+    @Test
     void testScheduledTaskBeingIgnoredAfterStateChanged() {
         final TestingStateTransitionManagerContext ctx =
                 TestingStateTransitionManagerContext.stableContext();
@@ -459,6 +495,7 @@ class DefaultStateTransitionManagerTest {
 
         // internal state used for assertions
         private final AtomicBoolean transitionTriggered = new AtomicBoolean();
+        private RuntimeException transitionFailure = null;
         private final SortedMap<Instant, List<ScheduledTask<Object>>> scheduledTasks =
                 new TreeMap<>();
 
@@ -507,6 +544,14 @@ class DefaultStateTransitionManagerTest {
             return this;
         }
 
+        public void failOnTransition(RuntimeException failure) {
+            this.transitionFailure = failure;
+        }
+
+        public void stopFailingOnTransition() {
+            this.transitionFailure = null;
+        }
+
         // ///////////////////////////////////////////////
         // StateTransitionManager.Context interface methods
         // ///////////////////////////////////////////////
@@ -524,6 +569,9 @@ class DefaultStateTransitionManagerTest {
         @Override
         public void transitionToSubsequentState() {
             transitionTriggered.set(true);
+            if (transitionFailure != null) {
+                throw transitionFailure;
+            }
         }
 
         @Override
