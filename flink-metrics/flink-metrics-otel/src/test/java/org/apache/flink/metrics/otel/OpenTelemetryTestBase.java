@@ -20,7 +20,7 @@ package org.apache.flink.metrics.otel;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
-import org.apache.flink.core.testutils.TestContainerExtension;
+import org.apache.flink.core.testutils.RetryingTestContainerExtension;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -60,10 +60,11 @@ public class OpenTelemetryTestBase {
 
     @RegisterExtension
     @Order(1)
-    private static final AllCallbackWrapper<TestContainerExtension<OtelTestContainer>>
+    private static final AllCallbackWrapper<RetryingTestContainerExtension<OtelTestContainer>>
             OTEL_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(() -> new OtelTestContainer(outputDir)));
+                            new RetryingTestContainerExtension<>(
+                                    () -> new OtelTestContainer(outputDir)));
 
     @BeforeEach
     public void setup() {
