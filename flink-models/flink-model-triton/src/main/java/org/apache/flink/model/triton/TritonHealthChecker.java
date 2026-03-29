@@ -175,7 +175,7 @@ public class TritonHealthChecker implements AutoCloseable {
                 circuitBreaker.recordFailure();
             }
         } catch (Exception e) {
-            LOG.error("Error during health check for " + endpoint, e);
+            LOG.error("Error during health check for {}", endpoint, e);
             consecutiveSuccesses.set(0);
             consecutiveFailures.incrementAndGet();
             lastCheckResult.set(false);
@@ -263,7 +263,7 @@ public class TritonHealthChecker implements AutoCloseable {
             lastCheckResult.set(healthy);
             return healthy;
         } catch (Exception e) {
-            LOG.error("Error during immediate health check for " + endpoint, e);
+            LOG.error("Error during immediate health check for {}", endpoint, e);
             lastCheckResult.set(false);
             return false;
         }

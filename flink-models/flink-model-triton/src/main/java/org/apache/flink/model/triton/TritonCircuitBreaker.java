@@ -101,6 +101,12 @@ public class TritonCircuitBreaker {
     private static final int MIN_REQUESTS_THRESHOLD = 10;
 
     /**
+     * Maximum number of requests to track in CLOSED state before resetting counters.
+     * This prevents historical successes from diluting current failure rate.
+     */
+    private static final int MAX_CLOSED_STATE_REQUESTS = 10000;
+
+    /**
      * Creates a new circuit breaker for a Triton endpoint.
      *
      * @param endpoint The Triton server endpoint URL
@@ -114,8 +120,16 @@ public class TritonCircuitBreaker {
             Duration openStateDuration,
             int halfOpenMaxRequests) {
         this.endpoint = endpoint;
+        if (failureThreshold <= 0.0 || failureThreshold > 1.0) {
+            throw new IllegalArgumentException(
+                    "failureThreshold must be in range (0.0, 1.0], got: " + failureThreshold);
+        }
         this.failureThreshold = failureThreshold;
         this.openStateDuration = openStateDuration;
+        if (halfOpenMaxRequests <= 0) {
+            throw new IllegalArgumentException(
+                    "halfOpenMaxRequests must be positive, got: " + halfOpenMaxRequests);
+        }
         this.halfOpenMaxRequests = halfOpenMaxRequests;
 
         LOG.info(
@@ -132,7 +146,7 @@ public class TritonCircuitBreaker {
      * @return true if request should proceed, false if should fail fast
      * @throws TritonCircuitBreakerOpenException if circuit is OPEN
      */
-    public boolean allowRequest() throws TritonCircuitBreakerOpenException {
+    public boolean isRequestAllowed() throws TritonCircuitBreakerOpenException {
         State currentState = state.get();
 
         switch (currentState) {
@@ -160,22 +174,24 @@ public class TritonCircuitBreaker {
                                 endpoint, getRemainingOpenTimeSeconds()));
 
             case HALF_OPEN:
-                // Allow limited number of requests in HALF_OPEN state
-                int currentHalfOpenReqs = halfOpenRequests.incrementAndGet();
-                if (currentHalfOpenReqs <= halfOpenMaxRequests) {
-                    LOG.debug(
-                            "Allowing request {}/{} in HALF_OPEN state for {}",
-                            currentHalfOpenReqs,
-                            halfOpenMaxRequests,
-                            endpoint);
-                    return true;
-                } else {
-                    halfOpenRequests.decrementAndGet();
-                    throw new TritonCircuitBreakerOpenException(
-                            String.format(
-                                    "Circuit breaker is HALF_OPEN for endpoint %s. "
-                                            + "Maximum test requests (%d) reached. Please retry later.",
-                                    endpoint, halfOpenMaxRequests));
+                // Allow limited number of requests in HALF_OPEN state using CAS loop
+                while (true) {
+                    int current = halfOpenRequests.get();
+                    if (current >= halfOpenMaxRequests) {
+                        throw new TritonCircuitBreakerOpenException(
+                                String.format(
+                                        "Circuit breaker is HALF_OPEN for endpoint %s. "
+                                                + "Maximum test requests (%d) reached. Please retry later.",
+                                        endpoint, halfOpenMaxRequests));
+                    }
+                    if (halfOpenRequests.compareAndSet(current, current + 1)) {
+                        LOG.debug(
+                                "Allowing request {}/{} in HALF_OPEN state for {}",
+                                current + 1,
+                                halfOpenMaxRequests,
+                                endpoint);
+                        return true;
+                    }
                 }
 
             default:
@@ -194,7 +210,13 @@ public class TritonCircuitBreaker {
 
         switch (currentState) {
             case CLOSED:
-                totalRequests.incrementAndGet();
+                int total = totalRequests.incrementAndGet();
+
+                // Reset counters periodically to prevent historical successes from diluting
+                // current failure rate
+                if (total >= MAX_CLOSED_STATE_REQUESTS) {
+                    resetClosedMetrics();
+                }
 
                 // Also check if we should open the circuit after recording a success
                 // This handles the case where the minimum threshold is reached on a success
@@ -250,8 +272,14 @@ public class TritonCircuitBreaker {
 
         switch (currentState) {
             case CLOSED:
-                totalRequests.incrementAndGet();
+                int total = totalRequests.incrementAndGet();
                 failedRequests.incrementAndGet();
+
+                // Reset counters periodically to prevent historical successes from diluting
+                // current failure rate
+                if (total >= MAX_CLOSED_STATE_REQUESTS) {
+                    resetClosedMetrics();
+                }
 
                 // Check if we should open the circuit
                 if (shouldOpenCircuit()) {
