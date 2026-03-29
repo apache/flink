@@ -6,7 +6,14 @@ The tests defined in `run-nightly-tests.sh` are run by the CI system on every pu
 and push to master.
 
 
+
 ## Running Tests
+**Before running end-to-end tests, make sure you have built Flink and all modules using:**
+ ```
+ mvn clean install -Dfast -T 1C -DskipTests -Denforcer.skip=true
+ ```
+This ensures all necessary jars and scripts are available for the test run.
+
 You can run all tests by executing
 
 ```
