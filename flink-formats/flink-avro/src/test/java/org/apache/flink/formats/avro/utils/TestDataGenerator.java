@@ -21,7 +21,6 @@ package org.apache.flink.formats.avro.utils;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.SimpleUser;
 import org.apache.flink.formats.avro.generated.User;
 
@@ -62,8 +61,9 @@ public class TestDataGenerator {
                 LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS),
                 Instant.parse("2014-03-01T12:12:12.321Z"),
                 Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS),
-                ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()),
-                new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+                Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS),
+                BigDecimal.valueOf(2000, 2),
+                BigDecimal.valueOf(2000, 2));
     }
 
     public static SimpleUser generateRandomSimpleUser(Random rnd) {
