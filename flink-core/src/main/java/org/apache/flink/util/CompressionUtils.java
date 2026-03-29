@@ -53,6 +53,41 @@ public class CompressionUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(CompressionUtils.class);
 
+    /**
+     * Checks if the given file name has a supported compressed file extension.
+     *
+     * @param fileName the file name to check
+     * @return true if the file is a compressed file (zip, jar, tar, tar.gz, tgz)
+     */
+    public static boolean isCompressedFile(String fileName) {
+        String lowerCaseFileName = fileName.toLowerCase();
+        return lowerCaseFileName.endsWith(".zip")
+                || lowerCaseFileName.endsWith(".jar")
+                || lowerCaseFileName.endsWith(".tar")
+                || lowerCaseFileName.endsWith(".tar.gz")
+                || lowerCaseFileName.endsWith(".tgz");
+    }
+
+    /**
+     * Gets the base name of the file without the extension. Handles compound extensions like
+     * .tar.gz.
+     *
+     * @param fileName the file name to process
+     * @return the base name without extension
+     */
+    public static String getBaseNameWithoutExtension(String fileName) {
+        // .tar.gz is a compound extension and needs special handling to remove the entire suffix
+        if (fileName.toLowerCase().endsWith(".tar.gz")) {
+            return fileName.substring(0, fileName.length() - ".tar.gz".length());
+        }
+        // For other formats (.zip, .jar, .tar, .tgz, etc.), use lastIndexOf to handle uniformly
+        int lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            return fileName.substring(0, lastDotIndex);
+        }
+        return fileName;
+    }
+
     public static void extractFile(
             String srcFilePath, String targetDirPath, String originalFileName) throws IOException {
         if (hasOneOfSuffixes(originalFileName, ".zip", ".jar")) {
