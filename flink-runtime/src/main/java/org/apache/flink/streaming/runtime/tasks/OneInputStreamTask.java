@@ -203,6 +203,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet =
                 configuration.getWatermarkDeclarations(getUserCodeClassLoader());
 
+        boolean checkpointingDuringRecoveryEnabled =
+                CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(getJobConfiguration());
+
         return StreamTaskNetworkInputFactory.create(
                 inputGate,
                 inSerializer,
@@ -217,7 +220,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                                 .getPartitioner(),
                 getEnvironment().getTaskInfo(),
                 getCanEmitBatchOfRecords(),
-                watermarkDeclarationSet);
+                watermarkDeclarationSet,
+                checkpointingDuringRecoveryEnabled);
     }
 
     /**

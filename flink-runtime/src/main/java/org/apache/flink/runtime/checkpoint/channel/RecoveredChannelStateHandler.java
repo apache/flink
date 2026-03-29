@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -63,7 +64,7 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
      * case of an error.
      */
     void recover(Info info, int oldSubtaskIndex, BufferWithContext<Context> bufferWithContext)
-            throws IOException;
+            throws IOException, InterruptedException;
 }
 
 class InputChannelRecoveredStateHandler
@@ -75,10 +76,19 @@ class InputChannelRecoveredStateHandler
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
+    /**
+     * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
+     * performed during recovery in the channel-state-unspilling thread.
+     */
+    @Nullable private final ChannelStateFilteringHandler filteringHandler;
+
     InputChannelRecoveredStateHandler(
-            InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            @Nullable ChannelStateFilteringHandler filteringHandler) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
+        this.filteringHandler = filteringHandler;
     }
 
     @Override
@@ -90,25 +100,76 @@ class InputChannelRecoveredStateHandler
         return new BufferWithContext<>(wrap(buffer), buffer);
     }
 
+    /**
+     * Buffer lifecycle in recover().
+     *
+     * <pre>
+     * Empty buffer:
+     *   buffer(ref=1) → readableBytes=0, skip → finally recycles(ref=0)
+     *
+     * Non-filtering path:
+     *   buffer(ref=1) → retain(ref=2) → channel owns one ref
+     *                                  → finally recycles(ref=1), channel keeps its ref
+     *
+     * Filtering path (success):
+     *   buffer(ref=1) → filterAndRewrite → deserializer recycles when consumed(ref=0)
+     *                                    → finally: isRecycled=true, skip
+     *
+     * Filtering path (error before deserializer takes buffer):
+     *   buffer(ref=1) → filterAndRewrite throws before setNextBuffer
+     *                  → finally: isRecycled=false, recycles(ref=0)
+     *
+     * Filtering path (error after deserializer takes buffer):
+     *   buffer(ref=1) → deserializer recycles(ref=0) → serializeToBuffers throws
+     *                  → finally: isRecycled=true, skip
+     * </pre>
+     */
     @Override
     public void recover(
             InputChannelInfo channelInfo,
             int oldSubtaskIndex,
             BufferWithContext<Buffer> bufferWithContext)
-            throws IOException {
+            throws IOException, InterruptedException {
         Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
                 RecoveredInputChannel channel = getMappedChannels(channelInfo);
-                channel.onRecoveredStateBuffer(
-                        EventSerializer.toBuffer(
-                                new SubtaskConnectionDescriptor(
-                                        oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                false));
-                channel.onRecoveredStateBuffer(buffer.retainBuffer());
+
+                if (filteringHandler != null) {
+                    recoverWithFiltering(channel, channelInfo, oldSubtaskIndex, buffer);
+                } else {
+                    channel.onRecoveredStateBuffer(
+                            EventSerializer.toBuffer(
+                                    new SubtaskConnectionDescriptor(
+                                            oldSubtaskIndex, channelInfo.getInputChannelIdx()),
+                                    false));
+                    channel.onRecoveredStateBuffer(buffer.retainBuffer());
+                }
             }
         } finally {
-            buffer.recycleBuffer();
+            if (!buffer.isRecycled()) {
+                buffer.recycleBuffer();
+            }
+        }
+    }
+
+    private void recoverWithFiltering(
+            RecoveredInputChannel channel,
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            Buffer buffer)
+            throws IOException, InterruptedException {
+        checkState(filteringHandler != null, "filtering handler not set.");
+        List<Buffer> filteredBuffers =
+                filteringHandler.filterAndRewrite(
+                        channelInfo.getGateIdx(),
+                        oldSubtaskIndex,
+                        channelInfo.getInputChannelIdx(),
+                        buffer,
+                        channel::requestBufferBlocking);
+
+        for (Buffer filteredBuffer : filteredBuffers) {
+            channel.onRecoveredStateBuffer(filteredBuffer);
         }
     }
 
@@ -191,7 +252,7 @@ class ResultSubpartitionRecoveredStateHandler
             ResultSubpartitionInfo subpartitionInfo,
             int oldSubtaskIndex,
             BufferWithContext<BufferBuilder> bufferWithContext)
-            throws IOException {
+            throws IOException, InterruptedException {
         try (BufferBuilder bufferBuilder = bufferWithContext.context;
                 BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning()) {
             bufferBuilder.finish();
