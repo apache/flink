@@ -159,6 +159,12 @@ public interface PartitionedTable {
      *     descriptor("op_code").asArgument("op"),
      *     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
      * );
+     *
+     * // Deletion flag pattern: comma-separated keys map multiple RowKinds to the same code
+     * table.partitionBy($("id")).toChangelog(
+     *     descriptor("deleted").asArgument("op"),
+     *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
+     * );
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op} and {@code op_mapping}

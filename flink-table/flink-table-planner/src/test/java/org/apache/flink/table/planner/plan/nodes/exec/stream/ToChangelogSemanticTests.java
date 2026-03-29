@@ -46,8 +46,10 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
                 ToChangelogTestPrograms.LAG_ON_UPSERT_VIA_CHANGELOG,
                 ToChangelogTestPrograms.LAG_ON_RETRACT_VIA_CHANGELOG,
+                ToChangelogTestPrograms.DELETION_FLAG,
                 ToChangelogTestPrograms.MISSING_PARTITION_BY,
                 ToChangelogTestPrograms.INVALID_DESCRIPTOR,
-                ToChangelogTestPrograms.INVALID_OP_MAPPING);
+                ToChangelogTestPrograms.INVALID_OP_MAPPING,
+                ToChangelogTestPrograms.DUPLICATE_ROW_KIND);
     }
 }

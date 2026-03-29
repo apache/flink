@@ -35,6 +35,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.types.ColumnList;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,19 +141,53 @@ public final class ToChangelogTypeStrategy {
 
         final Optional<Map> opMapping = callContext.getArgumentValue(2, Map.class);
         if (opMapping.isPresent()) {
-            final boolean hasInvalidMappingKey =
-                    opMapping.get().keySet().stream()
-                            .anyMatch(
-                                    key ->
-                                            !(key instanceof String)
-                                                    || !VALID_ROW_KIND_NAMES.contains(key));
-            if (hasInvalidMappingKey) {
-                return callContext.fail(
-                        throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
+            final Optional<List<DataType>> validationError =
+                    validateOpMappingKeys(callContext, opMapping.get(), throwOnFailure);
+            if (validationError.isPresent()) {
+                return validationError;
             }
         }
 
         return Optional.of(callContext.getArgumentDataTypes());
+    }
+
+    /**
+     * Validates op_mapping keys. Keys may be comma-separated RowKind names (e.g., "INSERT,
+     * UPDATE_AFTER") to map multiple RowKinds to the same output code. Each individual RowKind must
+     * be valid and appear at most once across all entries.
+     */
+    @SuppressWarnings("rawtypes")
+    private static Optional<List<DataType>> validateOpMappingKeys(
+            final CallContext callContext, final Map opMapping, final boolean throwOnFailure) {
+        final Set<String> allRowKindsSeen = new HashSet<>();
+        for (final Object key : opMapping.keySet()) {
+            if (!(key instanceof String)) {
+                return callContext.fail(
+                        throwOnFailure, "Invalid target mapping for argument 'op_mapping'.");
+            }
+            final String[] rowKindNames = ((String) key).split(",");
+            for (final String rawName : rowKindNames) {
+                final String rowKindName = rawName.trim();
+                if (!VALID_ROW_KIND_NAMES.contains(rowKindName)) {
+                    return callContext.fail(
+                            throwOnFailure,
+                            String.format(
+                                    "Invalid target mapping for argument 'op_mapping'. "
+                                            + "Unknown RowKind: '%s'. Valid values are: %s.",
+                                    rowKindName, VALID_ROW_KIND_NAMES));
+                }
+                final boolean isDuplicate = !allRowKindsSeen.add(rowKindName);
+                if (isDuplicate) {
+                    return callContext.fail(
+                            throwOnFailure,
+                            String.format(
+                                    "Invalid target mapping for argument 'op_mapping'. "
+                                            + "Duplicate RowKind: '%s'.",
+                                    rowKindName));
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private static String resolveOpColumnName(final CallContext callContext) {
