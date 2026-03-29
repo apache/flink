@@ -19,6 +19,8 @@
 package org.apache.flink.model.triton;
 
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.ModelProviderFactory;
@@ -63,6 +65,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTritonModelFunction.class);
 
     protected transient OkHttpClient httpClient;
+
+    // Inference metrics
+    protected transient Counter inferenceRequests;
+    protected transient Counter inferenceSuccess;
+    protected transient Counter inferenceFailure;
+    protected transient volatile long lastInferenceLatencyMs;
 
     private final String endpoint;
     private final String modelName;
@@ -110,6 +118,16 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+        registerMetrics(context.getMetricGroup());
+    }
+
+    private void registerMetrics(MetricGroup metricGroup) {
+        MetricGroup modelGroup = metricGroup.addGroup("model_inference");
+        this.inferenceRequests = modelGroup.counter("inference_requests");
+        this.inferenceSuccess = modelGroup.counter("inference_requests_success");
+        this.inferenceFailure = modelGroup.counter("inference_requests_failure");
+        this.lastInferenceLatencyMs = 0;
+        modelGroup.gauge("inference_latency_ms", () -> lastInferenceLatencyMs);
     }
 
     @Override
