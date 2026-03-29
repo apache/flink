@@ -109,6 +109,31 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
     }
 
     /**
+     * Creates an Avro deserialization schema for the given logical type.
+     *
+     * @param rowType The logical type used to deserialize the data.
+     * @param typeInfo The TypeInformation to be used by {@link
+     *     AvroRowDataDeserializationSchema#getProducedType()}.
+     * @param encoding The serialization approach used to deserialize the data.
+     * @param legacyTimestampMapping Whether to use legacy timestamp mapping.
+     * @param openFastread Whether to open fast read feature.
+     */
+    public AvroRowDataDeserializationSchema(
+            RowType rowType,
+            TypeInformation<RowData> typeInfo,
+            AvroEncoding encoding,
+            boolean legacyTimestampMapping,
+            boolean openFastread) {
+        this(
+                AvroDeserializationSchema.forGeneric(
+                        AvroSchemaConverter.convertToSchema(rowType, legacyTimestampMapping),
+                        encoding,
+                        openFastread),
+                AvroToRowDataConverters.createRowConverter(rowType, legacyTimestampMapping),
+                typeInfo);
+    }
+
+    /**
      * Creates a Avro deserialization schema for the given logical type.
      *
      * @param nestedSchema Deserialization schema to deserialize as {@link GenericRecord}
