@@ -56,6 +56,7 @@ import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.VertexEndOfDataListener;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -459,7 +460,7 @@ abstract class StateWithExecutionGraph implements State {
     }
 
     /** Context of the {@link StateWithExecutionGraph} state. */
-    interface Context extends StateTransitions.ToFinished {
+    interface Context extends RescaleContext, StateTransitions.ToFinished {
 
         /**
          * Run the given action if the current state equals the expected state.

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
@@ -375,6 +376,11 @@ class WaitingForResourcesTest {
         public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
             creatingExecutionGraphStateValidator.validateInput(null);
             registerStateTransition();
+        }
+
+        @Override
+        public RescaleTimeline getRescaleTimeline() {
+            return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
         }
     }
 

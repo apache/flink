@@ -34,8 +34,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminatedReason;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -95,16 +98,41 @@ class Executing extends StateWithExecutionGraph
         this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         this.failedCheckpointCountdown = null;
 
+        // TODO: As described at https://github.com/apache/flink/pull/27539#discussion_r3006364815.
+        // If the transition is from the stop-with-savepoint state to the current state, a rescale
+        // record will be generated without any change in parallelism.
+        recordRescaleForJobIntoExecuting(context);
+
         deploy();
 
         // check if new resources have come available in the meantime
         context.runIfState(
                 this,
                 () -> {
-                    stateTransitionManager.onChange();
+                    stateTransitionManager.onChange(true);
                     stateTransitionManager.onTrigger();
                 },
                 Duration.ZERO);
+    }
+
+    private void recordRescaleForJobIntoExecuting(Context context) {
+        context.getRescaleTimeline()
+                .updateRescale(
+                        rescale ->
+                                rescale.addSchedulerState(this)
+                                        .setTerminatedReason(TerminatedReason.SUCCEEDED)
+                                        .setEndToNow()
+                                        .log());
+    }
+
+    @Override
+    public State schedulerState() {
+        return this;
+    }
+
+    @Override
+    public RescaleTimeline getRescaleTimeline() {
+        return context.getRescaleTimeline();
     }
 
     @Override
@@ -149,17 +177,29 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void transitionToSubsequentState() {
+        Optional<VertexParallelism> availableVertexParallelism =
+                context.getAvailableVertexParallelism();
+        if (availableVertexParallelism.isEmpty()) {
+            IllegalStateException exception =
+                    new IllegalStateException("Resources must be available when rescaling.");
+            recordRescaleForNoResourcesEnough(exception);
+            throw exception;
+        }
         context.goToRestarting(
                 getExecutionGraph(),
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 Duration.ofMillis(0L),
-                context.getAvailableVertexParallelism()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Resources must be available when rescaling.")),
+                availableVertexParallelism.get(),
                 getFailures());
+    }
+
+    private void recordRescaleForNoResourcesEnough(IllegalStateException exception) {
+        context.getRescaleTimeline()
+                .updateRescale(
+                        rescale ->
+                                rescale.setStringifiedException(
+                                        ExceptionUtils.stringifyException(exception)));
     }
 
     @Override
@@ -219,13 +259,13 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void onNewResourcesAvailable() {
-        stateTransitionManager.onChange();
+        stateTransitionManager.onChange(true);
         initializeFailedCheckpointCountdownIfUnset();
     }
 
     @Override
     public void onNewResourceRequirements() {
-        stateTransitionManager.onChange();
+        stateTransitionManager.onChange(false);
         initializeFailedCheckpointCountdownIfUnset();
     }
 
