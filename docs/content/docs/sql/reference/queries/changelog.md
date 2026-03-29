@@ -56,7 +56,7 @@ SELECT * FROM TO_CHANGELOG(
 |:-------------|:---------|:------------|
 | `input`      | Yes      | The input table. Must include `PARTITION BY` for parallel execution. Accepts insert-only, retract, and upsert tables. |
 | `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. |
-| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping `RowKind` names to custom output codes. When provided, only mapped RowKinds are forwarded - unmapped events are dropped. |
+| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping `RowKind` names to custom output codes. Keys can contain comma-separated RowKind names to map multiple RowKinds to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped RowKinds are forwarded - unmapped events are dropped. Each RowKind may appear at most once across all entries. |
 
 #### Default op_mapping
 
@@ -122,6 +122,19 @@ SELECT * FROM TO_CHANGELOG(
 -- op_code values are 'I' and 'U' instead of full names
 ```
 
+#### Deletion flag pattern
+
+```sql
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE my_aggregation PARTITION BY id,
+  op => DESCRIPTOR(deleted),
+  op_mapping => MAP['INSERT, UPDATE_AFTER', 'false', 'DELETE', 'true']
+)
+-- INSERT and UPDATE_AFTER produce deleted='false'
+-- DELETE produces deleted='true'
+-- UPDATE_BEFORE is dropped (not in the mapping)
+```
+
 #### Table API
 
 ```java
@@ -132,6 +145,12 @@ Table result = myTable.partitionBy($("id")).toChangelog();
 Table result = myTable.partitionBy($("id")).toChangelog(
     descriptor("op_code").asArgument("op"),
     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
+);
+
+// Deletion flag pattern: comma-separated keys map multiple RowKinds to the same code
+Table result = myTable.partitionBy($("id")).toChangelog(
+    descriptor("deleted").asArgument("op"),
+    map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
 );
 ```
 
