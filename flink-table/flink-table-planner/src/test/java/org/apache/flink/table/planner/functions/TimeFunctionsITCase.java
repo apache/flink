@@ -52,6 +52,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
+import static org.apache.flink.table.api.Expressions.toTimestamp;
 import static org.apache.flink.table.api.Expressions.toTimestampLtz;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 
@@ -68,6 +69,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
                         floorTestCases(),
+                        toTimestampTestCases(),
                         toTimestampLtzTestCases())
                 .flatMap(s -> s);
     }
@@ -809,6 +811,92 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987_000_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
+    }
+
+    private Stream<TestSetSpec> toTimestampTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_TIMESTAMP)
+                        .onFieldsWithData("unparsable", null)
+                        .andDataTypes(STRING(), STRING().nullable())
+                        // 1-arg: default format, returns TIMESTAMP(3)
+                        .testResult(
+                                toTimestamp("2023-01-01 12:30:00"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0),
+                                TIMESTAMP(3).nullable())
+                        // 1-arg: truncates to precision 3
+                        .testResult(
+                                toTimestamp("1970-01-01 00:00:00.123456789"),
+                                "TO_TIMESTAMP('1970-01-01 00:00:00.123456789')",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123000000),
+                                TIMESTAMP(3).nullable())
+                        // 2-arg: precision 6 from format
+                        .testResult(
+                                toTimestamp(
+                                        "2023-01-01 12:30:00.123456", "yyyy-MM-dd HH:mm:ss.SSSSSS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.123456', 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 123456000),
+                                TIMESTAMP(6).nullable())
+                        // 2-arg: precision 9 from format
+                        .testResult(
+                                toTimestamp(
+                                        "1970-01-01 00:00:00.123456789",
+                                        "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"),
+                                "TO_TIMESTAMP('1970-01-01 00:00:00.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789),
+                                TIMESTAMP(9).nullable())
+                        // 2-arg: precision 2 (clamped to minimum 3)
+                        .testResult(
+                                toTimestamp("2023-01-01 12:30:00.12", "yyyy-MM-dd HH:mm:ss.SS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.12', 'yyyy-MM-dd HH:mm:ss.SS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 120000000),
+                                TIMESTAMP(3).nullable())
+                        // 2-arg: precision 5 from format
+                        .testResult(
+                                toTimestamp(
+                                        "2023-01-01 12:30:00.12345", "yyyy-MM-dd HH:mm:ss.SSSSS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.12345', 'yyyy-MM-dd HH:mm:ss.SSSSS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 123450000),
+                                TIMESTAMP(5).nullable())
+                        // 2-arg: precision 7 from format
+                        .testResult(
+                                toTimestamp(
+                                        "2023-01-01 12:30:00.1234567",
+                                        "yyyy-MM-dd HH:mm:ss.SSSSSSS"),
+                                "TO_TIMESTAMP('2023-01-01 12:30:00.1234567', 'yyyy-MM-dd HH:mm:ss.SSSSSSS')",
+                                LocalDateTime.of(2023, 1, 1, 12, 30, 0, 123456700),
+                                TIMESTAMP(7).nullable())
+                        // 2-arg: SSS format still returns TIMESTAMP(3)
+                        .testResult(
+                                toTimestamp("2017-09-15 00:00:00.12345", "yyyy-MM-dd HH:mm:ss.SSS"),
+                                "TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS')",
+                                LocalDateTime.of(2017, 9, 15, 0, 0, 0, 123000000),
+                                TIMESTAMP(3).nullable())
+                        // 2-arg: fewer input digits than format precision
+                        .testResult(
+                                toTimestamp("2023-01-01 00:00:00.1", "yyyy-MM-dd HH:mm:ss.SSSSSS"),
+                                "TO_TIMESTAMP('2023-01-01 00:00:00.1', 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0, 100000000),
+                                TIMESTAMP(6).nullable())
+                        // unparsable string returns null
+                        .testResult(
+                                toTimestamp($("f0")),
+                                "TO_TIMESTAMP(f0)",
+                                null,
+                                TIMESTAMP(3).nullable())
+                        // null input returns null
+                        .testResult(
+                                toTimestamp($("f1")),
+                                "TO_TIMESTAMP(f1)",
+                                null,
+                                TIMESTAMP(3).nullable())
+                        // invalid format pattern fails at validation
+                        .testSqlValidationError(
+                                "TO_TIMESTAMP('2023-01-01', 'un-parsable format')",
+                                "Invalid pattern for parsing TIMESTAMP")
+                        .testTableApiValidationError(
+                                toTimestamp("2023-01-01", "un-parsable format"),
+                                "Invalid pattern for parsing TIMESTAMP"));
     }
 
     private Stream<TestSetSpec> toTimestampLtzTestCases() {

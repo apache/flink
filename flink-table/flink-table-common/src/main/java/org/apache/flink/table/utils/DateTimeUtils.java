@@ -425,9 +425,9 @@ public class DateTimeUtils {
 
     /**
      * Parses a timestamp string with the given format, truncating to millisecond precision.
-     * Precision is hardcoded to match signature of TO_TIMESTAMP.
      *
-     * @see <a href="https://issues.apache.org/jira/browse/FLINK-14925">FLINK-14925</a>
+     * <p>Note: For precision-aware parsing, use {@link #parseTimestampData(String, String, int)}
+     * with {@link #precisionFromFormat(String)} instead.
      */
     public static TimestampData parseTimestampData(String dateStr, String format) {
         return parseTimestampData(dateStr, format, 3);

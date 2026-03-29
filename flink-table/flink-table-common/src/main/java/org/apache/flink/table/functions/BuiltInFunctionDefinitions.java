@@ -2472,16 +2472,12 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition TO_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("toTimestamp")
-                    .sqlName("TO_TIMESTAMP")
+                    .name("TO_TIMESTAMP")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            or(
-                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(TIMESTAMP(3))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.TO_TIMESTAMP)
+                    .outputTypeStrategy(SpecificTypeStrategies.TO_TIMESTAMP)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ToTimestampFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

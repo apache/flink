@@ -187,6 +187,9 @@ public final class SpecificInputTypeStrategies {
      */
     public static final InputTypeStrategy LEAD_LAG = new LeadLagInputTypeStrategy();
 
+    /** Type strategy for {@link BuiltInFunctionDefinitions#TO_TIMESTAMP}. */
+    public static final InputTypeStrategy TO_TIMESTAMP = new ToTimestampInputTypeStrategy();
+
     /** Type strategy for {@link BuiltInFunctionDefinitions#TO_TIMESTAMP_LTZ}. */
     public static final InputTypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzInputTypeStrategy();
 

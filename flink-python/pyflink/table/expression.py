@@ -1642,7 +1642,10 @@ class Expression(Generic[T]):
     def to_timestamp(self) -> 'Expression':
         """
         Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
-        It's equivalent to `col.cast(DataTypes.TIMESTAMP(3))`.
+        Returns TIMESTAMP(3).
+
+        For precision-aware parsing, use :func:`~pyflink.table.expressions.to_timestamp`
+        with a format pattern instead.
 
         Example:
         ::

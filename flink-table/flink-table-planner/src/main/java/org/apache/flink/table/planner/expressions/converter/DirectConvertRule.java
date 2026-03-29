@@ -285,8 +285,6 @@ public class DirectConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.UNIX_TIMESTAMP, FlinkSqlOperatorTable.UNIX_TIMESTAMP);
         definitionSqlOperatorHashMap.put(
                 BuiltInFunctionDefinitions.TO_DATE, FlinkSqlOperatorTable.TO_DATE);
-        definitionSqlOperatorHashMap.put(
-                BuiltInFunctionDefinitions.TO_TIMESTAMP, FlinkSqlOperatorTable.TO_TIMESTAMP);
 
         // catalog functions
         definitionSqlOperatorHashMap.put(

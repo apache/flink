@@ -18,15 +18,23 @@
 import unittest
 
 from pyflink.table import DataTypes
-from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
+from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, \
+    JsonExistsOnError, \
     JsonValueOnEmptyOrError, JsonType, JsonQueryWrapper, JsonQueryOnEmptyOrError
-from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date,
-                                       current_time, current_timestamp, current_database,
-                                       local_timestamp, local_time, temporal_overlaps, date_format,
-                                       timestamp_diff, array, row, map_, row_interval, pi, e,
-                                       rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
-                                       null_of, log, if_then_else, with_columns, call,
-                                       to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
+from pyflink.table.expressions import (col, lit, range_, and_, or_,
+                                       current_date,
+                                       current_time, current_timestamp,
+                                       current_database,
+                                       local_timestamp, local_time,
+                                       temporal_overlaps, date_format,
+                                       timestamp_diff, array, row, map_,
+                                       row_interval, pi, e,
+                                       rand, rand_integer, atan2, negative,
+                                       concat, concat_ws, uuid,
+                                       null_of, log, if_then_else, with_columns,
+                                       call,
+                                       to_timestamp_ltz, from_unixtime, to_date,
+                                       to_timestamp,
                                        convert_tz, unix_timestamp)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -326,9 +334,9 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                          str(to_timestamp_ltz(expr1, "MM/dd/yyyy HH:mm:ss")))
         self.assertEqual("TO_TIMESTAMP_LTZ(a, 'MM/dd/yyyy HH:mm:ss', 'UTC')",
                          str(to_timestamp_ltz(expr1, "MM/dd/yyyy HH:mm:ss", "UTC")))
-        self.assertEqual("toTimestamp('1970-01-01 08:01:40')",
+        self.assertEqual("TO_TIMESTAMP('1970-01-01 08:01:40')",
                          str(to_timestamp('1970-01-01 08:01:40')))
-        self.assertEqual("toTimestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+        self.assertEqual("TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
                          str(to_timestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')))
         self.assertEqual("temporalOverlaps(cast('2:55:00', TIME(0)), 3600000, "
                          "cast('3:30:00', TIME(0)), 7200000)",
