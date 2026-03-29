@@ -26,6 +26,7 @@ import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,13 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * The manager of the different active buckets in the {@link StreamingFileSink}.
@@ -85,6 +92,8 @@ public class Buckets<IN, BucketID> {
 
     private final BucketStateSerializer<BucketID> bucketStateSerializer;
 
+    private final ExecutorService snapshotActiveBucketsThreadPool;
+
     /**
      * A constructor creating a new empty bucket manager.
      *
@@ -121,6 +130,8 @@ public class Buckets<IN, BucketID> {
                         bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
                         bucketAssigner.getSerializer());
         this.maxPartCounter = 0L;
+        this.snapshotActiveBucketsThreadPool =
+                Executors.newCachedThreadPool(new ExecutorThreadFactory("snapshot-active-buckets"));
     }
 
     public void setBucketLifeCycleListener(
@@ -267,18 +278,49 @@ public class Buckets<IN, BucketID> {
             final long checkpointId, final ListState<byte[]> bucketStatesContainer)
             throws Exception {
 
-        for (Bucket<IN, BucketID> bucket : activeBuckets.values()) {
-            final BucketState<BucketID> bucketState = bucket.onReceptionOfCheckpoint(checkpointId);
+        long start = System.currentTimeMillis();
+        List<CompletableFuture<BucketState<BucketID>>> futures =
+                activeBuckets.values().stream()
+                        .map(
+                                bucket ->
+                                        CompletableFuture.supplyAsync(
+                                                () -> {
+                                                    try {
+                                                        BucketState<BucketID> bucketState =
+                                                                bucket.onReceptionOfCheckpoint(
+                                                                        checkpointId);
+                                                        if (LOG.isDebugEnabled()) {
+                                                            LOG.debug(
+                                                                    "Subtask {} checkpointing: {}",
+                                                                    subtaskIndex,
+                                                                    bucketState);
+                                                        }
+                                                        return bucketState;
+                                                    } catch (IOException e) {
+                                                        throw new CompletionException(e);
+                                                    }
+                                                },
+                                                snapshotActiveBucketsThreadPool))
+                        .collect(Collectors.toList());
 
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        for (CompletableFuture<BucketState<BucketID>> future : futures) {
+            BucketState<BucketID> bucketState = future.get();
             final byte[] serializedBucketState =
                     SimpleVersionedSerialization.writeVersionAndSerialize(
                             bucketStateSerializer, bucketState);
-
             bucketStatesContainer.add(serializedBucketState);
+        }
 
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Subtask {} checkpointing: {}", subtaskIndex, bucketState);
-            }
+        long duration = System.currentTimeMillis() - start;
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Subtask {} has completely snapshot the active buckets for the checkpoint with id={} , active buckets size: {}, cost: {}ms",
+                    subtaskIndex,
+                    checkpointId,
+                    activeBuckets.size(),
+                    duration);
         }
     }
 
@@ -350,6 +392,9 @@ public class Buckets<IN, BucketID> {
     public void close() {
         if (activeBuckets != null) {
             activeBuckets.values().forEach(Bucket::disposePartFile);
+        }
+        if (snapshotActiveBucketsThreadPool != null) {
+            snapshotActiveBucketsThreadPool.shutdown();
         }
     }
 
