@@ -563,7 +563,12 @@ string:
   - sql: URL_DECODE(string)
     table: STRING.urlDecode()
     description:
-      使用 UTF-8 编码方案对“application/x-www-form-urlencoded”格式的给定字符串进行解码。
+      使用 UTF-8 编码方案对"application/x-www-form-urlencoded"格式的给定字符串进行解码。
+      如果输入为 NULL，或者解码过程出现问题（例如遇到非法转义模式或者不支持该编码方案），该函数将返回 NULL。
+  - sql: URL_DECODE_RECURSIVE(string[, integer])
+    table: STRING.urlDecodeRecursive() / STRING.urlDecodeRecursive(INTEGER)
+    description:
+      使用 UTF-8 编码方案对"application/x-www-form-urlencoded"格式的给定字符串进行递归解码，直到无法进一步解码或达到可选的最大深度（默认为 10）为止。
       如果输入为 NULL，或者解码过程出现问题（例如遇到非法转义模式或者不支持该编码方案），该函数将返回 NULL。
   - sql: URL_ENCODE(string)
     table: STRING.urlEncode()

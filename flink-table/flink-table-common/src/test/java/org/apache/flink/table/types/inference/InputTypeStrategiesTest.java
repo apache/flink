@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.strategies.MaxDepthArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -851,7 +852,76 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                     BigDecimal.valueOf(-1, 1), BigDecimal.valueOf(5, 1)
                                 })
                         .expectErrorMessage(
-                                "Value in the percentage array must be between [0.0, 1.0], but was '-0.1'."));
+                                "Value in the percentage array must be between [0.0, 1.0], but was '-0.1'."),
+                // --- Valid INT literals ---
+                TestSpec.forStrategy(
+                                "valid INT literal",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, 5)
+                        .expectSignature("f(<INTEGER NOT NULL>)")
+                        .expectArgumentTypes(DataTypes.INT().notNull()),
+                TestSpec.forStrategy(
+                                "valid INT literal (nullable strategy)",
+                                sequence(new MaxDepthArgumentTypeStrategy(true)))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .calledWithLiteralAt(0, 3)
+                        .expectSignature("f(<INTEGER>)")
+                        .expectArgumentTypes(DataTypes.INT()),
+                // --- Valid TINYINT / SMALLINT / BIGINT literals ---
+                TestSpec.forStrategy(
+                                "valid TINYINT literal",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.TINYINT().notNull())
+                        .calledWithLiteralAt(0, (byte) 5)
+                        .expectSignature("f(<INTEGER NOT NULL>)")
+                        .expectArgumentTypes(DataTypes.TINYINT().notNull()),
+                TestSpec.forStrategy(
+                                "valid SMALLINT literal",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.SMALLINT().notNull())
+                        .calledWithLiteralAt(0, (short) 3)
+                        .expectSignature("f(<INTEGER NOT NULL>)")
+                        .expectArgumentTypes(DataTypes.SMALLINT().notNull()),
+                TestSpec.forStrategy(
+                                "valid BIGINT literal",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.BIGINT().notNull())
+                        .calledWithLiteralAt(0, 20L)
+                        .expectSignature("f(<INTEGER NOT NULL>)")
+                        .expectArgumentTypes(DataTypes.BIGINT().notNull()),
+                // --- Invalid type ---
+                TestSpec.forStrategy(
+                                "invalid non-integer type",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE().notNull())
+                        .expectErrorMessage("maxDepth must be of INTEGER type."),
+                // --- Invalid nullability ---
+                TestSpec.forStrategy(
+                                "invalid nullable when NOT NULL expected",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .calledWithLiteralAt(0, 5)
+                        .expectErrorMessage("maxDepth must be of NOT NULL type."),
+                // --- Non-literal argument ---
+                TestSpec.forStrategy(
+                                "non-literal argument",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .expectErrorMessage(
+                                "maxDepth must be a literal integer, but was a dynamic argument."),
+                // --- Literal value <= 0 ---
+                TestSpec.forStrategy(
+                                "zero maxDepth", sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, 0)
+                        .expectErrorMessage("maxDepth must be a positive integer, but was: 0"),
+                TestSpec.forStrategy(
+                                "negative maxDepth",
+                                sequence(new MaxDepthArgumentTypeStrategy(false)))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, -5)
+                        .expectErrorMessage("maxDepth must be a positive integer, but was: -5"));
     }
 
     private static DataType timeIndicatorType(TimestampKind timestampKind) {
