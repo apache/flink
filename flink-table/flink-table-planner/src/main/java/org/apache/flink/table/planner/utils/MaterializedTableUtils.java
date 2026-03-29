@@ -32,6 +32,8 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
+import org.apache.flink.table.catalog.Interval;
+import org.apache.flink.table.catalog.Interval.TimeUnit;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
@@ -44,9 +46,10 @@ import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -68,29 +71,110 @@ public class MaterializedTableUtils {
 
     public static IntervalFreshness getMaterializedTableFreshness(
             SqlIntervalLiteral sqlIntervalLiteral) {
-        if (sqlIntervalLiteral.signum() < 0) {
-            throw new ValidationException(
-                    "Materialized table freshness doesn't support negative value.");
-        }
-        if (sqlIntervalLiteral.getTypeName().getFamily() != SqlTypeFamily.INTERVAL_DAY_TIME) {
-            throw new ValidationException(
-                    "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
+        return new IntervalFreshness(getFreshnessInterval(sqlIntervalLiteral));
+    }
+
+    private static Interval getFreshnessInterval(SqlIntervalLiteral sqlIntervalLiteral) {
+        final IntervalValue intervalValue = sqlIntervalLiteral.getValueAs(IntervalValue.class);
+        final SqlTypeName typeName = intervalValue.getIntervalQualifier().typeName();
+
+        if (isDateTimeInterval(typeName)) {
+            final Interval freshnessInterval =
+                    getDayTimeInterval(
+                            intervalValue,
+                            typeName,
+                            sqlIntervalLiteral.getValueAs(BigDecimal.class),
+                            "freshness");
+            final int interval = freshnessInterval.getInterval();
+            // Freshness interval might be only positive
+            if (interval <= 0) {
+                throw new ValidationException(
+                        String.format(
+                                "The freshness interval currently only supports positive integer type values. But was: %d",
+                                interval));
+            }
+            return freshnessInterval;
         }
 
-        IntervalValue intervalValue = sqlIntervalLiteral.getValueAs(IntervalValue.class);
-        String interval = intervalValue.getIntervalLiteral();
-        switch (intervalValue.getIntervalQualifier().typeName()) {
-            case INTERVAL_DAY:
-                return IntervalFreshness.ofDay(interval);
-            case INTERVAL_HOUR:
-                return IntervalFreshness.ofHour(interval);
-            case INTERVAL_MINUTE:
-                return IntervalFreshness.ofMinute(interval);
-            case INTERVAL_SECOND:
-                return IntervalFreshness.ofSecond(interval);
+        throw new ValidationException(
+                "Materialized table freshness only supports SECOND, MINUTE, HOUR, DAY, WEEK as the time unit.");
+    }
+
+    private static Interval intervalFrom(
+            SqlIntervalLiteral sqlIntervalLiteral, String intervalDescription) {
+
+        final IntervalValue intervalValue = sqlIntervalLiteral.getValueAs(IntervalValue.class);
+        final SqlTypeName typeName = intervalValue.getIntervalQualifier().typeName();
+        if (intervalValue.getIntervalQualifier().isYearMonth()) {
+            return getYearMonthInterval(
+                    intervalValue,
+                    typeName,
+                    sqlIntervalLiteral.getValueAs(BigDecimal.class),
+                    intervalDescription);
+        }
+
+        if (isDateTimeInterval(typeName)) {
+            return getDayTimeInterval(
+                    intervalValue,
+                    typeName,
+                    sqlIntervalLiteral.getValueAs(BigDecimal.class),
+                    intervalDescription);
+        }
+
+        throw new ValidationException(
+                String.format(
+                        "Materialized table %s only supports SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR as the time unit.",
+                        intervalDescription));
+    }
+
+    private static Interval getYearMonthInterval(
+            final IntervalValue intervalValue,
+            final SqlTypeName typeName,
+            final BigDecimal interval,
+            final String intervalDescription) {
+        final int intervalInt = interval.intValue();
+        switch (typeName) {
+            case INTERVAL_MONTH:
+                if (intervalValue.getIntervalQualifier().timeUnitRange.startUnit
+                        == org.apache.calcite.avatica.util.TimeUnit.QUARTER) {
+                    return Interval.of(intervalInt / 3, TimeUnit.QUARTER);
+                }
+                return Interval.of(intervalInt, TimeUnit.MONTH);
+            case INTERVAL_YEAR:
+                return Interval.of(intervalInt / 12, TimeUnit.YEAR);
             default:
                 throw new ValidationException(
-                        "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
+                        String.format(
+                                "Materialized table %s only supports MONTH, QUARTER, YEAR as the time unit.",
+                                intervalDescription));
+        }
+    }
+
+    private static Interval getDayTimeInterval(
+            final IntervalValue intervalValue,
+            final SqlTypeName typeName,
+            final BigDecimal interval,
+            final String intervalDescription) {
+        final int intervalInt = (int) (interval.longValue() / 1000);
+        switch (typeName) {
+            case INTERVAL_DAY:
+                final int amountOfDays = intervalInt / 60 / 60 / 24;
+                if (intervalValue.getIntervalQualifier().timeUnitRange.startUnit
+                        == org.apache.calcite.avatica.util.TimeUnit.WEEK) {
+                    return Interval.of(amountOfDays / 7, TimeUnit.WEEK);
+                }
+                return Interval.of(amountOfDays, TimeUnit.DAY);
+            case INTERVAL_HOUR:
+                return Interval.of(intervalInt / 60 / 60, TimeUnit.HOUR);
+            case INTERVAL_MINUTE:
+                return Interval.of(intervalInt / 60, TimeUnit.MINUTE);
+            case INTERVAL_SECOND:
+                return Interval.of(intervalInt, TimeUnit.SECOND);
+            default:
+                throw new ValidationException(
+                        String.format(
+                                "Materialized table %s only supports SECOND, MINUTE, HOUR, DAY, WEEK as the time unit.",
+                                intervalDescription));
         }
     }
 
@@ -208,6 +292,13 @@ public class MaterializedTableUtils {
         }
 
         return changes;
+    }
+
+    private static boolean isDateTimeInterval(SqlTypeName typeName) {
+        return typeName == SqlTypeName.INTERVAL_DAY
+                || typeName == SqlTypeName.INTERVAL_HOUR
+                || typeName == SqlTypeName.INTERVAL_MINUTE
+                || typeName == SqlTypeName.INTERVAL_SECOND;
     }
 
     // Since it is only for query change, then check only persisted columns which could be
