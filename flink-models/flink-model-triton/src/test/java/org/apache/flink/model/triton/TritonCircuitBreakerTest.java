@@ -36,7 +36,7 @@ class TritonCircuitBreakerTest {
                 new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofSeconds(1), 3);
 
         assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
-        assertThat(breaker.allowRequest()).isTrue();
+        assertThat(breaker.isRequestAllowed()).isTrue();
     }
 
     @Test
@@ -46,7 +46,7 @@ class TritonCircuitBreakerTest {
 
         // Send 10 requests with 6 failures (60% failure rate)
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             if (i < 6) {
                 breaker.recordFailure();
             } else {
@@ -56,7 +56,7 @@ class TritonCircuitBreakerTest {
 
         // Circuit should now be OPEN
         assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
-        assertThatThrownBy(() -> breaker.allowRequest())
+        assertThatThrownBy(() -> breaker.isRequestAllowed())
                 .isInstanceOf(TritonCircuitBreakerOpenException.class)
                 .hasMessageContaining("Circuit breaker is OPEN");
     }
@@ -68,7 +68,7 @@ class TritonCircuitBreakerTest {
 
         // Send 10 requests with only 4 failures (40% failure rate, below 50% threshold)
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             if (i < 4) {
                 breaker.recordFailure();
             } else {
@@ -78,7 +78,7 @@ class TritonCircuitBreakerTest {
 
         // Circuit should still be CLOSED
         assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
-        assertThat(breaker.allowRequest()).isTrue();
+        assertThat(breaker.isRequestAllowed()).isTrue();
     }
 
     @Test
@@ -89,7 +89,7 @@ class TritonCircuitBreakerTest {
         // Send only 5 requests with 100% failure rate
         // Circuit should NOT open because we need minimum 10 requests
         for (int i = 0; i < 5; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordFailure();
         }
 
@@ -105,7 +105,7 @@ class TritonCircuitBreakerTest {
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordFailure();
         }
 
@@ -115,7 +115,7 @@ class TritonCircuitBreakerTest {
         Thread.sleep(150);
 
         // Next request should transition to HALF_OPEN
-        assertThat(breaker.allowRequest()).isTrue();
+        assertThat(breaker.isRequestAllowed()).isTrue();
         assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.HALF_OPEN);
     }
 
@@ -126,7 +126,7 @@ class TritonCircuitBreakerTest {
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordFailure();
         }
 
@@ -134,12 +134,12 @@ class TritonCircuitBreakerTest {
         Thread.sleep(150);
 
         // Should allow exactly 3 requests (halfOpenMaxRequests)
-        assertThat(breaker.allowRequest()).isTrue(); // 1st request
-        assertThat(breaker.allowRequest()).isTrue(); // 2nd request
-        assertThat(breaker.allowRequest()).isTrue(); // 3rd request
+        assertThat(breaker.isRequestAllowed()).isTrue(); // 1st request
+        assertThat(breaker.isRequestAllowed()).isTrue(); // 2nd request
+        assertThat(breaker.isRequestAllowed()).isTrue(); // 3rd request
 
         // 4th request should be rejected
-        assertThatThrownBy(() -> breaker.allowRequest())
+        assertThatThrownBy(() -> breaker.isRequestAllowed())
                 .isInstanceOf(TritonCircuitBreakerOpenException.class)
                 .hasMessageContaining("HALF_OPEN");
     }
@@ -151,7 +151,7 @@ class TritonCircuitBreakerTest {
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordFailure();
         }
 
@@ -160,13 +160,13 @@ class TritonCircuitBreakerTest {
 
         // Send 3 successful probe requests
         for (int i = 0; i < 3; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordSuccess();
         }
 
         // Circuit should now be CLOSED again
         assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
-        assertThat(breaker.allowRequest()).isTrue();
+        assertThat(breaker.isRequestAllowed()).isTrue();
     }
 
     @Test
@@ -176,7 +176,7 @@ class TritonCircuitBreakerTest {
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordFailure();
         }
 
@@ -184,11 +184,11 @@ class TritonCircuitBreakerTest {
         Thread.sleep(150);
 
         // First probe request succeeds
-        breaker.allowRequest();
+        breaker.isRequestAllowed();
         breaker.recordSuccess();
 
         // Second probe request fails - should reopen circuit
-        breaker.allowRequest();
+        breaker.isRequestAllowed();
         breaker.recordFailure();
 
         // Circuit should be OPEN again
@@ -202,7 +202,7 @@ class TritonCircuitBreakerTest {
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             breaker.recordFailure();
         }
 
@@ -224,7 +224,7 @@ class TritonCircuitBreakerTest {
 
         // Record some requests
         for (int i = 0; i < 20; i++) {
-            breaker.allowRequest();
+            breaker.isRequestAllowed();
             if (i % 3 == 0) {
                 breaker.recordFailure();
             } else {

@@ -101,8 +101,8 @@ public class TritonCircuitBreaker {
     private static final int MIN_REQUESTS_THRESHOLD = 10;
 
     /**
-     * Maximum number of requests to track in CLOSED state before resetting counters.
-     * This prevents historical successes from diluting current failure rate.
+     * Maximum number of requests to track in CLOSED state before resetting counters. This prevents
+     * historical successes from diluting current failure rate.
      */
     private static final int MAX_CLOSED_STATE_REQUESTS = 10000;
 
@@ -166,7 +166,9 @@ public class TritonCircuitBreaker {
                         halfOpenRequests.incrementAndGet();
                         return true;
                     }
+                    // CAS failed, another thread transitioned state
                 }
+                // fall through
                 throw new TritonCircuitBreakerOpenException(
                         String.format(
                                 "Circuit breaker is OPEN for endpoint %s. "
@@ -193,6 +195,7 @@ public class TritonCircuitBreaker {
                         return true;
                     }
                 }
+            // fall through
 
             default:
                 return true;
