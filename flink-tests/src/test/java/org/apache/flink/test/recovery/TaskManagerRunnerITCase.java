@@ -29,37 +29,32 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
-
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for the {@link TaskManagerRunner}. */
-public class TaskManagerRunnerITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class TaskManagerRunnerITCase {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir Path tempFolder;
 
     @Test
-    public void testDeterministicWorkingDirIsNotDeletedInCaseOfProcessFailure() throws Exception {
-        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
+    void testDeterministicWorkingDirIsNotDeletedInCaseOfProcessFailure() throws Exception {
         final ResourceID resourceId = ResourceID.generate();
 
         final Configuration configuration = new Configuration();
-        configuration.set(
-                ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
+        configuration.set(ClusterOptions.PROCESS_WORKING_DIR_BASE, tempFolder.toString());
         configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceId.toString());
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
         configuration.set(RpcOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
@@ -81,7 +76,7 @@ public class TaskManagerRunnerITCase extends TestLogger {
 
             taskManagerProcess.getProcess().waitFor();
 
-            assertTrue(workingDirectory.exists());
+            assertThat(workingDirectory).exists();
             success = true;
         } finally {
             if (!success) {
@@ -92,12 +87,9 @@ public class TaskManagerRunnerITCase extends TestLogger {
     }
 
     @Test
-    public void testNondeterministicWorkingDirIsDeletedInCaseOfProcessFailure() throws Exception {
-        final File workingDirBase = TEMPORARY_FOLDER.newFolder();
-
+    void testNondeterministicWorkingDirIsDeletedInCaseOfProcessFailure() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.set(
-                ClusterOptions.PROCESS_WORKING_DIR_BASE, workingDirBase.getAbsolutePath());
+        configuration.set(ClusterOptions.PROCESS_WORKING_DIR_BASE, tempFolder.toString());
         configuration.set(JobManagerOptions.ADDRESS, "localhost");
         configuration.set(RpcOptions.LOOKUP_TIMEOUT_DURATION, Duration.ZERO);
 
@@ -110,22 +102,21 @@ public class TaskManagerRunnerITCase extends TestLogger {
         try {
             CommonTestUtils.waitUntilCondition(
                     () -> {
-                        try (Stream<Path> files = Files.list(workingDirBase.toPath())) {
+                        try (Stream<Path> files = Files.list(tempFolder)) {
                             return files.findAny().isPresent();
                         }
                     });
 
-            final File workingDirectory =
-                    Iterables.getOnlyElement(
-                                    Files.list(workingDirBase.toPath())
-                                            .collect(Collectors.toList()))
-                            .toFile();
+            final File workingDirectory;
+            try (Stream<Path> files = Files.list(tempFolder)) {
+                workingDirectory = files.findFirst().orElseThrow().toFile();
+            }
 
             taskManagerProcess.getProcess().destroy();
 
             taskManagerProcess.getProcess().waitFor();
 
-            assertFalse(workingDirectory.exists());
+            assertThat(workingDirectory).doesNotExist();
             success = true;
         } finally {
             if (!success) {

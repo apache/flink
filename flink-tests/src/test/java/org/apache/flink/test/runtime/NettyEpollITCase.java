@@ -24,29 +24,32 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.AssumptionViolatedException;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Test network stack with taskmanager.network.netty.transport set to epoll. This test can only run
  * on linux. On other platforms it's basically a NO-OP. See
  * https://github.com/apache/flink-shaded/issues/30
  */
-public class NettyEpollITCase extends TestLogger {
-
-    private static final Logger LOG = LoggerFactory.getLogger(NettyEpollITCase.class);
+@ExtendWith(TestLoggerExtension.class)
+class NettyEpollITCase {
 
     private static final int NUM_TASK_MANAGERS = 2;
 
     @Test
-    public void testNettyEpoll() throws Exception {
-        MiniClusterWithClientResource cluster = trySetUpCluster();
+    void testNettyEpoll() throws Exception {
+        Optional<MiniClusterWithClientResource> clusterOpt = trySetUpCluster();
+        assumeThat(clusterOpt).as("This test is only supported on linux").isPresent();
+        MiniClusterWithClientResource cluster = clusterOpt.get();
+
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(NUM_TASK_MANAGERS);
@@ -68,7 +71,7 @@ public class NettyEpollITCase extends TestLogger {
         }
     }
 
-    private MiniClusterWithClientResource trySetUpCluster() throws Exception {
+    private Optional<MiniClusterWithClientResource> trySetUpCluster() throws Exception {
         try {
             Configuration config = new Configuration();
             MiniClusterWithClientResource cluster =
@@ -79,11 +82,11 @@ public class NettyEpollITCase extends TestLogger {
                                     .setNumberSlotsPerTaskManager(1)
                                     .build());
             cluster.before();
-            return cluster;
+            return Optional.of(cluster);
         } catch (UnsatisfiedLinkError ex) {
             // If we failed to init netty because we are not on Linux platform, abort the test.
             if (findThrowableWithMessage(ex, "Only supported on Linux").isPresent()) {
-                throw new AssumptionViolatedException("This test is only supported on linux");
+                return Optional.empty();
             }
             throw ex;
         }

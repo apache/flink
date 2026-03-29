@@ -21,6 +21,7 @@ package org.apache.flink.test.execution;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.executors.RemoteExecutor;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -29,39 +30,42 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link JobListener}. */
-public class JobListenerITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class JobListenerITCase {
 
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder().build());
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(new MiniClusterResourceConfiguration.Builder().build());
 
-    private static Configuration getClientConfiguration() {
-        Configuration result = new Configuration(miniClusterResource.getClientConfiguration());
+    private static Configuration getClientConfiguration(ClusterClient<?> clusterClient) {
+        Configuration result = new Configuration(clusterClient.getFlinkConfiguration());
         result.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
         return result;
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnBatchEnvironment() throws Exception {
+    void testExecuteCallsJobListenerOnBatchEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
         OneShotLatch executionLatch = new OneShotLatch();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -84,15 +88,17 @@ public class JobListenerITCase extends TestLogger {
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
         executionLatch.await(2000L, TimeUnit.MILLISECONDS);
 
-        assertThat(jobExecutionResult.getJobID(), is(jobIdReference.get()));
+        assertThat(jobExecutionResult.getJobID()).isEqualTo(jobIdReference.get());
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnBatchEnvironment() throws Exception {
+    void testExecuteAsyncCallsJobListenerOnBatchEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -113,14 +119,16 @@ public class JobListenerITCase extends TestLogger {
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
         // when executing asynchronously we don't get an "executed" callback
 
-        assertThat(jobClient.getJobID(), is(jobIdReference.get()));
+        assertThat(jobClient.getJobID()).isEqualTo(jobIdReference.get());
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
+    void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -137,14 +145,16 @@ public class JobListenerITCase extends TestLogger {
         env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.execute();
 
-        assertThat(Thread.currentThread(), is(threadReference.get()));
+        assertThat(Thread.currentThread()).isEqualTo(threadReference.get());
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
+    void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -161,16 +171,18 @@ public class JobListenerITCase extends TestLogger {
         env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.executeAsync();
 
-        assertThat(Thread.currentThread(), is(threadReference.get()));
+        assertThat(Thread.currentThread()).isEqualTo(threadReference.get());
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnStreamingEnvironment() throws Exception {
+    void testExecuteCallsJobListenerOnStreamingEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
         OneShotLatch executionLatch = new OneShotLatch();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -193,15 +205,17 @@ public class JobListenerITCase extends TestLogger {
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
         executionLatch.await(2000L, TimeUnit.MILLISECONDS);
 
-        assertThat(jobExecutionResult.getJobID(), is(jobIdReference.get()));
+        assertThat(jobExecutionResult.getJobID()).isEqualTo(jobIdReference.get());
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnStreamingEnvironment() throws Exception {
+    void testExecuteAsyncCallsJobListenerOnStreamingEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -222,14 +236,16 @@ public class JobListenerITCase extends TestLogger {
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
         // when executing asynchronously we don't get an "executed" callback
 
-        assertThat(jobClient.getJobID(), is(jobIdReference.get()));
+        assertThat(jobClient.getJobID()).isEqualTo(jobIdReference.get());
     }
 
     @Test
-    public void testExecuteCallsJobListenerOnMainThreadOnStreamEnvironment() throws Exception {
+    void testExecuteCallsJobListenerOnMainThreadOnStreamEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -246,14 +262,16 @@ public class JobListenerITCase extends TestLogger {
         env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.execute();
 
-        assertThat(Thread.currentThread(), is(threadReference.get()));
+        assertThat(Thread.currentThread()).isEqualTo(threadReference.get());
     }
 
     @Test
-    public void testExecuteAsyncCallsJobListenerOnMainThreadOnStreamEnvironment() throws Exception {
+    void testExecuteAsyncCallsJobListenerOnMainThreadOnStreamEnvironment(
+            @InjectClusterClient ClusterClient<?> clusterClient) throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env =
+                new StreamExecutionEnvironment(getClientConfiguration(clusterClient));
 
         env.registerJobListener(
                 new JobListener() {
@@ -270,6 +288,6 @@ public class JobListenerITCase extends TestLogger {
         env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.executeAsync();
 
-        assertThat(Thread.currentThread(), is(threadReference.get()));
+        assertThat(Thread.currentThread()).isEqualTo(threadReference.get());
     }
 }

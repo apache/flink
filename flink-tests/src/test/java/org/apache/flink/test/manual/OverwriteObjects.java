@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +41,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * These programs demonstrate the effects of user defined functions which modify input objects or
@@ -114,10 +113,10 @@ public class OverwriteObjects {
                                         .executeAndCollect())
                         .get(0);
 
-        Assert.assertEquals(NUMBER_OF_ELEMENTS, enabledResult.f1.getValue());
-        Assert.assertEquals(NUMBER_OF_ELEMENTS, disabledResult.f1.getValue());
+        assertThat(enabledResult.f1.getValue()).isEqualTo(NUMBER_OF_ELEMENTS);
+        assertThat(disabledResult.f1.getValue()).isEqualTo(NUMBER_OF_ELEMENTS);
 
-        Assert.assertEquals(disabledResult, enabledResult);
+        assertThat(enabledResult).isEqualTo(disabledResult);
     }
 
     public void testGroupedReduce(StreamExecutionEnvironment env) throws Exception {
@@ -149,7 +148,7 @@ public class OverwriteObjects {
 
         Collections.sort(disabledResult, comparator);
 
-        Assert.assertThat(disabledResult, is(enabledResult));
+        assertThat(disabledResult).isEqualTo(enabledResult);
     }
 
     private class OverwriteObjectsReduce implements ReduceFunction<Tuple2<IntValue, IntValue>> {
@@ -214,7 +213,7 @@ public class OverwriteObjects {
 
             Collections.sort(disabledResult, comparator);
 
-            Assert.assertEquals("JoinHint=" + joinHint, disabledResult, enabledResult);
+            assertThat(enabledResult).as("JoinHint=" + joinHint).isEqualTo(disabledResult);
         }
     }
 

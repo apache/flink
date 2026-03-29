@@ -20,7 +20,6 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.core.execution.JobClient;
@@ -57,7 +56,7 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test utilities. */
 public class TestUtils {
@@ -164,24 +163,6 @@ public class TestUtils {
         } catch (IOException ioException) {
             ExceptionUtils.rethrow(ioException);
             return false; // should never happen
-        }
-    }
-
-    /**
-     * @deprecated please use {@link
-     *     org.apache.flink.runtime.testutils.CommonTestUtils#waitForCheckpoint(JobID, MiniCluster,
-     *     Deadline)} which is less prone to {@link NoSuchFileException} and IO-intensive.
-     */
-    @Deprecated
-    public static void waitUntilExternalizedCheckpointCreated(File checkpointDir)
-            throws InterruptedException, IOException {
-        while (true) {
-            Thread.sleep(50);
-            Optional<File> externalizedCheckpoint =
-                    getMostRecentCompletedCheckpointMaybe(checkpointDir);
-            if (externalizedCheckpoint.isPresent()) {
-                break;
-            }
         }
     }
 
