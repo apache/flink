@@ -22,12 +22,12 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
-+- LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
+LogicalProject(select=[a, b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
++- LogicalProject(select=[EXPR$0 AS a, EXPR$1 AS b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
    +- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
-      :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
+      :- LogicalProject(select=[1 AS EXPR$0, 2.0:DECIMAL(2, 1) AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
       :  +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
-      +- LogicalProject(EXPR$0=[3], EXPR$1=[4:BIGINT]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
+      +- LogicalProject(select=[3 AS EXPR$0, 4:BIGINT AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
          +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
     </Resource>
@@ -47,14 +47,14 @@ Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, D
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
++- LogicalProject(select=[EXPR$0 AS a, EXPR$1 AS b])
    +- LogicalUnion(all=[true])
-      :- LogicalProject(EXPR$0=[1], EXPR$1=[2])
+      :- LogicalProject(select=[1 AS EXPR$0, 2 AS EXPR$1])
       :  +- LogicalValues(tuples=[[{ 0 }]])
-      :- LogicalProject(EXPR$0=[3], EXPR$1=[null:INTEGER])
+      :- LogicalProject(select=[3 AS EXPR$0, null:INTEGER AS EXPR$1])
       :  +- LogicalValues(tuples=[[{ 0 }]])
-      +- LogicalProject(EXPR$0=[4], EXPR$1=[5])
+      +- LogicalProject(select=[4 AS EXPR$0, 5 AS EXPR$1])
          +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -76,8 +76,8 @@ Union(all=[true], union=[EXPR$0, EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0])
-+- LogicalProject(EXPR$0=[null:INTEGER])
+LogicalProject(select=[EXPR$0])
++- LogicalProject(select=[null:INTEGER AS EXPR$0])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -94,7 +94,7 @@ Calc(select=[null:INTEGER AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalValues(tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>

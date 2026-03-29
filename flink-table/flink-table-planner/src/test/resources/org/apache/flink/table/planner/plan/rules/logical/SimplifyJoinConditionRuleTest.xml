@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
 +- LogicalJoin(condition=[OR(AND(=($3, $0), >($0, 2)), AND(=($3, $0), =($1, 1)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -30,7 +30,7 @@ LogicalProject(d=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
 +- LogicalJoin(condition=[AND(=($3, $0), OR(>($0, 2), =($1, 1)))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -46,7 +46,7 @@ SELECT a FROM MyTable1 WHERE b = (
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[=($1, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[OR(AND(=($0, $cor0.a), <($0, 2)), AND(=($0, $cor0.a), =($cor0.b, 5)))])
@@ -57,16 +57,16 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[=($1, CASE(IS NULL($5), 0:BIGINT, $5))])
    +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT()])
-         +- LogicalProject(a=[$3], b=[$4])
+         +- LogicalProject(select=[a, b])
             +- LogicalJoin(condition=[AND(=($0, $3), OR(<($0, 2), =($4, 5)))], joinType=[inner])
                :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
                +- LogicalAggregate(group=[{0, 1}])
-                  +- LogicalProject(a=[$0], b=[$1])
+                  +- LogicalProject(select=[a, b])
                      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -77,7 +77,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
 +- LogicalJoin(condition=[false], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -85,7 +85,7 @@ LogicalProject(d=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
 +- LogicalJoin(condition=[false], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -98,7 +98,7 @@ LogicalProject(d=[$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
@@ -106,7 +106,7 @@ LogicalProject(d=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
 +- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])

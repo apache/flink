@@ -1,6 +1,6 @@
 == Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.MySink1], fields=[first])
-+- LogicalProject(first=[$0])
++- LogicalProject(select=[first])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==

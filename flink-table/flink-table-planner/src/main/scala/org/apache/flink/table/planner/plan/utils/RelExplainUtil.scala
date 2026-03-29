@@ -969,4 +969,61 @@ object RelExplainUtil {
     sb.append("]")
     sb.toString
   }
+
+  /**
+   * Converts projection fields to a more readable string format with field names instead of
+   * positional indices like $0, $1, etc.
+   *
+   * @param projects
+   *   the list of projection expressions
+   * @param inputFieldNames
+   *   the list of input field names
+   * @param outputFieldNames
+   *   the list of output field names
+   * @return
+   *   a formatted string showing field names and their sources
+   */
+  def projectFieldsToString[T <: RexNode](
+      projects: util.List[T],
+      inputFieldNames: util.List[String],
+      outputFieldNames: util.List[String]): String = {
+    val result = new StringBuilder
+    for (i <- 0 until projects.size()) {
+      if (i > 0) result.append(", ")
+      val project = projects.get(i)
+      val outputName = outputFieldNames.get(i)
+
+      project match {
+        case inputRef: RexInputRef =>
+          val inputName = inputFieldNames.get(inputRef.getIndex)
+          if (inputName.equals(outputName)) {
+            result.append(outputName)
+          } else {
+            result.append(s"$inputName AS $outputName")
+          }
+        case _ =>
+          // For complex expressions, convert RexInputRef to field names
+          val exprStr = convertRexInputRefToFieldNames(project, inputFieldNames)
+          result.append(s"$exprStr AS $outputName")
+      }
+    }
+    result.toString
+  }
+
+  /** Recursively convert RexInputRef in an expression to field names. */
+  private def convertRexInputRefToFieldNames(
+      expr: RexNode,
+      inputFieldNames: util.List[String]): String = {
+    expr match {
+      case inputRef: RexInputRef =>
+        inputFieldNames.get(inputRef.getIndex)
+      case call: RexCall =>
+        val operands = call.getOperands.map(convertRexInputRefToFieldNames(_, inputFieldNames))
+        s"${call.getOperator.getName}(${operands.mkString(", ")})"
+      case literal: RexLiteral =>
+        literal.toString
+      case _ =>
+        expr.toString
+    }
+  }
 }
