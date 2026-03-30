@@ -173,7 +173,7 @@ public final class ToChangelogTypeStrategy {
                             throwOnFailure,
                             String.format(
                                     "Invalid target mapping for argument 'op_mapping'. "
-                                            + "Unknown RowKind: '%s'. Valid values are: %s.",
+                                            + "Unknown change operation: '%s'. Valid values are: %s.",
                                     rowKindName, VALID_ROW_KIND_NAMES));
                 }
                 final boolean isDuplicate = !allRowKindsSeen.add(rowKindName);
@@ -182,7 +182,7 @@ public final class ToChangelogTypeStrategy {
                             throwOnFailure,
                             String.format(
                                     "Invalid target mapping for argument 'op_mapping'. "
-                                            + "Duplicate RowKind: '%s'.",
+                                            + "Duplicate change operation: '%s'.",
                                     rowKindName));
                 }
             }

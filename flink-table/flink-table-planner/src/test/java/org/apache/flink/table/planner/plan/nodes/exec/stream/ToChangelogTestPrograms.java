@@ -96,7 +96,7 @@ public class ToChangelogTestPrograms {
     public static final TableTestProgram CUSTOM_OP_MAPPING =
             TableTestProgram.of(
                             "to-changelog-custom-op-mapping",
-                            "custom op_mapping maps RowKinds to user-defined codes and drops unmapped")
+                            "custom op_mapping maps change operations to user-defined codes and drops unmapped")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -323,17 +323,17 @@ public class ToChangelogTestPrograms {
                     .build();
 
     // --------------------------------------------------------------------------------------------
-    // Use case: deletion flag pattern (comma-separated RowKind keys)
+    // Use case: deletion flag pattern (comma-separated change operation keys)
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Kafka Connect style deletion flag: INSERT and UPDATE_AFTER both produce deleted='false',
-     * DELETE produces deleted='true', and UPDATE_BEFORE is silently dropped.
+     * Kafka Connect style deletion flag: INSERT and UPDATE_AFTER both produce deleted='false' and
+     * DELETE produces deleted='true'. UPDATE_BEFORE is silently dropped.
      */
     public static final TableTestProgram DELETION_FLAG =
             TableTestProgram.of(
                             "to-changelog-deletion-flag",
-                            "comma-separated RowKinds produce deletion flag output")
+                            "comma-separated change operations produce deletion flag output")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -393,26 +393,26 @@ public class ToChangelogTestPrograms {
     public static final TableTestProgram INVALID_OP_MAPPING =
             TableTestProgram.of(
                             "to-changelog-invalid-op-mapping",
-                            "fails when op_mapping has invalid RowKind name")
+                            "fails when op_mapping has invalid change operation name")
                     .setupTableSource(SIMPLE_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM TO_CHANGELOG("
                                     + "input => TABLE t PARTITION BY id, "
                                     + "op_mapping => MAP['INVALID_KIND', 'X'])",
                             ValidationException.class,
-                            "Unknown RowKind: 'INVALID_KIND'")
+                            "Unknown change operation: 'INVALID_KIND'")
                     .build();
 
     public static final TableTestProgram DUPLICATE_ROW_KIND =
             TableTestProgram.of(
                             "to-changelog-duplicate-rowkind",
-                            "fails when a RowKind appears in multiple op_mapping entries")
+                            "fails when a change operation appears in multiple op_mapping entries")
                     .setupTableSource(SIMPLE_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM TO_CHANGELOG("
                                     + "input => TABLE t PARTITION BY id, "
                                     + "op_mapping => MAP['INSERT, DELETE', 'A', 'DELETE', 'B'])",
                             ValidationException.class,
-                            "Duplicate RowKind: 'DELETE'")
+                            "Duplicate change operation: 'DELETE'")
                     .build();
 }
