@@ -424,16 +424,25 @@ class OrderedAsyncBatchWaitOperatorTest {
 
     private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarness(
             AsyncBatchFunction<Integer, Integer> function, int maxBatchSize) throws Exception {
-        return new OneInputStreamOperatorTestHarness<>(
-                new OrderedAsyncBatchWaitOperatorFactory<>(function, maxBatchSize),
-                IntSerializer.INSTANCE);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new OrderedAsyncBatchWaitOperatorFactory<>(function, maxBatchSize),
+                        IntSerializer.INSTANCE);
+        // Set up expected external failure cause to support failExternally() calls
+        testHarness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
+        return testHarness;
     }
 
     private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarnessWithTimeout(
             AsyncBatchFunction<Integer, Integer> function, int maxBatchSize, long batchTimeoutMs)
             throws Exception {
-        return new OneInputStreamOperatorTestHarness<>(
-                new OrderedAsyncBatchWaitOperatorFactory<>(function, maxBatchSize, batchTimeoutMs),
-                IntSerializer.INSTANCE);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new OrderedAsyncBatchWaitOperatorFactory<>(
+                                function, maxBatchSize, batchTimeoutMs),
+                        IntSerializer.INSTANCE);
+        // Set up expected external failure cause to support failExternally() calls
+        testHarness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
+        return testHarness;
     }
 }

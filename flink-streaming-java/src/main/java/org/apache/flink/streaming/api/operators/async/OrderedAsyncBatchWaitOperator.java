@@ -287,6 +287,9 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
 
         // Setup the operator using parameters
         setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+
+        // Set processing time service from parameters
+        setProcessingTimeService(parameters.getProcessingTimeService());
     }
 
     @Override
