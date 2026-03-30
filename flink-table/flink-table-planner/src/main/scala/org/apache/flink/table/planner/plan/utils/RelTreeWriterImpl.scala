@@ -124,15 +124,16 @@ class RelTreeWriterImpl(
           val projects = project.getProjects
           val projectStr =
             RelExplainUtil.projectFieldsToString(projects, inputFieldNames, outputFieldNames)
-          // Remove all field entries (they look like "fieldName=[$index]")
-          // Collect field names from the project to identify which entries to remove
+          // Remove all field entries and extra entries added by LogicalProject.explainTerms
+          // Field entries have field names as keys, and values like "[$index]" or RexNode expressions
+          // LogicalProject also adds "exprs" and "inputs" in DIGEST_ATTRIBUTES level
           val fieldNames = outputFieldNames.toSet
+          val extraEntriesToRemove = Set("exprs", "inputs")
           val iterator = printValues.iterator()
           while (iterator.hasNext()) {
             val pair = iterator.next()
-            // Check if this is a field entry - field entries have field names as keys
-            // and values like "[$index]" or other RexNode expressions
-            if (fieldNames.contains(pair.left)) {
+            // Remove field entries and extra LogicalProject entries
+            if (fieldNames.contains(pair.left) || extraEntriesToRemove.contains(pair.left)) {
               iterator.remove()
             }
           }
