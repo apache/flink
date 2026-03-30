@@ -53,6 +53,7 @@ import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -667,6 +668,21 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f13")),
                                 "JSON_STRING(f13)",
                                 "{\"f0\":[{\"f0\":1,\"f1\":2}]}",
+                                STRING().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(Row.of("val1", "val2", "val3", "val4", "val5"))
+                        .andDataTypes(
+                                ROW(
+                                                FIELD("field\"quote", STRING()),
+                                                FIELD("field\\slash", STRING()),
+                                                FIELD("field\nline", STRING()),
+                                                FIELD("field\ttab", STRING()),
+                                                FIELD("field\rreturn", STRING()))
+                                        .notNull())
+                        .testResult(
+                                jsonString($("f0")),
+                                "JSON_STRING(f0)",
+                                "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
                                 STRING().notNull()));
     }
 
@@ -818,6 +834,21 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "\"R\":{\"f0\":\"V\",\"f1\":null}"
                                         + "}",
                                 STRING().notNull(),
+                                STRING().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECT)
+                        .onFieldsWithData(Row.of("val1", "val2", "val3", "val4", "val5"))
+                        .andDataTypes(
+                                ROW(
+                                                FIELD("field\"quote", STRING()),
+                                                FIELD("field\\slash", STRING()),
+                                                FIELD("field\nline", STRING()),
+                                                FIELD("field\ttab", STRING()),
+                                                FIELD("field\rreturn", STRING()))
+                                        .notNull())
+                        .testResult(
+                                jsonObject(JsonOnNull.NULL, "testRow", $("f0")),
+                                "JSON_OBJECT(KEY 'testRow' VALUE f0 NULL ON NULL)",
+                                "{\"testRow\":{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}}",
                                 STRING().notNull()));
     }
 
@@ -946,6 +977,21 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}}"
                                         + "]",
                                 STRING().notNull(),
+                                STRING().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
+                        .onFieldsWithData(Row.of("val1", "val2", "val3", "val4", "val5"))
+                        .andDataTypes(
+                                ROW(
+                                                FIELD("field\"quote", STRING()),
+                                                FIELD("field\\slash", STRING()),
+                                                FIELD("field\nline", STRING()),
+                                                FIELD("field\ttab", STRING()),
+                                                FIELD("field\rreturn", STRING()))
+                                        .notNull())
+                        .testResult(
+                                jsonArray(JsonOnNull.NULL, $("f0")),
+                                "JSON_ARRAY(f0 NULL ON NULL)",
+                                "[{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}]",
                                 STRING().notNull()));
     }
 
