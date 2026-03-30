@@ -31,7 +31,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.AbstractMessageLite;
-import pemja.core.object.PyIterator;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -178,18 +177,17 @@ public abstract class AbstractTwoInputEmbeddedPythonFunctionOperator<IN1, IN2, O
         timestamp = element.getTimestamp();
 
         IN1 value = element.getValue();
-        PyIterator results =
-                (PyIterator)
+        try (EmbeddedPythonIterator results =
+                EmbeddedPythonIterator.from(
                         interpreter.invokeMethod(
                                 "operation",
                                 "process_element1",
-                                inputDataConverter1.toExternal(value));
-
-        while (results.hasNext()) {
-            OUT result = outputDataConverter.toInternal(results.next());
-            collector.collect(result);
+                                inputDataConverter1.toExternal(value)))) {
+            while (results.hasNext()) {
+                OUT result = outputDataConverter.toInternal(results.next());
+                collector.collect(result);
+            }
         }
-        results.close();
     }
 
     @Override
@@ -198,18 +196,17 @@ public abstract class AbstractTwoInputEmbeddedPythonFunctionOperator<IN1, IN2, O
         timestamp = element.getTimestamp();
 
         IN2 value = element.getValue();
-        PyIterator results =
-                (PyIterator)
+        try (EmbeddedPythonIterator results =
+                EmbeddedPythonIterator.from(
                         interpreter.invokeMethod(
                                 "operation",
                                 "process_element2",
-                                inputDataConverter2.toExternal(value));
-
-        while (results.hasNext()) {
-            OUT result = outputDataConverter.toInternal(results.next());
-            collector.collect(result);
+                                inputDataConverter2.toExternal(value)))) {
+            while (results.hasNext()) {
+                OUT result = outputDataConverter.toInternal(results.next());
+                collector.collect(result);
+            }
         }
-        results.close();
     }
 
     TypeInformation<IN1> getInputTypeInfo1() {
