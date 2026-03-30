@@ -144,9 +144,9 @@ public interface PartitionedTable {
      * Converts this dynamic table into an append-only table with an explicit operation code column
      * using the built-in {@code TO_CHANGELOG} process table function.
      *
-     * <p>Each input row - regardless of its original change operation - is emitted as an INSERT-only row
-     * with a string {@code "op"} column indicating the original operation (INSERT, UPDATE_AFTER,
-     * DELETE, etc.).
+     * <p>Each input row - regardless of its original change operation - is emitted as an
+     * INSERT-only row with a string {@code "op"} column indicating the original operation (INSERT,
+     * UPDATE_AFTER, DELETE, etc.).
      *
      * <p>Optional arguments can be passed using named expressions:
      *

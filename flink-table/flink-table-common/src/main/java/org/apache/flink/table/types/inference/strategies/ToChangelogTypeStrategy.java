@@ -152,9 +152,10 @@ public final class ToChangelogTypeStrategy {
     }
 
     /**
-     * Validates op_mapping keys. Keys may be comma-separated RowKind names (e.g., "INSERT,
-     * UPDATE_AFTER") to map multiple RowKinds to the same output code. Each individual RowKind must
-     * be valid and appear at most once across all entries.
+     * Validates op_mapping keys. Keys may be comma-separated (e.g., {@code "INSERT, UPDATE_AFTER"})
+     * to map multiple change operations to the same output code. Whitespace around names is
+     * trimmed. Names are case-sensitive and must match exactly (e.g., {@code INSERT}, not {@code
+     * insert}). Each name must be valid and appear at most once across all entries.
      */
     @SuppressWarnings("rawtypes")
     private static Optional<List<DataType>> validateOpMappingKeys(
