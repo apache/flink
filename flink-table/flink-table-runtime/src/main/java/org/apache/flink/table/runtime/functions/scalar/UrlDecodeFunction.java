@@ -136,21 +136,27 @@ public class UrlDecodeFunction extends BuiltInScalarFunction {
         return eval(value, DEFAULT_MAX_DECODE_DEPTH);
     }
 
+    /**
+     * Recursively decodes a URL-encoded string until stable or maxDepth is reached.
+     *
+     * @param value the URL-encoded string to decode
+     * @param maxDepth the maximum number of decode iterations (validated at planning time)
+     */
     public @Nullable StringData eval(StringData value, Integer maxDepth) {
         return evalRecursive(value, maxDepth);
     }
 
-    /** Overload for {@code TINYINT} literal, coerced at compile time. */
+    /** Overload for {@code TINYINT} literal. */
     public @Nullable StringData eval(StringData value, Byte maxDepth) {
         return evalRecursive(value, maxDepth == null ? null : maxDepth.intValue());
     }
 
-    /** Overload for {@code SMALLINT} literal, coerced at compile time. */
+    /** Overload for {@code SMALLINT} literal. */
     public @Nullable StringData eval(StringData value, Short maxDepth) {
         return evalRecursive(value, maxDepth == null ? null : maxDepth.intValue());
     }
 
-    /** Overload for {@code BIGINT} literal, coerced at compile time. */
+    /** Overload for {@code BIGINT} literal. */
     public @Nullable StringData eval(StringData value, Long maxDepth) {
         return evalRecursive(value, maxDepth == null ? null : maxDepth.intValue());
     }

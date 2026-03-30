@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -34,17 +35,11 @@ import java.util.Optional;
  * An {@link ArgumentTypeStrategy} that expects a positive integer literal for the {@code maxDepth}
  * parameter of {@code URL_DECODE_RECURSIVE}.
  *
- * <p>Accepted SQL integer types and their corresponding Java literal classes:
- *
- * <ul>
- *   <li>{@code TINYINT} {@link Byte}
- *   <li>{@code SMALLINT} {@link Short}
- *   <li>{@code INT} {@link Integer}
- *   <li>{@code BIGINT} {@link Long}
- * </ul>
- *
  * <p>The argument must be a compile-time literal (not a dynamic/runtime value), and its value must
  * be strictly positive ({@code > 0}).
+ *
+ * <p>This strategy uses {@link Number#intValue()} to handle all integer types uniformly, similar to
+ * {@link PercentageArgumentTypeStrategy}.
  */
 @Internal
 public final class MaxDepthArgumentTypeStrategy implements ArgumentTypeStrategy {
@@ -58,7 +53,8 @@ public final class MaxDepthArgumentTypeStrategy implements ArgumentTypeStrategy 
     @Override
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
-        final var actualType = callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
+        final LogicalType actualType =
+                callContext.getArgumentDataTypes().get(argumentPos).getLogicalType();
 
         if (!actualType.is(LogicalTypeFamily.INTEGER_NUMERIC)) {
             return callContext.fail(throwOnFailure, "maxDepth must be of INTEGER type.");
@@ -74,21 +70,20 @@ public final class MaxDepthArgumentTypeStrategy implements ArgumentTypeStrategy 
                     "maxDepth must be a literal integer, but was a dynamic argument.");
         }
 
-        // Retrieve the literal value regardless of the concrete integer subtype
-        // (TINYINT->Byte, SMALLINT->Short, INT->Integer, BIGINT->Long).
-        final Optional<Long> maxDepthOpt =
-                getLiteralAsLong(callContext, argumentPos, actualType.getTypeRoot());
-        if (maxDepthOpt.isPresent()) {
-            long maxDepth = maxDepthOpt.get();
-            if (maxDepth <= 0) {
-                return callContext.fail(
-                        throwOnFailure,
-                        "maxDepth must be a positive integer, but was: " + maxDepth);
-            }
+        // Use Number.class to handle all integer types uniformly
+        Optional<Number> literalVal = callContext.getArgumentValue(argumentPos, Number.class);
+
+        Integer maxDepth = null;
+        if (literalVal.isPresent()) {
+            maxDepth = literalVal.get().intValue();
         }
 
-        // Preserve the actual integer type so that the runtime eval() dispatches to the
-        // correct overload (Byte / Short / Integer / Long).
+        if (maxDepth == null || maxDepth <= 0) {
+            return callContext.fail(
+                    throwOnFailure, "maxDepth must be a positive integer, but was: %s.", maxDepth);
+        }
+
+        // Preserve the actual integer type to avoid type casting issues at planning time
         return Optional.of(resolveOutputType(actualType.getTypeRoot(), expectedNullability));
     }
 
@@ -97,10 +92,6 @@ public final class MaxDepthArgumentTypeStrategy implements ArgumentTypeStrategy 
             FunctionDefinition functionDefinition, int argumentPos) {
         return Signature.Argument.of(expectedNullability ? "<INTEGER>" : "<INTEGER NOT NULL>");
     }
-
-    // --------------------------------------------------------------------------------------------
-    // Helper methods
-    // --------------------------------------------------------------------------------------------
 
     /**
      * Returns the output {@link DataType} that corresponds to the given integer {@link
@@ -124,26 +115,5 @@ public final class MaxDepthArgumentTypeStrategy implements ArgumentTypeStrategy 
                 break;
         }
         return nullable ? base : base.notNull();
-    }
-
-    /**
-     * Retrieves the literal integer value as a {@link Long}, regardless of the actual integer
-     * subtype ({@code TINYINT}/{@code SMALLINT}/{@code INT}/{@code BIGINT}).
-     */
-    private static Optional<Long> getLiteralAsLong(
-            CallContext callContext, int argumentPos, LogicalTypeRoot root) {
-        switch (root) {
-            case TINYINT:
-                return callContext.getArgumentValue(argumentPos, Byte.class).map(Byte::longValue);
-            case SMALLINT:
-                return callContext.getArgumentValue(argumentPos, Short.class).map(Short::longValue);
-            case BIGINT:
-                return callContext.getArgumentValue(argumentPos, Long.class);
-            case INTEGER:
-            default:
-                return callContext
-                        .getArgumentValue(argumentPos, Integer.class)
-                        .map(Integer::longValue);
-        }
     }
 }
