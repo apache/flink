@@ -250,6 +250,7 @@ public class ActorSystemBootstrapTools {
      * @param config The Pekko configuration
      * @return A map of configuration keys to string values
      */
+    @VisibleForTesting
     static Map<String, String> toMaskedMap(Config config) {
         return ConfigurationUtils.hideSensitiveValues(
                 config.entrySet().stream()
