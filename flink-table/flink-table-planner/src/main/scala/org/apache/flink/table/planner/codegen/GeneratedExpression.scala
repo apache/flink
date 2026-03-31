@@ -33,8 +33,12 @@ import org.apache.flink.table.types.logical.LogicalType
  * @param resultType
  *   type of the resultTerm
  * @param literalValue
- *   None if the expression is not literal. Otherwise it represent the original object of the
- *   literal.
+ *   Contains the literal value (as internal data structure) for deep literal inspection if the
+ *   originating expression was a literal. Literal inspection is useful for performance
+ *   optimizations. For example, figuring out whether a time parsing function ever produces
+ *   sub-second data by inspecting the "format" literal string. NOTE: The literal value is not
+ *   intended to be used in generated code, use `resultTerm` for this purpose. The literal value is
+ *   NOT escaped.
  */
 case class GeneratedExpression(
     resultTerm: String,

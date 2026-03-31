@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.data.binary.BinaryArrayData
+import org.apache.flink.table.data.binary.{BinaryArrayData, BinaryStringData}
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
@@ -41,6 +41,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.ColumnList
 import org.apache.flink.util.Preconditions.checkArgument
 
@@ -1803,6 +1804,7 @@ object ScalarOperatorGens {
     }
 
     try {
+      // No escaping here as it will be done in the primitiveLiteralForType according to the type of the literal value.
       val result = castExecutor.cast(literalExpr.literalValue.get)
       val resultTerm = newName(ctx, "stringToTime")
 

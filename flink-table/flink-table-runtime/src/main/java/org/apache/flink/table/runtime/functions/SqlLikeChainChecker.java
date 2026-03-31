@@ -45,11 +45,13 @@ public class SqlLikeChainChecker {
     private final int[] midLens;
     private final int beginLen;
     private final int endLen;
+    private final boolean leftAnchor;
+    private final boolean rightAnchor;
 
     public SqlLikeChainChecker(String pattern) {
         final StringTokenizer tokens = new StringTokenizer(pattern, "%");
-        final boolean leftAnchor = !pattern.startsWith("%");
-        final boolean rightAnchor = !pattern.endsWith("%");
+        leftAnchor = !pattern.startsWith("%");
+        rightAnchor = !pattern.endsWith("%");
         int len = 0;
         // at least 2 checkers always
         BinaryStringData leftPattern = null;
@@ -93,7 +95,15 @@ public class SqlLikeChainChecker {
         MemorySegment[] segments = str.getSegments();
         int pos = str.getOffset();
         int mark = str.getSizeInBytes();
-        if (str.getSizeInBytes() < minLen) {
+        // Returns false early if either:
+        // the input is too short to match the pattern, or
+        // the pattern is empty (or anchored with no literals) but the input is not empty.
+        if (mark < minLen
+                || beginPattern == null
+                        && endPattern == null
+                        && middlePatterns.length == 0
+                        && mark > 0
+                        && (leftAnchor || rightAnchor)) {
             return false;
         }
         // prefix, extend start

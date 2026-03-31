@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.utils.DateTimeUtils
+import org.apache.flink.table.utils.{DateTimeUtils, EncodingUtils}
 import org.apache.flink.util.InstantiationUtil
 
 import java.time.ZoneId
@@ -988,22 +988,21 @@ class CodeGeneratorContext(
   }
 
   /**
-   * Adds a reusable string constant to the member area of the generated class.
+   * Adds an already pre-escaped string constant to the reusable member area of the generated class.
    *
-   * The string must be already escaped with
-   * [[org.apache.flink.table.utils.EncodingUtils.escapeJava()]].
+   * The string must be already escaped with [[EncodingUtils.escapeJava()]].
    */
-  def addReusableEscapedStringConstant(value: String): String = {
-    reusableStringConstants.get(value) match {
+  def addReusablePreEscapedStringConstant(alreadyEscapedValue: String): String = {
+    reusableStringConstants.get(alreadyEscapedValue) match {
       case Some(field) => field
       case None =>
         val field = newName(this, "str")
         val stmt =
           s"""
-             |private final $BINARY_STRING $field = $BINARY_STRING.fromString("$value");
+             |private final $BINARY_STRING $field = $BINARY_STRING.fromString("$alreadyEscapedValue");
            """.stripMargin
         reusableMemberStatements.add(stmt)
-        reusableStringConstants(value) = field
+        reusableStringConstants(alreadyEscapedValue) = field
         field
     }
   }

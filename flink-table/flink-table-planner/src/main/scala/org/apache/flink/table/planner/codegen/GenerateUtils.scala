@@ -306,10 +306,12 @@ object GenerateUtils {
       // as they're not cheap to construct. For the other types, the return term is directly
       // the literal value
       case CHAR | VARCHAR =>
-        val escapedValue =
-          EncodingUtils.escapeJava(literalValue.asInstanceOf[BinaryStringData].toString)
-        val field = ctx.addReusableEscapedStringConstant(escapedValue)
-        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
+        val str = literalValue.asInstanceOf[BinaryStringData]
+        val field = ctx.addReusablePreEscapedStringConstant(EncodingUtils.escapeJava(str.toString))
+        // The original value should be passed as literalValue
+        // all required escaping should be done in corresponding code generation,
+        // so that the literalValue can be also used directly when needed
+        generateNonNullLiteral(literalType, field, str)
 
       case BINARY | VARBINARY =>
         val bytesVal = literalValue.asInstanceOf[Array[Byte]]

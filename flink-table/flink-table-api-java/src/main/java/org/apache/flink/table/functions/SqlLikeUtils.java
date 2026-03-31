@@ -18,6 +18,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -140,11 +141,11 @@ public class SqlLikeUtils {
     }
 
     public static RuntimeException invalidEscapeCharacter(String s) {
-        return new RuntimeException("Invalid escape character '" + s + "'");
+        return new ValidationException("Invalid escape character '" + s + "'");
     }
 
     public static RuntimeException invalidEscapeSequence(String s, int i) {
-        return new RuntimeException("Invalid escape sequence '" + s + "', " + i);
+        return new ValidationException("Invalid escape sequence '" + s + "', " + i);
     }
 
     private static void similarEscapeRuleChecking(String sqlPattern, char escapeChar) {
