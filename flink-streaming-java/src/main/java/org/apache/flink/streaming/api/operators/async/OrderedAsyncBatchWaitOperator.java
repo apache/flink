@@ -445,6 +445,11 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
 
         // Wait for all in-flight async operations to complete and emit results in order
         while (inFlightCount > 0 || !pendingResults.isEmpty()) {
+            if (inFlightCount == 0 && !pendingResults.isEmpty()) {
+                // All async operations completed but results still pending
+                // Force tryEmitInOrder to process any remaining results
+                tryEmitInOrder();
+            }
             mailboxExecutor.yield();
         }
     }
