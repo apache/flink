@@ -37,6 +37,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/sql/catalogs" >
 
 - CREATE TABLE
 - [CREATE OR] REPLACE TABLE
+- CREATE [OR ALTER ]MATERIALIZED TABLE
 - CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
@@ -196,8 +197,8 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 <distribution>:
 {
-    DISTRIBUTION BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) [INTO n BUCKETS]
-  | DISTRIBUTION INTO n BUCKETS
+    DISTRIBUTED BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) [INTO n BUCKETS]
+  | DISTRIBUTED INTO n BUCKETS
 }
 
 ```
@@ -807,6 +808,9 @@ INSERT INTO my_rtas_table (id, price, quantity, order_time)
 * 设置配置项 [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) 为 `true`。
 
 {{< top >}}
+
+## CREATE [OR ALTER ]MATERIALIZED TABLE
+See a dedicated page for [Materialized tables]({{< ref "docs/sql/materialized-table/statements" >}}#create-materialized-table).
 
 ## CREATE CATALOG
 

@@ -35,6 +35,7 @@ Flink SQL 目前支持以下 DROP 语句：
 
 - DROP CATALOG
 - DROP TABLE
+- DROP MATERIALIZED TABLE
 - DROP DATABASE
 - DROP VIEW
 - DROP FUNCTION
@@ -172,6 +173,9 @@ DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
 **IF EXISTS**
 
 表不存在时不会进行任何操作。
+
+## DROP MATERIALIZED TABLE
+See a dedicated page for [Materialized tables]({{< ref "docs/sql/materialized-table/statements" >}}#drop-materialized-table).
 
 ## DROP DATABASE
 
