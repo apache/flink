@@ -132,6 +132,11 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
 
                 for (String schema : schemaList) {
                     String qualifiedPath = String.format("`%s`.`%s`", cat, schema);
+
+                    // Collect views first so we can exclude them from SHOW TABLES results
+                    Set<String> viewNames = new HashSet<>();
+                    collectViews(viewNames, qualifiedPath);
+
                     collectTables(
                             tableRows,
                             cat,
@@ -139,7 +144,8 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
                             tableNamePattern,
                             "TABLE",
                             typeFilter,
-                            qualifiedPath);
+                            qualifiedPath,
+                            viewNames);
                     collectTables(
                             tableRows,
                             cat,
@@ -147,13 +153,23 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
                             tableNamePattern,
                             "VIEW",
                             typeFilter,
-                            qualifiedPath);
+                            qualifiedPath,
+                            null);
                 }
             }
 
             return createTablesResultSet(statement, tableRows);
         } catch (Exception e) {
             throw new SQLException("Get tables fail", e);
+        }
+    }
+
+    private void collectViews(Set<String> viewNames, String qualifiedPath) {
+        try (StatementResult result =
+                executor.executeStatement(String.format("SHOW VIEWS FROM %s", qualifiedPath))) {
+            while (result.hasNext()) {
+                viewNames.add(result.next().getString(0).toString());
+            }
         }
     }
 
@@ -164,7 +180,8 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
             @Nullable String tableNamePattern,
             String tableType,
             @Nullable Set<String> typeFilter,
-            String qualifiedPath) {
+            String qualifiedPath,
+            @Nullable Set<String> excludeNames) {
         if (typeFilter != null && !typeFilter.contains(tableType)) {
             return;
         }
@@ -173,6 +190,9 @@ public class FlinkDatabaseMetaData extends BaseDatabaseMetaData {
         try (StatementResult result = executor.executeStatement(sql)) {
             while (result.hasNext()) {
                 String tableName = result.next().getString(0).toString();
+                if (excludeNames != null && excludeNames.contains(tableName)) {
+                    continue;
+                }
                 if (matchesPattern(tableName, tableNamePattern)) {
                     tableRows.add(
                             GenericRowData.of(
