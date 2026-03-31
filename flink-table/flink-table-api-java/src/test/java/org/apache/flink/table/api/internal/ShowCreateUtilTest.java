@@ -46,9 +46,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,15 +113,18 @@ class ShowCreateUtilTest {
         assertThat(createViewString).isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "{index}: {2}")
+    @ParameterizedTest(name = "{index}: {1}")
     @MethodSource("argsForShowCreateMaterializedTable")
     void showCreateMaterializedTable(
-            ResolvedCatalogMaterializedTable materializedTable, String expected) {
+            ResolvedCatalogMaterializedTable materializedTable,
+            boolean createOrAlter,
+            String expected) {
         final String createMaterializedTableString =
                 ShowCreateUtil.buildShowCreateMaterializedTableRow(
                         materializedTable,
                         MATERIALIZED_TABLE_IDENTIFIER,
                         false,
+                        createOrAlter,
                         DefaultSqlFactory.INSTANCE);
         assertThat(createMaterializedTableString).isEqualTo(expected);
     }
@@ -200,10 +201,10 @@ class ShowCreateUtilTest {
                 argList,
                 createResolvedTable(
                         ONE_COLUMN_SCHEMA,
-                        Collections.emptyMap(),
-                        Collections.emptyList(),
+                        Map.of(),
+                        List.of(),
                         TableDistribution.of(
-                                TableDistribution.Kind.HASH, 2, Arrays.asList("key1", "key2")),
+                                TableDistribution.Kind.HASH, 2, List.of("key1", "key2")),
                         null),
                 "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
                         + "  `id` INT\n"
@@ -214,10 +215,9 @@ class ShowCreateUtilTest {
                 argList,
                 createResolvedTable(
                         ONE_COLUMN_SCHEMA,
-                        Collections.emptyMap(),
-                        Collections.emptyList(),
-                        TableDistribution.of(
-                                TableDistribution.Kind.RANGE, 2, Arrays.asList("1", "10")),
+                        Map.of(),
+                        List.of(),
+                        TableDistribution.of(TableDistribution.Kind.RANGE, 2, List.of("1", "10")),
                         "Table comment"),
                 "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
                         + "  `id` INT\n"
@@ -229,10 +229,9 @@ class ShowCreateUtilTest {
                 argList,
                 createResolvedTable(
                         TWO_COLUMNS_SCHEMA_WITH_PRIMARY_KEY_AND_IMMUTABLE_COLS,
-                        Collections.emptyMap(),
-                        Collections.emptyList(),
-                        TableDistribution.of(
-                                TableDistribution.Kind.RANGE, 2, Arrays.asList("1", "10")),
+                        Map.of(),
+                        List.of(),
+                        TableDistribution.of(TableDistribution.Kind.RANGE, 2, List.of("1", "10")),
                         "Table comment"),
                 "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
                         + "  `id` INT,\n"
@@ -250,11 +249,7 @@ class ShowCreateUtilTest {
         addTemporaryAndPermanent(
                 argList,
                 createResolvedTable(
-                        TWO_COLUMNS_SCHEMA,
-                        options,
-                        Collections.emptyList(),
-                        null,
-                        "Another table comment"),
+                        TWO_COLUMNS_SCHEMA, options, List.of(), null, "Another table comment"),
                 "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
                         + "  `id` INT,\n"
                         + "  `name` VARCHAR(2147483647)\n"
@@ -269,11 +264,7 @@ class ShowCreateUtilTest {
         addTemporaryAndPermanent(
                 argList,
                 createResolvedTable(
-                        ONE_COLUMN_SCHEMA,
-                        Collections.emptyMap(),
-                        Arrays.asList("key1", "key2"),
-                        null,
-                        "comment"),
+                        ONE_COLUMN_SCHEMA, Map.of(), List.of("key1", "key2"), null, "comment"),
                 "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
                         + "  `id` INT\n"
                         + ")\n"
@@ -285,9 +276,9 @@ class ShowCreateUtilTest {
                 createResolvedTable(
                         TWO_COLUMNS_SCHEMA,
                         options,
-                        Arrays.asList("key1", "key2"),
+                        List.of("key1", "key2"),
                         TableDistribution.of(
-                                TableDistribution.Kind.UNKNOWN, 3, Arrays.asList("1", "2", "3")),
+                                TableDistribution.Kind.UNKNOWN, 3, List.of("1", "2", "3")),
                         "table comment"),
                 "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
                         + "  `id` INT,\n"
@@ -306,107 +297,107 @@ class ShowCreateUtilTest {
 
     private static Collection<Arguments> argsForShowCreateMaterializedTable() {
         final Collection<Arguments> argList = new ArrayList<>();
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                ONE_COLUMN_SCHEMA,
-                                null,
-                                List.of(),
-                                null,
-                                IntervalFreshness.ofMinute(1),
-                                RefreshMode.CONTINUOUS,
-                                "SELECT 1",
-                                "SELECT 1"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT\n"
-                                + ")\n"
-                                + "FRESHNESS = INTERVAL '1' MINUTE\n"
-                                + "REFRESH_MODE = CONTINUOUS\n"
-                                + "AS SELECT 1\n"));
+        addCreateAndCreateOrAlter(
+                argList,
+                createResolvedMaterialized(
+                        ONE_COLUMN_SCHEMA,
+                        null,
+                        List.of(),
+                        null,
+                        IntervalFreshness.ofMinute(1),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1",
+                        "SELECT 1"),
+                "%sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                        + "REFRESH_MODE = CONTINUOUS\n"
+                        + "AS SELECT 1\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                ONE_COLUMN_SCHEMA_WITH_PRIMARY_KEY,
-                                null,
-                                List.of(),
-                                null,
-                                IntervalFreshness.ofMinute(1),
-                                RefreshMode.CONTINUOUS,
-                                "SELECT 1",
-                                "SELECT 1"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `mt_column` VARCHAR(2147483647) METADATA VIRTUAL,\n"
-                                + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
-                                + ")\n"
-                                + "FRESHNESS = INTERVAL '1' MINUTE\n"
-                                + "REFRESH_MODE = CONTINUOUS\n"
-                                + "AS SELECT 1\n"));
+        addCreateAndCreateOrAlter(
+                argList,
+                createResolvedMaterialized(
+                        ONE_COLUMN_SCHEMA_WITH_PRIMARY_KEY,
+                        null,
+                        List.of(),
+                        null,
+                        IntervalFreshness.ofMinute(1),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1",
+                        "SELECT 1"),
+                "%sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `mt_column` VARCHAR(2147483647) METADATA VIRTUAL,\n"
+                        + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                        + "REFRESH_MODE = CONTINUOUS\n"
+                        + "AS SELECT 1\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                TWO_COLUMNS_SCHEMA_WITH_PRIMARY_KEY_AND_IMMUTABLE_COLS,
-                                null,
-                                List.of(),
-                                null,
-                                IntervalFreshness.ofMinute(1),
-                                RefreshMode.CONTINUOUS,
-                                "SELECT 1",
-                                "SELECT 1"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `name` VARCHAR(2147483647),\n"
-                                + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
-                                + ")\n"
-                                + "FRESHNESS = INTERVAL '1' MINUTE\n"
-                                + "REFRESH_MODE = CONTINUOUS\n"
-                                + "AS SELECT 1\n"));
+        addCreateAndCreateOrAlter(
+                argList,
+                createResolvedMaterialized(
+                        TWO_COLUMNS_SCHEMA_WITH_PRIMARY_KEY_AND_IMMUTABLE_COLS,
+                        null,
+                        List.of(),
+                        null,
+                        IntervalFreshness.ofMinute(1),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1",
+                        "SELECT 1"),
+                "%sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647),\n"
+                        + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                        + "REFRESH_MODE = CONTINUOUS\n"
+                        + "AS SELECT 1\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                TWO_COLUMNS_SCHEMA,
-                                "Materialized table comment",
-                                List.of("id"),
-                                TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
-                                IntervalFreshness.ofMinute(3),
-                                RefreshMode.FULL,
-                                "SELECT id, name FROM tbl_a",
-                                "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `name` VARCHAR(2147483647)\n"
-                                + ")\n"
-                                + "COMMENT 'Materialized table comment'\n"
-                                + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
-                                + "PARTITIONED BY (`id`)\n"
-                                + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                                + "REFRESH_MODE = FULL\n"
-                                + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n"));
+        addCreateAndCreateOrAlter(
+                argList,
+                createResolvedMaterialized(
+                        TWO_COLUMNS_SCHEMA,
+                        "Materialized table comment",
+                        List.of("id"),
+                        TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
+                        IntervalFreshness.ofMinute(3),
+                        RefreshMode.FULL,
+                        "SELECT id, name FROM tbl_a",
+                        "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`"),
+                "%sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647)\n"
+                        + ")\n"
+                        + "COMMENT 'Materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
+                        + "PARTITIONED BY (`id`)\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                TWO_COLUMNS_SCHEMA,
-                                "Materialized table comment",
-                                List.of("id"),
-                                TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
-                                IntervalFreshness.ofMinute(3),
-                                RefreshMode.FULL,
-                                "SELECT * FROM tbl_a",
-                                "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `name` VARCHAR(2147483647)\n"
-                                + ")\n"
-                                + "COMMENT 'Materialized table comment'\n"
-                                + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
-                                + "PARTITIONED BY (`id`)\n"
-                                + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                                + "REFRESH_MODE = FULL\n"
-                                + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n"));
+        addCreateAndCreateOrAlter(
+                argList,
+                createResolvedMaterialized(
+                        TWO_COLUMNS_SCHEMA,
+                        "Materialized table comment",
+                        List.of("id"),
+                        TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
+                        IntervalFreshness.ofMinute(3),
+                        RefreshMode.FULL,
+                        "SELECT * FROM tbl_a",
+                        "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`"),
+                "%sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647)\n"
+                        + ")\n"
+                        + "COMMENT 'Materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
+                        + "PARTITIONED BY (`id`)\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n");
 
         return argList;
     }
@@ -415,6 +406,12 @@ class ShowCreateUtilTest {
             Collection<Arguments> argList, CatalogBaseTable catalogBaseTable, String sql) {
         argList.add(Arguments.of(catalogBaseTable, false, String.format(sql, "")));
         argList.add(Arguments.of(catalogBaseTable, true, String.format(sql, "TEMPORARY ")));
+    }
+
+    private static void addCreateAndCreateOrAlter(
+            Collection<Arguments> argList, CatalogBaseTable catalogBaseTable, String sql) {
+        argList.add(Arguments.of(catalogBaseTable, false, String.format(sql, "CREATE ")));
+        argList.add(Arguments.of(catalogBaseTable, true, String.format(sql, "CREATE OR ALTER ")));
     }
 
     private static ResolvedCatalogTable createResolvedTable(
@@ -446,7 +443,7 @@ class ShowCreateUtilTest {
                         comment,
                         originalQuery,
                         expandedQuery,
-                        Collections.emptyMap()),
+                        Map.of()),
                 resolvedSchema);
     }
 

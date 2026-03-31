@@ -792,11 +792,13 @@ SqlShowCreate SqlShowCreate() :
             return new SqlShowCreateConnection(pos, sqlIdentifier);
         }
     |
+        {boolean createOrAlter = false;}
+        [ <OR> <ALTER> {createOrAlter = true;} ]
         <MATERIALIZED> <TABLE>
         { pos = getPos(); }
         sqlIdentifier = CompoundIdentifier()
         {
-            return new SqlShowCreateMaterializedTable(pos, sqlIdentifier);
+            return new SqlShowCreateMaterializedTable(pos, sqlIdentifier, createOrAlter);
         }
     )
 }

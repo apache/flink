@@ -515,7 +515,8 @@ public class SqlNodeToOperationConversion {
                 UnresolvedIdentifier.of(
                         sqlShowCreateMaterializedTable.getFullMaterializedTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        return new ShowCreateMaterializedTableOperation(identifier);
+        return new ShowCreateMaterializedTableOperation(
+                identifier, sqlShowCreateMaterializedTable.isCreateOrAlter());
     }
 
     /** Convert SHOW CREATE VIEW statement. */

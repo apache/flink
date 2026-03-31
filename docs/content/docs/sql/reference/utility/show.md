@@ -45,7 +45,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW VIEWS
 - SHOW CREATE VIEW
 - SHOW MATERIALIZED TABLES
-- SHOW CREATE MATERIALIZED TABLE
+- SHOW CREATE [OR ALTER ]MATERIALIZED TABLE
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW JARS
@@ -1004,13 +1004,19 @@ The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialec
 * `%` matches any number of characters, including zero characters, `\%` matches one `%` character.
 * `_` matches exactly one character, `\_` matches one `_` character.
 
-## SHOW CREATE MATERIALIZED TABLE
+## SHOW CREATE [OR ALTER ]MATERIALIZED TABLE
 
 ```sql
 SHOW CREATE MATERIALIZED TABLE [catalog_name.][db_name.]materialized_table_name
 ```
 
 Show create materialized table statement for specified materialized table.
+
+```sql
+SHOW CREATE OR ALTER MATERIALIZED TABLE [catalog_name.][db_name.]materialized_table_name
+```
+
+Show create or alter materialized table statement for specified materialized table.
 
 ## SHOW FUNCTIONS
 
