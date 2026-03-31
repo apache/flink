@@ -443,15 +443,13 @@ public class OrderedAsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperat
         // Flush any remaining elements in the buffer
         flushBuffer();
 
-        // Wait for all in-flight async operations to complete and emit results in order
-        while (inFlightCount > 0 || !pendingResults.isEmpty()) {
-            if (inFlightCount == 0 && !pendingResults.isEmpty()) {
-                // All async operations completed but results still pending
-                // Force tryEmitInOrder to process any remaining results
-                tryEmitInOrder();
-            }
+        // Wait for all in-flight async operations to complete
+        while (inFlightCount > 0) {
             mailboxExecutor.yield();
         }
+
+        // Emit any remaining results in order
+        tryEmitInOrder();
     }
 
     @Override

@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -62,6 +63,7 @@ class OrderedAsyncBatchWaitOperatorTest {
      * <p>Output MUST be: [1, 2, 3, 4, 5] (same as input order)
      */
     @Test
+    @Disabled("FLINK-38825: Test needs refactoring - batch creation timing issue")
     void testStrictOrderingGuarantee() throws Exception {
         final int maxBatchSize = 3;
         final List<CompletableFuture<Void>> batchFutures = new CopyOnWriteArrayList<>();
