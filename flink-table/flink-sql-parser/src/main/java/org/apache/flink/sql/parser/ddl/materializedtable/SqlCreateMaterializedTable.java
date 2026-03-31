@@ -118,6 +118,10 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
         return columnList;
     }
 
+    public List<SqlTableConstraint> getTableConstraints() {
+        return tableConstraints;
+    }
+
     public Optional<SqlWatermark> getWatermark() {
         return Optional.ofNullable(watermark);
     }

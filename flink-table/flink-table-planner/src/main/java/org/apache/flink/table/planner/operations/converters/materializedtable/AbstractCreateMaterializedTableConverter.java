@@ -59,6 +59,10 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     protected interface MergeContext {
         boolean hasSchemaDefinition();
 
+        // A separate from schema definition method is required
+        // as current syntax allows to specify constraints only without the whole schema
+        boolean hasConstraintDefinition();
+
         Schema getMergedSchema();
 
         Map<String, String> getMergedTableOptions();

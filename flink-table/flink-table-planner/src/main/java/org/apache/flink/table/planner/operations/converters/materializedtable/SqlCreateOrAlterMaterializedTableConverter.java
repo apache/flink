@@ -198,23 +198,40 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ResolvedCatalogMaterializedTable oldTable) {
         final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         final ResolvedSchema newSchema = schemaResolver.resolve(mergeContext.getMergedSchema());
+        final boolean hasSchemaDefinition = mergeContext.hasSchemaDefinition();
         final List<TableChange> changes =
                 new ArrayList<>(
                         MaterializedTableUtils.validateAndExtractColumnChanges(
-                                oldSchema, newSchema, mergeContext.hasSchemaDefinition()));
+                                oldSchema, newSchema, hasSchemaDefinition));
 
+        getConstraintChange(oldSchema, newSchema, mergeContext.hasConstraintDefinition())
+                .ifPresent(changes::add);
+        getWatermarkChange(oldSchema, newSchema, hasSchemaDefinition).ifPresent(changes::add);
+        return changes;
+    }
+
+    private Optional<TableChange> getConstraintChange(
+            final ResolvedSchema oldSchema,
+            final ResolvedSchema newSchema,
+            boolean hasConstraintDefinition) {
         final UniqueConstraint oldConstraint = oldSchema.getPrimaryKey().orElse(null);
         final UniqueConstraint newConstraint = newSchema.getPrimaryKey().orElse(null);
-        if (!Objects.equals(oldConstraint, newConstraint)) {
+        if (hasConstraintDefinition && !Objects.equals(oldConstraint, newConstraint)) {
             if (newConstraint == null) {
-                changes.add(TableChange.dropConstraint(oldConstraint.getName()));
+                return Optional.of(TableChange.dropConstraint(oldConstraint.getName()));
             } else if (oldConstraint == null) {
-                changes.add(TableChange.add(newConstraint));
+                return Optional.of(TableChange.add(newConstraint));
             } else {
-                changes.add(TableChange.modify(newConstraint));
+                return Optional.of(TableChange.modify(newConstraint));
             }
         }
+        return Optional.empty();
+    }
 
+    private Optional<TableChange> getWatermarkChange(
+            final ResolvedSchema oldSchema,
+            final ResolvedSchema newSchema,
+            boolean hasSchemaDefinition) {
         final WatermarkSpec oldWatermarkSpec =
                 oldSchema.getWatermarkSpecs().isEmpty()
                         ? null
@@ -223,17 +240,16 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 newSchema.getWatermarkSpecs().isEmpty()
                         ? null
                         : newSchema.getWatermarkSpecs().get(0);
-        if (!Objects.equals(oldWatermarkSpec, newWatermarkSpec)) {
+        if (hasSchemaDefinition && !Objects.equals(oldWatermarkSpec, newWatermarkSpec)) {
             if (newWatermarkSpec == null) {
-                changes.add(TableChange.dropWatermark());
+                return Optional.of(TableChange.dropWatermark());
             } else if (oldWatermarkSpec == null) {
-                changes.add(TableChange.add(newWatermarkSpec));
+                return Optional.of(TableChange.add(newWatermarkSpec));
             } else {
-                changes.add(TableChange.modify(newWatermarkSpec));
+                return Optional.of(TableChange.modify(newWatermarkSpec));
             }
         }
-
-        return changes;
+        return Optional.empty();
     }
 
     @Override
@@ -259,6 +275,15 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 final SqlNodeList sqlNodeList = sqlCreateMaterializedTable.getColumnList();
                 return !sqlNodeList.getList().isEmpty()
                         && sqlNodeList.getList().get(0) instanceof SqlRegularColumn;
+            }
+
+            @Override
+            public boolean hasConstraintDefinition() {
+                if (!sqlCreateMaterializedTable.getTableConstraints().isEmpty()) {
+                    return true;
+                }
+
+                return hasSchemaDefinition();
             }
 
             @Override

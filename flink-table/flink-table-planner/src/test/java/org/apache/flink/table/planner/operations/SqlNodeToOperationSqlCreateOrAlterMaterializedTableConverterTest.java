@@ -104,7 +104,6 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                 .containsExactly(
                         // No explicit schema, so nullable will be used
                         TableChange.add(Column.physical("a1", DataTypes.BIGINT())),
-                        TableChange.dropConstraint("ct1"),
                         TableChange.modifyDefinitionQuery(
                                 "SELECT `a`, `b`, `c`, `d`, `a` AS `a1`\nFROM `t1`",
                                 "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `t1`.`a` AS `a1`\n"
@@ -283,7 +282,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
     @Test
     void testCreateOrAlterMaterializedTableWithDroppedConstraint() {
         final String sql =
-                "CREATE OR ALTER MATERIALIZED TABLE mt \n"
+                "CREATE OR ALTER MATERIALIZED TABLE mt (a BIGINT NOT NULL, b STRING, c INT, d STRING)\n"
                         + "COMMENT 'New materialized table comment'\n"
                         + "PARTITIONED BY (a, d)\n"
                         + "WITH (\n"
@@ -302,6 +301,28 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                 .isEqualTo(
                         "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt\n"
                                 + "  DROP CONSTRAINT ct1");
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableWithoutSchemaConstraintShouldStay() {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt \n"
+                        + "COMMENT 'New materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
+
+        FullAlterMaterializedTableOperation op = (FullAlterMaterializedTableOperation) operation;
+        assertThat(op.getTableChanges()).isEmpty();
+        assertThat(operation.asSummaryString())
+                .isEqualTo("CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt\n");
     }
 
     @Test
@@ -444,7 +465,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
     }
 
     @Test
-    void testCreateOrAlterMaterializedTableWithDroppedWatermarkByNoExplicitSchema()
+    void testCreateOrAlterMaterializedTableWithoutSchemaWatermarkShouldStay()
             throws TableAlreadyExistException, DatabaseNotExistException {
         final String prepSql =
                 "CREATE MATERIALIZED TABLE mt1 (\n"
@@ -462,9 +483,7 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
         assertThat(operation).isInstanceOf(FullAlterMaterializedTableOperation.class);
 
         assertThat(operation.asSummaryString())
-                .isEqualTo(
-                        "CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n"
-                                + "  DROP WATERMARK");
+                .isEqualTo("CREATE OR ALTER MATERIALIZED TABLE builtin.default.mt1\n");
     }
 
     @Test
