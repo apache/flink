@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Interval.TimeUnit;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -42,46 +43,47 @@ public class IntervalFreshness {
     private static final long MINUTE_CRON_UPPER_BOUND = 60;
     private static final long HOUR_CRON_UPPER_BOUND = 24;
 
-    private final int interval;
-    private final TimeUnit timeUnit;
+    private final Interval interval;
 
-    private IntervalFreshness(int interval, TimeUnit timeUnit) {
+    private IntervalFreshness(Interval interval) {
         this.interval = interval;
-        this.timeUnit = timeUnit;
+    }
+
+    public static IntervalFreshness of(Interval interval) {
+        return new IntervalFreshness(interval);
     }
 
     public static IntervalFreshness of(String interval, TimeUnit timeUnit) {
-        final int validateIntervalInput = validateIntervalInput(interval);
-        return new IntervalFreshness(validateIntervalInput, timeUnit);
+        final int validateIntervalInput = validateIntervalValue(interval);
+        return new IntervalFreshness(Interval.of(validateIntervalInput, timeUnit));
     }
 
-    private static int validateIntervalInput(final String interval) {
-        final int parsedInt;
-        try {
-            parsedInt = Integer.parseInt(interval);
-        } catch (Exception e) {
-            final String errorMessage =
-                    String.format(
-                            "The freshness interval currently only supports positive integer type values. But was: %s",
-                            interval);
-            throw new ValidationException(errorMessage, e);
-        }
-
-        if (parsedInt <= 0) {
-            final String errorMessage =
-                    String.format(
-                            "The freshness interval currently only supports positive integer type values. But was: %s",
-                            interval);
-            throw new ValidationException(errorMessage);
-        }
-        return parsedInt;
+    public static IntervalFreshness of(int intervalDuration, TimeUnit timeUnit) {
+        validateIntervalPositiveValue(intervalDuration);
+        return new IntervalFreshness(Interval.of(intervalDuration, timeUnit));
     }
 
+    public static IntervalFreshness of(Duration duration, TimeUnit timeUnit) {
+        // just check it is positive
+        validateIntervalPositiveValue((int) duration.toSeconds());
+        return new IntervalFreshness(Interval.of(duration, timeUnit));
+    }
+
+    @Deprecated
     public static IntervalFreshness ofSecond(String interval) {
         return IntervalFreshness.of(interval, TimeUnit.SECOND);
     }
 
+    public static IntervalFreshness ofSecond(int interval) {
+        return IntervalFreshness.of(interval, TimeUnit.SECOND);
+    }
+
+    @Deprecated
     public static IntervalFreshness ofMinute(String interval) {
+        return IntervalFreshness.of(interval, TimeUnit.MINUTE);
+    }
+
+    public static IntervalFreshness ofMinute(int interval) {
         return IntervalFreshness.of(interval, TimeUnit.MINUTE);
     }
 
@@ -89,7 +91,15 @@ public class IntervalFreshness {
         return IntervalFreshness.of(interval, TimeUnit.HOUR);
     }
 
+    public static IntervalFreshness ofHour(int interval) {
+        return IntervalFreshness.of(interval, TimeUnit.HOUR);
+    }
+
     public static IntervalFreshness ofDay(String interval) {
+        return IntervalFreshness.of(interval, TimeUnit.DAY);
+    }
+
+    public static IntervalFreshness ofDay(int interval) {
         return IntervalFreshness.of(interval, TimeUnit.DAY);
     }
 
@@ -156,6 +166,87 @@ public class IntervalFreshness {
         }
     }
 
+    /**
+     * Creates an IntervalFreshness from a Duration, choosing the most appropriate time unit.
+     * Prefers larger units when possible (e.g., 60 seconds → 1 minute).
+     */
+    public static IntervalFreshness fromDuration(Duration duration) {
+        if (duration.equals(duration.truncatedTo(ChronoUnit.DAYS))) {
+            return IntervalFreshness.ofDay((int) duration.toDays());
+        }
+        if (duration.equals(duration.truncatedTo(ChronoUnit.HOURS))) {
+            return IntervalFreshness.ofHour((int) duration.toHours());
+        }
+        if (duration.equals(duration.truncatedTo(ChronoUnit.MINUTES))) {
+            return IntervalFreshness.ofMinute((int) duration.toMinutes());
+        }
+
+        return IntervalFreshness.ofSecond((int) duration.getSeconds());
+    }
+
+    public Duration toDuration() {
+        return interval.getDuration();
+    }
+
+    public TimeUnit getTimeUnit() {
+        return interval.getTimeUnit();
+    }
+
+    /**
+     * @deprecated Use {@link #getIntervalInt()} instead.
+     */
+    @Deprecated
+    public String getInterval() {
+        return String.valueOf(getIntervalInt());
+    }
+
+    public int getIntervalInt() {
+        return interval.getInterval();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        IntervalFreshness that = (IntervalFreshness) o;
+        return Objects.equals(interval, that.interval);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(interval);
+    }
+
+    @Override
+    public String toString() {
+        return interval.toString();
+    }
+
+    private static int validateIntervalValue(final String interval) {
+        final int parsedInt;
+        try {
+            parsedInt = Integer.parseInt(interval);
+        } catch (Exception e) {
+            final String errorMessage =
+                    String.format(
+                            "The freshness interval currently only supports positive integer type values. But was: %s",
+                            interval);
+            throw new ValidationException(errorMessage, e);
+        }
+        validateIntervalPositiveValue(parsedInt);
+        return parsedInt;
+    }
+
+    private static void validateIntervalPositiveValue(final int interval) {
+        if (interval <= 0) {
+            throw new ValidationException(
+                    String.format(
+                            "The freshness interval currently only supports positive integer type values. But was: %d",
+                            interval));
+        }
+    }
+
     private static void validateCronConstraints(
             IntervalFreshness intervalFreshness, long cronUpperBound) {
         int interval = intervalFreshness.getIntervalInt();
@@ -185,89 +276,5 @@ public class IntervalFreshness {
             throw new ValidationException(
                     "In full refresh mode, freshness must be 1 when the time unit is DAY.");
         }
-    }
-
-    /**
-     * Creates an IntervalFreshness from a Duration, choosing the most appropriate time unit.
-     * Prefers larger units when possible (e.g., 60 seconds → 1 minute).
-     */
-    public static IntervalFreshness fromDuration(Duration duration) {
-        if (duration.equals(duration.truncatedTo(ChronoUnit.DAYS))) {
-            return new IntervalFreshness((int) duration.toDays(), TimeUnit.DAY);
-        }
-        if (duration.equals(duration.truncatedTo(ChronoUnit.HOURS))) {
-            return new IntervalFreshness((int) duration.toHours(), TimeUnit.HOUR);
-        }
-        if (duration.equals(duration.truncatedTo(ChronoUnit.MINUTES))) {
-            return new IntervalFreshness((int) duration.toMinutes(), TimeUnit.MINUTE);
-        }
-
-        return new IntervalFreshness((int) duration.getSeconds(), TimeUnit.SECOND);
-    }
-
-    /**
-     * @deprecated Use {@link #getIntervalInt()} instead.
-     */
-    @Deprecated
-    public String getInterval() {
-        return String.valueOf(interval);
-    }
-
-    public int getIntervalInt() {
-        return interval;
-    }
-
-    public TimeUnit getTimeUnit() {
-        return timeUnit;
-    }
-
-    public Duration toDuration() {
-        switch (timeUnit) {
-            case SECOND:
-                return Duration.ofSeconds(interval);
-            case MINUTE:
-                return Duration.ofMinutes(interval);
-            case HOUR:
-                return Duration.ofHours(interval);
-            case DAY:
-                return Duration.ofDays(interval);
-            default:
-                throw new IllegalStateException("Unexpected value: " + timeUnit);
-        }
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        IntervalFreshness that = (IntervalFreshness) o;
-        return Objects.equals(interval, that.interval) && timeUnit == that.timeUnit;
-    }
-
-    @Override
-    public String toString() {
-        return "INTERVAL '" + interval + "' " + timeUnit;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(interval, timeUnit);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // TimeUnit enums
-    // --------------------------------------------------------------------------------------------
-
-    /** An enumeration of time unit representing the unit of interval freshness. */
-    @PublicEvolving
-    public enum TimeUnit {
-        SECOND,
-        MINUTE,
-        HOUR,
-        DAY
     }
 }

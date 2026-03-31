@@ -1471,7 +1471,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                     assertThat(
                                                     op.getCatalogMaterializedTable()
                                                             .getDefinitionFreshness())
-                                            .isEqualTo(IntervalFreshness.ofSecond("30"));
+                                            .isEqualTo(IntervalFreshness.ofSecond(30));
                                     assertThat(op.getCatalogMaterializedTable().getRefreshMode())
                                             .isSameAs(RefreshMode.CONTINUOUS);
                                 }),
@@ -2876,7 +2876,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         .partitionKeys(
                                 hasPartition ? Arrays.asList("b", "c") : Collections.emptyList())
                         .options(Collections.unmodifiableMap(options))
-                        .freshness(IntervalFreshness.ofHour("2"))
+                        .freshness(IntervalFreshness.ofHour(2))
                         .logicalRefreshMode(LogicalRefreshMode.CONTINUOUS)
                         .refreshMode(RefreshMode.CONTINUOUS)
                         .refreshStatus(RefreshStatus.ACTIVATED)

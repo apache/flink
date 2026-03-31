@@ -167,7 +167,7 @@ class CatalogPropertiesUtilTest {
                                 .distribution(unknownDist)
                                 .originalQuery("SELECT 1, 'two'")
                                 .expandedQuery("SELECT 1, 'two'")
-                                .freshness(IntervalFreshness.ofHour("123"))
+                                .freshness(IntervalFreshness.ofHour(123))
                                 .logicalRefreshMode(LogicalRefreshMode.CONTINUOUS)
                                 .refreshMode(RefreshMode.CONTINUOUS)
                                 .refreshStatus(RefreshStatus.ACTIVATED)
@@ -175,6 +175,6 @@ class CatalogPropertiesUtilTest {
                                 .build(),
                         resolvedSchema,
                         RefreshMode.CONTINUOUS,
-                        IntervalFreshness.ofHour("123")));
+                        IntervalFreshness.ofHour(123)));
     }
 }

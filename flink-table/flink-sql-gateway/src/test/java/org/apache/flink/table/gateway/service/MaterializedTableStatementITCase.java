@@ -288,7 +288,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(expectedSchema);
         assertThat(actualMaterializedTable.getDefinitionFreshness())
-                .isEqualTo(IntervalFreshness.ofMinute("3"));
+                .isEqualTo(IntervalFreshness.ofMinute(3));
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
                 .isSameAs(LogicalRefreshMode.AUTOMATIC);
         assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);

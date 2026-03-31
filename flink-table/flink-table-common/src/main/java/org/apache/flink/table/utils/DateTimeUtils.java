@@ -90,13 +90,13 @@ public class DateTimeUtils {
     public static final int EPOCH_JULIAN = 2440588;
 
     /** The number of milliseconds in a second. */
-    private static final long MILLIS_PER_SECOND = 1000L;
+    public static final long MILLIS_PER_SECOND = 1000L;
 
     /** The number of milliseconds in a minute. */
-    private static final long MILLIS_PER_MINUTE = 60000L;
+    public static final long MILLIS_PER_MINUTE = 60000L;
 
     /** The number of milliseconds in an hour. */
-    private static final long MILLIS_PER_HOUR = 3600000L; // = 60 * 60 * 1000
+    public static final long MILLIS_PER_HOUR = 3600000L; // = 60 * 60 * 1000
 
     /**
      * The number of milliseconds in a day.
@@ -104,6 +104,12 @@ public class DateTimeUtils {
      * <p>This is the modulo 'mask' used when converting TIMESTAMP values to DATE and TIME values.
      */
     public static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
+
+    /** The number of days in a week. */
+    public static final int DAYS_PER_WEEK = 7;
+
+    /** The number of months in a month. */
+    public static final int MONTHS_PER_QUARTER = 3;
 
     /** The SimpleDateFormat string for ISO dates, "yyyy-MM-dd". */
     private static final String DATE_FORMAT_STRING = "yyyy-MM-dd";

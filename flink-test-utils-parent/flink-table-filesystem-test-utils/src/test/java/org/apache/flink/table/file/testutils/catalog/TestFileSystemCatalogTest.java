@@ -109,7 +109,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
     private static final String DEFAULT_EXPANDED_QUERY =
             String.format(
                     "SELECT id, region, county FROM %s.%s.T", TEST_CATALOG, TEST_DEFAULT_DATABASE);
-    private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute("3");
+    private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute(3);
     private static final ResolvedCatalogMaterializedTable EXPECTED_CATALOG_MATERIALIZED_TABLE =
             new ResolvedCatalogMaterializedTable(
                     CatalogMaterializedTable.newBuilder()
