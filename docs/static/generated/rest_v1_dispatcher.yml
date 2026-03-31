@@ -921,12 +921,12 @@ paths:
       description: Returns the job rescale configuration.
       operationId: getJobRescaleConfig
       parameters:
-        - name: jobid
-          in: path
-          description: 32-character hexadecimal string value that identifies a job.
-          required: true
-          schema:
-            $ref: "#/components/schemas/JobID"
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
       responses:
         "200":
           description: The request was successful.
@@ -2586,18 +2586,18 @@ components:
           format: int64
         jid:
           $ref: "#/components/schemas/JobID"
+        jobType:
+          $ref: "#/components/schemas/JobType"
         last-modification:
           type: integer
           format: int64
         name:
           type: string
-        jobType:
-          $ref: "#/components/schemas/JobType"
-        schedulerType:
-          $ref: "#/components/schemas/SchedulerType"
         pending-operators:
           type: integer
           format: int32
+        schedulerType:
+          $ref: "#/components/schemas/SchedulerType"
         start-time:
           type: integer
           format: int64
@@ -2625,8 +2625,6 @@ components:
           $ref: "#/components/schemas/JobID"
         job-type:
           $ref: "#/components/schemas/JobType"
-        schedulerType:
-          $ref: "#/components/schemas/SchedulerType"
         maxParallelism:
           type: integer
           format: int64
@@ -2640,6 +2638,8 @@ components:
           format: int32
         plan:
           $ref: "#/components/schemas/Plan"
+        schedulerType:
+          $ref: "#/components/schemas/SchedulerType"
         start-time:
           type: integer
           format: int64
@@ -3162,16 +3162,16 @@ components:
           type: string
         triggerId:
           $ref: "#/components/schemas/TriggerId"
-    SchedulerType:
-      type: string
-      enum:
-        - Default
-        - Adaptive
-        - AdaptiveBatch
     SchedulerExecutionMode:
       type: string
       enum:
       - REACTIVE
+    SchedulerType:
+      type: string
+      enum:
+      - Default
+      - Adaptive
+      - AdaptiveBatch
     SerializedThrowable:
       type: object
       properties:

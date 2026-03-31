@@ -132,6 +132,10 @@
           "jid" : {
             "type" : "any"
           },
+          "jobType" : {
+            "type" : "string",
+            "enum" : [ "BATCH", "STREAMING" ]
+          },
           "last-modification" : {
             "type" : "integer"
           },
@@ -140,6 +144,10 @@
           },
           "pending-operators" : {
             "type" : "integer"
+          },
+          "schedulerType" : {
+            "type" : "string",
+            "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
           },
           "start-time" : {
             "type" : "integer"
@@ -1549,22 +1557,22 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "jid" : {
             "type" : "any"
           },
+          "jobType" : {
+            "type" : "string",
+            "enum" : [ "BATCH", "STREAMING" ]
+          },
           "last-modification" : {
             "type" : "integer"
           },
           "name" : {
             "type" : "string"
           },
-          "jobType" : {
-            "type" : "string",
-            "enum" : [ "BATCH", "STREAMING" ]
+          "pending-operators" : {
+            "type" : "integer"
           },
           "schedulerType" : {
             "type" : "string",
             "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
-          },
-          "pending-operators" : {
-            "type" : "integer"
           },
           "start-time" : {
             "type" : "integer"
@@ -1648,10 +1656,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "string",
       "enum" : [ "BATCH", "STREAMING" ]
     },
-    "schedulerType" : {
-      "type" : "string",
-      "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
-    },
     "maxParallelism" : {
       "type" : "integer"
     },
@@ -1733,6 +1737,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "string"
         }
       }
+    },
+    "schedulerType" : {
+      "type" : "string",
+      "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
     },
     "start-time" : {
       "type" : "integer"

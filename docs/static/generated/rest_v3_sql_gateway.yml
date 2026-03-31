@@ -362,6 +362,7 @@ components:
       enum:
       - PRIMARY_KEY
       - UNIQUE_KEY
+      - IMMUTABLE_COLUMNS
     DataType:
       type: object
       properties:
@@ -428,6 +429,19 @@ components:
           type: object
           additionalProperties:
             type: string
+    ImmutableColumnsConstraint:
+      type: object
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        enforced:
+          type: boolean
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/ConstraintType"
     Index:
       type: object
       properties:
@@ -491,6 +505,7 @@ components:
       - UNRESOLVED
       - DESCRIPTOR
       - VARIANT
+      - BITMAP
     OpenSessionRequestBody:
       type: object
       properties:
@@ -573,6 +588,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Column"
+        immutableColumnIndexes:
+          type: array
+          items:
+            type: integer
+            format: int32
+        immutableColumns:
+          $ref: "#/components/schemas/ImmutableColumnsConstraint"
         indexes:
           type: array
           items:
