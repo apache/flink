@@ -34,6 +34,8 @@ import org.apache.flink.types.Row
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, Test}
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 import java.sql.{Date, Time, Timestamp}
 import java.time.LocalDateTime
@@ -641,8 +643,9 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
-  def testCurrentDatabase(): Unit = {
+  @ParameterizedTest(name = "{index}: {0}")
+  @ValueSource(strings = Array[String]("db1", "\"db1", "\"db1\"", "db1\""))
+  def testCurrentDatabase(dbName: String): Unit = {
     val result1 = executeQuery(
       tEnv
         .from("Table3")
@@ -655,10 +658,10 @@ class CalcITCase extends BatchTestBase {
       .getCatalog(tEnv.getCurrentCatalog)
       .get()
       .createDatabase(
-        "db1",
-        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        dbName,
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), dbName),
         false)
-    tEnv.useDatabase("db1")
+    tEnv.useDatabase(dbName)
     val result2 = executeQuery(
       tEnv
         .from("default_database.Table3")

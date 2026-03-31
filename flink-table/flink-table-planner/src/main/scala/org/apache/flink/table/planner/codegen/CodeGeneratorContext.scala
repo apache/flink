@@ -648,9 +648,10 @@ class CodeGeneratorContext(
             " This is a bug, please file an issue.")
       })
 
+    val escapedQueryStartCurrentDatabase = EncodingUtils.escapeJava(queryStartCurrentDatabase);
     reusableMemberStatements.add(s"""
                                     |private static final $BINARY_STRING $fieldTerm =
-                                    |$BINARY_STRING.fromString("$queryStartCurrentDatabase");
+                                    |$BINARY_STRING.fromString("$escapedQueryStartCurrentDatabase");
                                     |""".stripMargin)
 
     fieldTerm
