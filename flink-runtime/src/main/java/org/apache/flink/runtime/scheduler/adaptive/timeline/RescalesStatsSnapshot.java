@@ -19,25 +19,42 @@
 package org.apache.flink.runtime.scheduler.adaptive.timeline;
 
 import org.apache.flink.runtime.util.stats.StatsSummarySnapshot;
+import org.apache.flink.util.AbstractID;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class RescalesStatsSnapshot implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final List<Rescale> rescaleHistory;
+    private final Map<AbstractID, Rescale> idToRescaleMap;
     private final RescalesSummarySnapshot rescalesSummarySnapshot;
 
     public RescalesStatsSnapshot(
             List<Rescale> rescaleHistory, RescalesSummarySnapshot rescalesSummarySnapshot) {
         this.rescaleHistory = rescaleHistory;
+        this.idToRescaleMap =
+                rescaleHistory.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        r -> r.getRescaleIdInfo().getRescaleUuid(),
+                                        Function.identity()));
         this.rescalesSummarySnapshot = rescalesSummarySnapshot;
     }
 
     public List<Rescale> getRescaleHistory() {
         return rescaleHistory;
+    }
+
+    public @Nullable Rescale getRescale(AbstractID rescaleId) {
+        return idToRescaleMap.get(rescaleId);
     }
 
     public RescalesSummarySnapshot getRescalesSummarySnapshot() {

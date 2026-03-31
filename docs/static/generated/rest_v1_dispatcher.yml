@@ -934,6 +934,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobRescaleConfigInfo"
+  /jobs/{jobid}/rescales/details/{rescaleuuid}:
+    get:
+      description: Return a job rescale details.
+      operationId: getJobRescaleDetails
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      - name: rescaleuuid
+        in: path
+        description: String value that identifies a job rescale.
+        required: true
+        schema:
+          $ref: "#/components/schemas/RescaleUUID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescaleDetails"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2768,6 +2792,40 @@ components:
         submissionResourceWaitTimeoutInMillis:
           type: integer
           format: int64
+    JobRescaleDetails:
+      type: object
+      properties:
+        endTimestampInMillis:
+          type: integer
+          format: int64
+        rescaleAttemptId:
+          type: integer
+          format: int64
+        rescaleUuid:
+          type: string
+        resourceRequirementsUuid:
+          type: string
+        schedulerStates:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchedulerStateSpan"
+        slots:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/SlotSharingGroupRescaleInfo"
+        startTimestampInMillis:
+          type: integer
+          format: int64
+        terminalState:
+          $ref: "#/components/schemas/TerminalState"
+        terminatedReason:
+          $ref: "#/components/schemas/TerminatedReason"
+        triggerCause:
+          $ref: "#/components/schemas/TriggerCause"
+        vertices:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/VertexParallelismRescaleInfo"
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -3064,6 +3122,18 @@ components:
       - CLAIM
       - NO_CLAIM
       - LEGACY
+    RescaleUUID:
+      type: object
+      properties:
+        bytes:
+          type: string
+          format: byte
+        lowerPart:
+          type: integer
+          format: int64
+        upperPart:
+          type: integer
+          format: int64
     ResourceID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -3166,6 +3236,22 @@ components:
       type: string
       enum:
       - REACTIVE
+    SchedulerStateSpan:
+      type: object
+      properties:
+        durationInMillis:
+          type: integer
+          format: int64
+        enterTimestampInMillis:
+          type: integer
+          format: int64
+        leaveTimestampInMillis:
+          type: integer
+          format: int64
+        state:
+          type: string
+        stringifiedException:
+          type: string
     SchedulerType:
       type: string
       enum:
@@ -3206,6 +3292,29 @@ components:
         upperPart:
           type: integer
           format: int64
+    SlotSharingGroupRescaleInfo:
+      type: object
+      properties:
+        acquiredResourceProfile:
+          $ref: "#/components/schemas/ResourceProfileInfo"
+        desiredSlots:
+          type: integer
+          format: int32
+        minimalRequiredSlots:
+          type: integer
+          format: int32
+        postRescaleSlots:
+          type: integer
+          format: int32
+        preRescaleSlots:
+          type: integer
+          format: int32
+        requestResourceProfile:
+          $ref: "#/components/schemas/ResourceProfileInfo"
+        slotSharingGroupId:
+          $ref: "#/components/schemas/SlotSharingGroupId"
+        slotSharingGroupName:
+          type: string
     StatsSummaryDto:
       type: object
       properties:
@@ -3660,6 +3769,23 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TaskManagerInfo"
+    TerminalState:
+      type: string
+      enum:
+      - COMPLETED
+      - FAILED
+      - IGNORED
+    TerminatedReason:
+      type: string
+      enum:
+      - SUCCEEDED
+      - EXCEPTION_OCCURRED
+      - RESOURCE_REQUIREMENTS_UPDATED
+      - NO_RESOURCES_OR_PARALLELISMS_CHANGE
+      - JOB_FINISHED
+      - JOB_FAILED
+      - JOB_CANCELED
+      - JOB_FAILOVER_RESTARTING
     TerminationMode:
       type: string
       enum:
@@ -3685,6 +3811,13 @@ components:
       - FULL
       - ON_CPU
       - OFF_CPU
+    TriggerCause:
+      type: string
+      enum:
+      - INITIAL_SCHEDULE
+      - UPDATE_REQUIREMENT
+      - NEW_RESOURCE_AVAILABLE
+      - RECOVERABLE_FAILOVER
     TriggerId:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -3734,3 +3867,40 @@ components:
         endTimestamp:
           type: integer
           format: int64
+    VertexParallelismInformation:
+      type: object
+      properties:
+        maxParallelism:
+          type: integer
+          format: int32
+        minParallelism:
+          type: integer
+          format: int32
+        parallelism:
+          type: integer
+          format: int32
+    VertexParallelismRescaleInfo:
+      type: object
+      properties:
+        desiredParallelism:
+          type: integer
+          format: int32
+        jobVertexId:
+          $ref: "#/components/schemas/JobVertexID"
+        jobVertexName:
+          type: string
+        postRescaleParallelism:
+          type: integer
+          format: int32
+        preRescaleParallelism:
+          type: integer
+          format: int32
+        requiredParallelisms:
+          $ref: "#/components/schemas/VertexParallelismInformation"
+        slotSharingGroupId:
+          $ref: "#/components/schemas/SlotSharingGroupId"
+        slotSharingGroupName:
+          type: string
+        sufficientParallelism:
+          type: integer
+          format: int32

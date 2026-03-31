@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.timeline;
 
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -26,23 +27,43 @@ import java.util.Objects;
 /** The class to represent the rescale id description in one resource requirements rescale. */
 public class RescaleIdInfo implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    /** Class for unique rescale ID. */
+    public static class RescaleUUID extends AbstractID {
+        private static final long serialVersionUID = 1L;
 
-    private final AbstractID rescaleUuid;
-    private final AbstractID resourceRequirementsId;
-    private final long rescaleAttemptId;
+        public RescaleUUID() {}
 
-    public RescaleIdInfo(AbstractID resourceRequirementsId, Long rescaleAttemptId) {
-        this.resourceRequirementsId = resourceRequirementsId;
-        this.rescaleAttemptId = rescaleAttemptId;
-        this.rescaleUuid = new AbstractID();
+        public RescaleUUID(byte[] bytes) {
+            super(bytes);
+        }
+
+        public RescaleUUID(String hexString) {
+            this(StringUtils.hexStringToByte(hexString));
+        }
     }
 
-    public AbstractID getRescaleUuid() {
+    /** Class for unique resource requirements ID. */
+    public static class ResourceRequirementsID extends AbstractID {
+        private static final long serialVersionUID = 1L;
+    }
+
+    private static final long serialVersionUID = 1L;
+
+    private final RescaleUUID rescaleUuid;
+    private final ResourceRequirementsID resourceRequirementsId;
+    private final long rescaleAttemptId;
+
+    public RescaleIdInfo(ResourceRequirementsID resourceRequirementsId, Long rescaleAttemptId) {
+        this.resourceRequirementsId = resourceRequirementsId;
+        this.rescaleAttemptId = rescaleAttemptId;
+        this.rescaleUuid = new RescaleUUID();
+    }
+
+    public RescaleUUID getRescaleUuid() {
         return rescaleUuid;
     }
 
-    public AbstractID getResourceRequirementsId() {
+    public ResourceRequirementsID getResourceRequirementsId() {
         return resourceRequirementsId;
     }
 

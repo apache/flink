@@ -3646,6 +3646,196 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
 <table class="rest-api table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/rescales/details/:rescaleuuid</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Return a job rescale details.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - 32-character hexadecimal string value that identifies a job.</li>
+<li><code>rescaleuuid</code> - String value that identifies a job rescale.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Request</summary>
+          <pre><code>{}</code></pre>
+        </label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <label>
+          <details>
+          <summary>Response</summary>
+          <pre><code>{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails",
+  "properties" : {
+    "endTimestampInMillis" : {
+      "type" : "integer"
+    },
+    "rescaleAttemptId" : {
+      "type" : "integer"
+    },
+    "rescaleUuid" : {
+      "type" : "string"
+    },
+    "resourceRequirementsUuid" : {
+      "type" : "string"
+    },
+    "schedulerStates" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:SchedulerStateSpan",
+        "properties" : {
+          "durationInMillis" : {
+            "type" : "integer"
+          },
+          "enterTimestampInMillis" : {
+            "type" : "integer"
+          },
+          "leaveTimestampInMillis" : {
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "stringifiedException" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "slots" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:SlotSharingGroupRescaleInfo",
+        "properties" : {
+          "acquiredResourceProfile" : {
+            "type" : "object",
+            "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+          },
+          "desiredSlots" : {
+            "type" : "integer"
+          },
+          "minimalRequiredSlots" : {
+            "type" : "integer"
+          },
+          "postRescaleSlots" : {
+            "type" : "integer"
+          },
+          "preRescaleSlots" : {
+            "type" : "integer"
+          },
+          "requestResourceProfile" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+            "properties" : {
+              "cpuCores" : {
+                "type" : "number"
+              },
+              "extendedResources" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "number"
+                }
+              },
+              "managedMemory" : {
+                "type" : "integer"
+              },
+              "networkMemory" : {
+                "type" : "integer"
+              },
+              "taskHeapMemory" : {
+                "type" : "integer"
+              },
+              "taskOffHeapMemory" : {
+                "type" : "integer"
+              }
+            }
+          },
+          "slotSharingGroupId" : {
+            "type" : "any"
+          },
+          "slotSharingGroupName" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "startTimestampInMillis" : {
+      "type" : "integer"
+    },
+    "terminalState" : {
+      "type" : "string",
+      "enum" : [ "COMPLETED", "FAILED", "IGNORED" ]
+    },
+    "terminatedReason" : {
+      "type" : "string",
+      "enum" : [ "SUCCEEDED", "EXCEPTION_OCCURRED", "RESOURCE_REQUIREMENTS_UPDATED", "NO_RESOURCES_OR_PARALLELISMS_CHANGE", "JOB_FINISHED", "JOB_FAILED", "JOB_CANCELED", "JOB_FAILOVER_RESTARTING" ]
+    },
+    "triggerCause" : {
+      "type" : "string",
+      "enum" : [ "INITIAL_SCHEDULE", "UPDATE_REQUIREMENT", "NEW_RESOURCE_AVAILABLE", "RECOVERABLE_FAILOVER" ]
+    },
+    "vertices" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:VertexParallelismRescaleInfo",
+        "properties" : {
+          "desiredParallelism" : {
+            "type" : "integer"
+          },
+          "jobVertexId" : {
+            "type" : "any"
+          },
+          "jobVertexName" : {
+            "type" : "string"
+          },
+          "postRescaleParallelism" : {
+            "type" : "integer"
+          },
+          "preRescaleParallelism" : {
+            "type" : "integer"
+          },
+          "slotSharingGroupId" : {
+            "type" : "any"
+          },
+          "slotSharingGroupName" : {
+            "type" : "string"
+          },
+          "sufficientParallelism" : {
+            "type" : "integer"
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+        </label>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="rest-api table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><h5><strong>/jobs/:jobid/rescaling</strong></h5></td>
     </tr>
     <tr>

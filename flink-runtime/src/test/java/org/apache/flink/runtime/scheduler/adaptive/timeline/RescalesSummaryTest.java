@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler.adaptive.timeline;
 
 import org.apache.flink.runtime.util.stats.StatsSummary;
-import org.apache.flink.util.AbstractID;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RescalesSummaryTest {
 
     private Rescale getRescale() {
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setStartTimestamp(1L);
         rescale.setEndTimestamp(2L);
         return rescale;

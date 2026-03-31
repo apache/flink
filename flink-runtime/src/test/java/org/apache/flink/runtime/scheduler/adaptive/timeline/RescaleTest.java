@@ -23,6 +23,8 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetails.VertexParallelismRescaleInfo;
+import org.apache.flink.runtime.rest.messages.job.rescales.SchedulerStateSpan;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.JobGraphJobInformation;
@@ -32,7 +34,6 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -160,7 +161,8 @@ class RescaleTest {
 
     @Test
     void testAddSchedulerState() {
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
 
         // Test for add a state span into a terminated rescale.
         rescale.setTerminatedReason(TerminatedReason.SUCCEEDED);
@@ -168,21 +170,21 @@ class RescaleTest {
         assertThat(rescale.getSchedulerStates()).isEmpty();
 
         // Test for add a state span into a non-terminated rescale.
-        rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        rescale = new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.addSchedulerState(new SchedulerStateSpan("", null, null, null, null));
         assertThat(rescale.getSchedulerStates()).hasSize(1);
 
         // Test the correctness of throwable processing.
         String stringifiedException1 =
                 ExceptionUtils.stringifyException(new RuntimeException("exception1"));
-        rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        rescale = new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setStringifiedException(stringifiedException1);
         rescale.addSchedulerState(new SchedulerStateSpan("", null, null, null, null));
         SchedulerStateSpan schedulerStateSpan = rescale.getSchedulerStates().get(0);
         assertThat(schedulerStateSpan.getStringifiedException()).isEqualTo(stringifiedException1);
         assertThat(rescale.getStringifiedException()).isNull();
 
-        rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        rescale = new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.addSchedulerState(
                 new SchedulerStateSpan("", null, null, null, stringifiedException1));
         schedulerStateSpan = rescale.getSchedulerStates().get(0);
@@ -190,7 +192,7 @@ class RescaleTest {
 
         // Test the correctness of the end time of span auto-fulfill.
         State stateWithoutEndTimestamp = new TestingAdaptiveSchedulerState(2L, null);
-        rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        rescale = new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setStringifiedException(stringifiedException1);
         rescale.addSchedulerState(stateWithoutEndTimestamp, null);
         schedulerStateSpan = rescale.getSchedulerStates().get(0);
@@ -200,7 +202,8 @@ class RescaleTest {
 
     @Test
     void testSetDesiredSlots() {
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setDesiredSlots(jobInformation);
         Map<SlotSharingGroupId, SlotSharingGroupRescale> slots = rescale.getSlots();
         assertThat(slots).hasSize(2);
@@ -223,28 +226,29 @@ class RescaleTest {
 
     @Test
     void testSetDesiredVertexParallelism() {
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setDesiredVertexParallelism(jobInformation);
-        Map<JobVertexID, VertexParallelismRescale> vertices = rescale.getVertices();
+        Map<JobVertexID, VertexParallelismRescaleInfo> vertices = rescale.getVertices();
         assertThat(vertices).hasSize(4);
         assertThat(vertices.keySet())
                 .isEqualTo(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getJobVertexId)
+                                .map(VertexParallelismRescaleInfo::getJobVertexId)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream().map(JobVertex::getID).collect(Collectors.toSet()));
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getJobVertexName)
+                                .map(VertexParallelismRescaleInfo::getJobVertexName)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream().map(JobVertex::getName).collect(Collectors.toSet()));
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getSlotSharingGroupId)
+                                .map(VertexParallelismRescaleInfo::getSlotSharingGroupId)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream()
@@ -253,7 +257,7 @@ class RescaleTest {
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getSlotSharingGroupName)
+                                .map(VertexParallelismRescaleInfo::getSlotSharingGroupName)
                                 .collect(Collectors.toSet()))
                 .hasSameElementsAs(
                         jobVertices.stream()
@@ -262,19 +266,20 @@ class RescaleTest {
 
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getDesiredParallelism)
+                                .map(VertexParallelismRescaleInfo::getDesiredParallelism)
                                 .collect(Collectors.toList()))
                 .containsExactlyInAnyOrder(2, 3, 4, 5);
         assertThat(
                         vertices.values().stream()
-                                .map(VertexParallelismRescale::getSufficientParallelism)
+                                .map(VertexParallelismRescaleInfo::getSufficientParallelism)
                                 .collect(Collectors.toList()))
                 .containsExactlyInAnyOrder(1, 2, 3, 4);
     }
 
     @Test
     void testSetMinimalRequiredSlots() {
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setMinimalRequiredSlots(jobInformation);
         Map<SlotSharingGroupId, SlotSharingGroupRescale> slots = rescale.getSlots();
         assertThat(slots).hasSize(2);
@@ -292,23 +297,25 @@ class RescaleTest {
     @Test
     void testSetPreRescaleSlotsAndParallelisms() {
         // Test for null last rescale.
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 2L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 2L));
         rescale.setPreRescaleSlotsAndParallelisms(jobInformation, null);
         assertThat(rescale.getSlots()).isEmpty();
         assertThat(rescale.getVertices()).isEmpty();
 
         // Test for non-null last rescale.
         // Prepare the last completed rescale.
-        Rescale lastCompletedRescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
-        Map<JobVertexID, VertexParallelismRescale> lastRescaleVertices =
+        Rescale lastCompletedRescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
+        Map<JobVertexID, VertexParallelismRescaleInfo> lastRescaleVertices =
                 lastCompletedRescale.getModifiableVertices();
         jobVertices.forEach(
                 jobVertex -> {
-                    VertexParallelismRescale vertexParallelismRescale =
+                    VertexParallelismRescaleInfo vertexParallelismRescale =
                             lastRescaleVertices.computeIfAbsent(
                                     jobVertex.getID(),
                                     ignored ->
-                                            new VertexParallelismRescale(
+                                            new VertexParallelismRescaleInfo(
                                                     jobVertex.getID(),
                                                     jobInformation
                                                             .getVertexInformation(jobVertex.getID())
@@ -340,7 +347,7 @@ class RescaleTest {
 
         assertThat(
                         rescale.getVertices().values().stream()
-                                .map(VertexParallelismRescale::getPreRescaleParallelism)
+                                .map(VertexParallelismRescaleInfo::getPreRescaleParallelism)
                                 .collect(Collectors.toSet()))
                 .containsExactly(4);
     }
@@ -353,11 +360,12 @@ class RescaleTest {
                 vertex -> {
                     parallelismForVertices.put(vertex.getID(), 2);
                 });
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setPostRescaleVertexParallelism(jobInformation, postVertexParallelism);
         assertThat(
                         rescale.getVertices().values().stream()
-                                .map(VertexParallelismRescale::getPostRescaleParallelism)
+                                .map(VertexParallelismRescaleInfo::getPostRescaleParallelism)
                                 .collect(Collectors.toSet()))
                 .containsExactly(2);
     }
@@ -398,7 +406,8 @@ class RescaleTest {
                         new SlotSharingSlotAllocator.ExecutionSlotSharingGroup(
                                 slotSharingGroupB, null)));
 
-        Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
+        Rescale rescale =
+                new Rescale(new RescaleIdInfo(new RescaleIdInfo.ResourceRequirementsID(), 1L));
         rescale.setPostRescaleSlots(slotAssignments);
         assertThat(
                         rescale.getSlots().values().stream()
