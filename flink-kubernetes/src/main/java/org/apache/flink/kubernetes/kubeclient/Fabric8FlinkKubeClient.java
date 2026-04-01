@@ -110,10 +110,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         this.initialRetryInterval =
                 flinkConfig.get(
                         KubernetesConfigOptions
-                                .KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY);
+                                .KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DELAY);
         this.maxRetryInterval =
                 flinkConfig.get(
-                        KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY);
+                        KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DELAY);
         this.nodePortAddressType =
                 flinkConfig.get(
                         KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);

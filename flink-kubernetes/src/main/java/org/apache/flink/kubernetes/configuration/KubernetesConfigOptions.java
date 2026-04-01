@@ -466,7 +466,7 @@ public class KubernetesConfigOptions {
                                     .build());
 
     public static final ConfigOption<Duration>
-            KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY =
+            KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DELAY =
                     key("kubernetes.transactional-operation.initial-retry-delay")
                             .durationType()
                             .defaultValue(Duration.ofMillis(50))
@@ -477,7 +477,12 @@ public class KubernetesConfigOptions {
                                                             + "after fail")
                                             .build());
 
-    public static final ConfigOption<Duration> KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY =
+    @Deprecated @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Duration>
+            KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY =
+                    KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DELAY;
+
+    public static final ConfigOption<Duration> KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DELAY =
             key("kubernetes.transactional-operation.max-retry-delay")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(1))
@@ -487,6 +492,10 @@ public class KubernetesConfigOptions {
                                             "Defines the max duration of Kubernetes transactional operation retries "
                                                     + "after fail")
                                     .build());
+
+    @Deprecated @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Duration> KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY =
+            KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DELAY;
 
     public static final ConfigOption<String> JOB_MANAGER_POD_TEMPLATE;
 
