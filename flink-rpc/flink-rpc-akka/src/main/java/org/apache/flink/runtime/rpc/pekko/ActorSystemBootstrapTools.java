@@ -19,6 +19,7 @@ package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.NetUtils;
@@ -32,7 +33,9 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.BindException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Tools for starting the Actor Systems used to run the JobManager and TaskManager actors. */
 public class ActorSystemBootstrapTools {
@@ -242,6 +245,22 @@ public class ActorSystemBootstrapTools {
     }
 
     /**
+     * Converts the given Pekko {@link Config} into a flattened {@link Map}.
+     *
+     * @param config The Pekko configuration
+     * @return A map of configuration keys to string values
+     */
+    @VisibleForTesting
+    static Map<String, String> toMaskedMap(Config config) {
+        return ConfigurationUtils.hideSensitiveValues(
+                config.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        entry -> String.valueOf(entry.getValue().unwrapped()))));
+    }
+
+    /**
      * Starts an Actor System with given Pekko config.
      *
      * @param config Config of the started ActorSystem.
@@ -251,7 +270,9 @@ public class ActorSystemBootstrapTools {
      */
     private static ActorSystem startActorSystem(
             Config config, String actorSystemName, Logger logger) {
-        logger.debug("Using pekko configuration\n {}", config);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Using pekko configuration\n {}", toMaskedMap(config));
+        }
         ActorSystem actorSystem = PekkoUtils.createActorSystem(actorSystemName, config);
 
         logger.info("Actor system started at {}", PekkoUtils.getAddress(actorSystem));
