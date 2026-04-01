@@ -24,12 +24,12 @@ import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
-import org.apache.flink.util.FileUtils;
 
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,7 +38,7 @@ class RestAPIDocGeneratorTest {
 
     @Test
     void testExcludeFromDocumentation() throws Exception {
-        File file = File.createTempFile("rest_v0_", ".html");
+        Path filePath = File.createTempFile("rest_v0_", ".html").toPath();
         RestAPIDocGenerator.createHtmlFile(
                 DocumentingRestEndpoint.forRestHandlerSpecifications(
                         new TestEmptyMessageHeaders("/test/empty1", "This is a testing REST API."),
@@ -51,19 +51,19 @@ class RestAPIDocGeneratorTest {
                                 "/test/exclude2",
                                 "This REST API should also not appear in the generated documentation.")),
                 RuntimeRestAPIVersion.V0,
-                file.toPath());
-        String actual = FileUtils.readFile(file, StandardCharsets.UTF_8);
+                filePath);
+        String actual = Files.readString(filePath);
 
-        assertThat(actual).containsSequence("/test/empty1");
-        assertThat(actual).containsSequence("This is a testing REST API.");
-        assertThat(actual).containsSequence("/test/empty2");
-        assertThat(actual).containsSequence("This is another testing REST API.");
-        assertThat(actual).doesNotContain("/test/exclude1");
         assertThat(actual)
-                .doesNotContain("This REST API should not appear in the generated documentation.");
-        assertThat(actual).doesNotContain("/test/exclude2");
-        assertThat(actual)
+                .contains(
+                        "/test/empty1",
+                        "This is a testing REST API.",
+                        "/test/empty2",
+                        "This is another testing REST API.")
                 .doesNotContain(
+                        "/test/exclude1",
+                        "This REST API should not appear in the generated documentation.",
+                        "/test/exclude2",
                         "This REST API should also not appear in the generated documentation.");
     }
 

@@ -367,9 +367,7 @@ class ConfigOptionsDocGeneratorTest {
                                 + "            <td>This is example description for the first option.</td>\n"
                                 + "        </tr>\n"
                                 + "    </tbody>\n"
-                                + "</table>\n");
-
-        assertThat(tablesConverted)
+                                + "</table>\n")
                 .containsEntry(
                         "secondGroup",
                         "<table class=\"configuration table table-bordered\">\n"
@@ -389,9 +387,7 @@ class ConfigOptionsDocGeneratorTest {
                                 + "            <td>This is long example description for the second option.</td>\n"
                                 + "        </tr>\n"
                                 + "    </tbody>\n"
-                                + "</table>\n");
-
-        assertThat(tablesConverted)
+                                + "</table>\n")
                 .containsEntry(
                         "default",
                         "<table class=\"configuration table table-bordered\">\n"
