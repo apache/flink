@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.docs.util.Utils.getProjectRootDir;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatException;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -771,16 +772,5 @@ class ConfigOptionsDocGeneratorTest {
                         () ->
                                 ConfigOptionsDocGenerator.verifyClassAnnotation(
                                         InternalOptions.class));
-    }
-
-    static String getProjectRootDir() {
-        final String dirFromProperty = System.getProperty("rootDir");
-        if (dirFromProperty != null) {
-            return dirFromProperty;
-        }
-
-        // to make this work in the IDE use a default fallback
-        final String currentDir = System.getProperty("user.dir");
-        return new File(currentDir).getParent();
     }
 }

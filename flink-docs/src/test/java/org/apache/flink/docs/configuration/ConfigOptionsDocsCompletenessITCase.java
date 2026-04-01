@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.docs.util.ConfigurationOptionLocator;
 import org.apache.flink.docs.util.OptionWithMetaInfo;
+import org.apache.flink.docs.util.Utils;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -232,7 +233,7 @@ class ConfigOptionsDocsCompletenessITCase {
     }
 
     private static Map<String, List<DocumentedOption>> parseDocumentedOptions() throws IOException {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+        final String rootDir = Utils.getProjectRootDir();
 
         Path includeFolder =
                 Paths.get(rootDir, "docs", "layouts", "shortcodes", "generated").toAbsolutePath();
@@ -284,7 +285,7 @@ class ConfigOptionsDocsCompletenessITCase {
 
     private static Map<String, List<ExistingOption>> findExistingOptions(
             Predicate<OptionWithMetaInfo> predicate) throws Exception {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+        final String rootDir = Utils.getProjectRootDir();
 
         final Collection<ExistingOption> existingOptions = new ArrayList<>();
         new ConfigurationOptionLocator()

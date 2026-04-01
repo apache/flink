@@ -36,6 +36,8 @@ import static org.apache.flink.docs.rest.OpenApiSpecGenerator.createDocumentatio
  */
 public class RuntimeOpenApiSpecGenerator {
 
+    public static final String RUNTIME_OPEN_API_TITLE = "Flink JobManager REST API";
+
     /**
      * Generates the Runtime REST API OpenAPI spec.
      *
@@ -51,7 +53,7 @@ public class RuntimeOpenApiSpecGenerator {
                 continue;
             }
             createDocumentationFile(
-                    "Flink JobManager REST API",
+                    RUNTIME_OPEN_API_TITLE,
                     new DocumentingDispatcherRestEndpoint(),
                     apiVersion,
                     Paths.get(

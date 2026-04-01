@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.docs.util.Utils.getProjectRootDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -44,7 +45,7 @@ class ConfigOptionsYamlSpecTest {
         final Collection<String> allOptions = new ArrayList<>();
         new ConfigurationOptionLocator()
                 .discoverOptionsAndApply(
-                        Paths.get(ConfigOptionsDocGeneratorTest.getProjectRootDir()),
+                        Paths.get(getProjectRootDir()),
                         (aClass, optionWithMetaInfos) -> {
                             optionWithMetaInfos.stream()
                                     .filter(o -> o.field.getAnnotation(Deprecated.class) == null)
