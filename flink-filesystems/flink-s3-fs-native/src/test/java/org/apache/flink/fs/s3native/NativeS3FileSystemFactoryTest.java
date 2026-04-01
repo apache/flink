@@ -23,6 +23,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 
@@ -377,5 +378,79 @@ class NativeS3FileSystemFactoryTest {
         assertThat(fs.getClientProvider().isPathStyleAccess()).isTrue();
         assertThat(fs.getClientProvider().isChunkedEncoding()).isFalse();
         assertThat(fs.getClientProvider().isChecksumValidation()).isFalse();
+    }
+
+    // ---- Bucket-level configuration tests ----
+
+    /**
+     * Validates that misconfigured per-bucket credentials surface as a configuration error at
+     * {@code configure()} time, not as an opaque AWS SDK error at first request. Override
+     * resolution itself (which wins between bucket and global) is exhaustively covered by {@code
+     * BucketConfigProviderTest}; this test guards the factory-layer behaviour that is unique to it:
+     * throwing on partial bucket credentials.
+     */
+    @Test
+    void testBucketSpecificPartialCredentialsThrows() {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "global-access-key");
+        config.setString("s3.secret-key", "global-secret-key");
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.bucket.bad-bucket.access-key", "only-access-key");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        assertThatThrownBy(() -> factory.configure(config))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("must be set together");
+    }
+
+    @Test
+    void testBucketOverrideAppliedForMatchingBucket() throws Exception {
+        Configuration config = baseConfig();
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.endpoint", "http://global.s3:9000");
+        config.setString("s3.bucket.test-bucket.region", "eu-west-1");
+        config.setString("s3.bucket.test-bucket.endpoint", "http://bucket.s3:9000");
+
+        NativeS3FileSystem fs = createFs(config);
+        assertThat(fs.getClientProvider().getRegion()).isEqualTo("eu-west-1");
+        assertThat(fs.getClientProvider().getEndpoint()).isEqualTo("http://bucket.s3:9000");
+    }
+
+    @Test
+    void testBucketOverrideIgnoredForDifferentBucket() throws Exception {
+        Configuration config = baseConfig();
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.endpoint", "http://global.s3:9000");
+        config.setString("s3.bucket.other-bucket.region", "ap-south-1");
+        config.setString("s3.bucket.other-bucket.endpoint", "http://other.s3:9000");
+
+        // createFs uses URI s3://test-bucket/ — "other-bucket" overrides must NOT apply
+        NativeS3FileSystem fs = createFs(config);
+        assertThat(fs.getClientProvider().getRegion()).isEqualTo("us-east-1");
+        assertThat(fs.getClientProvider().getEndpoint()).isEqualTo("http://global.s3:9000");
+    }
+
+    @Test
+    void testPartialBucketOverrideFallsBackToGlobal() throws Exception {
+        Configuration config = baseConfig();
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.endpoint", "http://global.s3:9000");
+        // Override only region for the bucket — endpoint falls back to global
+        config.setString("s3.bucket.test-bucket.region", "eu-central-1");
+
+        NativeS3FileSystem fs = createFs(config);
+        assertThat(fs.getClientProvider().getRegion()).isEqualTo("eu-central-1");
+        assertThat(fs.getClientProvider().getEndpoint()).isEqualTo("http://global.s3:9000");
+    }
+
+    @Test
+    void testMissingBucketNameInUriThrowsIOException() {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        factory.configure(baseConfig());
+
+        assertThatThrownBy(() -> factory.create(URI.create("s3:///path/to/file")))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("bucket name");
     }
 }

@@ -27,6 +27,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,11 +41,14 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * Factory for creating Native S3 FileSystem instances.
+ * Factory for creating Native S3 FileSystem instances using AWS SDK v2.
  *
- * <p>This factory creates {@link NativeS3FileSystem} instances for accessing Amazon S3 buckets
- * using AWS SDK v2. The Native S3 FileSystem provides a drop-in replacement for Presto and Hadoop
- * S3 implementations with minimal external dependencies.
+ * <h3>Bucket-Level Configuration</h3>
+ *
+ * <p>Supports per-bucket configuration overrides using the format {@code
+ * s3.bucket.<bucket-name>.<property>}. Bucket-level settings override global settings; unset
+ * properties inherit global values. See {@link BucketConfigProvider#PROPERTY_APPLICATORS} for the
+ * complete list of supported bucket-level properties.
  *
  * @see NativeS3FileSystem
  * @see org.apache.flink.core.fs.FileSystemFactory
@@ -295,6 +299,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "static credentials (if configured) -> DefaultCredentialsProvider.");
 
     @Nullable private Configuration flinkConfig;
+    @Nullable private BucketConfigProvider bucketConfigProvider;
 
     @Override
     public String getScheme() {
@@ -310,6 +315,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
     @Override
     public void configure(Configuration config) {
         this.flinkConfig = config;
+        this.bucketConfigProvider = new BucketConfigProvider(config);
     }
 
     @Override
@@ -324,13 +330,56 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         String region = config.get(REGION);
         String endpoint = config.get(ENDPOINT);
         boolean pathStyleAccess = config.get(PATH_STYLE_ACCESS);
+        String sseType = config.get(SSE_TYPE);
+        String sseKmsKeyId = config.get(SSE_KMS_KEY_ID);
+        String assumeRoleArn = config.get(ASSUME_ROLE_ARN);
+        String assumeRoleExternalId = config.get(ASSUME_ROLE_EXTERNAL_ID);
+        String assumeRoleSessionName = config.get(ASSUME_ROLE_SESSION_NAME);
+        int assumeRoleSessionDuration = config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS);
+        String credentialsProviderClasses = config.get(AWS_CREDENTIALS_PROVIDER);
+
+        // Apply bucket-specific overrides
+        String bucketName = fsUri.getHost();
+        if (StringUtils.isNullOrWhitespaceOnly(bucketName)) {
+            throw new IOException("Invalid S3 URI: missing or empty bucket name in URI: " + fsUri);
+        }
+        if (bucketConfigProvider != null) {
+            S3BucketConfig overrides = bucketConfigProvider.getBucketConfig(bucketName);
+            if (overrides != null) {
+                LOG.debug(
+                        "Applying bucket-specific configuration for bucket '{}': {}",
+                        bucketName,
+                        overrides);
+                accessKey = firstNonNull(overrides.getAccessKey(), accessKey);
+                secretKey = firstNonNull(overrides.getSecretKey(), secretKey);
+                region = firstNonNull(overrides.getRegion(), region);
+                endpoint = firstNonNull(overrides.getEndpoint(), endpoint);
+                sseType = firstNonNull(overrides.getSseType(), sseType);
+                sseKmsKeyId = firstNonNull(overrides.getSseKmsKeyId(), sseKmsKeyId);
+                assumeRoleArn = firstNonNull(overrides.getAssumeRoleArn(), assumeRoleArn);
+                assumeRoleExternalId =
+                        firstNonNull(overrides.getAssumeRoleExternalId(), assumeRoleExternalId);
+                assumeRoleSessionName =
+                        firstNonNull(overrides.getAssumeRoleSessionName(), assumeRoleSessionName);
+                credentialsProviderClasses =
+                        firstNonNull(
+                                overrides.getCredentialsProvider(), credentialsProviderClasses);
+                if (overrides.getPathStyleAccess() != null) {
+                    pathStyleAccess = overrides.getPathStyleAccess();
+                }
+                if (overrides.getAssumeRoleSessionDurationSeconds() != null) {
+                    assumeRoleSessionDuration = overrides.getAssumeRoleSessionDurationSeconds();
+                }
+            }
+        }
 
         S3EncryptionConfig encryptionConfig =
                 S3EncryptionConfig.fromConfig(
-                        config.get(SSE_TYPE),
-                        config.get(SSE_KMS_KEY_ID),
+                        sseType,
+                        sseKmsKeyId,
                         config.getOptional(SSE_KMS_ENCRYPTION_CONTEXT)
                                 .orElse(Collections.emptyMap()));
+
         String entropyInjectionKey = config.get(ENTROPY_INJECT_KEY_OPTION);
         int numEntropyChars = -1;
         if (entropyInjectionKey != null) {
@@ -404,13 +453,12 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .socketTimeout(config.get(SOCKET_TIMEOUT))
                         .connectionMaxIdleTime(config.get(CONNECTION_MAX_IDLE_TIME))
                         .clientCloseTimeout(config.get(CLIENT_CLOSE_TIMEOUT))
-                        .assumeRoleArn(config.get(ASSUME_ROLE_ARN))
-                        .assumeRoleExternalId(config.get(ASSUME_ROLE_EXTERNAL_ID))
-                        .assumeRoleSessionName(config.get(ASSUME_ROLE_SESSION_NAME))
-                        .assumeRoleSessionDurationSeconds(
-                                config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS))
+                        .assumeRoleArn(assumeRoleArn)
+                        .assumeRoleExternalId(assumeRoleExternalId)
+                        .assumeRoleSessionName(assumeRoleSessionName)
+                        .assumeRoleSessionDurationSeconds(assumeRoleSessionDuration)
                         .maxRetries(config.get(MAX_RETRIES))
-                        .credentialsProviderClasses(config.get(AWS_CREDENTIALS_PROVIDER))
+                        .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
                         .build();
 
@@ -441,5 +489,10 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                 useAsyncOperations,
                 readBufferSize,
                 config.get(FS_CLOSE_TIMEOUT));
+    }
+
+    @Nullable
+    private static <T> T firstNonNull(@Nullable T override, @Nullable T base) {
+        return override != null ? override : base;
     }
 }

@@ -90,6 +90,31 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.assume-role.session-name | flink-s3-session | Session name for the assumed role |
 | s3.assume-role.session-duration | 3600 | Session duration in seconds (900-43200) |
 
+## Bucket-Level Configuration
+
+The Native S3 FileSystem supports per-bucket configuration overrides, allowing different S3 buckets to use different connection settings within the same Flink cluster. This enables scenarios like:
+
+- **Different credentials per bucket** (e.g., cross-account access for a data sink bucket)
+- **Different regions or endpoints** (e.g., checkpoints in `us-east-1`, archive bucket in `eu-west-1`)
+- **Bucket-specific encryption** (e.g., SSE-KMS for sensitive data, SSE-S3 for logs)
+
+### Format
+
+Bucket-level configuration uses the format: `s3.bucket.<bucket-name>.<property>`
+
+Bucket names containing dots (e.g., `my.company.data`) are fully supported through longest-suffix matching.
+
+> **Note:** AWS recommends avoiding periods (`.`) in bucket names. Buckets with dots cannot use virtual-hosted-style addressing over HTTPS without custom certificate validation. If you use dotted bucket names, enable `path-style-access` for that bucket (see [AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html)).
+
+### Supported Properties
+
+All global S3 configuration properties can be overridden at the bucket level:
+
+- **Connection:** `region`, `endpoint`, `path-style-access`
+- **Credentials:** `access-key`, `secret-key`, `credentials.provider`
+- **Encryption:** `sse.type`, `sse.kms-key-id`
+- **IAM Assume Role:** `assume-role.arn`, `assume-role.external-id`, `assume-role.session-name`, `assume-role.session-duration`
+
 ## Server-Side Encryption (SSE)
 
 The filesystem supports server-side encryption for data at rest:
