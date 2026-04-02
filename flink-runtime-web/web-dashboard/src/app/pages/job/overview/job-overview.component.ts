@@ -162,11 +162,16 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
             map(result => {
               return {
                 ...node,
-                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond.max / 10), 100),
-                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond.max / 10), 100),
-                dataSkewPercentage: result.numRecordsInPerSecond.skew
+                backPressuredPercentage: result.backPressuredTimeMsPerSecond
+                  ? Math.min(Math.round(result.backPressuredTimeMsPerSecond.max / 10), 100)
+                  : NaN,
+                busyPercentage: result.busyTimeMsPerSecond
+                  ? Math.min(Math.round(result.busyTimeMsPerSecond.max / 10), 100)
+                  : NaN,
+                dataSkewPercentage: result.numRecordsInPerSecond?.skew ?? NaN
               };
-            })
+            }),
+            catchError(() => of(node))
           );
       })
     ).pipe(catchError(() => of(nodes)));
@@ -178,7 +183,8 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         return this.metricService.loadWatermarks(this.jobId, node.id).pipe(
           map(result => {
             return { ...node, lowWatermark: result.lowWatermark };
-          })
+          }),
+          catchError(() => of(node))
         );
       })
     ).pipe(catchError(() => of(nodes)));
