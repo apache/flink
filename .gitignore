@@ -7,7 +7,6 @@ scalastyle-output.xml
 !.idea/vcs.xml
 !.idea/icon.png
 .vscode
-.claude
 .metals
 .bloop
 .cursor
