@@ -82,7 +82,7 @@ class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, Stri
 
     @Override
     public void open(OpenContext openContext) throws Exception {
-        client = new DatabaseClient(host, post, credentials);
+        client = new DatabaseClient(host, port, credentials);
     }
 
     @Override
