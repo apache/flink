@@ -128,12 +128,12 @@ GROUP BY color
 TableEnvironment tEnv = ...;
 
 // access flink configuration
-Configuration configuration = tEnv.getConfig().getConfiguration();
+TableConfig configuration = tEnv.getConfig();
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true"); // local-global aggregation depends on mini-batch is enabled
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
-configuration.setString("table.exec.mini-batch.size", "5000");
-configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true"); // local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s");
+configuration.set("table.exec.mini-batch.size", "5000");
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -204,7 +204,9 @@ GROUP BY day
 
 注意：上面是可以从这个优化中受益的最简单的示例。除此之外，Flink 还支持拆分更复杂的聚合查询，例如，多个具有不同 distinct key （例如 `COUNT(DISTINCT a), SUM(DISTINCT b)` ）的 distinct 聚合，可以与其他非 distinct 聚合（例如 `SUM`、`MAX`、`MIN`、`COUNT` ）一起使用。
 
-<span class="label label-danger">注意</span> 当前，拆分优化不支持包含用户定义的 AggregateFunction 聚合。
+{{< hint info >}}
+当前，拆分优化不支持包含用户定义的 AggregateFunction 聚合。
+{{< /hint >}}
 
 下面的例子显示了如何启用拆分 distinct 聚合优化。
 
@@ -298,7 +300,99 @@ ON a.id = b.id
 
 默认情况下，对于 regular join 算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
-{{< top >}}
+<a name="multiple-regular-joins"></a>
+
+## Multiple Regular Joins
+
+{{< label Streaming >}}
+
+在流处理场景中，包含多个非时态 Regular Join 的 Flink 作业，往往因状态过大而频繁出现运行不稳定和性能下降的问题。究其根本，是由于多个 Join 串联后产生的中间状态，往往远超原始输入数据本身的规模。为此，Flink 2.1 引入了全新的 Multi Join 算子，这一优化专为存在记录膨胀和大量中间状态的 Join 流水线而设计，旨在大幅压缩状态规模、提升整体性能。该算子通过同时处理多个输入流来完成跨表 Join，从根本上消除了在多表 Join 链路中存储中间状态的必要性。这种“零中间状态”的处理方式以降低状态规模为核心目标，在某些场景下可显著减少资源消耗、提升运行稳定性。当然，这一方案本质上是一种以算力换存储的权衡取舍，中间状态不再持久化保存，而是在需要时按需重新计算。
+
+在大多数 Join 操作中，相当一部分处理时间都花费在从状态中读取记录上。MultiJoin 算子的效率在很大程度上取决于中间状态的大小以及公共 Join Key 的选择性。在一种常见场景中——即流水线出现记录膨胀（每次 Join 产生的数据量和记录数均多于上一次）时，MultiJoin 算子的优势更为突出。这是因为它使算子所需操作的状态始终保持在较小的规模，从而让算子运行更加稳定。即便某条 Join 链路实际产生的状态比原始记录还要小，MultiJoin 算子整体上仍然占用更少的状态。不过在这种特殊情况下，二元 Join 反而可能表现更好，因为最终几个 Join 所需操作的状态本身已经很小。
+
+<a name="the-multijoin-operator"></a>
+
+### MultiJoin 算子
+
+MultiJoin 算子的主要优势：
+
+1) 状态规模大幅缩减：得益于零中间状态机制，状态占用显著降低。
+2) 链式 Join 性能提升：在存在记录膨胀的场景下，整体处理性能得到明显改善。
+3) 稳定性增强：状态随处理记录数呈线性增长，而非像二元 Join 那样呈多项式级增长。
+
+此外，使用 MultiJoin 替代二元 Join 的流水线通常具有更快地初始化和故障恢复速度，这得益于更小的状态规模以及更少的算子节点。
+
+<a name="when-to-enable-the-multijoin"></a>
+
+### 何时启用 MultiJoin？
+
+如果作业中存在多个 Join 共享至少一个公共 Join Key 的 Join 操作，并且中间 Join 产生的中间状态比原始输入数据源还要大，建议考虑开启 MultiJoin 算子。
+
+推荐使用场景：
+- 公共 Join Key 具有较高选择性（即每个键对应的记录数较少）
+- 包含多个链式 Join 且中间状态很大的 SQL 语句
+- 公共 Join Key 没有明显的数据倾斜
+- Join 操作产生了大量状态（状态规模达 50 GB 及以上）
+
+如果公共 Join Key 的选择性较低（即大量记录共享相同键值），MultiJoin 算子所需的中间状态重新计算将对性能产生严重影响。在此类场景下，建议使用二元 Join，因为二元 Join 会利用所有 Join Key 对数据进行分区，从而避免重算影响性能。
+
+<a name="how-to-enable-the-multijoin"></a>
+
+### 如何启用 MultiJoin？
+
+要对所有符合条件的 Join 全局启用此优化，请设置以下配置：
+
+```sql
+SET 'table.optimizer.multi-join.enabled' = 'true';
+```
+
+或者，你可以使用 `MULTI_JOIN` hint 为特定表启用 MultiJoin 算子：
+
+```sql
+SELECT /*+ MULTI_JOIN(t1, t2, t3) */ * FROM t1 
+JOIN t2 ON t1.id = t2.id 
+JOIN t3 ON t1.id = t3.id;
+```
+
+Hint 方式允许你有针对性地将 MultiJoin 优化应用于特定查询块，而无需全局启用。有关 `MULTI_JOIN` hint 的更多详情，请参阅 [Join Hints]({{< ref "docs/sql/reference/queries/hints" >}}#multi_join)。需要注意的是，配置项的优先级高于 hint。
+
+重要提示：该功能目前处于实验性阶段，后续可能会进行优化或引入破坏性变更。当前仅支持流式 INNER/LEFT Join。由于记录分区的机制，Join 条件之间至少需要一个公共 Key，详见下方示例：
+
+- 支持：A JOIN B ON A.key = B.key JOIN C ON A.key = C.key（按 key 分区）
+- 支持：A JOIN B ON A.key = B.key JOIN C ON B.key = C.key（通过传递性 key 分区）
+- 不支持：A JOIN B ON A.key1 = B.key1 JOIN C ON B.key2 = C.key2（没有单个 key 可以将 A、B、C 同时分区到单个算子中。这将被拆分为多个 MultiJoin 算子）
+
+<a name="multijoin-operator-example---benchmark"></a>
+
+### MultiJoin 算子示例 - 基准测试
+
+以下是默认二元 Join 与 MultiJoin 算子之间的 10-way 基准测试对比。可以在第一部分观察到中间状态的数量，第二部分观察算子达到 100% 忙碌时处理的记录数，第三部分是 checkpoint。
+
+{{< img src="/fig/table-streaming/multijoin_operator.png" height="100%" >}}
+
+对于上面这个涉及记录放大的 10-way join，可以看到有显著提升。这里有一些大概数据：
+
+- 性能：当两者都处于 100% 忙碌时，处理记录量提升 2 倍到超过 100 倍。
+- 状态大小：中间状态大小缩小 3 倍到超过 1000 倍。
+
+MultiJoin 算子的总状态始终更小。在这种情况下，初始性能相同，但随着中间状态增长，二元 Join 的性能逐渐下降，而 Multi Join 保持稳定并表现更出色。
+
+这个 10-way Join 通用基准测试使用以下配置运行：每个 tenant_id 1 条记录（高选择性），10 个 upsert Kafka topic，并行度 10，每个 topic 每秒 1 条记录。我们使用了基于 RocksDB 的未对齐 checkpoint 和增量 checkpoint。每个作业运行在 8GB 进程内存的 TaskManager 中，1GB 堆外内存和 20% 网络内存。JobManager 有 4GB 进程内存。主机包含 M1 处理器芯片，32GB RAM 和 1TB SSD。sink 使用 blackhole connector，因此我们只对 Join 进行基准测试。用于生成基准测试数据的 SQL 结构如下：
+
+```sql
+INSERT INTO JoinResultsMJ
+SELECT *all fields*
+FROM TenantKafka t
+         LEFT JOIN SuppliersKafka s ON t.tenant_id = s.tenant_id AND ...
+         LEFT JOIN ProductsKafka p ON t.tenant_id = p.tenant_id AND ...
+         LEFT JOIN CategoriesKafka c ON t.tenant_id = c.tenant_id AND ...
+         LEFT JOIN OrdersKafka o ON t.tenant_id = o.tenant_id AND ...
+         LEFT JOIN CustomersKafka cust ON t.tenant_id = cust.tenant_id AND ...
+         LEFT JOIN WarehousesKafka w ON t.tenant_id = w.tenant_id AND ...
+         LEFT JOIN ShippingKafka sh ON t.tenant_id = sh.tenant_id AND ...
+         LEFT JOIN PaymentKafka pay ON t.tenant_id = pay.tenant_id AND ...
+         LEFT JOIN InventoryKafka i ON t.tenant_id = i.tenant_id AND ...;
+```
 
 <a name="delta-joins"></a>
 
@@ -362,3 +456,5 @@ SET 'table.optimizer.delta-join.strategy' = 'NONE';
 4. 当消费 **CDC 流**时，**join key** 必须是**主键**的一部分。
 5. 当消费 **CDC 流**时，所有 **filter** 必须应用于 **upsert key** 上。
 6. 所有 project 和 filter 都不能包含**非确定性函数**。
+
+{{< top >}}
