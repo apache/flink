@@ -47,11 +47,13 @@ public class SqlLikeChainChecker {
     private final int endLen;
     private final boolean leftAnchor;
     private final boolean rightAnchor;
+    private final boolean emptyPattern;
 
     public SqlLikeChainChecker(String pattern) {
         final StringTokenizer tokens = new StringTokenizer(pattern, "%");
         leftAnchor = !pattern.startsWith("%");
         rightAnchor = !pattern.endsWith("%");
+        emptyPattern = pattern.isEmpty();
         int len = 0;
         // at least 2 checkers always
         BinaryStringData leftPattern = null;
@@ -97,13 +99,8 @@ public class SqlLikeChainChecker {
         int mark = str.getSizeInBytes();
         // Returns false early if either:
         // the input is too short to match the pattern, or
-        // the pattern is empty (or anchored with no literals) but the input is not empty.
-        if (mark < minLen
-                || beginPattern == null
-                        && endPattern == null
-                        && middlePatterns.length == 0
-                        && mark > 0
-                        && (leftAnchor || rightAnchor)) {
+        // the pattern is empty but the input is not.
+        if (mark < minLen || mark > 0 && emptyPattern) {
             return false;
         }
         // prefix, extend start
