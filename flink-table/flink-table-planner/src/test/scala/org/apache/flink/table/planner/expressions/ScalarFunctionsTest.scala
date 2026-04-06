@@ -408,11 +408,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis("abcxxxdef".like("%abc%qef%"), "'abcxxxdef' LIKE '%abc%qef%'", "FALSE")
     testAllApis("abcxxxdef".like("abc%qef"), "'abcxxxdef' LIKE 'abc%qef'", "FALSE")
 
-    // reported in FLINK-36100
+    // reported in FLINK-36100: verify default escape char '\' behavior
+    // \_ means literal '_', \% means literal '%'
     testAllApis("TE_ST".like("%E_S%"), "'TE_ST' LIKE '%E_S%'", "TRUE")
     testAllApis("TE-ST".like("%E_S%"), "'TE-ST' LIKE '%E_S%'", "TRUE")
     testAllApis("TE_ST".like("%E\\_S%"), "'TE_ST' LIKE '%E\\_S%'", "TRUE")
     testAllApis("TE-ST".like("%E\\_S%"), "'TE-ST' LIKE '%E\\_S%'", "FALSE")
+    testAllApis("TE%ST".like("TE\\%ST"), "'TE%ST' LIKE 'TE\\%ST'", "TRUE")
+    testAllApis("TExST".like("TE\\%ST"), "'TExST' LIKE 'TE\\%ST'", "FALSE")
+
+    // escape character at the end
+    testExpectedAllApisException(
+      "TE-ST".like("%E-S%\\"),
+      "'TE-ST' LIKE '%E-S%\\'",
+      "",
+      classOf[RuntimeException])
+
+    // invalid character after escape character
+    testExpectedAllApisException(
+      "TEST".like("%E\\S%"),
+      "'TEST' LIKE '%E\\S%'",
+      "Invalid escape",
+      classOf[RuntimeException])
   }
 
   @Test
@@ -429,6 +446,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testLikeWithEscape(): Unit = {
+    // empty ESCAPE string: no escape character, _ and % retain wildcard semantics
+    testAllApis("abc".like("abc", ""), "'abc' LIKE 'abc' ESCAPE ''", "TRUE")
+    testAllApis("abd".like("abc", ""), "'abd' LIKE 'abc' ESCAPE ''", "FALSE")
+    testAllApis("abcdef".like("abc%", ""), "'abcdef' LIKE 'abc%' ESCAPE ''", "TRUE")
+    testAllApis("abcdef".like("%def", ""), "'abcdef' LIKE '%def' ESCAPE ''", "TRUE")
+    testAllApis("abcdef".like("%cd%", ""), "'abcdef' LIKE '%cd%' ESCAPE ''", "TRUE")
+
     testAllApis('f23.like("&%Th_s%", "&"), "f23 LIKE '&%Th_s%' ESCAPE '&'", "TRUE")
     testAllApis('f23.like("&%%is a%", "&"), "f23 LIKE '&%%is a%' ESCAPE '&'", "TRUE")
     testAllApis('f0.like("Th_s%", "&"), "f0 LIKE 'Th_s%' ESCAPE '&'", "TRUE")

@@ -54,47 +54,58 @@ class LikeCallGen extends CallGenerator {
         terms =>
           val pattern = operands(1).literalValue.get.toString
           var newPattern: String = pattern
-          val allowQuick = if (operands.length == 2) {
-            !pattern.contains("_")
-          } else {
-            val escape = operands(2).literalValue.get.toString
-            if (escape.isEmpty) {
-              !pattern.contains("_")
+          val allowQuick = {
+            // Determine escape character:
+            // - operands.length == 2 (no ESCAPE clause): default escape is '\'
+            // - operands.length == 3 with empty escape: no escape character
+            // - operands.length == 3 with non-empty escape: use specified escape
+            val escapeCharOpt: Option[Char] = if (operands.length == 2) {
+              Some('\\')
             } else {
-              if (escape.length > 1) {
-                throw SqlLikeUtils.invalidEscapeCharacter(escape)
-              }
-              val escapeChar = escape.charAt(escape.length - 1)
-              var matched = true
-              var i = 0
-              val newBuilder = new StringBuilder
-              while (i < pattern.length && matched) {
-                val c = pattern.charAt(i)
-                if (c == escapeChar) {
-                  if (i == (pattern.length - 1)) {
-                    throw SqlLikeUtils.invalidEscapeSequence(pattern, i)
-                  }
-                  val nextChar = pattern.charAt(i + 1)
-                  if (nextChar == '%') {
-                    matched = false
-                  } else if ((nextChar == '_') || (nextChar == escapeChar)) {
-                    newBuilder.append(nextChar)
-                    i += 1
-                  } else {
-                    throw SqlLikeUtils.invalidEscapeSequence(pattern, i)
-                  }
-                } else if (c == '_') {
-                  matched = false
-                } else {
-                  newBuilder.append(c)
+              val escape = operands(2).literalValue.get.toString
+              if (escape.isEmpty) {
+                None
+              } else {
+                if (escape.length > 1) {
+                  throw SqlLikeUtils.invalidEscapeCharacter(escape)
                 }
-                i += 1
+                Some(escape.charAt(escape.length - 1))
               }
+            }
 
-              if (matched) {
-                newPattern = newBuilder.toString
-              }
-              matched
+            escapeCharOpt match {
+              case None => !pattern.contains("_")
+              case Some(escapeChar) =>
+                var matched = true
+                var i = 0
+                val newBuilder = new StringBuilder
+                while (i < pattern.length && matched) {
+                  val c = pattern.charAt(i)
+                  if (c == escapeChar) {
+                    if (i == (pattern.length - 1)) {
+                      throw SqlLikeUtils.invalidEscapeSequence(pattern, i)
+                    }
+                    val nextChar = pattern.charAt(i + 1)
+                    if (nextChar == '%') {
+                      matched = false
+                    } else if ((nextChar == '_') || (nextChar == escapeChar)) {
+                      newBuilder.append(nextChar)
+                      i += 1
+                    } else {
+                      throw SqlLikeUtils.invalidEscapeSequence(pattern, i)
+                    }
+                  } else if (c == '_') {
+                    matched = false
+                  } else {
+                    newBuilder.append(c)
+                  }
+                  i += 1
+                }
+
+                if (matched) {
+                  newPattern = newBuilder.toString
+                }
+                matched
             }
           }
 
