@@ -32,6 +32,9 @@ import java.lang.management.OperatingSystemMXBean;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,6 +48,11 @@ public class Hardware {
     private static final Pattern LINUX_MEMORY_REGEX =
             Pattern.compile("^MemTotal:\\s*(\\d+)\\s+kB$");
 
+    private static final String CGROUP_V2_CPU_MAX_PATH = "/sys/fs/cgroup/cpu.max";
+
+    private static final String CGROUP_V1_CPU_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
+    private static final String CGROUP_V1_CPU_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
+
     // ------------------------------------------------------------------------
 
     /**
@@ -54,6 +62,168 @@ public class Hardware {
      */
     public static int getNumberCPUCores() {
         return Runtime.getRuntime().availableProcessors();
+    }
+
+    /**
+     * Gets the number of CPU cores available to the JVM as a fractional value.
+     *
+     * <p>On Linux, this method first attempts to detect a container CPU limit via cgroup files (v2,
+     * then v1). If a limit is found, it is returned as-is (e.g. 0.5, 1.5). If no container limit is
+     * detected, it falls back to {@link Runtime#availableProcessors()}.
+     *
+     * <p>Use this method when the fractional value matters, for example when displaying the CPU
+     * count in the Web UI or when performing arithmetic before rounding (e.g. {@code 4 * cores}).
+     * For call sites that need an integer (e.g. thread pool sizes), use {@link
+     * #getNumberCPUCores()} instead.
+     *
+     * @return The number of CPU cores as a double.
+     */
+    public static double getNumberCPUCoresAsDouble() {
+        double containerLimit = getContainerCpuLimit();
+        if (containerLimit > 0) {
+            LOG.debug("Using container CPU limit for core count: limit={}", containerLimit);
+            return containerLimit;
+        }
+        return Runtime.getRuntime().availableProcessors();
+    }
+
+    /**
+     * Returns the CPU limit of the container as a fractional double by reading Linux cgroup CPU
+     * quota and period values.
+     *
+     * <p>This method attempts to read the CPU limit from cgroup v2 first ({@code
+     * /sys/fs/cgroup/cpu.max}), then falls back to cgroup v1 ({@code
+     * /sys/fs/cgroup/cpu/cpu.cfs_quota_us} and {@code cpu.cfs_period_us}).
+     *
+     * <p>Examples of return values:
+     *
+     * <ul>
+     *   <li>{@code 0.5} - container limited to half a CPU core
+     *   <li>{@code 2.0} - container limited to 2 CPU cores
+     *   <li>{@code -1} - not running in a container, no CPU limit set, or unable to read cgroup
+     *       files (e.g. non-Linux OS)
+     * </ul>
+     *
+     * @return the container CPU limit as a fractional double, or {@code -1} if no limit is detected
+     */
+    public static double getContainerCpuLimit() {
+        // Try cgroup v2 first
+        double limit = getCpuLimitFromCgroupV2();
+        if (limit > 0) {
+            return limit;
+        }
+
+        // Fall back to cgroup v1
+        limit = getCpuLimitFromCgroupV1();
+        if (limit > 0) {
+            return limit;
+        }
+
+        LOG.debug(
+                "Could not detect container CPU limit from cgroup files. "
+                        + "This is expected when not running inside a container or when no CPU limit is set.");
+        return -1;
+    }
+
+    /**
+     * Reads CPU limit from cgroup v2.
+     *
+     * <p>The file {@code /sys/fs/cgroup/cpu.max} contains two space-separated values: {@code quota
+     * period}. For example, {@code "50000 100000"} means a limit of 0.5 CPU cores. The string
+     * {@code "max"} as the quota means no limit is set.
+     *
+     * @return the CPU limit as a double, or {@code -1} if unavailable or unlimited
+     */
+    private static double getCpuLimitFromCgroupV2() {
+        try {
+            Path path = Paths.get(CGROUP_V2_CPU_MAX_PATH);
+            if (!Files.exists(path)) {
+                return -1;
+            }
+
+            String content = Files.readString(path).trim();
+            String[] parts = content.split("\\s+");
+            if (parts.length != 2) {
+                LOG.debug(
+                        "Unexpected format in {}: '{}'. Expected 'quota period'.",
+                        CGROUP_V2_CPU_MAX_PATH,
+                        content);
+                return -1;
+            }
+
+            // "max" means no CPU limit is set
+            if ("max".equals(parts[0])) {
+                LOG.debug("No CPU limit set (cgroup v2 quota is 'max').");
+                return -1;
+            }
+
+            long quota = Long.parseLong(parts[0]);
+            long period = Long.parseLong(parts[1]);
+            if (quota > 0 && period > 0) {
+                double cpuLimit = (double) quota / period;
+                LOG.debug(
+                        "Detected cgroup v2 CPU limit: quota={}, period={}, limit={}",
+                        quota,
+                        period,
+                        cpuLimit);
+                return cpuLimit;
+            }
+        } catch (NumberFormatException e) {
+            LOG.debug("Failed to parse cgroup v2 CPU limit values.", e);
+        } catch (IOException e) {
+            LOG.debug("Could not read cgroup v2 CPU limit file: {}", CGROUP_V2_CPU_MAX_PATH, e);
+        } catch (Throwable t) {
+            LOG.debug("Unexpected error reading cgroup v2 CPU limit.", t);
+        }
+        return -1;
+    }
+
+    /**
+     * Reads CPU limit from cgroup v1.
+     *
+     * <p>The quota is read from {@code /sys/fs/cgroup/cpu/cpu.cfs_quota_us} and the period from
+     * {@code /sys/fs/cgroup/cpu/cpu.cfs_period_us}. Both values are in microseconds. A quota of
+     * {@code -1} means no limit is set. The CPU limit is computed as {@code quota / period}.
+     *
+     * @return the CPU limit as a double, or {@code -1} if unavailable or unlimited
+     */
+    private static double getCpuLimitFromCgroupV1() {
+        try {
+            Path quotaPath = Paths.get(CGROUP_V1_CPU_QUOTA_PATH);
+            Path periodPath = Paths.get(CGROUP_V1_CPU_PERIOD_PATH);
+            if (!Files.exists(quotaPath) || !Files.exists(periodPath)) {
+                return -1;
+            }
+
+            long quota = Long.parseLong(Files.readString(quotaPath).trim());
+            long period = Long.parseLong(Files.readString(periodPath).trim());
+
+            // quota == -1 means no CPU limit is set in cgroup v1
+            if (quota <= 0) {
+                LOG.debug("No CPU limit set (cgroup v1 quota={}).", quota);
+                return -1;
+            }
+
+            if (period <= 0) {
+                LOG.debug("Invalid cgroup v1 CPU period: {}", period);
+                return -1;
+            }
+
+            double cpuLimit = (double) quota / period;
+            LOG.debug(
+                    "Detected cgroup v1 CPU limit: quota={}, period={}, limit={}",
+                    quota,
+                    period,
+                    cpuLimit);
+            return cpuLimit;
+        } catch (NumberFormatException e) {
+            LOG.debug("Failed to parse cgroup v1 CPU limit values.", e);
+        } catch (IOException e) {
+            LOG.debug("Could not read cgroup v1 CPU limit files.", e);
+        } catch (Throwable t) {
+            LOG.debug("Unexpected error reading cgroup v1 CPU limit.", t);
+        }
+        return -1;
     }
 
     /**
