@@ -21,6 +21,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -117,6 +118,9 @@ class SnapshotFileMergingCompatibilityITCase {
         config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
         config.set(CheckpointingOptions.FILE_MERGING_ACROSS_BOUNDARY, fileMergingAcrossBoundary);
         config.set(CheckpointingOptions.FILE_MERGING_ENABLED, firstFileMergingSwitch);
+        // Disable changelog to avoid ChangelogStateBackendHandle wrapping the state handles,
+        // which would break the type assertions in verifyStateHandleType.
+        config.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
         MiniClusterWithClientResource firstCluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

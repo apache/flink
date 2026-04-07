@@ -24,8 +24,11 @@ import org.junit.runners.model.Statement;
 import javax.annotation.Nullable;
 
 /**
- * A rule that provides the current test name per thread. Currently, the test name is available for
- * all tests that extend {@link TestLogger}.
+ * Provides the current test name per thread. For JUnit 4, this works as a {@link TestRule}
+ * registered in {@link TestLogger}. For JUnit 5, use {@link TestNameProviderExtension}.
+ *
+ * <p>This class must NOT depend on JUnit 5 APIs because it is loaded at runtime (not only in test
+ * environments) via {@link org.apache.flink.runtime.testutils.PseudoRandomValueSelector#randomize}.
  */
 public class TestNameProvider implements TestRule {
     private static ThreadLocal<String> testName = new ThreadLocal<>();
@@ -33,6 +36,14 @@ public class TestNameProvider implements TestRule {
     @Nullable
     public static String getCurrentTestName() {
         return testName.get();
+    }
+
+    static void setCurrentTestName(String name) {
+        testName.set(name);
+    }
+
+    static void clearCurrentTestName() {
+        testName.set(null);
     }
 
     @Override
