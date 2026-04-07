@@ -17,7 +17,6 @@ scalastyle-output.xml
 .project
 .version.properties
 filter.properties
-logs.zip
 .mvn/wrapper/*.jar
 .mvn/maven.config
 target
