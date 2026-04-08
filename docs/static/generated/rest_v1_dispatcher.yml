@@ -3109,12 +3109,9 @@ components:
         value:
           type: string
     MetricCollectionResponseBody:
-      type: object
-      properties:
-        metrics:
-          type: array
-          items:
-            $ref: "#/components/schemas/Metric"
+      type: array
+      items:
+        $ref: "#/components/schemas/Metric"
     MultipleApplicationsDetails:
       type: object
       properties:
