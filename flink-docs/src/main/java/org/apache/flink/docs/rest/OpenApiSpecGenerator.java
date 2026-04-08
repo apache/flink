@@ -21,6 +21,7 @@ package org.apache.flink.docs.rest;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.FileUploadHandler;
@@ -279,7 +280,8 @@ public class OpenApiSpecGenerator {
                 .addSchemas(JobVertexID.class.getSimpleName(), idSchema)
                 .addSchemas(IntermediateDataSetID.class.getSimpleName(), idSchema)
                 .addSchemas(TriggerId.class.getSimpleName(), idSchema)
-                .addSchemas(ResourceID.class.getSimpleName(), idSchema);
+                .addSchemas(ResourceID.class.getSimpleName(), idSchema)
+                .addSchemas(SlotSharingGroupId.class.getSimpleName(), idSchema);
     }
 
     private static void overrideSerializeThrowableSchema(final OpenAPI openAPI) {
