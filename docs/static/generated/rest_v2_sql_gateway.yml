@@ -615,9 +615,13 @@ components:
     SerializedThrowable:
       type: object
       properties:
+        class:
+          type: string
         serialized-throwable:
           type: string
           format: binary
+        stack-trace:
+          type: string
     SessionHandle:
       type: object
       properties:

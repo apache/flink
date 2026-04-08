@@ -152,8 +152,8 @@ public class OpenApiSpecGenerator {
         injectAsyncOperationResultSchema(openApi, asyncOperationSchemas);
 
         overrideIdSchemas(openApi);
-        overrideSerializeThrowableSchema(openApi);
         overrideMetricCollectionSchema(openApi);
+        overrideSerializeThrowableSchema(openApi);
 
         sortProperties(openApi);
         sortSchemas(openApi);
@@ -304,7 +304,11 @@ public class OpenApiSpecGenerator {
                 new Schema<>()
                         .type("object")
                         .properties(
-                                Collections.singletonMap(
+                                Map.of(
+                                        SerializedThrowableSerializer.FIELD_NAME_CLASS,
+                                        new Schema().type("string"),
+                                        SerializedThrowableSerializer.FIELD_NAME_STACK_TRACE,
+                                        new Schema().type("string"),
                                         SerializedThrowableSerializer
                                                 .FIELD_NAME_SERIALIZED_THROWABLE,
                                         new Schema().type("string").format("binary")));
