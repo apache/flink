@@ -675,6 +675,9 @@ components:
         identifier:
           type: string
           format: uuid
+    SlotSharingGroupId:
+      pattern: "[0-9a-f]{32}"
+      type: string
     TriggerId:
       pattern: "[0-9a-f]{32}"
       type: string
