@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
@@ -44,7 +45,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorAttributes;
 import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.MutableObjectIterator;
@@ -86,10 +86,10 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
     private final int positionSortField;
 
     /** The sorter to sort record if the record is not sorted by {@link KeySelector}. */
-    private PushSorter<INPUT> recordSorter = null;
+    private PushSorter<Tuple2<INPUT, Long>> recordSorter = null;
 
     /** The sorter to sort record if the record is sorted by {@link KeySelector}. */
-    private PushSorter<Tuple2<?, INPUT>> recordSorterForKeySelector = null;
+    private PushSorter<Tuple3<?, INPUT, Long>> recordSorterForKeySelector = null;
 
     public SortPartitionOperator(
             TypeInformation<INPUT> inputType, int positionSortField, Order sortOrder) {
@@ -131,14 +131,15 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
         super.setup(containingTask, config, output);
         ExecutionConfig executionConfig = containingTask.getEnvironment().getExecutionConfig();
         if (sortFieldSelector != null) {
-            TypeInformation<Tuple2<?, INPUT>> sortTypeInfo =
+            TypeInformation<Tuple3<?, INPUT, Long>> sortTypeInfo =
                     Types.TUPLE(
                             TypeExtractor.getKeySelectorTypes(sortFieldSelector, inputType),
-                            inputType);
+                            inputType,
+                            Types.LONG);
             recordSorterForKeySelector =
                     getSorter(
                             sortTypeInfo.createSerializer(executionConfig.getSerializerConfig()),
-                            ((CompositeType<Tuple2<?, INPUT>>) sortTypeInfo)
+                            ((CompositeType<Tuple3<?, INPUT, Long>>) sortTypeInfo)
                                     .createComparator(
                                             getSortFieldIndex(),
                                             getSortOrderIndicator(),
@@ -146,10 +147,11 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
                                             executionConfig),
                             containingTask);
         } else {
+            TypeInformation<Tuple2<INPUT, Long>> sortTypeInfo = Types.TUPLE(inputType, Types.LONG);
             recordSorter =
                     getSorter(
-                            inputType.createSerializer(executionConfig.getSerializerConfig()),
-                            ((CompositeType<INPUT>) inputType)
+                            sortTypeInfo.createSerializer(executionConfig.getSerializerConfig()),
+                            ((CompositeType<Tuple2<INPUT, Long>>) sortTypeInfo)
                                     .createComparator(
                                             getSortFieldIndex(),
                                             getSortOrderIndicator(),
@@ -163,31 +165,33 @@ public class SortPartitionOperator<INPUT> extends AbstractStreamOperator<INPUT>
     public void processElement(StreamRecord<INPUT> element) throws Exception {
         if (sortFieldSelector != null) {
             recordSorterForKeySelector.writeRecord(
-                    Tuple2.of(sortFieldSelector.getKey(element.getValue()), element.getValue()));
+                    Tuple3.of(
+                            sortFieldSelector.getKey(element.getValue()),
+                            element.getValue(),
+                            element.getTimestamp()));
         } else {
-            recordSorter.writeRecord(element.getValue());
+            recordSorter.writeRecord(Tuple2.of(element.getValue(), element.getTimestamp()));
         }
     }
 
     @Override
     public void endInput() throws Exception {
-        TimestampedCollector<INPUT> outputCollector = new TimestampedCollector<>(output);
         if (sortFieldSelector != null) {
             recordSorterForKeySelector.finishReading();
-            MutableObjectIterator<Tuple2<?, INPUT>> dataIterator =
+            MutableObjectIterator<Tuple3<?, INPUT, Long>> dataIterator =
                     recordSorterForKeySelector.getIterator();
-            Tuple2<?, INPUT> record = dataIterator.next();
+            Tuple3<?, INPUT, Long> record = dataIterator.next();
             while (record != null) {
-                outputCollector.collect(record.f1);
+                output.collect(new StreamRecord<>(record.f1, record.f2));
                 record = dataIterator.next();
             }
             recordSorterForKeySelector.close();
         } else {
             recordSorter.finishReading();
-            MutableObjectIterator<INPUT> dataIterator = recordSorter.getIterator();
-            INPUT record = dataIterator.next();
+            MutableObjectIterator<Tuple2<INPUT, Long>> dataIterator = recordSorter.getIterator();
+            Tuple2<INPUT, Long> record = dataIterator.next();
             while (record != null) {
-                outputCollector.collect(record);
+                output.collect(new StreamRecord<>(record.f0, record.f1));
                 record = dataIterator.next();
             }
             recordSorter.close();

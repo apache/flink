@@ -47,12 +47,13 @@ class SortPartitionOperatorTest {
                 testHarness1 = new OneInputStreamOperatorTestHarness<>(operator1);
         Queue<Object> expectedOutput1 = new LinkedList<>();
         testHarness1.setup();
-        testHarness1.processElement(new StreamRecord<>(Tuple2.of(3, "3")));
-        testHarness1.processElement(new StreamRecord<>(Tuple2.of(1, "1")));
+        long timestamp = 1L;
+        testHarness1.processElement(new StreamRecord<>(Tuple2.of(3, "3"), timestamp));
+        testHarness1.processElement(new StreamRecord<>(Tuple2.of(1, "1"), timestamp));
         testHarness1.endInput();
         testHarness1.close();
-        expectedOutput1.add(new StreamRecord<>(Tuple2.of(1, "1")));
-        expectedOutput1.add(new StreamRecord<>(Tuple2.of(3, "3")));
+        expectedOutput1.add(new StreamRecord<>(Tuple2.of(1, "1"), timestamp));
+        expectedOutput1.add(new StreamRecord<>(Tuple2.of(3, "3"), timestamp));
         TestHarnessUtil.assertOutputEquals(
                 "The sort partition result is not correct.",
                 expectedOutput1,
@@ -63,12 +64,12 @@ class SortPartitionOperatorTest {
                 new OneInputStreamOperatorTestHarness<>(operator2);
         Queue<Object> expectedOutput2 = new LinkedList<>();
         testHarness2.setup();
-        testHarness2.processElement(new StreamRecord<>(new TestPojo("3", 3)));
-        testHarness2.processElement(new StreamRecord<>(new TestPojo("1", 1)));
+        testHarness2.processElement(new StreamRecord<>(new TestPojo("3", 3), timestamp));
+        testHarness2.processElement(new StreamRecord<>(new TestPojo("1", 1), timestamp));
         testHarness2.endInput();
         testHarness2.close();
-        expectedOutput2.add(new StreamRecord<>(new TestPojo("1", 1)));
-        expectedOutput2.add(new StreamRecord<>(new TestPojo("3", 3)));
+        expectedOutput2.add(new StreamRecord<>(new TestPojo("1", 1), timestamp));
+        expectedOutput2.add(new StreamRecord<>(new TestPojo("3", 3), timestamp));
         TestHarnessUtil.assertOutputEquals(
                 "The sort partition result is not correct.",
                 expectedOutput2,
@@ -79,12 +80,12 @@ class SortPartitionOperatorTest {
                 new OneInputStreamOperatorTestHarness<>(operator3);
         Queue<Object> expectedOutput3 = new LinkedList<>();
         testHarness3.setup();
-        testHarness3.processElement(new StreamRecord<>(new TestPojo("3", 3)));
-        testHarness3.processElement(new StreamRecord<>(new TestPojo("1", 1)));
+        testHarness3.processElement(new StreamRecord<>(new TestPojo("3", 3), timestamp));
+        testHarness3.processElement(new StreamRecord<>(new TestPojo("1", 1), timestamp));
         testHarness3.endInput();
         testHarness3.close();
-        expectedOutput3.add(new StreamRecord<>(new TestPojo("1", 1)));
-        expectedOutput3.add(new StreamRecord<>(new TestPojo("3", 3)));
+        expectedOutput3.add(new StreamRecord<>(new TestPojo("1", 1), timestamp));
+        expectedOutput3.add(new StreamRecord<>(new TestPojo("3", 3), timestamp));
         TestHarnessUtil.assertOutputEquals(
                 "The sort partition result is not correct.",
                 expectedOutput3,
