@@ -48,14 +48,14 @@ Currently, you can only run it as a standalone process.
 
 ## Configuration
 
-The configuration keys `jobmanager.archive.fs.dir` and `historyserver.archive.fs.refresh-interval` need to be adjusted for archiving and displaying archived jobs.
+The configuration keys `jobmanager.archive.fs.dir` and `historyserver.archive.fs.refresh-interval` need to be adjusted for archiving and displaying archived jobs and applications.
 
 **JobManager**
 
 The archiving of completed jobs and applications happens on the JobManager, which uploads the archived job and application information to a file system directory. You can configure the directory to archive completed jobs and applications in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) by setting a directory via `jobmanager.archive.fs.dir`.
 
 ```yaml
-# Directory to upload completed job information
+# Directory to upload completed job and application information
 jobmanager.archive.fs.dir: hdfs:///archives
 ```
 
@@ -68,7 +68,7 @@ For details on the specific directory structure, please refer to [FLIP-549: Supp
 The HistoryServer can be configured to monitor a comma-separated list of directories in via `historyserver.archive.fs.dir`. The configured directories are regularly polled for new archives; the polling interval can be configured via `historyserver.archive.fs.refresh-interval`.
 
 ```yaml
-# Monitor the following directories for completed jobs
+# Monitor the following directories for completed jobs and applications
 historyserver.archive.fs.dir: hdfs:///archives
 
 # Refresh every 10 seconds
@@ -97,9 +97,11 @@ historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<t
 
 ## Available Requests
 
-Below is a list of available requests, with a sample JSON response. All requests are of the sample form `http://hostname:8082/jobs`, below we list only the *path* part of the URLs.
+Below is a list of available requests. All requests are of the sample form `http://hostname:8082/jobs`, below we list only the *path* part of the URLs.
 
 Values in angle brackets are variables, for example `http://hostname:port/jobs/<jobid>/exceptions` will have to requested for example as `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`.
+
+The response format of these REST endpoints is consistent with the descriptions in the [REST API]({{< ref "docs/ops/rest_api" >}}) documentation.
 
 **Application-related requests**
 

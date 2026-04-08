@@ -195,7 +195,7 @@ isolation guarantees.
   pre-existing, long-running cluster that can accept multiple application submissions.
   Even after all applications are finished, the cluster (and the JobManager) will
   keep running until the session is manually stopped. The lifetime of a Flink
-  Session Cluster is therefore not bound to the lifetime of any Flink Application.
+  Session Cluster is therefore not bound to the lifetime of any Flink Application or Job.
 
 * **Resource Isolation**: TaskManager slots are allocated by the
   ResourceManager on job submission and released once the job is finished.

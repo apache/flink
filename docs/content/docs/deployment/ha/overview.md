@@ -32,7 +32,8 @@ JobManager High Availability (HA) hardens a Flink cluster against JobManager fai
 This feature ensures that a Flink cluster will always re-execute your submitted applications that were running at the time of a failure.
 
 {{< hint warning >}}
-After recovery, The jobs submitted by the application before the failure may either resume execution or be deprecated,
+After recovery, the jobs running in the application before the failure may either resume execution (from the latest checkpoint) 
+or be abandoned (transitioned to a FAILED state and properly cleaned up),
 depending on the execution path taken in the application's main() method.
 
 Jobs before and after a failure are matched by name, and those with identical names are further matched based on their submission order.
@@ -84,7 +85,7 @@ Kubernetes HA services only work when running on Kubernetes.
 ## High Availability data lifecycle
 
 In order to recover submitted applications, Flink persists metadata for the applications.
-The HA data will be kept until the respective application either succeeds, is cancelled or fails terminally.
+The HA data will be kept until the respective application reaches a terminal state (i.e. finished, cancelled or failed).
 Once this happens, all the HA data, including the metadata stored in the HA services, will be deleted.
 Similar lifecycle applies to the HA data for individual jobs.
 

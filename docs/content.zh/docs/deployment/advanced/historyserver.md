@@ -105,9 +105,12 @@ historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<t
 
 ## 可用的请求
 
-以下是可用且带有示例 JSON 响应的请求列表。所有请求格式样例均为 `http://hostname:8082/jobs`，下面我们仅列出了 URLs 的 *path* 部分。
+以下是可用的请求列表。所有请求格式样例均为 `http://hostname:8082/jobs`，下面我们仅列出了 URLs 的 *path* 部分。
+
 尖括号中的值为变量，例如作业 `7684be6004e4e955c2a558a9bc463f65` 的 
 `http://hostname:port/jobs/<jobid>/exceptions` 请求须写为 `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`。
+
+这些 REST 端点的响应格式与 [REST API]({{< ref "docs/ops/rest_api" >}}) 文档中的描述一致。
 
 **应用程序相关请求**
 
