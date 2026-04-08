@@ -36,6 +36,7 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.json.SerializedThrowableSerializer;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
@@ -152,6 +153,7 @@ public class OpenApiSpecGenerator {
 
         overrideIdSchemas(openApi);
         overrideSerializeThrowableSchema(openApi);
+        overrideMetricCollectionSchema(openApi);
 
         sortProperties(openApi);
         sortSchemas(openApi);
@@ -282,6 +284,19 @@ public class OpenApiSpecGenerator {
                 .addSchemas(TriggerId.class.getSimpleName(), idSchema)
                 .addSchemas(ResourceID.class.getSimpleName(), idSchema)
                 .addSchemas(SlotSharingGroupId.class.getSimpleName(), idSchema);
+    }
+
+    /**
+     * Overrides the schema for {@link MetricCollectionResponseBody} which uses a custom Jackson
+     * serializer that writes the metrics collection as a raw JSON array, not as an object with a
+     * "metrics" field.
+     */
+    private static void overrideMetricCollectionSchema(final OpenAPI openApi) {
+        final ArraySchema metricArraySchema =
+                new ArraySchema().items(new Schema().$ref("#/components/schemas/Metric"));
+
+        openApi.getComponents()
+                .addSchemas(MetricCollectionResponseBody.class.getSimpleName(), metricArraySchema);
     }
 
     private static void overrideSerializeThrowableSchema(final OpenAPI openAPI) {
