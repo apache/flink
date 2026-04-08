@@ -37,6 +37,8 @@ export class NodeComponent {
   backPressuredPercentage: number | undefined = NaN;
   busyPercentage: number | undefined = NaN;
   dataSkewPercentage: number | undefined = NaN;
+  slotSharingGroupId: string | null | undefined;
+  slotSharingGroupName: string | null | undefined;
   pending: boolean = true;
   backgroundColor: string;
   borderColor: string;
@@ -67,6 +69,8 @@ export class NodeComponent {
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;
     this.lowWatermark = value.lowWatermark;
+    this.slotSharingGroupId = value.detail?.slotSharingGroupId;
+    this.slotSharingGroupName = value.detail?.slotSharingGroupName;
     if (value?.job_vertex_id) {
       this.pending = false;
     }

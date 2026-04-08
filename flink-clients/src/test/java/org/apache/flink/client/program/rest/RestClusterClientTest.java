@@ -1255,13 +1255,14 @@ class RestClusterClientTest {
                         new JobDetailsInfo.JobVertexDetailsInfo(
                                 new JobVertexID(),
                                 slotSharingGroupId,
+                                null,
                                 "jobVertex1",
                                 2,
                                 1,
                                 ExecutionState.RUNNING,
-                                1,
-                                2,
-                                1,
+                                1L,
+                                2L,
+                                1L,
                                 Collections.singletonMap(ExecutionState.RUNNING, 0),
                                 jobVertexMetrics));
         final JobDetailsInfo jobDetailsInfo =

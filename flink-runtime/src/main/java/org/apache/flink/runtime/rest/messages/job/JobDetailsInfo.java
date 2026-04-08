@@ -364,6 +364,8 @@ public class JobDetailsInfo implements ResponseBody {
 
         public static final String FIELD_NAME_SLOT_SHARING_GROUP_ID = "slotSharingGroupId";
 
+        public static final String FIELD_NAME_SLOT_SHARING_GROUP_NAME = "slotSharingGroupName";
+
         public static final String FIELD_NAME_JOB_VERTEX_NAME = "name";
 
         public static final String FIELD_NAME_MAX_PARALLELISM = "maxParallelism";
@@ -389,6 +391,9 @@ public class JobDetailsInfo implements ResponseBody {
         @JsonProperty(FIELD_NAME_SLOT_SHARING_GROUP_ID)
         @JsonSerialize(using = SlotSharingGroupIDSerializer.class)
         private final SlotSharingGroupId slotSharingGroupId;
+
+        @JsonProperty(FIELD_NAME_SLOT_SHARING_GROUP_NAME)
+        private final String slotSharingGroupName;
 
         @JsonProperty(FIELD_NAME_JOB_VERTEX_NAME)
         private final String name;
@@ -425,6 +430,7 @@ public class JobDetailsInfo implements ResponseBody {
                 @JsonDeserialize(using = SlotSharingGroupIDDeserializer.class)
                         @JsonProperty(FIELD_NAME_SLOT_SHARING_GROUP_ID)
                         SlotSharingGroupId slotSharingGroupId,
+                @JsonProperty(FIELD_NAME_SLOT_SHARING_GROUP_NAME) String slotSharingGroupName,
                 @JsonProperty(FIELD_NAME_JOB_VERTEX_NAME) String name,
                 @JsonProperty(FIELD_NAME_MAX_PARALLELISM) int maxParallelism,
                 @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
@@ -437,6 +443,7 @@ public class JobDetailsInfo implements ResponseBody {
                 @JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS) IOMetricsInfo jobVertexMetrics) {
             this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
             this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
+            this.slotSharingGroupName = slotSharingGroupName;
             this.name = Preconditions.checkNotNull(name);
             this.maxParallelism = maxParallelism;
             this.parallelism = parallelism;
@@ -456,6 +463,11 @@ public class JobDetailsInfo implements ResponseBody {
         @JsonIgnore
         public SlotSharingGroupId getSlotSharingGroupId() {
             return slotSharingGroupId;
+        }
+
+        @JsonIgnore
+        public String getSlotSharingGroupName() {
+            return slotSharingGroupName;
         }
 
         @JsonIgnore
@@ -519,6 +531,7 @@ public class JobDetailsInfo implements ResponseBody {
                     && duration == that.duration
                     && Objects.equals(jobVertexID, that.jobVertexID)
                     && Objects.equals(slotSharingGroupId, that.slotSharingGroupId)
+                    && Objects.equals(slotSharingGroupName, that.slotSharingGroupName)
                     && Objects.equals(name, that.name)
                     && executionState == that.executionState
                     && Objects.equals(tasksPerState, that.tasksPerState)
@@ -530,6 +543,7 @@ public class JobDetailsInfo implements ResponseBody {
             return Objects.hash(
                     jobVertexID,
                     slotSharingGroupId,
+                    slotSharingGroupName,
                     name,
                     maxParallelism,
                     parallelism,
