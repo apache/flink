@@ -111,6 +111,48 @@ class MatchRecognizeITCase {
     }
 
     @Test
+    void testSimplePatternInProcTimeWithTemporaryView() {
+        tEnv.createTemporaryView(
+                "MyTable",
+                tEnv.fromDataStream(
+                        env.fromData(
+                                        Row.of(1, "a"),
+                                        Row.of(2, "z"),
+                                        Row.of(3, "b"),
+                                        Row.of(4, "c"),
+                                        Row.of(5, "d"),
+                                        Row.of(6, "a"),
+                                        Row.of(7, "b"),
+                                        Row.of(8, "c"),
+                                        Row.of(9, "h"))
+                                .returns(ROW_NAMED(new String[] {"id", "name"}, INT, STRING)),
+                        Schema.newBuilder()
+                                .column("id", DataTypes.INT())
+                                .column("name", DataTypes.STRING())
+                                .columnByExpression("proctime", "PROCTIME()")
+                                .build()));
+        tEnv.executeSql(
+                "CREATE TEMPORARY VIEW test_t AS \n"
+                        + "SELECT T.aid, T.bid, T.cid\n"
+                        + "FROM MyTable\n"
+                        + "MATCH_RECOGNIZE (\n"
+                        + "  ORDER BY proctime\n"
+                        + "  MEASURES\n"
+                        + "    `A\"`.id AS aid,\n"
+                        + "    \u006C.id AS bid,\n"
+                        + "    C.id AS cid\n"
+                        + "  PATTERN (`A\"` \u006C C)\n"
+                        + "  DEFINE\n"
+                        + "    `A\"` AS name = 'a',\n"
+                        + "    \u006C AS name = 'b',\n"
+                        + "    C AS name = 'c'\n"
+                        + ") AS T");
+        TableResult tableResult = tEnv.executeSql("SELECT * FROM test_t");
+        assertThat(CollectionUtil.iteratorToList(tableResult.collect()))
+                .containsExactly(Row.of(6, 7, 8));
+    }
+
+    @Test
     void testSimplePatternInEventTime() {
         Instant now = Instant.parse("2023-12-01T12:00:00.000Z");
         tEnv.createTemporaryView(
