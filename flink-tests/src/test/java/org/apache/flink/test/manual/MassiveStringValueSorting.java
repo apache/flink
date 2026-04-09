@@ -389,9 +389,7 @@ public class MassiveStringValueSorting {
         bld.append(prefix);
 
         File f = File.createTempFile("strings", "txt");
-        BufferedWriter wrt = null;
-        try {
-            wrt = new BufferedWriter(new FileWriter(f));
+        try (BufferedWriter wrt = new BufferedWriter(new FileWriter(f))) {
 
             for (int i = 0; i < numStrings; i++) {
                 bld.setLength(resetValue);
@@ -406,10 +404,6 @@ public class MassiveStringValueSorting {
                 wrt.write(str);
                 wrt.newLine();
             }
-        } finally {
-            if (wrt != null) {
-                wrt.close();
-            }
         }
 
         return f;
@@ -421,9 +415,7 @@ public class MassiveStringValueSorting {
         final StringBuilder bld = new StringBuilder();
 
         File f = File.createTempFile("strings", "txt");
-        BufferedWriter wrt = null;
-        try {
-            wrt = new BufferedWriter(new FileWriter(f));
+        try (BufferedWriter wrt = new BufferedWriter(new FileWriter(f))) {
 
             for (int i = 0; i < numStrings; i++) {
                 bld.setLength(0);
@@ -447,10 +439,6 @@ public class MassiveStringValueSorting {
 
                 wrt.write(str);
                 wrt.newLine();
-            }
-        } finally {
-            if (wrt != null) {
-                wrt.close();
             }
         }
 
