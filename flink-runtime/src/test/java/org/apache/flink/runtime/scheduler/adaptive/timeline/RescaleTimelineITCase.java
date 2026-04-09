@@ -631,7 +631,7 @@ class RescaleTimelineITCase {
         assertThat(slotSharingGroupRescale.getSlotSharingGroupName()).isNotNull();
         assertThat(slotSharingGroupRescale.getMinimalRequiredSlots()).isNotNull();
         assertThat(slotSharingGroupRescale.getAcquiredResourceProfile()).isNotNull();
-        assertThat(slotSharingGroupRescale.getRequiredResourceProfile()).isNotNull();
+        assertThat(slotSharingGroupRescale.getRequestResourceProfile()).isNotNull();
         assertThat(slotSharingGroupRescale.getSlotSharingGroupId()).isNotNull();
     }
 

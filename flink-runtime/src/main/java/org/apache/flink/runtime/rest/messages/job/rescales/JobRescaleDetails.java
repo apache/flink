@@ -416,7 +416,7 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
         private final String slotSharingGroupName;
 
         @JsonProperty(FIELD_NAME_REQUEST_RESOURCE_PROFILE)
-        private final ResourceProfileInfo requiredResourceProfileInfo;
+        private final ResourceProfileInfo requestResourceProfileInfo;
 
         @JsonProperty(FIELD_NAME_DESIRED_SLOTS)
         private final Integer desiredSlots;
@@ -441,7 +441,7 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
                         SlotSharingGroupId slotSharingGroupId,
                 @JsonProperty(FIELD_NAME_SLOT_SHARING_GROUP_NAME) String slotSharingGroupName,
                 @JsonProperty(FIELD_NAME_REQUEST_RESOURCE_PROFILE)
-                        ResourceProfileInfo requiredResourceProfileInfo,
+                        ResourceProfileInfo requestResourceProfileInfo,
                 @JsonProperty(FIELD_NAME_DESIRED_SLOTS) Integer desiredSlots,
                 @JsonProperty(FIELD_NAME_MINIMAL_REQUIRED_SLOTS) Integer minimalRequiredSlots,
                 @JsonProperty(FIELD_NAME_PRE_RESCALE_SLOTS) Integer preRescaleSlots,
@@ -450,7 +450,7 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
                         ResourceProfileInfo acquiredResourceProfileInfo) {
             this.slotSharingGroupId = slotSharingGroupId;
             this.slotSharingGroupName = slotSharingGroupName;
-            this.requiredResourceProfileInfo = requiredResourceProfileInfo;
+            this.requestResourceProfileInfo = requestResourceProfileInfo;
             this.desiredSlots = desiredSlots;
             this.minimalRequiredSlots = minimalRequiredSlots;
             this.preRescaleSlots = preRescaleSlots;
@@ -466,7 +466,7 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
             SlotSharingGroupRescaleInfo that = (SlotSharingGroupRescaleInfo) o;
             return Objects.equals(slotSharingGroupId, that.slotSharingGroupId)
                     && Objects.equals(slotSharingGroupName, that.slotSharingGroupName)
-                    && Objects.equals(requiredResourceProfileInfo, that.requiredResourceProfileInfo)
+                    && Objects.equals(requestResourceProfileInfo, that.requestResourceProfileInfo)
                     && Objects.equals(desiredSlots, that.desiredSlots)
                     && Objects.equals(minimalRequiredSlots, that.minimalRequiredSlots)
                     && Objects.equals(preRescaleSlots, that.preRescaleSlots)
@@ -480,7 +480,7 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
             return Objects.hash(
                     slotSharingGroupId,
                     slotSharingGroupName,
-                    requiredResourceProfileInfo,
+                    requestResourceProfileInfo,
                     desiredSlots,
                     minimalRequiredSlots,
                     preRescaleSlots,
@@ -494,7 +494,7 @@ public class JobRescaleDetails implements ResponseBody, Serializable {
                     slotSharingGroupRescale.getSlotSharingGroupId(),
                     slotSharingGroupRescale.getSlotSharingGroupName(),
                     ResourceProfileInfo.fromResourceProfile(
-                            slotSharingGroupRescale.getRequiredResourceProfile()),
+                            slotSharingGroupRescale.getRequestResourceProfile()),
                     slotSharingGroupRescale.getDesiredSlots(),
                     slotSharingGroupRescale.getMinimalRequiredSlots(),
                     slotSharingGroupRescale.getPreRescaleSlots(),
