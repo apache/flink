@@ -89,6 +89,36 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
+    public static final TableTestProgram UPSERT_INPUT =
+            TableTestProgram.of(
+                            "to-changelog-upsert-input",
+                            "upsert input gets ChangelogNormalize for UPDATE_BEFORE and full deletes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            // Key-only delete: ChangelogNormalize fills
+                                            // in the full row from state
+                                            Row.ofKind(RowKind.DELETE, "Bob", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[INSERT, Alice, 10]",
+                                            "+I[INSERT, Bob, 20]",
+                                            "+I[UPDATE_BEFORE, Alice, 10]",
+                                            "+I[UPDATE_AFTER, Alice, 30]",
+                                            "+I[DELETE, Bob, 20]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
+                    .build();
+
     public static final TableTestProgram CUSTOM_OP_MAPPING =
             TableTestProgram.of(
                             "to-changelog-custom-op-mapping",

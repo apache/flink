@@ -41,6 +41,7 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
         return List.of(
                 ToChangelogTestPrograms.INSERT_ONLY_INPUT,
                 ToChangelogTestPrograms.UPDATING_INPUT,
+                ToChangelogTestPrograms.UPSERT_INPUT,
                 ToChangelogTestPrograms.CUSTOM_OP_MAPPING,
                 ToChangelogTestPrograms.CUSTOM_OP_NAME,
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
