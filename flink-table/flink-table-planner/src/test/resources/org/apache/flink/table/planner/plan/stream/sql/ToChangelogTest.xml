@@ -18,39 +18,60 @@ limitations under the License.
 <Root>
   <TestCase name="testInsertOnlySource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source PARTITION BY id)]]>
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(op=[$0], id=[$1], name=[$2])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, insert_only_source]])
+]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
-+- Exchange(distribution=[hash[id]], changelogMode=[I])
-   +- TableSourceScan(table=[[default_catalog, default_database, insert_only_source]], fields=[id, name], changelogMode=[I])
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,id,name], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, insert_only_source]], fields=[id, name], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRetractSource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(op=[$0], id=[$1], name=[$2])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_source]])
+]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
-+- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
-   +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,id,name], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testUpsertSource">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)]]>
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(op=[$0], id=[$1], name=[$2])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
-+- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
-   +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
-      +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,id,name], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
++- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
+   +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
+      +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, name], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>

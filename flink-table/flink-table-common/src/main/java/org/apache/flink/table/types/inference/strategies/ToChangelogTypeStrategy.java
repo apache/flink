@@ -40,8 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /** Type strategies for the {@code TO_CHANGELOG} process table function. */
 @Internal
@@ -98,15 +96,10 @@ public final class ToChangelogTypeStrategy {
 
                 final String opColumnName = resolveOpColumnName(callContext);
                 final List<Field> inputFields = DataType.getFields(semantics.dataType());
-                final Set<Integer> partitionKeys = intArrayToSet(semantics.partitionByColumns());
 
                 final List<Field> outputFields = new ArrayList<>();
                 outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
-                for (int i = 0; i < inputFields.size(); i++) {
-                    if (!partitionKeys.contains(i)) {
-                        outputFields.add(inputFields.get(i));
-                    }
-                }
+                outputFields.addAll(inputFields);
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
@@ -197,10 +190,6 @@ public final class ToChangelogTypeStrategy {
                 .filter(cl -> !cl.getNames().isEmpty())
                 .map(cl -> cl.getNames().get(0))
                 .orElse(DEFAULT_OP_COLUMN_NAME);
-    }
-
-    private static Set<Integer> intArrayToSet(final int[] array) {
-        return IntStream.of(array).boxed().collect(Collectors.toSet());
     }
 
     private ToChangelogTypeStrategy() {}

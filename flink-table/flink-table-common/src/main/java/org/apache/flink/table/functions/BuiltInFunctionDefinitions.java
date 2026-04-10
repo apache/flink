@@ -782,15 +782,21 @@ public final class BuiltInFunctionDefinitions {
                     .name("TO_CHANGELOG")
                     .kind(PROCESS_TABLE)
                     .staticArguments(
+                            // Row semantics: no PARTITION BY required. The planner
+                            // inserts ChangelogNormalize for upsert sources to guarantee
+                            // UPDATE_BEFORE and full DELETE rows. REQUIRE_FULL_DELETE is
+                            // redundant without partition keys (isPtfUpsert is always false)
+                            // but documents the intent explicitly.
                             StaticArgument.table(
                                     "input",
                                     Row.class,
                                     false,
                                     EnumSet.of(
                                             StaticArgumentTrait.TABLE,
-                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
                                             StaticArgumentTrait.SUPPORT_UPDATES,
-                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)),
+                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
+                                            StaticArgumentTrait.REQUIRE_FULL_DELETE)),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",

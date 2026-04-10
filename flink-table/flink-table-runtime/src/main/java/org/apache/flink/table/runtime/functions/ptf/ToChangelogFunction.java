@@ -24,13 +24,10 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.utils.JoinedRowData;
-import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
-import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
@@ -38,19 +35,14 @@ import javax.annotation.Nullable;
 
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#TO_CHANGELOG}.
  *
  * <p>Converts each input row into an INSERT-only output row with an operation code column. The
- * output schema is {@code [op_column, ...non_partition_columns...]} - the framework prepends
- * partition key columns automatically.
+ * output schema is {@code [op_column, ...all_input_columns...]}.
  *
- * <p>Uses {@link ProjectedRowData} for zero-copy projection of non-partition columns and {@link
- * JoinedRowData} to combine the op column with the projected input.
+ * <p>Uses {@link JoinedRowData} to combine the op column with the full input row.
  */
 @Internal
 public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
@@ -65,10 +57,8 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
                     RowKind.DELETE, "DELETE");
 
     private final Map<RowKind, String> rawOpMap;
-    private final int[] nonPartitionIndices;
 
     private transient Map<RowKind, StringData> opMap;
-    private transient ProjectedRowData projectedInput;
     private transient GenericRowData opRow;
     private transient JoinedRowData output;
 
@@ -76,18 +66,6 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     public ToChangelogFunction(final SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TO_CHANGELOG, context);
         final CallContext callContext = context.getCallContext();
-
-        final TableSemantics semantics =
-                callContext
-                        .getTableSemantics(0)
-                        .orElseThrow(() -> new IllegalStateException("Table argument expected."));
-        final int[] partitionKeys = semantics.partitionByColumns();
-        final Set<Integer> partitionKeySet =
-                IntStream.of(partitionKeys).boxed().collect(Collectors.toSet());
-
-        final RowType inputType = (RowType) semantics.dataType().getLogicalType();
-        this.nonPartitionIndices =
-                buildNonPartitionIndices(inputType.getFieldCount(), partitionKeySet);
 
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
@@ -99,14 +77,8 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         super.open(context);
         opMap = new EnumMap<>(RowKind.class);
         rawOpMap.forEach((kind, code) -> opMap.put(kind, StringData.fromString(code)));
-        projectedInput = ProjectedRowData.from(nonPartitionIndices);
         opRow = new GenericRowData(1);
         output = new JoinedRowData();
-    }
-
-    private static int[] buildNonPartitionIndices(
-            final int fieldCount, final Set<Integer> partitionKeySet) {
-        return IntStream.range(0, fieldCount).filter(i -> !partitionKeySet.contains(i)).toArray();
     }
 
     /**
@@ -138,7 +110,6 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         }
 
         opRow.setField(0, opCode);
-        projectedInput.replaceRow(input);
-        collect(output.replace(opRow, projectedInput));
+        collect(output.replace(opRow, input));
     }
 }

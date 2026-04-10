@@ -514,6 +514,11 @@ public class TableImpl implements Table {
                 function, unionTableAndArguments(operationTree, tableEnvironment, arguments));
     }
 
+    @Override
+    public Table toChangelog(Expression... arguments) {
+        return process(BuiltInFunctionDefinitions.TO_CHANGELOG.getName(), (Object[]) arguments);
+    }
+
     private TablePipeline insertInto(
             ContextResolvedTable contextResolvedTable,
             @Nullable InsertConflictStrategy conflictStrategy,
@@ -899,11 +904,6 @@ public class TableImpl implements Table {
                     function,
                     unionTableAndArguments(
                             createPartitionQueryOperation(), table.tableEnvironment, arguments));
-        }
-
-        @Override
-        public Table toChangelog(Expression... arguments) {
-            return process(BuiltInFunctionDefinitions.TO_CHANGELOG.getName(), (Object[]) arguments);
         }
 
         private QueryOperation createPartitionQueryOperation() {
