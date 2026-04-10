@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler.benchmark;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.NoMainThreadCheckComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -111,7 +111,7 @@ public class SchedulerBenchmarkUtils {
         final JobGraph jobGraph = createJobGraph(jobVertices, jobConfiguration);
 
         final ComponentMainThreadExecutor mainThreadExecutor =
-                ComponentMainThreadExecutorServiceAdapter.forMainThread();
+                new NoMainThreadCheckComponentMainThreadExecutor();
 
         DefaultSchedulerBuilder schedulerBuilder =
                 new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, scheduledExecutorService)
