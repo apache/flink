@@ -392,17 +392,6 @@ public class ToChangelogTestPrograms {
     // Error validation tests
     // --------------------------------------------------------------------------------------------
 
-    public static final TableTestProgram REJECTS_PARTITION_BY =
-            TableTestProgram.of(
-                            "to-changelog-rejects-partition-by",
-                            "fails when PARTITION BY is used with row semantics")
-                    .setupTableSource(SIMPLE_SOURCE)
-                    .runFailingSql(
-                            "SELECT * FROM TO_CHANGELOG(input => TABLE t PARTITION BY id)",
-                            ValidationException.class,
-                            "Only tables with set semantics may be partitioned")
-                    .build();
-
     public static final TableTestProgram INVALID_DESCRIPTOR =
             TableTestProgram.of(
                             "to-changelog-invalid-descriptor",

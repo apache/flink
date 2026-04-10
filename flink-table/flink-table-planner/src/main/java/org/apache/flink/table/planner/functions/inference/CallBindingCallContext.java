@@ -382,13 +382,14 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         return map;
     }
 
-    /**
-     * Unwraps implicit CASTs that Calcite adds to MAP literal operands when keys or values have
-     * different lengths (e.g., {@code CAST('INSERT' AS VARCHAR(12))}).
-     */
+    /** Unwraps implicit CHAR-type CASTs added by Calcite for length normalization. */
     private static SqlNode unwrapCast(final SqlNode node) {
-        if (node.getKind() == SqlKind.CAST) {
-            return ((SqlCall) node).getOperandList().get(0);
+        if (node.getKind() == SqlKind.CAST && node instanceof SqlCall) {
+            final SqlNode inner = ((SqlCall) node).operand(0);
+            if (inner instanceof SqlLiteral
+                    && SqlTypeName.CHAR_TYPES.contains(((SqlLiteral) inner).getTypeName())) {
+                return inner;
+            }
         }
         return node;
     }
