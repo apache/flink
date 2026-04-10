@@ -368,9 +368,11 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         final Map<String, String> map = new LinkedHashMap<>();
         try {
             for (int i = 0; i < operands.size(); i += 2) {
-                final String key = SqlLiteral.unchain(operands.get(i)).getValueAs(String.class);
+                final String key =
+                        SqlLiteral.unchain(unwrapCast(operands.get(i))).getValueAs(String.class);
                 final String value =
-                        SqlLiteral.unchain(operands.get(i + 1)).getValueAs(String.class);
+                        SqlLiteral.unchain(unwrapCast(operands.get(i + 1)))
+                                .getValueAs(String.class);
                 map.put(key, value);
             }
         } catch (Exception e) {
@@ -378,6 +380,17 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
             return null;
         }
         return map;
+    }
+
+    /**
+     * Unwraps implicit CASTs that Calcite adds to MAP literal operands when keys or values have
+     * different lengths (e.g., {@code CAST('INSERT' AS VARCHAR(12))}).
+     */
+    private static SqlNode unwrapCast(final SqlNode node) {
+        if (node.getKind() == SqlKind.CAST) {
+            return ((SqlCall) node).getOperandList().get(0);
+        }
+        return node;
     }
 
     /** A MAP constructor is a string literal if all its key-value children are string literals. */

@@ -50,6 +50,7 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.DELETION_FLAG,
                 ToChangelogTestPrograms.REJECTS_PARTITION_BY,
                 ToChangelogTestPrograms.INVALID_DESCRIPTOR,
-                ToChangelogTestPrograms.INVALID_OP_MAPPING);
+                ToChangelogTestPrograms.INVALID_OP_MAPPING,
+                ToChangelogTestPrograms.DUPLICATE_ROW_KIND);
     }
 }
