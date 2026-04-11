@@ -393,7 +393,7 @@ order_1  shirt             2      1
 order_1  pants             1      2
 order_1  hat               1      3
 
--- Returns a new row for each instance of a element in a multiset
+-- Returns a new row for each instance of an element in a multiset
 -- If an element has been seen twice (multiplicity is 2), it will be returned twice
 WITH ProductMultiset AS
     (SELECT COLLECT(product_name) AS product_multiset

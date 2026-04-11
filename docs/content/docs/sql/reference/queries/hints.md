@@ -604,7 +604,7 @@ e.g., if there is a row in the `Customers` table:
 ```gitexclude
 id=100, country='CN'
 ```
-When processing an record with 'id=100' in the order stream, in 'jdbc' connector, the corresponding
+When processing a record with 'id=100' in the order stream, in 'jdbc' connector, the corresponding
 lookup result is null (`country='CN'` does not satisfy the condition `c.country = 'US'`) because both
 `c.id` and `c.country` are used as lookup keys, so this will trigger a retry.
 

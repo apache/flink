@@ -1666,7 +1666,7 @@ def retract(accumulator: ACC, [user defined inputs]): Unit
  *                    be noted that the accumulator may contain the previous aggregated
  *                    results. Therefore user should not replace or clean this instance in the
  *                    custom merge method.
- * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
+ * param: iterable    a java.lang.Iterable pointed to a group of accumulators that will be
  *                    merged.
  */
 public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
@@ -1682,7 +1682,7 @@ public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
  *                    be noted that the accumulator may contain the previous aggregated
  *                    results. Therefore user should not replace or clean this instance in the
  *                    custom merge method.
- * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
+ * param: iterable    a java.lang.Iterable pointed to a group of accumulators that will be
  *                    merged.
  */
 def merge(accumulator: ACC, iterable: java.lang.Iterable[ACC]): Unit
@@ -2031,7 +2031,7 @@ def retract(accumulator: ACC, [user defined inputs]): Unit
  *                    be noted that the accumulator may contain the previous aggregated
  *                    results. Therefore user should not replace or clean this instance in the
  *                    custom merge method.
- * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
+ * param: iterable    a java.lang.Iterable pointed to a group of accumulators that will be
  *                    merged.
  */
 public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
@@ -2047,7 +2047,7 @@ public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
  *                    be noted that the accumulator may contain the previous aggregated
  *                    results. Therefore user should not replace or clean this instance in the
  *                    custom merge method.
- * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
+ * param: iterable    a java.lang.Iterable pointed to a group of accumulators that will be
  *                    merged.
  */
 def merge(accumulator: ACC, iterable: java.lang.Iterable[ACC]): Unit

@@ -225,7 +225,7 @@ CREATE TABLE MyTable (
 
 Metadata columns are an extension to the SQL standard and allow to access connector and/or format specific
 fields for every row of a table. A metadata column is indicated by the `METADATA` keyword. For example,
-a metadata column can be be used to read and write the timestamp from and to Kafka records for time-based
+a metadata column can be used to read and write the timestamp from and to Kafka records for time-based
 operations. The [connector and format documentation]({{< ref "docs/connectors/table/overview" >}}) lists the
 available metadata fields for every component. However, declaring a metadata column in a table's schema
 is optional.

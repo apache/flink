@@ -58,7 +58,7 @@ CREATE TABLE nginx_log (
 )
 ```
 
-Then you can read out the raw data as a pure string, and split it into multiple fields using an user-defined-function for further analysing, e.g. `my_split` in the example.
+Then you can read out the raw data as a pure string, and split it into multiple fields using a user-defined-function for further analysing, e.g. `my_split` in the example.
 
 ```sql
 SELECT t.hostname, t.datetime, t.url, t.browser, ...
