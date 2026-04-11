@@ -292,7 +292,7 @@ abstract class SavepointStateBackendSwitchTestBase {
 
         mapState.setCurrentNamespace(namespace3);
         assertThat(mapState.get(44L)).isEqualTo(44L);
-        assertThat(getStateSize(mapState)).isEqualTo(1);
+        assertThat(getStateSize(mapState)).isOne();
 
         keyedBackend.setCurrentKey("mno");
         mapState.setCurrentNamespace(namespace3);

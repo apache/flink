@@ -91,7 +91,7 @@ class TaskManagerLoadingDynamicPropertiesITCase {
             if (!process.waitFor(10, TimeUnit.SECONDS)) {
                 throw new Exception("TestingTaskManagerRunner did not shutdown in time.");
             }
-            assertThat(process.exitValue()).as(processOutput.toString()).isEqualTo(0);
+            assertThat(process.exitValue()).as(processOutput.toString()).isZero();
         } finally {
             process.destroy();
         }

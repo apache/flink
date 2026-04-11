@@ -136,7 +136,7 @@ class TaskManagerDisconnectOnShutdownITCase {
 
             tracker.waitForTaskManagerDisconnected();
 
-            assertThat(tracker.getNumberOfConnectedTaskManager()).isEqualTo(1);
+            assertThat(tracker.getNumberOfConnectedTaskManager()).isOne();
         } catch (Throwable t) {
             printProcessLog(taskManagerProcess);
             Assertions.fail(t.getMessage());

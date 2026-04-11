@@ -127,6 +127,6 @@ class MiscellaneousIssuesITCase {
 
         JobExecutionResult result = env.execute();
 
-        assertThat(result.getAllAccumulatorResults().get(accName)).isEqualTo(1000000L);
+        assertThat(result.getAllAccumulatorResults()).containsEntry(accName, 1000000L);
     }
 }

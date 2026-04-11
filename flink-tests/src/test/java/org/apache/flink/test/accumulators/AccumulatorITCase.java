@@ -162,7 +162,7 @@ class AccumulatorITCase extends JavaProgramTestBase {
             // Create counter and test increment
             IntCounter simpleCounter = getRuntimeContext().getIntCounter("simple-counter");
             simpleCounter.add(1);
-            assertThat(simpleCounter.getLocalValue().intValue()).isEqualTo(1);
+            assertThat(simpleCounter.getLocalValue().intValue()).isOne();
 
             // Test if we get the same counter
             IntCounter simpleCounter2 = getRuntimeContext().getIntCounter("simple-counter");
