@@ -25,6 +25,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import java.util.ArrayList;
 import java.util.Collection;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Response type for a collection of metrics.
  *
@@ -37,11 +39,14 @@ import java.util.Collection;
  * }</pre>
  */
 public final class MetricCollectionResponseBody extends ArrayList<Metric> implements ResponseBody {
+
+    private static final long serialVersionUID = -1170348873871206965L;
+
     // a default constructor is required for collection type marshaling
     public MetricCollectionResponseBody() {}
 
     public MetricCollectionResponseBody(Collection<Metric> metrics) {
-        super(metrics);
+        super(requireNonNull(metrics, "metrics must not be null"));
     }
 
     @JsonIgnore
