@@ -443,7 +443,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobmanager/thread-dump:
     get:
       description: Returns the thread dump of the JobManager.
@@ -897,7 +899,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/plan:
     get:
       description: Returns the dataflow plan of a job.
@@ -1366,7 +1370,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
@@ -1397,7 +1403,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/vertices/{vertexid}/subtasks/accumulators:
     get:
       description: Returns all user-defined accumulators for all subtasks of a task.
@@ -1616,7 +1624,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /jobs/{jobid}/vertices/{vertexid}/subtasktimes:
     get:
       description: Returns time-related information for all subtasks of a task.
@@ -1688,7 +1698,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /overview:
     get:
       description: Returns an overview over the Flink cluster.
@@ -1842,7 +1854,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MetricCollectionResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
   /taskmanagers/{taskmanagerid}/thread-dump:
     get:
       description: Returns the thread dump of the requested TaskManager.

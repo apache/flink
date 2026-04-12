@@ -477,10 +477,6 @@ components:
       - DESCRIPTOR
       - VARIANT
       - BITMAP
-    MetricCollectionResponseBody:
-      type: array
-      items:
-        $ref: "#/components/schemas/Metric"
     OpenSessionRequestBody:
       type: object
       properties:
