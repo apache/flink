@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
@@ -75,6 +77,8 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.ManualClock;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -160,7 +164,8 @@ class ExecutingTest {
                     ClassLoader.getSystemClassLoader(),
                     new ArrayList<>(),
                     (context) -> TestingStateTransitionManager.withNoOp(),
-                    1);
+                    1,
+                    false);
             assertThat(mockExecutionVertex.isDeployCalled()).isFalse();
         }
     }
@@ -186,7 +191,8 @@ class ExecutingTest {
                                         ClassLoader.getSystemClassLoader(),
                                         new ArrayList<>(),
                                         context -> TestingStateTransitionManager.withNoOp(),
-                                        1);
+                                        1,
+                                        false);
                             }
                         })
                 .isInstanceOf(IllegalStateException.class);
@@ -557,6 +563,564 @@ class ExecutingTest {
     }
 
     @Test
+    void testActiveCheckpointTriggerRetryIsNoopAfterStopWithSavepoint() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            ManualClock clock = new ManualClock();
+            CheckpointCoordinatorConfiguration coordConfig =
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
+                            .setCheckpointInterval(10_000L)
+                            .setMinPauseBetweenCheckpoints(10_000L)
+                            .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                            .build();
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setCheckpointCoordinatorConfiguration(coordConfig)
+                            .setTimer(checkpointTimer)
+                            .setClock(clock)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            exec.requestActiveCheckpointTrigger();
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            assertThat(ctxExecutor.getActiveNonPeriodicScheduledTask())
+                    .as("A retry should be scheduled while min-pause is not satisfied")
+                    .isNotEmpty();
+
+            ctx.setExpectStopWithSavepoint(assertNonNull());
+            exec.stopWithSavepoint("file:///tmp/target", true, SavepointFormatType.CANONICAL);
+
+            ctxExecutor.triggerAll();
+            checkpointTimer.triggerAll();
+            int pendingAfterSavepoint = coordinator.getNumberOfPendingCheckpoints();
+
+            // Trigger the previously scheduled retry; it must be a no-op because the state
+            // transitioned to StopWithSavepoint (runIfState gates the action on
+            // hadStateTransition).
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints())
+                    .as("Active checkpoint trigger retry must not fire after stopWithSavepoint")
+                    .isEqualTo(pendingAfterSavepoint);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerSkipsWhenDisabled() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            final AtomicBoolean coordinatorAccessed = new AtomicBoolean(false);
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            coordinatorAccessed.set(true);
+                            return coordinator;
+                        }
+                    };
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(false)
+                            .build(ctx);
+
+            exec.requestActiveCheckpointTrigger();
+            assertThat(coordinatorAccessed.get()).isFalse();
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerSkipsWhenNoCoordinator() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return null;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            // Set parallelism change so the only blocking guard is the null coordinator check;
+            // if the null check is ever removed from requestActiveCheckpointTrigger this test
+            // will NPE on `cc.isPeriodicCheckpointingConfigured()` and fail loudly.
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            int baseline = ctxExecutor.getActiveNonPeriodicScheduledTask().size();
+            exec.requestActiveCheckpointTrigger();
+            assertThat(ctxExecutor.getActiveNonPeriodicScheduledTask())
+                    .as("No checkpoint trigger should be scheduled when coordinator is null")
+                    .hasSize(baseline);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerSkipsWhenPeriodicCheckpointingNotConfigured() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setCheckpointCoordinatorConfiguration(
+                                    new CheckpointCoordinatorConfiguration
+                                                    .CheckpointCoordinatorConfigurationBuilder()
+                                            .setCheckpointInterval(Long.MAX_VALUE)
+                                            .build())
+                            .setTimer(checkpointTimer)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            // Set parallelism change so the only blocking guard is periodic-checkpointing-not-
+            // configured. If the periodic check is removed, the request will schedule a retry —
+            // which the assertion below catches.
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+
+            assertThat(coordinator.isPeriodicCheckpointingConfigured()).isFalse();
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            int baseline = ctxExecutor.getActiveNonPeriodicScheduledTask().size();
+            exec.requestActiveCheckpointTrigger();
+            assertThat(ctxExecutor.getActiveNonPeriodicScheduledTask())
+                    .as(
+                            "No retry should be scheduled when periodic checkpointing is not configured")
+                    .hasSize(baseline);
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints())
+                    .as(
+                            "No checkpoint should be triggered when periodic checkpointing is not configured")
+                    .isEqualTo(0);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerSkipsWhenParallelismUnchanged() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setTimer(checkpointTimer)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            // Parallelism is intentionally UNCHANGED — the parallelism guard in
+            // tryFireActiveCheckpointAfterRetry must drop the trigger before it fires.
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    AccessExecutionJobVertex::getParallelism))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            exec.requestActiveCheckpointTrigger();
+            // The request path schedules a retry (parallelism check lives in the retry, not in
+            // the request). Run the scheduled retry to exercise the parallelism check; without
+            // this drain the test would pass for the wrong reason (retry never ran).
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints())
+                    .as("No checkpoint should be triggered when parallelism is unchanged")
+                    .isEqualTo(0);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerSkipsWhenCheckpointInProgress() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setTimer(checkpointTimer)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+
+            // Parallelism +1 and periodic configured so the only blocker is the in-progress
+            // check at request time.
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            coordinator.triggerCheckpoint(false);
+            checkpointTimer.triggerAll();
+
+            int pendingBefore = coordinator.getNumberOfPendingCheckpoints();
+            assertThat(pendingBefore).isGreaterThan(0);
+
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            int scheduledBefore = ctxExecutor.getActiveNonPeriodicScheduledTask().size();
+            exec.requestActiveCheckpointTrigger();
+            // The in-progress check runs in the request path and must short-circuit before
+            // scheduling a retry — otherwise the test passes for the wrong reason (retry would
+            // also see in-progress and drop).
+            assertThat(ctxExecutor.getActiveNonPeriodicScheduledTask())
+                    .as(
+                            "No retry should be scheduled when a checkpoint is already in progress at request time")
+                    .hasSize(scheduledBefore);
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints())
+                    .as(
+                            "No additional checkpoint should be triggered when a checkpoint is already in progress")
+                    .isEqualTo(pendingBefore);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerFiresWhenAllGuardsPass() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setTimer(checkpointTimer)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+
+            assertThat(coordinator.getNumberOfPendingCheckpoints()).isEqualTo(0);
+
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            exec.requestActiveCheckpointTrigger();
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints()).isGreaterThan(0);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerRespectsMinPauseBetweenCheckpoints() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            ManualClock clock = new ManualClock();
+            CheckpointCoordinatorConfiguration coordConfig =
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
+                            .setCheckpointInterval(10_000L)
+                            .setMinPauseBetweenCheckpoints(10_000L)
+                            .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                            .build();
+
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setCheckpointCoordinatorConfiguration(coordConfig)
+                            .setTimer(checkpointTimer)
+                            .setClock(clock)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            exec.requestActiveCheckpointTrigger();
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints()).isEqualTo(0);
+            clock.advanceTime(10_000L, java.util.concurrent.TimeUnit.MILLISECONDS);
+            exec.requestActiveCheckpointTrigger();
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerDeduplicatesScheduledRetries() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            ManualClock clock = new ManualClock();
+            CheckpointCoordinatorConfiguration coordConfig =
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
+                            .setCheckpointInterval(10_000L)
+                            .setMinPauseBetweenCheckpoints(10_000L)
+                            .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                            .build();
+
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setCheckpointCoordinatorConfiguration(coordConfig)
+                            .setTimer(checkpointTimer)
+                            .setClock(clock)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            int baseline = ctxExecutor.getActiveNonPeriodicScheduledTask().size();
+
+            // Call requestActiveCheckpointTrigger multiple times while min-pause is not satisfied.
+            // Only one delayed retry should be scheduled (dedup via
+            // activeCheckpointTriggerScheduled
+            // flag).
+            exec.requestActiveCheckpointTrigger();
+            exec.requestActiveCheckpointTrigger();
+            exec.requestActiveCheckpointTrigger();
+
+            assertThat(ctxExecutor.getActiveNonPeriodicScheduledTask()).hasSize(baseline + 1);
+
+            // Advance clock past the min-pause and fire the single scheduled retry.
+            clock.advanceTime(10_000L, java.util.concurrent.TimeUnit.MILLISECONDS);
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+            assertThat(coordinator.getNumberOfPendingCheckpoints()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void testActiveCheckpointTriggerHandlesFailureGracefully() throws Exception {
+        try (MockExecutingContext ctx = new MockExecutingContext()) {
+            MockExecutionJobVertex mejv = new MockExecutionJobVertex(MockExecutionVertex::new);
+            ManuallyTriggeredScheduledExecutor checkpointTimer =
+                    new ManuallyTriggeredScheduledExecutor();
+            CheckpointCoordinator coordinator =
+                    new CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder()
+                            .setTimer(checkpointTimer)
+                            .build(EXECUTOR_EXTENSION.getExecutor());
+            coordinator.shutdown();
+
+            StateTrackingMockExecutionGraph graph =
+                    new StateTrackingMockExecutionGraph() {
+                        @Nullable
+                        @Override
+                        public CheckpointCoordinator getCheckpointCoordinator() {
+                            return coordinator;
+                        }
+
+                        @Override
+                        public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+                            return Collections.singletonList(mejv);
+                        }
+                    };
+            ctx.setVertexParallelism(
+                    new VertexParallelism(
+                            graph.getAllVertices().values().stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    AccessExecutionJobVertex::getJobVertexId,
+                                                    v -> v.getParallelism() + 1))));
+
+            Executing exec =
+                    new ExecutingStateBuilder()
+                            .setExecutionGraph(graph)
+                            .setActiveCheckpointTriggerEnabled(true)
+                            .build(ctx);
+            ManuallyTriggeredComponentMainThreadExecutor ctxExecutor =
+                    (ManuallyTriggeredComponentMainThreadExecutor) ctx.getMainThreadExecutor();
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            int baseline = ctxExecutor.getActiveNonPeriodicScheduledTask().size();
+            exec.requestActiveCheckpointTrigger();
+            ctxExecutor.triggerNonPeriodicScheduledTasks();
+            checkpointTimer.triggerAll();
+
+            assertThat(coordinator.getNumberOfPendingCheckpoints()).isEqualTo(0);
+            assertThat(ctxExecutor.getActiveNonPeriodicScheduledTask()).hasSize(baseline);
+        }
+    }
+
+    @Test
     void testJobInformationMethods() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
             Executing exec = new ExecutingStateBuilder().build(ctx);
@@ -691,6 +1255,7 @@ class ExecutingTest {
         private Function<StateTransitionManager.Context, StateTransitionManager>
                 stateTransitionManagerFactory = context -> TestingStateTransitionManager.withNoOp();
         private int rescaleOnFailedCheckpointCount = 1;
+        private boolean activeCheckpointTriggerEnabled = false;
 
         private ExecutingStateBuilder() throws JobException, JobExecutionException {
             operatorCoordinatorHandler = new TestingOperatorCoordinatorHandler();
@@ -720,6 +1285,12 @@ class ExecutingTest {
             return this;
         }
 
+        public ExecutingStateBuilder setActiveCheckpointTriggerEnabled(
+                boolean activeCheckpointTriggerEnabled) {
+            this.activeCheckpointTriggerEnabled = activeCheckpointTriggerEnabled;
+            return this;
+        }
+
         private Executing build(MockExecutingContext ctx) {
             executionGraph.transitionToRunning();
 
@@ -733,7 +1304,8 @@ class ExecutingTest {
                         ClassLoader.getSystemClassLoader(),
                         new ArrayList<>(),
                         stateTransitionManagerFactory::apply,
-                        rescaleOnFailedCheckpointCount);
+                        rescaleOnFailedCheckpointCount,
+                        activeCheckpointTriggerEnabled);
             } finally {
                 Preconditions.checkState(
                         !ctx.hadStateTransition,
@@ -1028,6 +1600,12 @@ class ExecutingTest {
         @Override
         public Iterable<ExecutionJobVertex> getVerticesTopologically() {
             return getVerticesTopologicallySupplier.get();
+        }
+
+        @Nullable
+        @Override
+        public CheckpointCoordinator getCheckpointCoordinator() {
+            return null;
         }
     }
 

@@ -745,6 +745,24 @@ public class JobManagerOptions {
                                                             .key()))
                                     .build());
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SCHEDULER_RESCALE_TRIGGER_ACTIVE_CHECKPOINT_ENABLED =
+            key("jobmanager.adaptive-scheduler.rescale-trigger.active-checkpoint.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "When enabled, the Adaptive Scheduler actively triggers a checkpoint when resources change and rescaling is desired, "
+                                                    + "rather than waiting for the next periodic checkpoint. "
+                                                    + "This reduces rescaling latency, especially when checkpoint intervals are large. "
+                                                    + "The active trigger respects the configured minimum pause between checkpoints and "
+                                                    + "will not fire if a checkpoint is already in progress or being triggered.")
+                                    .build());
+
     /**
      * @deprecated Use {@link
      *     JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT}.
