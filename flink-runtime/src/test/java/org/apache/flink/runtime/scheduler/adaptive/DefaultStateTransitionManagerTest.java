@@ -400,6 +400,66 @@ class DefaultStateTransitionManagerTest {
         assertThat(testInstance.getPhase()).isInstanceOf(Transitioning.class);
     }
 
+    @Test
+    void testActiveCheckpointTriggerCalledOnEnteringStabilizing() {
+        final TestingStateTransitionManagerContext ctx =
+                TestingStateTransitionManagerContext.stableContext();
+        ctx.withSufficientResources();
+        final DefaultStateTransitionManager testInstance =
+                ctx.createTestInstanceThatPassedCooldownPhase();
+
+        assertThat(testInstance.getPhase()).isInstanceOf(Idling.class);
+        assertThat(ctx.getActiveCheckpointTriggerCount())
+                .as("Neither Cooldown nor Idling should fire the active trigger")
+                .isZero();
+
+        testInstance.onChange(true);
+
+        assertThat(testInstance.getPhase()).isInstanceOf(Stabilizing.class);
+        assertThat(ctx.getActiveCheckpointTriggerCount())
+                .as("Entering Stabilizing must fire the active trigger exactly once")
+                .isEqualTo(1);
+    }
+
+    @Test
+    void testActiveCheckpointTriggerCalledOnChangeInStabilizing() {
+        final TestingStateTransitionManagerContext ctx =
+                TestingStateTransitionManagerContext.stableContext();
+        ctx.withSufficientResources();
+        final DefaultStateTransitionManager testInstance =
+                ctx.createTestInstanceThatPassedCooldownPhase();
+
+        testInstance.onChange(true);
+        assertThat(testInstance.getPhase()).isInstanceOf(Stabilizing.class);
+
+        testInstance.onChange(true);
+
+        assertThat(testInstance.getPhase()).isInstanceOf(Stabilizing.class);
+        assertThat(ctx.getActiveCheckpointTriggerCount())
+                .as(
+                        "Two onChange calls. One entering Stabilizing, one onChange while in Stabilizing — must fire the trigger twice")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testActiveCheckpointTriggerCalledOnEnteringStabilized() {
+        final TestingStateTransitionManagerContext ctx =
+                TestingStateTransitionManagerContext.stableContext();
+        ctx.withSufficientResources();
+        final DefaultStateTransitionManager testInstance =
+                ctx.createTestInstanceThatPassedCooldownPhase();
+
+        testInstance.onChange(true);
+        assertThat(testInstance.getPhase()).isInstanceOf(Stabilizing.class);
+
+        ctx.passResourceStabilizationTimeout();
+
+        assertThat(testInstance.getPhase()).isInstanceOf(Stabilized.class);
+        assertThat(ctx.getActiveCheckpointTriggerCount())
+                .as("Entering Stabilizing then Stabilized must fire the trigger twice in total")
+                .isEqualTo(2);
+    }
+
     private static void changeWithoutPhaseMove(
             TestingStateTransitionManagerContext ctx,
             DefaultStateTransitionManager testInstance,
@@ -460,6 +520,7 @@ class DefaultStateTransitionManagerTest {
 
         // internal state used for assertions
         private final AtomicBoolean transitionTriggered = new AtomicBoolean();
+        private int activeCheckpointTriggerCount = 0;
         private final SortedMap<Instant, List<ScheduledTask<Object>>> scheduledTasks =
                 new TreeMap<>();
 
@@ -535,6 +596,11 @@ class DefaultStateTransitionManagerTest {
         @Override
         public void transitionToSubsequentState() {
             transitionTriggered.set(true);
+        }
+
+        @Override
+        public void requestActiveCheckpointTrigger() {
+            activeCheckpointTriggerCount++;
         }
 
         @Override
@@ -702,6 +768,10 @@ class DefaultStateTransitionManagerTest {
 
         public void clearStateTransition() {
             transitionTriggered.set(false);
+        }
+
+        public int getActiveCheckpointTriggerCount() {
+            return activeCheckpointTriggerCount;
         }
     }
 }
