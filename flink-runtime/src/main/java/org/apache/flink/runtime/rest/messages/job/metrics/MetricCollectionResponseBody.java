@@ -20,21 +20,10 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Response type for a collection of metrics.
@@ -46,61 +35,23 @@ import static java.util.Objects.requireNonNull;
  * <pre>{@code
  * [{"id": "metricName", "value": "1"}]
  * }</pre>
- *
- * @see Serializer
- * @see Deserializer
- * @see org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore
  */
-@JsonSerialize(using = MetricCollectionResponseBody.Serializer.class)
-@JsonDeserialize(using = MetricCollectionResponseBody.Deserializer.class)
-public final class MetricCollectionResponseBody implements ResponseBody {
-
-    private final Collection<Metric> metrics;
+public final class MetricCollectionResponseBody extends ArrayList<Metric> implements ResponseBody {
+    // a default constructor is required for collection type marshaling
+    public MetricCollectionResponseBody() {}
 
     public MetricCollectionResponseBody(Collection<Metric> metrics) {
-        this.metrics = requireNonNull(metrics, "metrics must not be null");
+        super(metrics);
     }
 
+    @JsonIgnore
     public Collection<Metric> getMetrics() {
-        return metrics;
+        return this;
     }
 
-    /** JSON serializer for {@link MetricCollectionResponseBody}. */
-    public static class Serializer extends StdSerializer<MetricCollectionResponseBody> {
-
-        private static final long serialVersionUID = 1L;
-
-        protected Serializer() {
-            super(MetricCollectionResponseBody.class);
-        }
-
-        @Override
-        public void serialize(
-                MetricCollectionResponseBody metricCollectionResponseBody,
-                JsonGenerator jsonGenerator,
-                SerializerProvider serializerProvider)
-                throws IOException {
-
-            jsonGenerator.writeObject(metricCollectionResponseBody.getMetrics());
-        }
-    }
-
-    /** JSON deserializer for {@link MetricCollectionResponseBody}. */
-    public static class Deserializer extends StdDeserializer<MetricCollectionResponseBody> {
-
-        private static final long serialVersionUID = 1L;
-
-        protected Deserializer() {
-            super(MetricCollectionResponseBody.class);
-        }
-
-        @Override
-        public MetricCollectionResponseBody deserialize(
-                JsonParser jsonParser, DeserializationContext deserializationContext)
-                throws IOException {
-
-            return new MetricCollectionResponseBody(
-                    jsonParser.readValueAs(new TypeReference<List<Metric>>() {}));
-        }
+    @Override
+    @JsonIgnore
+    public boolean isEmpty() {
+        return super.isEmpty();
     }
 }
