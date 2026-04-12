@@ -164,7 +164,8 @@ abstract class UnalignedCheckpointTestBase {
         FsStateChangelogStorageFactory.configure(
                 conf, TempDirUtils.newFolder(temp), Duration.ofMinutes(1), 10);
 
-        final StreamGraph streamGraph = getStreamGraph(settings, conf);
+        // Only used to calculate the required slots for the mini cluster.
+        StreamGraph streamGraph = getStreamGraph(settings, conf);
         final int requiredSlots =
                 streamGraph.getStreamNodes().stream()
                         .mapToInt(StreamNode::getParallelism)
@@ -180,6 +181,10 @@ abstract class UnalignedCheckpointTestBase {
                                 .setNumberSlotsPerTaskManager(slotsPerTM)
                                 .build());
         miniCluster.before();
+
+        // Rebuild stream graph via getExecutionEnvironment which now triggers
+        // TestStreamEnvironment's randomizeConfiguration via the registered factory.
+        streamGraph = getStreamGraph(settings, conf);
 
         final CheckpointGenerationMode mode = settings.checkpointGenerationMode;
         JobID jobID = null;
@@ -246,9 +251,10 @@ abstract class UnalignedCheckpointTestBase {
     }
 
     private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
-        // a dummy environment used to retrieve the DAG, mini cluster will be used later
+        // Use getExecutionEnvironment so that TestStreamEnvironment's randomizeConfiguration
+        // is triggered when the factory is registered (after miniCluster.before()).
         final StreamExecutionEnvironment setupEnv =
-                StreamExecutionEnvironment.createLocalEnvironment(conf);
+                StreamExecutionEnvironment.getExecutionEnvironment(conf);
         settings.configure(setupEnv);
 
         settings.dagCreator.create(
