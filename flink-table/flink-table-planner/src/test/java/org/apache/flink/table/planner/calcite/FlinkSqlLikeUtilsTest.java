@@ -36,9 +36,9 @@ class FlinkSqlLikeUtilsTest {
         assertThat(SqlLikeUtils.like("abcd", "a.*d", "\\")).isEqualTo(false);
         assertThat(SqlLikeUtils.like("abcde", "%c.e", "\\")).isEqualTo(false);
 
-        // default escape character
+        // no default escape character - backslash is treated as a literal character
         assertThat(SqlLikeUtils.like("a-c", "a\\_c")).isEqualTo(false);
-        assertThat(SqlLikeUtils.like("a_c", "a\\_c")).isEqualTo(true);
+        assertThat(SqlLikeUtils.like("a_c", "a\\_c")).isEqualTo(false);
 
         // -------------------------------- sqlToRegexLike ----------------------------------------
 

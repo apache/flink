@@ -1135,8 +1135,8 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns true, if a string matches the specified LIKE pattern with default escape character
-     * '/'.
+     * Returns true, if a string matches the specified LIKE pattern. There is no default escape
+     * character.
      *
      * <p>e.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n"
      */

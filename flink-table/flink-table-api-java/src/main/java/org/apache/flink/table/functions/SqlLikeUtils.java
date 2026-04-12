@@ -97,7 +97,7 @@ public class SqlLikeUtils {
             }
             escapeChar = escapeStr.charAt(0);
         } else {
-            escapeChar = '\\';
+            escapeChar = 0;
         }
         return sqlToRegexLike(sqlPattern, escapeChar);
     }

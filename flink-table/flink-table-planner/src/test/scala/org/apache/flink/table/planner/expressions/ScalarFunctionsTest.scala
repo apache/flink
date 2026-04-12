@@ -408,10 +408,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis("abcxxxdef".like("%abc%qef%"), "'abcxxxdef' LIKE '%abc%qef%'", "FALSE")
     testAllApis("abcxxxdef".like("abc%qef"), "'abcxxxdef' LIKE 'abc%qef'", "FALSE")
 
-    // reported in FLINK-36100
+    // reported in FLINK-36100 - without ESCAPE clause, '\' is a literal character
     testAllApis("TE_ST".like("%E_S%"), "'TE_ST' LIKE '%E_S%'", "TRUE")
     testAllApis("TE-ST".like("%E_S%"), "'TE-ST' LIKE '%E_S%'", "TRUE")
-    testAllApis("TE_ST".like("%E\\_S%"), "'TE_ST' LIKE '%E\\_S%'", "TRUE")
+    testAllApis("TE_ST".like("%E\\_S%"), "'TE_ST' LIKE '%E\\_S%'", "FALSE")
     testAllApis("TE-ST".like("%E\\_S%"), "'TE-ST' LIKE '%E\\_S%'", "FALSE")
   }
 
@@ -420,10 +420,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis(!'f0.like("Th_s%"), "f0 NOT LIKE 'Th_s%'", "FALSE")
     testAllApis(!'f0.like("%is a%"), "f0 NOT LIKE '%is a%'", "FALSE")
 
-    // reported in FLINK-36100
+    // reported in FLINK-36100 - without ESCAPE clause, '\' is a literal character
     testSqlApi("'TE_ST' NOT LIKE '%E_S%'", "FALSE")
     testSqlApi("'TE-ST' NOT LIKE '%E_S%'", "FALSE")
-    testSqlApi("'TE_ST' NOT LIKE '%E\\_S%'", "FALSE")
+    testSqlApi("'TE_ST' NOT LIKE '%E\\_S%'", "TRUE")
     testSqlApi("'TE-ST' NOT LIKE '%E\\_S%'", "TRUE")
   }
 

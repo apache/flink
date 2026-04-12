@@ -72,11 +72,11 @@ comparison:
     table: string1.like(string2[, char])
     description: |
       如果 string1 匹配 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要可以定义包含单个字符的转义字符，默认为 `\`。
+      如果需要，可以通过 ESCAPE 子句定义包含单个字符的转义字符。默认没有转义字符。
   - sql: string1 NOT LIKE string2 [ ESCAPE char ]
     description: |
       如果 string1 与 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要可以定义包含单个字符的转义字符，默认为 `\`。
+      如果需要，可以通过 ESCAPE 子句定义包含单个字符的转义字符。默认没有转义字符。
   - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
     table: string1.similar(string2)
     description: |
