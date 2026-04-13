@@ -671,7 +671,7 @@ public class CheckpointingOptions {
 
     @Experimental
     @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
-    public static final ConfigOption<Boolean> UNALIGNED_DURING_RECOVERY_ENABLED =
+    public static final ConfigOption<Boolean> CHECKPOINTING_DURING_RECOVERY_ENABLED =
             ConfigOptions.key("execution.checkpointing.during-recovery.enabled")
                     .booleanType()
                     .defaultValue(false)
@@ -807,6 +807,6 @@ public class CheckpointingOptions {
         if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
             return false;
         }
-        return config.get(UNALIGNED_DURING_RECOVERY_ENABLED);
+        return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED);
     }
 }
