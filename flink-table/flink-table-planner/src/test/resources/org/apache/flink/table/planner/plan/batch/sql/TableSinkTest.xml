@@ -20,9 +20,9 @@ limitations under the License.
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.MyCtasSource], fields=[b, c, d])
-+- LogicalProject(b=[$0], c=[$1], d=[$2])
++- LogicalProject(select=[b, c, d])
    +- LogicalSort(sort0=[$3], dir0=[ASC-nulls-first])
-      +- LogicalProject(b=[$1], c=[$2], d=[$3], a=[$0])
+      +- LogicalProject(select=[b, c, d, a])
          +- LogicalValues(tuples=[[{ 1, 1, 2, _UTF-16LE'd1' }]])
 
 == Optimized Physical Plan ==
@@ -46,7 +46,7 @@ Sink(table=[default_catalog.default_database.MyCtasSource], fields=[b, c, d])
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
 +- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -65,7 +65,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
 +- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], b=[$1])
+   +- LogicalProject(select=[a, b])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -84,18 +84,18 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(sum_a=[$0])
-      +- LogicalProject(sum_a=[$1], c=[$0])
+   +- LogicalProject(select=[sum_a])
+      +- LogicalProject(select=[sum_a, c])
          +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
-            +- LogicalProject(c=[$2], a=[$0])
+            +- LogicalProject(select=[c, a])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalSink(table=[default_catalog.default_database.sink2], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
-   +- LogicalProject(sum_a=[$0])
-      +- LogicalProject(sum_a=[$1], c=[$0])
+   +- LogicalProject(select=[sum_a])
+      +- LogicalProject(select=[sum_a, c])
          +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
-            +- LogicalProject(c=[$2], a=[$0])
+            +- LogicalProject(select=[c, a])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -126,9 +126,9 @@ Sink(table=[default_catalog.default_database.sink2], fields=[total_min])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
-+- LogicalProject(cnt=[$1])
++- LogicalProject(select=[cnt])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-      +- LogicalProject(a=[$0])
+      +- LogicalProject(select=[a])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -148,11 +148,11 @@ Sink(table=[default_catalog.default_database.sink], fields=[cnt])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c], hints=[[[OPTIONS options:{path=/tmp1}]]])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c], hints=[[[OPTIONS options:{path=/tmp2}]]])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

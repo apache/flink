@@ -23,7 +23,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[0])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -40,7 +40,7 @@ Values(tuples=[[]], values=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
@@ -60,7 +60,7 @@ Limit(offset=[0], fetch=[10], global=[true])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -81,7 +81,7 @@ Calc(select=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
@@ -101,7 +101,7 @@ Limit(offset=[10], fetch=[10], global=[true])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -122,7 +122,7 @@ Calc(select=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10], fetch=[0])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -139,7 +139,7 @@ Values(tuples=[[]], values=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[0], fetch=[0])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -156,7 +156,7 @@ Values(tuples=[[]], values=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[0])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -173,7 +173,7 @@ Values(tuples=[[]], values=[a, b, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
@@ -193,7 +193,7 @@ Limit(offset=[0], fetch=[10], global=[true])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[1], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -214,7 +214,7 @@ Calc(select=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[0], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -235,7 +235,7 @@ Calc(select=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[1], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>
@@ -255,7 +255,7 @@ Limit(offset=[1], fetch=[10], global=[true])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(fetch=[5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -275,7 +275,7 @@ Limit(offset=[0], fetch=[5], global=[true])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(offset=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -295,7 +295,7 @@ Calc(select=[a, c])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
-+- LogicalProject(a=[$0], c=[$2])
++- LogicalProject(select=[a, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
 ]]>
     </Resource>

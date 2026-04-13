@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 })), NOT(EXISTS({
@@ -55,7 +55,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
   LogicalProject(d=[$0], $f1=[true], f=[$2], $f3=[1], e=[$1])
@@ -85,7 +85,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = e) AND (c = f))], select=[a, b, c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[=($cor1.a, $0)])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
@@ -112,7 +112,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{0}])
   LogicalProject(e=[$1])
@@ -142,7 +142,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(c = f)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -166,7 +166,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
+LogicalProject(select=[+($0, 10) AS EXPR$0, c])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(OR(LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 })))))])
@@ -195,7 +195,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -237,7 +237,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[r
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
@@ -264,7 +264,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[r
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), >($1, 10))])
@@ -292,7 +292,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[r
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[EXISTS({
 LogicalUnion(all=[false])
   LogicalProject(e=[$1], f=[$2])
@@ -333,7 +333,7 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a], build=[right],
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -364,7 +364,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(IN($1, {
 LogicalProject(j=[$1])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -394,7 +394,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(EXPR$0=[$1])
   LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
@@ -425,7 +425,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (c = f))], select=[a,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($1, $0, {
 LogicalProject(EXPR$0=[$4], d=[$0])
   LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
@@ -455,7 +455,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (a = d) AND (c = f))]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
+LogicalProject(select=[+($0, 10) AS EXPR$0, c])
 +- LogicalFilter(condition=[IN(SUBSTRING($2, 1, 5), {
 LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
   LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
@@ -482,7 +482,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
@@ -508,7 +508,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(e=[$0])
   LogicalJoin(condition=[=($0, $1)], joinType=[inner])
@@ -544,7 +544,7 @@ Calc(select=[c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(j=[$3])
   LogicalJoin(condition=[=($1, $4)], joinType=[left])
@@ -578,7 +578,7 @@ Calc(select=[c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalJoin(condition=[=($0, $3)], joinType=[right])
@@ -613,7 +613,7 @@ Calc(select=[c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($2, {
 LogicalProject(f1=[$3])
   LogicalFilter(condition=[=($cor1.a, $0)])
@@ -641,7 +641,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((c = f1) AND (a = d))], select=[a, b, 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, SUBSTRING($2, 1, 5), {
 LogicalProject(d=[$0], EXPR$1=[SUBSTRING($2, 1, 5)])
   LogicalFilter(condition=[=($cor0.b, $1)])
@@ -668,7 +668,7 @@ Calc(select=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($cor0.b, $1)])
@@ -693,7 +693,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b > e))], select=[a, b, c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($cor0.b, 10)])
@@ -719,7 +719,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(rk=[$2])
   LogicalFilter(condition=[<>($cor0.a, $0)])
@@ -750,7 +750,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[IN($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
   LogicalProject(d=[$0])
@@ -799,7 +799,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
@@ -824,7 +824,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(>($1, 1), IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
@@ -850,7 +850,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=(CAST($cor0.b):INTEGER, $0)])
@@ -876,7 +876,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[IN($1, {
 LogicalProject(EXPR$0=[$1])
   LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
@@ -909,7 +909,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, $1, {
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
   LogicalProject(d=[$0])
@@ -937,7 +937,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = EXPR$1))], select=[a,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
 LogicalProject(d=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -962,7 +962,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IS TRUE(IN($0, {
 LogicalProject(d=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -986,7 +986,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[IN($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
   LogicalProject(e=[$1])
@@ -1023,7 +1023,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1])
+LogicalProject(select=[b])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($1, 10)])
@@ -1064,13 +1064,13 @@ Calc(select=[b])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(s=[$1])
+LogicalProject(select=[s])
 +- LogicalFilter(condition=[AND(>($2, 2), IN($3, {
 LogicalProject(e=[$1])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
    +- LogicalAggregate(group=[{0}], s=[SUM($1)], agg#1=[COUNT()], agg#2=[MAX($0)])
-      +- LogicalProject(b=[$1], a=[$0])
+      +- LogicalProject(select=[b, a])
          +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
@@ -1094,7 +1094,7 @@ Calc(select=[s])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($2, {
 LogicalProject(f1=[$3])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
@@ -1124,7 +1124,7 @@ SELECT * FROM l WHERE
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN(+($0, 10), SUBSTRING($2, 1, 5), {
 LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1153,7 +1153,7 @@ SELECT * FROM l WHERE (a, b) IN
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, $1, {
 LogicalProject(EXPR$0=[MAX($0) OVER ()], EXPR$1=[MIN($1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1183,7 +1183,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b,
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1207,7 +1207,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[<($1, 100)])
@@ -1233,7 +1233,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN(+($0, 1), {
 LogicalProject(d=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1262,7 +1262,7 @@ SELECT a FROM l WHERE b IN
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
 +- LogicalFilter(condition=[IN($1, {
 LogicalUnion(all=[false])
   LogicalProject(e=[$1])
@@ -1299,7 +1299,7 @@ Calc(select=[a])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -1333,7 +1333,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalFilter(condition=[AND(=($0, $3), EXISTS({
 LogicalFilter(condition=[>($0, 50)])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -1376,7 +1376,7 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJ
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.c, $2)])
@@ -1408,7 +1408,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[AND(=($cor0.b, $1), IN($2, {
@@ -1441,7 +1441,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1472,7 +1472,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1502,7 +1502,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[IN($1, {
@@ -1535,7 +1535,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
 LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -1570,7 +1570,7 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nHashJoin(joinType=[LeftAntiJoin], 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, d, e, f])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
 LogicalFilter(condition=[>($0, 50)])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -1613,7 +1613,7 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftAntiJ
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1637,7 +1637,7 @@ HashJoin(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], isBroadcast
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
+LogicalProject(select=[+($0, 10) AS EXPR$0, c])
 +- LogicalFilter(condition=[NOT(OR(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))))])
@@ -1666,7 +1666,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
@@ -1693,7 +1693,7 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[ri
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
 LogicalTableScan(table=[[default_catalog, default_database, r]])
 })), >($1, 10))])
@@ -1721,7 +1721,7 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[ri
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[NOT(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
   LogicalAggregate(group=[{0}])
@@ -1750,7 +1750,7 @@ HashJoin(joinType=[LeftAntiJoin], where=[(a = c)], select=[a, b], isBroadcast=[t
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
   LogicalTableScan(table=[[default_catalog, default_database, r]])
@@ -1781,7 +1781,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], wh
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
+LogicalProject(select=[+($0, 10) AS EXPR$0, c])
 +- LogicalFilter(condition=[NOT(IN(SUBSTRING($2, 1, 5), {
 LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
   LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
@@ -1808,7 +1808,7 @@ Calc(select=[(a + 10) AS EXPR$0, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1])
+LogicalProject(select=[b])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
 LogicalProject(i=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, t]])
@@ -1864,7 +1864,7 @@ Calc(select=[b])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
 LogicalProject(d=[$0], f=[$2])
   LogicalFilter(condition=[=($cor0.b, $1)])
@@ -1889,7 +1889,7 @@ HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AN
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
@@ -1914,7 +1914,7 @@ HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AN
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])

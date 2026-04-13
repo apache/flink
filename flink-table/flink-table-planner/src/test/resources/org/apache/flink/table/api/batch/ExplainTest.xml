@@ -19,14 +19,14 @@ limitations under the License.
   <TestCase name="testExplainMultipleInput[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
+LogicalProject(select=[a, EXPR$1, d, EXPR$10])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-         +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalProject(select=[d, e])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
@@ -58,14 +58,14 @@ MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[
   <TestCase name="testExplainMultipleInput[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
+LogicalProject(select=[a, EXPR$1, d, EXPR$10])
 +- LogicalFilter(condition=[=($0, $2)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-      :  +- LogicalProject(a=[$0], b=[$1])
+      :  +- LogicalProject(select=[a, b])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-         +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalProject(select=[d, e])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
@@ -97,9 +97,9 @@ MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[
   <TestCase name="testExplainWithAgg[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-   +- LogicalProject(a=[$0])
+   +- LogicalProject(select=[a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -123,9 +123,9 @@ Calc(select=[EXPR$0])
   <TestCase name="testExplainWithAgg[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-   +- LogicalProject(a=[$0])
+   +- LogicalProject(select=[a])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -149,7 +149,7 @@ Calc(select=[EXPR$0])
   <TestCase name="testExplainWithDataStreamScan[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -163,7 +163,7 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=
   <TestCase name="testExplainWithDataStreamScan[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -177,7 +177,7 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=
   <TestCase name="testExplainWithFilter[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
@@ -194,7 +194,7 @@ Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
   <TestCase name="testExplainWithFilter[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
@@ -211,7 +211,7 @@ Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
   <TestCase name="testExplainWithJoin[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, e, f])
 +- LogicalFilter(condition=[=($0, $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -238,7 +238,7 @@ Calc(select=[a, b, c, e, f])
   <TestCase name="testExplainWithJoin[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
+LogicalProject(select=[a, b, c, e, f])
 +- LogicalFilter(condition=[=($0, $3)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -266,17 +266,17 @@ Calc(select=[a, b, c, e, f])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
-+- LogicalProject(a=[$0], cnt=[$1])
++- LogicalProject(select=[a, cnt])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
-+- LogicalProject(a=[$0], cnt=[$1])
++- LogicalProject(select=[a, cnt])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -317,17 +317,17 @@ Sink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, cnt])
-+- LogicalProject(a=[$0], cnt=[$1])
++- LogicalProject(select=[a, cnt])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
-+- LogicalProject(a=[$0], cnt=[$1])
++- LogicalProject(select=[a, cnt])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-         +- LogicalProject(a=[$0])
+         +- LogicalProject(select=[a])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -368,7 +368,7 @@ Sink(table=[default_catalog.default_database.sink2], fields=[a, cnt])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
@@ -388,7 +388,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
@@ -408,7 +408,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -429,7 +429,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(select=[a, b, c])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
@@ -449,7 +449,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
   <TestCase name="testExplainWithTableSourceScan[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -463,7 +463,7 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a,
   <TestCase name="testExplainWithTableSourceScan[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalProject(select=[a, b, c])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
@@ -478,9 +478,9 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a,
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:- LogicalProject(select=[a, b, c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-+- LogicalProject(d=[$0], e=[$1], f=[$2])
++- LogicalProject(select=[d, e, f])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
@@ -499,9 +499,9 @@ Union(all=[true], union=[a, b, c])
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:- LogicalProject(select=[a, b, c])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-+- LogicalProject(d=[$0], e=[$1], f=[$2])
++- LogicalProject(select=[d, e, f])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==

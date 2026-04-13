@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc3(pandasFunc2(+($0, pandasFunc1($0, $2)), $1), $2)])
+LogicalProject(select=[pandasFunc3(pandasFunc2(+($0, pandasFunc1($0, $2)), $1), $2) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -41,7 +41,7 @@ FlinkLogicalCalc(select=[pandasFunc3(pandasFunc2(f0, b), c) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pyFunc3(pyFunc2(+($0, pyFunc1($0, $2)), $1), $2)])
+LogicalProject(select=[pyFunc3(pyFunc2(+($0, pyFunc1($0, $2)), $1), $2) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -60,7 +60,7 @@ FlinkLogicalCalc(select=[pyFunc3(pyFunc2(f0, b), c) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, pyFunc1($2, $3._1))])
+LogicalProject(select=[a, pyFunc1($1, pyFunc1($2, $3._1)) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -78,7 +78,7 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, pyFunc1(c, f0)) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1($1, $2)], EXPR$1=[+($0, 1)])
+LogicalProject(select=[pyFunc1($1, $2) AS EXPR$0, +($0, 1) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -96,7 +96,7 @@ FlinkLogicalCalc(select=[f00 AS EXPR$0, +(f0, 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[pyFunc1($0, $2)], EXPR$3=[1])
+LogicalProject(select=[a, b, pyFunc1($0, $2) AS EXPR$2, 1 AS EXPR$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -114,7 +114,7 @@ FlinkLogicalCalc(select=[a, b, f0 AS EXPR$2, 1 AS EXPR$3])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc1($0, $1)])
+LogicalProject(select=[pandasFunc1($0, $1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -131,7 +131,7 @@ FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[pandasFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -150,7 +150,7 @@ FlinkLogicalCalc(select=[a, b], where=[f0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1($0, $1)])
+LogicalProject(select=[pyFunc1($0, $1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -167,7 +167,7 @@ FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[pyFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -186,7 +186,7 @@ FlinkLogicalCalc(select=[a, b], where=[f0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+(pandasFunc1($0, $1), 1)])
+LogicalProject(select=[+(pandasFunc1($0, $1), 1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -204,7 +204,7 @@ FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc1($0, $1)])
+LogicalProject(select=[pandasFunc1($0, $1) AS EXPR$0])
 +- LogicalFilter(condition=[pandasFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -224,7 +224,7 @@ FlinkLogicalCalc(select=[pandasFunc1(a, b) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+(pyFunc1($0, $2), 1)], EXPR$2=[+($0, 1)])
+LogicalProject(select=[pandasFunc1($0, $1) AS EXPR$0, +(pyFunc1($0, $2), 1) AS EXPR$1, +($0, 1) AS EXPR$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -243,7 +243,7 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(f1, 1) AS EXPR$1, +(a, 1) AS EXPR$2])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+($2, 1)])
+LogicalProject(select=[pandasFunc1($0, $1) AS EXPR$0, +($2, 1) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -261,7 +261,7 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pandasFunc1($0, $1)], EXPR$1=[+($2, 1)])
+LogicalProject(select=[pandasFunc1($0, $1) AS EXPR$0, +($2, 1) AS EXPR$1])
 +- LogicalFilter(condition=[>(pandasFunc2($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -282,7 +282,7 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+(pyFunc1($0, pandasFunc1($0, $1)), 1)])
+LogicalProject(select=[+(pyFunc1($0, pandasFunc1($0, $1)), 1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -301,7 +301,7 @@ FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pandasFunc1($1, $3._1)])
+LogicalProject(select=[a, pandasFunc1($1, $3._1) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -319,7 +319,7 @@ FlinkLogicalCalc(select=[a, pandasFunc1(b, f0) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+(pyFunc1($0, $1), 1)])
+LogicalProject(select=[+(pyFunc1($0, $1), 1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -337,7 +337,7 @@ FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1($0, $1)])
+LogicalProject(select=[pyFunc1($0, $1) AS EXPR$0])
 +- LogicalFilter(condition=[pyFunc4($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -357,7 +357,7 @@ FlinkLogicalCalc(select=[pyFunc1(a, b) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
+LogicalProject(select=[pyFunc1($0, $1) AS EXPR$0, +($2, 1) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -375,7 +375,7 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[pyFunc1($0, $1)], EXPR$1=[+($2, 1)])
+LogicalProject(select=[pyFunc1($0, $1) AS EXPR$0, +($2, 1) AS EXPR$1])
 +- LogicalFilter(condition=[>(pyFunc2($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -396,7 +396,7 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, $3._1)])
+LogicalProject(select=[a, pyFunc1($1, $3._1) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -414,8 +414,8 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0.f0], f1=[$0.f1])
-+- LogicalProject(e=[pyFunc5($3._1)])
+LogicalProject(select=[$0.f0 AS f0, $0.f1 AS f1])
++- LogicalProject(select=[pyFunc5($3._1) AS e])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -434,7 +434,7 @@ FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, $3._1)])
+LogicalProject(select=[a, pyFunc1($1, $3._1) AS EXPR$1])
 +- LogicalFilter(condition=[>(+($0, 1), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -453,8 +453,8 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0.f0], f1=[$0.f1])
-+- LogicalProject(e=[pyFunc5($0)])
+LogicalProject(select=[$0.f0 AS f0, $0.f1 AS f1])
++- LogicalProject(select=[pyFunc5($0) AS e])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -472,7 +472,7 @@ FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 1)])
+LogicalProject(select=[+($0, 1) AS EXPR$0])
 +- LogicalFilter(condition=[AND(IS NULL(RowJavaFunc(pyFunc5($0).f0).f0), >($1, 0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -492,8 +492,8 @@ FlinkLogicalCalc(select=[+(a, 1) AS EXPR$0], where=[AND(IS NULL(f0.f0), >(b, 0))
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0.f0], f1=[$0.f1], f00=[$1.f0], f10=[$1.f1])
-+- LogicalProject(e=[pyFunc5($0)], f=[pyFunc5($1)])
+LogicalProject(select=[$0.f0 AS f0, $0.f1 AS f1, $1.f0 AS f00, $1.f1 AS f10])
++- LogicalProject(select=[pyFunc5($0) AS e, pyFunc5($1) AS f])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -511,7 +511,7 @@ FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1, f1.f0 AS f00, f1.f1 AS f10])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($0, $2)], b=[$1])
+LogicalProject(select=[a, pyFunc1($0, $2) AS EXPR$1, b])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -529,7 +529,7 @@ FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($0, $2)])
+LogicalProject(select=[a, pyFunc1($0, $2) AS EXPR$1])
 +- LogicalFilter(condition=[>(pyFunc1($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

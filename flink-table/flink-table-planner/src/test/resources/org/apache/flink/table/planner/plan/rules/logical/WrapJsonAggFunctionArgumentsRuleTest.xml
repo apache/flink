@@ -62,7 +62,7 @@ SortAggregate(isMerge=[false], groupBy=[f0], select=[f0, JSON_OBJECTAGG_NULL_ON_
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)], EXPR$3=[SUM($1)])
-+- LogicalProject(f0=[$0], f2=[$2])
++- LogicalProject(select=[f0, f2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -82,7 +82,7 @@ GroupAggregate(groupBy=[f0], select=[f0, COUNT(*) AS EXPR$1, JSON_ARRAYAGG_ABSEN
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)], EXPR$3=[SUM($1)])
-+- LogicalProject(f0=[$0], f2=[$2])
++- LogicalProject(select=[f0, f2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -144,7 +144,7 @@ SortAggregate(isMerge=[true], groupBy=[f0], select=[f0, Final_COUNT(count1$0) AS
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $0)], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)], EXPR$3=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0], f1=[$1])
++- LogicalProject(select=[f0, f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -164,7 +164,7 @@ GroupAggregate(select=[MAX(f0) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) A
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $0)], EXPR$2=[JSON_ARRAYAGG_ABSENT_ON_NULL($1)], EXPR$3=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0], f1=[$1])
++- LogicalProject(select=[f0, f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -184,7 +184,7 @@ SortAggregate(isMerge=[false], select=[MAX(f0) AS EXPR$0, JSON_OBJECTAGG_NULL_ON
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
++- LogicalProject(select=[f0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -204,7 +204,7 @@ GroupAggregate(groupBy=[f0], select=[f0, JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EX
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
++- LogicalProject(select=[f0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -225,7 +225,7 @@ SortAggregate(isMerge=[false], groupBy=[f0], select=[f0, JSON_ARRAYAGG_ABSENT_ON
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
++- LogicalProject(select=[f0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -245,7 +245,7 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS 
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
++- LogicalProject(select=[f0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -265,7 +265,7 @@ SortAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
++- LogicalProject(select=[f0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -285,7 +285,7 @@ GroupAggregate(select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
++- LogicalProject(select=[f0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -305,7 +305,7 @@ SortAggregate(isMerge=[false], select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $0)])
-+- LogicalProject(f0=[$0], f1=[$1])
++- LogicalProject(select=[f0, f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -325,7 +325,7 @@ GroupAggregate(groupBy=[f0], select=[f0, JSON_OBJECTAGG_NULL_ON_NULL(f1, $f2) AS
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($1, $0)])
-+- LogicalProject(f0=[$0], f1=[$1])
++- LogicalProject(select=[f0, f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -348,7 +348,7 @@ SortAggregate(isMerge=[true], groupBy=[f0], select=[f0, Final_JSON_OBJECTAGG_NUL
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
-+- LogicalProject(f1=[$1])
++- LogicalProject(select=[f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -368,7 +368,7 @@ GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1)
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
-+- LogicalProject(f1=[$1])
++- LogicalProject(select=[f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -389,7 +389,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0, Final_JSO
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
-+- LogicalProject(f1=[$1])
++- LogicalProject(select=[f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -409,7 +409,7 @@ GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
-+- LogicalProject(f1=[$1])
++- LogicalProject(select=[f1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>

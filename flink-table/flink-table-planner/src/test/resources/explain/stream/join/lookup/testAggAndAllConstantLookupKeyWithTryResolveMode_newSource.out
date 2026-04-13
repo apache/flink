@@ -1,10 +1,10 @@
 == Abstract Syntax Tree ==
 LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
-+- LogicalProject(a=[$0], name=[$4], age=[$5])
++- LogicalProject(select=[a, name, age])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
-      :- LogicalProject(a=[$1], c=[$2], proctime=[PROCTIME()])
+      :- LogicalProject(select=[a, c, PROCTIME() AS proctime])
       :  +- LogicalAggregate(group=[{0}], a=[MAX($1)], c=[COUNT($2)])
-      :     +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      :     +- LogicalProject(select=[b, a, c])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[=($0, 100)])
          +- LogicalSnapshot(period=[$cor0.proctime])

@@ -22,12 +22,12 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
-   :- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   :- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]], hints=[[[ALIAS inheritPath:[0] options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   :     +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   :     +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :        +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]][ALIAS inheritPath:[0, 1, 0] options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :           :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :           +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -41,10 +41,10 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a3=[$0], b3=[$1]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3)]
+LogicalProject(select=[a3, b3]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3, BIGINT a1, VARCHAR(2147483647) b1)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3)]
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -57,7 +57,7 @@ LogicalProject(a3=[$0], b3=[$1]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(a2=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -72,7 +72,7 @@ LogicalProject(a2=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(a2=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -87,7 +87,7 @@ LogicalProject(a2=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b1=[$1], EXPR$1=[CAST($0):INTEGER]), rowType=[RecordType(VARCHAR(2147483647) b1, INTEGER EXPR$1)]
+LogicalProject(select=[b1, CAST($0):INTEGER AS EXPR$1]), rowType=[RecordType(VARCHAR(2147483647) b1, INTEGER EXPR$1)]
 +- LogicalJoin(condition=[=($1, $3)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -100,7 +100,7 @@ LogicalProject(b1=[$1], EXPR$1=[CAST($0):INTEGER]), rowType=[RecordType(VARCHAR(
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -113,7 +113,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[AND(=($0, $2), <($0, 1))], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -126,7 +126,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[AND(=($1, $3), <($0, 1), <($0, $2))], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -139,7 +139,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalFilter(condition=[=($0, $2)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -153,7 +153,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalFilter(condition=[AND(=($0, $2), >($0, 1))]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -167,7 +167,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[full], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -180,7 +180,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[full], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -193,7 +193,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[$1])
   LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
@@ -212,7 +212,7 @@ LogicalProject(EXPR$0=[$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
   LogicalFilter(condition=[=($cor0.a1, $0)])
@@ -230,7 +230,7 @@ LogicalProject(a2=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[+($0, $cor0.a1)])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -247,7 +247,7 @@ LogicalProject(EXPR$0=[+($0, $cor0.a1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
   LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
@@ -266,7 +266,7 @@ LogicalProject(a2=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[+($0, $cor0.a1)])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -286,7 +286,7 @@ LogicalProject(EXPR$0=[+($0, $cor0.a1)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -303,7 +303,7 @@ LogicalProject(a2=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -316,7 +316,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -329,7 +329,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -342,7 +342,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -355,7 +355,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
+LogicalProject(select=[a1, b1, a2, b2, a3, b3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $5))]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
    +- LogicalJoin(condition=[true], joinType=[inner]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
@@ -371,7 +371,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[R
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
+LogicalProject(select=[a1, b1, a2, b2, a3, b3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
 +- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
    +- LogicalJoin(condition=[true], joinType=[inner]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
@@ -387,7 +387,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[R
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
+LogicalProject(select=[a1, b1, a2, b2, a3, b3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
 +- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
@@ -403,7 +403,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[R
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
+LogicalProject(select=[a1, b1, a2, b2, a3, b3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
 +- LogicalFilter(condition=[AND(=($0, $2), =($1, $5))]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
@@ -419,7 +419,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[R
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
+LogicalProject(select=[a1, b1, a2, b2, a3, b3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
 +- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
    +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2, BIGINT a3, VARCHAR(2147483647) b3)]
       :- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
@@ -435,7 +435,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5]), rowType=[R
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -448,7 +448,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -461,7 +461,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -474,7 +474,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -489,7 +489,7 @@ LogicalProject(a2=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(a2=[$0])
   LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
@@ -505,7 +505,7 @@ LogicalProject(a2=[$0])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)]), rowType=[RecordType(VARCHAR(2147483647) b1, BIGINT EXPR$1)]
-+- LogicalProject(b1=[$1], a1=[$0]), rowType=[RecordType(VARCHAR(2147483647) b1, BIGINT a1)]
++- LogicalProject(select=[b1, a1]), rowType=[RecordType(VARCHAR(2147483647) b1, BIGINT a1)]
    +- LogicalJoin(condition=[=($1, $3)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -518,12 +518,12 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)]), rowType=[RecordType(VARCHAR(214
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
-   :- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V22]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   :- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V22]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]], hints=[[[ALIAS inheritPath:[0] options:[V22]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   :     +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   :     +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :        +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]][ALIAS inheritPath:[0, 1, 0] options:[V22]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :           :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :           +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -537,12 +537,12 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
-   :- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   :- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
    :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   :     +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V22]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   :     +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V22]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :        +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V22]][ALIAS inheritPath:[0, 1, 0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :           :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    :           +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -556,10 +556,10 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -572,10 +572,10 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a4=[$2], b4=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a4, VARCHAR(2147483647) b4)]
+LogicalProject(select=[a1, b1, a4, b4]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a4, VARCHAR(2147483647) b4)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a4, VARCHAR(2147483647) b4)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalProject(a4=[$0], b4=[$1], hints=[[[ALIAS options:[V4]]]]), rowType=[RecordType(BIGINT a4, VARCHAR(2147483647) b4)]
+   +- LogicalProject(select=[a3 AS a4, b3 AS b4], hints=[[[ALIAS options:[V4]]]]), rowType=[RecordType(BIGINT a4, VARCHAR(2147483647) b4)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T3]]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3)]
 ]]>
     </Resource>
@@ -586,10 +586,10 @@ LogicalProject(a1=[$0], b1=[$1], a4=[$2], b4=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -602,13 +602,13 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], cnt=[$SCALAR_QUERY({
+LogicalProject(select=[a1, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalJoin(condition=[=($0, $2)], joinType=[inner])
     LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
     LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
-})]), rowType=[RecordType(BIGINT a1, BIGINT cnt)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+}) AS cnt]), rowType=[RecordType(BIGINT a1, BIGINT cnt)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -622,14 +622,14 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0]), rowType=[RecordType(BIGINT a1)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1]), rowType=[RecordType(BIGINT a1)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalUnion(all=[false], hints=[[[ALIAS options:[T2]]]]), rowType=[RecordType(BIGINT a2)]
-         :- LogicalProject(a2=[$0]), rowType=[RecordType(BIGINT a2)]
+         :- LogicalProject(select=[a1 AS a2]), rowType=[RecordType(BIGINT a2)]
          :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a2=[$0]), rowType=[RecordType(BIGINT a2)]
+         +- LogicalProject(select=[a2]), rowType=[RecordType(BIGINT a2)]
             +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 ]]>
     </Resource>
@@ -640,7 +640,7 @@ LogicalProject(a1=[$0]), rowType=[RecordType(BIGINT a1)]
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], cnt=[$SCALAR_QUERY({
+LogicalProject(select=[a1, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
   LogicalFilter(condition=[=($2, 1)])
     LogicalJoin(condition=[=($0, $2)], joinType=[inner])
@@ -650,8 +650,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
           LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
         LogicalProject(a3=[$0])
           LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
-})]), rowType=[RecordType(BIGINT a1, BIGINT cnt)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+}) AS cnt]), rowType=[RecordType(BIGINT a1, BIGINT cnt)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -664,8 +664,8 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[EXPR$0]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[EXPR$0]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[EXPR$0]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -678,8 +678,8 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[EXPR$0]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[EXPR$0]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[EXPR$0]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -693,10 +693,10 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-   +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V5]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+   +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V5]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V5]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -709,8 +709,8 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V5]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V5]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[V5]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -723,8 +723,8 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0, 0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -738,7 +738,7 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -751,7 +751,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -762,21 +762,21 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.S1], fields=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[>($2, 2)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+         +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 
 LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[>($2, 5)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+         +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -787,21 +787,21 @@ LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1]), rowTy
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.S1], fields=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[>($2, 2)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+         +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 
 LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[>($2, 5)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+         +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -812,21 +812,21 @@ LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1]), rowTy
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.S1], fields=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[>($2, 2)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+         +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V2]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
 
 LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-+- LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a1, b1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[>($2, 5)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
       +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_HASH options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a10, VARCHAR(2147483647) b10)]
          :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
-         +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
+         +- LogicalProject(select=[a1, b1], hints=[[[ALIAS options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
             +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[SHUFFLE_HASH options:[LEFT]]]], hints=[[[ALIAS inheritPath:[0] options:[V3]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
                :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
                +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -839,7 +839,7 @@ LogicalSink(table=[default_catalog.default_database.S2], fields=[a1, b1]), rowTy
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 1)], EXPR$1=[*($0, 10)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1)]
+LogicalProject(select=[+($0, 1) AS EXPR$0, *($0, 10) AS EXPR$1]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -852,7 +852,7 @@ LogicalProject(EXPR$0=[+($0, 1)], EXPR$1=[*($0, 10)]), rowType=[RecordType(BIGIN
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -865,7 +865,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalFilter(condition=[>($0, 5)]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -879,7 +879,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]][BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -892,7 +892,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]][BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -906,11 +906,11 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[false]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
-:- LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+:- LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 :  +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
 :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
-+- LogicalProject(a3=[$0], b3=[$1], a1=[$2], b1=[$3]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3, BIGINT a1, VARCHAR(2147483647) b1)]
++- LogicalProject(select=[a3, b3, a1, b1]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3, BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3, BIGINT a1, VARCHAR(2147483647) b1)]
       :- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]]), rowType=[RecordType(BIGINT a3, VARCHAR(2147483647) b3)]
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
@@ -923,7 +923,7 @@ LogicalUnion(all=[false]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]][SHUFFLE_HASH options:[LEFT]][SHUFFLE_MERGE options:[LEFT]][NEST_LOOP options:[LEFT]][MULTI_JOIN options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -936,7 +936,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[>($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]][NEST_LOOP options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -949,7 +949,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[LEFT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]
@@ -962,7 +962,7 @@ LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
+LogicalProject(select=[a1, b1, a2, b2]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
 +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[BROADCAST options:[RIGHT]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]]), rowType=[RecordType(BIGINT a2, VARCHAR(2147483647) b2)]

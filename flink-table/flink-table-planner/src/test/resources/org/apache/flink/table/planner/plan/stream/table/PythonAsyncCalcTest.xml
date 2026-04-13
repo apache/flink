@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+(asyncFunc1($0, $1), 1)])
+LogicalProject(select=[+(asyncFunc1($0, $1), 1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -40,7 +40,7 @@ Calc(select=[(f0 + 1) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1])
+LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[>(asyncFunc1($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -59,7 +59,7 @@ Calc(select=[a, b], where=[(f0 > 0)])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[+($2, 1)])
+LogicalProject(select=[asyncFunc1($0, $1) AS EXPR$0, +($2, 1) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -77,7 +77,7 @@ Calc(select=[f0 AS EXPR$0, (c + 1) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[pyFunc1($1, $2)])
+LogicalProject(select=[asyncFunc1($0, $1) AS EXPR$0, pyFunc1($1, $2) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -95,7 +95,7 @@ PythonCalc(select=[f0 AS EXPR$0, pyFunc1(b, c) AS EXPR$1])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc1($0, $1)])
+LogicalProject(select=[asyncFunc1($0, $1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -112,7 +112,7 @@ PythonAsyncCalc(select=[asyncFunc1(a, b) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc1($0, $1)], c=[$2])
+LogicalProject(select=[asyncFunc1($0, $1) AS EXPR$0, c])
 +- LogicalFilter(condition=[>(asyncFunc2($0, $2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -133,7 +133,7 @@ Calc(select=[f0 AS EXPR$0, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc2(asyncFunc1($0, $1), $2)])
+LogicalProject(select=[asyncFunc2(asyncFunc1($0, $1), $2) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -151,7 +151,7 @@ PythonAsyncCalc(select=[asyncFunc2(f0, c) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[asyncFunc2($1, $2)])
+LogicalProject(select=[asyncFunc1($0, $1) AS EXPR$0, asyncFunc2($1, $2) AS EXPR$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

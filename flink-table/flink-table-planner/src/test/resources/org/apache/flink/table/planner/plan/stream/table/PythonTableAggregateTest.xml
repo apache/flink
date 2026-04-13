@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testTableAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
+LogicalProject(select=[AS($1, _UTF-16LE'd') AS d, AS($2, _UTF-16LE'e') AS e])
 +- LogicalTableAggregate(group=[{1}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -36,9 +36,9 @@ Calc(select=[f0 AS d, f1 AS e])
   <TestCase name="testTableAggregateMixedWithJavaCalls">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
+LogicalProject(select=[AS($1, _UTF-16LE'd') AS d, AS($2, _UTF-16LE'e') AS e])
 +- LogicalTableAggregate(group=[{1}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
-   +- LogicalProject(a=[$0], b=[$1], $f3=[+($2, 1)])
+   +- LogicalProject(select=[a, b, +($2, 1) AS $f3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -55,7 +55,7 @@ Calc(select=[f0 AS d, f1 AS e])
   <TestCase name="testTableAggregateWithoutKeys">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(d=[AS($0, _UTF-16LE'd')], e=[AS($1, _UTF-16LE'e')])
+LogicalProject(select=[AS($0, _UTF-16LE'd') AS d, AS($1, _UTF-16LE'e') AS e])
 +- LogicalTableAggregate(group=[{}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

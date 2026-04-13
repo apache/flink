@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testPandasGroupAggregate">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
+LogicalProject(select=[b, EXPR$0])
 +- LogicalAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -37,7 +37,7 @@ PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EX
   <TestCase name="testPandasGroupAggregateWithoutKeys">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0])
+LogicalProject(select=[EXPR$0])
 +- LogicalAggregate(group=[{}], EXPR$0=[PandasAggregateFunction($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

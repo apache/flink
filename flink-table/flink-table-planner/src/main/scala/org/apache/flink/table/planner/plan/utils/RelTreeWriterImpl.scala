@@ -27,6 +27,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
 import org.apache.calcite.rel.hint.Hintable
+import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
@@ -113,6 +114,33 @@ class RelTreeWriterImpl(
         }
       }
       printValues.addAll(values)
+
+      // Handle LogicalProject's explain output format
+      rel match {
+        case project: LogicalProject =>
+          // Convert project fields to enhanced format
+          val inputFieldNames = project.getInput.getRowType.getFieldNames
+          val outputFieldNames = project.getRowType.getFieldNames
+          val projects = project.getProjects
+          val projectStr =
+            RelExplainUtil.projectFieldsToString(projects, inputFieldNames, outputFieldNames)
+          // Remove all field entries and extra entries added by LogicalProject.explainTerms
+          // Field entries have field names as keys, and values like "[$index]" or RexNode expressions
+          // LogicalProject also adds "exprs" and "inputs" in DIGEST_ATTRIBUTES level
+          val fieldNames = outputFieldNames.toSet
+          val extraEntriesToRemove = Set("exprs", "inputs")
+          val iterator = printValues.iterator()
+          while (iterator.hasNext()) {
+            val pair = iterator.next()
+            // Remove field entries and extra LogicalProject entries
+            if (fieldNames.contains(pair.left) || extraEntriesToRemove.contains(pair.left)) {
+              iterator.remove()
+            }
+          }
+          // Add the new "select" entry
+          printValues.add(Pair.of("select", projectStr.asInstanceOf[AnyRef]))
+        case _ => // ignore
+      }
     }
 
     if (withChangelogTraits) rel match {

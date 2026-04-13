@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[COALESCE($0, $2)])
+LogicalProject(select=[COALESCE($0, $2) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -39,7 +39,7 @@ Calc(select=[COALESCE(f0, f2) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[COALESCE($1, _UTF-16LE'-')])
+LogicalProject(select=[COALESCE($1, _UTF-16LE'-') AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -56,7 +56,7 @@ Calc(select=[f1 AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[COALESCE($0, $1, _UTF-16LE'-')])
+LogicalProject(select=[COALESCE($0, $1, _UTF-16LE'-') AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
@@ -73,7 +73,7 @@ Calc(select=[COALESCE(f0, f1) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1], f2=[$2])
+LogicalProject(select=[f0, f1, f2])
 +- LogicalFilter(condition=[=(COALESCE($0, $1, _UTF-16LE'-'), _UTF-16LE'abc')])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -91,10 +91,10 @@ Calc(select=[f0, f1, f2], where=[=(COALESCE(f0, f1), 'abc')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$3], f10=[$4], f20=[$5])
-+- LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$4], f10=[$5], f20=[$6])
+LogicalProject(select=[f0, f1, f2, f00, f10, f20])
++- LogicalProject(select=[f0, f1, f2, f00, f10, f20])
    +- LogicalJoin(condition=[=($3, $4)], joinType=[left])
-      :- LogicalProject(f0=[$0], f1=[$1], f2=[$2], $f3=[COALESCE($0, _UTF-16LE'-', $2)])
+      :- LogicalProject(select=[f0, f1, f2, COALESCE($0, _UTF-16LE'-', $2) AS $f3])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
@@ -134,7 +134,7 @@ COALESCE(cast(NULL as double), cast(NULL as double))]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[COALESCE(1)], EXPR$1=[COALESCE(1, 2)], EXPR$2=[COALESCE(null:INTEGER, 2)], EXPR$3=[COALESCE(1, null:INTEGER)], EXPR$4=[COALESCE(null:INTEGER, null:INTEGER, 3)], EXPR$5=[COALESCE(4, null:INTEGER, null:INTEGER, null:INTEGER)], EXPR$6=[COALESCE(_UTF-16LE'1')], EXPR$7=[COALESCE(_UTF-16LE'1', _UTF-16LE'23')], EXPR$8=[COALESCE(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'2')], EXPR$9=[COALESCE(_UTF-16LE'1', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], EXPR$10=[COALESCE(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'3')], EXPR$11=[COALESCE(_UTF-16LE'4', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], EXPR$12=[COALESCE(1.0:DECIMAL(2, 1))], EXPR$13=[COALESCE(1.0:DECIMAL(11, 1), 2:DECIMAL(11, 1))], EXPR$14=[COALESCE(null:DOUBLE, 2.0:DOUBLE)], EXPR$15=[COALESCE(null:DOUBLE, 2.0:DOUBLE, 3.0:DOUBLE)], EXPR$16=[COALESCE(2.0:DOUBLE, null:DOUBLE, 3.0:DOUBLE)], EXPR$17=[COALESCE(null:DOUBLE, null:DOUBLE)])
+LogicalProject(select=[COALESCE(1) AS EXPR$0, COALESCE(1, 2) AS EXPR$1, COALESCE(null:INTEGER, 2) AS EXPR$2, COALESCE(1, null:INTEGER) AS EXPR$3, COALESCE(null:INTEGER, null:INTEGER, 3) AS EXPR$4, COALESCE(4, null:INTEGER, null:INTEGER, null:INTEGER) AS EXPR$5, COALESCE(_UTF-16LE'1') AS EXPR$6, COALESCE(_UTF-16LE'1', _UTF-16LE'23') AS EXPR$7, COALESCE(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'2') AS EXPR$8, COALESCE(_UTF-16LE'1', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS EXPR$9, COALESCE(null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'3') AS EXPR$10, COALESCE(_UTF-16LE'4', null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS EXPR$11, COALESCE(1.0:DECIMAL(2, 1)) AS EXPR$12, COALESCE(1.0:DECIMAL(11, 1), 2:DECIMAL(11, 1)) AS EXPR$13, COALESCE(null:DOUBLE, 2.0:DOUBLE) AS EXPR$14, COALESCE(null:DOUBLE, 2.0:DOUBLE, 3.0:DOUBLE) AS EXPR$15, COALESCE(2.0:DOUBLE, null:DOUBLE, 3.0:DOUBLE) AS EXPR$16, COALESCE(null:DOUBLE, null:DOUBLE) AS EXPR$17])
 +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -151,7 +151,7 @@ Calc(select=[1 AS EXPR$0, 1 AS EXPR$1, 2 AS EXPR$2, 1 AS EXPR$3, 3 AS EXPR$4, 4 
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[COALESCE($0, $1)])
+LogicalProject(select=[COALESCE($0, $1) AS EXPR$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
