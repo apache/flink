@@ -54,7 +54,7 @@ Flink应用程序运行时，JVM会随着时间不断加载各种不同的类。
 
 If you package a Flink job/application such that your application treats Flink like a library (JobManager/TaskManager daemons as spawned as needed),
 then typically all classes are in the *application classpath*. This is the recommended way for container-based setups where the container is specifically
-created for an job/application and will contain the job/application's jar files.
+created for a job/application and will contain the job/application's jar files.
 
 -->
 

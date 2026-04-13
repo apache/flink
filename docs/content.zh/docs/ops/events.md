@@ -28,7 +28,7 @@ under the License.
 
 # Events
 
-Flink exposes a event reporting system that allows gathering and exposing events to external systems.
+Flink exposes an event reporting system that allows gathering and exposing events to external systems.
 
 ## Reporting events
 
