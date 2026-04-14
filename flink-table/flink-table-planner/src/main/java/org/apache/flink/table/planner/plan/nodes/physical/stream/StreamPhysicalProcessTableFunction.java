@@ -267,6 +267,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         inputs.stream()
                 .map(RelNode::getRowType)
                 .forEach(rowType -> verifyTimeAttribute(rowType, onTimeFields));
+        verifyOrderByTimeAttributes(inputs, call);
     }
 
     private static void verifyTimeAttribute(RelDataType rowType, Set<String> onTimeFields) {
@@ -301,6 +302,36 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             throw new ValidationException(
                     "Time operations using the `on_time` argument are currently not supported "
                             + "for PTFs that consume or produce updates.");
+        }
+    }
+
+    private static void verifyOrderByTimeAttributes(List<RelNode> inputs, RexCall call) {
+        final List<Ord<StaticArgument>> providedInputArgs = getProvidedInputArgs(call);
+        final List<RexNode> operands = call.getOperands();
+
+        for (Ord<StaticArgument> providedInputArg : providedInputArgs) {
+            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(providedInputArg.i);
+            final int[] orderKeys = tableArgCall.getOrderKeys();
+
+            // Skip if no ORDER BY
+            if (orderKeys.length == 0) {
+                continue;
+            }
+
+            final int firstOrderByColumn = orderKeys[0];
+            final RelDataType inputType = inputs.get(tableArgCall.getInputIndex()).getRowType();
+            final RelDataTypeField firstOrderByField =
+                    inputType.getFieldList().get(firstOrderByColumn);
+
+            // Verify that the first ORDER BY column is a valid time attribute
+            if (!FlinkTypeFactory.isTimeIndicatorType(firstOrderByField.getType())) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid ORDER BY clause for table argument '%s'. The first ORDER BY column '%s' is not a valid time attribute. "
+                                        + "Only columns with a watermark declaration qualify for ORDER BY. "
+                                        + "Also, make sure that the watermarked column is forwarded without any modification.",
+                                providedInputArg.e.getName(), firstOrderByField.getName()));
+            }
         }
     }
 

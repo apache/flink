@@ -616,6 +616,14 @@ public final class OperationTreeBuilder {
         return new PartitionQueryOperation(resolvedPartitionKeys, child);
     }
 
+    public QueryOperation partition(
+            List<Expression> partitionKeys, List<Expression> orderKeys, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final List<ResolvedExpression> resolvedPartitionKeys = resolver.resolve(partitionKeys);
+        final List<ResolvedExpression> resolvedOrderKeys = resolver.resolve(orderKeys);
+        return new PartitionQueryOperation(resolvedPartitionKeys, resolvedOrderKeys, child);
+    }
+
     private QueryOperation valuesInternal(
             @Nullable ResolvedSchema valuesSchema, Expression... expressions) {
         if (expressions.length == 0) {

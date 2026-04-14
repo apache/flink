@@ -42,6 +42,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.TableSemantics.SortDirection;
 import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.AggregateQueryOperation;
@@ -69,6 +70,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
+import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
@@ -316,6 +318,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                                     typeFactory.buildRelNodeRowType(
                                                             (RowType) tableArgType);
                                             final int[] partitionKeys;
+                                            final int[] orderKeys;
+                                            final SortOrder[] sortOrders;
                                             if (tableRef.getQueryOperation()
                                                     instanceof PartitionQueryOperation) {
                                                 final PartitionQueryOperation partitionOperation =
@@ -323,15 +327,27 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                                                 tableRef.getQueryOperation();
                                                 partitionKeys =
                                                         partitionOperation.getPartitionKeys();
+                                                orderKeys = partitionOperation.getOrderKeys();
+                                                final SortDirection[] directions =
+                                                        partitionOperation.getOrderDirections();
+                                                sortOrders = new SortOrder[directions.length];
+                                                for (int i = 0; i < directions.length; i++) {
+                                                    sortOrders[i] =
+                                                            SortOrder.fromSortDirection(
+                                                                    directions[i]);
+                                                }
                                             } else {
                                                 partitionKeys = new int[0];
+                                                orderKeys = new int[0];
+                                                sortOrders = new SortOrder[0];
                                             }
                                             final RexTableArgCall tableArgCall =
                                                     new RexTableArgCall(
                                                             rowType,
                                                             inputStack.size(),
                                                             partitionKeys,
-                                                            new int[0]);
+                                                            orderKeys,
+                                                            sortOrders);
                                             inputStack.add(relBuilder.build());
                                             return tableArgCall;
                                         }

@@ -301,6 +301,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             options.put("data-id", id);
             options.put("terminating", "false");
             options.put("runtime-source", "NewSource");
+            enablePerRecordWatermarks(sourceTestStep, options);
             sourceTestStep.apply(tEnv, options);
         }
 
@@ -393,6 +394,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             options.put("connector", "values");
             options.put("data-id", id);
             options.put("runtime-source", "NewSource");
+            enablePerRecordWatermarks(sourceTestStep, options);
             if (afterRestoreSource == AfterRestoreSource.INFINITE) {
                 options.put("terminating", "false");
             }
@@ -459,6 +461,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
             return TestValuesTableFactory.getResultsAsStrings(tableName);
+        }
+    }
+
+    private static void enablePerRecordWatermarks(
+            SourceTestStep sourceTestStep, Map<String, String> options) {
+        // This is in sync with SemanticTestBase and is a better default for time-based testing
+        // because processing-time watermark emission would otherwise lead to flaky tests.
+        // Restore tests that fail with this setting can override it in the test program.
+        if (sourceTestStep.schemaComponents.stream().anyMatch(c -> c.startsWith("WATERMARK FOR"))) {
+            options.put("disable-lookup", "true");
+            options.put("enable-watermark-push-down", "true");
+            options.put("scan.watermark.emit.strategy", "on-event");
         }
     }
 }

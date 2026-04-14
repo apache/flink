@@ -148,7 +148,8 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
-        processTableRunner.ingestWatermarkEvent(mark.getTimestamp());
+        // TODO this line has issues with interruptible timers, see FLINK-39437
+        processTableRunner.ingestCurrentWatermarkEvent(mark.getTimestamp());
     }
 
     @Override
@@ -163,6 +164,10 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
     @Override
     public void onProcessingTime(InternalTimer<RowData, Object> timer) throws Exception {}
+
+    // --------------------------------------------------------------------------------------------
+    // Context implementation
+    // --------------------------------------------------------------------------------------------
 
     /** Implementation of {@link ProcessTableFunction.Context}. */
     @Internal
@@ -207,7 +212,9 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
             }
 
             internalTimeContext.setTime(
-                    processTableRunner.getCurrentWatermark(), processTableRunner.getTime());
+                    processTableRunner.getTableWatermark(),
+                    processTableRunner.getCurrentWatermark(),
+                    processTableRunner.getTime());
 
             return (TimeContext<TimeType>)
                     new ExternalTimeContext<>(internalTimeContext, timeConverter);

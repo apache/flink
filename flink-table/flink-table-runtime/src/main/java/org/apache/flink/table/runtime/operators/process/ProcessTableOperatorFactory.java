@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.runtime.operators.process;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProcessTableRunner;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
+import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 
 import java.util.Arrays;
@@ -39,30 +42,40 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
 
     private final List<RuntimeTableSemantics> tableSemantics;
     private final List<RuntimeStateInfo> stateInfos;
+    private final GeneratedRecordComparator[] generatedOrderByComparators;
     private final GeneratedProcessTableRunner generatedProcessTableRunner;
     private final GeneratedHashFunction[] generatedStateHashCode;
     private final GeneratedRecordEqualiser[] generatedStateEquals;
     private final RuntimeChangelogMode producedChangelogMode;
+    private final List<StateTtlConfig> inputBufferTtlConfigs;
 
     public ProcessTableOperatorFactory(
             List<RuntimeTableSemantics> tableSemantics,
             List<RuntimeStateInfo> stateInfos,
+            GeneratedRecordComparator[] generatedOrderByComparators,
             GeneratedProcessTableRunner generatedProcessTableRunner,
             GeneratedHashFunction[] generatedStateHashCode,
             GeneratedRecordEqualiser[] generatedStateEquals,
-            RuntimeChangelogMode producedChangelogMode) {
+            RuntimeChangelogMode producedChangelogMode,
+            List<StateTtlConfig> inputBufferTtlConfigs) {
         this.tableSemantics = tableSemantics;
         this.stateInfos = stateInfos;
+        this.generatedOrderByComparators = generatedOrderByComparators;
         this.generatedProcessTableRunner = generatedProcessTableRunner;
         this.generatedStateHashCode = generatedStateHashCode;
         this.generatedStateEquals = generatedStateEquals;
         this.producedChangelogMode = producedChangelogMode;
+        this.inputBufferTtlConfigs = inputBufferTtlConfigs;
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public StreamOperator createStreamOperator(StreamOperatorParameters parameters) {
         final ClassLoader classLoader = parameters.getContainingTask().getUserCodeClassLoader();
+        final RecordComparator[] orderByComparators =
+                Arrays.stream(generatedOrderByComparators)
+                        .map(g -> g == null ? null : g.newInstance(classLoader))
+                        .toArray(RecordComparator[]::new);
         final ProcessTableRunner runner = generatedProcessTableRunner.newInstance(classLoader);
         final HashFunction[] stateHashCode =
                 Arrays.stream(generatedStateHashCode)
@@ -77,10 +90,12 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
                     parameters,
                     tableSemantics,
                     stateInfos,
+                    orderByComparators,
                     runner,
                     stateHashCode,
                     stateEquals,
-                    producedChangelogMode);
+                    producedChangelogMode,
+                    inputBufferTtlConfigs);
         } else {
             return new ProcessRowTableOperator(
                     parameters,

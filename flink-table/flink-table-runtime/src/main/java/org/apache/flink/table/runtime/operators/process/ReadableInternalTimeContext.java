@@ -34,10 +34,12 @@ import static org.apache.flink.table.functions.ProcessTableFunction.TimeContext;
 @Internal
 class ReadableInternalTimeContext implements ProcessTableFunction.TimeContext<Long> {
 
+    protected long tableWatermark;
     protected long currentWatermark;
     protected @Nullable Long time;
 
-    void setTime(long currentWatermark, @Nullable Long time) {
+    void setTime(long tableWatermark, long currentWatermark, @Nullable Long time) {
+        this.tableWatermark = tableWatermark;
         this.currentWatermark = currentWatermark;
         this.time = time;
     }
@@ -48,6 +50,14 @@ class ReadableInternalTimeContext implements ProcessTableFunction.TimeContext<Lo
             return null;
         }
         return time;
+    }
+
+    @Override
+    public Long tableWatermark() {
+        if (tableWatermark == Long.MIN_VALUE) {
+            return null;
+        }
+        return tableWatermark;
     }
 
     @Override

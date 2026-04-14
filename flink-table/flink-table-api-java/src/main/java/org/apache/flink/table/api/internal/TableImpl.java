@@ -491,9 +491,6 @@ public class TableImpl implements Table {
 
     @Override
     public PartitionedTable partitionBy(Expression... fields) {
-        if (fields.length == 0) {
-            throw new ValidationException("Partition keys must not be empty.");
-        }
         return new PartitionedTableImpl(this, Arrays.asList(fields));
     }
 
@@ -878,16 +875,28 @@ public class TableImpl implements Table {
 
         private final TableImpl table;
         private final List<Expression> partitionKeys;
+        private final List<Expression> orderKeys;
 
         private PartitionedTableImpl(TableImpl table, List<Expression> partitionKeys) {
+            this(table, partitionKeys, Collections.emptyList());
+        }
+
+        private PartitionedTableImpl(
+                TableImpl table, List<Expression> partitionKeys, List<Expression> orderKeys) {
             this.table = table;
             this.partitionKeys = partitionKeys;
+            this.orderKeys = orderKeys;
+        }
+
+        @Override
+        public PartitionedTable orderBy(Expression... fields) {
+            final List<Expression> orderKeys = table.preprocessExpressions(fields);
+            return new PartitionedTableImpl(table, partitionKeys, orderKeys);
         }
 
         @Override
         public ApiExpression asArgument(String name) {
-            return createArgumentExpression(
-                    createPartitionQueryOperation(), table.tableEnvironment, name);
+            return createArgumentExpression(createQueryOperation(), table.tableEnvironment, name);
         }
 
         @Override
@@ -895,7 +904,7 @@ public class TableImpl implements Table {
             return table.tableEnvironment.fromCall(
                     path,
                     unionTableAndArguments(
-                            createPartitionQueryOperation(), table.tableEnvironment, arguments));
+                            createQueryOperation(), table.tableEnvironment, arguments));
         }
 
         @Override
@@ -903,11 +912,15 @@ public class TableImpl implements Table {
             return table.tableEnvironment.fromCall(
                     function,
                     unionTableAndArguments(
-                            createPartitionQueryOperation(), table.tableEnvironment, arguments));
+                            createQueryOperation(), table.tableEnvironment, arguments));
         }
 
-        private QueryOperation createPartitionQueryOperation() {
-            return table.operationTreeBuilder.partition(partitionKeys, table.operationTree);
+        private QueryOperation createQueryOperation() {
+            if (orderKeys.isEmpty()) {
+                return table.operationTreeBuilder.partition(partitionKeys, table.operationTree);
+            }
+            return table.operationTreeBuilder.partition(
+                    partitionKeys, orderKeys, table.operationTree);
         }
     }
 
