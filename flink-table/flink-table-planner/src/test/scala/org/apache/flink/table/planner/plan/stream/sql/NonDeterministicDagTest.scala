@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.expressions.utils.{TestNonDeterministicUdaf, TestNonDeterministicUdf, TestNonDeterministicUdtf}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.{NonDeterministicUpdatingRetractFunction, UpdatingRetractFunction, UpdatingUpsertFunction}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -231,6 +232,39 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
     util.tableEnv.createTemporaryFunction("ndAggFunc", new TestNonDeterministicUdaf)
     // deterministic table function
     util.tableEnv.createTemporaryFunction("str_split", new StringSplit())
+
+    // PTF functions for NDU changelog tests
+    util.tableEnv.createTemporaryFunction("updatingUpsertFunc", new UpdatingUpsertFunction)
+    util.tableEnv.createTemporaryFunction("updatingRetractFunc", new UpdatingRetractFunction)
+    util.tableEnv.createTemporaryFunction(
+      "nonDeterministicRetractFunc",
+      new NonDeterministicUpdatingRetractFunction)
+
+    // View with ndFunc applied to the partition key column (INT -> INT)
+    util.tableEnv.executeSql("""CREATE VIEW nd_partition_key_src AS
+                               |SELECT ndFunc(a) AS nd_a, b, c, d FROM upsert_src""".stripMargin)
+
+    // View with ndFunc applied to a non-key column (BIGINT -> BIGINT)
+    util.tableEnv.executeSql("""CREATE VIEW nd_col_src AS
+                               |SELECT a, ndFunc(b) AS nd_b, c, d FROM cdc""".stripMargin)
+
+    // Upsert sink: 4 columns (INT, INT, BIGINT, STRING) matching PTF upsert output over INT sources
+    util.tableEnv.executeSql("""CREATE TABLE ptf_upsert_sink (
+                               |  f0 INT, f1 STRING, f2 BIGINT, f3 STRING,
+                               |  PRIMARY KEY (f0) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false',
+                               |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                               |)""".stripMargin)
+
+    // Retract sink: same column types, no primary key
+    util.tableEnv.executeSql("""CREATE TABLE ptf_retract_sink (
+                               |  f0 INT, f1 STRING, f2 BIGINT, f3 STRING
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false'
+                               |)""".stripMargin)
   }
 
   @TestTemplate
@@ -1960,6 +1994,95 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
         ))
       .hasMessageContaining("Match Recognize doesn't support consuming update and delete changes")
       .isInstanceOf[TableException]
+  }
+
+  // ---------------------------------------------------------------------------
+  // PTF changelog NDU tests
+  // ---------------------------------------------------------------------------
+
+  /** Partition key equals the source upsert key — requirement excluded, no NDU error. */
+  @TestTemplate
+  def testPtfUpsertOutputPartitionKeyMatchesUpsertKey(): Unit = {
+    assertThatCode(
+      () =>
+        util.tableEnv.explainSql(
+          "INSERT INTO ptf_upsert_sink" +
+            " SELECT * FROM updatingUpsertFunc(TABLE upsert_src PARTITION BY a)"))
+      .doesNotThrowAnyException()
+  }
+
+  /**
+   * Non-deterministic function on the partition key column — the partition key of the PTF input
+   * must be deterministic for upsert output correctness; expect error only under TRY_RESOLVE.
+   */
+  @TestTemplate
+  def testPtfUpsertOutputNonDeterministicPartitionKey(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_upsert_sink" +
+          " SELECT * FROM updatingUpsertFunc(TABLE nd_partition_key_src PARTITION BY nd_a)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function: ndFunc")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /** All CDC input columns are deterministic — full-retract output requires no NDU error. */
+  @TestTemplate
+  def testPtfRetractOutputDeterministicInput(): Unit = {
+    assertThatCode(
+      () =>
+        util.tableEnv.explainSql(
+          "INSERT INTO ptf_retract_sink" +
+            " SELECT * FROM updatingRetractFunc(TABLE cdc PARTITION BY a)"))
+      .doesNotThrowAnyException()
+  }
+
+  /**
+   * Non-deterministic function on a non-key input column — full-retract output requires all columns
+   * to be deterministic; expect error only under TRY_RESOLVE.
+   */
+  @TestTemplate
+  def testPtfRetractOutputNonDeterministicInputColumn(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_retract_sink" +
+          " SELECT * FROM updatingRetractFunc(TABLE nd_col_src PARTITION BY a)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function: ndFunc")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
+  }
+
+  /**
+   * A non-deterministic PTF writing to a retract sink (no PK): the retract sink requires all PTF
+   * output columns to be deterministic, and the retract PTF has no upsert key so nothing is zeroed
+   * by requireDeterminismExcludeUpsertKey — requireDeterminism is fully non-empty when it reaches
+   * visitPtf. The PTF claims isDeterministic() == false (Concern 1), so the NDU visitor must flag
+   * it.
+   *
+   * <p>Inputs are deterministic (cdc with no ndFunc), so Concern 2 (non-deterministic input
+   * columns) does not trigger.
+   */
+  @TestTemplate
+  def testPtfNonDeterministicFunctionWithRequiredOutputDeterminism(): Unit = {
+    val callable: ThrowingCallable = () =>
+      util.tableEnv.explainSql(
+        "INSERT INTO ptf_retract_sink" +
+          " SELECT * FROM nonDeterministicRetractFunc(TABLE cdc PARTITION BY a)")
+    if (tryResolve) {
+      assertThatThrownBy(callable)
+        .hasMessageContaining("non-deterministic function")
+        .isInstanceOf[TableException]
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
   }
 
   /**

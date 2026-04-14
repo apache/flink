@@ -26,6 +26,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
@@ -48,6 +49,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalM
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalOverAggregateBase;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSink;
@@ -75,12 +77,16 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.types.RowKind;
 
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.sql.SqlExplainLevel;
@@ -218,6 +224,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             return transmitDeterminismRequirement(rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalMatch) {
             return visitMatch((StreamPhysicalMatch) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalProcessTableFunction) {
+            return visitPtf((StreamPhysicalProcessTableFunction) rel, requireDeterminism);
         } else {
             throw new UnsupportedOperationException(
                     String.format(
@@ -956,6 +964,77 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             inputRequireDeterminism = NO_REQUIRED_DETERMINISM;
         }
         return transmitDeterminismRequirement(rel, inputRequireDeterminism);
+    }
+
+    private StreamPhysicalRel visitPtf(
+            final StreamPhysicalProcessTableFunction ptf,
+            final ImmutableBitSet requireDeterminism) {
+        final RexCall call = ptf.getCall();
+
+        // Concern 1: PTF function itself is non-deterministic.
+        // requireDeterminism is the set of PTF output columns downstream requires to be
+        // deterministic (for correct retract matching). All PTF output columns are assumed to
+        // come from PTF's own computation — there are pass-through input columns potentially, but
+        // they are ignored for now. If the PTF is non-deterministic and any of those columns are
+        // required, we cannot satisfy the requirement.
+        if (!requireDeterminism.isEmpty()) {
+            final Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(call);
+            if (ndCall.isPresent()) {
+                throwNonDeterministicColumnsError(
+                        requireDeterminism.toList(), ptf.getRowType(), ptf, null, ndCall);
+            }
+        }
+
+        if (inputInsertOnly(ptf)) {
+            // Insert-only input: the PTF manages retract correctness internally via its own
+            // state, so no requirement is pushed to inputs.
+            return transmitDeterminismRequirement(ptf, NO_REQUIRED_DETERMINISM);
+        }
+
+        // Concern 2: non-deterministic input columns.
+        // The PTF is a black box: there is no way to project downstream column requirements
+        // (requireDeterminism) back through the PTF's internal computation to determine which
+        // input columns need to be deterministic. requireDeterminism is therefore ignored here.
+        //
+        // Instead, the check is derived per-argument from the argument's input traits:
+        //   - No REQUIRE_UPDATE_BEFORE: the PTF receives updates without an old-row companion;
+        //     retracts are routed by partition key, so only partition key columns must be
+        //     deterministic.
+        //   - Has REQUIRE_UPDATE_BEFORE: the PTF explicitly requests the old row as UPDATE_BEFORE
+        //     for correct state management; that row must exactly match the row previously
+        //     processed, so all input columns must be deterministic.
+        //
+        // Crucially, this is based on the input argument's traits, NOT the PTF's output changelog
+        // mode. A PTF could output insert-only rows while still requiring UPDATE_BEFORE in its
+        // input (e.g., it processes retracts internally but only emits new events). The output
+        // mode does not determine what the PTF needs from its inputs.
+        final List<Ord<StaticArgument>> providedInputArgs =
+                StreamPhysicalProcessTableFunction.getProvidedInputArgs(call);
+        final List<RexNode> operands = call.getOperands();
+
+        final List<RelNode> newInputs = new ArrayList<>();
+        for (int i = 0; i < ptf.getInputs().size(); i++) {
+            final StreamPhysicalRel input = (StreamPhysicalRel) ptf.getInput(i);
+            final StaticArgument staticArg = providedInputArgs.get(i).e;
+            final RexTableArgCall tableArgCall =
+                    (RexTableArgCall) operands.get(providedInputArgs.get(i).i);
+            final ImmutableBitSet inputReq;
+            if (staticArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)) {
+                // UPDATE_BEFORE must exactly match the previously processed row — all columns
+                // must be deterministic.
+                inputReq = ImmutableBitSet.range(input.getRowType().getFieldCount());
+            } else {
+                // Retracts are routed by partition key only — only partition key columns must
+                // be deterministic.
+                inputReq =
+                        ImmutableBitSet.of(
+                                Arrays.stream(tableArgCall.getPartitionKeys())
+                                        .boxed()
+                                        .collect(Collectors.toList()));
+            }
+            newInputs.add(visit(input, inputReq));
+        }
+        return (StreamPhysicalRel) ptf.copy(ptf.getTraitSet(), newInputs);
     }
 
     private void checkNonDeterministicRexProgram(
