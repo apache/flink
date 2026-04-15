@@ -24,7 +24,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
-import java.io.Serializable;
 import java.util.Optional;
 
 /**
