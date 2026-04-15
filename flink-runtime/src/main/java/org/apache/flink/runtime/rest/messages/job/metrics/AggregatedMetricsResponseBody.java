@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
 public class AggregatedMetricsResponseBody extends ArrayList<AggregatedMetric>
         implements ResponseBody {
 
-    private static final long serialVersionUID = -1170348873871206965L;
+    private static final long serialVersionUID = -1170348478297775429L;
 
     // a default constructor is required for collection type marshalling
     public AggregatedMetricsResponseBody() {}
