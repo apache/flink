@@ -34,7 +34,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json',
            'json_string', 'json_object', 'json_object_agg', 'json_array', 'json_array_agg',
            'call', 'call_sql', 'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date',
-           'to_timestamp', 'convert_tz', 'unix_timestamp']
+           'to_timestamp', 'convert_tz', 'unix_timestamp', 'descriptor']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -576,6 +576,26 @@ def map_from_arrays(key, value) -> Expression:
         both arrays should have the same length.
     """
     return _binary_op("mapFromArrays", key, value)
+
+
+@PublicEvolving()
+def descriptor(*column_names: str) -> Expression:
+    """
+    Creates a literal describing an arbitrary, unvalidated list of column names.
+
+    Passing a list of columns can be useful for parameterizing a function. In particular,
+    it enables declaring the ``on_time`` argument for process table functions.
+
+    Example:
+    ::
+
+        >>> descriptor("ts_column")
+        >>> descriptor("col1", "col2")
+
+    :param column_names: One or more column names.
+    :return: A descriptor expression.
+    """
+    return _varargs_op("descriptor", *column_names)
 
 
 @PublicEvolving()
