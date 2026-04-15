@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.s3native;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -51,6 +52,7 @@ import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -73,7 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       (the underlying clients have not been torn down yet) or fails with an {@link IOException}
  *       from the AWS SDK, which callers are already expected to handle.
  *   <li>The {@link #closeAsync()} teardown sequence (bulkCopyHelper, transferManager, asyncClient,
- *       syncClient) provides a natural grace period bounded by {@link #CLOSE_TIMEOUT_SECONDS}.
+ *       syncClient) provides a natural grace period bounded by the configurable close timeout.
  * </ul>
  *
  * <p>A thread-pool-routed approach would provide stricter guarantees but introduces latency
@@ -95,9 +97,6 @@ class NativeS3FileSystem extends FileSystem
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystem.class);
 
-    /** Timeout in seconds for closing the filesystem. */
-    private static final long CLOSE_TIMEOUT_SECONDS = 60;
-
     private final S3ClientProvider clientProvider;
     private final URI uri;
     private final String bucketName;
@@ -113,6 +112,7 @@ class NativeS3FileSystem extends FileSystem
     @Nullable private final NativeS3BulkCopyHelper bulkCopyHelper;
     private final boolean useAsyncOperations;
     private final int readBufferSize;
+    private final Duration fsCloseTimeout;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public NativeS3FileSystem(
@@ -125,7 +125,8 @@ class NativeS3FileSystem extends FileSystem
             int maxConcurrentUploadsPerStream,
             @Nullable NativeS3BulkCopyHelper bulkCopyHelper,
             boolean useAsyncOperations,
-            int readBufferSize) {
+            int readBufferSize,
+            Duration fsCloseTimeout) {
         this.clientProvider = clientProvider;
         this.uri = uri;
         this.bucketName = uri.getHost();
@@ -136,6 +137,7 @@ class NativeS3FileSystem extends FileSystem
         this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
         this.useAsyncOperations = useAsyncOperations;
         this.readBufferSize = readBufferSize;
+        this.fsCloseTimeout = fsCloseTimeout;
         this.s3AccessHelper =
                 new NativeS3AccessHelper(
                         clientProvider.getS3Client(),
@@ -156,6 +158,16 @@ class NativeS3FileSystem extends FileSystem
                 entropyInjectionKey != null,
                 bulkCopyHelper != null,
                 readBufferSize / 1024);
+    }
+
+    @VisibleForTesting
+    Duration getFsCloseTimeout() {
+        return fsCloseTimeout;
+    }
+
+    @VisibleForTesting
+    S3ClientProvider getClientProvider() {
+        return clientProvider;
     }
 
     @Override
@@ -550,13 +562,13 @@ class NativeS3FileSystem extends FileSystem
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
-                        .orTimeout(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .orTimeout(fsCloseTimeout.toSeconds(), TimeUnit.SECONDS)
                         .whenComplete(
                                 (result, error) -> {
                                     if (error != null) {
                                         LOG.error(
-                                                "FileSystem close timed out after {} seconds for bucket: {}",
-                                                CLOSE_TIMEOUT_SECONDS,
+                                                "FileSystem close timed out after {} for bucket: {}",
+                                                fsCloseTimeout,
                                                 bucketName,
                                                 error);
                                     }

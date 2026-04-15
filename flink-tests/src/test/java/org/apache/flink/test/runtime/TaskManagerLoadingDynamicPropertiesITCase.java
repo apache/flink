@@ -25,16 +25,16 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.util.ShellScript;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,16 +42,15 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for passing and loading dynamical properties of task manager. Usually(in Yarn, Kubernetes),
  * the taskmanager java start commands are wrapped within bash. This test will generate a
  * launch_container.sh script to validate the dynamical properties passing and loading.
  */
-public class TaskManagerLoadingDynamicPropertiesITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class TaskManagerLoadingDynamicPropertiesITCase {
 
     private static final String KEY_A = "key.a";
     private static final String VALUE_A = "#a,b&c^d*e@f(g!h";
@@ -66,14 +65,13 @@ public class TaskManagerLoadingDynamicPropertiesITCase extends TestLogger {
     private static final String KEY_F = "key.f";
     private static final String VALUE_F = "\"foo\" \"bar\"";
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir Path folder;
 
     @Test
-    public void testLoadingDynamicPropertiesInBash() throws Exception {
+    void testLoadingDynamicPropertiesInBash() throws Exception {
         final Configuration clientConfiguration = new Configuration();
-        final File root = folder.getRoot();
-        final File homeDir = new File(root, "home");
-        assertTrue(homeDir.mkdir());
+        final File homeDir = new File(folder.toString(), "home");
+        assertThat(homeDir.mkdir()).isTrue();
         BootstrapTools.writeConfiguration(
                 clientConfiguration, new File(homeDir, FLINK_CONF_FILENAME));
 
@@ -93,7 +91,7 @@ public class TaskManagerLoadingDynamicPropertiesITCase extends TestLogger {
             if (!process.waitFor(10, TimeUnit.SECONDS)) {
                 throw new Exception("TestingTaskManagerRunner did not shutdown in time.");
             }
-            assertEquals(processOutput.toString(), 0, process.exitValue());
+            assertThat(process.exitValue()).as(processOutput.toString()).isZero();
         } finally {
             process.destroy();
         }
@@ -151,10 +149,9 @@ public class TaskManagerLoadingDynamicPropertiesITCase extends TestLogger {
 
         public static void main(String[] args) throws FlinkParseException {
             final Configuration flinkConfig = TaskManagerRunner.loadConfiguration(args);
-            assertThat(
-                    flinkConfig.toMap().values(),
-                    Matchers.containsInAnyOrder(
-                            VALUE_A, VALUE_B, VALUE_C, VALUE_D, VALUE_E, VALUE_F));
+            assertThat(flinkConfig.toMap().values())
+                    .containsExactlyInAnyOrder(
+                            VALUE_A, VALUE_B, VALUE_C, VALUE_D, VALUE_E, VALUE_F);
         }
     }
 }

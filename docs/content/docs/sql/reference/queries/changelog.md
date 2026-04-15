@@ -44,7 +44,7 @@ This is useful when you need to materialize changelog events into a downstream s
 
 ```sql
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE source_table PARTITION BY key_col,
+  input => TABLE source_table,
   [op => DESCRIPTOR(op_column_name),]
   [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...]]
 )
@@ -54,7 +54,7 @@ SELECT * FROM TO_CHANGELOG(
 
 | Parameter    | Required | Description |
 |:-------------|:---------|:------------|
-| `input`      | Yes      | The input table. Must include `PARTITION BY` for parallel execution. Accepts insert-only, retract, and upsert tables. |
+| `input`      | Yes      | The input table. Accepts insert-only, retract, and upsert tables. |
 | `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. |
 | `op_mapping` | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
 
@@ -74,7 +74,7 @@ When `op_mapping` is omitted, all four change operations are mapped to their sta
 The output columns are ordered as:
 
 ```
-[partition_key_columns, op_column, remaining_columns]
+[op_column, all_input_columns]
 ```
 
 All output rows have `INSERT` - the table is always append-only.
@@ -85,25 +85,25 @@ All output rows have `INSERT` - the table is always append-only.
 
 ```sql
 -- Input: retract table from an aggregation
--- +I[id:1, name:'Alice', cnt:1]
--- +U[id:1, name:'Alice', cnt:2]
--- -D[id:2, name:'Bob',   cnt:1]
+-- +I[name:'Alice', cnt:1]
+-- +U[name:'Alice', cnt:2]
+-- -D[name:'Bob',   cnt:1]
 
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE my_aggregation PARTITION BY id
+  input => TABLE my_aggregation
 )
 
 -- Output (append-only):
--- +I[id:1, op:'INSERT',       name:'Alice', cnt:1]
--- +I[id:1, op:'UPDATE_AFTER', name:'Alice', cnt:2]
--- +I[id:2, op:'DELETE',       name:'Bob',   cnt:1]
+-- +I[op:'INSERT',       name:'Alice', cnt:1]
+-- +I[op:'UPDATE_AFTER', name:'Alice', cnt:2]
+-- +I[op:'DELETE',       name:'Bob',   cnt:1]
 ```
 
 #### Custom operation column name
 
 ```sql
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE my_aggregation PARTITION BY id,
+  input => TABLE my_aggregation,
   op => DESCRIPTOR(operation)
 )
 -- The op column is now named 'operation' instead of 'op'
@@ -113,7 +113,7 @@ SELECT * FROM TO_CHANGELOG(
 
 ```sql
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE my_aggregation PARTITION BY id,
+  input => TABLE my_aggregation,
   op => DESCRIPTOR(op_code),
   op_mapping => MAP['INSERT', 'I', 'UPDATE_AFTER', 'U']
 )
@@ -126,7 +126,7 @@ SELECT * FROM TO_CHANGELOG(
 
 ```sql
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE my_aggregation PARTITION BY id,
+  input => TABLE my_aggregation,
   op => DESCRIPTOR(deleted),
   op_mapping => MAP['INSERT, UPDATE_AFTER', 'false', 'DELETE', 'true']
 )
@@ -139,16 +139,16 @@ SELECT * FROM TO_CHANGELOG(
 
 ```java
 // Default: adds 'op' column and supports all changelog modes
-Table result = myTable.partitionBy($("id")).toChangelog();
+Table result = myTable.toChangelog();
 
 // With custom parameters
-Table result = myTable.partitionBy($("id")).toChangelog(
+Table result = myTable.toChangelog(
     descriptor("op_code").asArgument("op"),
     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
 );
 
 // Deletion flag pattern: comma-separated keys map multiple change operations to the same code
-Table result = myTable.partitionBy($("id")).toChangelog(
+Table result = myTable.toChangelog(
     descriptor("deleted").asArgument("op"),
     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
 );

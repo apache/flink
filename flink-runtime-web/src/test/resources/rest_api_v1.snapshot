@@ -170,38 +170,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
     }
   }, {
-    "url" : "/applications/:applicationid/jobmanager/config",
-    "method" : "GET",
-    "status-code" : "200 OK",
-    "file-upload" : false,
-    "path-parameters" : {
-      "pathParameters" : [ {
-        "key" : "applicationid"
-      } ]
-    },
-    "query-parameters" : {
-      "queryParameters" : [ ]
-    },
-    "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
-    },
-    "response" : {
-      "type" : "array",
-      "items" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ConfigurationInfoEntry",
-        "properties" : {
-          "key" : {
-            "type" : "string"
-          },
-          "value" : {
-            "type" : "string"
-          }
-        }
-      }
-    }
-  }, {
     "url" : "/applications/:applicationid/exceptions",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -247,6 +215,38 @@
                 }
               }
             }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/applications/:applicationid/jobmanager/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "applicationid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ConfigurationInfoEntry",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
           }
         }
       }
@@ -2835,6 +2835,392 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/rescales/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleConfigInfo",
+      "properties" : {
+        "rescaleHistoryMax" : {
+          "type" : "integer"
+        },
+        "schedulerExecutionMode" : {
+          "type" : "string",
+          "enum" : [ "REACTIVE" ]
+        },
+        "submissionResourceWaitTimeoutInMillis" : {
+          "type" : "integer"
+        },
+        "submissionResourceStabilizationTimeoutInMillis" : {
+          "type" : "integer"
+        },
+        "slotIdleTimeoutInMillis" : {
+          "type" : "integer"
+        },
+        "executingCooldownTimeoutInMillis" : {
+          "type" : "integer"
+        },
+        "executingResourceStabilizationTimeoutInMillis" : {
+          "type" : "integer"
+        },
+        "maximumDelayForTriggeringRescaleInMillis" : {
+          "type" : "integer"
+        },
+        "rescaleOnFailedCheckpointCount" : {
+          "type" : "integer"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/rescales/details/:rescaleuuid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "rescaleuuid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails",
+      "properties" : {
+        "rescaleUuid" : {
+          "type" : "string"
+        },
+        "resourceRequirementsUuid" : {
+          "type" : "string"
+        },
+        "rescaleAttemptId" : {
+          "type" : "integer"
+        },
+        "vertices" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:VertexParallelismRescaleInfo",
+            "properties" : {
+              "jobVertexId" : {
+                "type" : "any"
+              },
+              "jobVertexName" : {
+                "type" : "string"
+              },
+              "slotSharingGroupId" : {
+                "type" : "any"
+              },
+              "slotSharingGroupName" : {
+                "type" : "string"
+              },
+              "desiredParallelism" : {
+                "type" : "integer"
+              },
+              "sufficientParallelism" : {
+                "type" : "integer"
+              },
+              "preRescaleParallelism" : {
+                "type" : "integer"
+              },
+              "postRescaleParallelism" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "slots" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:SlotSharingGroupRescaleInfo",
+            "properties" : {
+              "slotSharingGroupId" : {
+                "type" : "any"
+              },
+              "slotSharingGroupName" : {
+                "type" : "string"
+              },
+              "requestResourceProfile" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+                "properties" : {
+                  "cpuCores" : {
+                    "type" : "number"
+                  },
+                  "taskHeapMemory" : {
+                    "type" : "integer"
+                  },
+                  "taskOffHeapMemory" : {
+                    "type" : "integer"
+                  },
+                  "managedMemory" : {
+                    "type" : "integer"
+                  },
+                  "networkMemory" : {
+                    "type" : "integer"
+                  },
+                  "extendedResources" : {
+                    "type" : "object",
+                    "additionalProperties" : {
+                      "type" : "number"
+                    }
+                  }
+                }
+              },
+              "desiredSlots" : {
+                "type" : "integer"
+              },
+              "minimalRequiredSlots" : {
+                "type" : "integer"
+              },
+              "preRescaleSlots" : {
+                "type" : "integer"
+              },
+              "postRescaleSlots" : {
+                "type" : "integer"
+              },
+              "acquiredResourceProfile" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+              }
+            }
+          }
+        },
+        "schedulerStates" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:SchedulerStateSpan",
+            "properties" : {
+              "state" : {
+                "type" : "string"
+              },
+              "enterTimestampInMillis" : {
+                "type" : "integer"
+              },
+              "leaveTimestampInMillis" : {
+                "type" : "integer"
+              },
+              "durationInMillis" : {
+                "type" : "integer"
+              },
+              "stringifiedException" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "startTimestampInMillis" : {
+          "type" : "integer"
+        },
+        "endTimestampInMillis" : {
+          "type" : "integer"
+        },
+        "terminalState" : {
+          "type" : "string",
+          "enum" : [ "COMPLETED", "FAILED", "IGNORED" ]
+        },
+        "triggerCause" : {
+          "type" : "string",
+          "enum" : [ "INITIAL_SCHEDULE", "UPDATE_REQUIREMENT", "NEW_RESOURCE_AVAILABLE", "RECOVERABLE_FAILOVER" ]
+        },
+        "terminatedReason" : {
+          "type" : "string",
+          "enum" : [ "SUCCEEDED", "EXCEPTION_OCCURRED", "RESOURCE_REQUIREMENTS_UPDATED", "NO_RESOURCES_OR_PARALLELISMS_CHANGE", "JOB_FINISHED", "JOB_FAILED", "JOB_CANCELED", "JOB_FAILOVER_RESTARTING" ]
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/rescales/history",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails",
+        "properties" : {
+          "rescaleUuid" : {
+            "type" : "string"
+          },
+          "resourceRequirementsUuid" : {
+            "type" : "string"
+          },
+          "rescaleAttemptId" : {
+            "type" : "integer"
+          },
+          "vertices" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:VertexParallelismRescaleInfo",
+              "properties" : {
+                "jobVertexId" : {
+                  "type" : "any"
+                },
+                "jobVertexName" : {
+                  "type" : "string"
+                },
+                "slotSharingGroupId" : {
+                  "type" : "any"
+                },
+                "slotSharingGroupName" : {
+                  "type" : "string"
+                },
+                "desiredParallelism" : {
+                  "type" : "integer"
+                },
+                "sufficientParallelism" : {
+                  "type" : "integer"
+                },
+                "preRescaleParallelism" : {
+                  "type" : "integer"
+                },
+                "postRescaleParallelism" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          },
+          "slots" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:SlotSharingGroupRescaleInfo",
+              "properties" : {
+                "slotSharingGroupId" : {
+                  "type" : "any"
+                },
+                "slotSharingGroupName" : {
+                  "type" : "string"
+                },
+                "requestResourceProfile" : {
+                  "type" : "object",
+                  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
+                  "properties" : {
+                    "cpuCores" : {
+                      "type" : "number"
+                    },
+                    "taskHeapMemory" : {
+                      "type" : "integer"
+                    },
+                    "taskOffHeapMemory" : {
+                      "type" : "integer"
+                    },
+                    "managedMemory" : {
+                      "type" : "integer"
+                    },
+                    "networkMemory" : {
+                      "type" : "integer"
+                    },
+                    "extendedResources" : {
+                      "type" : "object",
+                      "additionalProperties" : {
+                        "type" : "number"
+                      }
+                    }
+                  }
+                },
+                "desiredSlots" : {
+                  "type" : "integer"
+                },
+                "minimalRequiredSlots" : {
+                  "type" : "integer"
+                },
+                "preRescaleSlots" : {
+                  "type" : "integer"
+                },
+                "postRescaleSlots" : {
+                  "type" : "integer"
+                },
+                "acquiredResourceProfile" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+                }
+              }
+            }
+          },
+          "schedulerStates" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:SchedulerStateSpan",
+              "properties" : {
+                "state" : {
+                  "type" : "string"
+                },
+                "enterTimestampInMillis" : {
+                  "type" : "integer"
+                },
+                "leaveTimestampInMillis" : {
+                  "type" : "integer"
+                },
+                "durationInMillis" : {
+                  "type" : "integer"
+                },
+                "stringifiedException" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "startTimestampInMillis" : {
+            "type" : "integer"
+          },
+          "endTimestampInMillis" : {
+            "type" : "integer"
+          },
+          "terminalState" : {
+            "type" : "string",
+            "enum" : [ "COMPLETED", "FAILED", "IGNORED" ]
+          },
+          "triggerCause" : {
+            "type" : "string",
+            "enum" : [ "INITIAL_SCHEDULE", "UPDATE_REQUIREMENT", "NEW_RESOURCE_AVAILABLE", "RECOVERABLE_FAILOVER" ]
+          },
+          "terminatedReason" : {
+            "type" : "string",
+            "enum" : [ "SUCCEEDED", "EXCEPTION_OCCURRED", "RESOURCE_REQUIREMENTS_UPDATED", "NO_RESOURCES_OR_PARALLELISMS_CHANGE", "JOB_FINISHED", "JOB_FAILED", "JOB_CANCELED", "JOB_FAILOVER_RESTARTING" ]
+          }
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/rescaling",
     "method" : "PATCH",
     "status-code" : "200 OK",
@@ -4775,240 +5161,6 @@
               },
               "stringifiedThreadInfo" : {
                 "type" : "string"
-              }
-            }
-          }
-        }
-      }
-    }
-  }, {
-    "url" : "/jobs/:jobid/rescales/config",
-    "method" : "GET",
-    "status-code" : "200 OK",
-    "file-upload" : false,
-    "path-parameters" : {
-      "pathParameters" : [ {
-        "key" : "jobid"
-      } ]
-    },
-    "query-parameters" : {
-      "queryParameters" : [ ]
-    },
-    "request" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
-    },
-    "response" : {
-      "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleConfigInfo",
-      "properties" : {
-        "executingCooldownTimeoutInMillis" : {
-          "type" : "integer"
-        },
-        "executingResourceStabilizationTimeoutInMillis" : {
-          "type" : "integer"
-        },
-        "maximumDelayForTriggeringRescaleInMillis" : {
-          "type" : "integer"
-        },
-        "rescaleHistoryMax" : {
-          "type" : "integer"
-        },
-        "rescaleOnFailedCheckpointCount" : {
-          "type" : "integer"
-        },
-        "schedulerExecutionMode" : {
-          "type" : "string",
-          "enum" : [ "REACTIVE" ]
-        },
-        "slotIdleTimeoutInMillis" : {
-          "type" : "integer"
-        },
-        "submissionResourceStabilizationTimeoutInMillis" : {
-          "type" : "integer"
-        },
-        "submissionResourceWaitTimeoutInMillis" : {
-          "type" : "integer"
-        }
-      }
-    }
-  }, {
-    "url": "/jobs/:jobid/rescales/details/:rescaleuuid",
-    "method": "GET",
-    "status-code": "200 OK",
-    "file-upload": false,
-    "path-parameters": {
-      "pathParameters": [
-        {
-          "key": "jobid"
-        },
-        {
-          "key": "rescaleuuid"
-        }
-      ]
-    },
-    "query-parameters": {
-      "queryParameters": []
-    },
-    "request": {
-      "type": "object"
-    },
-    "response": {
-      "type": "object",
-      "id": "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails",
-      "properties": {
-        "endTimestampInMillis": {
-          "type": "integer"
-        },
-        "rescaleAttemptId": {
-          "type": "integer"
-        },
-        "rescaleUuid": {
-          "type": "string"
-        },
-        "resourceRequirementsUuid": {
-          "type": "string"
-        },
-        "schedulerStates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "id": "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:SchedulerStateSpan",
-            "properties": {
-              "durationInMillis": {
-                "type": "integer"
-              },
-              "enterTimestampInMillis": {
-                "type": "integer"
-              },
-              "leaveTimestampInMillis": {
-                "type": "integer"
-              },
-              "state": {
-                "type": "string"
-              },
-              "stringifiedException": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "slots": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "id": "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:SlotSharingGroupRescaleInfo",
-            "properties": {
-              "acquiredResourceProfile": {
-                "type": "object",
-                "$ref": "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
-              },
-              "desiredSlots": {
-                "type": "integer"
-              },
-              "minimalRequiredSlots": {
-                "type": "integer"
-              },
-              "postRescaleSlots": {
-                "type": "integer"
-              },
-              "preRescaleSlots": {
-                "type": "integer"
-              },
-              "requestResourceProfile": {
-                "type": "object",
-                "id": "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
-                "properties": {
-                  "cpuCores": {
-                    "type": "number"
-                  },
-                  "extendedResources": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "number"
-                    }
-                  },
-                  "managedMemory": {
-                    "type": "integer"
-                  },
-                  "networkMemory": {
-                    "type": "integer"
-                  },
-                  "taskHeapMemory": {
-                    "type": "integer"
-                  },
-                  "taskOffHeapMemory": {
-                    "type": "integer"
-                  }
-                }
-              },
-              "slotSharingGroupId": {
-                "type": "any"
-              },
-              "slotSharingGroupName": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "startTimestampInMillis": {
-          "type": "integer"
-        },
-        "terminalState": {
-          "type": "string",
-          "enum": ["COMPLETED", "FAILED", "IGNORED"]
-        },
-        "terminatedReason": {
-          "type": "string",
-          "enum": [
-            "SUCCEEDED",
-            "EXCEPTION_OCCURRED",
-            "RESOURCE_REQUIREMENTS_UPDATED",
-            "NO_RESOURCES_OR_PARALLELISMS_CHANGE",
-            "JOB_FINISHED",
-            "JOB_FAILED",
-            "JOB_CANCELED",
-            "JOB_FAILOVER_RESTARTING"
-          ]
-        },
-        "triggerCause": {
-          "type": "string",
-          "enum": [
-            "INITIAL_SCHEDULE",
-            "UPDATE_REQUIREMENT",
-            "NEW_RESOURCE_AVAILABLE",
-            "RECOVERABLE_FAILOVER"
-          ]
-        },
-        "vertices": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "id": "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:rescales:JobRescaleDetails:VertexParallelismRescaleInfo",
-            "properties": {
-              "desiredParallelism": {
-                "type": "integer"
-              },
-              "jobVertexId": {
-                "type": "any"
-              },
-              "jobVertexName": {
-                "type": "string"
-              },
-              "postRescaleParallelism": {
-                "type": "integer"
-              },
-              "preRescaleParallelism": {
-                "type": "integer"
-              },
-              "slotSharingGroupId": {
-                "type": "any"
-              },
-              "slotSharingGroupName": {
-                "type": "string"
-              },
-              "sufficientParallelism": {
-                "type": "integer"
               }
             }
           }

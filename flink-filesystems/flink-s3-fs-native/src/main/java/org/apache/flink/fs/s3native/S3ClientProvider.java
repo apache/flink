@@ -71,14 +71,15 @@ class S3ClientProvider implements AutoCloseableAsync {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientProvider.class);
 
-    /** Timeout in seconds for closing S3 clients. */
-    private static final long CLIENT_CLOSE_TIMEOUT_SECONDS = 30;
-
     private final S3Client s3Client;
     private final S3TransferManager transferManager;
     private final S3EncryptionConfig encryptionConfig;
     @Nullable private final AwsCredentialsProvider credentialsProvider;
     @Nullable private final StsClient stsClient;
+    private final Duration clientCloseTimeout;
+    private final Duration connectionTimeout;
+    private final Duration socketTimeout;
+    private final Duration connectionMaxIdleTime;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private S3ClientProvider(
@@ -86,13 +87,21 @@ class S3ClientProvider implements AutoCloseableAsync {
             S3TransferManager transferManager,
             S3EncryptionConfig encryptionConfig,
             @Nullable AwsCredentialsProvider credentialsProvider,
-            @Nullable StsClient stsClient) {
+            @Nullable StsClient stsClient,
+            Duration clientCloseTimeout,
+            Duration connectionTimeout,
+            Duration socketTimeout,
+            Duration connectionMaxIdleTime) {
         this.s3Client = s3Client;
         this.transferManager = transferManager;
         this.encryptionConfig =
                 encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
         this.credentialsProvider = credentialsProvider;
         this.stsClient = stsClient;
+        this.clientCloseTimeout = clientCloseTimeout;
+        this.connectionTimeout = connectionTimeout;
+        this.socketTimeout = socketTimeout;
+        this.connectionMaxIdleTime = connectionMaxIdleTime;
     }
 
     public S3Client getS3Client() {
@@ -113,6 +122,26 @@ class S3ClientProvider implements AutoCloseableAsync {
     @VisibleForTesting
     AwsCredentialsProvider getCredentialsProvider() {
         return credentialsProvider;
+    }
+
+    @VisibleForTesting
+    Duration getClientCloseTimeout() {
+        return clientCloseTimeout;
+    }
+
+    @VisibleForTesting
+    Duration getConnectionTimeout() {
+        return connectionTimeout;
+    }
+
+    @VisibleForTesting
+    Duration getSocketTimeout() {
+        return socketTimeout;
+    }
+
+    @VisibleForTesting
+    Duration getConnectionMaxIdleTime() {
+        return connectionMaxIdleTime;
     }
 
     @Override
@@ -151,13 +180,10 @@ class S3ClientProvider implements AutoCloseableAsync {
                                 }
                             }
                         })
-                .orTimeout(CLIENT_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .orTimeout(clientCloseTimeout.toSeconds(), TimeUnit.SECONDS)
                 .exceptionally(
                         ex -> {
-                            LOG.error(
-                                    "S3 client close timed out after {} seconds",
-                                    CLIENT_CLOSE_TIMEOUT_SECONDS,
-                                    ex);
+                            LOG.error("S3 client close timed out after {}", clientCloseTimeout, ex);
                             return null;
                         });
     }
@@ -181,8 +207,10 @@ class S3ClientProvider implements AutoCloseableAsync {
         private int maxConnections = 50;
         private Duration connectionTimeout = Duration.ofSeconds(60);
         private Duration socketTimeout = Duration.ofSeconds(60);
+        private Duration connectionMaxIdleTime = Duration.ofSeconds(60);
         private boolean disableCertCheck = false;
         private int maxRetries = 3;
+        private Duration clientCloseTimeout = Duration.ofSeconds(30);
 
         // AssumeRole configuration
         private String assumeRoleArn;
@@ -233,6 +261,16 @@ class S3ClientProvider implements AutoCloseableAsync {
 
         public Builder socketTimeout(Duration socketTimeout) {
             this.socketTimeout = socketTimeout;
+            return this;
+        }
+
+        public Builder connectionMaxIdleTime(Duration connectionMaxIdleTime) {
+            this.connectionMaxIdleTime = connectionMaxIdleTime;
+            return this;
+        }
+
+        public Builder clientCloseTimeout(Duration clientCloseTimeout) {
+            this.clientCloseTimeout = clientCloseTimeout;
             return this;
         }
 
@@ -327,7 +365,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                             .connectionTimeout(connectionTimeout)
                             .socketTimeout(socketTimeout)
                             .tcpKeepAlive(true)
-                            .connectionMaxIdleTime(Duration.ofSeconds(60));
+                            .connectionMaxIdleTime(connectionMaxIdleTime);
 
             S3ClientBuilder clientBuilder =
                     S3Client.builder()
@@ -358,7 +396,15 @@ class S3ClientProvider implements AutoCloseableAsync {
                             .build();
 
             return new S3ClientProvider(
-                    s3Client, transferManager, encryptionConfig, credentialsProvider, stsClient);
+                    s3Client,
+                    transferManager,
+                    encryptionConfig,
+                    credentialsProvider,
+                    stsClient,
+                    clientCloseTimeout,
+                    connectionTimeout,
+                    socketTimeout,
+                    connectionMaxIdleTime);
         }
 
         private AwsCredentialsProvider buildBaseCredentialsProvider() {

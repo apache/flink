@@ -16,7 +16,64 @@
  * limitations under the License.
  */
 
-export interface RescalesConfig {
+export type RescalesHistory = BriefJobRescaleDetails[];
+
+export interface BriefJobRescaleDetails {
+  rescaleUuid: string;
+  resourceRequirementsUuid: string;
+  rescaleAttemptId: number;
+  vertices: { [jobVertexId: string]: VertexParallelismRescaleInfo };
+  slots: { [slotSharingGroupId: string]: SlotSharingGroupRescaleInfo };
+  schedulerStates: SchedulerState[];
+  startTimestampInMillis: number;
+  endTimestampInMillis: number;
+  terminalState: string;
+  triggerCause: string;
+  terminatedReason: string;
+}
+
+export interface JobRescaleDetails extends BriefJobRescaleDetails {}
+
+export interface VertexParallelismRescaleInfo {
+  jobVertexId: string;
+  jobVertexName: string;
+  slotSharingGroupId: string;
+  slotSharingGroupName: string;
+  desiredParallelism: number;
+  sufficientParallelism: number;
+  preRescaleParallelism: number;
+  postRescaleParallelism: number;
+}
+
+export interface SlotSharingGroupRescaleInfo {
+  slotSharingGroupId: string;
+  slotSharingGroupName: string;
+  requestResourceProfile: ResourceProfileInfo;
+  desiredSlots: number;
+  minimalRequiredSlots: number;
+  preRescaleSlots: number;
+  postRescaleSlots: number;
+  acquiredResourceProfile: ResourceProfileInfo;
+}
+
+export interface ResourceProfileInfo {
+  cpuCores: number;
+  taskHeapMemory: number;
+  taskOffHeapMemory: number;
+  managedMemory: number;
+  networkMemory: number;
+  extendedResources: { [key: string]: unknown };
+}
+
+export interface SchedulerState {
+  state: string;
+  enterTimestampInMillis: number;
+  leaveTimestampInMillis: number;
+  durationInMillis: number;
+  stringifiedException: string;
+}
+
+export interface JobRescaleConfigInfo {
   rescaleHistoryMax: number;
   schedulerExecutionMode: string;
   submissionResourceWaitTimeoutInMillis: number;

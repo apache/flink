@@ -958,6 +958,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobRescaleDetails"
+  /jobs/{jobid}/rescales/history:
+    get:
+      description: Return job rescales history.
+      operationId: getJobRescalesHistory
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobRescaleDetails"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2826,6 +2846,10 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/VertexParallelismRescaleInfo"
+    JobRescalesHistory:
+      type: array
+      items:
+        $ref: "#/components/schemas/JobRescaleDetails"
     JobResourceRequirementsBody:
       type: object
       additionalProperties:

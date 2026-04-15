@@ -16,13 +16,20 @@
  * limitations under the License.
  */
 
-import { NgIf } from '@angular/common';
+import { NgFor, NgIf, JsonPipe, DatePipe, KeyValuePipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
-import { RescalesConfig, JobDetail } from '@flink-runtime-web/interfaces';
+import { JobBadgeComponent } from '@flink-runtime-web/components/job-badge/job-badge.component';
+import {
+  BriefJobRescaleDetails,
+  JobRescaleDetails,
+  JobRescaleConfigInfo,
+  JobDetail,
+  RescalesHistory
+} from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
@@ -42,8 +49,13 @@ import { JobLocalService } from '../job-local.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NgIf,
+    NgFor,
+    JsonPipe,
+    DatePipe,
+    KeyValuePipe,
     NzTabsModule,
     NzDividerModule,
+    JobBadgeComponent,
     HumanizeDurationPipe,
     NzTableModule,
     NzIconModule,
@@ -54,8 +66,12 @@ import { JobLocalService } from '../job-local.service';
   ]
 })
 export class JobRescalesComponent implements OnInit, OnDestroy {
-  public rescalesConfig?: RescalesConfig;
+  public rescalesHistory?: RescalesHistory;
+  public rescaleDetailsMap = new Map<string, JobRescaleDetails>();
+  public rescalesConfig?: JobRescaleConfigInfo;
   public jobDetail: JobDetail;
+  public expandedRowsSet = new Set<string>();
+  public readonly Date = Date;
 
   private refresh$ = new Subject<void>();
   private destroy$ = new Subject<void>();
@@ -71,6 +87,11 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
       .pipe(
         switchMap(() =>
           forkJoin([
+            this.jobService.loadRescalesHistory(this.jobDetail.jid).pipe(
+              catchError(() => {
+                return of(undefined);
+              })
+            ),
             this.jobService.loadRescalesConfig(this.jobDetail.jid).pipe(
               catchError(() => {
                 return of(undefined);
@@ -80,7 +101,8 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
         ),
         takeUntil(this.destroy$)
       )
-      .subscribe(([config]) => {
+      .subscribe(([history, config]) => {
+        this.rescalesHistory = history;
         this.rescalesConfig = config;
         this.cdr.markForCheck();
       });
@@ -105,6 +127,55 @@ export class JobRescalesComponent implements OnInit, OnDestroy {
   }
 
   public refresh(): void {
+    const expandedUuids = Array.from(this.expandedRowsSet);
+
+    expandedUuids.forEach(uuid => {
+      this.jobService
+        .loadRescaleDetail(this.jobDetail.jid, uuid)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(detail => {
+          this.rescaleDetailsMap.set(uuid, detail);
+          this.cdr.markForCheck();
+        });
+    });
+
     this.refresh$.next();
+  }
+
+  public trackById(item: BriefJobRescaleDetails): string {
+    return item.rescaleUuid;
+  }
+
+  public onExpandChange(jobRescaleDetails: BriefJobRescaleDetails, expanded: boolean): void {
+    if (expanded) {
+      this.expandedRowsSet.add(jobRescaleDetails.rescaleUuid);
+      if (!this.rescaleDetailsMap.has(jobRescaleDetails.rescaleUuid)) {
+        this.jobService
+          .loadRescaleDetail(this.jobDetail.jid, jobRescaleDetails.rescaleUuid)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe(detail => {
+            this.rescaleDetailsMap.set(jobRescaleDetails.rescaleUuid, detail);
+            this.cdr.markForCheck();
+          });
+      }
+    } else {
+      this.expandedRowsSet.delete(jobRescaleDetails.rescaleUuid);
+    }
+  }
+
+  public isExpanded(rescaleUuid: string): boolean {
+    return this.expandedRowsSet.has(rescaleUuid);
+  }
+
+  public getDetail(rescaleUuid: string): JobRescaleDetails | undefined {
+    return this.rescaleDetailsMap.get(rescaleUuid);
+  }
+
+  public truncateUuid(uuid: string): string {
+    return uuid ? uuid.substring(0, 8) : '';
+  }
+
+  public truncateName(name: string, maxLength: number = 32): string {
+    return name && name.length > maxLength ? `${name.substring(0, maxLength)}...` : name;
   }
 }

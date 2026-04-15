@@ -27,6 +27,14 @@
     .ant-tabs-nav-list {
       padding: 4px 16px;
     }
+
+    > .ant-table-wrapper {
+      .ant-table {
+        > tbody > tr.ant-table-expanded-row > td {
+          padding: 0 !important;
+        }
+      }
+    }
   }
 }
 
@@ -36,4 +44,74 @@
 
 nz-empty {
   padding: 24px;
+}
+
+::ng-deep {
+  .nz-disable-td {
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .collapse-td {
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  tr.ant-table-expanded-row {
+    width: 100%;
+
+    > td {
+      width: 100% !important;
+    }
+  }
+}
+
+.rescale-details-wrapper {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 24px;
+}
+
+.rescale-details-box {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  background-color: #fff;
+
+  ::ng-deep {
+    nz-table.ant-table-wrapper {
+      display: block !important;
+      width: 100% !important;
+      margin-bottom: 16px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .ant-spin-nested-loading {
+      display: block;
+      width: 100%;
+    }
+
+    .ant-spin-container {
+      display: block;
+      width: 100%;
+    }
+
+    .ant-table {
+      width: 100% !important;
+      table-layout: fixed !important;
+
+      colgroup {
+        display: none;
+      }
+    }
+
+    table {
+      width: 100% !important;
+      table-layout: fixed !important;
+    }
+  }
 }

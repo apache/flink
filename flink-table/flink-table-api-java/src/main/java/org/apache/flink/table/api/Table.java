@@ -1422,4 +1422,36 @@ public interface Table extends Explainable<Table>, Executable {
      * @see ProcessTableFunction
      */
     Table process(Class<? extends UserDefinedFunction> function, Object... arguments);
+
+    /**
+     * Converts this dynamic table into an append-only table with an explicit operation code column
+     * using the built-in {@code TO_CHANGELOG} process table function.
+     *
+     * <p>Each input row - regardless of its original change operation - is emitted as an
+     * INSERT-only row with a string {@code "op"} column indicating the original operation (INSERT,
+     * UPDATE_AFTER, DELETE, etc.).
+     *
+     * <p>Optional arguments can be passed using named expressions:
+     *
+     * <pre>{@code
+     * // Default: adds 'op' column and supports all changelog modes
+     * table.toChangelog();
+     *
+     * // Custom op column name and mapping
+     * table.toChangelog(
+     *     descriptor("op_code").asArgument("op"),
+     *     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
+     * );
+     *
+     * // Deletion flag pattern: comma-separated keys map multiple change operations to the same code
+     * table.toChangelog(
+     *     descriptor("deleted").asArgument("op"),
+     *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
+     * );
+     * }</pre>
+     *
+     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @return an append-only {@link Table} with an {@code op} column prepended to the input columns
+     */
+    Table toChangelog(Expression... arguments);
 }

@@ -57,8 +57,7 @@ public class ToChangelogTest extends TableTestBase {
                                 + "  'changelog-mode' = 'I,UB,UA,D'"
                                 + ")");
         util.verifyRelPlan(
-                "SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)",
-                CHANGELOG_MODE);
+                "SELECT * FROM TO_CHANGELOG(input => TABLE retract_source)", CHANGELOG_MODE);
     }
 
     @Test
@@ -74,8 +73,7 @@ public class ToChangelogTest extends TableTestBase {
                                 + "  'changelog-mode' = 'I,UA,D'"
                                 + ")");
         util.verifyRelPlan(
-                "SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id)",
-                CHANGELOG_MODE);
+                "SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)", CHANGELOG_MODE);
     }
 
     @Test
@@ -87,7 +85,6 @@ public class ToChangelogTest extends TableTestBase {
                                 + "  name STRING"
                                 + ") WITH ('connector' = 'values')");
         util.verifyRelPlan(
-                "SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source PARTITION BY id)",
-                CHANGELOG_MODE);
+                "SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source)", CHANGELOG_MODE);
     }
 }

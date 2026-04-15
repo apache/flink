@@ -85,7 +85,7 @@ import java.util.stream.Collectors;
  * +    +--> slot sharing group id-1 -> slot-1 sharing group rescale:
  * +    +                               +--> slot sharing group id
  * +    +                               +--> slot sharing group name
- * +    +                               +--> required resource profile
+ * +    +                               +--> request resource profile
  * +    +                               +--> minimal required slots
  * +    +                               +--> pre-rescale slots
  * +    +                               +--> post-rescale slots
@@ -180,7 +180,9 @@ public class Rescale implements Serializable {
                         enterTimestamp,
                         logicLeaveTimestamp,
                         logicLeaveTimestamp - enterTimestamp,
-                        ExceptionUtils.stringifyException(throwable)));
+                        Objects.isNull(throwable)
+                                ? null
+                                : ExceptionUtils.stringifyException(throwable)));
     }
 
     public List<SchedulerStateSpan> getSchedulerStates() {

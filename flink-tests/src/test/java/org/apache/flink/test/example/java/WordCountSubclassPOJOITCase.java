@@ -19,6 +19,7 @@
 
 package org.apache.flink.test.example.java;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -31,7 +32,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -40,7 +41,7 @@ import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMe
 
 /** WordCount with custom data types example. */
 @SuppressWarnings("serial")
-public class WordCountSubclassPOJOITCase extends JavaProgramTestBaseJUnit4 implements Serializable {
+public class WordCountSubclassPOJOITCase extends JavaProgramTestBase implements Serializable {
     private static final long serialVersionUID = 1L;
     protected String textPath;
     protected String resultPath;
@@ -57,7 +58,7 @@ public class WordCountSubclassPOJOITCase extends JavaProgramTestBaseJUnit4 imple
     }
 
     @Override
-    protected void testProgram() throws Exception {
+    protected JobExecutionResult testProgram() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -92,7 +93,7 @@ public class WordCountSubclassPOJOITCase extends JavaProgramTestBaseJUnit4 imple
                 FileSink.forRowFormat(new Path(resultPath), new SimpleStringEncoder<WCBase>())
                         .build());
 
-        env.execute("WordCount with custom data types example");
+        return env.execute("WordCount with custom data types example");
     }
 
     private static final class Tokenizer implements FlatMapFunction<String, WCBase> {

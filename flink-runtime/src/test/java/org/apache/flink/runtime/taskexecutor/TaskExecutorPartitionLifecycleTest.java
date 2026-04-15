@@ -128,9 +128,13 @@ class TaskExecutorPartitionLifecycleTest {
 
     private ResourceID jmResourceId;
 
-    private Duration duration = Duration.ofMillis(200);
+    private Duration duration = Duration.ofSeconds(15);
 
-    private Duration longDuration = Duration.ofMillis(300);
+    private static final Duration registrationTimeout = Duration.ofSeconds(1);
+
+    private static final Duration assertNotCompleteDuration = Duration.ofMillis(50);
+
+    private static final Duration longDuration = Duration.ofSeconds(3);
 
     private CompletableFuture<Void> disconnectTaskManagerFuture;
 
@@ -352,7 +356,7 @@ class TaskExecutorPartitionLifecycleTest {
                 // the release action will delay
                 releasePartitionsForJobFuture ->
                         assertThatFuture(releasePartitionsForJobFuture)
-                                .willNotCompleteWithin(duration)
+                                .willNotCompleteWithin(assertNotCompleteDuration)
                                 .eventuallySucceeds()
                                 .isEqualTo(jobId));
     }
@@ -386,7 +390,7 @@ class TaskExecutorPartitionLifecycleTest {
             Consumer<CompletableFuture<JobID>> verifyAction)
             throws Exception {
         configuration.set(BatchExecutionOptions.JOB_RECOVERY_ENABLED, enableBatchJobRecovery);
-        configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, duration);
+        configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout);
         // the slot time out will try to release partition again, and we should avoid it
         configuration.set(SLOT_TIMEOUT, Duration.ofMinutes(5));
 

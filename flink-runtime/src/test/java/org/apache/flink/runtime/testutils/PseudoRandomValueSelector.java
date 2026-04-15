@@ -128,7 +128,8 @@ public class PseudoRandomValueSelector {
     public static <T> T randomize(Configuration conf, ConfigOption<T> option, T... t1) {
         final String testName = TestNameProvider.getCurrentTestName();
         final PseudoRandomValueSelector valueSelector =
-                PseudoRandomValueSelector.create(testName != null ? testName : "unknown");
+                PseudoRandomValueSelector.create(
+                        (testName != null ? testName : "unknown") + option.key());
         return valueSelector.select(conf, option, t1);
     }
 }

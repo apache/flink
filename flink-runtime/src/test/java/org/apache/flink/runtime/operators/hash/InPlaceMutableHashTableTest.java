@@ -118,7 +118,7 @@ class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
                     public int compareToReference(Tuple2<Long, String> candidate) {
                         long x = ref;
                         long y = candidate.f0;
-                        return (x < y) ? -1 : ((x == y) ? 0 : 1);
+                        return Long.compare(x, y);
                     }
                 };
     }

@@ -43,7 +43,16 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     private static final String[][] MIRRORED_CONFIG_KEYS = {
         {"fs.s3a.access-key", "fs.s3a.access.key"},
         {"fs.s3a.secret-key", "fs.s3a.secret.key"},
-        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"}
+        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"},
+        // Flink v2 uses standard YAML which cannot represent a key that is both a scalar value and
+        // a parent of other keys (e.g. fs.s3a.endpoint and fs.s3a.endpoint.region conflict).
+        // These aliases allow users to set the scalar key via a ".value" suffix to avoid the
+        // collision, e.g. fs.s3a.endpoint.value maps to fs.s3a.endpoint in Hadoop config.
+        {"fs.s3a.endpoint.value", "fs.s3a.endpoint"},
+        {"fs.s3a.assumed.role.sts.endpoint.value", "fs.s3a.assumed.role.sts.endpoint"},
+        {"fs.s3a.fast.upload.value", "fs.s3a.fast.upload"},
+        {"fs.s3a.multipart.purge.value", "fs.s3a.multipart.purge"},
+        {"fs.s3a.s3guard.ddb.table.value", "fs.s3a.s3guard.ddb.table"},
     };
 
     public S3FileSystemFactory() {

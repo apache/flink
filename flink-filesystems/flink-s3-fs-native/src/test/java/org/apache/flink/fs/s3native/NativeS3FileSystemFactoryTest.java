@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -434,5 +435,79 @@ class NativeS3FileSystemFactoryTest {
 
         assertThat(fs).isNotNull();
         assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testCustomTimeoutConfiguration() throws Exception {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.region", "us-east-1");
+        config.set(NativeS3FileSystemFactory.CONNECTION_TIMEOUT, Duration.ofSeconds(30));
+        config.set(NativeS3FileSystemFactory.SOCKET_TIMEOUT, Duration.ofSeconds(45));
+        config.set(NativeS3FileSystemFactory.CONNECTION_MAX_IDLE_TIME, Duration.ofMinutes(2));
+        config.set(NativeS3FileSystemFactory.FS_CLOSE_TIMEOUT, Duration.ofSeconds(90));
+        config.set(NativeS3FileSystemFactory.CLIENT_CLOSE_TIMEOUT, Duration.ofSeconds(15));
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+        NativeS3FileSystem nativeFs = (NativeS3FileSystem) fs;
+        assertThat(nativeFs.getFsCloseTimeout()).isEqualTo(Duration.ofSeconds(90));
+
+        S3ClientProvider clientProvider = nativeFs.getClientProvider();
+        assertThat(clientProvider.getConnectionTimeout()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(clientProvider.getSocketTimeout()).isEqualTo(Duration.ofSeconds(45));
+        assertThat(clientProvider.getConnectionMaxIdleTime()).isEqualTo(Duration.ofMinutes(2));
+        assertThat(clientProvider.getClientCloseTimeout()).isEqualTo(Duration.ofSeconds(15));
+    }
+
+    @Test
+    void testTimeoutConfigurationWithStringDuration() throws Exception {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.connection.timeout", "30 s");
+        config.setString("s3.socket.timeout", "2 min");
+        config.setString("s3.close.timeout", "1 min");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        NativeS3FileSystem nativeFs = (NativeS3FileSystem) fs;
+        assertThat(nativeFs.getFsCloseTimeout()).isEqualTo(Duration.ofMinutes(1));
+
+        S3ClientProvider clientProvider = nativeFs.getClientProvider();
+        assertThat(clientProvider.getConnectionTimeout()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(clientProvider.getSocketTimeout()).isEqualTo(Duration.ofMinutes(2));
+    }
+
+    @Test
+    void testInvalidTimeoutConfigurationThrowsException() {
+        NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.connection.timeout", "not-a-duration");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3://test-bucket/");
+        assertThatThrownBy(() -> factory.create(fsUri))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

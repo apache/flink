@@ -21,7 +21,7 @@ under the License.
 	<parent>
 		<groupId>org.apache</groupId>
 		<artifactId>apache</artifactId>
-		<version>20</version>
+		<version>35</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -2177,6 +2177,8 @@ under the License.
 						<!-- Make sure that we only use Java 11 compatible APIs -->
 						<source>${source.java.version}</source>
 						<target>${target.java.version}</target>
+						<!-- Starting Apache parent pom 31 it uses release which makes impossible to use add-exports -->
+						<release combine.self="override"/>
 						<!-- The semantics of this option are reversed, see MCOMPILER-209. -->
 						<useIncrementalCompilation>false</useIncrementalCompilation>
 						<compilerArgs>

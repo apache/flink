@@ -37,7 +37,7 @@ public class SlotSharingGroupRescale implements Serializable {
 
     private final SlotSharingGroupId slotSharingGroupId;
     private final String slotSharingGroupName;
-    private final ResourceProfile requiredResourceProfile;
+    private final ResourceProfile requestResourceProfile;
     private Integer desiredSlots;
     private Integer minimalRequiredSlots;
     @Nullable private Integer preRescaleSlots;
@@ -47,7 +47,7 @@ public class SlotSharingGroupRescale implements Serializable {
     public SlotSharingGroupRescale(SlotSharingGroup slotSharingGroup) {
         this.slotSharingGroupId = slotSharingGroup.getSlotSharingGroupId();
         this.slotSharingGroupName = slotSharingGroup.getSlotSharingGroupName();
-        this.requiredResourceProfile = slotSharingGroup.getResourceProfile();
+        this.requestResourceProfile = slotSharingGroup.getResourceProfile();
     }
 
     public SlotSharingGroupId getSlotSharingGroupId() {
@@ -92,8 +92,8 @@ public class SlotSharingGroupRescale implements Serializable {
         this.postRescaleSlots = postRescaleSlots;
     }
 
-    public ResourceProfile getRequiredResourceProfile() {
-        return requiredResourceProfile;
+    public ResourceProfile getRequestResourceProfile() {
+        return requestResourceProfile;
     }
 
     @Nullable
@@ -113,7 +113,7 @@ public class SlotSharingGroupRescale implements Serializable {
         SlotSharingGroupRescale that = (SlotSharingGroupRescale) o;
         return Objects.equals(slotSharingGroupId, that.slotSharingGroupId)
                 && Objects.equals(slotSharingGroupName, that.slotSharingGroupName)
-                && Objects.equals(requiredResourceProfile, that.requiredResourceProfile)
+                && Objects.equals(requestResourceProfile, that.requestResourceProfile)
                 && Objects.equals(desiredSlots, that.desiredSlots)
                 && Objects.equals(minimalRequiredSlots, that.minimalRequiredSlots)
                 && Objects.equals(preRescaleSlots, that.preRescaleSlots)
@@ -126,7 +126,7 @@ public class SlotSharingGroupRescale implements Serializable {
         return Objects.hash(
                 slotSharingGroupId,
                 slotSharingGroupName,
-                requiredResourceProfile,
+                requestResourceProfile,
                 desiredSlots,
                 minimalRequiredSlots,
                 preRescaleSlots,
@@ -142,8 +142,8 @@ public class SlotSharingGroupRescale implements Serializable {
                 + ", slotSharingGroupName='"
                 + slotSharingGroupName
                 + '\''
-                + ", requiredResourceProfile="
-                + requiredResourceProfile
+                + ", requestResourceProfile="
+                + requestResourceProfile
                 + ", desiredSlots="
                 + desiredSlots
                 + ", minimalRequiredSlots="

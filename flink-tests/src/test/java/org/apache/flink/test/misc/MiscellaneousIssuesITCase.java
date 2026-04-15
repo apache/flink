@@ -31,17 +31,19 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import java.io.File;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for the system behavior in multiple corner cases - when null records are passed through the
@@ -51,19 +53,21 @@ import static org.junit.Assert.fail;
  * <p>The tests are bundled into one class to reuse the same test cluster. This speeds up test
  * execution, as the majority of the test time goes usually into starting/stopping the test cluster.
  */
-@SuppressWarnings("serial")
-public class MiscellaneousIssuesITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class MiscellaneousIssuesITCase {
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(2)
                             .setNumberSlotsPerTaskManager(3)
                             .build());
 
+    @TempDir private File tempDir;
+
     @Test
-    public void testNullValues() throws Exception {
+    void testNullValues() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -77,19 +81,16 @@ public class MiscellaneousIssuesITCase extends TestLogger {
                                     }
                                 });
         data.sinkTo(
-                FileSink.forRowFormat(new Path("/tmp/myTest"), new SimpleStringEncoder<String>())
+                FileSink.forRowFormat(new Path(tempDir.toURI()), new SimpleStringEncoder<String>())
                         .build());
 
-        try {
-            env.execute();
-            fail("this should fail due to null values.");
-        } catch (JobExecutionException e) {
-            assertTrue(findThrowable(e, NullPointerException.class).isPresent());
-        }
+        assertThatThrownBy(env::execute)
+                .isInstanceOf(JobExecutionException.class)
+                .hasRootCauseInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testDisjointDataflows() throws Exception {
+    void testDisjointDataflows() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(5);
 
@@ -99,8 +100,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
     }
 
     @Test
-    public void testAccumulatorsAfterNoOp() throws Exception {
-
+    void testAccumulatorsAfterNoOp() throws Exception {
         final String accName = "test_accumulator";
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -127,6 +127,6 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 
         JobExecutionResult result = env.execute();
 
-        assertEquals(1000000L, result.getAllAccumulatorResults().get(accName));
+        assertThat(result.getAllAccumulatorResults()).containsEntry(accName, 1000000L);
     }
 }

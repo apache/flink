@@ -28,8 +28,6 @@ import org.apache.flink.types.RowKind;
 
 import java.time.Instant;
 
-import static org.apache.flink.table.api.Expressions.$;
-
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
 
@@ -56,11 +54,10 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("id INT", "op STRING", "name STRING")
-                                    .consumedValues("+I[1, INSERT, Alice]", "+I[2, INSERT, Bob]")
+                                    .addSchema("op STRING", "id INT", "name STRING")
+                                    .consumedValues("+I[INSERT, 1, Alice]", "+I[INSERT, 2, Bob]")
                                     .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t PARTITION BY id)")
+                    .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
     public static final TableTestProgram UPDATING_INPUT =
@@ -81,16 +78,45 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("name STRING", "op STRING", "score BIGINT")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
                                     .consumedValues(
-                                            "+I[Alice, INSERT, 10]",
-                                            "+I[Bob, INSERT, 20]",
-                                            "+I[Alice, UPDATE_BEFORE, 10]",
-                                            "+I[Alice, UPDATE_AFTER, 30]",
-                                            "+I[Bob, DELETE, 20]")
+                                            "+I[INSERT, Alice, 10]",
+                                            "+I[INSERT, Bob, 20]",
+                                            "+I[UPDATE_BEFORE, Alice, 10]",
+                                            "+I[UPDATE_AFTER, Alice, 30]",
+                                            "+I[DELETE, Bob, 20]")
                                     .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t PARTITION BY name)")
+                    .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
+                    .build();
+
+    public static final TableTestProgram UPSERT_INPUT =
+            TableTestProgram.of(
+                            "to-changelog-upsert-input",
+                            "upsert input gets ChangelogNormalize for UPDATE_BEFORE and full deletes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            // Key-only delete: ChangelogNormalize fills
+                                            // in the full row from state
+                                            Row.ofKind(RowKind.DELETE, "Bob", null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[INSERT, Alice, 10]",
+                                            "+I[INSERT, Bob, 20]",
+                                            "+I[UPDATE_BEFORE, Alice, 10]",
+                                            "+I[UPDATE_AFTER, Alice, 30]",
+                                            "+I[DELETE, Bob, 20]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
     public static final TableTestProgram CUSTOM_OP_MAPPING =
@@ -111,15 +137,15 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("name STRING", "op_code STRING", "score BIGINT")
+                                    .addSchema("op_code STRING", "name STRING", "score BIGINT")
                                     .consumedValues(
-                                            "+I[Alice, I, 10]",
-                                            "+I[Bob, I, 20]",
-                                            "+I[Alice, U, 30]")
+                                            "+I[I, Alice, 10]",
+                                            "+I[I, Bob, 20]",
+                                            "+I[U, Alice, 30]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY name, "
+                                    + "input => TABLE t, "
                                     + "op => DESCRIPTOR(op_code), "
                                     + "op_mapping => MAP['INSERT','I', 'UPDATE_AFTER','U'])")
                     .build();
@@ -135,12 +161,12 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("id INT", "operation STRING", "name STRING")
-                                    .consumedValues("+I[1, INSERT, Alice]")
+                                    .addSchema("operation STRING", "id INT", "name STRING")
+                                    .consumedValues("+I[INSERT, 1, Alice]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY id, "
+                                    + "input => TABLE t, "
                                     + "op => DESCRIPTOR(operation))")
                     .build();
 
@@ -151,7 +177,7 @@ public class ToChangelogTestPrograms {
     public static final TableTestProgram TABLE_API_DEFAULT =
             TableTestProgram.of(
                             "to-changelog-table-api-default",
-                            "PartitionedTable.toChangelog() convenience method")
+                            "Table.toChangelog() convenience method")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema("id INT", "name STRING")
@@ -162,10 +188,10 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("id INT", "op STRING", "name STRING")
-                                    .consumedValues("+I[1, INSERT, Alice]", "+I[2, INSERT, Bob]")
+                                    .addSchema("op STRING", "id INT", "name STRING")
+                                    .consumedValues("+I[INSERT, 1, Alice]", "+I[INSERT, 2, Bob]")
                                     .build())
-                    .runTableApi(env -> env.from("t").partitionBy($("id")).toChangelog(), "sink")
+                    .runTableApi(env -> env.from("t").toChangelog(), "sink")
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -219,8 +245,8 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupSql(
                             "CREATE VIEW orders_changelog AS "
-                                    + "SELECT order_id, op, status, ts FROM TO_CHANGELOG("
-                                    + "  input => TABLE orders PARTITION BY order_id, "
+                                    + "SELECT op, order_id, status, ts FROM TO_CHANGELOG("
+                                    + "  input => TABLE orders, "
                                     + "  op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER'])")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -299,8 +325,8 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupSql(
                             "CREATE VIEW orders_changelog AS "
-                                    + "SELECT order_id, op, status, ts FROM TO_CHANGELOG("
-                                    + "  input => TABLE orders PARTITION BY order_id, "
+                                    + "SELECT op, order_id, status, ts FROM TO_CHANGELOG("
+                                    + "  input => TABLE orders, "
                                     + "  op_mapping => MAP['INSERT', 'INSERT', 'UPDATE_AFTER', 'UPDATE_AFTER'])")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -348,16 +374,16 @@ public class ToChangelogTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("name STRING", "deleted STRING", "score BIGINT")
+                                    .addSchema("deleted STRING", "name STRING", "score BIGINT")
                                     .consumedValues(
-                                            "+I[Alice, false, 10]",
-                                            "+I[Bob, false, 20]",
-                                            "+I[Alice, false, 30]",
-                                            "+I[Bob, true, 20]")
+                                            "+I[false, Alice, 10]",
+                                            "+I[false, Bob, 20]",
+                                            "+I[false, Alice, 30]",
+                                            "+I[true, Bob, 20]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY name, "
+                                    + "input => TABLE t, "
                                     + "op => DESCRIPTOR(deleted), "
                                     + "op_mapping => MAP['INSERT, UPDATE_AFTER', 'false', 'DELETE', 'true'])")
                     .build();
@@ -366,17 +392,6 @@ public class ToChangelogTestPrograms {
     // Error validation tests
     // --------------------------------------------------------------------------------------------
 
-    public static final TableTestProgram MISSING_PARTITION_BY =
-            TableTestProgram.of(
-                            "to-changelog-missing-partition-by",
-                            "fails when PARTITION BY is missing")
-                    .setupTableSource(SIMPLE_SOURCE)
-                    .runFailingSql(
-                            "SELECT * FROM TO_CHANGELOG(input => TABLE t)",
-                            ValidationException.class,
-                            "Table argument 'input' requires a PARTITION BY clause for parallel processing.")
-                    .build();
-
     public static final TableTestProgram INVALID_DESCRIPTOR =
             TableTestProgram.of(
                             "to-changelog-invalid-descriptor",
@@ -384,7 +399,7 @@ public class ToChangelogTestPrograms {
                     .setupTableSource(SIMPLE_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY id, "
+                                    + "input => TABLE t, "
                                     + "op => DESCRIPTOR(a, b))",
                             ValidationException.class,
                             "The descriptor for argument 'op' must contain exactly one column name.")
@@ -397,7 +412,7 @@ public class ToChangelogTestPrograms {
                     .setupTableSource(SIMPLE_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY id, "
+                                    + "input => TABLE t, "
                                     + "op_mapping => MAP['INVALID_KIND', 'X'])",
                             ValidationException.class,
                             "Unknown change operation: 'INVALID_KIND'")
@@ -410,7 +425,7 @@ public class ToChangelogTestPrograms {
                     .setupTableSource(SIMPLE_SOURCE)
                     .runFailingSql(
                             "SELECT * FROM TO_CHANGELOG("
-                                    + "input => TABLE t PARTITION BY id, "
+                                    + "input => TABLE t, "
                                     + "op_mapping => MAP['INSERT, DELETE', 'A', 'DELETE', 'B'])",
                             ValidationException.class,
                             "Duplicate change operation: 'DELETE'")

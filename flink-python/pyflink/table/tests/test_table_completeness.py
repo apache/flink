@@ -42,6 +42,7 @@ class TableAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
             'asArgument',
             'process',
             'partitionBy',
+            'toChangelog',
         }
 
     @classmethod

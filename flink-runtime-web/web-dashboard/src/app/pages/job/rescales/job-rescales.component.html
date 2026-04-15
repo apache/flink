@@ -21,7 +21,358 @@
   [nzSize]="'small'"
   [nzAnimated]="{ inkBar: true, tabPane: false }"
   [nzTabBarExtraContent]="extraTemplate"
+  (nzSelectedIndexChange)="refresh()"
 >
+  <nz-tab nzTitle="History">
+    <nz-table
+      class="no-border small"
+      [nzSize]="'small'"
+      [nzData]="jobRescaleDetails || []"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false"
+    >
+      <thead>
+        <tr>
+          <th nzWidth="70px" nzAlign="center"></th>
+          <th
+            nz-tooltip
+            nzTooltipTitle="The unique ID in Rescale consists of 32 hexadecimal characters"
+          >
+            <strong>Rescale UUID</strong>
+          </th>
+          <th
+            nz-tooltip
+            nzTooltipTitle="The unique ID of resource requirements consists of 32 hexadecimal characters"
+          >
+            <strong>Requirements ID</strong>
+          </th>
+          <th
+            nz-tooltip
+            nzTooltipTitle="The number ID of Rescale attempts that occurred under the same resource requirements"
+          >
+            <strong>Attempt ID</strong>
+          </th>
+          <th nz-tooltip nzTooltipTitle="The reason that triggers the target Rescale">
+            <strong>Trigger Cause</strong>
+          </th>
+          <th nz-tooltip nzTooltipTitle="The end state of the target Rescale">
+            <strong>Terminal State</strong>
+          </th>
+          <th
+            nz-tooltip
+            nzTooltipTitle="The reason for the completion or termination of the target Rescale"
+          >
+            <strong>Terminated Reason</strong>
+          </th>
+          <th nz-tooltip nzTooltipTitle="The start time of the target Rescale">
+            <strong>Start Time</strong>
+          </th>
+          <th
+            nz-tooltip
+            nzTooltipTitle="Duration from the start of the rescale to its completion or until now"
+          >
+            <strong>Duration</strong>
+          </th>
+          <th nz-tooltip nzTooltipTitle="The end time of the target Rescale">
+            <strong>End Time</strong>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let jobRescaleDetails of rescalesHistory; trackBy: trackById">
+          <tr>
+            <td
+              nzShowExpand
+              [nzExpand]="isExpanded(jobRescaleDetails.rescaleUuid)"
+              (nzExpandChange)="onExpandChange(jobRescaleDetails, $event)"
+            ></td>
+            <td nz-tooltip [nzTooltipTitle]="jobRescaleDetails.rescaleUuid">
+              {{ truncateUuid(jobRescaleDetails.rescaleUuid) }}
+            </td>
+            <td nz-tooltip [nzTooltipTitle]="jobRescaleDetails.resourceRequirementsUuid">
+              {{ truncateUuid(jobRescaleDetails.resourceRequirementsUuid) }}
+            </td>
+            <td>{{ jobRescaleDetails.rescaleAttemptId }}</td>
+            <td>{{ jobRescaleDetails.triggerCause }}</td>
+            <td>
+              <flink-job-badge
+                *ngIf="jobRescaleDetails.terminalState"
+                [state]="jobRescaleDetails.terminalState"
+              ></flink-job-badge>
+              <span *ngIf="!jobRescaleDetails.terminalState">-</span>
+            </td>
+            <td>{{ jobRescaleDetails.terminatedReason || '-' }}</td>
+            <td>
+              {{ jobRescaleDetails.startTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+            </td>
+            <td>
+              {{
+                (jobRescaleDetails.endTimestampInMillis || Date.now()) -
+                  jobRescaleDetails.startTimestampInMillis | humanizeDuration
+              }}
+            </td>
+            <td>
+              {{
+                jobRescaleDetails.endTimestampInMillis
+                  ? (jobRescaleDetails.endTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS')
+                  : '-'
+              }}
+            </td>
+          </tr>
+          <tr [nzExpand]="isExpanded(jobRescaleDetails.rescaleUuid)">
+            <td colspan="10" *ngIf="isExpanded(jobRescaleDetails.rescaleUuid)" class="collapse-td">
+              <div class="rescale-details-wrapper">
+                <div class="rescale-details-box">
+                  <h3><strong>Rescale Details</strong></h3>
+                  <tr>
+                    <td>
+                      <span>
+                        <strong>Rescale UUID:</strong>
+                        {{ truncateUuid(jobRescaleDetails.rescaleUuid) }}
+                      </span>
+                      <nz-divider nzType="vertical"></nz-divider>
+                      <span>
+                        <strong>Requirements ID:</strong>
+                        {{ truncateUuid(jobRescaleDetails.resourceRequirementsUuid) }}
+                      </span>
+                      <nz-divider nzType="vertical"></nz-divider>
+                      <span>
+                        <strong>Attempt ID:</strong>
+                        {{ jobRescaleDetails.rescaleAttemptId }}
+                      </span>
+                      <nz-divider nzType="vertical"></nz-divider>
+                      <span>
+                        <strong>Trigger Cause:</strong>
+                        {{ jobRescaleDetails.triggerCause }}
+                      </span>
+                      <nz-divider nzType="vertical"></nz-divider>
+                      <span>
+                        <strong>Terminal State:</strong>
+                        {{ jobRescaleDetails?.terminalState || '-' }}
+                      </span>
+                      <nz-divider nzType="vertical"></nz-divider>
+                      <span>
+                        <strong>Terminal Reason:</strong>
+                        {{ jobRescaleDetails?.terminatedReason || '-' }}
+                      </span>
+                    </td>
+                  </tr>
+                  <ng-container *ngIf="getDetail(jobRescaleDetails.rescaleUuid) as detail">
+                    <nz-table
+                      class="small"
+                      [nzData]="detail.vertices | keyvalue"
+                      [nzSize]="'small'"
+                      [nzFrontPagination]="false"
+                      [nzShowPagination]="false"
+                      [nzTitle]="verticesTitle"
+                      [nzBordered]="true"
+                    >
+                      <thead>
+                        <tr>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The unique ID of target JobVertex consists of 32 hexadecimal characters"
+                          >
+                            <strong>ID</strong>
+                          </th>
+                          <th nz-tooltip nzTooltipTitle="The short name of target vertex">
+                            <strong>Name</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The previous parallelism of target vertex before the current rescale"
+                          >
+                            <strong>Previous Parallelism</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The acquired parallelism of target vertex after the current rescale"
+                          >
+                            <strong>Acquired Parallelism</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The desired parallelism of the target vertex"
+                          >
+                            <strong>Desired Parallelism</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The minimal parallelism of target vertex to run"
+                          >
+                            <strong>Sufficient Parallelism</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The unique ID of the slot sharing group consists of 32 hexadecimal characters"
+                          >
+                            <strong>Slot Sharing Group ID</strong>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let vertex of detail.vertices | keyvalue">
+                          <td nz-tooltip [nzTooltipTitle]="vertex.value.jobVertexId">
+                            {{ truncateUuid(vertex.value.jobVertexId) }}
+                          </td>
+                          <td nz-tooltip [nzTooltipTitle]="vertex.value.jobVertexName">
+                            {{ truncateName(vertex.value.jobVertexName) }}
+                          </td>
+                          <td>{{ vertex.value.preRescaleParallelism }}</td>
+                          <td>{{ vertex.value.postRescaleParallelism || '-' }}</td>
+                          <td>{{ vertex.value.desiredParallelism }}</td>
+                          <td>{{ vertex.value.sufficientParallelism }}</td>
+                          <td nz-tooltip [nzTooltipTitle]="vertex.value.slotSharingGroupId">
+                            {{ truncateUuid(vertex.value.slotSharingGroupId) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </nz-table>
+
+                    <nz-table
+                      class="small"
+                      [nzData]="detail.slots | keyvalue"
+                      [nzSize]="'small'"
+                      [nzFrontPagination]="false"
+                      [nzShowPagination]="false"
+                      [nzTitle]="slotsTitle"
+                      [nzBordered]="true"
+                    >
+                      <thead>
+                        <tr>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The ID of the slot sharing group to which the slot belongs consists of 32 hexadecimal characters"
+                          >
+                            <strong>Slot Sharing Group ID</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The name of the slot sharing group to which the slot belongs"
+                          >
+                            <strong>Slot Sharing Group Name</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The previous number of slots before the rescale"
+                          >
+                            <strong>Previous Slots</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The acquired number of slots after the rescale"
+                          >
+                            <strong>Acquired Slots</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The desired number of slots of the rescale"
+                          >
+                            <strong>Desired Slots</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The minimal number of slots to deploy tasks in the rescale"
+                          >
+                            <strong>Sufficient Slots</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The required resource profile of the slot sharing group in the rescale"
+                          >
+                            <strong>Required Profile</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The acquired resource profile of the slot sharing group in the rescale"
+                          >
+                            <strong>Acquired Profile</strong>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let slot of detail.slots | keyvalue">
+                          <td nz-tooltip [nzTooltipTitle]="slot.value.slotSharingGroupId">
+                            {{ truncateUuid(slot.value.slotSharingGroupId) }}
+                          </td>
+                          <td>{{ slot.value.slotSharingGroupName }}</td>
+                          <td>{{ slot.value.preRescaleSlots }}</td>
+                          <td>{{ slot.value.postRescaleSlots || '-' }}</td>
+                          <td>{{ slot.value.desiredSlots }}</td>
+                          <td>{{ slot.value.minimalRequiredSlots }}</td>
+                          <td>
+                            <pre style="margin: 0">{{
+                              slot.value.requestResourceProfile | json
+                            }}</pre>
+                          </td>
+                          <td>
+                            <pre style="margin: 0">{{
+                              slot.value.acquiredResourceProfile | json
+                            }}</pre>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </nz-table>
+
+                    <nz-table
+                      class="small"
+                      [nzData]="detail.schedulerStates"
+                      [nzSize]="'small'"
+                      [nzFrontPagination]="false"
+                      [nzShowPagination]="false"
+                      [nzTitle]="schedulerStatesTitle"
+                      [nzBordered]="true"
+                    >
+                      <thead>
+                        <tr>
+                          <th nz-tooltip nzTooltipTitle="The scheduler state name">
+                            <strong>State</strong>
+                          </th>
+                          <th nz-tooltip nzTooltipTitle="The time to enter the state">
+                            <strong>Enter Time</strong>
+                          </th>
+                          <th nz-tooltip nzTooltipTitle="The time to leave the state">
+                            <strong>Leave Time</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The duration time from enter time to leave time of the state"
+                          >
+                            <strong>Duration</strong>
+                          </th>
+                          <th
+                            nz-tooltip
+                            nzTooltipTitle="The exception information about current rescale during the state"
+                          >
+                            <strong>Exception</strong>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let state of detail.schedulerStates">
+                          <td>{{ state.state }}</td>
+                          <td>
+                            {{ state.enterTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+                          </td>
+                          <td>
+                            {{ state.leaveTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+                          </td>
+                          <td>{{ state.durationInMillis | humanizeDuration }}</td>
+                          <td>{{ state.stringifiedException }}</td>
+                        </tr>
+                      </tbody>
+                    </nz-table>
+                  </ng-container>
+
+                  <div *ngIf="!getDetail(jobRescaleDetails.rescaleUuid)">Loading...</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </nz-table>
+  </nz-tab>
   <nz-tab nzTitle="Configuration">
     <nz-table
       class="no-border small"
@@ -40,8 +391,7 @@
         <ng-container *ngIf="rescalesConfig">
           <tr>
             <td>Scheduler Execution Mode</td>
-            <td *ngIf="rescalesConfig['schedulerExecutionMode'] === 'REACTIVE'">REACTIVE</td>
-            <td *ngIf="rescalesConfig['schedulerExecutionMode'] !== 'REACTIVE'"></td>
+            <td>{{ rescalesConfig['schedulerExecutionMode'] || '-' }}</td>
           </tr>
           <tr>
             <td>Submission Resource Wait Timeout</td>
@@ -98,6 +448,18 @@
     <i nz-icon nzType="sync"></i>
     Refresh
   </button>
+</ng-template>
+
+<ng-template #verticesTitle>
+  <strong>Vertices</strong>
+</ng-template>
+
+<ng-template #slotsTitle>
+  <strong>Slots</strong>
+</ng-template>
+
+<ng-template #schedulerStatesTitle>
+  <strong>Scheduler State History</strong>
 </ng-template>
 
 <nz-empty *ngIf="!rescalesConfig"></nz-empty>

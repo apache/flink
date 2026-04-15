@@ -219,7 +219,7 @@ class RescaleTest {
                 .containsExactlyInAnyOrder(3, 5);
         assertThat(
                         slots.values().stream()
-                                .map(SlotSharingGroupRescale::getRequiredResourceProfile)
+                                .map(SlotSharingGroupRescale::getRequestResourceProfile)
                                 .collect(Collectors.toSet()))
                 .containsExactly(ResourceProfile.UNKNOWN);
     }

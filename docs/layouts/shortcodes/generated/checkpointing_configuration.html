@@ -159,6 +159,12 @@
             <td>The tolerable checkpoint consecutive failure number. If set to 0, that means we do not tolerance any checkpoint failure. This only applies to the following failure reasons: IOException on the Job Manager, failures in the async phase on the Task Managers and checkpoint expiration due to a timeout. Failures originating from the sync phase on the Task Managers are always forcing failover of an affected task. Other types of checkpoint failures (such as checkpoint being subsumed) are being ignored.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.during-recovery.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable checkpointing during recovery from an unaligned checkpoint. When enabled, the job can take checkpoints while still recovering channel state (inflight data) from a previous unaligned checkpoint. This avoids the need to wait for full recovery before the first checkpoint can be triggered, which reduces the window of vulnerability to failures during recovery.<br /><br />This option requires <code class="highlighter-rouge">execution.checkpointing.unaligned.recover-output-on-downstream.enabled</code> to be enabled. It does not require unaligned checkpoints to be currently enabled, because a job may restore from an unaligned checkpoint while having unaligned checkpoints disabled for the new execution.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.unaligned.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

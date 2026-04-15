@@ -91,9 +91,10 @@ import org.apache.flink.table.runtime.typeutils.SortedMapSerializer;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
 import org.apache.flink.table.runtime.typeutils.TimestampDataSerializer;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Modifier;
@@ -102,13 +103,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Scans the class path for type serializer and checks if there is a test for it. */
-public class TypeSerializerTestCoverageTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class TypeSerializerTestCoverageTest {
 
     @Test
-    public void testTypeSerializerTestCoverage() {
+    void testTypeSerializerTestCoverage() {
         final Reflections reflections = new Reflections("org.apache.flink");
 
         final Set<Class<? extends TypeSerializer>> typeSerializers =

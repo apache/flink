@@ -29,6 +29,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -262,6 +263,12 @@ class EventTimeWindowCheckpointingITCase {
 
         Configuration config = new Configuration();
         config.set(RpcOptions.FRAMESIZE, MAX_MEM_STATE_SIZE + "b");
+
+        // FLINK-38727: Increase requirement-check delay to reduce slot manager polling frequency
+        // under CI load, preventing premature NoResourceAvailableException while TaskManagers
+        // are registering. SLOT_REQUEST_TIMEOUT (5 min default) already serves as the startup
+        // grace period via getStandaloneClusterStartupPeriodTime() fallback.
+        config.set(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofSeconds(30));
 
         if (zkServer != null) {
             config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
