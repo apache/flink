@@ -443,6 +443,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis("TE_ST".like("%E__S%", "_"), "'TE_ST' LIKE '%E__S%' ESCAPE '_'", "TRUE")
     testAllApis("TE-ST".like("TE%_ST", "%"), "'TE-ST' LIKE 'TE%_ST' ESCAPE '%'", "FALSE")
     testAllApis("TE_ST".like("TE%_ST", "%"), "'TE_ST' LIKE 'TE%_ST' ESCAPE '%'", "TRUE")
+    testAllApis("TE-ST".like("%E*_S%", "*"), "'TE-ST' LIKE '%E*_S%' ESCAPE '*'", "FALSE")
+    testAllApis("TE_ST".like("%E*_S%", "*"), "'TE_ST' LIKE '%E*_S%' ESCAPE '*'", "TRUE")
 
     // special character in Java Regex
     testAllApis("TE-ST".like("%E\\_S%", "\\"), "'TE-ST' LIKE '%E\\_S%' ESCAPE '\\'", "FALSE")
@@ -498,6 +500,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("'TE_ST' NOT LIKE '%E__S%' ESCAPE '_'", "FALSE")
     testSqlApi("'TE-ST' NOT LIKE 'TE%_ST' ESCAPE '%'", "TRUE")
     testSqlApi("'TE_ST' NOT LIKE 'TE%_ST' ESCAPE '%'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E*_S%' ESCAPE '*'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E*_S%' ESCAPE '*'", "FALSE")
 
     // special character in Java Regex
     testSqlApi("'TE-ST' NOT LIKE '%E\\_S%' ESCAPE '\\'", "TRUE")
