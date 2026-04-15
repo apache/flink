@@ -128,9 +128,9 @@ class TaskExecutorPartitionLifecycleTest {
 
     private ResourceID jmResourceId;
 
-    private Duration duration = Duration.ofSeconds(15);
+    private Duration duration = Duration.ofMillis(200);
 
-    private Duration longDuration = Duration.ofSeconds(30);
+    private Duration longDuration = Duration.ofMillis(300);
 
     private CompletableFuture<Void> disconnectTaskManagerFuture;
 
