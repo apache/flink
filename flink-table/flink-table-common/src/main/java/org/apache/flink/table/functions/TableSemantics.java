@@ -130,7 +130,7 @@ public interface TableSemantics {
     Optional<ChangelogMode> changelogMode();
 
     /** Sort direction for ORDER BY columns in table arguments with set semantics. */
-    enum SortDirection implements Serializable {
+    enum SortDirection {
         /** Ascending order with nulls first. */
         ASC_NULLS_FIRST(false, true),
         /** Ascending order with nulls last. */

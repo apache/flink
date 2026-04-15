@@ -890,8 +890,7 @@ public class TableImpl implements Table {
 
         @Override
         public PartitionedTable orderBy(Expression... fields) {
-            final List<Expression> orderKeys = table.preprocessExpressions(fields);
-            return new PartitionedTableImpl(table, partitionKeys, orderKeys);
+            return new PartitionedTableImpl(table, partitionKeys, Arrays.asList(fields));
         }
 
         @Override

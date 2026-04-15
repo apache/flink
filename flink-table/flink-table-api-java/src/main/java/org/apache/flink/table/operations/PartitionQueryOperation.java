@@ -46,7 +46,7 @@ public class PartitionQueryOperation implements QueryOperation {
 
     public PartitionQueryOperation(
             List<ResolvedExpression> partitionExpressions, QueryOperation child) {
-        this(partitionExpressions, Collections.emptyList(), child);
+        this(partitionExpressions, List.of(), child);
     }
 
     public PartitionQueryOperation(

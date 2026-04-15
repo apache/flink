@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -62,10 +61,7 @@ class MailboxPartialWatermarkProcessorTest {
 
         final MailboxPartialWatermarkProcessor processor =
                 new MailboxPartialWatermarkProcessor(
-                        "test",
-                        mailboxExecutor,
-                        Collections.singletonList(timerService),
-                        consumedWatermarks::add);
+                        "test", mailboxExecutor, List.of(timerService), consumedWatermarks::add);
 
         // Execute
         processor.emitWatermarkInsideMailbox(new Watermark(100));
@@ -91,10 +87,7 @@ class MailboxPartialWatermarkProcessorTest {
 
         final MailboxPartialWatermarkProcessor processor =
                 new MailboxPartialWatermarkProcessor(
-                        "test",
-                        mailboxExecutor,
-                        Collections.singletonList(timerService),
-                        consumedWatermarks::add);
+                        "test", mailboxExecutor, List.of(timerService), consumedWatermarks::add);
 
         // Execute
         processor.emitWatermarkInsideMailbox(new Watermark(100));
@@ -128,10 +121,7 @@ class MailboxPartialWatermarkProcessorTest {
 
         final MailboxPartialWatermarkProcessor processor =
                 new MailboxPartialWatermarkProcessor(
-                        "test",
-                        mailboxExecutor,
-                        Collections.singletonList(timerService),
-                        consumedWatermarks::add);
+                        "test", mailboxExecutor, List.of(timerService), consumedWatermarks::add);
 
         // Execute twice rapidly
         processor.emitWatermarkInsideMailbox(new Watermark(100));
@@ -163,10 +153,7 @@ class MailboxPartialWatermarkProcessorTest {
 
         final MailboxPartialWatermarkProcessor processor =
                 new MailboxPartialWatermarkProcessor(
-                        "test",
-                        mailboxExecutor,
-                        Collections.singletonList(timerService),
-                        consumedWatermarks::add);
+                        "test", mailboxExecutor, List.of(timerService), consumedWatermarks::add);
 
         // Execute: Non-monotonic watermarks
         processor.emitWatermarkInsideMailbox(new Watermark(100));
@@ -239,7 +226,7 @@ class MailboxPartialWatermarkProcessorTest {
 
         final MailboxPartialWatermarkProcessor processor =
                 new MailboxPartialWatermarkProcessor(
-                        "test", mailboxExecutor, Collections.emptyList(), consumedWatermarks::add);
+                        "test", mailboxExecutor, List.of(), consumedWatermarks::add);
 
         // Execute
         processor.emitWatermarkInsideMailbox(new Watermark(100));
@@ -262,7 +249,7 @@ class MailboxPartialWatermarkProcessorTest {
                 new MailboxPartialWatermarkProcessor(
                         "test",
                         mailboxExecutor,
-                        Collections.singletonList(timerService),
+                        List.of(timerService),
                         watermark -> {
                             throw new RuntimeException("Test exception");
                         });
@@ -286,10 +273,7 @@ class MailboxPartialWatermarkProcessorTest {
 
         final MailboxPartialWatermarkProcessor processor =
                 new MailboxPartialWatermarkProcessor(
-                        "test",
-                        mailboxExecutor,
-                        Collections.singletonList(timerService),
-                        consumedWatermarks::add);
+                        "test", mailboxExecutor, List.of(timerService), consumedWatermarks::add);
 
         // Execute: Should schedule deferrable mail
         processor.emitWatermarkInsideMailbox(new Watermark(100));

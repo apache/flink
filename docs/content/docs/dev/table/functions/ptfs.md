@@ -1087,15 +1087,7 @@ The following example demonstrates ordered processing with secondary sorting. Fi
 ```java
 // Function that processes events in order and captures the ordering
 public static class OrderedProcessor extends ProcessTableFunction<List<Event>> {
-  public static class Event {
-    public Integer score;
-    public Instant ts;
-
-    public Event(Integer score, Instant ts) {
-      this.score = score;
-      this.ts = ts;
-    }
-  }
+  public record Event(Integer score, Instant ts) {}
 
   public static class BufferState {
     // Stores all input events that enter the eval() after sorting
