@@ -37,12 +37,14 @@ import static java.util.Objects.requireNonNull;
  * <pre>{@code
  * [{"id": "metricName", "value": "1"}]
  * }</pre>
+ *
+ * @see org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore
  */
 public final class MetricCollectionResponseBody extends ArrayList<Metric> implements ResponseBody {
 
     private static final long serialVersionUID = -1170348873871206965L;
 
-    // a default constructor is required for collection type marshaling
+    // a default constructor is required for collection type marshalling
     public MetricCollectionResponseBody() {}
 
     public MetricCollectionResponseBody(Collection<Metric> metrics) {

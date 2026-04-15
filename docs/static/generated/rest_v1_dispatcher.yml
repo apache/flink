@@ -502,7 +502,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AggregatedMetricsResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/AggregatedMetric"
   /jobs/overview:
     get:
       description: Returns an overview over all jobs.
@@ -1476,7 +1478,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AggregatedMetricsResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/AggregatedMetric"
   /jobs/{jobid}/vertices/{vertexid}/subtasks/{subtaskindex}:
     get:
       description: Returns details of the current or latest execution attempt of a
@@ -1793,7 +1797,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AggregatedMetricsResponseBody"
+                type: array
+                items:
+                  $ref: "#/components/schemas/AggregatedMetric"
   /taskmanagers/{taskmanagerid}:
     get:
       description: Returns details for a task manager.
@@ -1877,8 +1883,32 @@ paths:
                 $ref: "#/components/schemas/ThreadDumpInfo"
 components:
   schemas:
-    AggregatedMetricsResponseBody:
+    AggregatedMetric:
+      required:
+      - id
       type: object
+      properties:
+        avg:
+          type: number
+          format: double
+        id:
+          type: string
+        max:
+          type: number
+          format: double
+        min:
+          type: number
+          format: double
+        skew:
+          type: number
+          format: double
+        sum:
+          type: number
+          format: double
+    AggregatedMetricsResponseBody:
+      type: array
+      items:
+        $ref: "#/components/schemas/AggregatedMetric"
     AggregatedTaskDetailsInfo:
       type: object
       properties:
