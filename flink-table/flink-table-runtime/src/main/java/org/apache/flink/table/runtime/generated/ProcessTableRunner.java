@@ -160,10 +160,6 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void processEval() throws Exception {
-        // Drop late events
-        if (rowtime != null && rowtime <= currentWatermark) {
-            return;
-        }
         processMethod(this::callEval);
     }
 
