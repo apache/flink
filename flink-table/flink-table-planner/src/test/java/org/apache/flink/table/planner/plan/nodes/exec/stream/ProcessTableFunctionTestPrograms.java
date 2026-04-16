@@ -1154,7 +1154,7 @@ public class ProcessTableFunctionTestPrograms {
     public static final TableTestProgram PROCESS_ROW_LATE_EVENTS =
             TableTestProgram.of(
                             "process-row-late-events",
-                            "test that late events enter a row-level PTF")
+                            "test that late events enter a PTF with row semantics")
                     .setupTemporarySystemFunction("f", RequiredTimeFunction.class)
                     .setupTableSource(TIMED_SOURCE_LATE_EVENTS)
                     .setupTableSink(
