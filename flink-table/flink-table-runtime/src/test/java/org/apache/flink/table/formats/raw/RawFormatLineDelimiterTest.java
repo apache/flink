@@ -56,7 +56,11 @@ class RawFormatLineDelimiterTest {
     void testDeserializeWithoutDelimiter_singleRow() throws Exception {
         RawFormatDeserializationSchema schema =
                 new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, null);
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        null);
         openDeser(schema);
 
         List<RowData> rows = collectRows(schema, "hello".getBytes(StandardCharsets.UTF_8));
@@ -68,37 +72,49 @@ class RawFormatLineDelimiterTest {
     void testDeserializeWithNewlineDelimiter_multipleRows() throws Exception {
         RawFormatDeserializationSchema schema =
                 new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "\n");
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n");
         openDeser(schema);
 
         byte[] message = "line1\nline2\nline3".getBytes(StandardCharsets.UTF_8);
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(3);
-        assertThat(rows.get(0).getString(0).toString()).isEqualTo("line1");
-        assertThat(rows.get(1).getString(0).toString()).isEqualTo("line2");
-        assertThat(rows.get(2).getString(0).toString()).isEqualTo("line3");
+        assertThat(rows.get(0).getString(0)).hasToString("line1");
+        assertThat(rows.get(1).getString(0)).hasToString("line2");
+        assertThat(rows.get(2).getString(0)).hasToString("line3");
     }
 
     @Test
     void testDeserializeWithCustomMultiCharDelimiter() throws Exception {
         RawFormatDeserializationSchema schema =
                 new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "||");
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "||");
         openDeser(schema);
 
         byte[] message = "record1||record2||record3".getBytes(StandardCharsets.UTF_8);
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(3);
-        assertThat(rows.get(0).getString(0).toString()).isEqualTo("record1");
-        assertThat(rows.get(1).getString(0).toString()).isEqualTo("record2");
-        assertThat(rows.get(2).getString(0).toString()).isEqualTo("record3");
+        assertThat(rows.get(0).getString(0)).hasToString("record1");
+        assertThat(rows.get(1).getString(0)).hasToString("record2");
+        assertThat(rows.get(2).getString(0)).hasToString("record3");
     }
 
     @Test
     void testDeserializeWithNullMessage_noOutput() throws Exception {
         RawFormatDeserializationSchema schema =
                 new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "\n");
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n");
         openDeser(schema);
 
         List<RowData> rows = collectRows(schema, null);
@@ -118,8 +134,8 @@ class RawFormatLineDelimiterTest {
 
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(2);
-        assertThat(rows.get(0).getString(0).toString()).isEqualTo("你好");
-        assertThat(rows.get(1).getString(0).toString()).isEqualTo("世界");
+        assertThat(rows.get(0).getString(0)).hasToString("你好");
+        assertThat(rows.get(1).getString(0)).hasToString("世界");
     }
 
     // -----------------------------------------------------------------------
@@ -129,7 +145,8 @@ class RawFormatLineDelimiterTest {
     @Test
     void testSerializeWithoutDelimiter_noAppend() throws Exception {
         RawFormatSerializationSchema schema =
-                new RawFormatSerializationSchema(STRING_TYPE, "UTF-8", true, null);
+                new RawFormatSerializationSchema(
+                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, null);
         openSer(schema);
 
         RowData row = buildStringRow("hello");
@@ -140,7 +157,8 @@ class RawFormatLineDelimiterTest {
     @Test
     void testSerializeWithNewlineDelimiter_appendsDelimiter() throws Exception {
         RawFormatSerializationSchema schema =
-                new RawFormatSerializationSchema(STRING_TYPE, "UTF-8", true, "\n");
+                new RawFormatSerializationSchema(
+                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
         openSer(schema);
 
         RowData row = buildStringRow("hello");
@@ -151,7 +169,8 @@ class RawFormatLineDelimiterTest {
     @Test
     void testSerializeWithCustomDelimiter_appendsDelimiter() throws Exception {
         RawFormatSerializationSchema schema =
-                new RawFormatSerializationSchema(STRING_TYPE, "UTF-8", true, "||");
+                new RawFormatSerializationSchema(
+                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "||");
         openSer(schema);
 
         RowData row = buildStringRow("record1");
@@ -162,7 +181,8 @@ class RawFormatLineDelimiterTest {
     @Test
     void testSerializeNullRow_returnsNull() throws Exception {
         RawFormatSerializationSchema schema =
-                new RawFormatSerializationSchema(STRING_TYPE, "UTF-8", true, "\n");
+                new RawFormatSerializationSchema(
+                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
         openSer(schema);
 
         GenericRowData nullRow = new GenericRowData(1);
@@ -178,14 +198,18 @@ class RawFormatLineDelimiterTest {
         // deserialize -> ["hello"] (1 row, not 2).
         RawFormatDeserializationSchema schema =
                 new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "\n");
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n");
         openDeser(schema);
 
         // Message already ends with the delimiter (as produced by the serializer)
         byte[] message = "hello\n".getBytes(StandardCharsets.UTF_8);
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).getString(0).toString()).isEqualTo("hello");
+        assertThat(rows.get(0).getString(0)).hasToString("hello");
     }
 
     @Test
@@ -193,12 +217,17 @@ class RawFormatLineDelimiterTest {
         // Verify that rows written by the serializer can be read back correctly by the
         // deserializer when both share the same delimiter configuration.
         RawFormatSerializationSchema ser =
-                new RawFormatSerializationSchema(STRING_TYPE, "UTF-8", true, "\n");
+                new RawFormatSerializationSchema(
+                        STRING_TYPE, StandardCharsets.UTF_8.name(), true, "\n");
         openSer(ser);
 
         RawFormatDeserializationSchema deser =
                 new RawFormatDeserializationSchema(
-                        STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "\n");
+                        STRING_TYPE,
+                        TypeInformation.of(RowData.class),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        "\n");
         openDeser(deser);
 
         // Serialize a single row -> "hello\n"
@@ -207,7 +236,7 @@ class RawFormatLineDelimiterTest {
         // Deserialize "hello\n" -> should yield exactly 1 row
         List<RowData> rows = collectRows(deser, serialized);
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).getString(0).toString()).isEqualTo("hello");
+        assertThat(rows.get(0).getString(0)).hasToString("hello");
     }
 
     // -----------------------------------------------------------------------
