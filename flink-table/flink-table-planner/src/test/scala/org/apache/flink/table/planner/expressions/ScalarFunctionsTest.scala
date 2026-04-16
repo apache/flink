@@ -413,6 +413,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testAllApis("TE-ST".like("%E_S%"), "'TE-ST' LIKE '%E_S%'", "TRUE")
     testAllApis("TE_ST".like("%E\\_S%"), "'TE_ST' LIKE '%E\\_S%'", "FALSE")
     testAllApis("TE-ST".like("%E\\_S%"), "'TE-ST' LIKE '%E\\_S%'", "FALSE")
+    testAllApis("\u0000".like("\u0000"), "'\u0000' LIKE '\u0000'", "TRUE")
+    testAllApis("a".like("\u0000_"), "'a' LIKE '\u0000_'", "FALSE")
   }
 
   @Test

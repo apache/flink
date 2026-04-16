@@ -41,6 +41,10 @@ class FlinkSqlLikeUtilsTest {
         assertThat(SqlLikeUtils.like("a_c", "a\\_c")).isEqualTo(false);
         assertThat(SqlLikeUtils.like("a\\_c", "a\\_c")).isEqualTo(true);
 
+        // default escape also excludes \u0000
+        assertThat(SqlLikeUtils.like("_", "\u0000_", null)).isEqualTo(false);
+        assertThat(SqlLikeUtils.like("\u0000x", "\u0000_", null)).isEqualTo(true);
+
         // -------------------------------- sqlToRegexLike ----------------------------------------
 
         assertThat(SqlLikeUtils.sqlToRegexLike(".", "\\")).isEqualTo("\\.");
@@ -67,5 +71,8 @@ class FlinkSqlLikeUtilsTest {
         assertThat(SqlLikeUtils.similar("abc", "a.c", "\\")).isEqualTo(true);
         assertThat(SqlLikeUtils.similar("a.c", "a.c", "\\")).isEqualTo(true);
         assertThat(SqlLikeUtils.similar("abcd", "a.*d", "\\")).isEqualTo(true);
+        // default escape also excludes \u0000
+        assertThat(SqlLikeUtils.similar("_", "\u0000_", null)).isEqualTo(false);
+        assertThat(SqlLikeUtils.similar("\u0000x", "\u0000_", null)).isEqualTo(true);
     }
 }
