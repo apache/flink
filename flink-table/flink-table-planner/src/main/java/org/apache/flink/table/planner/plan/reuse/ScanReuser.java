@@ -21,11 +21,15 @@ package org.apache.flink.table.planner.plan.reuse;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
@@ -38,7 +42,11 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgramBuilder;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +64,7 @@ import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.abilityS
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.concatProjectedFields;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.createCalcForScan;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.enforceMetadataKeyOrder;
+import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.getAbilitySpec;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.getAdjustedWatermarkSpec;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.indexOf;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.metadataKeys;
@@ -100,6 +109,13 @@ import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.reusable
  *    :     +- TableSourceScan(table=[[MyTable, project=[a, b, c]]], fields=[a, b, c])
  * }</pre>
  *
+ * <p>When {@code filterReuseEnabled} is set, scans with different pushed-down filters can also be
+ * merged. The per-scan filters are OR'd into a combined predicate. Before committing to the merge,
+ * the OR'd predicate is tested against a copy of the source via {@link
+ * SupportsFilterPushDown#applyFilters}. If the connector accepts it, the merged source pushes the
+ * OR'd filter and each consumer's Calc applies its original filter. If the connector rejects it,
+ * the group is skipped and scans remain separate — no full-table read occurs.
+ *
  * <p>This class do not reuse all sources, sources with same digest will be reused by {@link
  * SubplanReuser}.
  *
@@ -128,14 +144,27 @@ public class ScanReuser {
 
     private final FlinkContext flinkContext;
     private final FlinkTypeFactory flinkTypeFactory;
+    private final boolean filterReuseEnabled;
 
     public ScanReuser(FlinkContext flinkContext, FlinkTypeFactory flinkTypeFactory) {
+        this(flinkContext, flinkTypeFactory, false);
+    }
+
+    public ScanReuser(
+            FlinkContext flinkContext,
+            FlinkTypeFactory flinkTypeFactory,
+            boolean filterReuseEnabled) {
         this.flinkContext = flinkContext;
         this.flinkTypeFactory = flinkTypeFactory;
+        this.filterReuseEnabled = filterReuseEnabled;
     }
 
     public List<RelNode> reuseDuplicatedScan(List<RelNode> relNodes) {
-        ReusableScanVisitor visitor = new ReusableScanVisitor();
+        // When filterReuseEnabled, escape filters in digest so scans with different
+        // filters are grouped together. Per-group, we check SupportsFilteredSourceReuse
+        // to decide whether to OR filters. If the source doesn't support it, we skip
+        // groups where filters differ (same-filter groups proceed normally for projection merge).
+        ReusableScanVisitor visitor = new ReusableScanVisitor(filterReuseEnabled);
         relNodes.forEach(visitor::go);
 
         for (List<CommonPhysicalTableSourceScan> reusableNodes :
@@ -148,6 +177,13 @@ public class ScanReuser {
                     .anyMatch(ScanReuserUtils::containsRexNodeSpecAfterProjection)) {
                 continue;
             }
+
+            // Determine if we should attempt to merge different filters (OR them).
+            // Requires: config enabled + source supports filter pushdown.
+            DynamicTableSource tableSource =
+                    reusableNodes.get(0).tableSourceTable().tableSource();
+            boolean mergeFilters =
+                    filterReuseEnabled && tableSource instanceof SupportsFilterPushDown;
 
             CommonPhysicalTableSourceScan pickScan = pickScanWithWatermark(reusableNodes);
             TableSourceTable pickTable = pickScan.tableSourceTable();
@@ -165,12 +201,18 @@ public class ScanReuser {
                 allMetaKeySet.addAll(metadataKeys(source));
             }
 
+            // 1.1 When merging filters, add filter-referenced columns to projection so Calc can filter.
+            if (mergeFilters) {
+                collectFilterReferencedColumns(reusableNodes, allProjectFieldSet);
+            }
+
             int[][] allProjectFields = allProjectFieldSet.toArray(new int[0][]);
             List<String> allMetaKeys =
                     enforceMetadataKeyOrder(allMetaKeySet, pickTable.tableSource());
 
             // 2. Create new source.
-            List<SourceAbilitySpec> specs = abilitySpecsWithoutEscaped(pickTable);
+            List<SourceAbilitySpec> specs =
+                    abilitySpecsWithoutEscaped(pickTable, mergeFilters);
 
             // 2.1 Create produced type.
             // The source produced type is the input type into the runtime. The format looks as:
@@ -182,7 +224,7 @@ public class ScanReuser {
                             pickTable.contextResolvedTable().getResolvedSchema(),
                             pickTable.tableSource());
 
-            // 2.2 Apply projections
+            // 2.2 Apply projections and metadata
             List<SourceAbilitySpec> newSpecs = new ArrayList<>();
             RowType newSourceType =
                     applyPhysicalAndMetadataPushDown(
@@ -206,7 +248,13 @@ public class ScanReuser {
                 newSourceType = watermarkSpec.get().getProducedType().get();
             }
 
-            // 2.4 Create a new ScanTableSource. ScanTableSource can not be pushed down twice.
+            // 2.4 OR all per-scan filters into combined predicate for the source.
+            if (mergeFilters) {
+                buildOrFilterSpec(reusableNodes, newSourceType, rexBuilder)
+                        .ifPresent(specs::add);
+            }
+
+            // 2.5 Create a new ScanTableSource. ScanTableSource can not be pushed down twice.
             DynamicTableSourceSpec tableSourceSpec =
                     new DynamicTableSourceSpec(pickTable.contextResolvedTable(), specs);
             ScanTableSource newTableSource =
@@ -221,15 +269,24 @@ public class ScanReuser {
 
             RelNode newScan = pickScan.copy(newSourceTable);
 
-            // 3. Create projects.
+            // 3. Create per-consumer Calc nodes.
             for (CommonPhysicalTableSourceScan scan : reusableNodes) {
                 TableSourceTable source = scan.tableSourceTable();
                 int[][] projectedFields = projectedFields(source);
                 List<String> metaKeys = metadataKeys(source);
 
+                // check to see if we have any merged filters we need to create Calc nodes for
+                FilterPushDownSpec filterSpec =
+                        getAbilitySpec(source.abilitySpecs(), FilterPushDownSpec.class);
+                boolean hasFilter =
+                        mergeFilters
+                                && filterSpec != null
+                                && !filterSpec.getPredicates().isEmpty();
+
                 // Don't need add calc
                 if (Arrays.deepEquals(projectedFields, allProjectFields)
-                        && metaKeys.equals(allMetaKeys)) {
+                        && metaKeys.equals(allMetaKeys)
+                        && !hasFilter) {
                     // full project may be pushed into source, update to the new source
                     replaceMap.put(scan, newScan);
                     continue;
@@ -247,6 +304,14 @@ public class ScanReuser {
                     builder.addProject(index, newScan.getRowType().getFieldNames().get(index));
                 }
 
+                // Add original filter as Calc condition with remapped indices
+                if (hasFilter) {
+                    RexShuttle remap = createFieldNameRemap(
+                            physicalFieldNames(source), newScan.getRowType().getFieldNames());
+                    RexNode condition = andPredicates(filterSpec.getPredicates(), remap, rexBuilder);
+                    builder.addCondition(condition);
+                }
+
                 replaceMap.put(scan, createCalcForScan(newScan, builder.getProgram()));
             }
         }
@@ -255,6 +320,119 @@ public class ScanReuser {
         return relNodes.stream()
                 .map(rel -> rel.accept(replaceShuttle))
                 .collect(Collectors.toList());
+    }
+
+    /** Add all columns referenced by the filters to the projection set. */
+    private static void collectFilterReferencedColumns(
+            List<CommonPhysicalTableSourceScan> scans,
+            TreeSet<int[]> allProjectFieldSet) {
+        for (CommonPhysicalTableSourceScan scan : scans) {
+            FilterPushDownSpec fs =
+                    getAbilitySpec(scan.tableSourceTable().abilitySpecs(), FilterPushDownSpec.class);
+            if (fs == null) continue;
+            for (RexNode pred : fs.getPredicates()) {
+                for (RexInputRef ref : FlinkRexUtil.findAllInputRefs(pred)) {
+                    allProjectFieldSet.add(new int[] {ref.getIndex()});
+                }
+            }
+        }
+    }
+
+    /**
+     * OR all table scan filter into a combined FilterPushDownSpec for the unified source. Before
+     * returning, verifies the connector accepts the OR'd predicate by calling applyFilters on a
+     * throwaway copy. Returns empty if any scan has no filter or the connector rejects the OR.
+     * TODO, still on the fence if this should return empty or throw exception indicating source
+     * incompatible with this source reuse
+     */
+    // todo remove extra comments once finalized approach
+    private Optional<FilterPushDownSpec> buildOrFilterSpec(
+            List<CommonPhysicalTableSourceScan> scans,
+            RowType newSourceType,
+            RexBuilder rexBuilder) {
+        List<RexNode> perScanFilters = new ArrayList<>();
+        // Get on Node per table source scan
+        for (CommonPhysicalTableSourceScan scan : scans) {
+            FilterPushDownSpec fs =
+                    getAbilitySpec(scan.tableSourceTable().abilitySpecs(), FilterPushDownSpec.class);
+            if (fs == null || fs.getPredicates().isEmpty()) {
+                // OR with empty filter -> no filter
+                return Optional.empty();
+            }
+            RexShuttle remap = createFieldNameRemap(
+                    physicalFieldNames(scan.tableSourceTable()), newSourceType.getFieldNames());
+            perScanFilters.add(andPredicates(fs.getPredicates(), remap, rexBuilder));
+        }
+        // todo figure out when this could happen
+        if (perScanFilters.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // more efficient way to write this
+        RexNode combined = perScanFilters.get(0);
+        for (int i = 1; i < perScanFilters.size(); i++) {
+            combined = rexBuilder.makeCall(SqlStdOperatorTable.OR, combined, perScanFilters.get(i));
+        }
+
+        if (!connectorAcceptsFilter(scans.get(0).tableSourceTable().tableSource(), combined, newSourceType)) {
+            // todo decide if exception thrown here instead of no filter being passed
+            // could be dangerous passing no filter
+            return Optional.empty();
+        }
+
+        return Optional.of(new FilterPushDownSpec(List.of(combined), false));
+    }
+
+    /**
+     * Test whether the connector accepts a filter predicate by calling applyFilters on a
+     * throwaway copy. No calls to actual data-source is used.
+     */
+    private boolean connectorAcceptsFilter(
+            DynamicTableSource source, RexNode filter, RowType sourceType) {
+        DynamicTableSource copy = source.copy();
+        SourceAbilityContext context =
+                new SourceAbilityContext(flinkContext, flinkTypeFactory, sourceType);
+        // todo triple check the apply here is proper way to do this check is valid for ORs
+        SupportsFilterPushDown.Result result =
+                FilterPushDownSpec.apply(List.of(filter), copy, context);
+        return !result.getAcceptedFilters().isEmpty();
+    }
+
+    /** Create a RexShuttle that remaps RexInputRef indices by matching field names. */
+    private static RexShuttle createFieldNameRemap(
+            List<String> oldNames, List<String> newNames) {
+        return new RexShuttle() {
+            @Override
+            public RexNode visitInputRef(RexInputRef ref) {
+                String fieldName = oldNames.get(ref.getIndex());
+                int newIndex = newNames.indexOf(fieldName);
+                if (newIndex < 0) {
+                    throw new org.apache.flink.table.api.TableException(
+                            String.format(
+                                    "Field '%s' not found in target type %s during filter remap.",
+                                    fieldName, newNames));
+                }
+                return new RexInputRef(newIndex, ref.getType());
+            }
+        };
+    }
+
+    /** Get physical column field names from a TableSourceTable. */
+    // needed because want to remap indicies from filter predicates to our unified scan
+    private static List<String> physicalFieldNames(TableSourceTable source) {
+        return ((RowType) source.contextResolvedTable().getResolvedSchema()
+                .toPhysicalRowDataType().getLogicalType()).getFieldNames();
+    }
+
+    /** AND a list of predicates together, applying a remap shuttle to each. */
+    // used for or'ing all our statements together
+    private static RexNode andPredicates(
+            List<RexNode> predicates, RexShuttle remap, RexBuilder rexBuilder) {
+        RexNode result = predicates.get(0).accept(remap);
+        for (int i = 1; i < predicates.size(); i++) {
+            result = rexBuilder.makeCall(SqlStdOperatorTable.AND, result, predicates.get(i).accept(remap));
+        }
+        return result;
     }
 
     /**

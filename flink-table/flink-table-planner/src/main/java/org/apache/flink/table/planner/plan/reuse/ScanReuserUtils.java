@@ -91,10 +91,15 @@ public class ScanReuserUtils {
      * ProjectPushDownSpec}. These abilities don't need before do scan reuse.
      */
     public static List<SourceAbilitySpec> abilitySpecsWithoutEscaped(TableSourceTable table) {
+        return abilitySpecsWithoutEscaped(table, false);
+    }
+
+    public static List<SourceAbilitySpec> abilitySpecsWithoutEscaped(
+            TableSourceTable table, boolean escapeFilter) {
         List<SourceAbilitySpec> ret = new ArrayList<>();
         SourceAbilitySpec[] specs = table.abilitySpecs();
         for (SourceAbilitySpec spec : specs) {
-            if (!isEscapeDigest(spec)) {
+            if (!isEscapeDigest(spec, escapeFilter)) {
                 ret.add(spec);
             }
         }
@@ -117,21 +122,23 @@ public class ScanReuserUtils {
         return false;
     }
 
-    public static boolean isEscapeDigest(SourceAbilitySpec spec) {
+    public static boolean isEscapeDigest(SourceAbilitySpec spec, boolean reuseSourceFilter) {
         // WatermarkPushDownSpec is based on index, which is unstable by projection push down.
         // We can ignore Watermark, because sources will produce same watermark.
         return spec instanceof ProjectPushDownSpec
                 || spec instanceof ReadingMetadataSpec
-                || spec instanceof WatermarkPushDownSpec;
+                || spec instanceof WatermarkPushDownSpec
+                || (spec instanceof FilterPushDownSpec && reuseSourceFilter);
     }
 
-    private static List<String> extraDigestsWithoutEscapedAndIgnored(TableSourceTable table) {
+    private static List<String> extraDigestsWithoutEscapedAndIgnored(
+            TableSourceTable table, boolean escapeFilter) {
         List<String> ret = new ArrayList<>();
         List<String> digests = table.getSpecDigests();
         SourceAbilitySpec[] specs = table.abilitySpecs();
         for (int i = 0; i < specs.length; i++) {
             SourceAbilitySpec spec = specs[i];
-            if (!isEscapeDigest(spec) && !isIgnoreDigest(spec)) {
+            if (!isEscapeDigest(spec, escapeFilter) && !isIgnoreDigest(spec)) {
                 ret.add(digests.get(i));
             }
         }
@@ -343,6 +350,11 @@ public class ScanReuserUtils {
      * @return the digest that ignore certain {@link SourceAbilitySpec}.
      */
     public static String getDigest(CommonPhysicalTableSourceScan scan, boolean withoutEscape) {
+        return getDigest(scan, withoutEscape, false);
+    }
+
+    public static String getDigest(
+            CommonPhysicalTableSourceScan scan, boolean withoutEscape, boolean escapeFilter) {
         TableSourceTable table = scan.tableSourceTable();
         List<String> digest = new ArrayList<>();
         digest.addAll(table.getNames());
@@ -358,7 +370,7 @@ public class ScanReuserUtils {
         }
 
         if (withoutEscape) {
-            digest.addAll(extraDigestsWithoutEscapedAndIgnored(table));
+            digest.addAll(extraDigestsWithoutEscapedAndIgnored(table, escapeFilter));
         } else {
             digest.addAll(extraDigestsWithoutIgnored(table));
         }

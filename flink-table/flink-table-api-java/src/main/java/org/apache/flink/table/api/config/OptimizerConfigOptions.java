@@ -106,6 +106,18 @@ public class OptimizerConfigOptions {
                                     + " is true.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SOURCE_FILTER =
+            key("table.optimizer.source.reuse-filter")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When it is true, the optimizer will try to reuse table sources that differ "
+                                    + "only in their pushed-down filters by moving filters into Calc nodes "
+                                    + "and sharing a single source reader. This works only when "
+                                    + TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED.key()
+                                    + " is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SINK_ENABLED =
             key("table.optimizer.reuse-sink-enabled")
                     .booleanType()

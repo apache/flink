@@ -33,14 +33,21 @@ import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.getDiges
 /** Find reusable sources. */
 public class ReusableScanVisitor extends RelVisitor {
 
+    private final boolean escapeFilter;
+
     private final Map<String, List<CommonPhysicalTableSourceScan>> digestToReusableScans =
             new HashMap<>();
+
+    // Todo don't love this, want to see if I can do this so getDigest gets this at constant level
+    public ReusableScanVisitor(boolean escapeFilter) {
+        this.escapeFilter = escapeFilter;
+    }
 
     @Override
     public void visit(RelNode node, int ordinal, RelNode parent) {
         if (node instanceof CommonPhysicalTableSourceScan) {
             CommonPhysicalTableSourceScan scan = (CommonPhysicalTableSourceScan) node;
-            String digest = getDigest(scan, true);
+            String digest = getDigest(scan, true, escapeFilter);
             digestToReusableScans.computeIfAbsent(digest, k -> new ArrayList<>()).add(scan);
             // If the scan has input such as dpp dynamic scan node, so also need to consider the
             // input

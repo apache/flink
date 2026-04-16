@@ -66,9 +66,13 @@ object SubplanReuser {
     val tableSinkReuseEnabled =
       tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SINK_ENABLED)
 
+    val filterReuseEnabled =
+      tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_FILTER)
+
     var newRels = rels
     if (tableSourceReuseEnabled) {
-      newRels = new ScanReuser(flinkContext, flinkTypeFactory).reuseDuplicatedScan(rels)
+      newRels = new ScanReuser(flinkContext, flinkTypeFactory, filterReuseEnabled)
+        .reuseDuplicatedScan(rels)
     }
 
     if (tableSinkReuseEnabled) {

@@ -192,6 +192,15 @@ class ScanReuseTest extends TableTestBase {
     }
 
     @TestTemplate
+    void testUnionWithDifferentProjections() {
+        // Leg 1 needs project=[a, b], leg 2 needs project=[a, b, c] due to filter on c.
+        // ScanReuser should unify to a single source with project=[a, b, c].
+        String sqlQuery =
+                "SELECT a, b FROM MyTable UNION ALL SELECT a, b FROM MyTable WHERE c = 'test'";
+        util.verifyExecPlan(sqlQuery);
+    }
+
+    @TestTemplate
     void testProjectWithHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
