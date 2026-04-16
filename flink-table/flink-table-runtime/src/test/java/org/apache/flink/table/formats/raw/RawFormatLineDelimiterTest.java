@@ -34,6 +34,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,9 +59,9 @@ class RawFormatLineDelimiterTest {
                         STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, null);
         openDeser(schema);
 
-        List<RowData> rows = collectRows(schema, "hello".getBytes("UTF-8"));
+        List<RowData> rows = collectRows(schema, "hello".getBytes(StandardCharsets.UTF_8));
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).getString(0).toString()).isEqualTo("hello");
+        assertThat(rows.get(0).getString(0)).hasToString("hello");
     }
 
     @Test
@@ -70,7 +71,7 @@ class RawFormatLineDelimiterTest {
                         STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "\n");
         openDeser(schema);
 
-        byte[] message = "line1\nline2\nline3".getBytes("UTF-8");
+        byte[] message = "line1\nline2\nline3".getBytes(StandardCharsets.UTF_8);
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(3);
         assertThat(rows.get(0).getString(0).toString()).isEqualTo("line1");
@@ -85,7 +86,7 @@ class RawFormatLineDelimiterTest {
                         STRING_TYPE, TypeInformation.of(RowData.class), "UTF-8", true, "||");
         openDeser(schema);
 
-        byte[] message = "record1||record2||record3".getBytes("UTF-8");
+        byte[] message = "record1||record2||record3".getBytes(StandardCharsets.UTF_8);
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(3);
         assertThat(rows.get(0).getString(0).toString()).isEqualTo("record1");
@@ -133,7 +134,7 @@ class RawFormatLineDelimiterTest {
 
         RowData row = buildStringRow("hello");
         byte[] result = schema.serialize(row);
-        assertThat(result).isEqualTo("hello".getBytes("UTF-8"));
+        assertThat(result).isEqualTo("hello".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -144,7 +145,7 @@ class RawFormatLineDelimiterTest {
 
         RowData row = buildStringRow("hello");
         byte[] result = schema.serialize(row);
-        assertThat(result).isEqualTo("hello\n".getBytes("UTF-8"));
+        assertThat(result).isEqualTo("hello\n".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -155,7 +156,7 @@ class RawFormatLineDelimiterTest {
 
         RowData row = buildStringRow("record1");
         byte[] result = schema.serialize(row);
-        assertThat(result).isEqualTo("record1||".getBytes("UTF-8"));
+        assertThat(result).isEqualTo("record1||".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -181,7 +182,7 @@ class RawFormatLineDelimiterTest {
         openDeser(schema);
 
         // Message already ends with the delimiter (as produced by the serializer)
-        byte[] message = "hello\n".getBytes("UTF-8");
+        byte[] message = "hello\n".getBytes(StandardCharsets.UTF_8);
         List<RowData> rows = collectRows(schema, message);
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).getString(0).toString()).isEqualTo("hello");
