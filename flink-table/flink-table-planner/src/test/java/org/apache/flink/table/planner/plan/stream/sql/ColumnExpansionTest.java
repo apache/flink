@@ -18,20 +18,30 @@
 
 package org.apache.flink.table.planner.plan.stream.sql;
 
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
+import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
+import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
+import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE;
+import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy.EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS;
 import static org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy.EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableConfigOptions#TABLE_COLUMN_EXPANSION_STRATEGY}. */
 class ColumnExpansionTest {
@@ -87,7 +97,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         // From one table
         assertColumnNames(
@@ -158,7 +168,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS));
 
         // From one table
         assertColumnNames(
@@ -238,7 +248,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         // t3_m_virtual is selected due to expansion of the explicit table expression
         // with hints from descriptor
@@ -265,7 +275,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         // t3_m_virtual is selected due to expansion of the explicit table expression
         // with hints from descriptor
@@ -293,7 +303,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         tableEnv.executeSql(
                 "CREATE TABLE sink (\n"
@@ -318,7 +328,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         tableEnv.executeSql(
                 "CREATE TABLE sink (\n"
@@ -346,7 +356,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         // t3_m_virtual is selected due to expansion of the explicit table expression
         // with hints from descriptor
@@ -374,7 +384,7 @@ class ColumnExpansionTest {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
-                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
 
         // t3_m_virtual is selected due to expansion of the explicit table expression
         // with hints from descriptor
@@ -395,5 +405,68 @@ class ColumnExpansionTest {
                         + "GROUP BY t3_s, window_start, window_end",
                 "t3_s",
                 "agg");
+    }
+
+    @Test
+    void testProcessTableFunctionWithOnTime() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // Register PTF that requires on_time
+        tableEnv.createTemporarySystemFunction("singlePtf", PassThroughPtf.class);
+        tableEnv.createTemporarySystemFunction("multiPtf", MultiInputPtf.class);
+
+        // t3_m_virtual is not selected due to missing on_time descriptor
+        assertColumnNames("SELECT * FROM singlePtf(r => TABLE t3)", "t3_s", "t3_i", "out");
+        assertColumnNames("SELECT * FROM singlePtf(TABLE t3)", "t3_s", "t3_i", "out");
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from the on_time descriptor
+        assertColumnNames(
+                "SELECT * FROM singlePtf(r => TABLE t3, on_time => DESCRIPTOR(t3_m_virtual))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "out",
+                "rowtime");
+        assertColumnNames(
+                "SELECT * FROM singlePtf(TABLE t3, DESCRIPTOR(t3_m_virtual))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "out",
+                "rowtime");
+
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.sqlQuery(
+                                        "SELECT * FROM multiPtf(TABLE t3, TABLE t2, DESCRIPTOR(t3_m_virtual, t2_m_virtual))"))
+                // Message indicates that 't2_m_virtual' was correctly resolved
+                // and passed to PTF type inference
+                .hasRootCauseMessage(
+                        "Unsupported data type for time attribute. The `on_time` argument "
+                                + "must reference a TIMESTAMP or TIMESTAMP_LTZ column (up to "
+                                + "precision 3). However, column 't2_m_virtual' in table "
+                                + "argument 'r2' has data type 'INT'.");
+    }
+
+    @DataTypeHint("ROW<out STRING>")
+    public static class PassThroughPtf extends ProcessTableFunction<Row> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint({ROW_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH}) Row r) {
+            // dummy
+        }
+    }
+
+    @DataTypeHint("ROW<out STRING>")
+    public static class MultiInputPtf extends ProcessTableFunction<Row> {
+        @SuppressWarnings("unused")
+        public void eval(
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r1,
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r2) {
+            // dummy
+        }
     }
 }
