@@ -1712,42 +1712,6 @@ public class ProcessTableFunctionTestPrograms {
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_ORDER_BY_SINGLE_PARTITION_TABLE_API =
-            TableTestProgram.of(
-                            "process-order-by-single-partition-table-api",
-                            "test the ORDER BY clause without PARTITION BY via Table API (single partition)")
-                    .setupTemporarySystemFunction("f", OrderByFunction.class)
-                    .setupTableSource(TIMED_SOURCE_LATE_EVENTS)
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(TIMED_BASE_SINK_SCHEMA)
-                                    .consumedValues(
-                                            // Schema:
-                                            // (current watermark, table watermark, current
-                                            // timestamp, captured order, output timestamp)
-                                            "+I[{1969-12-31T23:59:59.999Z, 1969-12-31T23:59:59.999Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
-                                            "+I[{1970-01-01T00:00:00Z, 1970-01-01T00:00:00Z, 1970-01-01T00:00:00.001Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
-                                            // The captured list is globally sorted by time
-                                            // (modulo late events)
-                                            "+I[{1970-01-01T00:01:39.998Z, 1970-01-01T00:01:39.998Z, 1970-01-01T00:01:39.999Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Alice, 1, 1970-01-01T00:00:00.001Z], +I[Bob, 2, 1970-01-01T00:01:39.999Z]]}, 1970-01-01T00:01:39.999Z]")
-                                    .build())
-                    .runTableApi(
-                            env ->
-                                    env.fromCall(
-                                            OrderByFunction.class,
-                                            env.from("t")
-                                                    // This is necessary to distinguish between
-                                                    // a global table sort and a partition sort.
-                                                    // The SQL syntax is more precise in this
-                                                    // regard. In reality, both are discouraged
-                                                    // anyway.
-                                                    .partitionBy()
-                                                    .orderBy($("ts").asc(), $("score").desc())
-                                                    .asArgument("r"),
-                                            descriptor("ts").asArgument("on_time")),
-                            "sink")
-                    .build();
-
     public static final TableTestProgram PROCESS_ORDER_BY_RESTORE =
             TableTestProgram.of(
                             "process-order-by-restore",

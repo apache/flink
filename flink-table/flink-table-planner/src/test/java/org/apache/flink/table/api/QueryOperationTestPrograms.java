@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableOptionalPartitionFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -1307,49 +1306,6 @@ public class QueryOperationTestPrograms {
                                             "f",
                                             env.from("t")
                                                     .partitionBy($("name"))
-                                                    .orderBy($("ts").asc(), $("score").desc())
-                                                    .asArgument("r"),
-                                            lit(1).asArgument("i")),
-                            "sink")
-                    .build();
-
-    static final TableTestProgram PTF_ORDER_BY_SINGLE_PARTITION =
-            TableTestProgram.of(
-                            "ptf-order-by-single-partition",
-                            "verifies SQL serialization with ORDER BY clause without PARTITION BY (single partition)")
-                    // TODO [FLINK-38233]: Remove this config when PTF support in
-                    //  StreamNonDeterministicUpdatePlanVisitor is added.
-                    .setupConfig(
-                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
-                    .setupTemporarySystemFunction(
-                            "f", SetSemanticTableOptionalPartitionFunction.class)
-                    .setupTableSource(TIMED_SOURCE)
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(BASE_SINK_SCHEMA)
-                                    .consumedValues(
-                                            "+I[{+I[Bob, 1, 1970-01-01T00:00:00Z], 1}]",
-                                            "+I[{+I[Alice, 1, 1970-01-01T00:00:00.001Z], 1}]",
-                                            "+I[{+I[Bob, 2, 1970-01-01T00:00:00.002Z], 1}]",
-                                            "+I[{+I[Bob, 3, 1970-01-01T00:00:00.003Z], 1}]",
-                                            "+I[{+I[Bob, 4, 1970-01-01T00:00:00.004Z], 1}]",
-                                            "+I[{+I[Bob, 5, 1970-01-01T00:00:00.005Z], 1}]",
-                                            "+I[{+I[Bob, 6, 1970-01-01T00:00:00.006Z], 1}]")
-                                    .build())
-                    .runSql(
-                            "SELECT `$$T_FUNC`.`out` FROM TABLE(\n"
-                                    + "    `f`(\n"
-                                    + "        (\n"
-                                    + "            SELECT `$$T_SOURCE`.`name`, `$$T_SOURCE`.`score`, `$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
-                                    + "        ) ORDER BY (`ts` ASC, `score` DESC), 1, DEFAULT, 'f')\n"
-                                    + ") $$T_FUNC")
-                    .runTableApi(
-                            env ->
-                                    env.fromCall(
-                                            "f",
-                                            env.from("t")
-                                                    .partitionBy()
                                                     .orderBy($("ts").asc(), $("score").desc())
                                                     .asArgument("r"),
                                             lit(1).asArgument("i")),

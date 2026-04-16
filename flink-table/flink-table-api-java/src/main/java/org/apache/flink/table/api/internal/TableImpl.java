@@ -491,6 +491,9 @@ public class TableImpl implements Table {
 
     @Override
     public PartitionedTable partitionBy(Expression... fields) {
+        if (fields.length == 0) {
+            throw new ValidationException("Partition keys must not be empty.");
+        }
         return new PartitionedTableImpl(this, Arrays.asList(fields));
     }
 
