@@ -63,8 +63,7 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
 
     /**
      * Pre-compiled pattern for splitting by {@link #lineDelimiter}, or {@code null} if no
-     * delimiter. Note: this field and {@link #lineDelimiter} are either both null or both
-     * non-null.
+     * delimiter. Note: this field and {@link #lineDelimiter} are either both null or both non-null.
      */
     @Nullable private final Pattern lineDelimiterPattern;
 
