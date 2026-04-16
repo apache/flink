@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.rescales;
 
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.job.AbstractExecutionGraphHandler;
@@ -38,8 +36,6 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -81,14 +77,7 @@ public class JobRescalesOverviewHandler
             throws RestHandlerException {
         RescalesStatsSnapshot rescalesStatsSnapshot = executionGraphInfo.getRescalesStatsSnapshot();
         if (rescalesStatsSnapshot == null || rescalesStatsSnapshot.getRescaleHistory() == null) {
-            throw new RestHandlerException(
-                    String.format(
-                            "The job `%s` has not enabled the `%s` scheduler, or it has been enabled but the value of configuration option `%s` has not been set to greater than `0`.",
-                            executionGraphInfo.getJobId(),
-                            JobManagerOptions.SchedulerType.Adaptive,
-                            WebOptions.MAX_ADAPTIVE_SCHEDULER_RESCALE_HISTORY_SIZE.key()),
-                    HttpResponseStatus.NOT_FOUND,
-                    RestHandlerException.LoggingBehavior.IGNORE);
+            throw RescalesUnavailableException.createForJob(executionGraphInfo.getJobId());
         }
         return JobRescalesOverview.fromRescalesStatsSnapshot(
                 executionGraphInfo.getRescalesStatsSnapshot());

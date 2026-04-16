@@ -28,9 +28,10 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesHistory;
-import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesHistoryHeaders;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesSummary;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescalesSummaryHeaders;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescalesStatsSnapshot;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -39,20 +40,20 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/** Handler to response job rescales history. */
-public class JobRescalesHistoryHandler
-        extends AbstractExecutionGraphHandler<JobRescalesHistory, JobMessageParameters>
+/** Handler to response job rescales summary. */
+public class JobRescalesSummaryHandler
+        extends AbstractExecutionGraphHandler<JobRescalesSummary, JobMessageParameters>
         implements JsonArchivist {
 
-    public JobRescalesHistoryHandler(
+    public JobRescalesSummaryHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Duration timeout,
             Map<String, String> responseHeaders,
-            MessageHeaders<EmptyRequestBody, JobRescalesHistory, JobMessageParameters>
+            MessageHeaders<EmptyRequestBody, JobRescalesSummary, JobMessageParameters>
                     messageHeaders,
             ExecutionGraphCache executionGraphCache,
             Executor executor) {
@@ -66,35 +67,36 @@ public class JobRescalesHistoryHandler
     }
 
     @Override
-    protected JobRescalesHistory handleRequest(
+    protected JobRescalesSummary handleRequest(
             HandlerRequest<EmptyRequestBody> request, ExecutionGraphInfo executionGraphInfo)
             throws RestHandlerException {
-        return getJobRescalesHistory(executionGraphInfo);
+        return getJobRescalesSummary(executionGraphInfo);
     }
 
-    private JobRescalesHistory getJobRescalesHistory(ExecutionGraphInfo executionGraphInfo)
+    private JobRescalesSummary getJobRescalesSummary(ExecutionGraphInfo executionGraphInfo)
             throws RestHandlerException {
-        if (executionGraphInfo.getRescalesStatsSnapshot() == null
-                || executionGraphInfo.getRescalesStatsSnapshot().getRescaleHistory() == null) {
+        RescalesStatsSnapshot rescalesStatsSnapshot = executionGraphInfo.getRescalesStatsSnapshot();
+
+        if (rescalesStatsSnapshot == null
+                || rescalesStatsSnapshot.getRescalesSummarySnapshot() == null) {
             throw RescalesUnavailableException.createForJob(executionGraphInfo.getJobId());
         }
-        return JobRescalesHistory.fromRescalesStatsSnapshot(
-                executionGraphInfo.getRescalesStatsSnapshot());
+
+        return JobRescalesSummary.fromRescalesStatsSnapshot(rescalesStatsSnapshot);
     }
 
     @Override
     public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
-
         ResponseBody response;
         try {
-            response = getJobRescalesHistory(executionGraphInfo);
+            response = getJobRescalesSummary(executionGraphInfo);
         } catch (RestHandlerException rhe) {
             response = new ErrorResponseBody(rhe.getMessage());
         }
-        return Collections.singletonList(
+        return List.of(
                 new ArchivedJson(
-                        JobRescalesHistoryHeaders.getInstance()
+                        JobRescalesSummaryHeaders.getInstance()
                                 .getTargetRestEndpointURL()
                                 .replace(
                                         ':' + JobIDPathParameter.KEY,
