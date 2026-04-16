@@ -128,7 +128,8 @@ public interface TableSemantics {
      */
     Optional<ChangelogMode> changelogMode();
 
-    /** Sort direction for ORDER BY columns in table arguments with set semantics. */
+    /** The sort direction for ORDER BY columns in table arguments with set semantics. */
+    @PublicEvolving
     enum SortDirection {
         /** Ascending order with nulls first. */
         ASC_NULLS_FIRST(false, true),
