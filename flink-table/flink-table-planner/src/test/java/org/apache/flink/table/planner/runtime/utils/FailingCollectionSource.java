@@ -77,9 +77,6 @@ public class FailingCollectionSource<T>
     /** A failure will occur when the given number of elements have been processed. */
     private final int failureAfterNumElements;
 
-    /** The number of completed checkpoints. */
-    private volatile int numSuccessfulCheckpoints;
-
     /** The checkpointed number of emitted elements. */
     private final Map<Long, Integer> checkpointedEmittedNums;
 
@@ -166,9 +163,8 @@ public class FailingCollectionSource<T>
             if (!failedBefore) {
                 // delay a bit, if we have not failed before
                 Thread.sleep(1);
-                if (numSuccessfulCheckpoints >= 1 && lastCheckpointedEmittedNum >= 1) {
-                    // cause a failure if we have not failed before and have a completed checkpoint
-                    // and have processed at least one element
+                if (lastCheckpointedEmittedNum >= failureAfterNumElements) {
+                    // trigger failure after enough elements are durably checkpointed
                     failedBefore = true;
                     throw new Exception("Artificial Failure");
                 }
@@ -238,7 +234,6 @@ public class FailingCollectionSource<T>
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        numSuccessfulCheckpoints++;
         lastCheckpointedEmittedNum = checkpointedEmittedNums.get(checkpointId);
     }
 
