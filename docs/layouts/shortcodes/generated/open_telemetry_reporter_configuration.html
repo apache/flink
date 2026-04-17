@@ -56,5 +56,17 @@
             <td>String</td>
             <td>service.version passed to OpenTelemetry Reporters.</td>
         </tr>
+        <tr>
+            <td><h5>metrics.reporter.OpenTelemetry.transform.attribute-value-length-limits.&lt;attribute-name&gt;</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>Limits of the exported attribute values length. Only applies to the metric reporter; ignored by the trace and event reporters. Configuration is prefix based, for example to limit `task_name` attribute set `metrics.reporter.otel.transform.attribute-value-length-limits.task_name: 60` in the config for OTel reporter. A special key '*' can be used to define a global limit for all attributes not explicitly listed. For example `metrics.reporter.otel.transform.attribute-value-length-limits.*: 1024` will limit all attributes to attributeValue.substring(0, 1024). Global limit defaults to Integer.MAX_VALUE if not set. Individual attribute limits always override the global limit and are verified by exact match on the attribute name. 0 can be used to drop an attribute. Negative values are interpreted as no limit for the attribute (can be used for global limit overrides).</td>
+        </tr>
+        <tr>
+            <td><h5>metrics.reporter.OpenTelemetry.transform.collision-tracking-max-slots</h5></td>
+            <td style="word-wrap: break-word;">50000</td>
+            <td>Integer</td>
+            <td>Maximum number of distinct (metric name, transformed attributes) slots the truncation-collision tracker retains. Only applies to the metric reporter; ignored by the trace and event reporters. When the cap is reached the least-recently-touched slot is evicted (LRU); a previously warned slot that later gets evicted may fire its warning again on re-entry. Only consulted when attribute-value length limits are configured — if no truncation is happening, there is nothing to track and this option has no effect. Set to 0 to disable collision tracking entirely. Malformed or negative values fall back to the default with a warning in the logs.</td>
+        </tr>
     </tbody>
 </table>

@@ -105,6 +105,9 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
     private long exportCompletionTimeoutMillis =
             OpenTelemetryReporterOptions.EXPORT_COMPLETION_TIMEOUT_MILLIS.defaultValue();
 
+    @GuardedBy("this")
+    private @Nullable MetricAttributeTransformer transformer;
+
     public OpenTelemetryMetricReporter() {
         this(Clock.systemUTC());
     }
@@ -114,6 +117,12 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         this.clock = clock;
     }
 
+    /**
+     * Initializes the reporter's exporter, batching, and attribute transformer from {@code
+     * metricConfig}. Must be called before any of {@link #notifyOfAddedMetric}, {@link
+     * #notifyOfRemovedMetric}, {@link #report}, or {@link #collectAllMetrics}; violating this
+     * contract will result in an NPE.
+     */
     @Override
     public void open(final MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryMetricReporter");
@@ -122,6 +131,7 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         synchronized (this) {
             exporter = createExporter(metricConfig);
             configureBatching(metricConfig);
+            transformer = new MetricAttributeTransformer(metricConfig);
         }
     }
 
@@ -156,6 +166,7 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
 
     @Override
     public synchronized void close() {
+        transformer = null;
         if (exporter != null) {
             exporter.flush();
             waitForLastReportToComplete();
@@ -172,17 +183,19 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
                         + "."
                         + metricName;
 
-        Map<String, String> variables =
+        final Map<String, String> rawVariables =
                 group.getAllVariables().entrySet().stream()
                         .collect(
                                 Collectors.toMap(
                                         e -> VariableNameUtil.getVariableName(e.getKey()),
                                         Entry::getValue));
-        LOG.debug("Adding metric {} with variables {}", metricName, variables);
-
-        MetricMetadata metricMetadata = new MetricMetadata(name, variables);
 
         synchronized (this) {
+            final Map<String, String> variables = transformer.transform(name, rawVariables);
+
+            LOG.debug("Adding metric {} with variables {}", metricName, variables);
+
+            final MetricMetadata metricMetadata = new MetricMetadata(name, variables);
             switch (metric.getMetricType()) {
                 case COUNTER:
                     this.counters.put((Counter) metric, metricMetadata);
