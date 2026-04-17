@@ -1187,6 +1187,39 @@ class Table(object):
                 t_env=self._t_env,
             )
 
+    def to_changelog(self, *arguments: Expression) -> 'Table':
+        """
+        Converts this table into an append-only table with an explicit operation code
+        column using the built-in ``TO_CHANGELOG`` process table function.
+
+        Each input row - regardless of its original change operation - is emitted as an
+        INSERT-only row with a string ``op`` column indicating the original operation
+        (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE).
+
+        Example:
+        ::
+
+            >>> from pyflink.table.expressions import descriptor, map_
+            >>> # Default: adds 'op' column with standard change operation names
+            >>> table.to_changelog()
+            >>> # Custom op column name and mapping
+            >>> table.to_changelog(
+            ...     descriptor("op_code").as_argument("op"),
+            ...     map_("INSERT", "I", "UPDATE_AFTER", "U").as_argument("op_mapping")
+            ... )
+            >>> # Deletion flag pattern
+            >>> table.to_changelog(
+            ...     descriptor("deleted").as_argument("op"),
+            ...     map_("INSERT, UPDATE_AFTER", "false",
+            ...          "DELETE", "true").as_argument("op_mapping")
+            ... )
+
+        :param arguments: Optional named arguments for ``op`` and ``op_mapping``.
+        :return: An append-only :class:`~pyflink.table.Table` with an ``op`` column prepended
+                 to the input columns.
+        """
+        return Table(self._j_table.toChangelog(to_expression_jarray(arguments)), self._t_env)
+
 
 @PublicEvolving()
 class GroupedTable(object):
