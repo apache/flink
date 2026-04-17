@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ReadableConfig;
@@ -28,12 +29,14 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.HashCodeGenerator;
 import org.apache.flink.table.planner.codegen.ProcessTableRunnerGenerator;
+import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -41,12 +44,15 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProcessTableRunner;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.process.ProcessTableOperatorFactory;
@@ -54,6 +60,7 @@ import org.apache.flink.table.runtime.operators.process.RuntimeChangelogMode;
 import org.apache.flink.table.runtime.operators.process.RuntimeStateInfo;
 import org.apache.flink.table.runtime.operators.process.RuntimeTableSemantics;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
@@ -224,14 +231,36 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final RuntimeChangelogMode producedChangelogMode =
                 RuntimeChangelogMode.serialize(outputChangelogMode);
 
+        // Generate comparators for ORDER BY columns
+        final GeneratedRecordComparator[] orderByComparators =
+                generateOrderByComparators(
+                        planner.getFlinkContext().getClassLoader(),
+                        ctx,
+                        config,
+                        providedInputArgs,
+                        operands);
+
+        // Create TTL config for input sort buffers (one per input)
+        // Use empty state metadata list as input sort buffers don't have user-defined state
+        final List<Long> inputBufferTtlMillis =
+                StateMetadata.getStateTtlForMultiInputOperator(
+                        config, runtimeTableSemantics.size(), List.of());
+        // Convert to StateTtlConfig list (one per input)
+        final List<StateTtlConfig> inputBufferTtlConfigs =
+                inputBufferTtlMillis.stream()
+                        .map(StateConfigUtil::createTtlConfig)
+                        .collect(Collectors.toList());
+
         final ProcessTableOperatorFactory operatorFactory =
                 new ProcessTableOperatorFactory(
                         runtimeTableSemantics,
                         runtimeStateInfos,
+                        orderByComparators,
                         generatedRunner,
                         stateHashCode,
                         stateEquals,
-                        producedChangelogMode);
+                        producedChangelogMode,
+                        inputBufferTtlConfigs);
 
         final String effectiveUid =
                 uid != null ? uid : createTransformationUid(PROCESS_TRANSFORMATION, config);
@@ -282,6 +311,8 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 tableArgCall.getInputIndex(),
                 dataType,
                 tableArgCall.getPartitionKeys(),
+                tableArgCall.getOrderKeys(),
+                RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                 consumedChangelogMode,
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
                 tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
@@ -363,5 +394,47 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             return Long.MAX_VALUE;
         }
         return globalRetentionTime;
+    }
+
+    private GeneratedRecordComparator[] generateOrderByComparators(
+            ClassLoader classLoader,
+            CodeGeneratorContext ctx,
+            ExecNodeConfig config,
+            List<Ord<StaticArgument>> providedInputArgs,
+            List<RexNode> operands) {
+        final GeneratedRecordComparator[] comparators =
+                new GeneratedRecordComparator[providedInputArgs.size()];
+
+        for (int i = 0; i < providedInputArgs.size(); i++) {
+            final Ord<StaticArgument> providedInputArg = providedInputArgs.get(i);
+            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(providedInputArg.i);
+            final int[] orderKeys = tableArgCall.getOrderKeys();
+
+            if (orderKeys.length > 0) {
+                final RowType inputType = FlinkTypeFactory.toLogicalRowType(tableArgCall.getType());
+                final TableSemantics.SortDirection[] sortDirections =
+                        RexTableArgCall.toSortDirections(tableArgCall.getSortOrder());
+
+                // Convert to SortSpec
+                final SortSpec.SortSpecBuilder builder = SortSpec.builder();
+                for (int j = 0; j < orderKeys.length; j++) {
+                    final TableSemantics.SortDirection direction = sortDirections[j];
+                    builder.addField(
+                            orderKeys[j], !direction.isDescending(), direction.isNullsLast());
+                }
+                final SortSpec sortSpec = builder.build();
+
+                final SortCodeGenerator sortCodeGen =
+                        new SortCodeGenerator(config, classLoader, inputType, sortSpec, ctx);
+
+                comparators[i] =
+                        sortCodeGen.generateRecordComparator(
+                                "ProcessTableFunctionOrderByComparator" + i);
+            } else {
+                comparators[i] = null;
+            }
+        }
+
+        return comparators;
     }
 }

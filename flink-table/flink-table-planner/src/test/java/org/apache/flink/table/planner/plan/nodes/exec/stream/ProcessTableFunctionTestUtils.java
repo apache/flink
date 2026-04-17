@@ -46,6 +46,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -63,6 +64,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_UPDATE_BEF
 import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Testing functions for {@link ProcessTableFunction}. */
@@ -136,6 +138,27 @@ public class ProcessTableFunctionTestUtils {
                             Row.of("Bob", 2, Instant.ofEpochMilli(99999)),
                             Row.of("Bob", 3, Instant.ofEpochMilli(3)),
                             Row.of("Bob", 4, Instant.ofEpochMilli(4)))
+                    .build();
+
+    public static final SourceTestStep TIMED_SOURCE_LATE_EVENTS_LARGE =
+            SourceTestStep.newBuilder("t_large")
+                    .addSchema(
+                            "name STRING",
+                            "score INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.010' SECOND")
+                    .producedValues(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 2, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                            Row.of("Bob", 4, Instant.ofEpochMilli(5)),
+                            Row.of("Alice", 2, Instant.ofEpochMilli(19)),
+                            // Late event
+                            Row.of("Alice", 3, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 5, Instant.ofEpochMilli(10)),
+                            Row.of("Bob", 6, Instant.ofEpochMilli(12)),
+                            Row.of("Bob", 7, Instant.ofEpochMilli(22)))
                     .build();
 
     /** Corresponds to {@link AppendProcessTableFunctionBase}. */
@@ -546,6 +569,10 @@ public class ProcessTableFunctionTestUtils {
     public static class NamedTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+
+            // For single inputs, the table watermark and current watermark always match
+            assertThat(timeCtx.tableWatermark()).isEqualTo(timeCtx.currentWatermark());
+
             collectEvalEvent(timeCtx, r);
 
             if (timeCtx.time() == 0) {
@@ -560,6 +587,8 @@ public class ProcessTableFunctionTestUtils {
 
         public void onTimer(OnTimerContext ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            // Firing timers don't reference a table
+            assertThat(timeCtx.tableWatermark()).isNull();
             // read
             collectOnTimerEvent(ctx);
             if (ctx.currentTimer().equals("timeout1")) {
@@ -579,6 +608,10 @@ public class ProcessTableFunctionTestUtils {
     public static class UnnamedTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+
+            // For single inputs, the table watermark and current watermark always match
+            assertThat(timeCtx.tableWatermark()).isEqualTo(timeCtx.currentWatermark());
+
             collectEvalEvent(timeCtx, r);
 
             if (timeCtx.time() == 0) {
@@ -591,6 +624,8 @@ public class ProcessTableFunctionTestUtils {
 
         public void onTimer(OnTimerContext ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            // Firing timers don't reference a table
+            assertThat(timeCtx.tableWatermark()).isNull();
             // read
             collectOnTimerEvent(ctx);
             if (timeCtx.time() == 1) {
@@ -1038,6 +1073,54 @@ public class ProcessTableFunctionTestUtils {
                 t.f0 = o;
             } else {
                 t.f0 = null;
+            }
+        }
+    }
+
+    /** Captures the order and time how rows enter the function. */
+    public static class OrderByFunction extends AppendProcessTableFunctionBase {
+
+        public static class CapturedOrder {
+            public List<String> list = new ArrayList<>();
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CapturedOrder capturedOrder,
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r) {
+            capturedOrder.list.add(r.toString());
+            final TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            collectObjects(
+                    timeCtx.currentWatermark(),
+                    timeCtx.tableWatermark(),
+                    timeCtx.time(),
+                    capturedOrder.list);
+        }
+    }
+
+    /** Captures the order and time how rows enter the function from multiple inputs. */
+    public static class MultiInputOrderByFunction extends AppendProcessTableFunctionBase {
+
+        public static class CapturedOrder {
+            public List<String> list1 = new ArrayList<>();
+            public List<String> list2 = new ArrayList<>();
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CapturedOrder capturedOrder,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in1,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in2) {
+            final TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            if (in1 != null) {
+                capturedOrder.list1.add(in1.toString());
+                collectObjects(
+                        "in1", timeCtx.tableWatermark(), timeCtx.time(), capturedOrder.list1);
+            }
+            if (in2 != null) {
+                capturedOrder.list2.add(in2.toString());
+                collectObjects(
+                        "in2", timeCtx.tableWatermark(), timeCtx.time(), capturedOrder.list2);
             }
         }
     }

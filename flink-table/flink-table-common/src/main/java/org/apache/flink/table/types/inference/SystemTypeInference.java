@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.functions.TableSemantics.SortDirection;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -374,14 +375,20 @@ public class SystemTypeInference {
                                 if (!staticArg.is(StaticArgumentTrait.TABLE)) {
                                     return;
                                 }
+                                final String argName = staticArg.getName();
                                 final RowType rowType =
                                         LogicalTypeUtils.toRowType(args.get(pos).getLogicalType());
                                 final int onTimeColumn =
-                                        findUniqueOnTimeColumn(
-                                                staticArg.getName(), rowType, onTimeFields);
+                                        findUniqueOnTimeColumn(argName, rowType, onTimeFields);
                                 if (onTimeColumn >= 0) {
                                     usedOnTimeFields.add(rowType.getFieldNames().get(onTimeColumn));
                                     onTimeColumns.add(rowType.getTypeAt(onTimeColumn));
+                                    // If ORDER BY is defined, it must match the on_time column
+                                    final TableSemantics semantics =
+                                            callContext
+                                                    .getTableSemantics(pos)
+                                                    .orElseThrow(IllegalStateException::new);
+                                    checkOrderByMatchesOnTime(argName, semantics, onTimeColumn);
                                     return;
                                 }
                                 if (staticArg.is(StaticArgumentTrait.REQUIRE_ON_TIME)) {
@@ -390,9 +397,9 @@ public class SystemTypeInference {
                                                     "Table argument '%s' requires a time attribute. "
                                                             + "Please provide one using the implicit `on_time` argument. "
                                                             + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)",
-                                                    staticArg.getName()));
+                                                    argName));
                                 } else {
-                                    missingOnTimeColumns.add(staticArg.getName());
+                                    missingOnTimeColumns.add(argName);
                                 }
                             });
 
@@ -500,9 +507,21 @@ public class SystemTypeInference {
             }
         }
 
-        private static boolean isUnsupportedOnTimeColumn(LogicalType type) {
-            return !LogicalTypeChecks.canBeTimeAttributeType(type)
-                    || LogicalTypeChecks.getPrecision(type) > 3;
+        private static void checkOrderByMatchesOnTime(
+                String argName, TableSemantics semantics, int onTimeColumn) {
+            final int[] orderByColumns = semantics.orderByColumns();
+            if (orderByColumns.length == 0) {
+                return;
+            }
+            final int firstOrderByColumn = orderByColumns[0];
+            if (onTimeColumn != firstOrderByColumn) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid ORDER BY clause for table argument '%s'. "
+                                        + "When both ORDER BY and the 'on_time' argument are defined, "
+                                        + "the referenced timestamp columns must match.",
+                                argName));
+            }
         }
     }
 
@@ -667,6 +686,64 @@ public class SystemTypeInference {
                                 "Table argument '%s' requires a PARTITION BY clause for parallel processing.",
                                 staticArg.getName()));
             }
+
+            checkOrderBy(staticArg, semantics);
         }
+
+        private static void checkOrderByDuplicates(
+                StaticArgument staticArg, List<String> fieldNames, int[] orderByColumns) {
+            final Set<Integer> seenColumns = new HashSet<>();
+            for (int columnIndex : orderByColumns) {
+                if (!seenColumns.add(columnIndex)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Invalid ORDER BY clause for table argument '%s'. "
+                                            + "Column '%s' appears more than once in ORDER BY.",
+                                    staticArg.getName(), fieldNames.get(columnIndex)));
+                }
+            }
+        }
+
+        private static void checkOrderBy(StaticArgument staticArg, TableSemantics semantics) {
+            final int[] orderByColumns = semantics.orderByColumns();
+            if (orderByColumns.length == 0) {
+                return;
+            }
+
+            final LogicalType tableType = semantics.dataType().getLogicalType();
+            final List<String> fieldNames = LogicalTypeChecks.getFieldNames(tableType);
+            final List<LogicalType> fieldTypes = LogicalTypeChecks.getFieldTypes(tableType);
+
+            checkOrderByDuplicates(staticArg, fieldNames, orderByColumns);
+
+            // The first ORDER BY column must be a supported time attribute
+            final int firstOrderByColumn = orderByColumns[0];
+            final LogicalType firstOrderByType = fieldTypes.get(firstOrderByColumn);
+            if (isUnsupportedOnTimeColumn(firstOrderByType)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid ORDER BY clause for table argument '%s'. "
+                                        + "The first ORDER BY column must be a TIMESTAMP or TIMESTAMP_LTZ column (up to precision 3). "
+                                        + "However, column '%s' has data type '%s'.",
+                                staticArg.getName(),
+                                fieldNames.get(firstOrderByColumn),
+                                firstOrderByType.asSummaryString()));
+            }
+
+            // The first ORDER BY column must be ascending
+            final SortDirection[] orderByDirections = semantics.orderByDirections();
+            if (orderByDirections[0] != SortDirection.ASC_NULLS_LAST) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid ORDER BY clause for table argument '%s'. "
+                                        + "The first ORDER BY column on a timestamp column must be in ascending order.",
+                                staticArg.getName()));
+            }
+        }
+    }
+
+    private static boolean isUnsupportedOnTimeColumn(LogicalType type) {
+        return !LogicalTypeChecks.canBeTimeAttributeType(type)
+                || LogicalTypeChecks.getPrecision(type) > 3;
     }
 }

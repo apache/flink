@@ -37,12 +37,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ListStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MapStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputOrderByFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputWithScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NamedTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NonNullMapStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalPartitionOnTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OrderByFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoCreatingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateFunction;
@@ -95,6 +97,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTable
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_LATE_EVENTS;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_LATE_EVENTS_LARGE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UPDATING_VALUES;
 
@@ -1555,5 +1558,286 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT `name`, `out` FROM f("
                                     + "scoreTable => TABLE scores PARTITION BY name, "
                                     + "cityTable => TABLE city PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ORDER_BY =
+            TableTestProgram.of(
+                            "process-order-by",
+                            "test the ORDER BY clause on watermarked column and secondary ordering, late events are dropped")
+                    .setupTemporarySystemFunction("f", OrderByFunction.class)
+                    .setupTableSource(TIMED_SOURCE_LATE_EVENTS_LARGE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            // Schema:
+                                            // (key, current watermark, table watermark, current
+                                            // timestamp, captured order, output timestamp)
+                                            //
+                                            // (Alice, 2) triggers flushing the sort buffer
+                                            // Watermark transitions from 1969-12-31T23:59:59.995Z
+                                            // to 1970-01-01T00:00:00.009Z
+                                            // (Bob, 1) arrives
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            // (Alice, 1) arrives
+                                            "+I[Alice, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
+                                            // (Bob, 3) arrives, reordered by secondary sorting,
+                                            // not (Bob, 2)
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            // (Bob, 2) arrives
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            // (Bob, 4) arrives
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.005Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z]]}, 1970-01-01T00:00:00.005Z]",
+                                            // (Bob, 7) triggers flushing the sort buffer
+                                            // Watermark transitions from 1970-01-01T00:00:00.009Z
+                                            // to 1970-01-01T00:00:00.012Z
+                                            // (Bob, 5) arrives
+                                            "+I[Bob, {1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.010Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z]]}, 1970-01-01T00:00:00.010Z]",
+                                            // (Bob, 6) arrives
+                                            "+I[Bob, {1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.012Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z]]}, 1970-01-01T00:00:00.012Z]",
+                                            // Job is terminating, watermark transitions from
+                                            // 1970-01-01T00:00:00.012Z to MAX (end of input)
+                                            // (Alice, 2) arrives
+                                            "+I[Alice, {1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.019Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z], +I[Alice, 2, 1970-01-01T00:00:00.019Z]]}, 1970-01-01T00:00:00.019Z]",
+                                            // (Alice, 3), (Bob, 5), and (Bob, 6) are dropped
+                                            // because they are marked as late
+                                            // (Bob, 7) arrives
+                                            "+I[Bob, {1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.022Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z], +I[Bob, 7, 1970-01-01T00:00:00.022Z]]}, 1970-01-01T00:00:00.022Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "r => TABLE t_large PARTITION BY name ORDER BY (ts ASC, score DESC), "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_INPUT_ORDER_BY =
+            TableTestProgram.of(
+                            "process-multi-input-order-by",
+                            "test the ORDER BY clause on watermarked column and secondary ordering per input, late events are dropped")
+                    .setupTemporarySystemFunction("f", MultiInputOrderByFunction.class)
+                    .setupTableSource(TIMED_SOURCE_LATE_EVENTS)
+                    .setupTableSource(TIMED_SOURCE_LATE_EVENTS_LARGE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(TIMED_MULTI_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            // Schema:
+                                            // (key1, key2, input, table watermark, current
+                                            // timestamp,
+                                            // captured order, output timestamp)
+                                            //
+                                            // Input 1: (Alice, 1) triggers flushing the sort buffer
+                                            // Table watermark 1 transitions from
+                                            // 1969-12-31T23:59:59.999Z
+                                            // to 1970-01-01T00:00:00.000Z
+                                            // (Bob, 1) arrives
+                                            "+I[Bob, Bob, {in1, 1969-12-31T23:59:59.999Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            // Input 1: (Bob, 1) triggers flushing the sort buffer
+                                            // Table watermark 1 transitions from
+                                            // 1970-01-01T00:00:00.000Z
+                                            // to 1970-01-01T00:01:39.998Z
+                                            // (Alice, 1) arrives
+                                            "+I[Alice, Alice, {in1, 1970-01-01T00:00:00Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
+                                            // Input 1: (Bob, 3) and (Bob, 4) are dropped because
+                                            // they are marked as late
+                                            // Table watermark 1 transitions from
+                                            // 1970-01-01T00:01:39.998Z
+                                            // to MAX (end of input)
+                                            // (Bob, 2) arrives
+                                            "+I[Bob, Bob, {in1, 1970-01-01T00:01:39.998Z, 1970-01-01T00:01:39.999Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 2, 1970-01-01T00:01:39.999Z]]}, 1970-01-01T00:01:39.999Z]",
+                                            // Input 2: (Alice, 2) triggers flushing the sort buffer
+                                            // Table watermark 2 transitions from
+                                            // 1969-12-31T23:59:59.995Z
+                                            // to 1970-01-01T00:00:00.009Z
+                                            // (Bob, 1) to (Bob, 4) and (Alice, 1) arrives
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.005Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z]]}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Alice, Alice, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
+                                            // Input 2: (Bob, 7) triggers flushing the sort buffer
+                                            // Table watermark 2 transitions from
+                                            // 1970-01-01T00:00:00.009Z
+                                            // to 1970-01-01T00:00:00.012Z
+                                            // (Bob, 5) and (Bob, 6) arrives
+                                            "+I[Bob, Bob, {in2, 1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.010Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z]]}, 1970-01-01T00:00:00.010Z]",
+                                            "+I[Bob, Bob, {in2, 1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.012Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z]]}, 1970-01-01T00:00:00.012Z]",
+                                            // Table watermark 2 transitions from
+                                            // 1970-01-01T00:00:00.012Z
+                                            // to MAX (end of input)
+                                            // (Bob, 7) and (Alice, 2) arrives
+                                            "+I[Bob, Bob, {in2, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.022Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z], +I[Bob, 7, 1970-01-01T00:00:00.022Z]]}, 1970-01-01T00:00:00.022Z]",
+                                            "+I[Alice, Alice, {in2, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.019Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z], +I[Alice, 2, 1970-01-01T00:00:00.019Z]]}, 1970-01-01T00:00:00.019Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "in1 => TABLE t PARTITION BY name ORDER BY (ts ASC, score DESC), "
+                                    + "in2 => TABLE t_large PARTITION BY name ORDER BY (ts ASC, score DESC), "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ORDER_BY_TABLE_API =
+            TableTestProgram.of(
+                            "process-order-by-table-api",
+                            "test the ORDER BY clause via Table API on watermarked column and secondary ordering, late events are dropped")
+                    .setupTemporarySystemFunction("f", OrderByFunction.class)
+                    .setupTableSource(TIMED_SOURCE_LATE_EVENTS_LARGE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            // Schema:
+                                            // (key, current watermark, table watermark, current
+                                            // timestamp, captured order, output timestamp)
+                                            // Same expected output as PROCESS_ORDER_BY
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.005Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z]]}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.010Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z]]}, 1970-01-01T00:00:00.010Z]",
+                                            "+I[Bob, {1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.009Z, 1970-01-01T00:00:00.012Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z]]}, 1970-01-01T00:00:00.012Z]",
+                                            "+I[Alice, {1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.019Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z], +I[Alice, 2, 1970-01-01T00:00:00.019Z]]}, 1970-01-01T00:00:00.019Z]",
+                                            "+I[Bob, {1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.022Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z], +I[Bob, 7, 1970-01-01T00:00:00.022Z]]}, 1970-01-01T00:00:00.022Z]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            OrderByFunction.class,
+                                            env.from("t_large")
+                                                    .partitionBy($("name"))
+                                                    .orderBy($("ts").asc(), $("score").desc())
+                                                    .asArgument("r"),
+                                            descriptor("ts").asArgument("on_time")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ORDER_BY_RESTORE =
+            TableTestProgram.of(
+                            "process-order-by-restore",
+                            "test the ORDER BY clause on watermarked column for restore tests")
+                    .setupTemporarySystemFunction("f", OrderByFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t_large")
+                                    .addSchema(
+                                            "name STRING",
+                                            "score INT",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.010' SECOND")
+                                    .producedBeforeRestore(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Bob", 2, Instant.ofEpochMilli(3)),
+                                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                                            Row.of("Bob", 4, Instant.ofEpochMilli(5)),
+                                            Row.of("Alice", 2, Instant.ofEpochMilli(19)),
+                                            Row.of("Alice", 3, Instant.ofEpochMilli(1)))
+                                    .producedAfterRestore(
+                                            Row.of("Bob", 5, Instant.ofEpochMilli(10)),
+                                            Row.of("Bob", 6, Instant.ofEpochMilli(12)),
+                                            Row.of("Bob", 7, Instant.ofEpochMilli(22)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            // Schema:
+                                            // (key, current watermark, table watermark, current
+                                            // timestamp, captured order, output timestamp)
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {1969-12-31T23:59:59.995Z, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.005Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z]]}, 1970-01-01T00:00:00.005Z]")
+                                    .consumedAfterRestore(
+                                            // Currently, we don't checkpoint watermarks. Thus, the
+                                            // logical clock will go backwards after restore. If the
+                                            // watermark strategy is not chosen well, it can mess up
+                                            // the initial ordering right after restore. This
+                                            // is the intended behavior for PTFs for now and should
+                                            // be addressed upstream (most likely in source splits).
+                                            "+I[Bob, {1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.010Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z]]}, 1970-01-01T00:00:00.010Z]",
+                                            "+I[Bob, {1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.012Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z]]}, 1970-01-01T00:00:00.012Z]",
+                                            "+I[Alice, {1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.019Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z], +I[Alice, 2, 1970-01-01T00:00:00.019Z]]}, 1970-01-01T00:00:00.019Z]",
+                                            "+I[Bob, {1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.022Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z], +I[Bob, 7, 1970-01-01T00:00:00.022Z]]}, 1970-01-01T00:00:00.022Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "r => TABLE t_large PARTITION BY name ORDER BY (ts ASC, score DESC), "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_INPUT_ORDER_BY_RESTORE =
+            TableTestProgram.of(
+                            "process-multi-input-order-by-restore",
+                            "test the multi-input ORDER BY clause on watermarked column for restore tests")
+                    .setupTemporarySystemFunction("f", MultiInputOrderByFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING",
+                                            "score INT",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                                    .producedBeforeRestore(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Bob", 2, Instant.ofEpochMilli(99999)),
+                                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                                            Row.of("Bob", 4, Instant.ofEpochMilli(4)))
+                                    .producedAfterRestore()
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t_large")
+                                    .addSchema(
+                                            "name STRING",
+                                            "score INT",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.010' SECOND")
+                                    .producedBeforeRestore(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Bob", 2, Instant.ofEpochMilli(3)),
+                                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                                            Row.of("Bob", 4, Instant.ofEpochMilli(5)),
+                                            Row.of("Alice", 2, Instant.ofEpochMilli(19)),
+                                            Row.of("Alice", 3, Instant.ofEpochMilli(1)))
+                                    .producedAfterRestore(
+                                            Row.of("Bob", 5, Instant.ofEpochMilli(10)),
+                                            Row.of("Bob", 6, Instant.ofEpochMilli(12)),
+                                            Row.of("Bob", 7, Instant.ofEpochMilli(22)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(TIMED_MULTI_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            // Schema:
+                                            // (key1, key2, input, table watermark, current
+                                            // timestamp, captured order, output timestamp)
+                                            "+I[Bob, Bob, {in1, 1969-12-31T23:59:59.999Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, Alice, {in1, 1970-01-01T00:00:00Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00Z, [+I[Bob, 1, 1970-01-01T00:00:00Z]]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.003Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z]]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, Bob, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.005Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z]]}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Alice, Alice, {in2, 1969-12-31T23:59:59.995Z, 1970-01-01T00:00:00.001Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z]]}, 1970-01-01T00:00:00.001Z]")
+                                    .consumedAfterRestore(
+                                            // Watermark resets after restore but captured order is
+                                            // still accurate.
+                                            // (Bob, 2) is flushed because the source for input 1
+                                            // shuts down
+                                            "+I[Bob, Bob, {in1, null, 1970-01-01T00:01:39.999Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 2, 1970-01-01T00:01:39.999Z]]}, 1970-01-01T00:01:39.999Z]",
+                                            // (Bob, 7) triggers watermark up to (Bob, 6)
+                                            "+I[Bob, Bob, {in2, 1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.010Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z]]}, 1970-01-01T00:00:00.010Z]",
+                                            "+I[Bob, Bob, {in2, 1970-01-01T00:00:00.002Z, 1970-01-01T00:00:00.012Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z]]}, 1970-01-01T00:00:00.012Z]",
+                                            // Source for input 2 shuts down
+                                            "+I[Bob, Bob, {in2, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.022Z, [+I[Bob, 1, 1970-01-01T00:00:00Z], +I[Bob, 3, 1970-01-01T00:00:00.003Z], +I[Bob, 2, 1970-01-01T00:00:00.003Z], +I[Bob, 4, 1970-01-01T00:00:00.005Z], +I[Bob, 5, 1970-01-01T00:00:00.010Z], +I[Bob, 6, 1970-01-01T00:00:00.012Z], +I[Bob, 7, 1970-01-01T00:00:00.022Z]]}, 1970-01-01T00:00:00.022Z]",
+                                            "+I[Alice, Alice, {in2, 1970-01-01T00:00:00.012Z, 1970-01-01T00:00:00.019Z, [+I[Alice, 1, 1970-01-01T00:00:00.001Z], +I[Alice, 2, 1970-01-01T00:00:00.019Z]]}, 1970-01-01T00:00:00.019Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "in1 => TABLE t PARTITION BY name ORDER BY (ts ASC, score DESC), "
+                                    + "in2 => TABLE t_large PARTITION BY name ORDER BY (ts ASC, score DESC), "
+                                    + "on_time => DESCRIPTOR(ts))")
                     .build();
 }

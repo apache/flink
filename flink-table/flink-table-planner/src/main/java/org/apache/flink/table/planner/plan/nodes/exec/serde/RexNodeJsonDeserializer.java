@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
+import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
@@ -94,6 +95,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSe
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NAME;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_NULL_AS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_OPERANDS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ORDER_DIRECTIONS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_ORDER_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_PARTITION_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_RANGES;
@@ -338,7 +340,18 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             orderKeys[i] = orderKeysNode.get(i).asInt();
         }
 
-        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys);
+        final JsonNode orderDirectionsNode = jsonNode.get(FIELD_NAME_ORDER_DIRECTIONS);
+        final SortOrder[] order;
+        if (orderDirectionsNode != null && !orderDirectionsNode.isEmpty()) {
+            order = new SortOrder[orderDirectionsNode.size()];
+            for (int i = 0; i < orderDirectionsNode.size(); ++i) {
+                order[i] = SortOrder.valueOf(orderDirectionsNode.get(i).asText());
+            }
+        } else {
+            order = new SortOrder[0];
+        }
+
+        return new RexTableArgCall(callType, inputIndex, partitionKeys, orderKeys, order);
     }
 
     private static RexNode deserializeCall(JsonNode jsonNode, SerdeContext serdeContext)

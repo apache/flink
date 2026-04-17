@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -60,6 +61,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTes
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_MODEL;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASIC_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
 
@@ -1034,8 +1036,8 @@ public class QueryOperationTestPrograms {
                             "sink")
                     .build();
 
-    public static final TableTestProgram ROW_SEMANTIC_TABLE_PTF =
-            TableTestProgram.of("process-row-table-api", "table with row semantics")
+    public static final TableTestProgram PTF_ROW_SEMANTIC_TABLE =
+            TableTestProgram.of("ptf-row-semantic-table", "table with row semantics")
                     // TODO [FLINK-38233]: Remove this config when PTF support in
                     //  StreamNonDeterministicUpdatePlanVisitor is added.
                     .setupConfig(
@@ -1064,8 +1066,8 @@ public class QueryOperationTestPrograms {
                             "sink")
                     .build();
 
-    static final TableTestProgram SET_SEMANTIC_TABLE_PTF =
-            TableTestProgram.of("partitioned-ptf", "verifies SQL serialization")
+    static final TableTestProgram PTF_SET_SEMANTIC_TABLE =
+            TableTestProgram.of("ptf-set-semantic-table", "verifies SQL serialization")
                     // TODO [FLINK-38233]: Remove this config when PTF support in
                     //  StreamNonDeterministicUpdatePlanVisitor is added.
                     .setupConfig(
@@ -1267,6 +1269,46 @@ public class QueryOperationTestPrograms {
                                             .select(
                                                     call(new SimpleScalarFunction(), $("a")),
                                                     $("b")),
+                            "sink")
+                    .build();
+
+    static final TableTestProgram PTF_ORDER_BY =
+            TableTestProgram.of("ptf-order-by", "verifies SQL serialization with ORDER BY clause")
+                    // TODO [FLINK-38233]: Remove this config when PTF support in
+                    //  StreamNonDeterministicUpdatePlanVisitor is added.
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
+                    .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 1, 1970-01-01T00:00:00Z], 1}]",
+                                            "+I[Alice, {+I[Alice, 1, 1970-01-01T00:00:00.001Z], 1}]",
+                                            "+I[Bob, {+I[Bob, 2, 1970-01-01T00:00:00.002Z], 1}]",
+                                            "+I[Bob, {+I[Bob, 3, 1970-01-01T00:00:00.003Z], 1}]",
+                                            "+I[Bob, {+I[Bob, 4, 1970-01-01T00:00:00.004Z], 1}]",
+                                            "+I[Bob, {+I[Bob, 5, 1970-01-01T00:00:00.005Z], 1}]",
+                                            "+I[Bob, {+I[Bob, 6, 1970-01-01T00:00:00.006Z], 1}]")
+                                    .build())
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`name`, `$$T_FUNC`.`out` FROM TABLE(\n"
+                                    + "    `f`(\n"
+                                    + "        (\n"
+                                    + "            SELECT `$$T_SOURCE`.`name`, `$$T_SOURCE`.`score`, `$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + "        ) PARTITION BY (`name`) ORDER BY (`ts` ASC, `score` DESC), 1, DEFAULT, 'f')\n"
+                                    + ") $$T_FUNC")
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            "f",
+                                            env.from("t")
+                                                    .partitionBy($("name"))
+                                                    .orderBy($("ts").asc(), $("score").desc())
+                                                    .asArgument("r"),
+                                            lit(1).asArgument("i")),
                             "sink")
                     .build();
 }

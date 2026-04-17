@@ -351,7 +351,8 @@ import java.time.LocalDateTime;
  * <p>Every PTF takes an optional {@code on_time} argument. The {@code on_time} argument in the
  * function call declares the time attribute column for which a watermark has been declared. When
  * processing a table's row, this timestamp can be accessed via {@link TimeContext#time()} and the
- * watermark via {@link TimeContext#currentWatermark()} respectively.
+ * watermark via {@link TimeContext#currentWatermark()}/{@link TimeContext#tableWatermark()}
+ * respectively.
  *
  * <p>Specifying an {@code on_time} argument in the function call instructs the framework to return
  * a {@code rowtime} column in the function's output for subsequent time-based operations.
@@ -410,8 +411,57 @@ import java.time.LocalDateTime;
  * not needed anymore via {@link Context#clearAllTimers()} or {@link
  * TimeContext#clearTimer(String)}.
  *
- * @param <T> The type of the output row. Either an explicit composite type or an atomic type that
- *     is implicitly wrapped into a row consisting of one field.
+ * <h1>Ordering</h1>
+ *
+ * <p>A PTF that takes a table with set semantics can optionally specify an ORDER BY clause in the
+ * function call to define the order in which rows are processed within each partition. The ORDER BY
+ * clause guarantees that rows are delivered to the eval() method in the specified order.
+ *
+ * <p>The ORDER BY clause requires that the first column is a time attribute column (i.e., a
+ * TIMESTAMP or TIMESTAMP_LTZ column with a watermark declaration). The first ORDER BY column must
+ * be specified in ascending order. This ensures that rows are processed in event-time order.
+ * Additional columns can be specified as secondary sort keys to define the ordering of rows with
+ * the same timestamp.
+ *
+ * <p>ORDER BY provides strict time-based ordering at the cost of holding back records until a
+ * watermark advances the logical clock. Consequently, any late data that violates this ordering is
+ * dropped. If you need to process late data or access intermediate results, it is highly
+ * recommended to bypass ORDER BY and implement custom handling within the PTF using state and
+ * timers.
+ *
+ * <p>Example SQL syntax:
+ *
+ * <pre>{@code
+ * SELECT * FROM my_ptf(
+ *   input_table => TABLE source_table
+ *     PARTITION BY user_id
+ *     ORDER BY (event_time ASC, priority DESC NULLS FIRST)
+ * )
+ * }</pre>
+ *
+ * <h2>Difference Between ORDER BY and on_time Argument</h2>
+ *
+ * <p>While both ORDER BY and the {@code on_time} argument relate to time attributes, they serve
+ * different purposes:
+ *
+ * <ul>
+ *   <li><b>on_time</b>: Declares which time attribute column powers the time context ({@link
+ *       TimeContext#time()}) and output timestamp. It does NOT affect the processing order of rows.
+ *   <li><b>ORDER BY</b>: Physically buffers and sorts rows within each partition to guarantee
+ *       ordered delivery to the eval() method. If both ORDER BY and {@code on_time} are specified
+ *       for the same table argument, they must reference the same time attribute column.
+ * </ul>
+ *
+ * <h2>Ordering Guarantees and Late Events</h2>
+ *
+ * <p>When ORDER BY is specified on a time attribute column, the framework maintains a sort buffer
+ * per partition and input table to reorder out-of-order events. The sort buffer is flushed when the
+ * watermark for the given input table advances, at which point all buffered rows with timestamps
+ * less than or equal to the watermark are delivered to the eval() method in sorted order. Late
+ * events (arriving after the watermark) are dropped to maintain the ordering guarantee.
+ *
+ * @param <T> The type of the output row. Either an explicit composite type or an atomic type
+ *     implicitly wrapped into a row consisting of one field.
  */
 @PublicEvolving
 public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
@@ -558,25 +608,47 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
         TimeType time();
 
         /**
-         * Returns the current event-time watermark.
+         * Returns the event-time watermark of the input table currently being processed.
          *
          * <p>Watermarks are generated in sources and sent through the topology for advancing the
-         * logical clock in each Flink subtask. The current watermark of a Flink subtask is the
-         * global minimum watermark of all inputs (i.e. across all parallel inputs and table
-         * partitions).
+         * logical clock. The current watermark of an input table is the minimum watermark of all
+         * upstream Flink subtasks producing the table.
+         *
+         * <p>In multi-input scenarios, each input table can have its own independent watermark.
+         * This method returns the watermark specific to the input table that is currently being
+         * processed in the {@code eval()} method, rather than the global minimum watermark across
+         * all input tables (which is returned by {@link #currentWatermark()}).
+         *
+         * <p>This is particularly useful for late event detection on a per-input basis.
+         *
+         * <p>If a watermark has not yet been received from all upstream Flink subtasks producing
+         * the table, the method returns {@code null}.
+         *
+         * @return The current watermark of the input table being processed. {@code null} if called
+         *     within the {@code onTimer()} method or a watermark has not yet been received from all
+         *     upstream Flink subtasks producing the table.
+         */
+        TimeType tableWatermark();
+
+        /**
+         * Returns the current event-time watermark at this PTF instance.
+         *
+         * <p>Watermarks are generated in sources and sent through the topology for advancing the
+         * logical clock. The current watermark of a PTF instance is the global minimum watermark of
+         * all input tables (i.e., across all upstream Flink subtasks and table partitions).
          *
          * <p>This method returns the current watermark of the Flink subtask that evaluates the PTF.
-         * Thus, the returned timestamp represents the entire Flink subtask, independent of the
-         * currently processed partition. This behavior is similar to a call to {@code SELECT
-         * CURRENT_WATERMARK(...)} in SQL.
+         * Thus, the returned timestamp represents the watermark of the entire Flink subtask,
+         * independent of the currently processed input table and partition. This behavior is
+         * similar to a call to {@code SELECT CURRENT_WATERMARK(...)} in SQL.
          *
-         * <p>If a watermark was not received from all inputs, the method returns {@code null}.
+         * <p>If a watermark has not yet been received from all input tables, the method returns
+         * {@code null}.
          *
-         * <p>In case this method is called within the {@code onTimer()} method, the returned
-         * watermark is the triggering watermark that currently fires the timer.
-         *
-         * @return the current watermark of the Flink subtask, or {@code null} if no common logical
-         *     time could be determined from the inputs
+         * @return The current watermark at the PTF instance across all upstream Flink subtasks and
+         *     table partitions. A null value is returned if no minimum logical time could be
+         *     calculated across all inputs; this happens during startup or recovery when one or
+         *     more active (i.e. not idle) inputs haven't sent a watermark yet.
          */
         TimeType currentWatermark();
 

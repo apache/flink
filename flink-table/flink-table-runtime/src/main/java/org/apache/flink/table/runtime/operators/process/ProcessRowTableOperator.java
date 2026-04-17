@@ -78,7 +78,11 @@ public class ProcessRowTableOperator extends AbstractProcessTableOperator
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
         if (inputSemantics != null) {
-            processTableRunner.ingestTableEvent(0, element.getValue(), inputSemantics.timeColumn());
+            processTableRunner.ingestTableEvent(
+                    0,
+                    element.getValue(),
+                    inputSemantics.timeColumn(),
+                    processTableRunner.getCurrentWatermark());
         }
         processTableRunner.processEval();
     }

@@ -51,6 +51,15 @@ class ExternalTimeContext<TimeConversion>
     }
 
     @Override
+    public TimeConversion tableWatermark() {
+        final Long internal = internalTimeContext.tableWatermark();
+        if (internal == null) {
+            return null;
+        }
+        return timeConverter.toExternal(internal);
+    }
+
+    @Override
     public TimeConversion currentWatermark() {
         final Long internal = internalTimeContext.currentWatermark();
         if (internal == null) {

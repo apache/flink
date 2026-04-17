@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
+import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
 import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
@@ -213,8 +214,9 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                 Arrays.stream(tableArgCall.getPartitionKeys()).map(mapping::get).toArray();
         final int[] newOrderKeys =
                 Arrays.stream(tableArgCall.getOrderKeys()).map(mapping::get).toArray();
+        final SortOrder[] newOrder = tableArgCall.getSortOrder();
         final RexTableArgCall projectedTableArgCall =
-                tableArgCall.copy(newTableType, newPartitionKeys, newOrderKeys);
+                tableArgCall.copy(newTableType, newPartitionKeys, newOrderKeys, newOrder);
 
         newOperands.set(0, projectedTableArgCall);
 

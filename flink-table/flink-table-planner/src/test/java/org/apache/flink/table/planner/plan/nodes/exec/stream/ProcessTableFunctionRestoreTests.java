@@ -38,6 +38,8 @@ public class ProcessTableFunctionRestoreTests extends RestoreTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_NAMED_TIMERS_RESTORE,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_RESTORE,
                 ProcessTableFunctionTestPrograms.PROCESS_MAP_STATE_RESTORE,
-                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_UPSERT_RESTORE);
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_UPSERT_RESTORE,
+                ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY_RESTORE,
+                ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_ORDER_BY_RESTORE);
     }
 }
