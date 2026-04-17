@@ -105,6 +105,19 @@ Format Options
       <td>Specify the endianness to encode the bytes of numeric value. Valid values are 'big-endian' and 'little-endian'.
       See more details of <a href="https://en.wikipedia.org/wiki/Endianness">endianness</a>.</td>
     </tr>
+    <tr>
+      <td><h5>raw.line-delimiter</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Specify the line delimiter for splitting incoming messages into multiple rows during
+      deserialization. When set, each incoming message is decoded using 'raw.charset' and then split
+      by this delimiter; one row is emitted per segment. During serialization, the delimiter bytes
+      are appended to each serialized value. Common values are '\n' (newline) or '||'.
+      <br><strong>Note:</strong> When the same delimiter is configured for both serialization and
+      deserialization, the two are round-trip compatible: a trailing delimiter appended by the
+      serializer is automatically stripped during deserialization.</td>
+    </tr>
     </tbody>
 </table>
 

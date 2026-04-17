@@ -43,5 +43,14 @@ public class RawFormatOptions {
                     .defaultValue(StandardCharsets.UTF_8.displayName())
                     .withDescription("Defines the string charset.");
 
+    public static final ConfigOption<String> LINE_DELIMITER =
+            ConfigOptions.key("line-delimiter")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional line delimiter. Supports Java escape sequences (e.g. '\\n', '\\r\\n'). "
+                                    + "When set, deserialization splits each message by this delimiter and emits "
+                                    + "one RowData per part. Serialization appends the delimiter after each row's value.");
+
     private RawFormatOptions() {}
 }

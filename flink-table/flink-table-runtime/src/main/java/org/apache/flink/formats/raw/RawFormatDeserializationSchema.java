@@ -29,12 +29,16 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.DeserializationException;
+import org.apache.flink.util.Collector;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,6 +59,14 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
 
     private final boolean isBigEndian;
 
+    @Nullable private final String lineDelimiter;
+
+    /**
+     * Pre-compiled pattern for splitting by {@link #lineDelimiter}, or {@code null} if no
+     * delimiter. Note: this field and {@link #lineDelimiter} are either both null or both non-null.
+     */
+    @Nullable private final Pattern lineDelimiterPattern;
+
     private final DeserializationRuntimeConverter converter;
 
     private final DataLengthValidator validator;
@@ -64,12 +76,24 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
             TypeInformation<RowData> producedTypeInfo,
             String charsetName,
             boolean isBigEndian) {
+        this(deserializedType, producedTypeInfo, charsetName, isBigEndian, null);
+    }
+
+    public RawFormatDeserializationSchema(
+            LogicalType deserializedType,
+            TypeInformation<RowData> producedTypeInfo,
+            String charsetName,
+            boolean isBigEndian,
+            @Nullable String lineDelimiter) {
         this.deserializedType = checkNotNull(deserializedType);
         this.producedTypeInfo = checkNotNull(producedTypeInfo);
         this.converter = createConverter(deserializedType, charsetName, isBigEndian);
         this.validator = createDataLengthValidator(deserializedType);
         this.charsetName = charsetName;
         this.isBigEndian = isBigEndian;
+        this.lineDelimiter = lineDelimiter;
+        this.lineDelimiterPattern =
+                lineDelimiter != null ? Pattern.compile(Pattern.quote(lineDelimiter)) : null;
     }
 
     @Override
@@ -90,6 +114,41 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
         GenericRowData rowData = new GenericRowData(1);
         rowData.setField(0, field);
         return rowData;
+    }
+
+    @Override
+    public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
+        if (lineDelimiter == null) {
+            // no delimiter: default single-record behavior
+            RowData row = deserialize(message);
+            if (row != null) {
+                out.collect(row);
+            }
+            return;
+        }
+
+        if (message == null) {
+            return;
+        }
+
+        Charset charset = Charset.forName(charsetName);
+        String decoded = new String(message, charset);
+        // Use pre-compiled pattern. Split with -1 to keep intentional empty middle segments,
+        // but strip the single trailing empty string produced when the message ends with the
+        // delimiter (e.g. a serializer that appends one delimiter per row).
+        String[] parts = lineDelimiterPattern.split(decoded, -1);
+        int count = parts.length;
+        if (count > 0 && parts[count - 1].isEmpty()) {
+            count--;
+        }
+        for (int i = 0; i < count; i++) {
+            byte[] partBytes = parts[i].getBytes(charset);
+            validator.validate(partBytes);
+            Object field = converter.convert(partBytes);
+            GenericRowData rowData = new GenericRowData(1);
+            rowData.setField(0, field);
+            out.collect(rowData);
+        }
     }
 
     @Override
@@ -114,12 +173,14 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
         return producedTypeInfo.equals(that.producedTypeInfo)
                 && deserializedType.equals(that.deserializedType)
                 && charsetName.equals(that.charsetName)
-                && isBigEndian == that.isBigEndian;
+                && isBigEndian == that.isBigEndian
+                && Objects.equals(lineDelimiter, that.lineDelimiter);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(producedTypeInfo, deserializedType, charsetName, isBigEndian);
+        return Objects.hash(
+                producedTypeInfo, deserializedType, charsetName, isBigEndian, lineDelimiter);
     }
 
     // ------------------------------------------------------------------------

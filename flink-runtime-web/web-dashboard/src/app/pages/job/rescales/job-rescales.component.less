@@ -22,6 +22,15 @@
       position: relative;
       top: -16px;
       padding: 24px;
+
+      > h3 {
+        margin-top: 8px;
+        margin-bottom: 8px;
+      }
+
+      > nz-divider {
+        margin: 8px 0;
+      }
     }
 
     .ant-tabs-nav-list {
@@ -35,6 +44,24 @@
         }
       }
     }
+
+    .nz-disable-td {
+      width: 100% !important;
+      padding: 0 !important;
+    }
+
+    .collapse-td {
+      width: 100% !important;
+      padding: 0 !important;
+    }
+
+    tr.ant-table-expanded-row {
+      width: 100%;
+
+      > td {
+        width: 100% !important;
+      }
+    }
   }
 }
 
@@ -44,26 +71,6 @@
 
 nz-empty {
   padding: 24px;
-}
-
-::ng-deep {
-  .nz-disable-td {
-    width: 100% !important;
-    padding: 0 !important;
-  }
-
-  .collapse-td {
-    width: 100% !important;
-    padding: 0 !important;
-  }
-
-  tr.ant-table-expanded-row {
-    width: 100%;
-
-    > td {
-      width: 100% !important;
-    }
-  }
 }
 
 .rescale-details-wrapper {
@@ -78,6 +85,11 @@ nz-empty {
   padding: 16px;
   border: 1px solid #f0f0f0;
   background-color: #fff;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
 
   ::ng-deep {
     nz-table.ant-table-wrapper {

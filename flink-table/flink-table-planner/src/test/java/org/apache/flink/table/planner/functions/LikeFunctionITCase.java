@@ -204,6 +204,10 @@ class LikeFunctionITCase extends BuiltInFunctionTestBase {
                         .testSqlResult(
                                 "'\btest\ne\\nd\f' LIKE '\btest\ne\\nd\f' ESCAPE '!'",
                                 true,
-                                DataTypes.BOOLEAN().notNull()));
+                                DataTypes.BOOLEAN().notNull())
+                        // Invalid escape character
+                        .testSqlValidationError(
+                                "f0 LIKE 'test' ESCAPE '\u0000'",
+                                "Invalid escape character '\u0000'"));
     }
 }

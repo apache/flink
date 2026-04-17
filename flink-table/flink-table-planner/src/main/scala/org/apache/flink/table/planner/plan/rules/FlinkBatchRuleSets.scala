@@ -50,10 +50,16 @@ object FlinkBatchRuleSets {
   /**
    * Expand plan by replacing references to tables into a proper plan sub trees. Those rules can
    * create new plan nodes.
+   *
+   * The lookup join rules run first and rewrite supported temporal joins. The rejection rules then
+   * catch any remaining temporal joins (unsupported in batch) with a clear error message.
    */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
     LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITH_FILTER,
-    LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITHOUT_FILTER)
+    LogicalCorrelateToJoinFromTemporalTableRule.LOOKUP_JOIN_WITHOUT_FILTER,
+    RejectTemporalJoinInBatchRule.WITH_FILTER,
+    RejectTemporalJoinInBatchRule.WITHOUT_FILTER
+  )
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(EnumerableToLogicalTableScan.INSTANCE)
 

@@ -61,7 +61,8 @@ public enum FlinkVersion {
     v2_0("2.0"),
     v2_1("2.1"),
     v2_2("2.2"),
-    v2_3("2.3");
+    v2_3("2.3"),
+    v2_4("2.4");
 
     private final String versionStr;
 

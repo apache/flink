@@ -65,6 +65,9 @@ class LikeCallGen extends CallGenerator {
                 throw SqlLikeUtils.invalidEscapeCharacter(escape)
               }
               val escapeChar = escape.charAt(escape.length - 1)
+              if (escapeChar == 0) {
+                throw SqlLikeUtils.invalidEscapeCharacter(escape)
+              }
               var matched = true
               var i = 0
               val newBuilder = new StringBuilder

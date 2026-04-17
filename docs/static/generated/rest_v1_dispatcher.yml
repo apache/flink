@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/2.3-SNAPSHOT
+  version: v1/2.4-SNAPSHOT
 paths:
   /applications/overview:
     get:
@@ -978,6 +978,42 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/JobRescaleDetails"
+  /jobs/{jobid}/rescales/overview:
+    get:
+      description: Return job rescales overview.
+      operationId: getJobRescalesOverview
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescalesOverview"
+  /jobs/{jobid}/rescales/summary:
+    get:
+      description: Return job rescales summary.
+      operationId: getJobRescalesSummary
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescalesSummary"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2850,6 +2886,26 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/JobRescaleDetails"
+    JobRescalesOverview:
+      type: object
+      properties:
+        latest:
+          $ref: "#/components/schemas/LatestRescales"
+        rescalesCounts:
+          $ref: "#/components/schemas/RescalesCounts"
+    JobRescalesSummary:
+      type: object
+      properties:
+        completedRescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
+        failedRescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
+        ignoredRescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
+        rescalesCounts:
+          $ref: "#/components/schemas/RescalesCounts"
+        rescalesDurationStatsInMillis:
+          $ref: "#/components/schemas/StatsSummaryDto"
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -3011,6 +3067,15 @@ components:
           $ref: "#/components/schemas/RestoredCheckpointStatistics"
         savepoint:
           $ref: "#/components/schemas/CompletedCheckpointStatistics"
+    LatestRescales:
+      type: object
+      properties:
+        completed:
+          $ref: "#/components/schemas/JobRescaleDetails"
+        failed:
+          $ref: "#/components/schemas/JobRescaleDetails"
+        ignored:
+          $ref: "#/components/schemas/JobRescaleDetails"
     LogInfo:
       type: object
       properties:
@@ -3156,6 +3221,21 @@ components:
           type: integer
           format: int64
         upperPart:
+          type: integer
+          format: int64
+    RescalesCounts:
+      type: object
+      properties:
+        completed:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        ignored:
+          type: integer
+          format: int64
+        inProgress:
           type: integer
           format: int64
     ResourceID:

@@ -1219,10 +1219,10 @@ class Expression(Generic[T]):
              pattern: Union[str, 'Expression[str]'] = None,
              escape=None) -> 'Expression[bool]':
         """
-        Returns true, if a string matches the specified LIKE pattern
+        Returns true, if a string matches the specified LIKE pattern.
         e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'.
-        An escape character consisting of a single char can be defined if necessary,
-        '\\' by default.
+        An escape character consisting of a single char can be defined if necessary.
+        There is no default escape character.
         """
         if escape is None:
             return _binary_op("like")(self, pattern)

@@ -16,6 +16,24 @@
  * limitations under the License.
  */
 
+export interface RescalesOverview {
+  rescalesCounts: RescalesCounts;
+  latest: LatestRescales;
+}
+
+export interface RescalesCounts {
+  ignored: number;
+  inProgress: number;
+  completed: number;
+  failed: number;
+}
+
+export interface LatestRescales {
+  completed: BriefJobRescaleDetails | null;
+  failed: BriefJobRescaleDetails | null;
+  ignored: BriefJobRescaleDetails | null;
+}
+
 export type RescalesHistory = BriefJobRescaleDetails[];
 
 export interface BriefJobRescaleDetails {
