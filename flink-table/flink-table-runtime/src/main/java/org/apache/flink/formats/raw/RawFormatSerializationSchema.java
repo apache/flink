@@ -27,10 +27,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Objects;
 
 /** Serialization schema that serializes an {@link RowData} object into raw (byte based) value. */
@@ -47,12 +50,28 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
     private final boolean isBigEndian;
 
+    @Nullable private final String lineDelimiter;
+
+    /** Pre-computed delimiter bytes, or {@code null} if no delimiter is set. */
+    @Nullable private final byte[] delimiterBytes;
+
     public RawFormatSerializationSchema(
             LogicalType serializedType, String charsetName, boolean isBigEndian) {
+        this(serializedType, charsetName, isBigEndian, null);
+    }
+
+    public RawFormatSerializationSchema(
+            LogicalType serializedType,
+            String charsetName,
+            boolean isBigEndian,
+            @Nullable String lineDelimiter) {
         this.serializedType = serializedType;
         this.converter = createConverter(serializedType, charsetName, isBigEndian);
         this.charsetName = charsetName;
         this.isBigEndian = isBigEndian;
+        this.lineDelimiter = lineDelimiter;
+        this.delimiterBytes =
+                lineDelimiter != null ? lineDelimiter.getBytes(Charset.forName(charsetName)) : null;
     }
 
     @Override
@@ -63,7 +82,13 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
     @Override
     public byte[] serialize(RowData row) {
         try {
-            return converter.convert(row);
+            byte[] valueBytes = converter.convert(row);
+            if (delimiterBytes == null || valueBytes == null) {
+                return valueBytes;
+            }
+            byte[] result = Arrays.copyOf(valueBytes, valueBytes.length + delimiterBytes.length);
+            System.arraycopy(delimiterBytes, 0, result, valueBytes.length, delimiterBytes.length);
+            return result;
         } catch (IOException e) {
             throw new RuntimeException("Could not serialize row '" + row + "'. ", e);
         }
@@ -80,12 +105,13 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
         RawFormatSerializationSchema that = (RawFormatSerializationSchema) o;
         return serializedType.equals(that.serializedType)
                 && charsetName.equals(that.charsetName)
-                && isBigEndian == that.isBigEndian;
+                && isBigEndian == that.isBigEndian
+                && Objects.equals(lineDelimiter, that.lineDelimiter);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(serializedType, charsetName, isBigEndian);
+        return Objects.hash(serializedType, charsetName, isBigEndian, lineDelimiter);
     }
 
     // ------------------------------------------------------------------------

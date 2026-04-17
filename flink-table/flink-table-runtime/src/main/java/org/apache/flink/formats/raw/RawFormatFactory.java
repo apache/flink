@@ -45,6 +45,7 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -72,6 +73,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(RawFormatOptions.ENDIANNESS);
         options.add(RawFormatOptions.CHARSET);
+        options.add(RawFormatOptions.LINE_DELIMITER);
         return options;
     }
 
@@ -81,6 +83,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         final String charsetName = validateAndGetCharsetName(formatOptions);
         final boolean isBigEndian = isBigEndian(formatOptions);
+        final Optional<String> lineDelimiter =
+                formatOptions.getOptional(RawFormatOptions.LINE_DELIMITER);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -91,7 +95,11 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new RawFormatDeserializationSchema(
-                        fieldType, producedTypeInfo, charsetName, isBigEndian);
+                        fieldType,
+                        producedTypeInfo,
+                        charsetName,
+                        isBigEndian,
+                        lineDelimiter.orElse(null));
             }
 
             @Override
@@ -107,6 +115,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         final String charsetName = validateAndGetCharsetName(formatOptions);
         final boolean isBigEndian = isBigEndian(formatOptions);
+        final Optional<String> lineDelimiter =
+                formatOptions.getOptional(RawFormatOptions.LINE_DELIMITER);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -114,7 +124,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType physicalRowType = (RowType) consumedDataType.getLogicalType();
                 final LogicalType fieldType = validateAndExtractSingleField(physicalRowType);
-                return new RawFormatSerializationSchema(fieldType, charsetName, isBigEndian);
+                return new RawFormatSerializationSchema(
+                        fieldType, charsetName, isBigEndian, lineDelimiter.orElse(null));
             }
 
             @Override
