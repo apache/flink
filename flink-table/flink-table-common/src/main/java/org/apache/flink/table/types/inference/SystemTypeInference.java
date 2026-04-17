@@ -690,6 +690,20 @@ public class SystemTypeInference {
             checkOrderBy(staticArg, semantics);
         }
 
+        private static void checkOrderByDuplicates(
+                StaticArgument staticArg, List<String> fieldNames, int[] orderByColumns) {
+            final Set<Integer> seenColumns = new HashSet<>();
+            for (int columnIndex : orderByColumns) {
+                if (!seenColumns.add(columnIndex)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Invalid ORDER BY clause for table argument '%s'. "
+                                            + "Column '%s' appears more than once in ORDER BY.",
+                                    staticArg.getName(), fieldNames.get(columnIndex)));
+                }
+            }
+        }
+
         private static void checkOrderBy(StaticArgument staticArg, TableSemantics semantics) {
             final int[] orderByColumns = semantics.orderByColumns();
             if (orderByColumns.length == 0) {
@@ -699,6 +713,8 @@ public class SystemTypeInference {
             final LogicalType tableType = semantics.dataType().getLogicalType();
             final List<String> fieldNames = LogicalTypeChecks.getFieldNames(tableType);
             final List<LogicalType> fieldTypes = LogicalTypeChecks.getFieldTypes(tableType);
+
+            checkOrderByDuplicates(staticArg, fieldNames, orderByColumns);
 
             // The first ORDER BY column must be a supported time attribute
             final int firstOrderByColumn = orderByColumns[0];

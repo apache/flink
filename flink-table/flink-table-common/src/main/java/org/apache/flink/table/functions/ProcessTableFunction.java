@@ -420,8 +420,14 @@ import java.time.LocalDateTime;
  * <p>The ORDER BY clause requires that the first column is a time attribute column (i.e., a
  * TIMESTAMP or TIMESTAMP_LTZ column with a watermark declaration). The first ORDER BY column must
  * be specified in ascending order. This ensures that rows are processed in event-time order.
- * Additional non-temporal columns can be specified as secondary sort keys to define the ordering of
- * rows with the same timestamp.
+ * Additional columns can be specified as secondary sort keys to define the ordering of rows with
+ * the same timestamp.
+ *
+ * <p>ORDER BY provides strict time-based ordering at the cost of holding back records until a
+ * watermark advances the logical clock. Consequently, any late data that violates this ordering is
+ * dropped. If you need to process late data or access intermediate results, it is highly
+ * recommended to bypass ORDER BY and implement custom handling within the PTF using state and
+ * timers.
  *
  * <p>Example SQL syntax:
  *
@@ -632,16 +638,17 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * all input tables (i.e., across all upstream Flink subtasks and table partitions).
          *
          * <p>This method returns the current watermark of the Flink subtask that evaluates the PTF.
-         * Thus, the returned timestamp represents the entire Flink subtask, independent of the
-         * currently processed input table and partition. This behavior is similar to a call to
-         * {@code SELECT CURRENT_WATERMARK(...)} in SQL.
+         * Thus, the returned timestamp represents the watermark of the entire Flink subtask,
+         * independent of the currently processed input table and partition. This behavior is
+         * similar to a call to {@code SELECT CURRENT_WATERMARK(...)} in SQL.
          *
          * <p>If a watermark has not yet been received from all input tables, the method returns
          * {@code null}.
          *
          * @return The current watermark at the PTF instance across all upstream Flink subtasks and
-         *     table partitions. {@code null} if no common logical time could be determined from all
-         *     input tables
+         *     table partitions. A null value is returned if no minimum logical time could be
+         *     calculated across all inputs; this happens during startup or recovery when one or
+         *     more active (i.e. not idle) inputs haven't sent a watermark yet.
          */
         TimeType currentWatermark();
 

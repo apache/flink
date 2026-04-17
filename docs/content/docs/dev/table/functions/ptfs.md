@@ -961,8 +961,9 @@ This method returns the current watermark of the Flink subtask that evaluates th
 represents the entire Flink subtask, independent of the currently processed input table and partition. This behavior is
 similar to a call to `SELECT CURRENT_WATERMARK(...)` in SQL.
 
-It returns the current watermark at the PTF instance across all upstream Flink subtasks and table partitions. `null` if no
-common logical time could be determined from all input tables.
+It returns the current watermark at the PTF instance across all upstream Flink subtasks and table partitions. A `null`
+value is returned if no minimum logical time could be calculated across all inputs; this happens during startup
+or recovery when one or more active (i.e. not idle) inputs haven't sent a watermark yet.
 
 ### Timers
 
@@ -1040,7 +1041,7 @@ clause guarantees that rows are delivered to the eval() method in the specified 
 The ORDER BY clause requires that the first column is a time attribute column (i.e., a
 TIMESTAMP or TIMESTAMP_LTZ column with a watermark declaration). The first ORDER BY column must
 be specified in ascending order. This ensures that rows are processed in event-time order.
-Additional non-temporal columns can be specified as secondary sort keys to define the ordering of
+Additional columns can be specified as secondary sort keys to define the ordering of
 rows with the same timestamp.
 
 {{< tabs "2137eeed-order-by-syntax" >}}

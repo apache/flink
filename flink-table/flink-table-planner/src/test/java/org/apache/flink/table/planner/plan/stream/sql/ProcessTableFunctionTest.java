@@ -386,6 +386,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "Invalid ORDER BY clause for table argument 'r'. When both ORDER BY and the 'on_time' "
                                 + "argument are defined, the referenced timestamp columns must match."),
                 ErrorSpec.ofSelect(
+                        "order by duplicate column",
+                        SetSemanticTableFunction.class,
+                        "SELECT * FROM f(r => TABLE t_watermarked PARTITION BY name ORDER BY (ts, score, ts), i => 1)",
+                        "Invalid ORDER BY clause for table argument 'r'. "
+                                + "Column 'ts' appears more than once in ORDER BY."),
+                ErrorSpec.ofSelect(
                         "order by on non-time attribute",
                         SetSemanticTableFunction.class,
                         "WITH dual_ts AS (SELECT name, score, TO_TIMESTAMP_LTZ(10000, 3) AS ts FROM t_watermarked) "
