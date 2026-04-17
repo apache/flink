@@ -288,7 +288,9 @@ class DataGeneratorSourceITCase extends TestLogger {
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
             // Stop collecting elements once the first checkpoint has completed.
-            if (checkpointId >= firstCheckpointId && firstCheckpointId != Long.MIN_VALUE) {
+            if (!firstCheckpointCompleted
+                    && checkpointId >= firstCheckpointId
+                    && firstCheckpointId != Long.MIN_VALUE) {
                 firstCheckpointCompleted = true;
             }
         }
