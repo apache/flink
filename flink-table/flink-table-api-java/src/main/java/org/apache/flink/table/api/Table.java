@@ -1435,16 +1435,16 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <pre>{@code
      * // Default: adds 'op' column and supports all changelog modes
-     * table.toChangelog();
+     * Table result = table.toChangelog();
      *
      * // Custom op column name and mapping
-     * table.toChangelog(
+     * Table result = table.toChangelog(
      *     descriptor("op_code").asArgument("op"),
      *     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
      * );
      *
      * // Deletion flag pattern: comma-separated keys map multiple change operations to the same code
-     * table.toChangelog(
+     * Table result = table.toChangelog(
      *     descriptor("deleted").asArgument("op"),
      *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      * );
@@ -1467,12 +1467,20 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <pre>{@code
      * // Default: reads 'op' column with standard change operation names
-     * table.fromChangelog();
+     * Table result = cdcStream.fromChangelog();
      *
-     * // Custom op column name and mapping (Debezium-style codes)
-     * table.fromChangelog(
-     *     descriptor("__op").asArgument("op"),
-     *     map("c, r", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE").asArgument("op_mapping")
+     * // With custom op column name
+     * Table result = cdcStream.fromChangelog(
+     *     descriptor("operation").asArgument("op")
+     * );
+     *
+     * // With custom op_mapping
+     * Table result = cdcStream.fromChangelog(
+     *     descriptor("op").asArgument("op"),
+     *     map("c, r", "INSERT",
+     *         "ub", "UPDATE_BEFORE",
+     *         "ua", "UPDATE_AFTER",
+     *         "d", "DELETE").asArgument("op_mapping")
      * );
      * }</pre>
      *
