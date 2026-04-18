@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,40 @@ public final class FromChangelogTypeStrategy {
 
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
+
+    private static final String UPDATE_BEFORE = RowKind.UPDATE_BEFORE.name();
+
+    private static final String UPDATE_AFTER = RowKind.UPDATE_AFTER.name();
+
+    /**
+     * Controls behavior when {@code FROM_CHANGELOG} encounters an operation code in the input that
+     * is not present in the {@code op_mapping}. Mode names are case-sensitive — the value must be
+     * spelled in upper case.
+     *
+     * <ul>
+     *   <li>{@code FAIL} — throw an exception when an unmapped operation code is encountered
+     *       (default, strict mode)
+     *   <li>{@code SKIP} — silently drop the row
+     * </ul>
+     */
+    public enum InvalidOpHandlingMode {
+        FAIL,
+        SKIP;
+
+        public static final InvalidOpHandlingMode DEFAULT_MODE = FAIL;
+
+        /**
+         * Returns the mode whose name exactly matches {@code name}, or {@link Optional#empty()} if
+         * none matches. Matching is case-sensitive.
+         */
+        public static Optional<InvalidOpHandlingMode> fromName(final String name) {
+            return Arrays.stream(values()).filter(v -> v.name().equals(name)).findFirst();
+        }
+
+        public static String validNames() {
+            return Arrays.stream(values()).map(Enum::name).collect(Collectors.joining(", "));
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // Input validation
@@ -80,8 +115,6 @@ public final class FromChangelogTypeStrategy {
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
-    private static final String UPDATE_BEFORE = RowKind.UPDATE_BEFORE.name();
-    private static final String UPDATE_AFTER = RowKind.UPDATE_AFTER.name();
 
     // --------------------------------------------------------------------------------------------
     // Helpers
@@ -108,6 +141,11 @@ public final class FromChangelogTypeStrategy {
         }
 
         error = validateOpMapping(callContext, throwOnFailure);
+        if (error.isPresent()) {
+            return error;
+        }
+
+        error = validateInvalidOpHandling(callContext, throwOnFailure);
         if (error.isPresent()) {
             return error;
         }
@@ -228,6 +266,32 @@ public final class FromChangelogTypeStrategy {
                                 rowKindName));
             }
         }
+        return Optional.empty();
+    }
+
+    private static Optional<List<DataType>> validateInvalidOpHandling(
+            final CallContext callContext, final boolean throwOnFailure) {
+        final boolean hasInvalidOpHandlingArgProvided = !callContext.isArgumentNull(3);
+        final boolean isInvalidOpHandlingArgLiteral = callContext.isArgumentLiteral(3);
+        if (hasInvalidOpHandlingArgProvided && !isInvalidOpHandlingArgLiteral) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "The 'invalid_op_handling' argument must be a constant STRING literal.");
+        }
+
+        final Optional<String> optionalInvalidOpHandlingArg =
+                callContext.getArgumentValue(3, String.class);
+        if (optionalInvalidOpHandlingArg.isPresent()) {
+            final String invalidOpHandlingMode = optionalInvalidOpHandlingArg.get();
+            if (InvalidOpHandlingMode.fromName(invalidOpHandlingMode).isEmpty()) {
+                return callContext.fail(
+                        throwOnFailure,
+                        String.format(
+                                "Invalid value for argument 'invalid_op_handling': '%s'. Valid values are: %s.",
+                                invalidOpHandlingMode, InvalidOpHandlingMode.validNames()));
+            }
+        }
+
         return Optional.empty();
     }
 

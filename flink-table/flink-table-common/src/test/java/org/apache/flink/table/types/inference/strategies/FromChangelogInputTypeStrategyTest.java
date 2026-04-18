@@ -43,13 +43,15 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     private static final DataType MAP_TYPE = DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING());
 
+    private static final DataType STRING_TYPE = DataTypes.STRING();
+
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 // Valid: custom mapping with all change operations
                 TestSpec.forStrategy(
                                 "Valid with custom mapping", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
                         .calledWithLiteralAt(
@@ -59,7 +61,8 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "ub", "UPDATE_BEFORE",
                                         "ua", "UPDATE_AFTER",
                                         "d", "DELETE"))
-                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE),
+                        .calledWithLiteralAt(3, "FAIL")
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
 
                 // Error: op column not found
                 TestSpec.forStrategy(
@@ -119,21 +122,23 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 // Valid: INSERT-only mapping (append mode, no updates)
                 TestSpec.forStrategy(
                                 "Valid INSERT-only mapping", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
                         .calledWithLiteralAt(2, Map.of("c, r", "INSERT"))
-                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE),
+                        .calledWithLiteralAt(3, "FAIL")
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
 
                 // Valid: INSERT + DELETE mapping (no updates)
                 TestSpec.forStrategy(
                                 "Valid INSERT and DELETE mapping",
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
                         .calledWithLiteralAt(2, Map.of("c", "INSERT", "d", "DELETE"))
-                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE),
+                        .calledWithLiteralAt(3, "FAIL")
+                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
 
                 // Error: UPDATE_AFTER without UPDATE_BEFORE not supported
                 TestSpec.forStrategy(
@@ -148,6 +153,60 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "c", "INSERT",
                                         "u", "UPDATE_AFTER",
                                         "d", "DELETE"))
-                        .expectErrorMessage("must include UPDATE_BEFORE"));
+                        .expectErrorMessage("must include UPDATE_BEFORE"),
+
+                // Error: Invalid op handling mode
+                TestSpec.forStrategy(
+                                "Invalid invalid_op_handling mode",
+                                FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
+                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(
+                                2,
+                                Map.of(
+                                        "c", "INSERT",
+                                        "ub", "UPDATE_BEFORE",
+                                        "ua", "UPDATE_AFTER",
+                                        "d", "DELETE"))
+                        .calledWithLiteralAt(3, "INVALID_MODE")
+                        .expectErrorMessage(
+                                "Invalid value for argument 'invalid_op_handling': 'INVALID_MODE'. Valid values are: FAIL, SKIP."),
+
+                // Error: invalid_op_handling is case-sensitive — lowercase is rejected
+                TestSpec.forStrategy(
+                                "Lowercase invalid_op_handling mode is rejected",
+                                FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
+                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(
+                                2,
+                                Map.of(
+                                        "c", "INSERT",
+                                        "ub", "UPDATE_BEFORE",
+                                        "ua", "UPDATE_AFTER",
+                                        "d", "DELETE"))
+                        .calledWithLiteralAt(3, "skip")
+                        .expectErrorMessage(
+                                "Invalid value for argument 'invalid_op_handling': 'skip'. Valid values are: FAIL, SKIP."),
+
+                // Error: invalid_op_handling is case-sensitive — mixed case is rejected
+                TestSpec.forStrategy(
+                                "Mixed-case invalid_op_handling mode is rejected",
+                                FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
+                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
+                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(
+                                2,
+                                Map.of(
+                                        "c", "INSERT",
+                                        "ub", "UPDATE_BEFORE",
+                                        "ua", "UPDATE_AFTER",
+                                        "d", "DELETE"))
+                        .calledWithLiteralAt(3, "Fail")
+                        .expectErrorMessage(
+                                "Invalid value for argument 'invalid_op_handling': 'Fail'. Valid values are: FAIL, SKIP."));
     }
 }

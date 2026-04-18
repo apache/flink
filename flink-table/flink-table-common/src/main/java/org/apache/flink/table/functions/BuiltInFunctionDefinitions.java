@@ -828,7 +828,8 @@ public final class BuiltInFunctionDefinitions {
                             StaticArgument.scalar(
                                     "op_mapping",
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
-                                    true))
+                                    true),
+                            StaticArgument.scalar("invalid_op_handling", DataTypes.STRING(), true))
                     .changelogModeStrategy(ctx -> ChangelogMode.all())
                     .inputTypeStrategy(FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)

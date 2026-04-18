@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.InvalidOpHandlingMode;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
@@ -67,6 +68,7 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
     private final Map<String, RowKind> rawOpMap;
     private final int opColumnIndex;
     private final int[] outputIndices;
+    private final InvalidOpHandlingMode invalidOpHandlingMode;
 
     private transient HashMap<StringData, RowKind> opMap;
     private transient ProjectedRowData projectedOutput;
@@ -91,6 +93,12 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
                         .toArray();
 
         this.rawOpMap = buildOpMap(callContext);
+
+        this.invalidOpHandlingMode =
+                callContext
+                        .getArgumentValue(3, String.class)
+                        .flatMap(InvalidOpHandlingMode::fromName)
+                        .orElse(InvalidOpHandlingMode.DEFAULT_MODE);
     }
 
     @Override
@@ -134,22 +142,32 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
             final Context ctx,
             final RowData input,
             @Nullable final ColumnList op,
-            @Nullable final MapData opMapping) {
+            @Nullable final MapData opMapping,
+            @Nullable final StringData invalidOpHandling) {
         if (input.isNullAt(opColumnIndex)) {
-            throw new TableRuntimeException(
+            handleInvalidOp(
                     "Received NULL op code. Every changelog row must carry an operation code.");
+            return;
         }
         final StringData opCode = input.getString(opColumnIndex);
         final RowKind rowKind = opMap.get(opCode);
         if (rowKind == null) {
-            throw new TableRuntimeException(
+            handleInvalidOp(
                     String.format(
                             "Received invalid op code '%s'. Defined op codes are: %s.",
                             opCode, opMap.keySet()));
+            return;
         }
 
         projectedOutput.replaceRow(input);
         projectedOutput.setRowKind(rowKind);
         collect(projectedOutput);
+    }
+
+    private void handleInvalidOp(final String failureMessage) {
+        switch (invalidOpHandlingMode) {
+            case FAIL -> throw new TableRuntimeException(failureMessage);
+            case SKIP -> {} // silently drop the row
+        }
     }
 }

@@ -94,6 +94,58 @@ public class FromChangelogTestPrograms {
                                     + "op_mapping => MAP['c, r', 'INSERT', 'ub', 'UPDATE_BEFORE', 'ua', 'UPDATE_AFTER', 'd', 'DELETE'])")
                     .build();
 
+    public static final TableTestProgram SKIP_INVALID_OP_HANDLING =
+            TableTestProgram.of(
+                            "from-changelog-unmapped-codes-dropped",
+                            "unmapped op codes are silently dropped when configured")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(
+                                            Row.of(1, "INSERT", "Alice"),
+                                            Row.of(2, "INSERT", "Bob"),
+                                            Row.of(1, "UNKNOWN", "Alice2"),
+                                            Row.of(2, "DELETE", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream,"
+                                    + "invalid_op_handling => 'SKIP')")
+                    .build();
+
+    public static final TableTestProgram SKIP_NULL_OP_CODE =
+            TableTestProgram.of(
+                            "from-changelog-null-op-code-dropped",
+                            "NULL op codes are silently dropped when configured")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(
+                                            Row.of(1, "INSERT", "Alice"),
+                                            Row.of(2, null, "Bob"),
+                                            Row.of(3, "INSERT", "Carol"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 3, "Carol"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream,"
+                                    + "invalid_op_handling => 'SKIP')")
+                    .build();
+
     /** Custom op column name via DESCRIPTOR. */
     public static final TableTestProgram CUSTOM_OP_NAME =
             TableTestProgram.of(
