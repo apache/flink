@@ -39,10 +39,12 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -85,8 +87,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p><b>Permission Considerations:</b> Some operations require specific IAM permissions:
  *
  * <ul>
- *   <li>{@link #getFileStatus}: Returns 403 for non-existent objects if ListBucket permission is
- *       not granted (to prevent object enumeration)
+ *   <li>{@link #getFileStatus}: For the bucket root (empty object key), uses {@code HeadBucket}
+ *       instead of {@code HeadObject}. Otherwise returns 403 for non-existent objects if ListBucket
+ *       permission is not granted (to prevent object enumeration)
  *   <li>{@link #listStatus}: Requires ListBucket permission
  *   <li>{@link #delete}: With only DeleteObject permission, deleting non-existent objects may
  *       return errors
@@ -193,6 +196,12 @@ class NativeS3FileSystem extends FileSystem
 
         LOG.debug("Getting file status for s3://{}/{}", bucketName, key);
 
+        // Bucket root (e.g. warehouse URI "s3://my-bucket"): object key is empty, but AWS SDK v2
+        // rejects HeadObject with an empty key. Use HeadBucket instead.
+        if (key.isEmpty()) {
+            return getBucketRootFileStatus(s3Client, path);
+        }
+
         try {
             final HeadObjectRequest request =
                     HeadObjectRequest.builder().bucket(bucketName).key(key).build();
@@ -254,6 +263,29 @@ class NativeS3FileSystem extends FileSystem
 
             throw S3ExceptionUtils.toIOException(
                     String.format("Failed to get file status for s3://%s/%s", bucketName, key), e);
+        }
+    }
+
+    /**
+     * Resolves the bucket root path (empty object key) to a directory {@link FileStatus} by
+     * verifying the bucket exists via {@link S3Client#headBucket}.
+     */
+    private FileStatus getBucketRootFileStatus(S3Client s3Client, Path path) throws IOException {
+        try {
+            s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
+            LOG.debug("HeadBucket successful for s3://{}", bucketName);
+            return S3FileStatus.withDirectory(path);
+        } catch (NoSuchBucketException e) {
+            throw new FileNotFoundException("Bucket not found: " + path);
+        } catch (S3Exception e) {
+            LOG.error(
+                    "S3 error checking bucket root s3://{} - StatusCode: {}, ErrorCode: {}, Message: {}",
+                    bucketName,
+                    e.statusCode(),
+                    S3ExceptionUtils.errorCode(e),
+                    S3ExceptionUtils.errorMessage(e));
+            throw S3ExceptionUtils.toIOException(
+                    String.format("Failed to get file status for s3://%s", bucketName), e);
         }
     }
 

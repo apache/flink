@@ -194,6 +194,30 @@ class S3ClientProvider implements AutoCloseableAsync {
         }
     }
 
+    /**
+     * Constructs a provider for tests that need a controlled {@link S3Client} without opening real
+     * network connections.
+     */
+    @VisibleForTesting
+    static S3ClientProvider createForTesting(
+            S3Client s3Client,
+            S3TransferManager transferManager,
+            Duration clientCloseTimeout,
+            Duration connectionTimeout,
+            Duration socketTimeout,
+            Duration connectionMaxIdleTime) {
+        return new S3ClientProvider(
+                s3Client,
+                transferManager,
+                null,
+                null,
+                null,
+                clientCloseTimeout,
+                connectionTimeout,
+                socketTimeout,
+                connectionMaxIdleTime);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
