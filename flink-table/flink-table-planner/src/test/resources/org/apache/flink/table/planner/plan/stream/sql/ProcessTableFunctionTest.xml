@@ -149,6 +149,26 @@ Calc(select=[out, rowtime])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRetractModeWithRowSemantics">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(r => TABLE t)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], count=[$1], mode=[$2])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) name, BIGINT count, VARCHAR(2147483647) mode)])
+   +- LogicalProject(name=[$0], score=[$1])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), DEFAULT(), DEFAULT())], uid=[null], select=[name,count,mode], rowType=[RecordType(VARCHAR(2147483647) name, BIGINT count, VARCHAR(2147483647) mode)], changelogMode=[I,UB,UA,D])
++- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowSemanticTableOptionalUid">
     <Resource name="ast">
       <![CDATA[

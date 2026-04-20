@@ -30,9 +30,119 @@ Flink SQL provides built-in process table functions (PTFs) for working with chan
 
 | Function | Description |
 |:---------|:------------|
+| [FROM_CHANGELOG](#from_changelog) | Converts an append-only table with operation codes into a (potentially updating) dynamic table |
 | [TO_CHANGELOG](#to_changelog) | Converts a dynamic table into an append-only table with explicit operation codes |
 
-<!-- Placeholder for future FROM_CHANGELOG function -->
+## FROM_CHANGELOG
+
+The `FROM_CHANGELOG` PTF converts an append-only table with an explicit operation code column into a (potentially updating) dynamic table. Each input row is expected to have a string column that indicates the change operation. The operation column is interpreted by the engine and removed from the output.
+
+This is useful when consuming Change Data Capture (CDC) streams from systems like Debezium where events arrive as flat append-only records with an explicit operation field. It's also useful to be used in combination with the TO_CHANGELOG function, when converting the append-only table back into an updating table after doing some specific transformation to the events.
+
+Note: This version requires that your CDC data encodes updates using a full image (i.e. providing separate events for before and after the update). Please double-check whether your source provides both UPDATE_BEFORE and UPDATE_AFTER events. FROM_CHANGELOG is a very powerful function but might produce incorrect results in subsequent operations and tables, if not configured correctly.
+
+### Syntax
+
+```sql
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE source_table,
+  [op => DESCRIPTOR(op_column_name),]
+  [op_mapping => MAP[
+      'c, r', 'INSERT',
+      'ub', 'UPDATE_BEFORE',
+      'ua', 'UPDATE_AFTER',
+      'd', 'DELETE'
+  ]]
+)
+```
+
+### Parameters
+
+| Parameter    | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+|:-------------|:---------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `input`      | Yes      | The input table. Must be append-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING.                                                                                                                                                                                                                                                                                                                                       |
+| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). When provided, only mapped codes are forwarded - unmapped codes are dropped. Each change operation may appear at most once across all entries. |
+
+#### Default op_mapping
+
+When `op_mapping` is omitted, the following standard names are used. They allow a reverse conversion from TO_CHANGELOG by default.
+
+| Input code         | Change operation  |
+|:-------------------|:------------------|
+| `'INSERT'`         | INSERT            |
+| `'UPDATE_BEFORE'`  | UPDATE_BEFORE     |
+| `'UPDATE_AFTER'`   | UPDATE_AFTER      |
+| `'DELETE'`         | DELETE            |
+
+### Output Schema
+
+The output contains all input columns except the operation code (e.g., op) column, which is interpreted by Flink's SQL engine and removed. Each output row carries the appropriate change operation (INSERT, UPDATE_BEFORE, UPDATE_AFTER, or DELETE).
+
+```
+[all_input_columns_without_op]
+```
+
+### Examples
+
+#### Basic usage with standard op names
+
+```sql
+-- Input (append-only):
+-- +I[id:1, op:'INSERT',        name:'Alice']
+-- +I[id:1, op:'UPDATE_BEFORE', name:'Alice']
+-- +I[id:1, op:'UPDATE_AFTER',  name:'Alice2']
+-- +I[id:2, op:'DELETE',        name:'Bob']
+
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream
+)
+
+-- Output (updating table):
+-- +I[id:1, name:'Alice']
+-- -U[id:1, name:'Alice']
+-- +U[id:1, name:'Alice2']
+-- -D[id:2, name:'Bob']
+
+-- Table state after all events:
+-- | id | name   |
+-- |----|--------|
+-- | 1  | Alice2 |
+```
+
+#### Custom operation column name
+
+```sql
+-- Source schema: id INT, operation STRING, name STRING
+SELECT * FROM FROM_CHANGELOG(
+  input => TABLE cdc_stream,
+  op => DESCRIPTOR(operation)
+)
+-- The operation column named 'operation' is used instead of 'op'
+```
+
+#### Table API
+
+```java
+Table cdcStream = ...;
+
+// Default: reads 'op' column with standard change operation names
+Table result = cdcStream.fromChangelog();
+
+// With custom op column name
+Table result = cdcStream.fromChangelog(
+    descriptor("operation").asArgument("op")
+);
+
+// With custom op_mapping
+Table result = cdcStream.fromChangelog(
+    descriptor("op").asArgument("op"),
+    map("c, r", "INSERT",
+        "ub", "UPDATE_BEFORE",
+        "ua", "UPDATE_AFTER",
+        "d", "DELETE").asArgument("op_mapping")
+);
+```
 
 ## TO_CHANGELOG
 

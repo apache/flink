@@ -27,6 +27,7 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -106,6 +107,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAr
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
@@ -115,6 +117,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.TO_CHANGELOG_OUTPUT_TYPE_STRATEGY;
 
@@ -807,6 +810,30 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.ptf.ToChangelogFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition FROM_CHANGELOG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("FROM_CHANGELOG")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE)),
+                            StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
+                            StaticArgument.scalar(
+                                    "op_mapping",
+                                    DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
+                                    true))
+                    .changelogModeStrategy(ctx -> ChangelogMode.all())
+                    .inputTypeStrategy(FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition GREATEST =

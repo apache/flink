@@ -955,6 +955,21 @@ public class ProcessTableFunctionTestUtils {
 
         @Override
         public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.upsert(false);
+        }
+    }
+
+    /** Testing function that uses row semantics with retract mode (valid). */
+    public static class UpdatingRetractRowSemanticFunction
+            extends ChangelogProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ROW_SEMANTIC_TABLE, SUPPORT_UPDATES, REQUIRE_UPDATE_BEFORE}) Row r) {
+            collectUpdate(ctx, r);
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
             return ChangelogMode.all();
         }
     }

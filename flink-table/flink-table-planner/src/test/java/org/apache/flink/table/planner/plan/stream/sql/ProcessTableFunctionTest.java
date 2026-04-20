@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -42,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractRowSemanticFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -60,6 +62,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static java.util.Collections.singletonList;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
@@ -282,6 +285,13 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         .addInsertSql("INSERT INTO t_sink SELECT * FROM f(r => TABLE t, i => 42)"));
     }
 
+    @Test
+    void testRetractModeWithRowSemantics() {
+        util.addTemporarySystemFunction("f", UpdatingRetractRowSemanticFunction.class);
+        util.verifyRelPlan(
+                "SELECT * FROM f(r => TABLE t)", singletonList(ExplainDetail.CHANGELOG_MODE));
+    }
+
     @ParameterizedTest
     @MethodSource("errorSpecs")
     void testErrorBehavior(ErrorSpec spec) {
@@ -455,10 +465,10 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f()",
                         "Table arguments must not be optional."),
                 ErrorSpec.ofSelect(
-                        "no changelog support for tables with row semantics",
+                        "no upsert support for tables with row semantics",
                         InvalidUpdatingSemanticsFunction.class,
                         "SELECT * FROM f(r => TABLE t)",
-                        "PTFs that take table arguments with row semantics don't support updating output. "
+                        "PTFs that take table arguments with row semantics don't support upsert output. "
                                 + "Table argument 'r' of function 'f' must use set semantics."),
                 ErrorSpec.ofSelect(
                         "on_time is not supported on updating output",

@@ -1454,4 +1454,31 @@ public interface Table extends Explainable<Table>, Executable {
      * @return an append-only {@link Table} with an {@code op} column prepended to the input columns
      */
     Table toChangelog(Expression... arguments);
+
+    /**
+     * Converts this append-only table with an explicit operation code column into a dynamic table
+     * using the built-in {@code FROM_CHANGELOG} process table function.
+     *
+     * <p>Each input row is expected to have a string operation code column (default: {@code "op"})
+     * that indicates the change operation (e.g., INSERT, UPDATE_AFTER, UPDATE_BEFORE, DELETE). The
+     * output table is a dynamic table backed by a changelog stream.
+     *
+     * <p>Optional arguments can be passed using named expressions:
+     *
+     * <pre>{@code
+     * // Default: reads 'op' column with standard change operation names
+     * table.fromChangelog();
+     *
+     * // Custom op column name and mapping (Debezium-style codes)
+     * table.fromChangelog(
+     *     descriptor("__op").asArgument("op"),
+     *     map("c, r", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE").asArgument("op_mapping")
+     * );
+     * }</pre>
+     *
+     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @return a dynamic {@link Table} with the op column removed and proper change operation
+     *     semantics
+     */
+    Table fromChangelog(Expression... arguments);
 }

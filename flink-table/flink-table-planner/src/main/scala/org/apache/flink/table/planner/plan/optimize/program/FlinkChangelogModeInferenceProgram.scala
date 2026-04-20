@@ -23,7 +23,7 @@ import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.functions.ChangelogFunction
+import org.apache.flink.table.functions.{BuiltInFunctionDefinition, ChangelogFunction}
 import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.plan.`trait`._
@@ -1711,16 +1711,36 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val changelogContext =
           toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
         val changelogMode = changelogFunction.getChangelogMode(changelogContext)
-        if (!changelogMode.containsOnly(RowKind.INSERT)) {
-          verifyPtfTableArgsForUpdates(call)
-        }
+        verifyPtfTableArgsForUpdates(call, changelogMode)
+        toTraitSet(changelogMode)
+      case builtIn: BuiltInFunctionDefinition if builtIn.getChangelogModeStrategy.isPresent =>
+        val inputChangelogModes = children.map(toChangelogMode(_, None, None))
+        val changelogContext =
+          toPtfChangelogContext(process, inputChangelogModes, requiredChangelogMode)
+        val changelogMode =
+          builtIn.getChangelogModeStrategy.get().inferChangelogMode(changelogContext)
+        verifyPtfTableArgsForUpdates(call, changelogMode)
         toTraitSet(changelogMode)
       case _ =>
         defaultTraitSet
     }
   }
 
-  private def verifyPtfTableArgsForUpdates(call: RexCall): Unit = {
+  /**
+   * Verifies that PTFs with upsert output (without UPDATE_BEFORE) use set semantics.
+   *
+   * Retract mode (with UPDATE_BEFORE) is self-describing — each update carries either the old and
+   * new value, so downstream can process it without a key. Row semantics is safe.
+   *
+   * Upsert mode (without UPDATE_BEFORE) requires a key to look up previous values, so set semantics
+   * with PARTITION BY is required.
+   */
+  private def verifyPtfTableArgsForUpdates(call: RexCall, changelogMode: ChangelogMode): Unit = {
+    if (
+      changelogMode.containsOnly(RowKind.INSERT) || changelogMode.contains(RowKind.UPDATE_BEFORE)
+    ) {
+      return
+    }
     StreamPhysicalProcessTableFunction
       .getProvidedInputArgs(call)
       .map(_.e)
@@ -1728,7 +1748,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         tableArg =>
           if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
             throw new ValidationException(
-              s"PTFs that take table arguments with row semantics don't support updating output. " +
+              s"PTFs that take table arguments with row semantics don't support upsert output. " +
                 s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +
                 s"must use set semantics.")
           }

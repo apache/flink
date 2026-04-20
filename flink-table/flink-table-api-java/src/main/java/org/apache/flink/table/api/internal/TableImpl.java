@@ -498,6 +498,11 @@ public class TableImpl implements Table {
     }
 
     @Override
+    public Table fromChangelog(Expression... arguments) {
+        return process(BuiltInFunctionDefinitions.FROM_CHANGELOG.getName(), (Object[]) arguments);
+    }
+
+    @Override
     public ApiExpression asArgument(String name) {
         return createArgumentExpression(operationTree, tableEnvironment, name);
     }
