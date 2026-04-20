@@ -27,6 +27,11 @@ package org.apache.flink.model.triton.exception;
  * <p>The circuit will automatically transition to HALF_OPEN state after a configured timeout and
  * will attempt to probe the server health with limited requests.
  *
+ * <p><b>Retry semantics:</b> This exception is considered retryable because the underlying cause is
+ * a transient server-health condition; once the OPEN timeout elapses the circuit will move to
+ * HALF_OPEN and subsequent requests may succeed. It is categorised as {@link
+ * ErrorCategory#SERVER_ERROR} to align with the reason the breaker tripped.
+ *
  * @see org.apache.flink.model.triton.TritonCircuitBreaker
  */
 public class TritonCircuitBreakerOpenException extends TritonException {
@@ -39,5 +44,20 @@ public class TritonCircuitBreakerOpenException extends TritonException {
 
     public TritonCircuitBreakerOpenException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    @Override
+    public boolean isRetryable() {
+        // The circuit opens in response to server-side unhealthiness, and will automatically
+        // transition to HALF_OPEN after its configured timeout. Upstream retry logic should be
+        // allowed to retry (typically after a backoff) rather than giving up on the request.
+        return true;
+    }
+
+    @Override
+    public ErrorCategory getCategory() {
+        // The breaker trips because the Triton server is considered unhealthy, so classify this
+        // as a server-side error for metrics and alerting.
+        return ErrorCategory.SERVER_ERROR;
     }
 }

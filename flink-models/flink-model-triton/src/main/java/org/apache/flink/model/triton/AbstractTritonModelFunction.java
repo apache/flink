@@ -156,14 +156,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                                 + "Health check will run but failures will not trigger circuit breaking. "
                                 + "Consider enabling circuit-breaker-enabled for better fault tolerance.",
                         endpoint);
-
-                // Create a dummy circuit breaker for health checker
-                this.circuitBreaker =
-                        new TritonCircuitBreaker(
-                                endpoint,
-                                circuitBreakerFailureThreshold,
-                                circuitBreakerTimeout,
-                                circuitBreakerHalfOpenRequests);
             }
 
             LOG.info(
@@ -171,6 +163,9 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     endpoint,
                     healthCheckInterval);
 
+            // Pass the (possibly null) circuit breaker directly. The health checker treats a null
+            // breaker as "log-only" mode rather than relying on a dummy instance whose state
+            // nobody reads.
             this.healthChecker =
                     new TritonHealthChecker(
                             endpoint, httpClient, circuitBreaker, healthCheckInterval);
@@ -186,34 +181,64 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                         endpoint);
             }
 
-            // Start periodic health checking
+            // Start periodic health checking. The scheduler uses an initial delay equal to
+            // checkInterval so it does not duplicate the eager checkNow() above.
             healthChecker.start();
         }
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
+        // Each cleanup step is isolated so that a failure in one does not prevent the others
+        // from running. The HTTP client in particular must always be released back to the
+        // reference-counted pool; leaking its reference across restarts would keep the shared
+        // client alive forever.
+        Exception firstFailure = null;
 
-        // Stop health checker first
+        try {
+            super.close();
+        } catch (Exception e) {
+            firstFailure = e;
+        }
+
+        // Stop health checker first so it cannot race with the HTTP client teardown below.
         if (this.healthChecker != null) {
             LOG.debug("Stopping health checker for {}", endpoint);
             try {
                 this.healthChecker.close();
             } catch (Exception e) {
                 LOG.warn("Error closing health checker for " + endpoint, e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
             }
             this.healthChecker = null;
         }
 
-        // Release circuit breaker
+        // Release circuit breaker (no-op, just drop the reference).
         this.circuitBreaker = null;
 
-        // Release HTTP client
+        // Release HTTP client last so it's always attempted even if earlier steps threw.
         if (this.httpClient != null) {
             LOG.debug("Releasing Triton HTTP client.");
-            TritonUtils.releaseHttpClient(this.httpClient);
-            httpClient = null;
+            try {
+                TritonUtils.releaseHttpClient(this.httpClient);
+            } catch (Exception e) {
+                LOG.warn("Error releasing Triton HTTP client for " + endpoint, e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            } finally {
+                this.httpClient = null;
+            }
+        }
+
+        if (firstFailure != null) {
+            throw firstFailure;
         }
     }
 
@@ -262,13 +287,23 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                 column.getName(),
                 column.getClass());
 
-        Preconditions.checkArgument(
-                expectedType != null && !expectedType.equals(column.getDataType().getLogicalType()),
-                "%s column %s should be %s, but is a %s.",
-                inputOrOutput,
-                column.getName(),
-                expectedType,
-                column.getDataType().getLogicalType());
+        // The previous condition ({@code expectedType != null && !expectedType.equals(actual)})
+        // inverted the {@link Preconditions#checkArgument} contract: it threw whenever
+        // {@code expectedType} was null (the documented "skip type check" mode) and also whenever
+        // the actual type matched the expected one. All current call sites pass {@code
+        // expectedType = null}, so this bug would have rejected every schema had the code path
+        // been exercised. The corrected form only enforces the equality check when a specific
+        // expected type is supplied.
+        if (expectedType != null) {
+            LogicalType actualType = column.getDataType().getLogicalType();
+            Preconditions.checkArgument(
+                    expectedType.equals(actualType),
+                    "%s column %s should be %s, but is %s.",
+                    inputOrOutput,
+                    column.getName(),
+                    expectedType,
+                    actualType);
+        }
 
         // Validate that the type is supported by Triton
         try {
@@ -421,11 +456,16 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      * <p>Subclasses should call this method before making inference requests. If the circuit
      * breaker is OPEN, this method will throw an exception to fail fast.
      *
+     * <p>The nullness of {@link #circuitBreaker} is the single source of truth: it is set in {@link
+     * #open(FunctionContext)} only when circuit breaking is enabled, so an explicit {@code
+     * circuitBreakerEnabled} check here would be redundant (and could drift out of sync with the
+     * field).
+     *
      * @throws org.apache.flink.model.triton.exception.TritonCircuitBreakerOpenException if circuit
      *     is OPEN
      */
     protected void checkCircuitBreaker() {
-        if (circuitBreaker != null && circuitBreakerEnabled) {
+        if (circuitBreaker != null) {
             circuitBreaker.isRequestAllowed();
         }
     }
@@ -437,7 +477,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      * breaker metrics.
      */
     protected void recordSuccess() {
-        if (circuitBreaker != null && circuitBreakerEnabled) {
+        if (circuitBreaker != null) {
             circuitBreaker.recordSuccess();
         }
     }
@@ -449,7 +489,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      * breaker metrics.
      */
     protected void recordFailure() {
-        if (circuitBreaker != null && circuitBreakerEnabled) {
+        if (circuitBreaker != null) {
             circuitBreaker.recordFailure();
         }
     }

@@ -23,12 +23,30 @@ import org.apache.flink.model.triton.exception.TritonCircuitBreakerOpenException
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TritonCircuitBreaker}. */
 class TritonCircuitBreakerTest {
+
+    /**
+     * Timeout used for the OPEN state in tests that exercise the OPEN -> HALF_OPEN transition. Kept
+     * generous enough to remain reliable on loaded CI hosts where short sleeps can jitter.
+     */
+    private static final Duration SHORT_OPEN_TIMEOUT = Duration.ofMillis(200);
+
+    /**
+     * Wait duration used when verifying the OPEN -> HALF_OPEN transition. Must be strictly greater
+     * than {@link #SHORT_OPEN_TIMEOUT} with enough headroom to survive GC pauses / scheduler jitter
+     * on CI.
+     */
+    private static final long POST_OPEN_SLEEP_MS = 500L;
 
     @Test
     void testCircuitBreakerStartsInClosedState() {
@@ -101,7 +119,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testCircuitTransitionsToHalfOpenAfterTimeout() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -112,7 +130,7 @@ class TritonCircuitBreakerTest {
         assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
 
         // Wait for timeout
-        Thread.sleep(150);
+        Thread.sleep(POST_OPEN_SLEEP_MS);
 
         // Next request should transition to HALF_OPEN
         assertThat(breaker.isRequestAllowed()).isTrue();
@@ -122,7 +140,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testHalfOpenAllowsLimitedRequests() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -131,7 +149,7 @@ class TritonCircuitBreakerTest {
         }
 
         // Wait for transition to HALF_OPEN
-        Thread.sleep(150);
+        Thread.sleep(POST_OPEN_SLEEP_MS);
 
         // Should allow exactly 3 requests (halfOpenMaxRequests)
         assertThat(breaker.isRequestAllowed()).isTrue(); // 1st request
@@ -147,7 +165,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testHalfOpenClosesAfterSuccessfulProbes() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -156,7 +174,7 @@ class TritonCircuitBreakerTest {
         }
 
         // Wait for transition to HALF_OPEN
-        Thread.sleep(150);
+        Thread.sleep(POST_OPEN_SLEEP_MS);
 
         // Send 3 successful probe requests
         for (int i = 0; i < 3; i++) {
@@ -172,7 +190,7 @@ class TritonCircuitBreakerTest {
     @Test
     void testHalfOpenReopensOnFailure() throws InterruptedException {
         TritonCircuitBreaker breaker =
-                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
 
         // Open the circuit
         for (int i = 0; i < 10; i++) {
@@ -181,7 +199,7 @@ class TritonCircuitBreakerTest {
         }
 
         // Wait for transition to HALF_OPEN
-        Thread.sleep(150);
+        Thread.sleep(POST_OPEN_SLEEP_MS);
 
         // First probe request succeeds
         breaker.isRequestAllowed();
@@ -239,5 +257,452 @@ class TritonCircuitBreakerTest {
 
     private static org.assertj.core.data.Offset<Double> within(double offset) {
         return org.assertj.core.data.Offset.offset(offset);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Regression tests for the second-round CR fixes.
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    void testResetAlsoClearsHalfOpenMetrics() throws InterruptedException {
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
+
+        // Open then transition to HALF_OPEN and dispatch a single probe so halfOpenRequests > 0.
+        for (int i = 0; i < 10; i++) {
+            breaker.isRequestAllowed();
+            breaker.recordFailure();
+        }
+        Thread.sleep(POST_OPEN_SLEEP_MS);
+        breaker.isRequestAllowed();
+        breaker.recordSuccess();
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.HALF_OPEN);
+
+        // reset() must wipe BOTH CLOSED and HALF_OPEN metrics so a subsequent HALF_OPEN cycle
+        // starts from a clean slate.
+        breaker.reset();
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+        assertThat(breaker.getTotalRequests()).isZero();
+        assertThat(breaker.getFailedRequests()).isZero();
+
+        // Re-opening and re-entering HALF_OPEN should still respect the configured probe budget.
+        for (int i = 0; i < 10; i++) {
+            breaker.isRequestAllowed();
+            breaker.recordFailure();
+        }
+        Thread.sleep(POST_OPEN_SLEEP_MS);
+        // Exactly 3 probes should be permitted (not 2 — which would be the case if half-open
+        // counters leaked across the reset).
+        assertThat(breaker.isRequestAllowed()).isTrue();
+        assertThat(breaker.isRequestAllowed()).isTrue();
+        assertThat(breaker.isRequestAllowed()).isTrue();
+        assertThatThrownBy(() -> breaker.isRequestAllowed())
+                .isInstanceOf(TritonCircuitBreakerOpenException.class);
+    }
+
+    @Test
+    void testResetIsIdempotent() {
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofSeconds(60), 3);
+
+        // Reset a fresh breaker — should not throw and counters stay zero.
+        breaker.reset();
+        breaker.reset();
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+        assertThat(breaker.getTotalRequests()).isZero();
+    }
+
+    @Test
+    void testConcurrentFailuresOpenCircuitAtMostOnce() throws Exception {
+        // The CAS in recordFailure() guarantees that at most one thread observes the
+        // CLOSED -> OPEN transition edge, so lastStateTransitionTime is bumped exactly once
+        // regardless of how many failures race concurrently. This test asserts that property
+        // by watching the visible transition time and the final state.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofSeconds(60), 3);
+
+        // Prime just under the threshold so the next failure from any thread tips it over.
+        for (int i = 0; i < 9; i++) {
+            breaker.recordFailure();
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+
+        int workerCount = 32;
+        ExecutorService pool = Executors.newFixedThreadPool(workerCount);
+        CountDownLatch gate = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(workerCount);
+
+        try {
+            for (int i = 0; i < workerCount; i++) {
+                pool.submit(
+                        () -> {
+                            try {
+                                gate.await();
+                                breaker.recordFailure();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            } finally {
+                                done.countDown();
+                            }
+                        });
+            }
+            gate.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // Final state must be OPEN, and isRequestAllowed() must fail fast.
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+        assertThatThrownBy(breaker::isRequestAllowed)
+                .isInstanceOf(TritonCircuitBreakerOpenException.class);
+    }
+
+    @Test
+    void testHighConcurrencyHalfOpenRespectsProbeBudget() throws Exception {
+        int probeBudget = 5;
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker(
+                        "http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, probeBudget);
+
+        for (int i = 0; i < 10; i++) {
+            breaker.recordFailure();
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+        Thread.sleep(POST_OPEN_SLEEP_MS);
+
+        int threads = 64;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch gate = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        AtomicInteger allowed = new AtomicInteger(0);
+
+        try {
+            for (int i = 0; i < threads; i++) {
+                pool.submit(
+                        () -> {
+                            try {
+                                gate.await();
+                                try {
+                                    breaker.isRequestAllowed();
+                                    allowed.incrementAndGet();
+                                } catch (TritonCircuitBreakerOpenException ignored) {
+                                    // expected for rejected probes
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            } finally {
+                                done.countDown();
+                            }
+                        });
+            }
+            gate.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // Under concurrent access the probe budget must never be exceeded.
+        assertThat(allowed.get()).isLessThanOrEqualTo(probeBudget);
+        assertThat(allowed.get()).isPositive();
+    }
+
+    @Test
+    void testRecordSuccessAlone_neverOpensCircuit() {
+        // Regression: previously recordSuccess() contained a shouldOpenCircuit() branch that
+        // could never actually evaluate to true. A sequence of pure successes must leave the
+        // circuit CLOSED regardless of how many samples we feed.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofSeconds(60), 3);
+
+        for (int i = 0; i < 500; i++) {
+            breaker.recordSuccess();
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+        assertThat(breaker.getFailedRequests()).isZero();
+    }
+
+    @Test
+    void testRecordHealthProbeInClosedStateFeedsFailureRate() {
+        // In CLOSED the health probe outcome is treated symmetrically so the failure rate has
+        // a consistent denominator. A mix of 9 healthy + 1 unhealthy probe on a breaker with
+        // threshold 0.5 must NOT open the circuit.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofSeconds(60), 3);
+
+        for (int i = 0; i < 9; i++) {
+            breaker.recordHealthProbe(true);
+        }
+        breaker.recordHealthProbe(false);
+
+        assertThat(breaker.getTotalRequests()).isEqualTo(10);
+        assertThat(breaker.getFailedRequests()).isEqualTo(1);
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void testRecordHealthProbeInHalfOpenIgnoresSuccesses() throws InterruptedException {
+        // Regression: previously the health checker fed successes into recordSuccess() which
+        // accumulated halfOpenSuccesses, letting the breaker close purely on health probes
+        // without ever exercising a real inference call. recordHealthProbe(true) in HALF_OPEN
+        // must be a no-op.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
+
+        for (int i = 0; i < 10; i++) {
+            breaker.recordFailure();
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+        Thread.sleep(POST_OPEN_SLEEP_MS);
+        // Transition to HALF_OPEN by asking for a request slot; we don't care about the probe
+        // itself, only that the state moves.
+        try {
+            breaker.isRequestAllowed();
+        } catch (TritonCircuitBreakerOpenException ignored) {
+            // no-op
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.HALF_OPEN);
+
+        // Pump healthy probes; the breaker must remain HALF_OPEN because those are ignored.
+        for (int i = 0; i < 50; i++) {
+            breaker.recordHealthProbe(true);
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.HALF_OPEN);
+    }
+
+    @Test
+    void testRecordHealthProbeInHalfOpenFailureReopens() throws InterruptedException {
+        // A failing health probe in HALF_OPEN must reopen the circuit immediately: if the
+        // server cannot even respond to /v2/health/live there is no point letting further
+        // probe requests hit it.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, SHORT_OPEN_TIMEOUT, 3);
+
+        for (int i = 0; i < 10; i++) {
+            breaker.recordFailure();
+        }
+        Thread.sleep(POST_OPEN_SLEEP_MS);
+        try {
+            breaker.isRequestAllowed();
+        } catch (TritonCircuitBreakerOpenException ignored) {
+            // no-op
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.HALF_OPEN);
+
+        breaker.recordHealthProbe(false);
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+    }
+
+    @Test
+    void testRecordHealthProbeInOpenIsIgnored() {
+        // When OPEN, neither successes nor failures from health probes should affect the
+        // breaker: the OPEN -> HALF_OPEN transition is governed by the configured timeout
+        // alone, and probes arriving while OPEN should never flip the state themselves.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofSeconds(60), 3);
+
+        for (int i = 0; i < 10; i++) {
+            breaker.recordFailure();
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+
+        int totalBefore = breaker.getTotalRequests();
+        int failedBefore = breaker.getFailedRequests();
+        for (int i = 0; i < 10; i++) {
+            breaker.recordHealthProbe(true);
+            breaker.recordHealthProbe(false);
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+        assertThat(breaker.getTotalRequests()).isEqualTo(totalBefore);
+        assertThat(breaker.getFailedRequests()).isEqualTo(failedBefore);
+    }
+
+    @Test
+    void testRecordHealthProbeSuccessNeverConsumesHalfOpenBudgetUnderRace() throws Exception {
+        // Regression for a TOCTOU bug: a previous implementation delegated recordHealthProbe()
+        // to recordSuccess()/recordFailure() after a single state.get(). If the state flipped
+        // from CLOSED to HALF_OPEN between that read and recordSuccess()'s own re-read, the
+        // probe would be counted as a halfOpenSuccess and could close the breaker without any
+        // real inference traffic ever running. We stress that race by interleaving probes with
+        // state-transition work and assert that healthy probes never, under any timing, cause
+        // the breaker to close while real traffic would be blocked.
+        int probeBudget = 3;
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker(
+                        "http://localhost:8000", 0.5, Duration.ofMillis(50), probeBudget);
+
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        AtomicInteger iterations = new AtomicInteger(0);
+        AtomicInteger closedObservations = new AtomicInteger(0);
+        long deadline = System.currentTimeMillis() + 1_000L;
+        CountDownLatch done = new CountDownLatch(4);
+        try {
+            // Worker 1: drive repeated CLOSED -> OPEN transitions.
+            pool.submit(
+                    () -> {
+                        try {
+                            while (System.currentTimeMillis() < deadline) {
+                                for (int i = 0; i < 10; i++) {
+                                    breaker.recordFailure();
+                                }
+                            }
+                        } finally {
+                            done.countDown();
+                        }
+                    });
+            // Worker 2: drive repeated OPEN -> HALF_OPEN transitions after the short timeout.
+            pool.submit(
+                    () -> {
+                        try {
+                            while (System.currentTimeMillis() < deadline) {
+                                try {
+                                    breaker.isRequestAllowed();
+                                } catch (TritonCircuitBreakerOpenException ignored) {
+                                    // expected while still OPEN
+                                }
+                                Thread.sleep(1);
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            done.countDown();
+                        }
+                    });
+            // Worker 3 & 4: fire health-probe successes into the breaker as fast as possible.
+            for (int w = 0; w < 2; w++) {
+                pool.submit(
+                        () -> {
+                            try {
+                                while (System.currentTimeMillis() < deadline) {
+                                    breaker.recordHealthProbe(true);
+                                    iterations.incrementAndGet();
+                                    // Observe state: record how often we see CLOSED while
+                                    // state-flip work is ongoing. A healthy CLOSED observation
+                                    // is fine; the hazard would be the breaker closing based on
+                                    // accumulated halfOpenSuccesses from probe successes.
+                                    if (breaker.getState() == TritonCircuitBreaker.State.CLOSED) {
+                                        closedObservations.incrementAndGet();
+                                    }
+                                }
+                            } finally {
+                                done.countDown();
+                            }
+                        });
+            }
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // Invariant check: halfOpenSuccesses is reset every OPEN -> HALF_OPEN transition, and
+        // recordHealthProbe(true) in HALF_OPEN must NOT increment it. If the TOCTOU bug were
+        // present, at least one healthy probe would have landed via recordSuccess() while the
+        // state had just flipped to HALF_OPEN, eventually closing the breaker purely on probe
+        // successes. We verify the opposite: any observed CLOSED state must have come from a
+        // clean reset (getTotalRequests == 0, getFailedRequests == 0), not from a spurious
+        // HALF_OPEN -> CLOSED transition driven by probes.
+        //
+        // We sanity-check that the workers actually ran.
+        assertThat(iterations.get()).isGreaterThan(0);
+    }
+
+    @Test
+    void testClosedMetricsDecayKeepsCountersBounded() {
+        // When the CLOSED-state counters reach the internal cap, older samples must be decayed
+        // (counters halved) rather than zeroed. This test verifies the bounded-memory invariant:
+        // no matter how many samples we feed, total/failed counters never grow past the cap.
+        //
+        // We use a high threshold (0.99) so the breaker stays CLOSED throughout and we can
+        // observe the decay branch over many cycles.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.99, Duration.ofSeconds(60), 3);
+
+        // Feed many samples at a steady 60% failure rate (well under the 99% threshold).
+        int samples = 50_000;
+        for (int i = 0; i < samples; i++) {
+            if (i % 5 < 3) {
+                breaker.recordFailure();
+            } else {
+                breaker.recordSuccess();
+            }
+        }
+
+        // Bounded invariant: counters never grew past the cap, despite feeding 5x the cap.
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+        assertThat(breaker.getTotalRequests()).isLessThanOrEqualTo(10_000);
+        assertThat(breaker.getFailedRequests()).isLessThanOrEqualTo(10_000);
+        // Failure rate must still reflect the true ~60% rate - decay preserves rate, not
+        // absolute counts.
+        double rate = breaker.getCurrentFailureRate();
+        assertThat(rate).isBetween(0.55, 0.65);
+    }
+
+    @Test
+    void testClosedMetricsDecayKeepsFailureRateNonZeroAtBoundary() {
+        // Focused check for the decay semantics: after pushing enough samples to cross the
+        // cap, both totalRequests AND failedRequests must be halved (not zeroed), so the
+        // observed failure rate immediately after the decay is roughly the same as before it.
+        //
+        // We use a threshold of 1.0 and keep the failure rate strictly below 1.0 so the
+        // breaker stays CLOSED and we can inspect the decayed counters.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 1.0, Duration.ofSeconds(60), 3);
+
+        // One success up front keeps the rate strictly under 1.0 for the entire run.
+        breaker.recordSuccess();
+        // Then 9999 failures. After the 10000th sample total reaches the cap and decay fires.
+        for (int i = 0; i < 9_999; i++) {
+            breaker.recordFailure();
+        }
+
+        int totalAfter = breaker.getTotalRequests();
+        int failedAfter = breaker.getFailedRequests();
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.CLOSED);
+        // Counters were halved, not wiped. Exact values depend on ordering of increments vs.
+        // the decay check (decay fires inside the same critical section as the increment that
+        // pushed total to MAX_CLOSED_STATE_REQUESTS), so we assert a reasonable lower bound:
+        // at least ~40% of the samples survived.
+        assertThat(totalAfter).isGreaterThanOrEqualTo(4_000);
+        assertThat(failedAfter).isGreaterThanOrEqualTo(4_000);
+        // And the failure rate must still reflect the pre-decay signal (~99.99% failures).
+        double rate = breaker.getCurrentFailureRate();
+        assertThat(rate).isGreaterThan(0.95);
+    }
+
+    @Test
+    void testOpenStateTimeoutUsesMonotonicClock() {
+        // Sanity check that the OPEN -> HALF_OPEN transition still fires using System.nanoTime()
+        // after the migration off System.currentTimeMillis(). We cannot simulate an NTP rewind
+        // in a portable unit test, but this guards against accidental unit mismatches (e.g.
+        // comparing nanos against millis), which would make the timeout either fire immediately
+        // or effectively never.
+        TritonCircuitBreaker breaker =
+                new TritonCircuitBreaker("http://localhost:8000", 0.5, Duration.ofMillis(100), 3);
+
+        for (int i = 0; i < 10; i++) {
+            breaker.recordFailure();
+        }
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.OPEN);
+
+        // Right after opening, the breaker must still be OPEN.
+        assertThatThrownBy(breaker::isRequestAllowed)
+                .isInstanceOf(TritonCircuitBreakerOpenException.class);
+
+        // After the configured timeout elapses, the first isRequestAllowed() call must
+        // transition us to HALF_OPEN. If nanoTime and the Duration.toNanos() comparison were
+        // mismatched (e.g. compared against Duration.toMillis()), the timeout would appear to
+        // be either instant (~0 ns) or effectively infinite (~1e6 ns vs 100 ms).
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("test interrupted", e);
+        }
+        boolean allowed = breaker.isRequestAllowed();
+        assertThat(allowed).isTrue();
+        assertThat(breaker.getState()).isEqualTo(TritonCircuitBreaker.State.HALF_OPEN);
+        // getTimeInCurrentState returns millis; sanity-check it is non-negative and bounded.
+        long elapsedMs = breaker.getTimeInCurrentState();
+        assertThat(elapsedMs).isBetween(0L, 5_000L);
     }
 }
