@@ -85,6 +85,8 @@ Flink 提供了两种高可用服务实现：
 
 {{< top >}}
 
+<a name="applicationresultstore"></a>
+
 ## 应用程序结果存储
 
 应用程序结果存储用于归档达到终止状态（即完成、取消或失败）的应用程序的最终结果，其数据存储在文件系统上（请参阅 [application-result-store.storage-path]({{< ref "docs/deployment/config#application-result-store-storage-path" >}})）。
@@ -92,6 +94,8 @@ Flink 提供了两种高可用服务实现：
 脏数据将被清理，即相应的应用程序要么在当前时刻被清理，要么在应用程序恢复过程中被清理。一旦清理成功，这些脏数据条目将被删除。请参阅 [HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) 下应用程序结果存储的配置参数以获取有关如何调整行为的更多详细信息。
 
 {{< top >}}
+
+<a name="jobresultstore"></a>
 
 ## 作业结果存储
 
