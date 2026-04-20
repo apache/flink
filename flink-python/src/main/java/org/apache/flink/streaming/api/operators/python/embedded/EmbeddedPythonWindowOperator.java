@@ -34,8 +34,6 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.types.Row;
 
-import pemja.core.object.PyIterator;
-
 import java.util.List;
 
 import static org.apache.flink.python.PythonOptions.MAP_STATE_READ_CACHE_SIZE;
@@ -143,15 +141,14 @@ public class EmbeddedPythonWindowOperator<K, IN, OUT, W extends Window>
     private void invokeUserFunction(InternalTimer<K, W> timer) throws Exception {
         windowTimerContext.timer = timer;
 
-        PyIterator results =
-                (PyIterator)
-                        interpreter.invokeMethod("operation", "on_timer", timer.getTimestamp());
-
-        while (results.hasNext()) {
-            OUT result = outputDataConverter.toInternal(results.next());
-            collector.collect(result);
+        try (EmbeddedPythonIterator results =
+                EmbeddedPythonIterator.from(
+                        interpreter.invokeMethod("operation", "on_timer", timer.getTimestamp()))) {
+            while (results.hasNext()) {
+                OUT result = outputDataConverter.toInternal(results.next());
+                collector.collect(result);
+            }
         }
-        results.close();
 
         windowTimerContext.timer = null;
     }

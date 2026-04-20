@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.util.ProtoUtils;
+import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonIterator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -32,8 +33,6 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.AbstractEmbeddedStatelessFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import pemja.core.object.PyIterator;
 
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
@@ -147,25 +146,25 @@ public class EmbeddedPythonTableFunctionOperator extends AbstractEmbeddedStatele
                     userDefinedFunctionInputConverters[i].toExternal(value, udfInputOffsets[i]);
         }
 
-        PyIterator udtfResults =
-                (PyIterator)
+        try (EmbeddedPythonIterator udtfResults =
+                EmbeddedPythonIterator.from(
                         interpreter.invokeMethod(
                                 "table_operation",
                                 "process_element",
-                                (Object) (userDefinedFunctionInputArgs));
-
-        if (udtfResults.hasNext()) {
-            do {
-                Object[] udtfResult = (Object[]) udtfResults.next();
-                for (int i = 0; i < udtfResult.length; i++) {
-                    reuseResultRowData.setField(
-                            i, userDefinedFunctionOutputConverters[i].toInternal(udtfResult[i]));
-                }
-                rowDataWrapper.collect(reuseJoinedRow.replace(value, reuseResultRowData));
-            } while (udtfResults.hasNext());
-        } else if (joinType == FlinkJoinType.LEFT) {
-            rowDataWrapper.collect(reuseJoinedRow.replace(value, reuseNullResultRowData));
+                                (Object) (userDefinedFunctionInputArgs)))) {
+            if (udtfResults.hasNext()) {
+                do {
+                    Object[] udtfResult = (Object[]) udtfResults.next();
+                    for (int i = 0; i < udtfResult.length; i++) {
+                        reuseResultRowData.setField(
+                                i,
+                                userDefinedFunctionOutputConverters[i].toInternal(udtfResult[i]));
+                    }
+                    rowDataWrapper.collect(reuseJoinedRow.replace(value, reuseResultRowData));
+                } while (udtfResults.hasNext());
+            } else if (joinType == FlinkJoinType.LEFT) {
+                rowDataWrapper.collect(reuseJoinedRow.replace(value, reuseNullResultRowData));
+            }
         }
-        udtfResults.close();
     }
 }
