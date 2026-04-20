@@ -665,7 +665,9 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
-    /** Testing function for validating watermark consistency across same-timestamp timer callbacks. */
+    /**
+     * Testing function for validating watermark consistency across same-timestamp timer callbacks.
+     */
     public static class ConsistentWatermarkTimersFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
