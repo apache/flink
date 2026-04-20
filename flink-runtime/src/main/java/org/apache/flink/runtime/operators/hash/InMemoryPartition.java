@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.operators.hash;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.AbstractPagedInputView;
+import org.apache.flink.core.memory.AbstractPagedOutputView;
+import org.apache.flink.core.memory.ListMemorySegmentSource;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.core.memory.SeekableDataInputView;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 
 import java.io.EOFException;
 import java.io.IOException;

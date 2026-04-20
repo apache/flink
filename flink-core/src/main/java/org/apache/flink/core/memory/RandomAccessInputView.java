@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.disk;
+package org.apache.flink.core.memory;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.SeekableDataInputView;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;

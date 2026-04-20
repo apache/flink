@@ -54,6 +54,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-type-utils</artifactId>
+			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -133,6 +140,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-type-utils</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-migration-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -170,6 +185,7 @@ under the License.
 									<include>org.apache.flink:flink-shaded-jsonpath</include>
 									<include>org.codehaus.janino:*</include>
 									<include>org.apache.flink:flink-table-code-splitter</include>
+									<include>org.apache.flink:flink-table-type-utils</include>
 								</includes>
 							</artifactSet>
 						</configuration>
