@@ -25,6 +25,7 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -154,6 +155,18 @@ public final class ShortcutUtils {
             return null;
         }
         return ((BridgingSqlFunction) call.getOperator()).getDefinition();
+    }
+
+    public static @Nullable FunctionDefinition unwrapFunctionDefinition(SqlOperator operator) {
+        if (!(operator instanceof BridgingSqlFunction)) {
+            return null;
+        }
+        return ((BridgingSqlFunction) operator).getDefinition();
+    }
+
+    public static boolean isFunctionKind(SqlOperator operator, FunctionKind kind) {
+        final FunctionDefinition functionDefinition = unwrapFunctionDefinition(operator);
+        return functionDefinition != null && functionDefinition.getKind() == kind;
     }
 
     public static @Nullable BridgingSqlFunction unwrapBridgingSqlFunction(RexCall call) {
