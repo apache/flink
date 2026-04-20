@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -137,7 +138,10 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
         final StringData opCode = input.getString(opColumnIndex);
         final RowKind rowKind = opMap.get(opCode);
         if (rowKind == null) {
-            return;
+            throw new TableRuntimeException(
+                    String.format(
+                            "Received invalid op code '%s'. Defined op codes are: %s.",
+                            opCode, opMap.keySet()));
         }
 
         projectedOutput.replaceRow(input);

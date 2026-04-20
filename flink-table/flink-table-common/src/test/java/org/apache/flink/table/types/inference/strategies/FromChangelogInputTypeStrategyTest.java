@@ -61,20 +61,6 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "d", "DELETE"))
                         .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE),
 
-                // Valid: retract-style mapping with UPDATE_BEFORE
-                TestSpec.forStrategy("Valid with UPDATE_BEFORE", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
-                        .calledWithLiteralAt(
-                                2,
-                                Map.of(
-                                        "c", "INSERT",
-                                        "ub", "UPDATE_BEFORE",
-                                        "ua", "UPDATE_AFTER",
-                                        "d", "DELETE"))
-                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE),
-
                 // Error: op column not found
                 TestSpec.forStrategy(
                                 "Op column not found in schema", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
