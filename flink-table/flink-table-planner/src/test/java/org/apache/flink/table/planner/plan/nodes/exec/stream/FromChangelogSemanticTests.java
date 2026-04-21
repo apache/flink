@@ -41,9 +41,10 @@ public class FromChangelogSemanticTests extends SemanticTestBase {
         return List.of(
                 FromChangelogTestPrograms.DEFAULT_OP_MAPPING,
                 FromChangelogTestPrograms.CUSTOM_OP_MAPPING,
-                FromChangelogTestPrograms.UNMAPPED_CODES_DROPPED,
                 FromChangelogTestPrograms.CUSTOM_OP_NAME,
                 FromChangelogTestPrograms.TABLE_API_DEFAULT,
-                FromChangelogTestPrograms.ROUND_TRIP);
+                FromChangelogTestPrograms.ROUND_TRIP,
+                FromChangelogTestPrograms.INVALID_OP_CODE,
+                FromChangelogTestPrograms.NULL_OP_CODE);
     }
 }
