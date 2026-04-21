@@ -852,10 +852,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                       !modifyKindSet.isInsertOnly && tableArg.is(
                         StaticArgumentTrait.SUPPORT_UPDATES)
                     ) {
-                      if (isPtfUpsert(tableArg, tableArgCall, child)) {
-                        UpdateKindTrait.ONLY_UPDATE_AFTER
-                      } else {
+                      if (ptfRequiresUpdateBefore(tableArg, tableArgCall, child)) {
                         UpdateKindTrait.BEFORE_AND_AFTER
+                      } else {
+                        UpdateKindTrait.ONLY_UPDATE_AFTER
                       }
                     } else {
                       UpdateKindTrait.NONE
@@ -1272,7 +1272,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                     extractPtfTableArgComponents(process, child, inputArg)
                   if (
                     tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES)
-                    && isPtfUpsert(tableArg, tableArgCall, child)
+                    && !ptfRequiresUpdateBefore(tableArg, tableArgCall, child)
                     && !tableArg.is(StaticArgumentTrait.REQUIRE_FULL_DELETE)
                   ) {
                     this
@@ -1641,24 +1641,18 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   }
 
   /**
-   * Whether the planner can skip generating UPDATE_BEFORE for this PTF's input. Requires partition
-   * keys that cover the upsert keys so related events are co-located.
+   * Whether the PTF requires UPDATE_BEFORE from its input. Returns true unless partition keys
+   * cover the upsert keys (co-located) and the argument doesn't explicitly require UPDATE_BEFORE.
    */
-  private def isPtfUpsert(
+  private def ptfRequiresUpdateBefore(
       tableArg: StaticArgument,
       tableArgCall: RexTableArgCall,
       input: StreamPhysicalRel): Boolean = {
     val partitionKeys = ImmutableBitSet.of(tableArgCall.getPartitionKeys: _*)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery)
     val upsertKeys = fmq.getUpsertKeys(input)
-    if (
-      upsertKeys == null || partitionKeys.isEmpty || !upsertKeys.contains(partitionKeys)
-      || tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
-    ) {
-      false
-    } else {
-      true
-    }
+    upsertKeys == null || partitionKeys.isEmpty || !upsertKeys.contains(partitionKeys)
+    || tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
   }
 
   private def extractPtfTableArgComponents(
