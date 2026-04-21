@@ -31,7 +31,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -460,7 +459,7 @@ public class StaticArgument {
     }
 
     /** A trait that is conditionally added based on a {@link TraitCondition}. */
-    private static final class ConditionalTrait implements Serializable {
+    private static final class ConditionalTrait {
         private final TraitCondition condition;
         private final StaticArgumentTrait trait;
 

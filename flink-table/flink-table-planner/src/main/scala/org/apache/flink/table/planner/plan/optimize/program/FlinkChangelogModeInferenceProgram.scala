@@ -1641,8 +1641,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
   }
 
   /**
-   * Whether the PTF requires UPDATE_BEFORE from its input. Returns true unless partition keys
-   * cover the upsert keys (co-located) and the argument doesn't explicitly require UPDATE_BEFORE.
+   * Whether the PTF requires UPDATE_BEFORE from its input. Returns true unless partition keys cover
+   * the upsert keys (co-located) and the argument doesn't explicitly require UPDATE_BEFORE.
    */
   private def ptfRequiresUpdateBefore(
       tableArg: StaticArgument,
@@ -1651,8 +1651,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     val partitionKeys = ImmutableBitSet.of(tableArgCall.getPartitionKeys: _*)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(input.getCluster.getMetadataQuery)
     val upsertKeys = fmq.getUpsertKeys(input)
-    upsertKeys == null || partitionKeys.isEmpty || !upsertKeys.contains(partitionKeys)
-    || tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
+    upsertKeys == null || partitionKeys.isEmpty ||
+    !upsertKeys.contains(partitionKeys) ||
+    tableArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)
   }
 
   private def extractPtfTableArgComponents(

@@ -20,14 +20,15 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.io.Serializable;
-
 /**
  * A condition that determines whether a conditional trait on a {@link StaticArgument} should be
  * active for a given call.
  *
  * <p>Conditions are evaluated at planning time using the {@link TraitContext} which provides access
  * to the SQL call's properties (PARTITION BY presence, scalar literal values, etc.).
+ *
+ * <p>Implementations must implement {@code hashCode} and {@code equals} for {@link
+ * StaticArgument#equals}/{@link StaticArgument#hashCode} to work correctly.
  *
  * <p>Use the static factory methods for common conditions:
  *
@@ -40,7 +41,7 @@ import java.io.Serializable;
  */
 @PublicEvolving
 @FunctionalInterface
-public interface TraitCondition extends Serializable {
+public interface TraitCondition {
 
     /** Evaluates this condition against the given context. */
     boolean test(TraitContext ctx);

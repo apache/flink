@@ -273,8 +273,7 @@ public class BridgingSqlFunction extends SqlFunction {
             }
             final StaticArgument arg = args.get(ordinal);
             final TableCharacteristic.Semantics semantics;
-            // Report SET if it may apply - which allows the use of Partition BY
-            // actual semantics resolved later via resolveTraits
+            // Report SET semantics if it may apply - which allows the use of PARTITION BY
             if (arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)
                     || arg.hasConditionalTrait(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.SET;
