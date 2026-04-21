@@ -25,11 +25,13 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,5 +155,72 @@ public interface SupportsReadingMetadata {
      */
     default boolean supportsMetadataProjection() {
         return true;
+    }
+
+    /**
+     * Whether this source supports filtering on metadata columns.
+     *
+     * <p>When this method returns {@code true}, the planner may call {@link
+     * #applyMetadataFilters(List)} during optimization with predicates expressed in metadata key
+     * names (from {@link #listReadableMetadata()}), not SQL column aliases. Sources that do not
+     * override this method will not receive metadata filter predicates.
+     *
+     * <p>This is independent of {@link SupportsFilterPushDown}, which handles physical column
+     * predicates. A source can implement both to accept filters on physical and metadata columns.
+     */
+    default boolean supportsMetadataFilterPushDown() {
+        return false;
+    }
+
+    /**
+     * Provides a list of metadata filters in conjunctive form. A source can pick filters and return
+     * the accepted and remaining filters. Same contract as {@link
+     * SupportsFilterPushDown#applyFilters(List)}, but for metadata columns.
+     *
+     * <p>The provided filters reference metadata key names (from {@link #listReadableMetadata()}),
+     * not SQL column aliases. For example, a column declared as {@code msg_offset BIGINT METADATA
+     * FROM 'offset'} will have its predicate expressed as {@code offset >= 1000}, not {@code
+     * msg_offset >= 1000}. The planner handles the alias-to-key translation before calling this
+     * method.
+     */
+    default MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
+        return MetadataFilterResult.of(Collections.emptyList(), metadataFilters);
+    }
+
+    /**
+     * Result of a metadata filter push down. Communicates the source's response to the planner
+     * during optimization.
+     */
+    @PublicEvolving
+    final class MetadataFilterResult {
+        private final List<ResolvedExpression> acceptedFilters;
+        private final List<ResolvedExpression> remainingFilters;
+
+        private MetadataFilterResult(
+                List<ResolvedExpression> acceptedFilters,
+                List<ResolvedExpression> remainingFilters) {
+            this.acceptedFilters = acceptedFilters;
+            this.remainingFilters = remainingFilters;
+        }
+
+        /**
+         * Constructs a metadata filter push-down result.
+         *
+         * @param acceptedFilters filters consumed by the source (best effort)
+         * @param remainingFilters filters that a subsequent operation must still apply at runtime
+         */
+        public static MetadataFilterResult of(
+                List<ResolvedExpression> acceptedFilters,
+                List<ResolvedExpression> remainingFilters) {
+            return new MetadataFilterResult(acceptedFilters, remainingFilters);
+        }
+
+        public List<ResolvedExpression> getAcceptedFilters() {
+            return acceptedFilters;
+        }
+
+        public List<ResolvedExpression> getRemainingFilters() {
+            return remainingFilters;
+        }
     }
 }
