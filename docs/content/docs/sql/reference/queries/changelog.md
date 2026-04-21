@@ -61,7 +61,7 @@ SELECT * FROM FROM_CHANGELOG(
 | Parameter    | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |:-------------|:---------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `input`      | Yes      | The input table. Must be append-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING.                                                                                                                                                                                                                                                                                                                                       |
+| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING. The column may be declared nullable, but a NULL value at runtime fails the job with a `TableRuntimeException` — every changelog row must carry an operation code.                                                                                                                                                                     |
 | `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). Receiving an op code not present in the mapping fails the job at runtime with a `TableRuntimeException`. Each change operation may appear at most once across all entries. |
 
 #### Default op_mapping
@@ -92,6 +92,7 @@ The output contains all input columns except the operation code (e.g., op) colum
 ```sql
 -- Input (append-only):
 -- +I[id:1, op:'INSERT',        name:'Alice']
+-- +I[id:2, op:'INSERT',        name:'Bob']
 -- +I[id:1, op:'UPDATE_BEFORE', name:'Alice']
 -- +I[id:1, op:'UPDATE_AFTER',  name:'Alice2']
 -- +I[id:2, op:'DELETE',        name:'Bob']
@@ -102,6 +103,7 @@ SELECT * FROM FROM_CHANGELOG(
 
 -- Output (updating table):
 -- +I[id:1, name:'Alice']
+-- +I[id:2, name:'Bob']
 -- -U[id:1, name:'Alice']
 -- +U[id:1, name:'Alice2']
 -- -D[id:2, name:'Bob']

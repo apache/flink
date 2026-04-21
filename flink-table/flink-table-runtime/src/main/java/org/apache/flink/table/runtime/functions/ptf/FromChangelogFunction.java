@@ -135,6 +135,10 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
             final RowData input,
             @Nullable final ColumnList op,
             @Nullable final MapData opMapping) {
+        if (input.isNullAt(opColumnIndex)) {
+            throw new TableRuntimeException(
+                    "Received NULL op code. Every changelog row must carry an operation code.");
+        }
         final StringData opCode = input.getString(opColumnIndex);
         final RowKind rowKind = opMap.get(opCode);
         if (rowKind == null) {

@@ -207,4 +207,25 @@ public class FromChangelogTestPrograms {
                             TableRuntimeException.class,
                             "Received invalid op code 'UNKNOWN'")
                     .build();
+
+    public static final TableTestProgram NULL_OP_CODE =
+            TableTestProgram.of(
+                            "from-changelog-null-op-code",
+                            "fails when input contains a NULL op code")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(Row.of(1, null, "Alice"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(new Row[0])
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream)",
+                            TableRuntimeException.class,
+                            "Received NULL op code")
+                    .build();
 }
