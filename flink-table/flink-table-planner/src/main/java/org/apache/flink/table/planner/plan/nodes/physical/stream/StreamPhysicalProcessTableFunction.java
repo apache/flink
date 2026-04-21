@@ -92,6 +92,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
 
     private final FlinkLogicalTableFunctionScan scan;
     private final @Nullable String uid;
+    private final List<StaticArgument> resolvedStaticArgs;
 
     private List<RelNode> inputs;
 
@@ -107,8 +108,13 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         this.scan = scan;
         final RexCall call = (RexCall) scan.getCall();
         validateAllowSystemArgs(call);
-        this.uid = deriveUniqueIdentifier(scan);
+        this.resolvedStaticArgs = resolveStaticArgs(call);
+        this.uid = deriveUniqueIdentifier(scan, resolvedStaticArgs);
         verifyInputSize(ShortcutUtils.unwrapTableConfig(cluster), inputs.size());
+    }
+
+    public List<StaticArgument> getResolvedStaticArgs() {
+        return resolvedStaticArgs;
     }
 
     public StreamPhysicalProcessTableFunction(
@@ -208,21 +214,39 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
      *
      * @see SystemTypeInference
      */
-    private static @Nullable String deriveUniqueIdentifier(FlinkLogicalTableFunctionScan scan) {
+    /** Resolves conditional traits for all static args at construction time. */
+    private static List<StaticArgument> resolveStaticArgs(final RexCall call) {
+        final List<StaticArgument> staticArgs = getStaticArguments(call);
+        final List<RexNode> operands = call.getOperands();
+        return IntStream.range(0, staticArgs.size())
+                .mapToObj(
+                        i -> {
+                            final StaticArgument arg = staticArgs.get(i);
+                            if (!arg.is(StaticArgumentTrait.TABLE) || !arg.hasConditionalTraits()) {
+                                return arg;
+                            }
+                            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(i);
+                            return arg.applyConditionalTraits(
+                                    buildTraitContext(call, tableArgCall));
+                        })
+                .collect(Collectors.toList());
+    }
+
+    private static @Nullable String deriveUniqueIdentifier(
+            FlinkLogicalTableFunctionScan scan, List<StaticArgument> resolvedStaticArgs) {
         final RexCall rexCall = (RexCall) scan.getCall();
         final BridgingSqlFunction.WithTableFunction function =
                 (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
-        final List<StaticArgument> staticArgs =
-                function.getTypeInference()
-                        .getStaticArguments()
-                        .orElseThrow(IllegalStateException::new);
         final ContextResolvedFunction resolvedFunction = function.getResolvedFunction();
         final List<RexNode> operands = rexCall.getOperands();
         // Type inference ensures that uid is always added at the end
         final RexNode uidRexNode = operands.get(operands.size() - 1);
         if (uidRexNode.getKind() == SqlKind.DEFAULT) {
             // Optional for constant or row semantics functions
-            if (!hasResolvedSetSemantics(staticArgs, operands, rexCall)) {
+            final boolean hasSetSemantics =
+                    resolvedStaticArgs.stream()
+                            .anyMatch(arg -> arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE));
+            if (!hasSetSemantics) {
                 return null;
             }
             final String uid =
@@ -406,28 +430,6 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 return Optional.empty();
             }
         };
-    }
-
-    /** Checks if any table argument resolves to SET_SEMANTIC_TABLE after applying conditions. */
-    private static boolean hasResolvedSetSemantics(
-            final List<StaticArgument> staticArgs,
-            final List<RexNode> operands,
-            final RexCall rexCall) {
-        for (int i = 0; i < staticArgs.size(); i++) {
-            final StaticArgument arg = staticArgs.get(i);
-            if (!arg.is(StaticArgumentTrait.TABLE)) {
-                continue;
-            }
-
-            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(i);
-
-            final StaticArgument resolvedArg =
-                    arg.applyConditionalTraits(buildTraitContext(rexCall, tableArgCall));
-            if (resolvedArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public static List<StaticArgument> getStaticArguments(final RexCall call) {

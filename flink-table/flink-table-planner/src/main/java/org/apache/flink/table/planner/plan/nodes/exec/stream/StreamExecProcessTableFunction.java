@@ -186,9 +186,13 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                                 providedInputArg -> {
                                     final RexTableArgCall tableArgCall =
                                             (RexTableArgCall) operands.get(providedInputArg.i);
-                                    final StaticArgument tableArg = providedInputArg.e;
+                                    final StaticArgument resolvedArg =
+                                            providedInputArg.e.applyConditionalTraits(
+                                                    StreamPhysicalProcessTableFunction
+                                                            .buildTraitContext(
+                                                                    invocation, tableArgCall));
                                     return createRuntimeTableSemantics(
-                                            invocation, tableArg, tableArgCall, inputTimeColumns);
+                                            resolvedArg, tableArgCall, inputTimeColumns);
                                 })
                         .collect(Collectors.toList());
 
@@ -293,24 +297,20 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     }
 
     private RuntimeTableSemantics createRuntimeTableSemantics(
-            RexCall call,
-            StaticArgument tableArg,
+            StaticArgument resolvedArg,
             RexTableArgCall tableArgCall,
             List<Integer> inputTimeColumns) {
         final RuntimeChangelogMode consumedChangelogMode =
                 RuntimeChangelogMode.serialize(
                         inputChangelogModes.get(tableArgCall.getInputIndex()));
         final DataType dataType;
-        if (tableArg.getDataType().isPresent()) {
-            dataType = tableArg.getDataType().get();
+        if (resolvedArg.getDataType().isPresent()) {
+            dataType = resolvedArg.getDataType().get();
         } else {
             dataType = DataTypes.of(FlinkTypeFactory.toLogicalRowType(tableArgCall.type));
         }
 
         final int timeColumn = inputTimeColumns.get(tableArgCall.getInputIndex());
-        final StaticArgument resolvedArg =
-                tableArg.applyConditionalTraits(
-                        StreamPhysicalProcessTableFunction.buildTraitContext(call, tableArgCall));
 
         return new RuntimeTableSemantics(
                 resolvedArg.getName(),
