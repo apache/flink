@@ -62,7 +62,7 @@ SELECT * FROM FROM_CHANGELOG(
 |:-------------|:---------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `input`      | Yes      | The input table. Must be append-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING.                                                                                                                                                                                                                                                                                                                                       |
-| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). When provided, only mapped codes are forwarded - unmapped codes are dropped. Each change operation may appear at most once across all entries. |
+| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). Receiving an op code not present in the mapping fails the job at runtime with a `TableRuntimeException`. Each change operation may appear at most once across all entries. |
 
 #### Default op_mapping
 
@@ -74,6 +74,8 @@ When `op_mapping` is omitted, the following standard names are used. They allow 
 | `'UPDATE_BEFORE'`  | UPDATE_BEFORE     |
 | `'UPDATE_AFTER'`   | UPDATE_AFTER      |
 | `'DELETE'`         | DELETE            |
+
+Any input row whose op code is not present in the active mapping (default or user-defined) fails the job at runtime with a `TableRuntimeException`.
 
 ### Output Schema
 
