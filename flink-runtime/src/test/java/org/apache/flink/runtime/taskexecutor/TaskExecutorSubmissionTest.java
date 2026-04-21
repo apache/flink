@@ -493,6 +493,9 @@ class TaskExecutorSubmissionTest {
             config.set(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
             config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
             config.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+            config.set(
+                    NettyShuffleEnvironmentOptions.NETWORK_PARTITION_REQUEST_TIMEOUT,
+                    Duration.ofMillis(100));
 
             // Remote location (on the same TM though) for the partition
             NettyShuffleDescriptor sdd =
