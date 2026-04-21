@@ -1435,16 +1435,16 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <pre>{@code
      * // Default: adds 'op' column and supports all changelog modes
-     * table.toChangelog();
+     * Table result = table.toChangelog();
      *
      * // Custom op column name and mapping
-     * table.toChangelog(
+     * Table result = table.toChangelog(
      *     descriptor("op_code").asArgument("op"),
      *     map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
      * );
      *
      * // Deletion flag pattern: comma-separated keys map multiple change operations to the same code
-     * table.toChangelog(
+     * Table result = table.toChangelog(
      *     descriptor("deleted").asArgument("op"),
      *     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
      * );
@@ -1456,23 +1456,33 @@ public interface Table extends Explainable<Table>, Executable {
     Table toChangelog(Expression... arguments);
 
     /**
-     * Converts this append-only table with an explicit operation code column into a dynamic table
-     * using the built-in {@code FROM_CHANGELOG} process table function.
+     * Converts this append-only table with an explicit operation code column into a (potentially
+     * updating) dynamic table. Each input row is expected to have a string column that indicates
+     * the change operation. The operation column is interpreted by the engine and removed from the
+     * output.
      *
-     * <p>Each input row is expected to have a string operation code column (default: {@code "op"})
-     * that indicates the change operation (e.g., INSERT, UPDATE_AFTER, UPDATE_BEFORE, DELETE). The
-     * output table is a dynamic table backed by a changelog stream.
+     * <p>The operation code column defaults to {@code op}. By default, the codes {@code INSERT},
+     * {@code UPDATE_BEFORE}, {@code UPDATE_AFTER}, and {@code DELETE} are recognized; pass {@code
+     * op_mapping} to use custom codes.
      *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
      * // Default: reads 'op' column with standard change operation names
-     * table.fromChangelog();
+     * Table result = cdcStream.fromChangelog();
      *
-     * // Custom op column name and mapping (Debezium-style codes)
-     * table.fromChangelog(
-     *     descriptor("__op").asArgument("op"),
-     *     map("c, r", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE").asArgument("op_mapping")
+     * // With custom op column name
+     * Table result = cdcStream.fromChangelog(
+     *     descriptor("operation").asArgument("op")
+     * );
+     *
+     * // With custom op_mapping
+     * Table result = cdcStream.fromChangelog(
+     *     descriptor("op").asArgument("op"),
+     *     map("c, r", "INSERT",
+     *         "ub", "UPDATE_BEFORE",
+     *         "ua", "UPDATE_AFTER",
+     *         "d", "DELETE").asArgument("op_mapping")
      * );
      * }</pre>
      *
