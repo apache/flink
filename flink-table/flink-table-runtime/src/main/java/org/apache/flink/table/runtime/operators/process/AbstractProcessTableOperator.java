@@ -155,9 +155,16 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     @Override
     public void onEventTime(InternalTimer<RowData, Object> timer) throws Exception {
         final Object namedTimer = timer.getNamespace();
+        boolean isNamedTimer = namedTimer != VoidNamespace.INSTANCE;
+        // Remove the fired timer's state entry immediately to prevent stale entries from
+        // accumulating. Without this, entries for fired timers would persist until the same
+        // timer name is re-registered or the state is explicitly cleared.
+        if (isNamedTimer) {
+            namedTimersMapState.remove((StringData) namedTimer);
+        }
         processTableRunner.ingestTimerEvent(
                 timer.getKey(),
-                namedTimer == VoidNamespace.INSTANCE ? null : (StringData) namedTimer,
+                isNamedTimer ? (StringData) namedTimer : null,
                 timer.getTimestamp());
         processTableRunner.processOnTimer();
     }

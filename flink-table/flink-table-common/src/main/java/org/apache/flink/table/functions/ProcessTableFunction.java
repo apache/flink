@@ -403,6 +403,19 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
+ * <h2>Handling of Late Records</h2>
+ *
+ * <p>A late record is a record with a time attribute value that is less than or equal to the
+ * current watermark. PTFs handle late records just like non-late records by calling the {@code
+ * eval()} method. If the {@code on_time} argument is specified, the late timestamp is preserved in
+ * the output. This behavior is the same for PTFs with row and set semantics.
+ *
+ * <p>Registering a timer for a time that is less than or equal to the current watermark is allowed.
+ * If registered from within {@code eval()}, the timer fires on the next watermark advance. If
+ * registered from within {@code onTimer()}, the timer fires immediately after the current timer
+ * finishes. Note that unconditionally re-registering a past-time timer from within {@code
+ * onTimer()} causes an infinite loop.
+ *
  * <h2>Efficiency and Design Principles</h2>
  *
  * <p>Registering too many timers might affect performance. An ever-growing timer state can happen
@@ -660,6 +673,12 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * timer only fires if a watermark was received from all inputs and the timestamp is smaller
          * or equal to the minimum of all received watermarks.
          *
+         * <p>If the timestamp of the registered timer is already less than or equal to the current
+         * watermark, the timer fires on the next watermark advance if registered from within {@code
+         * eval()}, or immediately after the current timer finishes if registered from within {@code
+         * onTimer()}. Note that unconditionally re-registering a past-time timer from within {@code
+         * onTimer()} causes an infinite loop.
+         *
          * <p>Timers can be named for distinguishing them in the {@code onTimer()} method.
          * Registering a timer under the same name twice will replace an existing timer.
          *
@@ -679,6 +698,12 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * Flink subtask to a timestamp later or equal to the desired timestamp. In other words: A
          * timer only fires if a watermark was received from all inputs and the timestamp is smaller
          * or equal to the minimum of all received watermarks.
+         *
+         * <p>If the timestamp of the registered timer is already less than or equal to the current
+         * watermark, the timer fires on the next watermark advance if registered from within {@code
+         * eval()}, or immediately after the current timer finishes if registered from within {@code
+         * onTimer()}. Note that unconditionally re-registering a past-time timer from within {@code
+         * onTimer()} causes an infinite loop.
          *
          * <p>Only one timer can be registered for a given time.
          *

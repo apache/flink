@@ -645,20 +645,23 @@ public class ProcessTableFunctionTestUtils {
         public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
-            // all timers should be executed once
-            if (timeCtx.time() == 99998) {
-                // will never be fired because it's late
-                collectCreateTimer(timeCtx, "late", 1L);
+            if (r.getFieldAs("name").equals("Bob")) {
+                // Bob registers timers at 0
+                collectCreateTimer(timeCtx, "bob", 0L);
+                collectCreateTimer(timeCtx, 0L);
+            } else {
+                // Alice registers timer at 1
+                collectCreateTimer(timeCtx, "alice", 1L);
             }
-            collectCreateTimer(timeCtx, "t", 0L);
-            collectCreateTimer(timeCtx, 0L);
         }
 
         public void onTimer(OnTimerContext ctx) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectOnTimerEvent(ctx);
-            // will never be fired because it's late
-            collectCreateTimer(timeCtx, "again", timeCtx.time());
+            if (ctx.currentTimer() != null && ctx.currentTimer().equals("alice")) {
+                // register a timer in the past, which should fire immediately
+                collectCreateTimer(timeCtx, "alice-again", 0);
+            }
         }
     }
 
@@ -699,7 +702,12 @@ public class ProcessTableFunctionTestUtils {
         public void eval(Context ctx, @ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectEvalEvent(timeCtx, r);
-            collectCreateTimer(timeCtx, "t", 2);
+            Long wm = timeCtx.currentWatermark();
+            // Register at wm+1 to always target the immediate next watermark: the timer fires
+            // exactly once per watermark advance, and each new row re-registers the timer for the
+            // following watermark step, demonstrating repeated timer re-registration.
+            long timer = wm == null || wm < 0 ? 1 : wm + 1;
+            collectCreateTimer(timeCtx, "t", timer);
         }
 
         public void onTimer(OnTimerContext ctx) {

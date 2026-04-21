@@ -1021,6 +1021,18 @@ class TimerFunction extends ProcessTableFunction<String> {
 {{< /tab >}}
 {{< /tabs >}}
 
+### Handling of Late Records
+
+A late record is a record with a time attribute value that is less than or equal to the current
+watermark. PTFs handle late records just like non-late records by calling the `eval()` method. If
+the `on_time` argument is specified, the late timestamp is preserved in the output. This behavior is
+the same for PTFs with row and set semantics.
+
+Registering a timer for a time that is less than or equal to the current watermark is allowed.
+If registered from within `eval()`, the timer fires on the next watermark advance. If registered
+from within `onTimer()`, the timer fires immediately after the current timer finishes. Note that
+unconditionally re-registering a past-time timer from within `onTimer()` causes an infinite loop.
+
 ### Efficiency and Design Principles
 
 Registering too many timers might affect performance. An ever-growing timer state can happen

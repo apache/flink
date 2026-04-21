@@ -87,11 +87,6 @@ class WritableInternalTimeContext extends ReadableInternalTimeContext {
     }
 
     private void registerOnTimeInternal(@Nullable String name, long newTime) {
-        if (newTime <= unnamedTimerService.currentWatermark()) {
-            // Do not register timers for late events.
-            // Otherwise, the next watermark would trigger an onTimer() that emits late events.
-            return;
-        }
         if (name != null) {
             replaceNamedTimer(StringData.fromString(name), newTime);
         } else {
