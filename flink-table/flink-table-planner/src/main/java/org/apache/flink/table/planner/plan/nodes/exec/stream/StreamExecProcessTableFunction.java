@@ -188,7 +188,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                                             (RexTableArgCall) operands.get(providedInputArg.i);
                                     final StaticArgument tableArg = providedInputArg.e;
                                     return createRuntimeTableSemantics(
-                                            tableArg, tableArgCall, inputTimeColumns);
+                                            invocation, tableArg, tableArgCall, inputTimeColumns);
                                 })
                         .collect(Collectors.toList());
 
@@ -293,7 +293,10 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     }
 
     private RuntimeTableSemantics createRuntimeTableSemantics(
-            StaticArgument tableArg, RexTableArgCall tableArgCall, List<Integer> inputTimeColumns) {
+            RexCall call,
+            StaticArgument tableArg,
+            RexTableArgCall tableArgCall,
+            List<Integer> inputTimeColumns) {
         final RuntimeChangelogMode consumedChangelogMode =
                 RuntimeChangelogMode.serialize(
                         inputChangelogModes.get(tableArgCall.getInputIndex()));
@@ -305,17 +308,20 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         }
 
         final int timeColumn = inputTimeColumns.get(tableArgCall.getInputIndex());
+        final StaticArgument resolvedArg =
+                tableArg.applyConditionalTraits(
+                        StreamPhysicalProcessTableFunction.buildTraitContext(call, tableArgCall));
 
         return new RuntimeTableSemantics(
-                tableArg.getName(),
+                resolvedArg.getName(),
                 tableArgCall.getInputIndex(),
                 dataType,
                 tableArgCall.getPartitionKeys(),
                 tableArgCall.getOrderKeys(),
                 RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                 consumedChangelogMode,
-                tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
-                tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
+                resolvedArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
+                resolvedArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
                 timeColumn);
     }
 

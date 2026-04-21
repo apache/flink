@@ -154,7 +154,7 @@ This is useful when you need to materialize changelog events into a downstream s
 
 ```sql
 SELECT * FROM TO_CHANGELOG(
-  input => TABLE source_table,
+  input => TABLE source_table [PARTITION BY key_col],
   [op => DESCRIPTOR(op_column_name),]
   [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...]]
 )
@@ -162,10 +162,10 @@ SELECT * FROM TO_CHANGELOG(
 
 ### Parameters
 
-| Parameter    | Required | Description |
-|:-------------|:---------|:------------|
-| `input`      | Yes      | The input table. Accepts insert-only, retract, and upsert tables. |
-| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. |
+| Parameter    | Required | Description                                                                                                                                                                                                                                                                                                                                              |
+|:-------------|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `input`      | Yes      | The input table. With `PARTITION BY`, rows with the same key are co-located and run in the same operator instance. Without `PARTITION BY`, each row is processed independently. Accepts insert-only, retract, and upsert tables. For upsert tables, providing `PARTITION BY` is recommended for better performance.                                      |
+| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
 | `op_mapping` | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
 
 #### Default op_mapping

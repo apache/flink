@@ -36,6 +36,7 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.TraitCondition;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
@@ -785,22 +786,22 @@ public final class BuiltInFunctionDefinitions {
                     .name("TO_CHANGELOG")
                     .kind(PROCESS_TABLE)
                     .staticArguments(
-                            // Row semantics (no PARTITION BY). Accepts updating
-                            // inputs. The planner inserts ChangelogNormalize for
-                            // upsert sources to produce UPDATE_BEFORE and full
-                            // DELETE rows.
+                            // Row semantics (no PARTITION BY).
+                            // With PARTITION BY, switches to set
+                            // semantics for co-located parallel execution.
                             StaticArgument.table(
-                                    "input",
-                                    Row.class,
-                                    false,
-                                    EnumSet.of(
-                                            StaticArgumentTrait.TABLE,
-                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
-                                            StaticArgumentTrait.SUPPORT_UPDATES,
-                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
-                                            // Not strictly necessary but explicitly state that
-                                            // we require full deletes.
-                                            StaticArgumentTrait.REQUIRE_FULL_DELETE)),
+                                            "input",
+                                            Row.class,
+                                            false,
+                                            EnumSet.of(
+                                                    StaticArgumentTrait.TABLE,
+                                                    StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                                    StaticArgumentTrait.SUPPORT_UPDATES,
+                                                    StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
+                                                    StaticArgumentTrait.REQUIRE_FULL_DELETE))
+                                    .withConditionalTrait(
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            TraitCondition.hasPartitionBy()),
                             StaticArgument.scalar("op", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "op_mapping",

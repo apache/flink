@@ -87,4 +87,21 @@ public class ToChangelogTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source)", CHANGELOG_MODE);
     }
+
+    @Test
+    void testSetSemanticsWithPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE retract_source ("
+                                + "  id INT,"
+                                + "  name STRING,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UB,UA,D'"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)",
+                CHANGELOG_MODE);
+    }
 }

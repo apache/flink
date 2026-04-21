@@ -1640,6 +1640,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     modeBuilder.build()
   }
 
+  /**
+   * Whether the planner can skip generating UPDATE_BEFORE for this PTF's input. Requires partition
+   * keys that cover the upsert keys so related events are co-located.
+   */
   private def isPtfUpsert(
       tableArg: StaticArgument,
       tableArgCall: RexTableArgCall,
@@ -1743,10 +1747,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
     StreamPhysicalProcessTableFunction
       .getProvidedInputArgs(call)
-      .map(_.e)
       .foreach {
-        tableArg =>
-          if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
+        arg =>
+          val tableArg = arg.e
+          val tableArgCall = call.operands.get(arg.i).asInstanceOf[RexTableArgCall]
+          val traitCtx = StreamPhysicalProcessTableFunction
+            .buildTraitContext(call, tableArgCall)
+          if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE, traitCtx)) {
             throw new ValidationException(
               s"PTFs that take table arguments with row semantics don't support upsert output. " +
                 s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +

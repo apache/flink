@@ -21,13 +21,14 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction;
 import org.apache.flink.table.planner.plan.rules.physical.common.PhysicalMLPredictTableFunctionRule;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
@@ -37,8 +38,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.TableCharacteristic;
-import org.apache.calcite.sql.TableCharacteristic.Semantics;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
@@ -81,11 +80,9 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
         final FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) rel;
         final RexCall rexCall = (RexCall) scan.getCall();
 
-        final BridgingSqlFunction.WithTableFunction function =
-                (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
         final List<RexNode> operands = rexCall.getOperands();
         final List<RelNode> newInputs =
-                applyDistributionOnInputs(function, operands, rel.getInputs());
+                applyDistributionOnInputs(rexCall, operands, rel.getInputs());
         final RelTraitSet providedTraitSet =
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
         return new StreamPhysicalProcessTableFunction(
@@ -93,42 +90,43 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
     }
 
     private static List<RelNode> applyDistributionOnInputs(
-            BridgingSqlFunction.WithTableFunction function,
-            List<RexNode> operands,
-            List<RelNode> inputs) {
+            RexCall rexCall, List<RexNode> operands, List<RelNode> inputs) {
+        final List<StaticArgument> staticArgs =
+                StreamPhysicalProcessTableFunction.getStaticArguments(rexCall);
         return Ord.zip(operands).stream()
                 .filter(operand -> operand.e instanceof RexTableArgCall)
                 .map(
                         tableOperand -> {
-                            final int pos = tableOperand.i;
                             final RexTableArgCall tableArgCall = (RexTableArgCall) tableOperand.e;
-                            final TableCharacteristic tableCharacteristic =
-                                    function.tableCharacteristic(pos);
-                            assert tableCharacteristic != null;
+                            final StaticArgument tableArg = staticArgs.get(tableOperand.i);
+                            final StaticArgument resolvedTableArg =
+                                    tableArg.applyConditionalTraits(
+                                            StreamPhysicalProcessTableFunction.buildTraitContext(
+                                                    rexCall, tableArgCall));
                             return applyDistributionOnInput(
                                     tableArgCall,
-                                    tableCharacteristic,
+                                    resolvedTableArg,
                                     inputs.get(tableArgCall.getInputIndex()));
                         })
                 .collect(Collectors.toList());
     }
 
     private static RelNode applyDistributionOnInput(
-            RexTableArgCall tableOperand, TableCharacteristic tableCharacteristic, RelNode input) {
-        final FlinkRelDistribution requiredDistribution =
-                deriveDistribution(tableOperand, tableCharacteristic);
+            RexTableArgCall tableOperand, StaticArgument resolvedTableArg, RelNode input) {
+        final FlinkRelDistribution distribution =
+                deriveDistribution(tableOperand, resolvedTableArg);
         final RelTraitSet requiredTraitSet =
                 input.getCluster()
                         .getPlanner()
                         .emptyTraitSet()
-                        .replace(requiredDistribution)
+                        .replace(distribution)
                         .replace(FlinkConventions.STREAM_PHYSICAL());
         return RelOptRule.convert(input, requiredTraitSet);
     }
 
     private static FlinkRelDistribution deriveDistribution(
-            RexTableArgCall tableOperand, TableCharacteristic tableCharacteristic) {
-        if (tableCharacteristic.semantics == Semantics.SET) {
+            RexTableArgCall tableOperand, StaticArgument resolvedTableArg) {
+        if (resolvedTableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
             final int[] partitionKeys = tableOperand.getPartitionKeys();
             if (partitionKeys.length == 0) {
                 return FlinkRelDistribution.SINGLETON();

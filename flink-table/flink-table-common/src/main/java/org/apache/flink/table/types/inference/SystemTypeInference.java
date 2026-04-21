@@ -182,6 +182,32 @@ public class SystemTypeInference {
         }
     }
 
+    static TraitContext buildTraitContext(
+            @Nullable final TableSemantics semantics,
+            final CallContext callContext,
+            final List<StaticArgument> staticArgs) {
+        return new TraitContext() {
+            @Override
+            public boolean hasPartitionBy() {
+                return semantics != null && semantics.partitionByColumns().length > 0;
+            }
+
+            @Override
+            public <T> Optional<T> getScalarArgument(final String name, final Class<T> clazz) {
+                for (int i = 0; i < staticArgs.size(); i++) {
+                    final StaticArgument arg = staticArgs.get(i);
+                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
+                        if (!callContext.isArgumentLiteral(i)) {
+                            return Optional.empty();
+                        }
+                        return callContext.getArgumentValue(i, clazz);
+                    }
+                }
+                return Optional.empty();
+            }
+        };
+    }
+
     private static void checkMultipleTableArgs(List<StaticArgument> staticArgs) {
         final List<StaticArgument> tableArgs =
                 staticArgs.stream()
@@ -311,17 +337,21 @@ public class SystemTypeInference {
             return IntStream.range(0, staticArgs.size())
                     .mapToObj(
                             pos -> {
-                                final StaticArgument arg = staticArgs.get(pos);
-                                if (arg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+                                final TableSemantics semantics =
+                                        callContext.getTableSemantics(pos).orElse(null);
+                                final TraitContext traitCtx =
+                                        buildTraitContext(semantics, callContext, staticArgs);
+                                final StaticArgument resolvedArg =
+                                        staticArgs.get(pos).applyConditionalTraits(traitCtx);
+                                if (resolvedArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                     return DataType.getFields(argDataTypes.get(pos)).stream();
                                 }
-                                if (!arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                                if (semantics == null) {
                                     return Stream.<Field>empty();
                                 }
-                                final TableSemantics semantics =
-                                        callContext
-                                                .getTableSemantics(pos)
-                                                .orElseThrow(IllegalStateException::new);
+                                if (!resolvedArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                                    return Stream.<Field>empty();
+                                }
                                 final DataType rowDataType =
                                         DataTypes.ROW(DataType.getFields(argDataTypes.get(pos)));
                                 final DataType projectedRow =
@@ -620,8 +650,12 @@ public class SystemTypeInference {
                                                     "Table expected for argument '%s'.",
                                                     staticArg.getName()));
                                 }
-                                checkRowSemantics(staticArg, semantics);
-                                checkSetSemantics(staticArg, semantics);
+                                final TraitContext traitCtx =
+                                        buildTraitContext(semantics, callContext, staticArgs);
+                                final StaticArgument resolvedArg =
+                                        staticArg.applyConditionalTraits(traitCtx);
+                                checkRowSemantics(resolvedArg, semantics);
+                                checkSetSemantics(resolvedArg, semantics);
                                 tableSemantics.add(semantics);
                             });
             checkCoPartitioning(tableSemantics);

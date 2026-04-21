@@ -54,6 +54,26 @@ ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), D
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSetSemanticsWithPartitionBy">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], op=[$1], id0=[$2], name=[$3])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, INTEGER id0, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,id0,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, INTEGER id0, VARCHAR(2147483647) name)], changelogMode=[I])
++- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+   +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUpsertSource">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source)]]>

@@ -40,6 +40,8 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
+import org.apache.flink.table.types.inference.TraitContext;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
@@ -68,8 +70,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -220,8 +225,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         final RexNode uidRexNode = operands.get(operands.size() - 1);
         if (uidRexNode.getKind() == SqlKind.DEFAULT) {
             // Optional for constant or row semantics functions
-            if (staticArgs.stream()
-                    .noneMatch(arg -> arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+            if (!hasResolvedSetSemantics(staticArgs, operands, rexCall)) {
                 return null;
             }
             final String uid =
@@ -377,6 +381,118 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 .filter(arg -> arg.e.is(StaticArgumentTrait.TABLE))
                 .filter(arg -> operands.get(arg.i) instanceof RexTableArgCall)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Builds a {@link TraitContext} for resolving conditional traits on a table argument at
+     * planning time.
+     */
+    public static TraitContext buildTraitContext(
+            final RexCall call, final RexTableArgCall tableArgCall) {
+        final List<StaticArgument> declaredArgs = getStaticArguments(call);
+        final List<RexNode> operands = call.getOperands();
+
+        return new TraitContext() {
+            @Override
+            public boolean hasPartitionBy() {
+                return tableArgCall.getPartitionKeys().length > 0;
+            }
+
+            @Override
+            public <T> Optional<T> getScalarArgument(final String name, final Class<T> clazz) {
+                return findScalarLiteral(declaredArgs, operands, name, clazz);
+            }
+        };
+    }
+
+    /** Checks if any table argument resolves to SET_SEMANTIC_TABLE after applying conditions. */
+    private static boolean hasResolvedSetSemantics(
+            final List<StaticArgument> staticArgs,
+            final List<RexNode> operands,
+            final RexCall rexCall) {
+        for (int i = 0; i < staticArgs.size(); i++) {
+            final StaticArgument arg = staticArgs.get(i);
+            if (!arg.is(StaticArgumentTrait.TABLE)) {
+                continue;
+            }
+
+            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(i);
+
+            final StaticArgument resolvedArg =
+                    arg.applyConditionalTraits(buildTraitContext(rexCall, tableArgCall));
+            if (resolvedArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static List<StaticArgument> getStaticArguments(final RexCall call) {
+        final BridgingSqlFunction.WithTableFunction function =
+                (BridgingSqlFunction.WithTableFunction) call.getOperator();
+        return function.getTypeInference()
+                .getStaticArguments()
+                .orElseThrow(IllegalStateException::new);
+    }
+
+    /**
+     * Extracts a scalar argument value by name. Handles NULL, DEFAULT, DESCRIPTOR, MAP, and
+     * standard literal values (Boolean, String, Integer, etc.) following the same rules as {@link
+     * CallContext#getArgumentValue}. Does not support time types (Instant, Duration, LocalDate)
+     * which require the full CallContext bridge.
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> Optional<T> findScalarLiteral(
+            final List<StaticArgument> declaredArgs,
+            final List<RexNode> operands,
+            final String name,
+            final Class<T> clazz) {
+        for (int i = 0; i < declaredArgs.size(); i++) {
+            final StaticArgument arg = declaredArgs.get(i);
+            if (!arg.is(StaticArgumentTrait.SCALAR) || !arg.getName().equals(name)) {
+                continue;
+            }
+            final RexNode operand = operands.get(i);
+            // NULL and DEFAULT produce empty
+            if (operand.getKind() == SqlKind.DEFAULT || RexUtil.isNullLiteral(operand, true)) {
+                return Optional.empty();
+            }
+            // DESCRIPTOR and MAP are RexCalls, not RexLiterals
+            if (operand.getKind() == SqlKind.DESCRIPTOR && clazz == ColumnList.class) {
+                final List<String> columns =
+                        ((RexCall) operand)
+                                .getOperands().stream()
+                                        .map(RexLiteral::stringValue)
+                                        .collect(Collectors.toList());
+                return Optional.of((T) ColumnList.of(columns));
+            }
+            if (operand.getKind() == SqlKind.MAP_VALUE_CONSTRUCTOR && clazz == Map.class) {
+                return Optional.ofNullable((T) extractMap((RexCall) operand));
+            }
+            // Standard literals
+            if (operand instanceof RexLiteral) {
+                try {
+                    return Optional.ofNullable(((RexLiteral) operand).getValueAs(clazz));
+                } catch (IllegalArgumentException e) {
+                    return Optional.empty();
+                }
+            }
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    private static @Nullable Map<String, String> extractMap(final RexCall mapCall) {
+        final List<RexNode> operands = mapCall.getOperands();
+        final Map<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < operands.size(); i += 2) {
+            final @Nullable String key = RexLiteral.stringValue(operands.get(i));
+            final @Nullable String value = RexLiteral.stringValue(operands.get(i + 1));
+            if (key != null) {
+                map.put(key, value);
+            }
+        }
+        return map;
     }
 
     public static Set<String> deriveOnTimeFields(RexCall call) {
