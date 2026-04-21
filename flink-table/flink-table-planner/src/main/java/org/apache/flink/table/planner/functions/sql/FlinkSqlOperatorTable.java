@@ -1340,6 +1340,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // SEARCH FUNCTIONS
     public static final SqlFunction VECTOR_SEARCH = new SqlVectorSearchTableFunction();
 
+    // WATERMARK FUNCTIONS
+    public static final SqlFunction APPLY_WATERMARK = new SqlApplyWatermarkFunction();
+
     // Catalog Functions
     public static final SqlFunction CURRENT_DATABASE =
             BuiltInSqlFunction.newBuilder()
