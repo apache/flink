@@ -1456,12 +1456,14 @@ public interface Table extends Explainable<Table>, Executable {
     Table toChangelog(Expression... arguments);
 
     /**
-     * Converts this append-only table with an explicit operation code column into a dynamic table
-     * using the built-in {@code FROM_CHANGELOG} process table function.
+     * Converts this append-only table with an explicit operation code column into a (potentially
+     * updating) dynamic table. Each input row is expected to have a string column that indicates
+     * the change operation. The operation column is interpreted by the engine and removed from the
+     * output.
      *
-     * <p>Each input row is expected to have a string operation code column (default: {@code "op"})
-     * that indicates the change operation (e.g., INSERT, UPDATE_AFTER, UPDATE_BEFORE, DELETE). The
-     * output table is a dynamic table backed by a changelog stream.
+     * <p>The operation code column defaults to {@code op}. By default, the codes {@code INSERT},
+     * {@code UPDATE_BEFORE}, {@code UPDATE_AFTER}, and {@code DELETE} are recognized; pass {@code
+     * op_mapping} to use custom codes.
      *
      * <p>Optional arguments can be passed using named expressions:
      *

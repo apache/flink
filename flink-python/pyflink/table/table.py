@@ -1223,11 +1223,13 @@ class Table(object):
     def from_changelog(self, *arguments: Expression) -> 'Table':
         """
         Converts this append-only table with an explicit operation code column into a
-        dynamic table using the built-in ``FROM_CHANGELOG`` process table function.
+        (potentially updating) dynamic table. Each input row is expected to have a string
+        column that indicates the change operation. The operation column is interpreted by
+        the engine and removed from the output.
 
-        Each input row is expected to have a string operation code column (default: ``op``)
-        that indicates the change operation (e.g., INSERT, UPDATE_AFTER, UPDATE_BEFORE,
-        DELETE). The output table is a dynamic table backed by a changelog stream.
+        The operation code column defaults to ``op``. By default, the codes ``INSERT``,
+        ``UPDATE_BEFORE``, ``UPDATE_AFTER``, and ``DELETE`` are recognized; pass
+        ``op_mapping`` to use custom codes.
 
         Example:
         ::
