@@ -67,6 +67,17 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     protected transient TritonHealthChecker healthChecker;
 
     private final String endpoint;
+
+    /**
+     * Cached sanitized view of {@link #endpoint} used exclusively for log and error-message
+     * formatting. The raw {@link #endpoint} (which may carry {@code user:password@host}
+     * credentials) is still required for HTTP calls and for constructing request URLs, but must
+     * never be echoed to logs, metrics or exception messages, as those can end up in CI artifacts
+     * or user-facing dashboards. Computed once in the constructor so we don't pay the URI parsing
+     * cost on every log line.
+     */
+    private final String loggedEndpoint;
+
     private final String modelName;
     private final String modelVersion;
     private final Duration timeout;
@@ -99,6 +110,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         this.endpoint = config.get(TritonOptions.ENDPOINT);
+        this.loggedEndpoint = TritonUtils.sanitizeUrl(this.endpoint);
         this.modelName = config.get(TritonOptions.MODEL_NAME);
         this.modelVersion = config.get(TritonOptions.MODEL_VERSION);
         this.timeout = config.get(TritonOptions.TIMEOUT);
@@ -135,7 +147,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         if (circuitBreakerEnabled) {
             LOG.info(
                     "Initializing circuit breaker for endpoint {} with threshold={}, timeout={}, halfOpenRequests={}",
-                    endpoint,
+                    loggedEndpoint,
                     circuitBreakerFailureThreshold,
                     circuitBreakerTimeout,
                     circuitBreakerHalfOpenRequests);
@@ -155,12 +167,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                         "Health check is enabled but circuit breaker is disabled for endpoint {}. "
                                 + "Health check will run but failures will not trigger circuit breaking. "
                                 + "Consider enabling circuit-breaker-enabled for better fault tolerance.",
-                        endpoint);
+                        loggedEndpoint);
             }
 
             LOG.info(
                     "Initializing health checker for endpoint {} with interval {}",
-                    endpoint,
+                    loggedEndpoint,
                     healthCheckInterval);
 
             // Pass the (possibly null) circuit breaker directly. The health checker treats a null
@@ -173,12 +185,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             // Perform an immediate health check
             boolean initialHealth = healthChecker.checkNow();
             if (initialHealth) {
-                LOG.info("Initial health check passed for endpoint {}", endpoint);
+                LOG.info("Initial health check passed for endpoint {}", loggedEndpoint);
             } else {
                 LOG.warn(
                         "Initial health check failed for endpoint {}. "
                                 + "Inference requests may fail until server becomes healthy.",
-                        endpoint);
+                        loggedEndpoint);
             }
 
             // Start periodic health checking. The scheduler uses an initial delay equal to
@@ -203,11 +215,11 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
         // Stop health checker first so it cannot race with the HTTP client teardown below.
         if (this.healthChecker != null) {
-            LOG.debug("Stopping health checker for {}", endpoint);
+            LOG.debug("Stopping health checker for {}", loggedEndpoint);
             try {
                 this.healthChecker.close();
             } catch (Exception e) {
-                LOG.warn("Error closing health checker for " + endpoint, e);
+                LOG.warn("Error closing health checker for " + loggedEndpoint, e);
                 if (firstFailure == null) {
                     firstFailure = e;
                 } else {
@@ -226,7 +238,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             try {
                 TritonUtils.releaseHttpClient(this.httpClient);
             } catch (Exception e) {
-                LOG.warn("Error releasing Triton HTTP client for " + endpoint, e);
+                LOG.warn("Error releasing Triton HTTP client for " + loggedEndpoint, e);
                 if (firstFailure == null) {
                     firstFailure = e;
                 } else {

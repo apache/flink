@@ -414,6 +414,15 @@ class TritonHealthCheckerTest {
     }
 
     @Test
+    void testSanitizeEndpointHandlesNull() {
+        // Defensive: callers embed the result directly into format strings, so a readable
+        // placeholder for null avoids awkward "null" tokens in user-visible error messages
+        // without forcing every caller to add its own null-guard. This test pins the behaviour
+        // so a future refactor does not silently change it.
+        assertThat(TritonHealthChecker.sanitizeEndpoint(null)).isEqualTo("<null>");
+    }
+
+    @Test
     void testHealthCheckUsesDedicatedShortTimeoutAndDoesNotInheritInferenceTimeout()
             throws IOException {
         // The inference HTTP client has a 30-second read timeout. If the health checker were

@@ -89,8 +89,19 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             MediaType.get("application/json; charset=utf-8");
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    /** Reusable buffer for gzip compression to avoid repeated allocations. */
-    private final ByteArrayOutputStream compressionBuffer = new ByteArrayOutputStream(1024);
+    /**
+     * Initial capacity for the per-call gzip compression buffer.
+     *
+     * <p>A previous implementation kept a single {@link ByteArrayOutputStream} as an instance field
+     * to avoid repeated allocations. That was unsafe: {@link #asyncPredict(RowData)} is invoked
+     * concurrently from the AsyncIO operator (capacity is typically far greater than 1), so
+     * concurrent calls would race on {@code reset()} / {@code toByteArray()} and produce torn,
+     * corrupt bytes. Allocating a fresh buffer per call trades a cheap allocation for correctness;
+     * {@link ThreadLocal} was considered but rejected because the AsyncIO runner may dispatch
+     * different records to the same thread after the network callback, leaving stale residue
+     * visible if we forgot to {@code reset()}.
+     */
+    private static final int COMPRESSION_BUFFER_INITIAL_CAPACITY = 1024;
 
     private final LogicalType inputType;
     private final LogicalType outputType;
@@ -130,6 +141,10 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             String requestBody = buildInferenceRequest(rowData);
             String url =
                     TritonUtils.buildInferenceUrl(getEndpoint(), getModelName(), getModelVersion());
+            // Sanitized URL used exclusively for log lines and exception messages so that an
+            // endpoint carrying basic-auth credentials (user:password@host) does not leak into
+            // logs or surface in stack traces that may reach users.
+            String loggedUrl = TritonUtils.sanitizeUrl(url);
 
             Request.Builder requestBuilder = new Request.Builder().url(url);
 
@@ -139,8 +154,11 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                         "gzip".equalsIgnoreCase(getCompression()),
                         "Unsupported compression algorithm: '%s'. Currently only 'gzip' is supported.",
                         getCompression());
-                // Only support GZIP: Compress request body with gzip using reusable buffer.
-                compressionBuffer.reset();
+                // Only support GZIP. Allocate a fresh per-call buffer: see
+                // COMPRESSION_BUFFER_INITIAL_CAPACITY Javadoc for why reusing an instance-level
+                // buffer would be unsafe under concurrent asyncPredict() invocations.
+                ByteArrayOutputStream compressionBuffer =
+                        new ByteArrayOutputStream(COMPRESSION_BUFFER_INITIAL_CAPACITY);
                 try (GZIPOutputStream gzos = new GZIPOutputStream(compressionBuffer)) {
                     gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
                 }
@@ -177,13 +195,16 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                     // Record failure with circuit breaker
                                     recordFailure();
 
-                                    // Wrap IOException in TritonNetworkException
+                                    // Wrap IOException in TritonNetworkException. The sanitized
+                                    // URL is used in the user-visible message so that basic-auth
+                                    // credentials embedded in the endpoint cannot leak through
+                                    // exception stacks, CI logs, or error dashboards.
                                     TritonNetworkException networkException =
                                             new TritonNetworkException(
                                                     String.format(
                                                             "Failed to connect to Triton server at %s: %s. "
                                                                     + "This may indicate network connectivity issues, DNS resolution failure, or server unavailability.",
-                                                            url, e.getMessage()),
+                                                            loggedUrl, e.getMessage()),
                                                     e);
 
                                     future.completeExceptionally(networkException);
@@ -194,9 +215,19 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         throws IOException {
                                     try {
                                         if (!response.isSuccessful()) {
-                                            // Record failure for 5xx errors (server issues)
-                                            // Don't record 4xx errors as they are client
-                                            // configuration issues
+                                            // Record failure for 5xx errors (server issues) so
+                                            // they feed into the circuit breaker's failure-rate
+                                            // signal. 4xx errors are intentionally NOT recorded:
+                                            // they represent client-side configuration problems
+                                            // (wrong model name, bad shape, missing auth) that
+                                            // would persist regardless of server health. Folding
+                                            // them into the circuit breaker would cause a user
+                                            // with a persistent config error to force-open the
+                                            // breaker and deny traffic to an otherwise healthy
+                                            // server. The trade-off - 4xx calls do not contribute
+                                            // to the breaker's denominator - is a deliberate
+                                            // choice; the breaker is a server-health signal, not
+                                            // a generic error-rate tracker.
                                             if (response.code() >= 500) {
                                                 recordFailure();
                                             }
@@ -204,7 +235,25 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                             return;
                                         }
 
-                                        String responseBody = response.body().string();
+                                        // OkHttp guarantees that a response produced by
+                                        // Call.enqueue() has a non-null body for successful
+                                        // responses, but we guard defensively: a malformed
+                                        // proxy/interceptor could violate that invariant, and
+                                        // we prefer a typed client exception to an NPE in the
+                                        // user's pipeline.
+                                        okhttp3.ResponseBody body = response.body();
+                                        if (body == null) {
+                                            recordFailure();
+                                            future.completeExceptionally(
+                                                    new TritonClientException(
+                                                            "Triton response has no body for "
+                                                                    + loggedUrl
+                                                                    + ". This typically indicates a misbehaving "
+                                                                    + "proxy or interceptor between the client and Triton.",
+                                                            response.code()));
+                                            return;
+                                        }
+                                        String responseBody = body.string();
                                         Collection<RowData> result =
                                                 parseInferenceResponse(responseBody);
 
@@ -262,7 +311,11 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         errorMsg.append("\n=== Request Configuration ===\n");
         errorMsg.append(
                 String.format("  Model: %s (version: %s)\n", getModelName(), getModelVersion()));
-        errorMsg.append(String.format("  Endpoint: %s\n", getEndpoint()));
+        // Use the sanitized endpoint in user-facing error output so that basic-auth credentials
+        // in the configured endpoint cannot leak through error messages surfaced in job logs,
+        // metrics, or downstream exception stacks.
+        String sanitizedEndpoint = TritonUtils.sanitizeUrl(getEndpoint());
+        errorMsg.append(String.format("  Endpoint: %s\n", sanitizedEndpoint));
         errorMsg.append(String.format("  Input column: %s\n", inputName));
         errorMsg.append(String.format("  Input Flink type: %s\n", inputType));
         errorMsg.append(
@@ -301,7 +354,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                         .append(getModelVersion())
                         .append("\n");
                 errorMsg.append("  • Check model is loaded: GET ")
-                        .append(getEndpoint())
+                        .append(sanitizedEndpoint)
                         .append("\n");
             } else if (statusCode == 401 || statusCode == 403) {
                 errorMsg.append("  • Check auth-token configuration\n");

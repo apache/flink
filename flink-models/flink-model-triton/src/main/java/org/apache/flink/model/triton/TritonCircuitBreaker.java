@@ -79,6 +79,16 @@ public class TritonCircuitBreaker {
     }
 
     private final String endpoint;
+
+    /**
+     * Cached sanitized view of {@link #endpoint} used for all log lines and user-visible exception
+     * messages. The raw endpoint may contain basic-auth credentials (e.g. {@code
+     * http://user:password@host:8000}); {@link TritonUtils#sanitizeUrl(String)} strips the userInfo
+     * component so those credentials cannot leak into INFO/WARN logs or into the message of {@link
+     * TritonCircuitBreakerOpenException} propagated to user pipelines.
+     */
+    private final String loggedEndpoint;
+
     private final double failureThreshold;
     private final Duration openStateDuration;
     private final int halfOpenMaxRequests;
@@ -161,11 +171,24 @@ public class TritonCircuitBreaker {
             Duration openStateDuration,
             int halfOpenMaxRequests) {
         this.endpoint = endpoint;
+        this.loggedEndpoint = TritonUtils.sanitizeUrl(endpoint);
         if (failureThreshold <= 0.0 || failureThreshold > 1.0) {
             throw new IllegalArgumentException(
                     "failureThreshold must be in range (0.0, 1.0], got: " + failureThreshold);
         }
         this.failureThreshold = failureThreshold;
+        // openStateDuration governs the mandatory OPEN -> HALF_OPEN cool-off. A null or
+        // non-positive value would either NPE at every state check (null) or make the breaker
+        // immediately re-admit traffic while the server is still being considered down
+        // (non-positive), which defeats the purpose of the OPEN state. Reject both eagerly so
+        // misconfiguration fails fast at operator construction time, not at first failure.
+        if (openStateDuration == null) {
+            throw new IllegalArgumentException("openStateDuration must not be null");
+        }
+        if (openStateDuration.isZero() || openStateDuration.isNegative()) {
+            throw new IllegalArgumentException(
+                    "openStateDuration must be strictly positive, got: " + openStateDuration);
+        }
         this.openStateDuration = openStateDuration;
         if (halfOpenMaxRequests <= 0) {
             throw new IllegalArgumentException(
@@ -175,7 +198,7 @@ public class TritonCircuitBreaker {
 
         LOG.info(
                 "Circuit breaker created for endpoint {} with threshold={}, openDuration={}, halfOpenRequests={}",
-                endpoint,
+                loggedEndpoint,
                 failureThreshold,
                 openStateDuration,
                 halfOpenMaxRequests);
@@ -218,7 +241,7 @@ public class TritonCircuitBreaker {
                                     lastStateTransitionNanos.set(System.nanoTime());
                                     LOG.info(
                                             "Circuit breaker transitioning from OPEN to HALF_OPEN for {}",
-                                            endpoint);
+                                            loggedEndpoint);
                                 }
                             }
                         }
@@ -231,7 +254,7 @@ public class TritonCircuitBreaker {
                             String.format(
                                     "Circuit breaker is OPEN for endpoint %s. "
                                             + "Server is considered unhealthy. Will retry in %d seconds.",
-                                    endpoint, getRemainingOpenTimeSeconds()));
+                                    loggedEndpoint, getRemainingOpenTimeSeconds()));
 
                 case HALF_OPEN:
                     // Allow limited number of requests in HALF_OPEN state using CAS loop.
@@ -251,7 +274,7 @@ public class TritonCircuitBreaker {
         throw new TritonCircuitBreakerOpenException(
                 String.format(
                         "Circuit breaker state evaluation exceeded %d attempts for endpoint %s.",
-                        MAX_STATE_EVAL_ATTEMPTS, endpoint));
+                        MAX_STATE_EVAL_ATTEMPTS, loggedEndpoint));
     }
 
     /**
@@ -268,14 +291,14 @@ public class TritonCircuitBreaker {
                         String.format(
                                 "Circuit breaker is HALF_OPEN for endpoint %s. "
                                         + "Maximum test requests (%d) reached. Please retry later.",
-                                endpoint, halfOpenMaxRequests));
+                                loggedEndpoint, halfOpenMaxRequests));
             }
             if (halfOpenRequests.compareAndSet(current, current + 1)) {
                 LOG.debug(
                         "Allowing request {}/{} in HALF_OPEN state for {}",
                         current + 1,
                         halfOpenMaxRequests,
-                        endpoint);
+                        loggedEndpoint);
                 return true;
             }
         }
@@ -295,25 +318,33 @@ public class TritonCircuitBreaker {
                 {
                     incrementClosedMetrics(false);
 
-                    // A pure success can only lower the failure rate. However, when the very first
-                    // sample that pushes total over MIN_REQUESTS_THRESHOLD happens to be a success
-                    // (e.g. 9 prior failures followed by one success => total=10, failed=9, rate
-                    // 0.9),
-                    // this is the earliest point at which shouldOpenCircuit() can legitimately
-                    // fire.
-                    // We therefore still evaluate it here; the cost is a single atomic read per
-                    // success.
+                    // A pure success can only lower the failure rate. However, when the very
+                    // first sample that pushes total over MIN_REQUESTS_THRESHOLD happens to be
+                    // a success (e.g. 9 prior failures followed by one success => total=10,
+                    // failed=9, rate 0.9), this is the earliest point at which
+                    // shouldOpenCircuit() can legitimately fire. We therefore still evaluate it
+                    // here; the cost is a single atomic read per success.
                     //
-                    // Read the snapshot BEFORE the CAS so that the values logged below match the
-                    // exact state that triggered the decision. Reading after the CAS would race
-                    // with
-                    // concurrent incrementClosedMetrics() calls and produce misleading log lines.
+                    // Snapshot ordering: we read the counters AFTER incrementClosedMetrics()
+                    // returns (so this sample is folded in) and BEFORE the CLOSED -> OPEN CAS.
+                    // Two consequences matter for readers of this code:
+                    //   1. The snapshot reflects the state that the breaker is deciding on,
+                    //      including the current call's contribution. snapshotClosedMetrics()
+                    //      reads both counters under closedMetricsLock so the pair is
+                    //      internally consistent even if another thread is concurrently
+                    //      incrementing or halving the counters.
+                    //   2. Logging and the shouldOpenCircuit() decision use the SAME snapshot,
+                    //      so the "X/Y failure rate" line always matches the values the
+                    //      decision was actually made on - even though a concurrent thread may
+                    //      have advanced the counters by the time the log line is formatted.
+                    //      This is intentional: a readable, reproducible log is more useful
+                    //      than a re-read that would race with other writers anyway.
                     Snapshot triggeringSnap = snapshotClosedMetrics();
                     if (shouldOpenCircuit(triggeringSnap)) {
                         if (state.compareAndSet(State.CLOSED, State.OPEN)) {
                             LOG.warn(
                                     "Circuit breaker opening for {} due to high failure rate: {}/{}",
-                                    endpoint,
+                                    loggedEndpoint,
                                     triggeringSnap.failed,
                                     triggeringSnap.total);
                             lastStateTransitionNanos.set(System.nanoTime());
@@ -329,7 +360,7 @@ public class TritonCircuitBreaker {
                             "Circuit breaker recorded success {}/{} in HALF_OPEN for {}",
                             successes,
                             halfOpenMaxRequests,
-                            endpoint);
+                            loggedEndpoint);
 
                     if (successes >= halfOpenMaxRequests) {
                         // Enough successful probes, close the circuit
@@ -337,7 +368,7 @@ public class TritonCircuitBreaker {
                             LOG.info(
                                     "Circuit breaker transitioning from HALF_OPEN to CLOSED for {} "
                                             + "after {} successful probes",
-                                    endpoint,
+                                    loggedEndpoint,
                                     successes);
                             lastStateTransitionNanos.set(System.nanoTime());
                             resetClosedMetrics();
@@ -346,7 +377,7 @@ public class TritonCircuitBreaker {
                             // the circuit). Log so the probe isn't silently lost from metrics view.
                             LOG.debug(
                                     "HALF_OPEN -> CLOSED transition lost race for {}; state is now {}",
-                                    endpoint,
+                                    loggedEndpoint,
                                     state.get());
                         }
                     }
@@ -355,7 +386,7 @@ public class TritonCircuitBreaker {
 
             case OPEN:
                 // Shouldn't happen, but log if it does
-                LOG.warn("Recorded success while circuit breaker is OPEN for {}", endpoint);
+                LOG.warn("Recorded success while circuit breaker is OPEN for {}", loggedEndpoint);
                 break;
         }
     }
@@ -374,16 +405,19 @@ public class TritonCircuitBreaker {
                 {
                     incrementClosedMetrics(true);
 
-                    // Read the snapshot BEFORE the CAS so the values logged below match the exact
-                    // state that triggered the decision. See the matching comment in
-                    // recordSuccess().
+                    // Snapshot ordering: taken AFTER the increment (so this failure is included
+                    // in the denominator / numerator) and BEFORE the CLOSED -> OPEN CAS. See the
+                    // matching comment in recordSuccess() for the full reasoning. Short version:
+                    // the snapshot read is guarded by the same lock as the increment, so the
+                    // {total, failed} pair is internally consistent, and the log line below
+                    // reports the exact numbers that drove the decision.
                     Snapshot triggeringSnap = snapshotClosedMetrics();
                     // Check if we should open the circuit
                     if (shouldOpenCircuit(triggeringSnap)) {
                         if (state.compareAndSet(State.CLOSED, State.OPEN)) {
                             LOG.warn(
                                     "Circuit breaker opening for {} due to high failure rate: {}/{}",
-                                    endpoint,
+                                    loggedEndpoint,
                                     triggeringSnap.failed,
                                     triggeringSnap.total);
                             lastStateTransitionNanos.set(System.nanoTime());
@@ -403,14 +437,14 @@ public class TritonCircuitBreaker {
                     halfOpenFailures.incrementAndGet();
                     LOG.warn(
                             "Circuit breaker reopening for {} due to failure in HALF_OPEN state",
-                            endpoint);
+                            loggedEndpoint);
                     lastStateTransitionNanos.set(System.nanoTime());
                 } else {
                     // CAS failed: state already transitioned (e.g. another thread reset).
                     // Log so the failure isn't silently dropped from diagnostic view.
                     LOG.debug(
                             "HALF_OPEN -> OPEN transition lost race for {}; state is now {}",
-                            endpoint,
+                            loggedEndpoint,
                             state.get());
                 }
                 break;
@@ -541,7 +575,7 @@ public class TritonCircuitBreaker {
                 LOG.warn(
                         "Circuit breaker opening for {} due to high failure rate: {}/{} "
                                 + "(triggered by health probe)",
-                        endpoint,
+                        loggedEndpoint,
                         triggeringSnap.failed,
                         triggeringSnap.total);
                 lastStateTransitionNanos.set(System.nanoTime());
@@ -561,12 +595,12 @@ public class TritonCircuitBreaker {
             halfOpenFailures.incrementAndGet();
             LOG.warn(
                     "Circuit breaker reopening for {} due to failing health probe in HALF_OPEN",
-                    endpoint);
+                    loggedEndpoint);
             lastStateTransitionNanos.set(System.nanoTime());
         } else {
             LOG.debug(
                     "Health probe failure in HALF_OPEN for {} lost race; state is now {}",
-                    endpoint,
+                    loggedEndpoint,
                     state.get());
         }
     }
@@ -581,22 +615,24 @@ public class TritonCircuitBreaker {
     public void reset() {
         State oldState = state.getAndSet(State.CLOSED);
         if (oldState != State.CLOSED) {
-            LOG.info("Circuit breaker manually reset to CLOSED for {}", endpoint);
+            LOG.info("Circuit breaker manually reset to CLOSED for {}", loggedEndpoint);
             lastStateTransitionNanos.set(System.nanoTime());
             resetClosedMetrics();
             resetHalfOpenMetrics();
         }
     }
 
-    /** Checks if the circuit should open based on failure rate (fresh snapshot). */
-    private boolean shouldOpenCircuit() {
-        return shouldOpenCircuit(snapshotClosedMetrics());
-    }
-
     /**
-     * Checks if the circuit should open based on the given counter snapshot. Callers that also want
-     * to log the triggering counts should pass the same snapshot to the log statement to keep the
-     * decision and its diagnostic output perfectly consistent.
+     * Checks if the circuit should open based on the given counter snapshot.
+     *
+     * <p>Callers that also want to log the triggering counts should pass the same snapshot to the
+     * log statement so the decision and its diagnostic output are perfectly consistent.
+     *
+     * <p>Every production caller takes its own snapshot (typically right after mutating the
+     * counters via {@link #incrementClosedMetrics(boolean)}) and therefore always routes through
+     * this single overload. A previous no-arg variant that re-read the counters internally was
+     * removed as dead code - keeping it would have duplicated the snapshot logic and risked the log
+     * line and the decision being based on different reads.
      */
     private boolean shouldOpenCircuit(Snapshot snap) {
         // Need minimum number of requests to make a decision

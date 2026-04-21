@@ -422,41 +422,30 @@ public class TritonHealthChecker implements AutoCloseable {
      * Returns an endpoint representation safe to log: any {@code user:password@} prefix in the
      * authority is stripped so credentials cannot leak to INFO/WARN logs.
      *
-     * <p>Non-URI endpoints (e.g. arbitrary host:port strings) are returned unchanged; such inputs
-     * cannot carry credentials by format.
+     * <p>Delegates to {@link TritonUtils#sanitizeUrl(String)} so that every Triton component shares
+     * a single, tested redaction implementation; kept here as a thin {@link VisibleForTesting}
+     * wrapper to preserve the existing test entry-point.
      */
     @VisibleForTesting
     static String sanitizeEndpoint(String endpoint) {
-        if (endpoint == null) {
-            return "<null>";
-        }
-        try {
-            URI uri = new URI(endpoint);
-            if (uri.isAbsolute() && uri.getUserInfo() != null) {
-                URI sanitized =
-                        new URI(
-                                uri.getScheme(),
-                                null, // drop userInfo
-                                uri.getHost(),
-                                uri.getPort(),
-                                uri.getPath(),
-                                uri.getQuery(),
-                                uri.getFragment());
-                return sanitized.toString();
-            }
-        } catch (URISyntaxException ignored) {
-            // fall through: return the original string
-        }
-        return endpoint;
+        return TritonUtils.sanitizeUrl(endpoint);
     }
 
     /**
      * Performs an immediate synchronous health check.
      *
-     * <p>This can be used for on-demand health verification, for example during initialization.
-     * Unlike {@link #performHealthCheck()}, this method does not notify the circuit breaker, since
-     * at initialisation time the circuit breaker's metrics should not be biased by a single
-     * synchronous probe.
+     * <p><b>INTENTIONALLY BYPASSES THE CIRCUIT BREAKER.</b> Unlike {@link #performHealthCheck()},
+     * this method does <i>not</i> call {@link TritonCircuitBreaker#recordHealthProbe(boolean)},
+     * because its designed use case is a one-shot probe during initialisation - folding that single
+     * synchronous sample into the circuit-breaker's failure-rate or half-open budget would bias
+     * both the CLOSED-state rate computation and the HALF_OPEN probe accounting in ways callers
+     * almost never want.
+     *
+     * <p><b>Do not</b> invoke this method from a recurring schedule as a substitute for {@link
+     * #start()}; the periodic path is the only one that keeps the breaker in sync with server
+     * health over time. The intended callers are (a) {@link AbstractTritonModelFunction#open} for
+     * the initial probe and (b) tests. Monitoring dashboards should read {@link #isHealthy()}
+     * rather than calling this method repeatedly.
      *
      * @return true if server is healthy, false otherwise
      */
