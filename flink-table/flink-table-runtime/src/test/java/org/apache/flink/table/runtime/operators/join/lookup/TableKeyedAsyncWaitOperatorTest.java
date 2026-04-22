@@ -111,7 +111,8 @@ public class TableKeyedAsyncWaitOperatorTest {
             testHarness.processWatermark(new Watermark(initialTime + 8));
 
             testHarness.endInput();
-            epoch = new Epoch<>(new Watermark(initialTime + 8));
+            // endInput() sends MAX_WATERMARK, so active epoch is now epoch_max
+            epoch = new Epoch<>(Watermark.MAX_WATERMARK);
             assertThat(aec.getActiveEpoch()).isEqualTo(epoch);
 
             expectedOutput.add(new StreamRecord<>(0, initialTime + 1));
@@ -125,6 +126,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             expectedOutput.add(new StreamRecord<>(1, initialTime + 7));
             expectedOutput.add(new StreamRecord<>(0, initialTime + 8));
             expectedOutput.add(new Watermark(initialTime + 8));
+            expectedOutput.add(Watermark.MAX_WATERMARK);
 
             Queue<Object> expected =
                     new LinkedList<>(
@@ -165,6 +167,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
             expectedOutput.add(new Watermark(initialTime + 2));
             expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
+            expectedOutput.add(Watermark.MAX_WATERMARK);
 
             TestHarnessUtil.assertOutputEquals(
                     "output is not correct.", expectedOutput, testHarness.getOutput());
@@ -248,6 +251,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             expectedOutput.add(new Watermark(initialTime + 8));
             expectedOutput.add(new StreamRecord<>(4, initialTime + 9));
             expectedOutput.add(new StreamRecord<>(6, initialTime + 10));
+            expectedOutput.add(Watermark.MAX_WATERMARK);
 
             Queue<Object> expected =
                     new LinkedList<>(
@@ -293,6 +297,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
             expectedOutput.add(new StreamRecord<>(14, initialTime + 7));
             expectedOutput.add(new StreamRecord<>(16, initialTime + 8));
+            expectedOutput.add(Watermark.MAX_WATERMARK);
 
             testHarness.endInput();
 
@@ -325,17 +330,19 @@ public class TableKeyedAsyncWaitOperatorTest {
         testLazyAsyncFunction.countDown();
         testHarness.endInput();
 
-        ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
-        expected.add(new StreamRecord<>(1, initialTime + 1));
-        expected.add(new StreamRecord<>(2, initialTime + 2));
-        expected.add(new StreamRecord<>(3, initialTime + 3));
-        expected.add(new StreamRecord<>(4, initialTime + 4));
+        ConcurrentLinkedQueue<Object> expectedBeforeRestore = new ConcurrentLinkedQueue<>();
+        expectedBeforeRestore.add(new StreamRecord<>(1, initialTime + 1));
+        expectedBeforeRestore.add(new StreamRecord<>(2, initialTime + 2));
+        expectedBeforeRestore.add(new StreamRecord<>(3, initialTime + 3));
+        expectedBeforeRestore.add(new StreamRecord<>(4, initialTime + 4));
+        // endInput() sends MAX_WATERMARK downstream when upstream didn't send it
+        expectedBeforeRestore.add(Watermark.MAX_WATERMARK);
 
         testHarness.getOutput().removeIf(record -> record instanceof CheckpointBarrier);
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "StateAndRestored Test Output was not correct before restore.",
-                expected,
+                expectedBeforeRestore,
                 testHarness.getOutput(),
                 new StreamRecordComparator());
         testHarness.close();
@@ -364,6 +371,11 @@ public class TableKeyedAsyncWaitOperatorTest {
         assertThat(epochWithMaxWatermark).isPresent();
         assertThat(epochWithMaxWatermark.get().getOngoingRecordCount()).isEqualTo(0);
 
+        ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
+        expected.add(new StreamRecord<>(1, initialTime + 1));
+        expected.add(new StreamRecord<>(2, initialTime + 2));
+        expected.add(new StreamRecord<>(3, initialTime + 3));
+        expected.add(new StreamRecord<>(4, initialTime + 4));
         expected.add(new Watermark(1000L));
         expected.add(new StreamRecord<>(5, initialTime + 5));
         expected.add(new StreamRecord<>(6, initialTime + 6));
@@ -374,7 +386,8 @@ public class TableKeyedAsyncWaitOperatorTest {
         testLazyAsyncFunction.countDown();
         testHarness.endInput();
 
-        // TODO FLINK-37981 send Long.MAX watermark downstream
+        // MAX_WATERMARK was already sent via the epoch mechanism when epoch_1000L completed.
+        // After endInput, only epoch_max (Long.MAX_VALUE) remains as the active epoch.
         assertThat(unwrapEpochManager(testHarness).getOutputQueue().size()).isEqualTo(1);
         assertThat(
                         unwrapEpochManager(testHarness)
@@ -390,6 +403,33 @@ public class TableKeyedAsyncWaitOperatorTest {
                 testHarness.getOutput(),
                 new StreamRecordComparator());
         testHarness.close();
+    }
+
+    /** Verifies that MAX_WATERMARK is sent downstream when endInput() is called. */
+    @Test
+    public void testEndInputSendsMaxWatermark() throws Exception {
+        try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+                createKeyedTestHarness(noLockAsyncDouble2Function, TIMEOUT, 10)) {
+            testHarness.open();
+            final long initialTime = 0L;
+
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+            testHarness.processWatermark(new Watermark(initialTime + 2));
+            testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
+            // Note: processWatermark(MAX_WATERMARK) is NOT called before endInput()
+
+            testHarness.endInput();
+
+            // MAX_WATERMARK must be sent downstream even if not explicitly received from upstream.
+            final long lastWatermarkTs =
+                    testHarness.getOutput().stream()
+                            .filter(e -> e instanceof Watermark)
+                            .mapToLong(e -> ((Watermark) e).getTimestamp())
+                            .max()
+                            .orElse(Long.MIN_VALUE);
+            assertThat(lastWatermarkTs).isEqualTo(Long.MAX_VALUE);
+        }
     }
 
     @Test
@@ -438,6 +478,7 @@ public class TableKeyedAsyncWaitOperatorTest {
 
             final ConcurrentLinkedQueue<Object> expectedOutput =
                     new ConcurrentLinkedQueue<>(expectedRecords);
+            expectedOutput.add(Watermark.MAX_WATERMARK);
 
             TestHarnessUtil.assertOutputEquals(
                     "Output is not correct.", expectedOutput, testHarness.getOutput());

@@ -100,6 +100,10 @@ public class EpochManager<OUT> {
         outputQueue.clear();
     }
 
+    public Watermark getCurrentWatermark() {
+        return currentWatermark;
+    }
+
     @VisibleForTesting
     public Epoch<OUT> getActiveEpoch() {
         return activeEpoch;
