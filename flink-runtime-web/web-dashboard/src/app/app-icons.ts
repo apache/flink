@@ -31,6 +31,7 @@ import {
   FolderOutline,
   FullscreenExitOutline,
   FullscreenOutline,
+  AimOutline,
   LoginOutline,
   MenuFoldOutline,
   MenuUnfoldOutline,
@@ -88,5 +89,6 @@ export const APP_ICONS = [
   FullscreenOutline,
   ArrowsAltOutline,
   ShrinkOutline,
-  PicCenterOutline
+  PicCenterOutline,
+  AimOutline
 ];

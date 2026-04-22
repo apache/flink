@@ -23,6 +23,7 @@ import {
   Component,
   ElementRef,
   EventEmitter,
+  HostListener,
   Input,
   NgZone,
   Output,
@@ -35,8 +36,11 @@ import { FormsModule } from '@angular/forms';
 import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { select } from 'd3-selection';
 import { zoomIdentity } from 'd3-zoom';
+import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSliderModule } from 'ng-zorro-antd/slider';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 import { NodeComponent } from './components/node/node.component';
 import { SvgContainerComponent } from './components/svg-container/svg-container.component';
@@ -52,7 +56,17 @@ enum Visibility {
   templateUrl: './dagre.component.html',
   styleUrls: ['./dagre.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SvgContainerComponent, NodeComponent, NzSliderModule, FormsModule, CommonModule, NzCheckboxModule]
+  imports: [
+    SvgContainerComponent,
+    NodeComponent,
+    NzSliderModule,
+    FormsModule,
+    CommonModule,
+    NzCheckboxModule,
+    NzButtonModule,
+    NzIconModule,
+    NzTooltipModule
+  ]
 })
 export class DagreComponent extends NzGraph {
   visibility: Visibility | string = Visibility.Hidden;
@@ -77,6 +91,14 @@ export class DagreComponent extends NzGraph {
   @Input() pendingOperators: number = 0;
   @Output() nodeClick = new EventEmitter<LayoutNode | null>();
   @Output() showPendingChange = new EventEmitter<boolean>();
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent): void {
+    if (event.ctrlKey && event.code === 'Space') {
+      event.preventDefault();
+      this.moveToCenter();
+    }
+  }
 
   /**
    * Update Node detail
