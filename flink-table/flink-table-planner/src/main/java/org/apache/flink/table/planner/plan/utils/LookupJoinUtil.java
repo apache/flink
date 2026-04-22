@@ -34,6 +34,7 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
+import org.apache.flink.table.connector.source.lookup.AsyncBatchLookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.FullCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
@@ -41,6 +42,7 @@ import org.apache.flink.table.connector.source.lookup.PartialCachingAsyncLookupP
 import org.apache.flink.table.connector.source.lookup.PartialCachingLookupProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncBatchLookupFunction;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -300,7 +302,8 @@ public final class LookupJoinUtil extends FunctionCallUtil {
                 syncFound = true;
             }
             if (provider instanceof AsyncLookupFunctionProvider
-                    || provider instanceof AsyncTableFunctionProvider) {
+                    || provider instanceof AsyncTableFunctionProvider
+                    || provider instanceof AsyncBatchLookupFunctionProvider) {
                 asyncFound = true;
             }
         } else if (temporalTable instanceof LegacyTableSourceTable) {
@@ -321,6 +324,96 @@ public final class LookupJoinUtil extends FunctionCallUtil {
                             temporalTable.getQualifiedName()));
         }
         return preferAsync ? asyncFound : !syncFound;
+    }
+
+    /**
+     * Determines whether the lookup should use batch async mode based on the provider type.
+     *
+     * <p>Batch async lookup is enabled when the temporal table provides an {@link
+     * AsyncBatchLookupFunctionProvider}, which is suitable for AI/ML inference scenarios where
+     * batching lookups can significantly improve throughput.
+     *
+     * @param temporalTable The temporal table to check
+     * @param lookupKeys The lookup key columns
+     * @param preferCustomShuffle Whether to prefer custom shuffle
+     * @return true if batch async lookup should be used
+     */
+    public static boolean isBatchAsyncLookup(
+            RelOptTable temporalTable,
+            Collection<Integer> lookupKeys,
+            boolean preferCustomShuffle) {
+        if (temporalTable instanceof TableSourceTable) {
+            int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
+            LookupTableSource.LookupRuntimeProvider provider =
+                    createLookupRuntimeProvider(
+                            temporalTable, lookupKeyIndicesInOrder, preferCustomShuffle);
+            return provider instanceof AsyncBatchLookupFunctionProvider;
+        }
+        return false;
+    }
+
+    /**
+     * Gets batch async lookup options from the provider.
+     *
+     * @param temporalTable The temporal table
+     * @param lookupKeys The lookup key columns
+     * @param preferCustomShuffle Whether to prefer custom shuffle
+     * @return BatchAsyncLookupOptions if batch async lookup is supported, null otherwise
+     */
+    @Nullable
+    public static BatchAsyncLookupOptions getBatchAsyncLookupOptions(
+            RelOptTable temporalTable,
+            Collection<Integer> lookupKeys,
+            boolean preferCustomShuffle) {
+        if (temporalTable instanceof TableSourceTable) {
+            int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
+            LookupTableSource.LookupRuntimeProvider provider =
+                    createLookupRuntimeProvider(
+                            temporalTable, lookupKeyIndicesInOrder, preferCustomShuffle);
+            if (provider instanceof AsyncBatchLookupFunctionProvider) {
+                AsyncBatchLookupFunctionProvider batchProvider =
+                        (AsyncBatchLookupFunctionProvider) provider;
+                return new BatchAsyncLookupOptions(
+                        batchProvider.getMaxBatchSize(),
+                        batchProvider.getBatchTimeout().toMillis());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Options for batch async lookup operations.
+     *
+     * <p>These options are extracted from {@link AsyncBatchLookupFunctionProvider} and used to
+     * configure the {@link
+     * org.apache.flink.streaming.api.operators.async.AsyncBatchWaitOperator}.
+     */
+    public static class BatchAsyncLookupOptions {
+        private final int maxBatchSize;
+        private final long batchTimeoutMs;
+
+        public BatchAsyncLookupOptions(int maxBatchSize, long batchTimeoutMs) {
+            this.maxBatchSize = maxBatchSize;
+            this.batchTimeoutMs = batchTimeoutMs;
+        }
+
+        public int getMaxBatchSize() {
+            return maxBatchSize;
+        }
+
+        public long getBatchTimeoutMs() {
+            return batchTimeoutMs;
+        }
+
+        @Override
+        public String toString() {
+            return "BatchAsyncLookupOptions{"
+                    + "maxBatchSize="
+                    + maxBatchSize
+                    + ", batchTimeoutMs="
+                    + batchTimeoutMs
+                    + '}';
+        }
     }
 
     /**
@@ -428,6 +521,14 @@ public final class LookupJoinUtil extends FunctionCallUtil {
                     return wrapASyncRetryDelegator(
                             (AsyncLookupFunctionProvider) provider, retryStrategy);
                 }
+            }
+            // Support for batch async lookup function provider (AI/ML inference scenarios)
+            if (provider instanceof AsyncBatchLookupFunctionProvider) {
+                AsyncBatchLookupFunctionProvider batchProvider =
+                        (AsyncBatchLookupFunctionProvider) provider;
+                // Return the batch lookup function directly
+                // The planner will wire it to AsyncBatchWaitOperator
+                return batchProvider.createAsyncBatchLookupFunction();
             }
             if (provider instanceof AsyncTableFunctionProvider) {
                 return ((AsyncTableFunctionProvider<?>) provider).createAsyncTableFunction();
