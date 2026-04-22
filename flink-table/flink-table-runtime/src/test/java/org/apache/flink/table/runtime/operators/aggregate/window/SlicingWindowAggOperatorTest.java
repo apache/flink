@@ -795,6 +795,66 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
+    /**
+     * Regression test for data loss when using TIMESTAMP_LTZ with a non-UTC, non-DST timezone for a
+     * daily tumble window.
+     */
+    @TestTemplate
+    void testEventTimeTumblingWindowsWithLtzAndNonDstTimezone() throws Exception {
+        // Only meaningful for non-UTC timezone: the bug was that the trigger watermark was
+        // computed in UTC space instead of local (shifted) space.
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                shiftTimeZone.equals(SHANGHAI_ZONE_ID),
+                "This regression test only applies to non-UTC timezone");
+
+        // 1-day tumble window in Asia/Shanghai (UTC+8).
+        final SliceAssigner assigner =
+                SliceAssigners.tumbling(2, shiftTimeZone, Duration.ofDays(1));
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildWindowOperator(assigner, aggsFunction, null);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        // Both records fall in local day [2020-10-10 00:00, 2020-10-11 00:00) Asia/Shanghai:
+        //   2020-10-10 00:07:59 Asia/Shanghai  =  2020-10-09T16:07:59Z  =  epoch 1602259679000
+        //   2020-10-10 11:11:59 Asia/Shanghai  =  2020-10-10T03:11:59Z  =  epoch 1602299519000
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1602259679000L)));
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1602299519000L)));
+
+        // Advance watermark past the records but not yet to the local-day boundary.
+        // Local midnight 2020-10-11 00:00:00 Asia/Shanghai = 2020-10-10T16:00:00Z.
+        // Trigger epoch = 2020-10-10T15:59:59.999Z = 1602345599999.
+        testHarness.processWatermark(new Watermark(1602309599999L)); // 2020-10-10T07:59:59.999Z
+        expectedOutput.add(new Watermark(1602309599999L));
+        ASSERTER.assertOutputEqualsSorted(
+                "No window should fire before local-day boundary.",
+                expectedOutput,
+                testHarness.getOutput());
+
+        // Advance watermark to exactly the local-day trigger epoch.
+        // Window [2020-10-10 00:00, 2020-10-11 00:00) Asia/Shanghai must fire.
+        testHarness.processWatermark(new Watermark(1602345599999L));
+
+        // Window boundaries expressed as shifted-UTC millis via localMills():
+        //   start epoch = 2020-10-09T16:00:00Z = 1602259200000  →  localMills = 1602288000000
+        //   end   epoch = 2020-10-10T16:00:00Z = 1602345600000  →  localMills = 1602374400000
+        expectedOutput.add(
+                insertRecord(
+                        "key1", 2L, 2L, localMills(1602259200000L), localMills(1602345600000L)));
+        expectedOutput.add(new Watermark(1602345599999L));
+        ASSERTER.assertOutputEqualsSorted(
+                "Window must fire at local-day boundary.", expectedOutput, testHarness.getOutput());
+
+        testHarness.close();
+    }
+
     @TestTemplate
     void testInvalidWindows() {
         final SliceAssigner assigner =
