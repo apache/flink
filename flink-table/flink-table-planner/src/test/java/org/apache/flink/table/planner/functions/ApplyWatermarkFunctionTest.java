@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -26,7 +27,7 @@ import org.junit.jupiter.api.Test;
 /** Tests for {@link org.apache.flink.table.planner.functions.sql.SqlApplyWatermarkFunction}. */
 public class ApplyWatermarkFunctionTest extends TableTestBase {
 
-    private final StreamTableTestUtil util = streamTestUtil();
+    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
     @Test
     public void testApplyWatermarkFunctionBasic() {
