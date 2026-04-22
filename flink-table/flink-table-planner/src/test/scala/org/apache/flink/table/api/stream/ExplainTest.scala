@@ -132,6 +132,14 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   }
 
   @TestTemplate
+  def testExplainWithWatermark(): Unit = {
+    // Test that watermark information is displayed in EXPLAIN output
+    util.addDataStream[(Int, String, Timestamp)]("WatermarkTable", 'id, 'text, 'rowtime.rowtime)
+    util.addTableWithWatermark("WatermarkSource", util.tableEnv.from("WatermarkTable"), "rowtime", 0)
+    util.verifyExplain("SELECT * FROM WatermarkSource", extraDetails: _*)
+  }
+
+  @TestTemplate
   def testMiniBatchIntervalInfer(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     // Test emit latency propagate among RelNodeBlocks
