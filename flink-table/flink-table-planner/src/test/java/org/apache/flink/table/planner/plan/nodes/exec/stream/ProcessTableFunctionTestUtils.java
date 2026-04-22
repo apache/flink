@@ -665,28 +665,6 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
-    /**
-     * Testing function for validating watermark consistency across same-timestamp timer callbacks.
-     */
-    public static class ConsistentWatermarkTimersFunction extends AppendProcessTableFunctionBase {
-        public void eval(Context ctx, @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
-            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
-            collectEvalEvent(timeCtx, r);
-            if (timeCtx.time() == 0) {
-                // Register multiple named timers at the same time to validate that all timer
-                // callbacks see a consistent watermark, even when interrupted across mailbox
-                // iterations.
-                collectCreateTimer(timeCtx, "timerA", 5L);
-                collectCreateTimer(timeCtx, "timerB", 5L);
-                collectCreateTimer(timeCtx, "timerC", 5L);
-            }
-        }
-
-        public void onTimer(OnTimerContext ctx) {
-            collectOnTimerEvent(ctx);
-        }
-    }
-
     /** Testing function. */
     public static class ScalarArgsTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(Context ctx) {

@@ -43,9 +43,7 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -81,17 +79,28 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ProcessSetTableOperatorInterruptibleTimersTest {
 
-    private static final InternalTypeInfo<RowData> INPUT_TYPE =
-            InternalTypeInfo.ofFields(new BigIntType(), new TimestampType(3));
+    private static final DataType INPUT_TYPE =
+            DataTypes.ROW(
+                    DataTypes.FIELD("k", DataTypes.BIGINT()),
+                    DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3)));
 
     // Output layout is driven by PassPartitionKeysCollector / PassAllCollector in
     // AbstractProcessTableOperator: [partition-key, PTF-emitted label, rowtime].
-    private static final InternalTypeInfo<RowData> OUTPUT_TYPE =
-            InternalTypeInfo.ofFields(
-                    new BigIntType(), VarCharType.STRING_TYPE, new TimestampType(3));
+    private static final DataType OUTPUT_TYPE =
+            DataTypes.ROW(
+                    DataTypes.FIELD("k", DataTypes.BIGINT()),
+                    DataTypes.FIELD("label", DataTypes.STRING()),
+                    DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3)));
+
+    private static final InternalTypeInfo<RowData> INPUT_TYPE_INFO =
+            InternalTypeInfo.of(INPUT_TYPE.getLogicalType());
+
+    private static final InternalTypeInfo<RowData> OUTPUT_TYPE_INFO =
+            InternalTypeInfo.of(OUTPUT_TYPE.getLogicalType());
 
     private static final RowDataKeySelector KEY_SELECTOR =
-            HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, INPUT_TYPE.toRowFieldTypes());
+            HandwrittenSelectorUtil.getRowDataSelector(
+                    new int[] {0}, INPUT_TYPE_INFO.toRowFieldTypes());
 
     private static final long KEY = 42L;
 
@@ -179,18 +188,19 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
 
     private StreamTaskMailboxTestHarness<RowData> createHarness(boolean interruptibleTimers)
             throws Exception {
-        return new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, OUTPUT_TYPE)
+        return new StreamTaskMailboxTestHarnessBuilder<>(
+                        MultipleInputStreamTask::new, OUTPUT_TYPE_INFO)
                 .addJobConfig(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                 .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                 .addJobConfig(
                         CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS,
                         interruptibleTimers)
                 .setKeyType(KEY_SELECTOR.getProducedType())
-                .addInput(INPUT_TYPE, 1, KEY_SELECTOR)
+                .addInput(INPUT_TYPE_INFO, 1, KEY_SELECTOR)
                 .setupOperatorChain(new TestOperatorFactory())
                 .name("ptf")
                 .finishForSingletonOperatorChain(
-                        OUTPUT_TYPE.createSerializer(new SerializerConfigImpl()))
+                        OUTPUT_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .build();
     }
 
@@ -229,9 +239,7 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
         return new RuntimeTableSemantics(
                 "r",
                 0,
-                DataTypes.ROW(
-                        DataTypes.FIELD("k", DataTypes.BIGINT()),
-                        DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3))),
+                INPUT_TYPE,
                 new int[] {0},
                 new int[0],
                 new RuntimeTableSemantics.SortDirection[0],
@@ -298,7 +306,7 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
             long ts = timer.getTimestamp();
             long keyValue = timer.getKey().getLong(0);
             final Object ns = timer.getNamespace();
-            final String name = (ns instanceof StringData) ? ((StringData) ns).toString() : null;
+            final String name = (ns instanceof StringData) ? ns.toString() : null;
             mailboxExecutor.execute(
                     () ->
                             output.collect(
