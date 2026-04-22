@@ -73,4 +73,20 @@ class AggregateTest extends TableTestBase {
 
     util.verifyExecPlan(resultTable)
   }
+
+  @Test
+  def testGroupAggregateAfterOrderBy(): Unit = {
+    // order_by before a group_by that prunes the sort-key column must not
+    // leave a stale collation on the local hash aggregate.
+    val util = batchTestUtil()
+    val sourceTable = util
+      .addTableSource[(Int, Long, Int, String, Double)]("MyTable", 'a, 'b, 'c, 'd, 'e)
+
+    val resultTable = sourceTable
+      .orderBy('c)
+      .groupBy('d)
+      .select('e.count.as('cnt))
+
+    util.verifyExecPlan(resultTable)
+  }
 }

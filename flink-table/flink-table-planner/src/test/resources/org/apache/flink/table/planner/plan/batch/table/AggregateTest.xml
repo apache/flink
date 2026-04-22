@@ -74,6 +74,19 @@ HashAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGroupAggregateAfterOrderBy">
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0 AS cnt])
++- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[d]])
+      +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
+         +- Sort(orderBy=[c ASC])
+            +- Exchange(distribution=[single])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupAggregateWithFilter">
     <Resource name="ast">
       <![CDATA[
