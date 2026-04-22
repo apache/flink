@@ -36,6 +36,9 @@
         <xhtml:div class="node-label" *ngIf="slotSharingGroupName && !pending">
           Slot Sharing Group: {{ slotSharingGroupName }}
         </xhtml:div>
+        <xhtml:div class="node-label" *ngIf="slotSharingGroupId && !pending">
+          Slot Sharing Group ID: {{ slotSharingGroupId }}
+        </xhtml:div>
         <xhtml:div
           class="node-label metric"
           title="Maximum back pressured percentage across all subtasks"
