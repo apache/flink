@@ -134,8 +134,16 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   @TestTemplate
   def testExplainWithWatermark(): Unit = {
     // Test that watermark information is displayed in EXPLAIN output
-    util.addDataStream[(Int, String, Timestamp)]("WatermarkTable", 'id, 'text, 'rowtime.rowtime)
-    util.addTableWithWatermark("WatermarkSource", util.tableEnv.from("WatermarkTable"), "rowtime", 0)
+    util.addTable("""
+      |CREATE TABLE WatermarkSource (
+      |  id INT,
+      |  text STRING,
+      |  rowtime TIMESTAMP(3),
+      |  WATERMARK FOR rowtime AS rowtime - INTERVAL '0' SECOND
+      |) WITH (
+      |  'connector' = 'values'
+      |)
+      |""".stripMargin)
     util.verifyExplain("SELECT * FROM WatermarkSource", extraDetails: _*)
   }
 
