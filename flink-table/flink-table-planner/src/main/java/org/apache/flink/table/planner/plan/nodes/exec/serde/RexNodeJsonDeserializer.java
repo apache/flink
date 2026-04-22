@@ -376,9 +376,7 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             callType = serdeContext.getRexBuilder().deriveReturnType(operator, rexOperands);
         }
         // SqlDefaultArgOperator is constructed per-call site by FlinkSqlCallBinding and not
-        // registered in any operator table, so the lookup above falls through to Calcite's stock
-        // SqlStdOperatorTable.DEFAULT_OPERATOR. Rebuild the typed Flink instance here so codegen's
-        // `op instanceof SqlDefaultArgOperator` check (StringCallGen) recognizes it on restore.
+        // registered in any operator table. Rebuild the typed Flink instance here.
         final SqlOperator effectiveOperator =
                 operator.getKind() == SqlKind.DEFAULT
                         ? new SqlDefaultArgOperator(callType)

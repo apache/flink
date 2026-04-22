@@ -24,9 +24,8 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.List;
 
 /**
- * Restore tests for the built-in FROM_CHANGELOG PTF. Verifies that {@link
- * org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator} placeholders for unprovided
- * optional args round-trip through compiled-plan serialization.
+ * Restore tests for the built-in {@link
+ * org.apache.flink.table.functions.BuiltInFunctionDefinitions#FROM_CHANGELOG} PTF.
  */
 public class FromChangelogRestoreTest extends RestoreTestBase {
 

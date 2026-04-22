@@ -189,10 +189,7 @@ public class FromChangelogTestPrograms {
 
     /**
      * Append source with retract op codes through FROM_CHANGELOG, split across a compiled-plan +
-     * savepoint restore. The unprovided {@code op} and {@code op_mapping} args become {@code
-     * DEFAULT()} placeholders that survive {@code toUdfCall} and reach codegen on the restore path
-     * - exercising the {@link org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator}
-     * round-trip.
+     * savepoint restore.
      */
     public static final TableTestProgram RETRACT_RESTORE =
             TableTestProgram.of(

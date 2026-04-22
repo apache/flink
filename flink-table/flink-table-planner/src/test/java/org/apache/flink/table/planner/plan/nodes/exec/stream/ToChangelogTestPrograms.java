@@ -89,12 +89,7 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
-    /**
-     * Retract input through TO_CHANGELOG, split across a compiled-plan + savepoint restore. The
-     * unprovided {@code op} and {@code op_mapping} args become {@code DEFAULT()} placeholders that
-     * survive {@code toUdfCall} and reach codegen on the restore path - exercising the {@link
-     * org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator} round-trip.
-     */
+    /** Retract input through TO_CHANGELOG, split across a compiled-plan + savepoint restore. */
     public static final TableTestProgram RETRACT_RESTORE =
             TableTestProgram.of(
                             "to-changelog-retract-restore",
