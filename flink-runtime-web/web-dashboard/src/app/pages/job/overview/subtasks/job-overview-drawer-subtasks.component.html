@@ -86,7 +86,7 @@
               </td>
               <td>
                 <span *ngIf="subtask['metrics']['read-records-complete']; else loadingTemplate">
-                  {{ subtask['metrics']['read-records'] | number: '1.0-0' }}
+                  {{ subtask['metrics']['read-records'] | number : '1.0-0' }}
                 </span>
               </td>
               <td>
@@ -96,14 +96,14 @@
               </td>
               <td>
                 <span *ngIf="subtask['metrics']['write-records-complete']; else loadingTemplate">
-                  {{ subtask['metrics']['write-records'] | number: '1.0-0' }}
+                  {{ subtask['metrics']['write-records'] | number : '1.0-0' }}
                 </span>
               </td>
               <td>{{ subtask.attempt + 1 }}</td>
               <td>{{ subtask.endpoint }}</td>
-              <td>{{ subtask['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+              <td>{{ subtask['start_time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
               <td>{{ subtask.duration | humanizeDuration }}</td>
-              <td>{{ subtask['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+              <td>{{ subtask['end-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
               <td>
                 {{ subtask['metrics']['accumulated-backpressured-time'] | humanizeDuration }}
                 /
@@ -150,7 +150,7 @@
                   </td>
                   <td>
                     <span *ngIf="attempt['metrics']['read-records-complete']; else loadingTemplate">
-                      {{ attempt['metrics']['read-records'] | number: '1.0-0' }}
+                      {{ attempt['metrics']['read-records'] | number : '1.0-0' }}
                     </span>
                   </td>
                   <td>
@@ -162,14 +162,14 @@
                     <span
                       *ngIf="attempt['metrics']['write-records-complete']; else loadingTemplate"
                     >
-                      {{ attempt['metrics']['write-records'] | number: '1.0-0' }}
+                      {{ attempt['metrics']['write-records'] | number : '1.0-0' }}
                     </span>
                   </td>
                   <td>{{ attempt.attempt + 1 }}</td>
                   <td>{{ attempt.endpoint }}</td>
-                  <td>{{ attempt['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+                  <td>{{ attempt['start_time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
                   <td>{{ attempt.duration | humanizeDuration }}</td>
-                  <td>{{ attempt['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+                  <td>{{ attempt['end-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
                   <td>
                     {{ attempt['metrics']['accumulated-backpressured-time'] | humanizeDuration }}
                     /

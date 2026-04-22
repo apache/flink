@@ -44,9 +44,9 @@
         class="clickable"
       >
         <td>{{ application.name }}</td>
-        <td>{{ application['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+        <td>{{ application['start-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
         <td>{{ application.duration | humanizeDuration }}</td>
-        <td>{{ application['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+        <td>{{ application['end-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
         <td>
           <flink-jobs-badge [jobs]="application.jobs"></flink-jobs-badge>
         </td>
