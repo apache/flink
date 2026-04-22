@@ -65,7 +65,6 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
 
     // Current time
     private long tableWatermark = Long.MIN_VALUE;
-    private long currentWatermark = Long.MIN_VALUE;
     private @Nullable Long rowtime;
     private @Nullable StringData timerName;
 
@@ -131,20 +130,12 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         tableWatermark = Long.MIN_VALUE;
     }
 
-    public void ingestCurrentWatermarkEvent(long watermark) {
-        currentWatermark = watermark;
-    }
-
     public void clearAllState() {
         Arrays.fill(stateCleared, true);
     }
 
     public void clearState(int statePos) {
         stateCleared[statePos] = true;
-    }
-
-    public long getCurrentWatermark() {
-        return currentWatermark;
     }
 
     public long getTableWatermark() {
