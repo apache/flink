@@ -64,62 +64,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TritonUtils {
     private static final Logger LOG = LoggerFactory.getLogger(TritonUtils.class);
 
-    private static final Object LOCK = new Object();
+    private static final Object CACHE_LOCK = new Object();
 
     private static final Map<ClientKey, ClientValue> cache = new HashMap<>();
-
-    /** Connection pool configuration holder. */
-    public static class ConnectionPoolConfig {
-        public final int maxIdleConnections;
-        public final long keepAliveDurationMs;
-        public final int maxTotalConnections;
-        public final long connectionTimeoutMs;
-        public final boolean reuseEnabled;
-        public final boolean monitoringEnabled;
-
-        public ConnectionPoolConfig(
-                int maxIdleConnections,
-                long keepAliveDurationMs,
-                int maxTotalConnections,
-                long connectionTimeoutMs,
-                boolean reuseEnabled,
-                boolean monitoringEnabled) {
-            this.maxIdleConnections = maxIdleConnections;
-            this.keepAliveDurationMs = keepAliveDurationMs;
-            this.maxTotalConnections = maxTotalConnections;
-            this.connectionTimeoutMs = connectionTimeoutMs;
-            this.reuseEnabled = reuseEnabled;
-            this.monitoringEnabled = monitoringEnabled;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            ConnectionPoolConfig that = (ConnectionPoolConfig) o;
-            return maxIdleConnections == that.maxIdleConnections
-                    && keepAliveDurationMs == that.keepAliveDurationMs
-                    && maxTotalConnections == that.maxTotalConnections
-                    && connectionTimeoutMs == that.connectionTimeoutMs
-                    && reuseEnabled == that.reuseEnabled
-                    && monitoringEnabled == that.monitoringEnabled;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(
-                    maxIdleConnections,
-                    keepAliveDurationMs,
-                    maxTotalConnections,
-                    connectionTimeoutMs,
-                    reuseEnabled,
-                    monitoringEnabled);
-        }
-    }
 
     /**
      * Creates or retrieves a cached HTTP client with the specified configuration.
@@ -134,13 +81,13 @@ public class TritonUtils {
     public static OkHttpClient createHttpClient(long timeoutMs, ConnectionPoolConfig poolConfig) {
         ClientKey key = new ClientKey(timeoutMs, poolConfig);
 
-        synchronized (LOCK) {
+        synchronized (CACHE_LOCK) {
             ClientValue value = cache.get(key);
             if (value != null) {
+                int newReferenceCount = value.referenceCount.incrementAndGet();
                 LOG.debug(
                         "Returning existing Triton HTTP client (reference count: {}).",
-                        value.referenceCount.get() + 1);
-                value.referenceCount.incrementAndGet();
+                        newReferenceCount);
                 return value.client;
             }
 
@@ -162,6 +109,8 @@ public class TritonUtils {
             // Configure dispatcher for concurrent requests
             Dispatcher dispatcher = new Dispatcher();
             dispatcher.setMaxRequests(poolConfig.maxTotalConnections);
+            // Set maxRequestsPerHost to the same value since we typically connect to a single
+            // Triton server endpoint. This allows full utilization of the connection pool.
             dispatcher.setMaxRequestsPerHost(poolConfig.maxTotalConnections);
 
             // Build HTTP client
@@ -220,7 +169,7 @@ public class TritonUtils {
      * @param client The client to release
      */
     public static void releaseHttpClient(OkHttpClient client) {
-        synchronized (LOCK) {
+        synchronized (CACHE_LOCK) {
             ClientKey keyToRemove = null;
             ClientValue valueToRemove = null;
 

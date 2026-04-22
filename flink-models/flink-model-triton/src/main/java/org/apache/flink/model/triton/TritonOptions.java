@@ -194,7 +194,7 @@ public class TritonOptions {
                                     .text(
                                             "Maximum number of idle connections to keep in the pool. "
                                                     + "Higher values reduce connection setup overhead but consume more memory. "
-                                                    + "Recommended: 10-50 depending on parallelism and QPS. "
+                                                    + "Recommended: 10-50 depending on parallelism and QPS (Queries Per Second). "
                                                     + "Defaults to 20.")
                                     .build());
 
@@ -220,7 +220,7 @@ public class TritonOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Maximum total number of connections across all routes. "
+                                            "Maximum total number of connections across all routes (unique host:port combinations). "
                                                     + "This limits the overall number of concurrent connections. "
                                                     + "Should be >= max-concurrent-requests to avoid blocking. "
                                                     + "Recommended: 50-200 depending on expected load. "
@@ -237,7 +237,7 @@ public class TritonOptions {
                                     .text(
                                             "Timeout for establishing a new connection to Triton server. "
                                                     + "Shorter timeouts fail fast but may cause false negatives on slow networks. "
-                                                    + "Should be less than overall %s. "
+                                                    + "Must be less than the overall request %s to avoid conflicts. "
                                                     + "Recommended: 5s-30s. "
                                                     + "Defaults to 10s.",
                                             code("timeout"))
