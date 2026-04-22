@@ -19,7 +19,11 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.TableSemantics;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -41,4 +45,37 @@ public interface TraitContext {
      *     cannot be converted to the requested type
      */
     <T> Optional<T> getScalarArgument(String name, Class<T> clazz);
+
+    /**
+     * Builds a {@link TraitContext} from validation-time inputs.
+     *
+     * <p>Used by {@code SystemTypeInference} when wrapping a function's strategies. Planner-side
+     * code that has a {@code RexCall} should use the planner adapter in {@code BridgingSqlFunction}
+     * instead.
+     */
+    static TraitContext of(
+            @Nullable final TableSemantics semantics,
+            final CallContext callContext,
+            final List<StaticArgument> staticArgs) {
+        return new TraitContext() {
+            @Override
+            public boolean hasPartitionBy() {
+                return semantics != null && semantics.partitionByColumns().length > 0;
+            }
+
+            @Override
+            public <T> Optional<T> getScalarArgument(final String name, final Class<T> clazz) {
+                for (int i = 0; i < staticArgs.size(); i++) {
+                    final StaticArgument arg = staticArgs.get(i);
+                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
+                        if (!callContext.isArgumentLiteral(i)) {
+                            return Optional.empty();
+                        }
+                        return callContext.getArgumentValue(i, clazz);
+                    }
+                }
+                return Optional.empty();
+            }
+        };
+    }
 }

@@ -40,7 +40,6 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
-import org.apache.flink.table.types.inference.TraitContext;
 import org.apache.flink.types.RowKind;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
@@ -71,7 +70,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -92,7 +90,6 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
 
     private final FlinkLogicalTableFunctionScan scan;
     private final @Nullable String uid;
-    private final List<StaticArgument> resolvedStaticArgs;
 
     private List<RelNode> inputs;
 
@@ -108,13 +105,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         this.scan = scan;
         final RexCall call = (RexCall) scan.getCall();
         validateAllowSystemArgs(call);
-        this.resolvedStaticArgs = resolveStaticArgs(call);
-        this.uid = deriveUniqueIdentifier(scan, resolvedStaticArgs);
+        this.uid = deriveUniqueIdentifier(scan);
         verifyInputSize(ShortcutUtils.unwrapTableConfig(cluster), inputs.size());
-    }
-
-    public List<StaticArgument> getResolvedStaticArgs() {
-        return resolvedStaticArgs;
     }
 
     public StreamPhysicalProcessTableFunction(
@@ -214,39 +206,22 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
      *
      * @see SystemTypeInference
      */
-    /** Resolves conditional traits for all static args at construction time. */
-    private static List<StaticArgument> resolveStaticArgs(final RexCall call) {
-        final List<StaticArgument> staticArgs = getStaticArguments(call);
-        final List<RexNode> operands = call.getOperands();
-        return IntStream.range(0, staticArgs.size())
-                .mapToObj(
-                        i -> {
-                            final StaticArgument arg = staticArgs.get(i);
-                            if (!arg.is(StaticArgumentTrait.TABLE) || !arg.hasConditionalTraits()) {
-                                return arg;
-                            }
-                            final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(i);
-                            return arg.applyConditionalTraits(
-                                    buildTraitContext(call, tableArgCall));
-                        })
-                .collect(Collectors.toList());
-    }
-
-    private static @Nullable String deriveUniqueIdentifier(
-            FlinkLogicalTableFunctionScan scan, List<StaticArgument> resolvedStaticArgs) {
+    private static @Nullable String deriveUniqueIdentifier(FlinkLogicalTableFunctionScan scan) {
         final RexCall rexCall = (RexCall) scan.getCall();
         final BridgingSqlFunction.WithTableFunction function =
                 (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
+        final List<StaticArgument> staticArgs =
+                function.getTypeInference()
+                        .getStaticArguments()
+                        .orElseThrow(IllegalStateException::new);
         final ContextResolvedFunction resolvedFunction = function.getResolvedFunction();
         final List<RexNode> operands = rexCall.getOperands();
         // Type inference ensures that uid is always added at the end
         final RexNode uidRexNode = operands.get(operands.size() - 1);
         if (uidRexNode.getKind() == SqlKind.DEFAULT) {
             // Optional for constant or row semantics functions
-            final boolean hasSetSemantics =
-                    resolvedStaticArgs.stream()
-                            .anyMatch(arg -> arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE));
-            if (!hasSetSemantics) {
+            if (staticArgs.stream()
+                    .noneMatch(arg -> arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
                 return null;
             }
             final String uid =
@@ -404,42 +379,6 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Builds a {@link TraitContext} for resolving conditional traits on a table argument at
-     * planning time.
-     */
-    public static TraitContext buildTraitContext(
-            final RexCall call, final RexTableArgCall tableArgCall) {
-        final CallContext callContext = toCallContext(call);
-        final List<StaticArgument> declaredArgs = getStaticArguments(call);
-
-        return new TraitContext() {
-            @Override
-            public boolean hasPartitionBy() {
-                return tableArgCall.getPartitionKeys().length > 0;
-            }
-
-            @Override
-            public <T> Optional<T> getScalarArgument(final String name, final Class<T> clazz) {
-                for (int i = 0; i < declaredArgs.size(); i++) {
-                    final StaticArgument arg = declaredArgs.get(i);
-                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
-                        return callContext.getArgumentValue(i, clazz);
-                    }
-                }
-                return Optional.empty();
-            }
-        };
-    }
-
-    public static List<StaticArgument> getStaticArguments(final RexCall call) {
-        final BridgingSqlFunction.WithTableFunction function =
-                (BridgingSqlFunction.WithTableFunction) call.getOperator();
-        return function.getTypeInference()
-                .getStaticArguments()
-                .orElseThrow(IllegalStateException::new);
-    }
-
     public static Set<String> deriveOnTimeFields(RexCall call) {
         final List<RexNode> operands = call.getOperands();
         final RexCall onTimeOperand =
@@ -572,14 +511,6 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             }
         }
         return ImmutableSet.copyOf(partitionColumnsPerArg);
-    }
-
-    /**
-     * Creates a CallContext for argument value extraction only, (no changelog and no input time
-     * columns).
-     */
-    public static CallContext toCallContext(RexCall udfCall) {
-        return toCallContext(udfCall, null, null, null);
     }
 
     public static CallContext toCallContext(

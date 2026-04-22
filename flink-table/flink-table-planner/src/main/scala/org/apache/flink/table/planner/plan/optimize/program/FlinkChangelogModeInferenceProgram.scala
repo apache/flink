@@ -1742,13 +1742,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     }
     StreamPhysicalProcessTableFunction
       .getProvidedInputArgs(call)
+      .map(_.e)
       .foreach {
-        arg =>
-          val tableArg = arg.e
-          val tableArgCall = call.operands.get(arg.i).asInstanceOf[RexTableArgCall]
-          val traitCtx = StreamPhysicalProcessTableFunction
-            .buildTraitContext(call, tableArgCall)
-          if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE, traitCtx)) {
+        tableArg =>
+          if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
             throw new ValidationException(
               s"PTFs that take table arguments with row semantics don't support upsert output. " +
                 s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +

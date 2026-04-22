@@ -182,30 +182,27 @@ public class SystemTypeInference {
         }
     }
 
-    static TraitContext buildTraitContext(
-            @Nullable final TableSemantics semantics,
-            final CallContext callContext,
-            final List<StaticArgument> staticArgs) {
-        return new TraitContext() {
-            @Override
-            public boolean hasPartitionBy() {
-                return semantics != null && semantics.partitionByColumns().length > 0;
-            }
-
-            @Override
-            public <T> Optional<T> getScalarArgument(final String name, final Class<T> clazz) {
-                for (int i = 0; i < staticArgs.size(); i++) {
-                    final StaticArgument arg = staticArgs.get(i);
-                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
-                        if (!callContext.isArgumentLiteral(i)) {
-                            return Optional.empty();
-                        }
-                        return callContext.getArgumentValue(i, clazz);
-                    }
-                }
-                return Optional.empty();
-            }
-        };
+    /**
+     * Resolves conditional traits (see {@link StaticArgument#withConditionalTrait}) on every static
+     * arg using the call's semantics and operands. Called once at the top of {@link
+     * SystemInputStrategy#inferInputTypes} and {@link SystemOutputStrategy#inferType}; downstream
+     * helpers receive the resolved list and iterate it directly.
+     */
+    private static List<StaticArgument> resolveStaticArgs(
+            final CallContext callContext, final List<StaticArgument> staticArgs) {
+        return IntStream.range(0, staticArgs.size())
+                .mapToObj(
+                        pos -> {
+                            final StaticArgument arg = staticArgs.get(pos);
+                            if (!arg.hasConditionalTraits()) {
+                                return arg;
+                            }
+                            final TableSemantics semantics =
+                                    callContext.getTableSemantics(pos).orElse(null);
+                            return arg.applyConditionalTraits(
+                                    TraitContext.of(semantics, callContext, staticArgs));
+                        })
+                .collect(Collectors.toList());
     }
 
     private static void checkMultipleTableArgs(List<StaticArgument> staticArgs) {
@@ -288,6 +285,10 @@ public class SystemTypeInference {
             return origin.inferType(callContext)
                     .map(
                             functionDataType -> {
+                                // Resolve once so all helpers see the same effective signature
+                                // (PARTITION BY / scalar literals applied to conditional traits).
+                                final List<StaticArgument> resolvedArgs =
+                                        resolveStaticArgs(callContext, staticArgs);
                                 final List<Field> fields = new ArrayList<>();
 
                                 // According to the SQL standard, pass-through columns should
@@ -299,11 +300,11 @@ public class SystemTypeInference {
                                 // - Flink SESSION windows add pass-through columns at the beginning
                                 // - Oracle adds pass-through columns for all ROW semantics args, so
                                 // this whole topic is kind of vendor specific already
-                                fields.addAll(derivePassThroughFields(callContext));
+                                fields.addAll(derivePassThroughFields(callContext, resolvedArgs));
                                 fields.addAll(deriveFunctionOutputFields(functionDataType));
 
                                 if (!disableSystemArgs) {
-                                    fields.addAll(deriveRowtimeField(callContext));
+                                    fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
                                 }
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
@@ -329,23 +330,21 @@ public class SystemTypeInference {
                     .collect(Collectors.toList());
         }
 
-        private List<Field> derivePassThroughFields(CallContext callContext) {
+        private List<Field> derivePassThroughFields(
+                CallContext callContext, List<StaticArgument> resolvedArgs) {
             if (functionKind != FunctionKind.PROCESS_TABLE) {
                 return List.of();
             }
             final List<DataType> argDataTypes = callContext.getArgumentDataTypes();
-            return IntStream.range(0, staticArgs.size())
+            return IntStream.range(0, resolvedArgs.size())
                     .mapToObj(
                             pos -> {
-                                final TableSemantics semantics =
-                                        callContext.getTableSemantics(pos).orElse(null);
-                                final TraitContext traitCtx =
-                                        buildTraitContext(semantics, callContext, staticArgs);
-                                final StaticArgument resolvedArg =
-                                        staticArgs.get(pos).applyConditionalTraits(traitCtx);
+                                final StaticArgument resolvedArg = resolvedArgs.get(pos);
                                 if (resolvedArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                     return DataType.getFields(argDataTypes.get(pos)).stream();
                                 }
+                                final TableSemantics semantics =
+                                        callContext.getTableSemantics(pos).orElse(null);
                                 if (semantics == null) {
                                     return Stream.<Field>empty();
                                 }
@@ -379,7 +378,8 @@ public class SystemTypeInference {
                     .collect(Collectors.toList());
         }
 
-        private List<Field> deriveRowtimeField(CallContext callContext) {
+        private List<Field> deriveRowtimeField(
+                CallContext callContext, List<StaticArgument> resolvedArgs) {
             if (this.functionKind != FunctionKind.PROCESS_TABLE) {
                 return List.of();
             }
@@ -398,10 +398,10 @@ public class SystemTypeInference {
 
             final List<LogicalType> onTimeColumns = new ArrayList<>();
             final List<String> missingOnTimeColumns = new ArrayList<>();
-            IntStream.range(0, staticArgs.size())
+            IntStream.range(0, resolvedArgs.size())
                     .forEach(
                             pos -> {
-                                final StaticArgument staticArg = staticArgs.get(pos);
+                                final StaticArgument staticArg = resolvedArgs.get(pos);
                                 if (!staticArg.is(StaticArgumentTrait.TABLE)) {
                                     return;
                                 }
@@ -596,8 +596,10 @@ public class SystemTypeInference {
                                 + "that is not overloaded and doesn't contain varargs.");
             }
 
+            // Resolve once so the rest of validation iterates the effective signature.
+            final List<StaticArgument> resolvedArgs = resolveStaticArgs(callContext, staticArgs);
             try {
-                checkTableArgs(staticArgs, callContext);
+                checkTableArgs(resolvedArgs, callContext);
                 if (!disableSystemArgs) {
                     checkUidArg(callContext);
                 }
@@ -633,13 +635,13 @@ public class SystemTypeInference {
         }
 
         private static void checkTableArgs(
-                List<StaticArgument> staticArgs, CallContext callContext) {
+                List<StaticArgument> resolvedArgs, CallContext callContext) {
             final List<TableSemantics> tableSemantics = new ArrayList<>();
-            IntStream.range(0, staticArgs.size())
+            IntStream.range(0, resolvedArgs.size())
                     .forEach(
                             pos -> {
-                                final StaticArgument staticArg = staticArgs.get(pos);
-                                if (!staticArg.is(StaticArgumentTrait.TABLE)) {
+                                final StaticArgument resolvedArg = resolvedArgs.get(pos);
+                                if (!resolvedArg.is(StaticArgumentTrait.TABLE)) {
                                     return;
                                 }
                                 final TableSemantics semantics =
@@ -648,12 +650,8 @@ public class SystemTypeInference {
                                     throw new ValidationException(
                                             String.format(
                                                     "Table expected for argument '%s'.",
-                                                    staticArg.getName()));
+                                                    resolvedArg.getName()));
                                 }
-                                final TraitContext traitCtx =
-                                        buildTraitContext(semantics, callContext, staticArgs);
-                                final StaticArgument resolvedArg =
-                                        staticArg.applyConditionalTraits(traitCtx);
                                 checkRowSemantics(resolvedArg, semantics);
                                 checkSetSemantics(resolvedArg, semantics);
                                 tableSemantics.add(semantics);

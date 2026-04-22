@@ -236,9 +236,7 @@ public class StaticArgument {
      */
     public StaticArgument withConditionalTrait(
             final StaticArgumentTrait trait, final TraitCondition condition) {
-        if (trait == StaticArgumentTrait.SCALAR
-                || trait == StaticArgumentTrait.TABLE
-                || trait == StaticArgumentTrait.MODEL) {
+        if (trait.isRoot()) {
             throw new IllegalArgumentException(
                     "Root traits (SCALAR, TABLE, MODEL) cannot be conditional.");
         }
@@ -286,14 +284,9 @@ public class StaticArgument {
         return resolved;
     }
 
-    /** ROW and SET semantics are mutually exclusive - adding one removes the other. */
     private static void removeMutuallyExclusiveTraits(
             final EnumSet<StaticArgumentTrait> traits, final StaticArgumentTrait adding) {
-        if (adding == StaticArgumentTrait.SET_SEMANTIC_TABLE) {
-            traits.remove(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
-        } else if (adding == StaticArgumentTrait.ROW_SEMANTIC_TABLE) {
-            traits.remove(StaticArgumentTrait.SET_SEMANTIC_TABLE);
-        }
+        traits.removeAll(adding.getIncompatibleWith());
     }
 
     @Override

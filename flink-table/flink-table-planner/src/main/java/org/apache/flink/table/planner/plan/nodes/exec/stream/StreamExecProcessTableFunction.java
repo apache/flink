@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.codegen.HashCodeGenerator;
 import org.apache.flink.table.planner.codegen.ProcessTableRunnerGenerator;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -157,7 +158,10 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_OUTPUT_CHANGELOG_MODE) ChangelogMode outputChangelogMode) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
         this.uid = uid;
-        this.invocation = (RexCall) invocation;
+        // Mirror the FlinkLogicalTableFunctionScan converter for the compiled-plan restore path:
+        // bake StaticArgument#withConditionalTrait rules into the operator's static args so
+        // downstream code can use plain arg.is(SET_SEMANTIC_TABLE) checks.
+        this.invocation = BridgingSqlFunction.resolveCallTraits((RexCall) invocation);
         this.inputChangelogModes = inputChangelogModes;
         this.outputChangelogMode = outputChangelogMode;
     }
@@ -186,13 +190,9 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                                 providedInputArg -> {
                                     final RexTableArgCall tableArgCall =
                                             (RexTableArgCall) operands.get(providedInputArg.i);
-                                    final StaticArgument resolvedArg =
-                                            providedInputArg.e.applyConditionalTraits(
-                                                    StreamPhysicalProcessTableFunction
-                                                            .buildTraitContext(
-                                                                    invocation, tableArgCall));
+                                    final StaticArgument tableArg = providedInputArg.e;
                                     return createRuntimeTableSemantics(
-                                            resolvedArg, tableArgCall, inputTimeColumns);
+                                            tableArg, tableArgCall, inputTimeColumns);
                                 })
                         .collect(Collectors.toList());
 
@@ -297,15 +297,13 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
     }
 
     private RuntimeTableSemantics createRuntimeTableSemantics(
-            StaticArgument resolvedArg,
-            RexTableArgCall tableArgCall,
-            List<Integer> inputTimeColumns) {
+            StaticArgument tableArg, RexTableArgCall tableArgCall, List<Integer> inputTimeColumns) {
         final RuntimeChangelogMode consumedChangelogMode =
                 RuntimeChangelogMode.serialize(
                         inputChangelogModes.get(tableArgCall.getInputIndex()));
         final DataType dataType;
-        if (resolvedArg.getDataType().isPresent()) {
-            dataType = resolvedArg.getDataType().get();
+        if (tableArg.getDataType().isPresent()) {
+            dataType = tableArg.getDataType().get();
         } else {
             dataType = DataTypes.of(FlinkTypeFactory.toLogicalRowType(tableArgCall.type));
         }
@@ -313,15 +311,15 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final int timeColumn = inputTimeColumns.get(tableArgCall.getInputIndex());
 
         return new RuntimeTableSemantics(
-                resolvedArg.getName(),
+                tableArg.getName(),
                 tableArgCall.getInputIndex(),
                 dataType,
                 tableArgCall.getPartitionKeys(),
                 tableArgCall.getOrderKeys(),
                 RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                 consumedChangelogMode,
-                resolvedArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
-                resolvedArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
+                tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
+                tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
                 timeColumn);
     }
 
