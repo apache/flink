@@ -153,9 +153,6 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        // Update the runner's watermark before firing timers to keep it consistent with the
-        // timer service watermark, which is also advanced before any timer fires.
-        processTableRunner.ingestCurrentWatermarkEvent(mark.getTimestamp());
         super.processWatermark(mark);
     }
 
@@ -227,7 +224,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
             internalTimeContext.setTime(
                     processTableRunner.getTableWatermark(),
-                    processTableRunner.getCurrentWatermark(),
+                    combinedWatermark.getCombinedWatermark(),
                     processTableRunner.getTime());
 
             return (TimeContext<TimeType>)

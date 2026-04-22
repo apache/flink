@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -82,9 +83,19 @@ public class ProcessRowTableOperator extends AbstractProcessTableOperator
                     0,
                     element.getValue(),
                     inputSemantics.timeColumn(),
-                    processTableRunner.getCurrentWatermark());
+                    combinedWatermark.getCombinedWatermark());
         }
         processTableRunner.processEval();
+    }
+
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        // Advance combinedWatermark before super.processWatermark(mark): super.processWatermark()
+        // fires due timers, which read the watermark via timeContext(). V2's OneInputStreamOperator
+        // watermark path doesn't update combinedWatermark itself — only reportWatermark()
+        // (multi-input) does — so we do it here.
+        combinedWatermark.updateWatermark(0, mark.getTimestamp());
+        super.processWatermark(mark);
     }
 
     @Override
