@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -29,13 +27,10 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
-import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -332,32 +327,29 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
+    /**
+     * Non-blocking buffer request. Returns a buffer from the pool, or {@code null} if the pool is
+     * exhausted.
+     */
+    @Nullable
+    public Buffer requestBuffer() throws IOException {
+        if (!exclusiveBuffersAssigned) {
+            bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
+            exclusiveBuffersAssigned = true;
+        }
+        return bufferManager.requestBuffer();
+    }
+
     public Buffer requestBufferBlocking() throws InterruptedException, IOException {
         // not in setup to avoid assigning buffers unnecessarily if there is no state
         if (!exclusiveBuffersAssigned) {
             bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
             exclusiveBuffersAssigned = true;
         }
-        if (!inputGate.isCheckpointingDuringRecoveryEnabled()) {
-            // When checkpoint-during-recovery is not enabled, the original blocking allocation
-            // is used as-is — no heap buffer fallback, no behavior change from the legacy path.
-            return bufferManager.requestBufferBlocking();
-        }
-        // Use heap buffer fallback to avoid deadlock during filtering recovery: the filtering
-        // thread first requests buffers to read state (pre-filter), then requests more buffers
-        // to write filtered output (post-filter). If pre-filter buffers exhaust the pool,
-        // post-filter allocation blocks, stalling the thread so pre-filter buffers can never
-        // be consumed and released — the thread deadlocks itself. Heap buffers bypass the pool
-        // so post-filter writes always proceed. Both call sites (getBuffer and filterAndRewrite)
-        // go through this method, so the fallback applies uniformly.
-        // TODO: replace heap fallback with disk spilling to bound memory usage in FLINK-38544.
-        Buffer buffer = bufferManager.requestBuffer();
-        if (buffer != null) {
-            return buffer;
-        }
-        MemorySegment memorySegment =
-                MemorySegmentFactory.allocateUnpooledSegment(MemoryManager.DEFAULT_PAGE_SIZE);
-        return new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE);
+        // Both filtering and non-filtering modes block-wait for a Network Buffer Pool buffer. In
+        // filtering mode the pre-filter buffer is heap-allocated separately in the state handler,
+        // so this method is only called for post-filter buffers which must come from the pool.
+        return bufferManager.requestBufferBlocking();
     }
 
     @Override
