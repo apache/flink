@@ -67,6 +67,13 @@ public class ParallelismOverridesITCase {
     /** Used to capture the actual parallelism at runtime in Application Mode tests. */
     private static final AtomicInteger CAPTURED_PARALLELISM = new AtomicInteger(0);
 
+    /**
+     * Reserved vertex ID used exclusively by the cluster-vs-job override conflict test. The cluster
+     * configuration defines an override for this ID, so tests that use random IDs are unaffected.
+     */
+    private static final JobVertexID CLUSTER_OVERRIDE_VERTEX_ID =
+            JobVertexID.fromHexString("cafecafecafecafecafecafecafecafe");
+
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
@@ -78,6 +85,9 @@ public class ParallelismOverridesITCase {
     private static Configuration createConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
+        Map<String, String> clusterOverrides = new HashMap<>();
+        clusterOverrides.put(CLUSTER_OVERRIDE_VERTEX_ID.toHexString(), "2");
+        configuration.set(PipelineOptions.PARALLELISM_OVERRIDES, clusterOverrides);
         return configuration;
     }
 
@@ -152,6 +162,39 @@ public class ParallelismOverridesITCase {
             // Verify parallelism is 4 (from job config)
             int actualParallelism = getVertexParallelism(restClusterClient, jobId, vertex.getID());
             assertThat(actualParallelism).isEqualTo(4);
+        } finally {
+            restClusterClient.cancel(jobGraph.getJobID()).join();
+        }
+    }
+
+    /**
+     * Tests that when both cluster-level and job-level overrides exist for the same vertex, the
+     * job-level override wins. The cluster-level override (parallelism 2) is configured in {@link
+     * #createConfiguration()}; this test sets a job-level override (parallelism 4) for the same
+     * vertex ID and verifies the job-level value is applied.
+     */
+    @Test
+    void testJobOverrideTakesPrecedenceOverClusterOverride() throws Exception {
+        JobVertex vertex = new JobVertex("test-vertex", CLUSTER_OVERRIDE_VERTEX_ID);
+        vertex.setParallelism(1);
+        vertex.setInvokableClass(BlockingNoOpInvokable.class);
+
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+
+        Map<String, String> jobOverrides = new HashMap<>();
+        jobOverrides.put(CLUSTER_OVERRIDE_VERTEX_ID.toHexString(), "4");
+        jobGraph.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, jobOverrides);
+
+        try {
+            restClusterClient.submitJob(jobGraph).join();
+            JobID jobId = jobGraph.getJobID();
+
+            waitForRunningTasks(restClusterClient, jobId, 4);
+
+            int actualParallelism = getVertexParallelism(restClusterClient, jobId, vertex.getID());
+            assertThat(actualParallelism)
+                    .as("Job-level override (4) should win over cluster-level override (2)")
+                    .isEqualTo(4);
         } finally {
             restClusterClient.cancel(jobGraph.getJobID()).join();
         }
