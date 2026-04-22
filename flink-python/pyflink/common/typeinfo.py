@@ -755,9 +755,11 @@ class LocalTimeTypeInfo(TypeInformation):
 
 
 class ExternalTypeInfo(TypeInformation):
-    def __init__(self, type_info: TypeInformation):
+    def __init__(self, type_info: TypeInformation, _j_external_type_info=None):
         super(ExternalTypeInfo, self).__init__()
         self._type_info = type_info
+        if _j_external_type_info is not None:
+            self._j_typeinfo = _j_external_type_info
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
@@ -770,6 +772,14 @@ class ExternalTypeInfo(TypeInformation):
             j_data_type = TypeInfoDataTypeConverter.toDataType(self._type_info.get_java_type_info())
             self._j_typeinfo = JExternalTypeInfo.of(j_data_type)
         return self._j_typeinfo
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_j_typeinfo', None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self._type_info == other._type_info
@@ -1112,8 +1122,10 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     if _is_instance_of(j_type_info, JExternalTypeInfo):
         TypeInfoDataTypeConverter = \
             gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-        return ExternalTypeInfo(_from_java_type(
-            TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
+        return ExternalTypeInfo(
+            _from_java_type(
+                TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())),
+            _j_external_type_info=j_type_info)
 
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 
