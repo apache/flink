@@ -20,7 +20,9 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * A condition that determines whether a conditional trait on a {@link StaticArgument} should be
@@ -31,10 +33,7 @@ import java.util.Objects;
  *
  * <p>Implementations must implement {@code hashCode} and {@code equals} for {@link
  * StaticArgument#equals}/{@link StaticArgument#hashCode} to work correctly. The built-in factories
- * below return value-comparable instances; user-supplied lambdas do not - prefer the factories or
- * named classes.
- *
- * <p>Use the static factory methods for common conditions:
+ * below return value-comparable instances; user-supplied lambdas do not - prefer the factories.
  *
  * <pre>{@code
  * import static org.apache.flink.table.types.inference.TraitCondition.*;
@@ -52,55 +51,54 @@ public interface TraitCondition {
 
     /** True when PARTITION BY is provided on the table argument. */
     static TraitCondition hasPartitionBy() {
-        return HasPartitionByCondition.INSTANCE;
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.HAS_PARTITION_BY, List.of(), TraitContext::hasPartitionBy);
     }
 
     /** True when the named scalar argument equals the expected value. */
+    @SuppressWarnings("unchecked")
     static <T> TraitCondition argIsEqualTo(final String name, final T expected) {
-        return new ArgIsEqualToCondition<>(name, expected);
+        final Class<T> clazz = (Class<T>) expected.getClass();
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.ARG_IS_EQUAL_TO,
+                List.of(name, expected),
+                ctx -> ctx.getScalarArgument(name, clazz).map(expected::equals).orElse(false));
     }
 
     /** Negates the given condition. */
     static TraitCondition not(final TraitCondition condition) {
-        return new NotCondition(condition);
+        return new BuiltInCondition(
+                BuiltInCondition.Kind.NOT, List.of(condition), ctx -> !condition.test(ctx));
     }
 
-    // --------------------------------------------------------------------------------------------
-    // Built-in implementations - named so that StaticArgument equality cascades correctly.
-    // --------------------------------------------------------------------------------------------
+    /**
+     * Internal value-comparable wrapper used by all built-in factories. Equality is keyed by {@code
+     * kind + args}; the {@code impl} predicate is reused but never compared, so two conditions
+     * built from the same factory inputs are equal.
+     */
+    final class BuiltInCondition implements TraitCondition {
 
-    /** Singleton condition that is true when PARTITION BY is provided on the table argument. */
-    final class HasPartitionByCondition implements TraitCondition {
-
-        private static final HasPartitionByCondition INSTANCE = new HasPartitionByCondition();
-
-        private HasPartitionByCondition() {}
-
-        @Override
-        public boolean test(final TraitContext ctx) {
-            return ctx.hasPartitionBy();
+        /** Tag identifying which factory produced the condition. */
+        enum Kind {
+            HAS_PARTITION_BY,
+            ARG_IS_EQUAL_TO,
+            NOT
         }
 
-        // equals/hashCode by identity - safe because there is exactly one instance.
-    }
+        private final Kind kind;
+        private final List<Object> args;
+        private final Predicate<TraitContext> impl;
 
-    /** Condition that is true when the named scalar argument equals the expected value. */
-    final class ArgIsEqualToCondition<T> implements TraitCondition {
-
-        private final String name;
-        private final T expected;
-        private final Class<T> clazz;
-
-        @SuppressWarnings("unchecked")
-        ArgIsEqualToCondition(final String name, final T expected) {
-            this.name = name;
-            this.expected = expected;
-            this.clazz = (Class<T>) expected.getClass();
+        BuiltInCondition(
+                final Kind kind, final List<Object> args, final Predicate<TraitContext> impl) {
+            this.kind = kind;
+            this.args = args;
+            this.impl = impl;
         }
 
         @Override
         public boolean test(final TraitContext ctx) {
-            return ctx.getScalarArgument(name, clazz).map(expected::equals).orElse(false);
+            return impl.test(ctx);
         }
 
         @Override
@@ -108,47 +106,16 @@ public interface TraitCondition {
             if (this == o) {
                 return true;
             }
-            if (!(o instanceof ArgIsEqualToCondition)) {
+            if (!(o instanceof BuiltInCondition)) {
                 return false;
             }
-            final ArgIsEqualToCondition<?> that = (ArgIsEqualToCondition<?>) o;
-            return name.equals(that.name) && expected.equals(that.expected);
+            final BuiltInCondition that = (BuiltInCondition) o;
+            return kind == that.kind && args.equals(that.args);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(name, expected);
-        }
-    }
-
-    /** Condition that negates another condition. */
-    final class NotCondition implements TraitCondition {
-
-        private final TraitCondition condition;
-
-        NotCondition(final TraitCondition condition) {
-            this.condition = condition;
-        }
-
-        @Override
-        public boolean test(final TraitContext ctx) {
-            return !condition.test(ctx);
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof NotCondition)) {
-                return false;
-            }
-            return condition.equals(((NotCondition) o).condition);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(NotCondition.class, condition);
+            return Objects.hash(kind, args);
         }
     }
 }

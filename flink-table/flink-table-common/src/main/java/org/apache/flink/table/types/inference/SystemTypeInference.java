@@ -331,26 +331,25 @@ public class SystemTypeInference {
         }
 
         private List<Field> derivePassThroughFields(
-                CallContext callContext, List<StaticArgument> resolvedArgs) {
+                CallContext callContext, List<StaticArgument> staticArgs) {
             if (functionKind != FunctionKind.PROCESS_TABLE) {
                 return List.of();
             }
             final List<DataType> argDataTypes = callContext.getArgumentDataTypes();
-            return IntStream.range(0, resolvedArgs.size())
+            return IntStream.range(0, staticArgs.size())
                     .mapToObj(
                             pos -> {
-                                final StaticArgument resolvedArg = resolvedArgs.get(pos);
-                                if (resolvedArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+                                final StaticArgument arg = staticArgs.get(pos);
+                                if (arg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                     return DataType.getFields(argDataTypes.get(pos)).stream();
                                 }
+                                if (!arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                                    return Stream.<Field>empty();
+                                }
                                 final TableSemantics semantics =
-                                        callContext.getTableSemantics(pos).orElse(null);
-                                if (semantics == null) {
-                                    return Stream.<Field>empty();
-                                }
-                                if (!resolvedArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
-                                    return Stream.<Field>empty();
-                                }
+                                        callContext
+                                                .getTableSemantics(pos)
+                                                .orElseThrow(IllegalStateException::new);
                                 final DataType rowDataType =
                                         DataTypes.ROW(DataType.getFields(argDataTypes.get(pos)));
                                 final DataType projectedRow =
@@ -379,7 +378,7 @@ public class SystemTypeInference {
         }
 
         private List<Field> deriveRowtimeField(
-                CallContext callContext, List<StaticArgument> resolvedArgs) {
+                CallContext callContext, List<StaticArgument> staticArgs) {
             if (this.functionKind != FunctionKind.PROCESS_TABLE) {
                 return List.of();
             }
@@ -398,10 +397,10 @@ public class SystemTypeInference {
 
             final List<LogicalType> onTimeColumns = new ArrayList<>();
             final List<String> missingOnTimeColumns = new ArrayList<>();
-            IntStream.range(0, resolvedArgs.size())
+            IntStream.range(0, staticArgs.size())
                     .forEach(
                             pos -> {
-                                final StaticArgument staticArg = resolvedArgs.get(pos);
+                                final StaticArgument staticArg = staticArgs.get(pos);
                                 if (!staticArg.is(StaticArgumentTrait.TABLE)) {
                                     return;
                                 }
@@ -635,13 +634,13 @@ public class SystemTypeInference {
         }
 
         private static void checkTableArgs(
-                List<StaticArgument> resolvedArgs, CallContext callContext) {
+                List<StaticArgument> staticArgs, CallContext callContext) {
             final List<TableSemantics> tableSemantics = new ArrayList<>();
-            IntStream.range(0, resolvedArgs.size())
+            IntStream.range(0, staticArgs.size())
                     .forEach(
                             pos -> {
-                                final StaticArgument resolvedArg = resolvedArgs.get(pos);
-                                if (!resolvedArg.is(StaticArgumentTrait.TABLE)) {
+                                final StaticArgument staticArg = staticArgs.get(pos);
+                                if (!staticArg.is(StaticArgumentTrait.TABLE)) {
                                     return;
                                 }
                                 final TableSemantics semantics =
@@ -650,10 +649,10 @@ public class SystemTypeInference {
                                     throw new ValidationException(
                                             String.format(
                                                     "Table expected for argument '%s'.",
-                                                    resolvedArg.getName()));
+                                                    staticArg.getName()));
                                 }
-                                checkRowSemantics(resolvedArg, semantics);
-                                checkSetSemantics(resolvedArg, semantics);
+                                checkRowSemantics(staticArg, semantics);
+                                checkSetSemantics(staticArg, semantics);
                                 tableSemantics.add(semantics);
                             });
             checkCoPartitioning(tableSemantics);
