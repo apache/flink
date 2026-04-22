@@ -19,12 +19,14 @@
 package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
@@ -33,8 +35,13 @@ import static org.apache.flink.configuration.DeploymentOptions.JOB_STATUS_CHANGE
 /** Util class for {@link JobStatusChangedListener}. */
 @Internal
 public final class JobStatusChangedListenerUtils {
+
+    private static final ConcurrentHashMap<String, JobStatusChangedListener> listenerCache =
+            new ConcurrentHashMap<>();
+
     /**
-     * Create job status changed listeners from configuration for job.
+     * Create job status changed listeners from configuration for job. The same listener instance is
+     * returned for each factory class name across calls.
      *
      * @param configuration The job configuration.
      * @return the job status changed listeners.
@@ -47,33 +54,46 @@ public final class JobStatusChangedListenerUtils {
         }
         return jobStatusChangedListeners.stream()
                 .map(
-                        fac -> {
-                            try {
-                                return InstantiationUtil.instantiate(
-                                                fac,
-                                                JobStatusChangedListenerFactory.class,
-                                                userClassLoader)
-                                        .createListener(
-                                                new JobStatusChangedListenerFactory.Context() {
-                                                    @Override
-                                                    public Configuration getConfiguration() {
-                                                        return configuration;
-                                                    }
+                        fac ->
+                                listenerCache.computeIfAbsent(
+                                        fac,
+                                        factoryClassName -> {
+                                            try {
+                                                return InstantiationUtil.instantiate(
+                                                                factoryClassName,
+                                                                JobStatusChangedListenerFactory
+                                                                        .class,
+                                                                userClassLoader)
+                                                        .createListener(
+                                                                new JobStatusChangedListenerFactory
+                                                                        .Context() {
+                                                                    @Override
+                                                                    public Configuration
+                                                                            getConfiguration() {
+                                                                        return configuration;
+                                                                    }
 
-                                                    @Override
-                                                    public ClassLoader getUserClassLoader() {
-                                                        return userClassLoader;
-                                                    }
+                                                                    @Override
+                                                                    public ClassLoader
+                                                                            getUserClassLoader() {
+                                                                        return userClassLoader;
+                                                                    }
 
-                                                    @Override
-                                                    public Executor getIOExecutor() {
-                                                        return ioExecutor;
-                                                    }
-                                                });
-                            } catch (FlinkException e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
+                                                                    @Override
+                                                                    public Executor
+                                                                            getIOExecutor() {
+                                                                        return ioExecutor;
+                                                                    }
+                                                                });
+                                            } catch (FlinkException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        }))
                 .collect(Collectors.toList());
+    }
+
+    @VisibleForTesting
+    static void clearListenerCache() {
+        listenerCache.clear();
     }
 }
