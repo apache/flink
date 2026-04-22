@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.recovery;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.RescaleMappings;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,8 @@ class RecordFilterContextTest {
                         0,
                         128,
                         new String[] {"/tmp"},
-                        true);
+                        true,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         assertThat(context.getNumberOfGates()).isEqualTo(1);
         assertThat(context.getInputConfig(0)).isSameAs(config);
@@ -71,7 +73,8 @@ class RecordFilterContextTest {
                         0,
                         128,
                         null,
-                        false);
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         assertThatThrownBy(() -> context.getInputConfig(0))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -88,7 +91,8 @@ class RecordFilterContextTest {
                         0,
                         128,
                         null,
-                        false);
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         assertThat(context.getTmpDirectories()).isNotNull().isEmpty();
     }
@@ -108,7 +112,8 @@ class RecordFilterContextTest {
                         0,
                         128,
                         null,
-                        false);
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         assertThat(context.isAmbiguous(0, 0)).isFalse();
     }
@@ -128,7 +133,8 @@ class RecordFilterContextTest {
                         0,
                         128,
                         null,
-                        true);
+                        true,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         assertThat(context.isAmbiguous(0, 0)).isTrue();
     }
@@ -147,12 +153,52 @@ class RecordFilterContextTest {
                         0,
                         128,
                         null,
-                        true);
+                        true,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         // oldSubtask 0 is ambiguous
         assertThat(context.isAmbiguous(0, 0)).isTrue();
         // oldSubtask 1 is NOT in the ambiguous set
         assertThat(context.isAmbiguous(0, 1)).isFalse();
+    }
+
+    @Test
+    void testMemorySegmentSizeExposedAndValidated() {
+        RecordFilterContext context =
+                new RecordFilterContext(
+                        new RecordFilterContext.InputFilterConfig[0],
+                        InflightDataRescalingDescriptor.NO_RESCALE,
+                        0,
+                        128,
+                        null,
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE * 2);
+
+        assertThat(context.getMemorySegmentSize()).isEqualTo(MemoryManager.DEFAULT_PAGE_SIZE * 2);
+
+        // Non-positive sizes are rejected.
+        assertThatThrownBy(
+                        () ->
+                                new RecordFilterContext(
+                                        new RecordFilterContext.InputFilterConfig[0],
+                                        InflightDataRescalingDescriptor.NO_RESCALE,
+                                        0,
+                                        128,
+                                        null,
+                                        false,
+                                        0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                        () ->
+                                new RecordFilterContext(
+                                        new RecordFilterContext.InputFilterConfig[0],
+                                        InflightDataRescalingDescriptor.NO_RESCALE,
+                                        0,
+                                        128,
+                                        null,
+                                        false,
+                                        -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -182,7 +228,8 @@ class RecordFilterContextTest {
                         1,
                         256,
                         new String[] {"/tmp"},
-                        false);
+                        false,
+                        MemoryManager.DEFAULT_PAGE_SIZE);
 
         assertThat(context.getNumberOfGates()).isEqualTo(2);
         assertThat(context.getInputConfig(0)).isSameAs(config0);

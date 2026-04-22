@@ -17,6 +17,9 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
@@ -25,6 +28,8 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -39,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateByteBuffer.wrap;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
@@ -82,22 +88,92 @@ class InputChannelRecoveredStateHandler
      */
     @Nullable private final ChannelStateFilteringHandler filteringHandler;
 
+    /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
+    private final int memorySegmentSize;
+
+    /**
+     * Reusable heap memory segment backing the pre-filter buffer in filtering mode. Lazily
+     * allocated on the first {@link #getPreFilterBuffer} call, reused for every subsequent call,
+     * and freed in {@link #close()}.
+     *
+     * <p>Reuse is safe because at most one pre-filter buffer is in flight per task at any moment.
+     * This invariant is enforced at runtime by {@link #preFilterBufferInUse}.
+     */
+    @Nullable private MemorySegment preFilterSegment;
+
+    /**
+     * Tracks whether {@link #preFilterSegment} is currently wrapped by a live {@link Buffer} that
+     * has not yet been recycled. Flipped to {@code true} when a new buffer is issued, and flipped
+     * back to {@code false} by the custom {@link BufferRecycler} when the buffer is recycled.
+     */
+    private boolean preFilterBufferInUse;
+
     InputChannelRecoveredStateHandler(
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
-            @Nullable ChannelStateFilteringHandler filteringHandler) {
+            @Nullable ChannelStateFilteringHandler filteringHandler,
+            int memorySegmentSize) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
         this.filteringHandler = filteringHandler;
+        checkArgument(
+                memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
+        this.memorySegmentSize = memorySegmentSize;
     }
 
     @Override
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
-        // request the buffer from any mapped channel as they all will receive the same buffer
+        if (filteringHandler != null) {
+            return getPreFilterBuffer();
+        }
+        // Non-filtering mode: use existing network buffer pool allocation.
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
         Buffer buffer = channel.requestBufferBlocking();
         return new BufferWithContext<>(wrap(buffer), buffer);
+    }
+
+    /**
+     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
+     * Pool) in filtering mode.
+     *
+     * <p>Memory management: a single {@link MemorySegment} per task is lazily allocated on first
+     * invocation and reused across every subsequent call. The custom {@link BufferRecycler} does
+     * not free the segment — it only flips {@link #preFilterBufferInUse} back to {@code false} so
+     * the next call can reuse it. The segment itself is freed in {@link #close()}.
+     *
+     * <p>Runtime invariant check: the one-at-a-time invariant on pre-filter buffers is guaranteed
+     * by Flink's serial recovery loop and the deserializer's ownership contract. This method
+     * asserts the invariant before issuing a buffer: if a previously issued buffer has not yet been
+     * recycled, it throws {@link IllegalStateException} so any future regression fails loudly
+     * instead of silently corrupting memory.
+     */
+    private BufferWithContext<Buffer> getPreFilterBuffer() {
+        checkState(
+                !preFilterBufferInUse,
+                "Previous pre-filter buffer has not been recycled. This violates the "
+                        + "one-buffer-at-a-time invariant of pre-filter buffers.");
+
+        if (preFilterSegment == null) {
+            preFilterSegment = MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize);
+        }
+        preFilterBufferInUse = true;
+
+        // The recycler keeps the segment alive for reuse; only flips the in-use flag.
+        BufferRecycler recycler = segment -> preFilterBufferInUse = false;
+        Buffer buffer = new NetworkBuffer(preFilterSegment, recycler);
+        return new BufferWithContext<>(wrap(buffer), buffer);
+    }
+
+    @VisibleForTesting
+    boolean isPreFilterBufferInUse() {
+        return preFilterBufferInUse;
+    }
+
+    @VisibleForTesting
+    @Nullable
+    MemorySegment getPreFilterSegmentForTesting() {
+        return preFilterSegment;
     }
 
     @Override
@@ -161,6 +237,11 @@ class InputChannelRecoveredStateHandler
         // note that we need to finish all RecoveredInputChannels, not just those with state
         for (final InputGate inputGate : inputGates) {
             inputGate.finishReadRecoveredState();
+        }
+        if (preFilterSegment != null) {
+            preFilterSegment.free();
+            preFilterSegment = null;
+            preFilterBufferInUse = false;
         }
     }
 
