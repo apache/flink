@@ -18,17 +18,20 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
+import org.apache.flink.table.planner.plan.nodes.calcite.{WatermarkAssigner, WatermarkUtils}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexNode
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /** Stream physical RelNode for [[WatermarkAssigner]]. */
 class StreamPhysicalWatermarkAssigner(
@@ -52,6 +55,22 @@ class StreamPhysicalWatermarkAssigner(
     new StreamPhysicalWatermarkAssigner(cluster, traitSet, input, hints, rowtime, watermark)
   }
 
+  /** Fully override this method to have a better display name of this RelNode. */
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    val inFieldNames = inputRel.getRowType.getFieldNames.toList
+    val rowtimeFieldName = inFieldNames(rowtimeFieldIndex)
+    pw.input("input", getInput())
+      .item("rowtime", rowtimeFieldName)
+      .item(
+        "watermark",
+        getExpressionString(
+          watermarkExpr,
+          inFieldNames,
+          None,
+          preferExpressionFormat(pw),
+          pw.getDetailLevel))
+  }
+
   override def withHints(hintList: util.List[RelHint]): RelNode = {
     new StreamPhysicalWatermarkAssigner(
       cluster,
@@ -65,7 +84,7 @@ class StreamPhysicalWatermarkAssigner(
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWatermarkAssigner(
       unwrapTableConfig(this),
-      watermarkExpr,
+      WatermarkUtils.simplify(cluster, watermarkExpr),
       rowtimeFieldIndex,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
