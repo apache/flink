@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.temporal;
 
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -267,6 +268,61 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testHarness.processWatermark2(new Watermark(13));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /** FLINK-39210: per-key state must be cleaned up once both sides are drained. */
+    @Test
+    void testPerKeyStateIsCleanedUpWithoutStateRetention() throws Exception {
+        TemporalRowTimeJoinOperator joinOperator =
+                new TemporalRowTimeJoinOperator(rowType, rowType, joinCondition, 0, 0, 0, 0, true);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinOperator);
+
+        testHarness.open();
+
+        testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
+        testHarness.processElement2(insertRecord(2L, "k1", "1a2"));
+        // Tombstone the versioned build-side row for k1.
+        testHarness.processElement2(deleteRecord(3L, "k1", "1a2"));
+        testHarness.processElement1(insertRecord(4L, "k1", "1a4"));
+
+        testHarness.processWatermark1(new Watermark(10));
+        testHarness.processWatermark2(new Watermark(10));
+
+        // After the watermark passes both the probe and the tombstoned build side, the per-key
+        // bookkeeping must be fully cleaned up even when idle-state retention is disabled.
+        assertThat(
+                        joinOperator
+                                .getKeyedStateStore()
+                                .getState(
+                                        new ValueStateDescriptor<>(
+                                                TemporalRowTimeJoinOperator
+                                                        .getNextLeftIndexStateName(),
+                                                Types.LONG))
+                                .value())
+                .isNull();
+        assertThat(
+                        joinOperator
+                                .getKeyedStateStore()
+                                .getState(
+                                        new ValueStateDescriptor<>(
+                                                TemporalRowTimeJoinOperator
+                                                        .getRegisteredTimerStateName(),
+                                                Types.LONG))
+                                .value())
+                .isNull();
+        assertThat(
+                        joinOperator
+                                .getKeyedStateStore()
+                                .getMapState(
+                                        new MapStateDescriptor<>(
+                                                TemporalRowTimeJoinOperator.getRightStateName(),
+                                                Types.LONG,
+                                                rowType))
+                                .isEmpty())
+                .isTrue();
+
         testHarness.close();
     }
 

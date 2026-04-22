@@ -205,13 +205,15 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         }
 
         // if we have more state at any side, then update the timer, else clean it up.
-        if (stateCleaningEnabled) {
-            if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
+        if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
+            if (stateCleaningEnabled) {
                 registerProcessingCleanupTimer();
-            } else {
-                cleanupLastTimer();
-                nextLeftIndex.clear();
             }
+        } else {
+            // Both sides drained for this key — drop per-key bookkeeping so the state
+            // backend can reclaim the entry.
+            nextLeftIndex.clear();
+            cleanupLastTimer();
         }
     }
 
@@ -292,6 +294,14 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
             long rightTime = getRightTime(rightRowsSorted.get(i));
             rightState.remove(rightTime);
             i += 1;
+        }
+        // Remove the last remaining tombstone (DELETE/UPDATE_BEFORE) so that the per-key
+        // state can be fully cleaned up for deleted versioned rows.
+        if (indexToKeep >= 0 && indexToKeep == rightRowsSorted.size() - 1) {
+            RowData last = rightRowsSorted.get(indexToKeep);
+            if (!RowDataUtil.isAccumulateMsg(last) && getRightTime(last) <= currentWatermark) {
+                rightState.remove(getRightTime(last));
+            }
         }
     }
 
@@ -440,5 +450,10 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     @VisibleForTesting
     static String getRegisteredTimerStateName() {
         return REGISTERED_TIMER_STATE_NAME;
+    }
+
+    @VisibleForTesting
+    static String getRightStateName() {
+        return RIGHT_STATE_NAME;
     }
 }
