@@ -35,7 +35,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<arrow.version>13.0.0</arrow.version>
+		<arrow.version>19.0.0</arrow.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
@@ -417,19 +417,6 @@ under the License.
 				<artifactId>conscrypt-openjdk-uber</artifactId>
 				<version>2.5.1</version>
 				<scope>runtime</scope>
-			</dependency>
-
-			<!-- Netty dependency is fixed to 4.1 here as Arrow 13.0.0 expects this version. It
-				should be removed or updated once Apache Arrow version is upgraded to a version
-				that supports Netty 4.2.x.
-			 	https://github.com/apache/arrow-java/commit/7d4cf21bd6502fc650dfad4a6e9fbe0ae5cf4360
-			 -->
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-bom</artifactId>
-				<version>4.1.100.Final</version>
-				<type>pom</type>
-				<scope>import</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
