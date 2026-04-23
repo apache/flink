@@ -141,7 +141,7 @@ public final class HardwareDescription implements Serializable {
     @Override
     public String toString() {
         return String.format(
-                "cores=%s, physMem=%d, heap=%d, managed=%d",
+                "cores=%.2f, physMem=%d, heap=%d, managed=%d",
                 numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, sizeOfManagedMemory);
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.OperatingSystem;
 
 import org.slf4j.Logger;
@@ -53,10 +54,18 @@ public class Hardware {
     private static final String CGROUP_V1_CPU_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
     private static final String CGROUP_V1_CPU_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
 
+    /** Sentinel value used by cgroup v2 in {@code cpu.max} to indicate an unlimited CPU quota. */
+    static final String CGROUP_V2_UNLIMITED = "max";
+
     // ------------------------------------------------------------------------
 
     /**
      * Gets the number of CPU cores (hardware contexts) that the JVM has access to.
+     *
+     * <p>This always returns an integer and is intended for call sites that need an {@code int}
+     * (e.g. thread-pool sizes). When the fractional value matters (e.g. for display purposes or
+     * when performing arithmetic before rounding), use {@link #getNumberCPUCoresAsDouble()}
+     * instead.
      *
      * @return The number of CPU cores.
      */
@@ -93,7 +102,9 @@ public class Hardware {
      *
      * <p>This method attempts to read the CPU limit from cgroup v2 first ({@code
      * /sys/fs/cgroup/cpu.max}), then falls back to cgroup v1 ({@code
-     * /sys/fs/cgroup/cpu/cpu.cfs_quota_us} and {@code cpu.cfs_period_us}).
+     * /sys/fs/cgroup/cpu/cpu.cfs_quota_us} and {@code cpu.cfs_period_us}). The v1 fallback also
+     * covers cgroup v2 <em>hybrid</em> mode, where the {@code cpu} controller typically remains
+     * mounted under the v1 hierarchy.
      *
      * <p>Examples of return values:
      *
@@ -108,13 +119,15 @@ public class Hardware {
      */
     public static double getContainerCpuLimit() {
         // Try cgroup v2 first
-        double limit = getCpuLimitFromCgroupV2();
+        double limit = getCpuLimitFromCgroupV2(Paths.get(CGROUP_V2_CPU_MAX_PATH));
         if (limit > 0) {
             return limit;
         }
 
-        // Fall back to cgroup v1
-        limit = getCpuLimitFromCgroupV1();
+        // Fall back to cgroup v1 (also covers v2 hybrid mode)
+        limit =
+                getCpuLimitFromCgroupV1(
+                        Paths.get(CGROUP_V1_CPU_QUOTA_PATH), Paths.get(CGROUP_V1_CPU_PERIOD_PATH));
         if (limit > 0) {
             return limit;
         }
@@ -132,28 +145,29 @@ public class Hardware {
      * period}. For example, {@code "50000 100000"} means a limit of 0.5 CPU cores. The string
      * {@code "max"} as the quota means no limit is set.
      *
+     * @param cpuMaxPath path to the cgroup v2 {@code cpu.max} file
      * @return the CPU limit as a double, or {@code -1} if unavailable or unlimited
      */
-    private static double getCpuLimitFromCgroupV2() {
+    @VisibleForTesting
+    static double getCpuLimitFromCgroupV2(Path cpuMaxPath) {
         try {
-            Path path = Paths.get(CGROUP_V2_CPU_MAX_PATH);
-            if (!Files.exists(path)) {
+            if (!Files.exists(cpuMaxPath)) {
                 return -1;
             }
 
-            String content = Files.readString(path).trim();
+            String content = Files.readString(cpuMaxPath).trim();
             String[] parts = content.split("\\s+");
             if (parts.length != 2) {
                 LOG.debug(
                         "Unexpected format in {}: '{}'. Expected 'quota period'.",
-                        CGROUP_V2_CPU_MAX_PATH,
+                        cpuMaxPath,
                         content);
                 return -1;
             }
 
             // "max" means no CPU limit is set
-            if ("max".equals(parts[0])) {
-                LOG.debug("No CPU limit set (cgroup v2 quota is 'max').");
+            if (CGROUP_V2_UNLIMITED.equals(parts[0])) {
+                LOG.debug("No CPU limit set (cgroup v2 quota is '{}').", CGROUP_V2_UNLIMITED);
                 return -1;
             }
 
@@ -171,7 +185,7 @@ public class Hardware {
         } catch (NumberFormatException e) {
             LOG.debug("Failed to parse cgroup v2 CPU limit values.", e);
         } catch (IOException e) {
-            LOG.debug("Could not read cgroup v2 CPU limit file: {}", CGROUP_V2_CPU_MAX_PATH, e);
+            LOG.debug("Could not read cgroup v2 CPU limit file: {}", cpuMaxPath, e);
         } catch (Throwable t) {
             LOG.debug("Unexpected error reading cgroup v2 CPU limit.", t);
         }
@@ -185,12 +199,13 @@ public class Hardware {
      * {@code /sys/fs/cgroup/cpu/cpu.cfs_period_us}. Both values are in microseconds. A quota of
      * {@code -1} means no limit is set. The CPU limit is computed as {@code quota / period}.
      *
+     * @param quotaPath path to the cgroup v1 {@code cpu.cfs_quota_us} file
+     * @param periodPath path to the cgroup v1 {@code cpu.cfs_period_us} file
      * @return the CPU limit as a double, or {@code -1} if unavailable or unlimited
      */
-    private static double getCpuLimitFromCgroupV1() {
+    @VisibleForTesting
+    static double getCpuLimitFromCgroupV1(Path quotaPath, Path periodPath) {
         try {
-            Path quotaPath = Paths.get(CGROUP_V1_CPU_QUOTA_PATH);
-            Path periodPath = Paths.get(CGROUP_V1_CPU_PERIOD_PATH);
             if (!Files.exists(quotaPath) || !Files.exists(periodPath)) {
                 return -1;
             }
