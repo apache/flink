@@ -1774,6 +1774,8 @@ public class Execution
         if (metrics != null) {
             // Drop IOMetrics#resultPartitionBytes because it will not be used anymore. It can
             // result in very high memory usage when there are many executions and sub-partitions.
+            // Preserve the per-downstream-target numRecordsOut breakdown so that REST consumers
+            // (e.g. the Kubernetes autoscaler) see it on terminal executions.
             this.ioMetrics =
                     new IOMetrics(
                             metrics.getNumBytesIn(),
@@ -1782,7 +1784,9 @@ public class Execution
                             metrics.getNumRecordsOut(),
                             metrics.getAccumulateIdleTime(),
                             metrics.getAccumulateBusyTime(),
-                            metrics.getAccumulateBackPressuredTime());
+                            metrics.getAccumulateBackPressuredTime(),
+                            null,
+                            metrics.getNumRecordsOutPerTarget());
         }
     }
 

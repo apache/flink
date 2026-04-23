@@ -2469,6 +2469,11 @@ components:
           format: int64
         write-records-complete:
           type: boolean
+        write-records-per-target:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
     Id:
       type: string
       enum:

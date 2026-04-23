@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -106,6 +107,7 @@ class DefaultStreamGraphContextTest {
                 new NonChainedOutput(
                         targetEdge.supportsUnalignedCheckpoints(),
                         targetEdge.getSourceId(),
+                        new JobVertexID(),
                         targetNode.getParallelism(),
                         targetNode.getMaxParallelism(),
                         targetEdge.getBufferTimeout(),

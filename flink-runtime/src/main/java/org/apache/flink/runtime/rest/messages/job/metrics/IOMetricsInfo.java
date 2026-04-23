@@ -19,8 +19,13 @@
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 
 /** IO metrics information. */
@@ -47,6 +52,14 @@ public final class IOMetricsInfo {
     public static final String FIELD_NAME_ACC_IDLE = "accumulated-idle-time";
 
     public static final String FIELD_NAME_ACC_BUSY = "accumulated-busy-time";
+
+    /**
+     * Per-downstream-target breakdown of {@link #FIELD_NAME_RECORDS_WRITTEN}, keyed by target
+     * {@code JobVertexID} (hex string). Added in the scope of enabling the Kubernetes autoscaler to
+     * compute accurate per-edge data rates for vertices with multiple downstream outputs. Missing
+     * or empty for older Flink versions.
+     */
+    public static final String FIELD_NAME_RECORDS_WRITTEN_PER_TARGET = "write-records-per-target";
 
     @JsonProperty(FIELD_NAME_BYTES_READ)
     private final long bytesRead;
@@ -81,6 +94,40 @@ public final class IOMetricsInfo {
     @JsonProperty(FIELD_NAME_ACC_BUSY)
     private final double accumulatedBusy;
 
+    @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_PER_TARGET)
+    private final Map<String, Long> recordsWrittenPerTarget;
+
+    /**
+     * Back-compatible constructor that defaults {@link #recordsWrittenPerTarget} to an empty map.
+     * Kept to avoid churn at the dozen existing call sites.
+     */
+    public IOMetricsInfo(
+            long bytesRead,
+            boolean bytesReadComplete,
+            long bytesWritten,
+            boolean bytesWrittenComplete,
+            long recordsRead,
+            boolean recordsReadComplete,
+            long recordsWritten,
+            boolean recordsWrittenComplete,
+            long accumulatedBackpressured,
+            long accumulatedIdle,
+            double accumulatedBusy) {
+        this(
+                bytesRead,
+                bytesReadComplete,
+                bytesWritten,
+                bytesWrittenComplete,
+                recordsRead,
+                recordsReadComplete,
+                recordsWritten,
+                recordsWrittenComplete,
+                accumulatedBackpressured,
+                accumulatedIdle,
+                accumulatedBusy,
+                null);
+    }
+
     @JsonCreator
     public IOMetricsInfo(
             @JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
@@ -93,7 +140,9 @@ public final class IOMetricsInfo {
             @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete,
             @JsonProperty(FIELD_NAME_ACC_BACK_PRESSURE) long accumulatedBackpressured,
             @JsonProperty(FIELD_NAME_ACC_IDLE) long accumulatedIdle,
-            @JsonProperty(FIELD_NAME_ACC_BUSY) double accumulatedBusy) {
+            @JsonProperty(FIELD_NAME_ACC_BUSY) double accumulatedBusy,
+            @JsonProperty(FIELD_NAME_RECORDS_WRITTEN_PER_TARGET) @Nullable
+                    Map<String, Long> recordsWrittenPerTarget) {
         this.bytesRead = bytesRead;
         this.bytesReadComplete = bytesReadComplete;
         this.bytesWritten = bytesWritten;
@@ -105,6 +154,10 @@ public final class IOMetricsInfo {
         this.accumulatedBackpressured = accumulatedBackpressured;
         this.accumulatedIdle = accumulatedIdle;
         this.accumulatedBusy = accumulatedBusy;
+        this.recordsWrittenPerTarget =
+                recordsWrittenPerTarget == null
+                        ? Collections.emptyMap()
+                        : Collections.unmodifiableMap(recordsWrittenPerTarget);
     }
 
     public long getBytesRead() {
@@ -151,6 +204,11 @@ public final class IOMetricsInfo {
         return accumulatedIdle;
     }
 
+    @JsonIgnore
+    public Map<String, Long> getRecordsWrittenPerTarget() {
+        return recordsWrittenPerTarget;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -170,7 +228,8 @@ public final class IOMetricsInfo {
                 && recordsWrittenComplete == that.recordsWrittenComplete
                 && accumulatedBackpressured == that.accumulatedBackpressured
                 && accumulatedBusy == that.accumulatedBusy
-                && accumulatedIdle == that.accumulatedIdle;
+                && accumulatedIdle == that.accumulatedIdle
+                && Objects.equals(recordsWrittenPerTarget, that.recordsWrittenPerTarget);
     }
 
     @Override
@@ -186,6 +245,7 @@ public final class IOMetricsInfo {
                 recordsWrittenComplete,
                 accumulatedBackpressured,
                 accumulatedBusy,
-                accumulatedIdle);
+                accumulatedIdle,
+                recordsWrittenPerTarget);
     }
 }

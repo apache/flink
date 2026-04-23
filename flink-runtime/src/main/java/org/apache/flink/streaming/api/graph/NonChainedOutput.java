@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
@@ -39,6 +40,9 @@ public class NonChainedOutput implements Serializable {
 
     /** ID of the producer {@link StreamNode}. */
     private final int sourceNodeId;
+
+    /** ID of the consumer {@link StreamNode}. */
+    private final JobVertexID targetVertexId;
 
     /** Parallelism of the consumer vertex. */
     private final int consumerParallelism;
@@ -67,6 +71,7 @@ public class NonChainedOutput implements Serializable {
     public NonChainedOutput(
             boolean supportsUnalignedCheckpoints,
             int sourceNodeId,
+            JobVertexID targetVertexId,
             int consumerParallelism,
             int consumerMaxParallelism,
             long bufferTimeout,
@@ -77,6 +82,7 @@ public class NonChainedOutput implements Serializable {
             ResultPartitionType partitionType) {
         this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
         this.sourceNodeId = sourceNodeId;
+        this.targetVertexId = targetVertexId;
         this.consumerParallelism = consumerParallelism;
         this.consumerMaxParallelism = consumerMaxParallelism;
         this.bufferTimeout = bufferTimeout;
@@ -93,6 +99,10 @@ public class NonChainedOutput implements Serializable {
 
     public int getSourceNodeId() {
         return sourceNodeId;
+    }
+
+    public JobVertexID getTargetNodeId() {
+        return targetVertexId;
     }
 
     public int getConsumerParallelism() {

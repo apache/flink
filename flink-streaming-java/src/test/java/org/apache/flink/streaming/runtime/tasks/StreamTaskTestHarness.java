@@ -245,6 +245,7 @@ public class StreamTaskTestHarness<OUT> {
                 new NonChainedOutput(
                         true,
                         sourceVertexDummy.getId(),
+                        new JobVertexID(),
                         1,
                         1,
                         100,

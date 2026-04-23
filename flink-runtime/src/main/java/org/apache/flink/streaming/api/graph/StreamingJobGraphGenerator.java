@@ -1472,7 +1472,7 @@ public class StreamingJobGraphGenerator {
                     isPersistentDataSet,
                     dataSetId,
                     partitionType,
-                    jobVertexBuildContext.getStreamGraph());
+                    jobVertexBuildContext);
         }
         return outputs;
     }
@@ -1484,7 +1484,8 @@ public class StreamingJobGraphGenerator {
             boolean isPersistentDataSet,
             IntermediateDataSetID dataSetId,
             ResultPartitionType partitionType,
-            StreamGraph streamGraph) {
+            JobVertexBuildContext jobVertexBuildContext) {
+        var streamGraph = jobVertexBuildContext.getStreamGraph();
         int consumerParallelism =
                 streamGraph.getStreamNode(consumerEdge.getTargetId()).getParallelism();
         int consumerMaxParallelism =
@@ -1520,6 +1521,7 @@ public class StreamingJobGraphGenerator {
                     new NonChainedOutput(
                             consumerEdge.supportsUnalignedCheckpoints(),
                             consumerEdge.getSourceId(),
+                            jobVertexBuildContext.getJobVertex(consumerEdge.getTargetId()).getID(),
                             consumerParallelism,
                             consumerMaxParallelism,
                             consumerEdge.getBufferTimeout(),
