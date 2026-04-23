@@ -20,8 +20,7 @@ package org.apache.flink.table.sql;
 
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.RemoteIterator;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -32,27 +31,24 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** End-to-End tests for COMPILE AND EXECUTE PLAN statement with hdfs as remote uri. */
-public class CompileAndExecuteRemotePlanITCase extends HdfsITCaseBase {
+class CompileAndExecuteRemotePlanITCase extends HdfsITCaseBase {
 
     private static final String TABLE1 = "message";
     private static final String TABLE2 = "employee";
 
     private String planDir;
 
-    public CompileAndExecuteRemotePlanITCase(String executionMode) {
-        super(executionMode);
-    }
-
     @Override
-    protected void createHDFS() {
+    void createHDFS() {
         super.createHDFS();
         planDir = getRemotePlanDir();
     }
 
     @Override
-    protected Map<String, String> generateReplaceVars() {
+    Map<String, String> generateReplaceVars() {
         Map<String, String> varsMap = super.generateReplaceVars();
         varsMap.put("$REMOTE_PLAN_DIR", planDir);
         varsMap.put("$TABLE1", TABLE1);
@@ -60,10 +56,10 @@ public class CompileAndExecuteRemotePlanITCase extends HdfsITCaseBase {
         return varsMap;
     }
 
-    @Test
-    public void testCompileAndExecutePlan() throws Exception {
+    @TestTemplate
+    void testCompileAndExecutePlan() throws Exception {
         // COMPILE AND EXECUTE PLAN is not supported under batch mode
-        Assume.assumeTrue(executionMode.equals("streaming"));
+        assumeThat(executionMode).isEqualTo("streaming");
         Map<Path, List<String>> resultItems = new HashMap<>();
         resultItems.put(result.resolve(TABLE1), Arrays.asList("1,Meow", "2,Purr"));
         resultItems.put(result.resolve(TABLE2), Arrays.asList("1,Tom", "2,Jerry"));

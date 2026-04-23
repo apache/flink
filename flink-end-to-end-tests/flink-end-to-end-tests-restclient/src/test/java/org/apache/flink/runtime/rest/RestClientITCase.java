@@ -24,12 +24,13 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.net.URL;
 import java.util.Collection;
@@ -38,10 +39,11 @@ import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
 
 /** Tests for {@link RestClient} that rely on external connections. */
-public class RestClientITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class RestClientITCase {
 
     @Test
-    public void testHttpsConnectionWithDefaultCerts() throws Exception {
+    void testHttpsConnectionWithDefaultCerts() throws Exception {
         final Configuration config = new Configuration();
         final URL httpsUrl = new URL("https://raw.githubusercontent.com");
         TestUrlMessageHeaders testUrlMessageHeaders =

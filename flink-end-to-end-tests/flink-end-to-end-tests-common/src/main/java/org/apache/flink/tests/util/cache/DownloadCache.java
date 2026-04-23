@@ -19,7 +19,6 @@
 package org.apache.flink.tests.util.cache;
 
 import org.apache.flink.tests.util.util.FactoryUtils;
-import org.apache.flink.util.ExternalResource;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -30,7 +29,15 @@ import java.nio.file.Path;
  *
  * <p>Whether, how, and for how long files are cached is implementation-dependent.
  */
-public interface DownloadCache extends ExternalResource {
+public interface DownloadCache {
+
+    void before() throws Exception;
+
+    void afterTestSuccess();
+
+    default void afterTestFailure() {
+        afterTestSuccess();
+    }
 
     /**
      * Returns either a cached or newly downloaded version of the given file. The returned file path

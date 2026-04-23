@@ -26,10 +26,10 @@ import org.junit.jupiter.api.Test;
  * <p>This test verifies that AsyncScalarFunction works correctly. The test passes if the
  * application runs without errors.
  */
-public class AsyncScalarFunctionTest {
+class AsyncScalarFunctionTest {
 
     @Test
-    public void testAsyncScalarFunction() throws Exception {
+    void testAsyncScalarFunction() throws Exception {
         // Create and run the example application
         AsyncScalarFunctionExample example = new AsyncScalarFunctionExample();
         example.execute();

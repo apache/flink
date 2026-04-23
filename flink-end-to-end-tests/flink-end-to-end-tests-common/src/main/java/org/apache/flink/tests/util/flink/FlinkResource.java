@@ -20,7 +20,6 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.tests.util.util.FactoryUtils;
-import org.apache.flink.util.ExternalResource;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -30,7 +29,15 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /** Generic interface for interacting with Flink. */
-public interface FlinkResource extends ExternalResource {
+public interface FlinkResource {
+
+    void before() throws Exception;
+
+    void afterTestSuccess();
+
+    default void afterTestFailure() {
+        afterTestSuccess();
+    }
 
     /**
      * Starts a cluster.

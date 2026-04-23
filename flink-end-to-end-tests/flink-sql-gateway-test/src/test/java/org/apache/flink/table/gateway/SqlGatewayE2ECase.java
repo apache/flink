@@ -31,22 +31,24 @@ import org.apache.flink.test.util.SQLJobClientMode;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkDistribution;
-import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceExtension;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.GatewayController;
 import org.apache.flink.tests.util.flink.JarLocation;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -67,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -76,10 +79,12 @@ import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions.ADD
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions.PORT;
 import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampMillis;
 import static org.apache.flink.tests.util.TestUtils.readCsvResultFiles;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** E2E Tests for {@code SqlGateway} with {@link HiveServer2Endpoint}. */
-public class SqlGatewayE2ECase extends TestLogger {
+@Testcontainers
+@ExtendWith(TestLoggerExtension.class)
+class SqlGatewayE2ECase {
 
     private static final Path HIVE_SQL_CONNECTOR_JAR =
             ResourceTestUtils.getResource(".*dependencies/flink-sql-connector-hive-.*.jar");
@@ -92,9 +97,9 @@ public class SqlGatewayE2ECase extends TestLogger {
     private static final Configuration ENDPOINT_CONFIG = new Configuration();
     private static final String RESULT_KEY = "$RESULT";
 
-    @ClassRule public static final TemporaryFolder FOLDER = new TemporaryFolder();
-    @ClassRule public static final HiveContainer HIVE_CONTAINER = new HiveContainer();
-    @Rule public final FlinkResource flinkResource = buildFlinkResource();
+    @TempDir private static Path FOLDER;
+    @Container private static final HiveContainer HIVE_CONTAINER = new HiveContainer();
+    @RegisterExtension private final FlinkResourceExtension flinkResourceExtension = buildFlinkResource();
 
     private static NetUtils.Port hiveserver2Port;
     private static NetUtils.Port restPort;
@@ -105,20 +110,20 @@ public class SqlGatewayE2ECase extends TestLogger {
     private static final AtomicInteger CATALOG_COUNTER = new AtomicInteger(0);
     private static String filesystemCatalogName;
 
-    @BeforeClass
-    public static void beforeClass() {
+    @BeforeAll
+    static void beforeClass() {
         ENDPOINT_CONFIG.setString(
                 getPrefixedConfigOptionName(CATALOG_HIVE_CONF_DIR), createHiveConf().getParent());
     }
 
-    @AfterClass
-    public static void afterClass() throws Exception {
+    @AfterAll
+    static void afterClass() throws Exception {
         hiveserver2Port.close();
         restPort.close();
     }
 
     @Test
-    public void testHiveServer2ExecuteStatement() throws Exception {
+    void testHiveServer2ExecuteStatement() throws Exception {
         executeStatement(
                 SQLJobClientMode.getHiveJDBC(
                         InetAddress.getByName("localhost").getHostAddress(),
@@ -126,7 +131,7 @@ public class SqlGatewayE2ECase extends TestLogger {
     }
 
     @Test
-    public void testRestExecuteStatement() throws Exception {
+    void testRestExecuteStatement() throws Exception {
         executeStatement(
                 SQLJobClientMode.getRestClient(
                         InetAddress.getByName("localhost").getHostAddress(),
@@ -135,19 +140,19 @@ public class SqlGatewayE2ECase extends TestLogger {
     }
 
     @Test
-    public void testSqlClientExecuteStatement() throws Exception {
+    void testSqlClientExecuteStatement() throws Exception {
         executeStatement(
                 SQLJobClientMode.getGatewaySqlClient(
                         InetAddress.getByName("localhost").getHostAddress(), restPort.getPort()));
     }
 
     @Test
-    public void testMaterializedTableInContinuousMode() throws Exception {
+    void testMaterializedTableInContinuousMode() throws Exception {
         Duration continuousWaitTime = Duration.ofMinutes(5);
         Duration continuousWaitPause = Duration.ofSeconds(10);
 
-        try (GatewayController gateway = flinkResource.startSqlGateway();
-                ClusterController ignore = flinkResource.startCluster(2)) {
+        try (GatewayController gateway = flinkResourceExtension.getFlinkResource().startSqlGateway();
+                ClusterController ignore = flinkResourceExtension.getFlinkResource().startCluster(2)) {
 
             FlinkDistribution.TestSqlGatewayRestClient gatewayRestClient =
                     initSessionWithCatalogStore(Collections.emptyMap());
@@ -199,12 +204,12 @@ public class SqlGatewayE2ECase extends TestLogger {
                     continuousWaitPause,
                     "Failed to wait for the result");
 
-            File savepointFolder = FOLDER.newFolder("savepoint");
+            Path savepointFolder = Files.createDirectory(FOLDER.resolve("savepoint-" + UUID.randomUUID()));
             // configure savepoint path
             gatewayRestClient.executeStatementWithResult(
                     String.format(
                             "set 'execution.checkpointing.savepoint-dir'='file://%s'",
-                            savepointFolder.getAbsolutePath()));
+                            savepointFolder.toAbsolutePath()));
 
             // suspend the materialized table
             gatewayRestClient.executeStatementWithResult(
@@ -239,13 +244,13 @@ public class SqlGatewayE2ECase extends TestLogger {
     }
 
     @Test
-    public void testMaterializedTableInFullMode() throws Exception {
+    void testMaterializedTableInFullMode() throws Exception {
         Duration fullModeWaitTime = Duration.ofMinutes(5);
         Duration fullModeWaitPause = Duration.ofSeconds(10);
 
         // init session
-        try (GatewayController gateway = flinkResource.startSqlGateway();
-                ClusterController ignore = flinkResource.startCluster(2)) {
+        try (GatewayController gateway = flinkResourceExtension.getFlinkResource().startSqlGateway();
+                ClusterController ignore = flinkResourceExtension.getFlinkResource().startCluster(2)) {
 
             Map<String, String> sessionProperties = new HashMap<>();
             sessionProperties.put("workflow-scheduler.type", "embedded");
@@ -402,11 +407,11 @@ public class SqlGatewayE2ECase extends TestLogger {
 
     private FlinkDistribution.TestSqlGatewayRestClient initSessionWithCatalogStore(
             Map<String, String> extraProperties) throws Exception {
-        File catalogStoreFolder = FOLDER.newFolder();
+        Path catalogStoreFolder = Files.createTempDirectory(FOLDER, "catalogStore");
         Map<String, String> sessionProperties = new HashMap<>();
         sessionProperties.put("table.catalog-store.kind", "file");
         sessionProperties.put(
-                "table.catalog-store.file.path", catalogStoreFolder.getAbsolutePath());
+                "table.catalog-store.file.path", catalogStoreFolder.toAbsolutePath().toString());
         sessionProperties.putAll(extraProperties);
 
         FlinkDistribution.TestSqlGatewayRestClient gatewayRestClient =
@@ -417,9 +422,10 @@ public class SqlGatewayE2ECase extends TestLogger {
                         sessionProperties);
 
         filesystemCatalogName = CATALOG_NAME_PREFIX + CATALOG_COUNTER.getAndAdd(1);
-        File catalogFolder = FOLDER.newFolder(filesystemCatalogName);
-        FOLDER.newFolder(
-                String.format("%s/%s", filesystemCatalogName, FILESYSTEM_DEFAULT_DATABASE));
+        Path catalogFolder = Files.createDirectory(FOLDER.resolve(filesystemCatalogName));
+        Files.createDirectory(
+                FOLDER.resolve(
+                        String.format("%s/%s", filesystemCatalogName, FILESYSTEM_DEFAULT_DATABASE)));
         String createCatalogDDL =
                 String.format(
                         "CREATE CATALOG %s WITH (\n"
@@ -427,7 +433,7 @@ public class SqlGatewayE2ECase extends TestLogger {
                                 + "  'default-database' = 'test_db',\n"
                                 + "  'path' = '%s'\n"
                                 + ")",
-                        filesystemCatalogName, catalogFolder.getAbsolutePath());
+                        filesystemCatalogName, catalogFolder.toAbsolutePath());
         gatewayRestClient.executeStatementWithResult(createCatalogDDL);
         gatewayRestClient.executeStatementWithResult(
                 String.format("USE CATALOG %s", filesystemCatalogName));
@@ -436,16 +442,16 @@ public class SqlGatewayE2ECase extends TestLogger {
     }
 
     private void executeStatement(SQLJobClientMode mode) throws Exception {
-        File result = FOLDER.newFolder(mode.getClass().getName() + ".csv");
-        try (GatewayController gateway = flinkResource.startSqlGateway();
-                ClusterController ignore = flinkResource.startCluster(1)) {
+        Path result = Files.createTempDirectory(FOLDER, mode.getClass().getName() + ".csv");
+        try (GatewayController gateway = flinkResourceExtension.getFlinkResource().startSqlGateway();
+                ClusterController ignore = flinkResourceExtension.getFlinkResource().startCluster(1)) {
             gateway.submitSQLJob(
-                    new SQLJobSubmission.SQLJobSubmissionBuilder(getSqlLines(result))
+                    new SQLJobSubmission.SQLJobSubmissionBuilder(getSqlLines(result.toFile()))
                             .setClientMode(mode)
                             .build(),
                     Duration.ofSeconds(60));
         }
-        assertEquals(Collections.singletonList("1"), readCsvResultFiles(result.toPath()));
+        assertThat(readCsvResultFiles(result)).containsExactly("1");
     }
 
     private static List<String> getSqlLines(File result) throws Exception {
@@ -480,7 +486,7 @@ public class SqlGatewayE2ECase extends TestLogger {
         }
         hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, HIVE_CONTAINER.getHiveMetastoreURI());
         try {
-            File site = FOLDER.newFile(HiveCatalog.HIVE_SITE_FILE);
+            File site = Files.createFile(FOLDER.resolve(HiveCatalog.HIVE_SITE_FILE)).toFile();
             try (OutputStream out = new FileOutputStream(site)) {
                 hiveConf.writeXml(out);
             }
@@ -495,7 +501,7 @@ public class SqlGatewayE2ECase extends TestLogger {
      * hadoop.classpath which contains all hadoop jars. It also moves planner to the lib and remove
      * the planner load to make the Hive sql connector works.
      */
-    private static FlinkResource buildFlinkResource() {
+    private static FlinkResourceExtension buildFlinkResource() {
         // add hive jar and planner jar
         FlinkResourceSetup.FlinkResourceSetupBuilder builder =
                 FlinkResourceSetup.builder()
@@ -536,7 +542,7 @@ public class SqlGatewayE2ECase extends TestLogger {
         ENDPOINT_CONFIG.addAll(Configuration.fromMap(endpointConfig));
         builder.addConfiguration(ENDPOINT_CONFIG);
 
-        return new LocalStandaloneFlinkResourceFactory().create(builder.build());
+        return new FlinkResourceExtension(new LocalStandaloneFlinkResourceFactory().create(builder.build()));
     }
 
     private static String getPrefixedConfigOptionName(ConfigOption<?> option) {
