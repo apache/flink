@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.bridging;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -31,8 +32,10 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
+import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
@@ -45,7 +48,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexCallBinding;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
@@ -56,6 +59,7 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.tools.RelBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -250,9 +254,17 @@ public class BridgingSqlFunction extends SqlFunction {
             return call;
         }
         final List<RexNode> operands = call.getOperands();
+        final CallContext callContext = function.toCallContext(call);
         final List<StaticArgument> resolved =
                 IntStream.range(0, declared.size())
-                        .mapToObj(i -> resolveArg(declared.get(i), declared, operands, i))
+                        .mapToObj(
+                                i ->
+                                        resolveArg(
+                                                declared.get(i),
+                                                declared,
+                                                operands,
+                                                i,
+                                                callContext))
                         .collect(Collectors.toList());
         if (resolved.equals(declared)) {
             return call;
@@ -268,24 +280,25 @@ public class BridgingSqlFunction extends SqlFunction {
             StaticArgument declaredArg,
             List<StaticArgument> declared,
             List<RexNode> operands,
-            int index) {
+            int index,
+            CallContext callContext) {
         // We only resolve conditional traits for the Table Argument with conditional traits
         if (!declaredArg.hasConditionalTraits()
                 || !(operands.get(index) instanceof RexTableArgCall)) {
             return declaredArg;
         }
         return declaredArg.applyConditionalTraits(
-                buildTraitContext((RexTableArgCall) operands.get(index), declared, operands));
+                buildTraitContext((RexTableArgCall) operands.get(index), declared, callContext));
     }
 
     /**
-     * Planner-side adapter to {@link TraitContext}. Sourced from a {@link RexCall} (PARTITION BY
-     * via {@link RexTableArgCall}, scalar literals via the operand list) instead of a {@link
-     * org.apache.flink.table.types.inference.CallContext}, since the planner doesn't carry one. The
-     * validation-time equivalent is {@link TraitContext#of}.
+     * Planner-side adapter to {@link TraitContext}. Sourced from a {@link RexCall}: PARTITION BY
+     * via the {@link RexTableArgCall} operand, scalar literals via the {@link CallContext} wrapper.
+     * Equivalent to {@link TraitContext#of} but takes its inputs from a planner-side call instead
+     * of validation-side {@link org.apache.flink.table.functions.TableSemantics}.
      */
     private static TraitContext buildTraitContext(
-            RexTableArgCall tableArgCall, List<StaticArgument> declared, List<RexNode> operands) {
+            RexTableArgCall tableArgCall, List<StaticArgument> declared, CallContext callContext) {
         return new TraitContext() {
             @Override
             public boolean hasPartitionBy() {
@@ -296,17 +309,42 @@ public class BridgingSqlFunction extends SqlFunction {
             public <T> Optional<T> getScalarArgument(String name, Class<T> clazz) {
                 for (int i = 0; i < declared.size(); i++) {
                     final StaticArgument arg = declared.get(i);
-                    if (!arg.is(StaticArgumentTrait.SCALAR) || !arg.getName().equals(name)) {
-                        continue;
+                    if (arg.is(StaticArgumentTrait.SCALAR) && arg.getName().equals(name)) {
+                        return callContext.getArgumentValue(i, clazz);
                     }
-                    if (i >= operands.size() || !(operands.get(i) instanceof RexLiteral)) {
-                        return Optional.empty();
-                    }
-                    return Optional.ofNullable(((RexLiteral) operands.get(i)).getValueAs(clazz));
                 }
                 return Optional.empty();
             }
         };
+    }
+
+    /**
+     * Builds a {@link CallContext} from the given {@link RexCall} for this function. Wraps the call
+     * in an {@link OperatorBindingCallContext} so consumers (trait resolution, codegen, etc.) read
+     * scalar arguments through the same coercion path as validation.
+     */
+    public CallContext toCallContext(RexCall call) {
+        return toCallContext(call, null, null, null);
+    }
+
+    /**
+     * Variant of {@link #toCallContext(RexCall)} that additionally exposes the call's input time
+     * columns and changelog modes - needed by the streaming codegen path so PTFs can specialize
+     * themselves to the exact call.
+     */
+    public CallContext toCallContext(
+            RexCall call,
+            @Nullable List<Integer> inputTimeColumns,
+            @Nullable List<ChangelogMode> inputChangelogModes,
+            @Nullable ChangelogMode outputChangelogMode) {
+        return new OperatorBindingCallContext(
+                dataTypeFactory,
+                getDefinition(),
+                RexCallBinding.create(typeFactory, call, Collections.emptyList()),
+                call.getType(),
+                inputTimeColumns,
+                inputChangelogModes,
+                outputChangelogMode);
     }
 
     /**

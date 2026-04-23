@@ -26,6 +26,7 @@ import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.functions.{BuiltInFunctionDefinition, ChangelogFunction}
 import org.apache.flink.table.functions.ChangelogFunction.ChangelogContext
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.DeleteKindTrait.{deleteOnKeyOrNone, fullDeleteOrNone, DELETE_BY_KEY}
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
@@ -1673,11 +1674,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       outputChangelogMode: ChangelogMode): ChangelogContext = {
     val udfCall = StreamPhysicalProcessTableFunction.toUdfCall(process.getCall)
     val inputTimeColumns = StreamPhysicalProcessTableFunction.toInputTimeColumns(process.getCall)
-    val callContext = StreamPhysicalProcessTableFunction.toCallContext(
-      udfCall,
-      inputTimeColumns,
-      inputChangelogModes,
-      outputChangelogMode)
+    val function = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
+    val callContext =
+      function.toCallContext(udfCall, inputTimeColumns, inputChangelogModes, outputChangelogMode)
 
     // Expose a simplified context to let users focus on important characteristics.
     // If necessary, we can expose the full CallContext in the future.
