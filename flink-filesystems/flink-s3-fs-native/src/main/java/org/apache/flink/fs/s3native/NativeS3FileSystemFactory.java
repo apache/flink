@@ -88,7 +88,27 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                     .booleanType()
                     .defaultValue(false)
                     .withFallbackKeys("s3.path.style.access")
-                    .withDescription("Use path-style access for S3 (for S3-compatible storage)");
+                    .withDescription(
+                            "Use path-style access for S3. Required for most S3-compatible servers "
+                                    + "(e.g. MinIO, Ceph) which do not support virtual-hosted style.");
+
+    public static final ConfigOption<Boolean> CHUNKED_ENCODING_ENABLED =
+            ConfigOptions.key("s3.chunked-encoding.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Enable AWS chunked transfer encoding for S3 requests. "
+                                    + "Most S3-compatible servers do not support this AWS-specific "
+                                    + "extension and require it to be disabled.");
+
+    public static final ConfigOption<Boolean> CHECKSUM_VALIDATION_ENABLED =
+            ConfigOptions.key("s3.checksum-validation.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Enable checksum validation for S3 requests. "
+                                    + "Most S3-compatible servers do not support AWS checksum "
+                                    + "headers and require it to be disabled.");
 
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")
@@ -295,10 +315,6 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         String endpoint = config.get(ENDPOINT);
         boolean pathStyleAccess = config.get(PATH_STYLE_ACCESS);
 
-        if (endpoint != null && !pathStyleAccess) {
-            pathStyleAccess = true;
-        }
-
         S3EncryptionConfig encryptionConfig =
                 S3EncryptionConfig.fromConfig(config.get(SSE_TYPE), config.get(SSE_KMS_KEY_ID));
         String entropyInjectionKey = config.get(ENTROPY_INJECT_KEY_OPTION);
@@ -371,6 +387,8 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                         .region(region)
                         .endpoint(endpoint)
                         .pathStyleAccess(pathStyleAccess)
+                        .chunkedEncoding(config.get(CHUNKED_ENCODING_ENABLED))
+                        .checksumValidation(config.get(CHECKSUM_VALIDATION_ENABLED))
                         .maxConnections(maxConnections)
                         .connectionTimeout(config.get(CONNECTION_TIMEOUT))
                         .socketTimeout(config.get(SOCKET_TIMEOUT))
