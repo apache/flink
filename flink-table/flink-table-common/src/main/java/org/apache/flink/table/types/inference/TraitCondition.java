@@ -21,8 +21,6 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.function.Predicate;
 
 /**
  * A condition that determines whether a conditional trait on a {@link StaticArgument} should be
@@ -69,53 +67,5 @@ public interface TraitCondition {
     static TraitCondition not(final TraitCondition condition) {
         return new BuiltInCondition(
                 BuiltInCondition.Kind.NOT, List.of(condition), ctx -> !condition.test(ctx));
-    }
-
-    /**
-     * Internal value-comparable wrapper used by all built-in factories. Equality is keyed by {@code
-     * kind + args}; the {@code impl} predicate is reused but never compared, so two conditions
-     * built from the same factory inputs are equal.
-     */
-    final class BuiltInCondition implements TraitCondition {
-
-        /** Tag identifying which factory produced the condition. */
-        enum Kind {
-            HAS_PARTITION_BY,
-            ARG_IS_EQUAL_TO,
-            NOT
-        }
-
-        private final Kind kind;
-        private final List<Object> args;
-        private final Predicate<TraitContext> impl;
-
-        BuiltInCondition(
-                final Kind kind, final List<Object> args, final Predicate<TraitContext> impl) {
-            this.kind = kind;
-            this.args = args;
-            this.impl = impl;
-        }
-
-        @Override
-        public boolean test(final TraitContext ctx) {
-            return impl.test(ctx);
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof BuiltInCondition)) {
-                return false;
-            }
-            final BuiltInCondition that = (BuiltInCondition) o;
-            return kind == that.kind && args.equals(that.args);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(kind, args);
-        }
     }
 }
