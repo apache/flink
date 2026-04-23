@@ -184,6 +184,46 @@ public class FromChangelogTestPrograms {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+    // Restore tests
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Append source with retract op codes through FROM_CHANGELOG, split across a compiled-plan +
+     * savepoint restore.
+     */
+    public static final TableTestProgram RETRACT_RESTORE =
+            TableTestProgram.of(
+                            "from-changelog-retract-restore",
+                            "FROM_CHANGELOG over an append CDC source restores via compiled plan "
+                                    + "+ savepoint")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedBeforeRestore(
+                                            Row.of(1, "INSERT", "Alice"),
+                                            Row.of(2, "INSERT", "Bob"))
+                                    .producedAfterRestore(
+                                            Row.of(1, "UPDATE_BEFORE", "Alice"),
+                                            Row.of(1, "UPDATE_AFTER", "Alice2"),
+                                            Row.of(2, "DELETE", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .consumedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, "Alice"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream)")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
     // Error validation tests
     // --------------------------------------------------------------------------------------------
 
