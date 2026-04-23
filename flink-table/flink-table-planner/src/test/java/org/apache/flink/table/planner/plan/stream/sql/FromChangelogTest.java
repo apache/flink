@@ -71,7 +71,8 @@ public class FromChangelogTest extends TableTestBase {
                 "SELECT * FROM FROM_CHANGELOG("
                         + "input => TABLE cdc_stream, "
                         + "op => DESCRIPTOR(__op), "
-                        + "op_mapping => MAP['c, r', 'INSERT', 'ub', 'UPDATE_BEFORE', 'ua', 'UPDATE_AFTER', 'd', 'DELETE'])",
+                        + "op_mapping => MAP['c, r', 'INSERT', 'ub', 'UPDATE_BEFORE', 'ua', 'UPDATE_AFTER', 'd', 'DELETE'], "
+                        + "error_handling => 'SKIP')",
                 CHANGELOG_MODE);
     }
 }
