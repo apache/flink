@@ -131,8 +131,8 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client with connection pool configuration.");
 
-        TritonUtils.ConnectionPoolConfig poolConfig =
-                new TritonUtils.ConnectionPoolConfig(
+        ConnectionPoolConfig poolConfig =
+                new ConnectionPoolConfig(
                         connectionPoolMaxIdle,
                         connectionPoolKeepAliveMs,
                         connectionPoolMaxTotal,

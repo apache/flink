@@ -75,8 +75,8 @@ class TritonConnectionPoolTest {
     @Test
     void testClientCreationWithCustomConfig() {
         long timeout = 5000;
-        TritonUtils.ConnectionPoolConfig config =
-                new TritonUtils.ConnectionPoolConfig(
+        ConnectionPoolConfig config =
+                new ConnectionPoolConfig(
                         10, // maxIdle
                         60000, // keepAlive
                         50, // maxTotal
@@ -98,8 +98,7 @@ class TritonConnectionPoolTest {
     @Test
     void testClientReuse() {
         long timeout = 10000;
-        TritonUtils.ConnectionPoolConfig config =
-                new TritonUtils.ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config = new ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
 
         // Create two clients with same configuration
         OkHttpClient client1 = TritonUtils.createHttpClient(timeout, config);
@@ -116,11 +115,11 @@ class TritonConnectionPoolTest {
     void testClientNotReusedWithDifferentConfig() {
         long timeout = 10000;
 
-        TritonUtils.ConnectionPoolConfig config1 =
-                new TritonUtils.ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config1 =
+                new ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
 
-        TritonUtils.ConnectionPoolConfig config2 =
-                new TritonUtils.ConnectionPoolConfig(30, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config2 =
+                new ConnectionPoolConfig(30, 300000, 100, 10000, true, false);
 
         OkHttpClient client1 = TritonUtils.createHttpClient(timeout, config1);
         OkHttpClient client2 = TritonUtils.createHttpClient(timeout, config2);
@@ -135,8 +134,7 @@ class TritonConnectionPoolTest {
     @Test
     void testReferenceCounting() {
         long timeout = 10000;
-        TritonUtils.ConnectionPoolConfig config =
-                new TritonUtils.ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config = new ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
 
         // Create multiple references
         OkHttpClient client1 = TritonUtils.createHttpClient(timeout, config);
@@ -161,8 +159,8 @@ class TritonConnectionPoolTest {
     @Test
     void testConnectionPoolWithReuseDisabled() {
         long timeout = 10000;
-        TritonUtils.ConnectionPoolConfig config =
-                new TritonUtils.ConnectionPoolConfig(
+        ConnectionPoolConfig config =
+                new ConnectionPoolConfig(
                         20, 300000, 100, 10000, false, // reuse disabled
                         false);
 
@@ -177,8 +175,8 @@ class TritonConnectionPoolTest {
     @Test
     void testConnectionPoolWithReuseEnabled() {
         long timeout = 10000;
-        TritonUtils.ConnectionPoolConfig config =
-                new TritonUtils.ConnectionPoolConfig(
+        ConnectionPoolConfig config =
+                new ConnectionPoolConfig(
                         20, 300000, 100, 10000, true, // reuse enabled
                         false);
 
@@ -194,8 +192,8 @@ class TritonConnectionPoolTest {
     void testDispatcherConfiguration() {
         long timeout = 10000;
         int maxTotal = 75;
-        TritonUtils.ConnectionPoolConfig config =
-                new TritonUtils.ConnectionPoolConfig(20, 300000, maxTotal, 10000, true, false);
+        ConnectionPoolConfig config =
+                new ConnectionPoolConfig(20, 300000, maxTotal, 10000, true, false);
 
         OkHttpClient client = TritonUtils.createHttpClient(timeout, config);
 
@@ -226,14 +224,14 @@ class TritonConnectionPoolTest {
 
     @Test
     void testConnectionPoolConfigEquality() {
-        TritonUtils.ConnectionPoolConfig config1 =
-                new TritonUtils.ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config1 =
+                new ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
 
-        TritonUtils.ConnectionPoolConfig config2 =
-                new TritonUtils.ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config2 =
+                new ConnectionPoolConfig(20, 300000, 100, 10000, true, false);
 
-        TritonUtils.ConnectionPoolConfig config3 =
-                new TritonUtils.ConnectionPoolConfig(30, 300000, 100, 10000, true, false);
+        ConnectionPoolConfig config3 =
+                new ConnectionPoolConfig(30, 300000, 100, 10000, true, false);
 
         assertThat(config1).isEqualTo(config2);
         assertThat(config1).isNotEqualTo(config3);
