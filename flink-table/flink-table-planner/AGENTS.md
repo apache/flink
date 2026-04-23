@@ -106,6 +106,22 @@ When bumping an ExecNode version, update the `@ExecNodeMetadata` annotation's `v
 
 New features often introduce `ExecutionConfigOptions` entries (in `flink-table-api-java`) for runtime tunability (e.g., cache sizes, timeouts, batch sizes).
 
+### PTF conditional traits
+
+A *conditional trait* lets a PTF's table-argument traits depend on the call site instead of being fixed at declaration. Example for `TO_CHANGELOG`: the `input` argument is row-semantic by default (single stream, no PARTITION BY), but switches to set-semantic when the user writes `PARTITION BY` so the runtime can co-locate state per key. One declaration, two effective signatures depending on the call.
+
+**Declaration.** Built-in functions add conditional rules in `BuiltInFunctionDefinitions` via `StaticArgument.withConditionalTrait(trait, condition)`. The condition (a `TraitCondition`) is a small value-comparable predicate evaluated against a `TraitContext`. Built-in factories live on `TraitCondition` (`hasPartitionBy()`, `argIsEqualTo(name, value)`, `not(c)`); under the hood they wrap into the package-private `BuiltInCondition` so equality cascades correctly through `StaticArgument.equals`.
+
+**Evaluation.** A `TraitCondition` reads two things: whether `PARTITION BY` is present on this table arg, and the literal value of named scalar args. Both come through `TraitContext`. There are two factories: `TraitContext.of(TableSemantics, CallContext, declared)` for the validation side (called from `SystemTypeInference.resolveStaticArgs`) and a planner-side adapter inside `BridgingSqlFunction.buildTraitContext` that sources the same data from a `RexCall` + `RexTableArgCall`. Same logical context, different inputs because the two layers don't share types.
+
+**Resolution.** Three call sites bake conditional traits into the operator's effective signature:
+
+1. **Validation** — `SystemTypeInference.resolveStaticArgs` runs once each from `inferInputTypes` and `inferType`. Twice per validation pass; can't dedupe across Calcite hooks because each gets a different `CallContext` instance.
+2. **Planning** — `BridgingSqlFunction.resolveCallTraits` is called from `FlinkLogicalTableFunctionScan.Converter.convert`. It rewrites the operator on the `RexCall` so all downstream readers see the resolved view via plain `function.getTypeInference().getStaticArguments()`.
+3. **Compiled-plan restore** — `BridgingSqlFunction.resolveCallTraits` is called again from `StreamExecProcessTableFunction.@JsonCreator`, because the JSON path skips the logical converter. Without this hook, restore would silently produce wrong results for any conditional-trait PTF.
+
+The payoff: downstream rules, exec nodes, codegen, and changelog inference all use ordinary `staticArg.is(SET_SEMANTIC_TABLE)` checks. No consumer needs to know that conditional traits exist. Why three sites and not one. The three resolution points exist because they sit in different lifecycles that can't share state.
+
 ## Testing Patterns
 
 Choose test types based on what you're changing:

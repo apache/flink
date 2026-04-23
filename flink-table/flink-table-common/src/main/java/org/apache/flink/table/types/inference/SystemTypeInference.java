@@ -189,7 +189,10 @@ public class SystemTypeInference {
      * helpers receive the resolved list and iterate it directly.
      */
     private static List<StaticArgument> resolveStaticArgs(
-            final CallContext callContext, final List<StaticArgument> staticArgs) {
+            final CallContext callContext, final @Nullable List<StaticArgument> staticArgs) {
+        if (staticArgs == null) {
+            return null;
+        }
         return IntStream.range(0, staticArgs.size())
                 .mapToObj(
                         pos -> {
