@@ -1231,7 +1231,7 @@ class Table(object):
         ``UPDATE_BEFORE``, ``UPDATE_AFTER``, and ``DELETE`` are recognized; pass
         ``op_mapping`` to use custom codes. By default, the job fails at runtime with a
         ``TableRuntimeException`` when an input row's op code is ``NULL`` or not present
-        in the mapping; pass ``invalid_op_handling => 'SKIP'`` to silently drop those
+        in the mapping; pass ``error_handling => 'SKIP'`` to silently drop those
         rows instead.
 
         Example:
@@ -1254,11 +1254,11 @@ class Table(object):
             ... )
             >>> # Silently skip rows with NULL or unmapped op codes instead of failing
             >>> result = cdc_stream.from_changelog(
-            ...     lit("SKIP").as_argument("invalid_op_handling")
+            ...     lit("SKIP").as_argument("error_handling")
             ... )
 
         :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
-                          ``invalid_op_handling``.
+                          ``error_handling``.
         :return: A dynamic :class:`~pyflink.table.Table` with the ``op`` column removed and
                  proper change operation semantics.
         """

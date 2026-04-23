@@ -53,7 +53,7 @@ SELECT * FROM FROM_CHANGELOG(
       'ua', 'UPDATE_AFTER',
       'd', 'DELETE'
   ],]
-  [invalid_op_handling => 'FAIL' | 'SKIP']
+  [error_handling => 'FAIL' | 'SKIP']
 )
 ```
 
@@ -62,9 +62,9 @@ SELECT * FROM FROM_CHANGELOG(
 | Parameter    | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |:-------------|:---------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `input`      | Yes      | The input table. Must be append-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING. The column may be declared nullable; runtime behavior for `NULL` op codes is governed by `invalid_op_handling`.                                                                                                                                                                                                                       |
-| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). Receiving an op code not present in the mapping is governed by `invalid_op_handling`. Each change operation may appear at most once across all entries. |
-| `invalid_op_handling` | No | Controls behavior when an input row's operation code is `NULL` or not present in the `op_mapping`. Valid values: `FAIL` (default) — throw a `TableRuntimeException`, `SKIP` — silently drop the row. |
+| `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING.                                                                                                                                                                                                                                                                                                                                       |
+| `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). Each change operation may appear at most once across all entries. |
+| `error_handling` | No | Controls behavior when an input row's operation code is `NULL` or not present in the `op_mapping`. Valid values: `FAIL` (default) — throw a `TableRuntimeException`, `SKIP` — silently drop the row. |
 
 #### Default op_mapping
 
@@ -77,7 +77,7 @@ When `op_mapping` is omitted, the following standard names are used. They allow 
 | `'UPDATE_AFTER'`   | UPDATE_AFTER      |
 | `'DELETE'`         | DELETE            |
 
-By default, any input row whose op code is `NULL` or not present in the active mapping (default or user-defined) fails the job at runtime with a `TableRuntimeException`. Set `invalid_op_handling => 'SKIP'` to silently drop those rows instead.
+By default, any input row whose op code is `NULL` or not present in the active mapping (default or user-defined) fails the job at runtime with a `TableRuntimeException`. Set `error_handling => 'SKIP'` to silently drop those rows instead.
 
 ### Output Schema
 
@@ -129,6 +129,8 @@ SELECT * FROM FROM_CHANGELOG(
 
 #### Invalid operation code handling
 
+Two `error_handling` modes are supported. The job can either fail upon an invalid or unknown op code, or skip the row and continue processing.
+
 ```sql
 -- Fail on unknown op codes (default behavior)
 SELECT * FROM FROM_CHANGELOG(
@@ -138,7 +140,7 @@ SELECT * FROM FROM_CHANGELOG(
 -- Silently skip rows with NULL or unknown op codes
 SELECT * FROM FROM_CHANGELOG(
   input => TABLE cdc_stream,
-  invalid_op_handling => 'SKIP'
+  error_handling => 'SKIP'
 )
 ```
 

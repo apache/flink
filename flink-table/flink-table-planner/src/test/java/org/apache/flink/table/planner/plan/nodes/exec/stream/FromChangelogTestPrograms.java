@@ -118,7 +118,7 @@ public class FromChangelogTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
                                     + "input => TABLE cdc_stream,"
-                                    + "invalid_op_handling => 'SKIP')")
+                                    + "error_handling => 'SKIP')")
                     .build();
 
     public static final TableTestProgram SKIP_NULL_OP_CODE =
@@ -143,7 +143,7 @@ public class FromChangelogTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
                                     + "input => TABLE cdc_stream,"
-                                    + "invalid_op_handling => 'SKIP')")
+                                    + "error_handling => 'SKIP')")
                     .build();
 
     /** Custom op column name via DESCRIPTOR. */

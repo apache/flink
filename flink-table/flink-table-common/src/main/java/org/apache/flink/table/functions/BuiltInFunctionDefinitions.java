@@ -829,7 +829,7 @@ public final class BuiltInFunctionDefinitions {
                                     "op_mapping",
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
                                     true),
-                            StaticArgument.scalar("invalid_op_handling", DataTypes.STRING(), true))
+                            StaticArgument.scalar("error_handling", DataTypes.STRING(), true))
                     .changelogModeStrategy(ctx -> ChangelogMode.all())
                     .inputTypeStrategy(FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)

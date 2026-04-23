@@ -31,7 +31,6 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +42,15 @@ import java.util.stream.Collectors;
 @Internal
 public final class FromChangelogTypeStrategy {
 
-    private static final String DEFAULT_OP_COLUMN_NAME = "op";
+    // Positional argument indexes for FROM_CHANGELOG. Must match the order of StaticArguments
+    // registered in BuiltInFunctionDefinitions#FROM_CHANGELOG; changing one without the other
+    // silently breaks argument resolution.
+    public static final int ARG_TABLE = 0;
+    public static final int ARG_OP = 1;
+    public static final int ARG_OP_MAPPING = 2;
+    public static final int ARG_ERROR_HANDLING = 3;
+
+    public static final String DEFAULT_OP_COLUMN_NAME = "op";
 
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
@@ -51,36 +58,6 @@ public final class FromChangelogTypeStrategy {
     private static final String UPDATE_BEFORE = RowKind.UPDATE_BEFORE.name();
 
     private static final String UPDATE_AFTER = RowKind.UPDATE_AFTER.name();
-
-    /**
-     * Controls behavior when {@code FROM_CHANGELOG} encounters an operation code in the input that
-     * is not present in the {@code op_mapping}. Mode names are case-sensitive — the value must be
-     * spelled in upper case.
-     *
-     * <ul>
-     *   <li>{@code FAIL} — throw an exception when an unmapped operation code is encountered
-     *       (default, strict mode)
-     *   <li>{@code SKIP} — silently drop the row
-     * </ul>
-     */
-    public enum InvalidOpHandlingMode {
-        FAIL,
-        SKIP;
-
-        public static final InvalidOpHandlingMode DEFAULT_MODE = FAIL;
-
-        /**
-         * Returns the mode whose name exactly matches {@code name}, or {@link Optional#empty()} if
-         * none matches. Matching is case-sensitive.
-         */
-        public static Optional<InvalidOpHandlingMode> fromName(final String name) {
-            return Arrays.stream(values()).filter(v -> v.name().equals(name)).findFirst();
-        }
-
-        public static String validNames() {
-            return Arrays.stream(values()).map(Enum::name).collect(Collectors.joining(", "));
-        }
-    }
 
     // --------------------------------------------------------------------------------------------
     // Input validation
@@ -103,7 +80,7 @@ public final class FromChangelogTypeStrategy {
             callContext -> {
                 final TableSemantics tableSemantics =
                         callContext
-                                .getTableSemantics(0)
+                                .getTableSemantics(ARG_TABLE)
                                 .orElseThrow(
                                         () ->
                                                 new ValidationException(
@@ -145,7 +122,7 @@ public final class FromChangelogTypeStrategy {
             return error;
         }
 
-        error = validateInvalidOpHandling(callContext, throwOnFailure);
+        error = validateErrorHandling(callContext, throwOnFailure);
         if (error.isPresent()) {
             return error;
         }
@@ -155,7 +132,7 @@ public final class FromChangelogTypeStrategy {
 
     private static Optional<List<DataType>> validateTableArg(
             final CallContext callContext, final boolean throwOnFailure) {
-        if (callContext.getTableSemantics(0).isEmpty()) {
+        if (callContext.getTableSemantics(ARG_TABLE).isEmpty()) {
             return callContext.fail(
                     throwOnFailure, "First argument must be a table for FROM_CHANGELOG.");
         }
@@ -164,7 +141,8 @@ public final class FromChangelogTypeStrategy {
 
     private static Optional<List<DataType>> validateOpDescriptor(
             final CallContext callContext, final boolean throwOnFailure) {
-        final Optional<ColumnList> opDescriptor = callContext.getArgumentValue(1, ColumnList.class);
+        final Optional<ColumnList> opDescriptor =
+                callContext.getArgumentValue(ARG_OP, ColumnList.class);
         if (opDescriptor.isPresent() && opDescriptor.get().getNames().size() != 1) {
             return callContext.fail(
                     throwOnFailure,
@@ -177,7 +155,7 @@ public final class FromChangelogTypeStrategy {
     private static Optional<List<DataType>> validateOpColumn(
             final CallContext callContext, final boolean throwOnFailure) {
 
-        final TableSemantics tableSemantics = callContext.getTableSemantics(0).get();
+        final TableSemantics tableSemantics = callContext.getTableSemantics(ARG_TABLE).get();
         final String opColumnName = resolveOpColumnName(callContext);
         final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
         final Optional<Field> opField =
@@ -203,14 +181,14 @@ public final class FromChangelogTypeStrategy {
     @SuppressWarnings("unchecked")
     private static Optional<List<DataType>> validateOpMapping(
             final CallContext callContext, final boolean throwOnFailure) {
-        final boolean hasMappingArgProvided = !callContext.isArgumentNull(2);
-        final boolean isMappingArgLiteral = callContext.isArgumentLiteral(2);
+        final boolean hasMappingArgProvided = !callContext.isArgumentNull(ARG_OP_MAPPING);
+        final boolean isMappingArgLiteral = callContext.isArgumentLiteral(ARG_OP_MAPPING);
         if (hasMappingArgProvided && !isMappingArgLiteral) {
             return callContext.fail(
                     throwOnFailure, "The 'op_mapping' argument must be a constant MAP literal.");
         }
 
-        final Optional<Map> opMapping = callContext.getArgumentValue(2, Map.class);
+        final Optional<Map> opMapping = callContext.getArgumentValue(ARG_OP_MAPPING, Map.class);
         if (opMapping.isPresent()) {
             final Map<String, String> mapping = opMapping.get();
             final Optional<List<DataType>> validationError =
@@ -269,26 +247,26 @@ public final class FromChangelogTypeStrategy {
         return Optional.empty();
     }
 
-    private static Optional<List<DataType>> validateInvalidOpHandling(
+    private static Optional<List<DataType>> validateErrorHandling(
             final CallContext callContext, final boolean throwOnFailure) {
-        final boolean hasInvalidOpHandlingArgProvided = !callContext.isArgumentNull(3);
-        final boolean isInvalidOpHandlingArgLiteral = callContext.isArgumentLiteral(3);
-        if (hasInvalidOpHandlingArgProvided && !isInvalidOpHandlingArgLiteral) {
+        final boolean hasErrorHandlingArgProvided = !callContext.isArgumentNull(ARG_ERROR_HANDLING);
+        final boolean isErrorHandlingArgLiteral = callContext.isArgumentLiteral(ARG_ERROR_HANDLING);
+        if (hasErrorHandlingArgProvided && !isErrorHandlingArgLiteral) {
             return callContext.fail(
                     throwOnFailure,
-                    "The 'invalid_op_handling' argument must be a constant STRING literal.");
+                    "The 'error_handling' argument must be a constant STRING literal.");
         }
 
-        final Optional<String> optionalInvalidOpHandlingArg =
-                callContext.getArgumentValue(3, String.class);
-        if (optionalInvalidOpHandlingArg.isPresent()) {
-            final String invalidOpHandlingMode = optionalInvalidOpHandlingArg.get();
-            if (InvalidOpHandlingMode.fromName(invalidOpHandlingMode).isEmpty()) {
+        final Optional<String> optionalErrorHandlingArg =
+                callContext.getArgumentValue(ARG_ERROR_HANDLING, String.class);
+        if (optionalErrorHandlingArg.isPresent()) {
+            final String errorHandlingMode = optionalErrorHandlingArg.get();
+            if (ErrorHandlingMode.fromName(errorHandlingMode).isEmpty()) {
                 return callContext.fail(
                         throwOnFailure,
                         String.format(
-                                "Invalid value for argument 'invalid_op_handling': '%s'. Valid values are: %s.",
-                                invalidOpHandlingMode, InvalidOpHandlingMode.validNames()));
+                                "Invalid value for argument 'error_handling': '%s'. Valid values are: %s.",
+                                errorHandlingMode, ErrorHandlingMode.validNames()));
             }
         }
 
@@ -297,7 +275,7 @@ public final class FromChangelogTypeStrategy {
 
     private static String resolveOpColumnName(final CallContext callContext) {
         return callContext
-                .getArgumentValue(1, ColumnList.class)
+                .getArgumentValue(ARG_OP, ColumnList.class)
                 .filter(cl -> !cl.getNames().isEmpty())
                 .map(cl -> cl.getNames().get(0))
                 .orElse(DEFAULT_OP_COLUMN_NAME);

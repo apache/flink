@@ -24,7 +24,6 @@ import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
 import org.apache.flink.types.ColumnList;
 
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -53,7 +52,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "Valid with custom mapping", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(
                                 2,
                                 Map.of(
@@ -69,7 +68,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "Op column not found in schema", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("nonexistent")))
+                        .calledWithLiteralAt(1, ColumnList.of("nonexistent"))
                         .expectErrorMessage("The op column 'nonexistent' does not exist"),
 
                 // Error: op column is not STRING
@@ -87,7 +86,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                                 DataTypes.FIELD("id", DataTypes.INT()),
                                                 DataTypes.FIELD("op", DataTypes.INT()),
                                                 DataTypes.FIELD("name", DataTypes.STRING()))))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .expectErrorMessage("must be of STRING type"),
 
                 // Error: multi-column descriptor
@@ -96,7 +95,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("a", "b")))
+                        .calledWithLiteralAt(1, ColumnList.of("a", "b"))
                         .expectErrorMessage("must contain exactly one column name"),
 
                 // Error: invalid RowKind in op_mapping value
@@ -105,7 +104,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(2, Map.of("c", "INVALID_KIND"))
                         .expectErrorMessage("Unknown change operation: 'INVALID_KIND'"),
 
@@ -115,7 +114,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(2, Map.of("c", "INSERT", "r", "INSERT"))
                         .expectErrorMessage("Duplicate change operation: 'INSERT'"),
 
@@ -124,7 +123,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "Valid INSERT-only mapping", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(2, Map.of("c, r", "INSERT"))
                         .calledWithLiteralAt(3, "FAIL")
                         .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
@@ -135,7 +134,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(2, Map.of("c", "INSERT", "d", "DELETE"))
                         .calledWithLiteralAt(3, "FAIL")
                         .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE),
@@ -146,7 +145,7 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(
                                 2,
                                 Map.of(
@@ -155,13 +154,12 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "d", "DELETE"))
                         .expectErrorMessage("must include UPDATE_BEFORE"),
 
-                // Error: Invalid op handling mode
+                // Error: Invalid error_handling mode
                 TestSpec.forStrategy(
-                                "Invalid invalid_op_handling mode",
-                                FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                                "Invalid error_handling mode", FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(
                                 2,
                                 Map.of(
@@ -171,15 +169,15 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "d", "DELETE"))
                         .calledWithLiteralAt(3, "INVALID_MODE")
                         .expectErrorMessage(
-                                "Invalid value for argument 'invalid_op_handling': 'INVALID_MODE'. Valid values are: FAIL, SKIP."),
+                                "Invalid value for argument 'error_handling': 'INVALID_MODE'. Valid values are: FAIL, SKIP."),
 
-                // Error: invalid_op_handling is case-sensitive — lowercase is rejected
+                // Error: error_handling is case-sensitive — lowercase is rejected
                 TestSpec.forStrategy(
-                                "Lowercase invalid_op_handling mode is rejected",
+                                "Lowercase error_handling mode is rejected",
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(
                                 2,
                                 Map.of(
@@ -189,15 +187,15 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "d", "DELETE"))
                         .calledWithLiteralAt(3, "skip")
                         .expectErrorMessage(
-                                "Invalid value for argument 'invalid_op_handling': 'skip'. Valid values are: FAIL, SKIP."),
+                                "Invalid value for argument 'error_handling': 'skip'. Valid values are: FAIL, SKIP."),
 
-                // Error: invalid_op_handling is case-sensitive — mixed case is rejected
+                // Error: error_handling is case-sensitive — mixed case is rejected
                 TestSpec.forStrategy(
-                                "Mixed-case invalid_op_handling mode is rejected",
+                                "Mixed-case error_handling mode is rejected",
                                 FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ColumnList.of(List.of("op")))
+                        .calledWithLiteralAt(1, ColumnList.of("op"))
                         .calledWithLiteralAt(
                                 2,
                                 Map.of(
@@ -207,6 +205,6 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "d", "DELETE"))
                         .calledWithLiteralAt(3, "Fail")
                         .expectErrorMessage(
-                                "Invalid value for argument 'invalid_op_handling': 'Fail'. Valid values are: FAIL, SKIP."));
+                                "Invalid value for argument 'error_handling': 'Fail'. Valid values are: FAIL, SKIP."));
     }
 }
