@@ -21,6 +21,7 @@ package org.apache.flink.core.fs;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.plugin.PluginContext;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.WrappingProxy;
 import org.apache.flink.util.WrappingProxyUtil;
@@ -246,6 +247,12 @@ class FileSystemTest {
                 }
                 return Collections.emptyIterator();
             }
+
+            @Override
+            public void open(PluginContext context) {}
+
+            @Override
+            public void close() {}
         };
     }
 
