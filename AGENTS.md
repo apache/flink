@@ -250,6 +250,27 @@ This section maps common types of Flink changes to the modules they touch and th
 6. Add to release notes
 7. Verify: ArchUnit tests pass, no new architecture violations
 
+## Changelog Processing
+
+Flink SQL's data model is a continuously evolving changelog: every row carries a `RowKind` (`+I`, `-U`, `+U`, `-D`) and every stream a `ChangelogMode`. Most planner and runtime mistakes in the table layer trace back to mishandling this. Recent FLIPs reshape the area:
+
+- **FLIP-558** - `SinkUpsertMaterializerV2` (FLINK-38461) fixes changelog disorder via watermark-based compaction; new `ON CONFLICT` syntax (in progress) lets users opt out of the expensive history-tracking "rollback" SUM behavior.
+- **FLIP-564** - `FROM_CHANGELOG` (FLINK-39261) and `TO_CHANGELOG` (FLINK-39419) PTFs expose stream/table conversion in SQL, the equivalent of DataStream's `fromChangelogStream`/`toChangelogStream`.
+
+For depth see [flink-table-planner/AGENTS.md](flink-table/flink-table-planner/AGENTS.md#changelog-processing) (trait inference, upsert keys, when the planner inserts `ChangelogNormalize` / `SinkUpsertMaterializer` / `DropUpdateBefore`) and [flink-table-runtime/AGENTS.md](flink-table/flink-table-runtime/AGENTS.md#changelog-processing) (`SinkUpsertMaterializer` V1 vs V2 internals, FLIP-564 PTFs).
+
+## SQL Best Practices
+
+Guidance for writing SQL (and for AI generating it) that minimizes changelog-related cost and surprises.
+
+1. **Keep the upstream upsert key equal to the sink primary key.** When they differ the planner must insert `SinkUpsertMaterializer`, which (in V1) tracks per-key update history. Add a `GROUP BY` on the PK columns or use `LAST_VALUE` instead of relying on sink-side deduplication.
+2. **Prefer append-only sources when semantics allow.** Changelog sources force `ChangelogNormalize` and downstream retraction state.
+3. **Define watermarks on changelog sources.** Disorder-tolerant operators (V2 SUM, FLIP-564 `FROM_CHANGELOG ORDER BY`) need watermark progress to compact and emit. No watermarks = stalled output or buffered state growth.
+4. **Use `FROM_CHANGELOG` for custom CDC formats** (FLIP-564) instead of writing a connector when the source is an append CDC stream.
+5. **Use `TO_CHANGELOG` to materialize a CDC append stream** out of a Flink table for archival, audit, or non-CDC-aware sinks.
+6. **Match sink `ChangelogMode` to what the sink can actually do.** Don't declare upsert capability for a sink that cannot upsert; use retract and let the planner negotiate.
+7. **Prefer retract sinks when the downstream system handles full deletes** - retract sinks bypass `SinkUpsertMaterializer` entirely (FLINK-38201).
+
 ## Coding Standards
 
 - **Format Java files with Spotless immediately after editing:** `./mvnw spotless:apply`. Uses google-java-format with AOSP style.
