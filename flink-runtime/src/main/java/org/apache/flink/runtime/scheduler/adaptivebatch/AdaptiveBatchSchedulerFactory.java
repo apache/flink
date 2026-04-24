@@ -125,11 +125,12 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             throws Exception {
         final ExecutionConfig executionConfig;
 
+        ParallelismOverrideUtil.applyParallelismOverridesIfApplicable(
+                executionPlan, jobMasterConfiguration);
+
         if (executionPlan instanceof JobGraph) {
             executionConfig =
                     executionPlan.getSerializedExecutionConfig().deserializeValue(userCodeLoader);
-            ParallelismOverrideUtil.applyParallelismOverrides(
-                    (JobGraph) executionPlan, jobMasterConfiguration);
         } else if (executionPlan instanceof StreamGraph) {
             executionConfig = ((StreamGraph) executionPlan).getExecutionConfig();
         } else {

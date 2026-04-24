@@ -18,11 +18,16 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ParallelismOverrideUtil}. */
 class ParallelismOverrideUtilTest {
@@ -178,5 +184,79 @@ class ParallelismOverrideUtilTest {
         assertThat(vertex1.getParallelism()).isEqualTo(10); // from job master config
         assertThat(vertex2.getParallelism()).isEqualTo(200); // job config wins
         assertThat(vertex3.getParallelism()).isEqualTo(30); // from job config
+    }
+
+    @Test
+    void testNonNumericOverrideThrowsIllegalArgument() {
+        JobVertex vertex = new JobVertex("vertex");
+        vertex.setParallelism(1);
+
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+
+        Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(
+                PipelineOptions.PARALLELISM_OVERRIDES,
+                Map.of(vertex.getID().toHexString(), "not-a-number"));
+
+        assertThatThrownBy(
+                        () ->
+                                ParallelismOverrideUtil.applyParallelismOverrides(
+                                        jobGraph, jobMasterConfig))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not a valid integer")
+                .hasMessageContaining(vertex.getID().toHexString());
+    }
+
+    @Test
+    void testApplyIfApplicableAppliesForJobGraph() {
+        JobVertex vertex = new JobVertex("vertex");
+        vertex.setParallelism(1);
+
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+
+        Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(
+                PipelineOptions.PARALLELISM_OVERRIDES, Map.of(vertex.getID().toHexString(), "7"));
+
+        ExecutionPlan executionPlan = jobGraph;
+        ParallelismOverrideUtil.applyParallelismOverridesIfApplicable(
+                executionPlan, jobMasterConfig);
+
+        assertThat(vertex.getParallelism()).isEqualTo(7);
+    }
+
+    @Test
+    void testApplyIfApplicableNoOpsForStreamGraph() {
+        StreamGraph streamGraph =
+                new StreamGraph(
+                        new Configuration(),
+                        new ExecutionConfig(),
+                        new CheckpointConfig(),
+                        SavepointRestoreSettings.none());
+
+        Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(PipelineOptions.PARALLELISM_OVERRIDES, Map.of("some-vertex-id", "42"));
+
+        // Should not throw — StreamGraph path handles overrides elsewhere.
+        ParallelismOverrideUtil.applyParallelismOverridesIfApplicable(streamGraph, jobMasterConfig);
+    }
+
+    @Test
+    void testNonPositiveOverrideThrowsIllegalArgument() {
+        JobVertex vertex = new JobVertex("vertex");
+        vertex.setParallelism(1);
+
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+
+        Configuration jobMasterConfig = new Configuration();
+        jobMasterConfig.set(
+                PipelineOptions.PARALLELISM_OVERRIDES, Map.of(vertex.getID().toHexString(), "0"));
+
+        assertThatThrownBy(
+                        () ->
+                                ParallelismOverrideUtil.applyParallelismOverrides(
+                                        jobGraph, jobMasterConfig))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must be positive");
     }
 }
