@@ -296,7 +296,7 @@ public class OpenApiSpecGenerator {
                                         new Schema().type("string"),
                                         SerializedThrowableSerializer
                                                 .FIELD_NAME_SERIALIZED_THROWABLE,
-                                        new Schema().type("string").format("binary")));
+                                        new Schema().type("string").format("byte")));
 
         openAPI.getComponents()
                 .addSchemas(SerializedThrowable.class.getSimpleName(), serializedThrowableSchema);
