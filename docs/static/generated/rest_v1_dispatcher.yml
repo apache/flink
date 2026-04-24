@@ -3410,7 +3410,7 @@ components:
           type: string
         serialized-throwable:
           type: string
-          format: binary
+          format: byte
         stack-trace:
           type: string
     SerializedValueOptionalFailureObject:
