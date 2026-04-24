@@ -96,7 +96,8 @@ public class AsyncCodeGenerator {
                 JavaScalaConversionUtil.toScala(Optional.empty()),
                 JavaScalaConversionUtil.toScala(Optional.empty()),
                 CodeGenUtils.DEFAULT_COLLECTOR_TERM(),
-                CodeGenUtils.DEFAULT_CONTEXT_TERM());
+                CodeGenUtils.DEFAULT_CONTEXT_TERM(),
+                JavaScalaConversionUtil.toScala(Optional.empty()));
     }
 
     @SuppressWarnings("unchecked")

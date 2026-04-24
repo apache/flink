@@ -75,7 +75,8 @@ object FunctionCodeGenerator {
       input2Type: Option[LogicalType] = None,
       input2Term: Option[String] = Some(DEFAULT_INPUT2_TERM),
       collectorTerm: String = DEFAULT_COLLECTOR_TERM,
-      contextTerm: String = DEFAULT_CONTEXT_TERM): GeneratedFunction[F] = {
+      contextTerm: String = DEFAULT_CONTEXT_TERM,
+      timeoutBodyCode: Option[String] = None): GeneratedFunction[F] = {
     val funcName = newName(ctx, name)
     val inputTypeTerm = boxedTypeTermForType(input1Type)
 
@@ -138,6 +139,27 @@ object FunctionCodeGenerator {
         throw new CodeGenException("Unsupported Function.")
       }
 
+    // Render an optional timeout(...) method for AsyncFunction subclasses. The body is supplied
+    // by the planner when the user UDF declares a legal `timeout` method (see
+    // BridgingFunctionGenUtil.generateAsyncTableFunctionTimeoutCall). When absent, the generated
+    // class falls back to AsyncFunction's default timeout that completes the future with a
+    // TimeoutException.
+    val timeoutMethodCode = timeoutBodyCode match {
+      case Some(body) if clazz == classOf[AsyncFunction[_, _]] =>
+        s"""
+           |@Override
+           |public void timeout(Object _in1,
+           |    org.apache.flink.streaming.api.functions.async.ResultFuture $collectorTerm)
+           |    throws Exception {
+           |  $inputTypeTerm $input1Term = ($inputTypeTerm) _in1;
+           |  ${ctx.reuseLocalVariableCode()}
+           |  ${ctx.reuseInputUnboxingCode()}
+           |  $body
+           |}
+           |""".stripMargin
+      case _ => ""
+    }
+
     val funcCode =
       j"""
       ${ctx.getClassHeaderComment}
@@ -165,6 +187,8 @@ object FunctionCodeGenerator {
           ${ctx.reuseInputUnboxingCode()}
           $bodyCode
         }
+
+        $timeoutMethodCode
 
         @Override
         public void close() throws Exception {
