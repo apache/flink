@@ -39,6 +39,13 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Incompatible Scala library in user code shouldn't break table-planner -->
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>2.13.18</version>
+		</dependency>
+
 		<!-- Flink Table API -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
