@@ -92,12 +92,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-guava</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
 			<scope>test</scope>
 		</dependency>
@@ -427,6 +421,19 @@ under the License.
 							</sources>
 						</configuration>
 					</execution>
+					<!-- Add generated Avro test sources to build path -->
+					<execution>
+						<id>add-avro-test-source</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>add-test-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-test-sources/avro</source>
+							</sources>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 		
@@ -696,24 +703,6 @@ under the License.
 						<configuration>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
 							<testOutputDirectory>${project.basedir}/target/generated-test-sources/avro</testOutputDirectory>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>add-avro-test-source</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>${project.build.directory}/generated-test-sources/avro</source>
-							</sources>
 						</configuration>
 					</execution>
 				</executions>
