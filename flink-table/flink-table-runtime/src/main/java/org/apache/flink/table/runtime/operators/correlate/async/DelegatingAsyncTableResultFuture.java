@@ -58,9 +58,22 @@ public class DelegatingAsyncTableResultFuture implements BiConsumer<Collection<O
     public void accept(Collection<Object> outs, Throwable throwable) {
         if (throwable != null) {
             delegatedResultFuture.completeExceptionally(throwable);
-        } else {
-            delegatedResultFuture.complete(wrapFunction.apply(outs));
+            return;
         }
+        // wrapFunction may throw (e.g. NPE on a null element, ClassCastException on a wrong
+        // payload type). Users typically complete the CompletableFuture from a callback running
+        // on their own async client's thread (a Netty / HTTP / RPC worker), so without this catch
+        // the exception would propagate on that user thread and the delegated ResultFuture would
+        // never be completed, leaving the AsyncWaitOperator's ResultHandler hanging forever.
+        // Forward the failure so the operator can surface it through the normal error path.
+        final Collection<Object> wrapped;
+        try {
+            wrapped = wrapFunction.apply(outs);
+        } catch (Throwable t) {
+            delegatedResultFuture.completeExceptionally(t);
+            return;
+        }
+        delegatedResultFuture.complete(wrapped);
     }
 
     private Collection<Object> wrapInternal(Collection<Object> outs) {
