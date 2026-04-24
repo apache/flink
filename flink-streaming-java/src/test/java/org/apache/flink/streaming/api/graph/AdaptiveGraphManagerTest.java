@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
@@ -194,6 +195,82 @@ public class AdaptiveGraphManagerTest extends JobGraphGeneratorTestBase {
         StreamGraph streamGraph2 = env.getStreamGraph(false);
         JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph2);
         assertThat(isJobGraphEquivalent(jobGraph1, jobGraph2)).isEqualTo(true);
+    }
+
+    @Test
+    void testNonChainedOutputTargetVertexIdPatchedAfterDownstreamCreated() {
+        // Build a 2-stage pipeline that, under dynamic/adaptive job-graph construction, produces
+        // two separate JobVertices (upstream source+map, downstream keyed-map+sink) connected by
+        // a hash exchange. This is exactly the scenario where the upstream vertex is created
+        // first and its NonChainedOutput is left with a transiently-null targetVertexId until
+        // the downstream vertex is built in a later iteration.
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+
+        DataStream<Tuple2<String, String>> input =
+                env.fromData("a", "b", "c")
+                        .map(
+                                new MapFunction<String, Tuple2<String, String>>() {
+                                    @Override
+                                    public Tuple2<String, String> map(String value) {
+                                        return new Tuple2<>(value, value);
+                                    }
+                                });
+        input.keyBy(x -> x.f0)
+                .map(
+                        new MapFunction<Tuple2<String, String>, Tuple2<String, String>>() {
+                            @Override
+                            public Tuple2<String, String> map(Tuple2<String, String> value) {
+                                return value;
+                            }
+                        })
+                .sinkTo(new DiscardingSink<>());
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        streamGraph.setDynamic(true);
+
+        AdaptiveGraphManager adaptiveGraphManager =
+                new AdaptiveGraphManager(
+                        Thread.currentThread().getContextClassLoader(), streamGraph, Runnable::run);
+
+        // Only the upstream vertex exists after the initial getJobGraph() call.
+        JobGraph jobGraph = adaptiveGraphManager.getJobGraph();
+        List<JobVertex> initialVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        assertThat(initialVertices).hasSize(1);
+        JobVertex upstreamVertex = initialVertices.get(0);
+
+        // The upstream's NonChainedOutput was created while the downstream JobVertex did not yet
+        // exist; its target id must be transiently null at this point.
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        List<NonChainedOutput> outputsBefore =
+                new StreamConfig(upstreamVertex.getConfiguration()).getVertexNonChainedOutputs(cl);
+        assertThat(outputsBefore)
+                .as("upstream should have exactly one non-chained output to the downstream")
+                .hasSize(1);
+        assertThat(outputsBefore.get(0).getTargetNodeId())
+                .as(
+                        "target id is transiently null before the downstream JobVertex has been"
+                                + " created by the adaptive graph manager")
+                .isNull();
+
+        // Finishing the upstream triggers creation of the downstream vertex and the patching +
+        // re-serialization of the upstream's VERTEX_NONCHAINED_OUTPUTS.
+        List<JobVertex> newlyCreated =
+                adaptiveGraphManager.onJobVertexFinished(upstreamVertex.getID());
+        assertThat(newlyCreated).hasSize(1);
+        JobVertexID downstreamId = newlyCreated.get(0).getID();
+
+        // Re-read the persisted bytes of the upstream config: the target id must now reflect the
+        // downstream JobVertexID, proving both setTargetVertexId() and
+        // reserializeVertexNonChainedOutputs() were applied.
+        List<NonChainedOutput> outputsAfter =
+                new StreamConfig(upstreamVertex.getConfiguration()).getVertexNonChainedOutputs(cl);
+        assertThat(outputsAfter).hasSize(1);
+        assertThat(outputsAfter.get(0).getTargetNodeId())
+                .as(
+                        "after the downstream vertex is created, the upstream's persisted"
+                                + " NonChainedOutput carries the downstream JobVertexID")
+                .isEqualTo(downstreamId);
     }
 
     @Test

@@ -536,6 +536,50 @@ public class StreamConfig implements Serializable {
         toBeSerializedConfigObjects.put(VERTEX_NONCHAINED_OUTPUTS, nonChainedOutputs);
     }
 
+    /**
+     * Re-serialize the {@link #VERTEX_NONCHAINED_OUTPUTS} key from the in-memory Java list
+     * previously handed to {@link #setVertexNonChainedOutputs(List)}. Used by adaptive job-graph
+     * construction to refresh the persisted bytes after mutating in-place fields on the cached
+     * {@link NonChainedOutput} instances (e.g. stamping a downstream {@link
+     * org.apache.flink.runtime.jobgraph.JobVertexID} that was not known at the time of the first
+     * serialization).
+     *
+     * <p>No-op if this config has no vertex non-chained outputs tracked.
+     */
+    public void reserializeVertexNonChainedOutputs() {
+        Object value = toBeSerializedConfigObjects.get(VERTEX_NONCHAINED_OUTPUTS);
+        if (value == null) {
+            return;
+        }
+        try {
+            InstantiationUtil.writeObjectToConfig(value, this.config, VERTEX_NONCHAINED_OUTPUTS);
+        } catch (IOException e) {
+            throw new StreamTaskException("Could not re-serialize vertex non-chained outputs.", e);
+        }
+    }
+
+    /**
+     * Re-serialize the {@link #OP_NONCHAINED_OUTPUTS} key from the in-memory Java list previously
+     * handed to {@link #setOperatorNonChainedOutputs(List)}. Symmetric to {@link
+     * #reserializeVertexNonChainedOutputs()}; required because runtime {@code OperatorChain} reads
+     * the operator-level (not vertex-level) list, so patching a {@link NonChainedOutput} field in
+     * adaptive mode must refresh both persisted copies.
+     *
+     * <p>No-op if this config has no operator non-chained outputs tracked.
+     */
+    public void reserializeOperatorNonChainedOutputs() {
+        Object value = toBeSerializedConfigObjects.get(OP_NONCHAINED_OUTPUTS);
+        if (value == null) {
+            return;
+        }
+        try {
+            InstantiationUtil.writeObjectToConfig(value, this.config, OP_NONCHAINED_OUTPUTS);
+        } catch (IOException e) {
+            throw new StreamTaskException(
+                    "Could not re-serialize operator non-chained outputs.", e);
+        }
+    }
+
     public List<NonChainedOutput> getVertexNonChainedOutputs(ClassLoader cl) {
         try {
             List<NonChainedOutput> nonChainedOutputs =

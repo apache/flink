@@ -24,6 +24,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -41,8 +43,18 @@ public class NonChainedOutput implements Serializable {
     /** ID of the producer {@link StreamNode}. */
     private final int sourceNodeId;
 
-    /** ID of the consumer {@link StreamNode}. */
-    private final JobVertexID targetVertexId;
+    /**
+     * ID of the consumer {@link org.apache.flink.runtime.jobgraph.JobVertex}.
+     *
+     * <p>In eager job-graph construction this is always set at construction time. In adaptive
+     * job-graph construction modes (e.g. {@code AdaptiveGraphManager}) the downstream {@link
+     * org.apache.flink.runtime.jobgraph.JobVertex} may not yet exist when this output is first
+     * created; in that case the field is transiently {@code null} and is patched in via {@link
+     * #setTargetVertexId(JobVertexID)} as soon as the downstream vertex is created, before the
+     * upstream vertex is scheduled. Runtime code (e.g. {@code OperatorChain}) must therefore always
+     * observe a non-null value.
+     */
+    @Nullable private JobVertexID targetVertexId;
 
     /** Parallelism of the consumer vertex. */
     private final int consumerParallelism;
@@ -103,6 +115,17 @@ public class NonChainedOutput implements Serializable {
 
     public JobVertexID getTargetNodeId() {
         return targetVertexId;
+    }
+
+    /**
+     * Patches in the downstream {@link JobVertexID} after this output has already been created.
+     * Used exclusively by adaptive job-graph construction to resolve the transient null state of
+     * {@link #targetVertexId} once the downstream {@link
+     * org.apache.flink.runtime.jobgraph.JobVertex} becomes known. Must be invoked before the owning
+     * upstream vertex is scheduled.
+     */
+    public void setTargetVertexId(@Nullable JobVertexID targetVertexId) {
+        this.targetVertexId = targetVertexId;
     }
 
     public int getConsumerParallelism() {
