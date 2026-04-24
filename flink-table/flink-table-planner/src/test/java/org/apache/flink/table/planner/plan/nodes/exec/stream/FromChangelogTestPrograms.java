@@ -173,6 +173,71 @@ public class FromChangelogTestPrograms {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+    // Set semantics with PARTITION BY
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Verifies that {@code FROM_CHANGELOG(TABLE t PARTITION BY id)} produces the same logical
+     * output as the row-semantic call. The conditional {@code SET_SEMANTIC_TABLE} trait switches
+     * the execution to a co-located parallel mode but must not change row-level semantics.
+     */
+    public static final TableTestProgram SET_SEMANTICS_PARTITION_BY =
+            TableTestProgram.of(
+                            "from-changelog-set-semantics-partition-by",
+                            "PARTITION BY enables set semantics without altering output rows")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(
+                                            Row.of(1, "INSERT", "Alice"),
+                                            Row.of(2, "INSERT", "Bob"),
+                                            Row.of(1, "UPDATE_BEFORE", "Alice"),
+                                            Row.of(1, "UPDATE_AFTER", "Alice2"),
+                                            Row.of(2, "DELETE", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, "Alice"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream PARTITION BY id)")
+                    .build();
+
+    public static final TableTestProgram DELETION_FLAG_PARTITION_BY =
+            TableTestProgram.of(
+                            "from-changelog-deletion-flag-partition-by",
+                            "deletion flag mapping with PARTITION BY: 'false' -> INSERT, 'true' -> DELETE")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema("id INT", "deleted STRING", "name STRING")
+                                    .producedValues(
+                                            Row.of(1, "false", "Alice"),
+                                            Row.of(2, "false", "Bob"),
+                                            Row.of(2, "true", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM FROM_CHANGELOG("
+                                    + "input => TABLE cdc_stream PARTITION BY id, "
+                                    + "op => DESCRIPTOR(deleted), "
+                                    + "op_mapping => MAP['false', 'INSERT', 'true', 'DELETE'])")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
     // Table API test
     // --------------------------------------------------------------------------------------------
 

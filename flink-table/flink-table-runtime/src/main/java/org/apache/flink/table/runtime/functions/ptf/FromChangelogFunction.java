@@ -40,13 +40,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_ERROR_HANDLING;
-import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_OP;
 import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_OP_MAPPING;
 import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_TABLE;
-import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.DEFAULT_OP_COLUMN_NAME;
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.computeOutputIndices;
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.resolveOpColumnName;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}.
@@ -90,12 +89,7 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
         final RowType inputType = (RowType) tableSemantics.dataType().getLogicalType();
         final String opColumnName = resolveOpColumnName(callContext);
         this.opColumnIndex = inputType.getFieldNames().indexOf(opColumnName);
-
-        // Exclude only the op column from output — all other columns pass through
-        this.outputIndices =
-                IntStream.range(0, inputType.getFieldCount())
-                        .filter(i -> i != opColumnIndex)
-                        .toArray();
+        this.outputIndices = computeOutputIndices(tableSemantics, opColumnName);
 
         this.rawOpMap = buildOpMap(callContext);
 
@@ -112,13 +106,6 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
         opMap = new HashMap<>();
         rawOpMap.forEach((code, kind) -> opMap.put(StringData.fromString(code), kind));
         projectedOutput = ProjectedRowData.from(outputIndices);
-    }
-
-    private static String resolveOpColumnName(final CallContext callContext) {
-        return callContext
-                .getArgumentValue(ARG_OP, ColumnList.class)
-                .map(cl -> cl.getNames().get(0))
-                .orElse(DEFAULT_OP_COLUMN_NAME);
     }
 
     /**

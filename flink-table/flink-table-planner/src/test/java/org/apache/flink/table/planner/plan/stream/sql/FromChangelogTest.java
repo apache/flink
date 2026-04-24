@@ -75,4 +75,18 @@ public class FromChangelogTest extends TableTestBase {
                         + "error_handling => 'SKIP')",
                 CHANGELOG_MODE);
     }
+
+    @Test
+    void testSetSemanticsWithPartitionBy() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE cdc_stream ("
+                                + "  id INT,"
+                                + "  op STRING,"
+                                + "  name STRING"
+                                + ") WITH ('connector' = 'values')");
+        util.verifyRelPlan(
+                "SELECT * FROM FROM_CHANGELOG(input => TABLE cdc_stream PARTITION BY id)",
+                CHANGELOG_MODE);
+    }
 }

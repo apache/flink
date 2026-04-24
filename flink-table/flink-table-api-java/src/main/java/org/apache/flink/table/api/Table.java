@@ -1467,6 +1467,17 @@ public interface Table extends Explainable<Table>, Executable {
      * TableRuntimeException} when an input row's op code is {@code NULL} or not present in the
      * mapping; pass {@code error_handling => 'SKIP'} to silently drop those rows instead.
      *
+     * <p>By default, the input is processed with row semantics (each row independently). To
+     * co-locate rows with the same key in the same parallel operator instance, partition the input
+     * first via {@link #partitionBy(Expression...)} and invoke the function via {@link
+     * PartitionedTable#process(String, Object...)}:
+     *
+     * <pre>{@code
+     * Table result = cdcStream
+     *     .partitionBy($("id"))
+     *     .process("FROM_CHANGELOG");
+     * }</pre>
+     *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
