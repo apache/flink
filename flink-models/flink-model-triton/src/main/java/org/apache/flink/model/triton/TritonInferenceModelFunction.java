@@ -940,9 +940,29 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     private String buildInferenceRequest(RowData rowData) throws JsonProcessingException {
         ObjectNode requestNode = objectMapper.createObjectNode();
 
-        // Add request ID if sequence ID is provided
+        // Generate and add request ID with optional auto-increment strategy
         if (getSequenceId() != null) {
-            requestNode.put("id", getSequenceId());
+            String effectiveSequenceId = getSequenceId();
+
+            // Apply auto-increment strategy if enabled
+            if (isSequenceIdAutoIncrement()) {
+                // Format: {base-sequence-id}-{subtask-index}-{counter}
+                // This ensures unique sequences across parallel instances and failovers
+                long counter = sequenceCounter.getAndIncrement();
+                effectiveSequenceId =
+                        String.format("%s-%d-%d", getSequenceId(), subtaskIndex, counter);
+
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Generated auto-increment sequence ID: {} (base: {}, subtask: {}, counter: {})",
+                            effectiveSequenceId,
+                            getSequenceId(),
+                            subtaskIndex,
+                            counter);
+                }
+            }
+
+            requestNode.put("id", effectiveSequenceId);
         }
 
         // Add parameters

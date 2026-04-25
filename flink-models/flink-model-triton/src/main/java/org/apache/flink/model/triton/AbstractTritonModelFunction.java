@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -78,6 +79,20 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     protected transient ScheduledExecutorService retryScheduler;
 
+    /**
+     * Monotonically increasing counter for sequence ID auto-increment strategy. Combined with
+     * {@link #subtaskIndex} it guarantees sequence isolation across Flink job restarts, failovers
+     * and parallel instances. Only initialized when {@link
+     * TritonOptions#SEQUENCE_ID_AUTO_INCREMENT} is enabled.
+     */
+    protected transient AtomicLong sequenceCounter;
+
+    /**
+     * Index of this parallel subtask. Used together with {@link #sequenceCounter} to build unique
+     * auto-incremented sequence IDs in the form {@code {base}-{subtask}-{counter}}.
+     */
+    protected transient int subtaskIndex;
+
     private final String endpoint;
 
     /**
@@ -105,6 +120,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     private final String sequenceId;
 
+    private final boolean sequenceIdAutoIncrement;
     private final boolean sequenceStart;
     private final boolean sequenceEnd;
     private final String compression;
@@ -133,6 +149,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.flattenBatchDim = config.get(TritonOptions.FLATTEN_BATCH_DIM);
         this.priority = config.get(TritonOptions.PRIORITY);
         this.sequenceId = config.get(TritonOptions.SEQUENCE_ID);
+        this.sequenceIdAutoIncrement = config.get(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT);
         this.sequenceStart = config.get(TritonOptions.SEQUENCE_START);
         this.sequenceEnd = config.get(TritonOptions.SEQUENCE_END);
         this.compression = config.get(TritonOptions.COMPRESSION);
@@ -184,6 +201,13 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.circuitBreakerTimeout = config.get(TritonOptions.CIRCUIT_BREAKER_TIMEOUT);
         this.circuitBreakerHalfOpenRequests =
                 config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
+
+        // Validate sequence-id-auto-increment requires sequence-id
+        if (this.sequenceIdAutoIncrement && this.sequenceId == null) {
+            throw new IllegalArgumentException(
+                    "sequence-id-auto-increment requires sequence-id to be configured. "
+                            + "Please provide a base sequence-id value.");
+        }
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
@@ -270,6 +294,18 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             // Start periodic health checking. The scheduler uses an initial delay equal to
             // checkInterval so it does not duplicate the eager checkNow() above.
             healthChecker.start();
+        }
+
+        // Initialize sequence counter and subtask index for auto-increment strategy.
+        // Done after healthChecker.start() so that failures in the subtask-info lookup cannot
+        // leave a half-initialized health checker behind.
+        if (sequenceIdAutoIncrement) {
+            this.sequenceCounter = new AtomicLong(0);
+            this.subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
+            LOG.info(
+                    "Initialized sequence ID auto-increment for subtask {}: base={}",
+                    subtaskIndex,
+                    sequenceId);
         }
     }
 
@@ -543,6 +579,10 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected String getSequenceId() {
         return sequenceId;
+    }
+
+    protected boolean isSequenceIdAutoIncrement() {
+        return sequenceIdAutoIncrement;
     }
 
     protected boolean isSequenceStart() {
