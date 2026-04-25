@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 
 /**
  * The factory of {@link OrderedAsyncBatchWaitOperator}.
@@ -39,7 +38,7 @@ import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 @Internal
 public class OrderedAsyncBatchWaitOperatorFactory<IN, OUT>
         extends AbstractStreamOperatorFactory<OUT>
-        implements OneInputStreamOperatorFactory<IN, OUT>, YieldingOperatorFactory<OUT> {
+        implements OneInputStreamOperatorFactory<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
 
@@ -86,7 +85,7 @@ public class OrderedAsyncBatchWaitOperatorFactory<IN, OUT>
                         asyncBatchFunction,
                         maxBatchSize,
                         batchTimeoutMs,
-                        getMailboxExecutor());
+                        parameters.getMailboxExecutor());
         return (T) operator;
     }
 
