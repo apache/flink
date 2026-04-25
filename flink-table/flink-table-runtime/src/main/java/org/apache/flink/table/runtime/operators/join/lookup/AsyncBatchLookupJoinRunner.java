@@ -226,15 +226,15 @@ public class AsyncBatchLookupJoinRunner implements Serializable {
         // Note: In the current simple implementation, we assume each lookup result
         // can be matched back to its input. For more complex scenarios,
         // the AsyncBatchLookupFunction should return results in a structured way.
-        
+
         // For now, we use a simple approach: distribute results to inputs
         // This is a simplified implementation - real implementations should
         // track which results belong to which inputs
-        
+
         // Process each original input
         for (int i = 0; i < allInputs.size(); i++) {
             RowData input = allInputs.get(i);
-            
+
             if (bypassedInputs.containsKey(i)) {
                 // Input didn't pass pre-filter
                 if (isLeftOuterJoin) {
@@ -244,14 +244,14 @@ public class AsyncBatchLookupJoinRunner implements Serializable {
                 // Input passed pre-filter - apply join condition and emit results
                 // For simplicity, we apply the join condition result future
                 List<RowData> matchedResults = new ArrayList<>();
-                
+
                 for (RowData rightRow : convertedResults) {
                     // Apply join condition
                     joinConditionResultFuture.setInput(input);
                     DelegatingResultCollector collector = new DelegatingResultCollector();
                     joinConditionResultFuture.setResultFuture(collector);
                     joinConditionResultFuture.complete(Collections.singletonList(rightRow));
-                    
+
                     if (collector.getResults() != null && !collector.getResults().isEmpty()) {
                         for (RowData matched : collector.getResults()) {
                             matchedResults.add(
@@ -259,7 +259,7 @@ public class AsyncBatchLookupJoinRunner implements Serializable {
                         }
                     }
                 }
-                
+
                 if (matchedResults.isEmpty() && isLeftOuterJoin) {
                     results.add(new JoinedRowData(input.getRowKind(), input, nullRow));
                 } else {
