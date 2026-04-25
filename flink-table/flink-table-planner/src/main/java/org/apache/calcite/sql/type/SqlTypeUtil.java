@@ -74,8 +74,8 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1102-1106
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1126-1128
+ *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1084-1087
+ *   <li>Should be removed after fixing CALCITE-7062: Lines 1108-1110
  * </ol>
  */
 public abstract class SqlTypeUtil {
@@ -472,24 +472,6 @@ public abstract class SqlTypeUtil {
             return false;
         }
         return typeName == SqlTypeName.DECIMAL;
-    }
-
-    /** Returns whether a type is DOUBLE. */
-    public static boolean isDouble(RelDataType type) {
-        SqlTypeName typeName = type.getSqlTypeName();
-        if (typeName == null) {
-            return false;
-        }
-        return typeName == SqlTypeName.DOUBLE;
-    }
-
-    /** Returns whether a type is BIGINT. */
-    public static boolean isBigint(RelDataType type) {
-        SqlTypeName typeName = type.getSqlTypeName();
-        if (typeName == null) {
-            return false;
-        }
-        return typeName == SqlTypeName.BIGINT;
     }
 
     /** Returns whether a type is numeric with exact precision. */

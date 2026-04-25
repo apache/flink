@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.calcite.sql.fun;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -25,12 +24,13 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Pair;
-import org.apache.calcite.util.Static;
 import org.apache.calcite.util.Util;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
-import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
  * Flink modifications
@@ -44,34 +44,41 @@ public class SqlMapValueConstructor extends SqlMultisetValueConstructor {
         // END FLINK MODIFICATION
     }
 
+    @SuppressWarnings("argument.type.incompatible")
+    @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        Pair<RelDataType, RelDataType> type =
+        Pair<@Nullable RelDataType, @Nullable RelDataType> type =
                 getComponentTypes(opBinding.getTypeFactory(), opBinding.collectOperandTypes());
+
+        // explicit cast elements to component type if they are not same
         SqlValidatorUtil.adjustTypeForMapConstructor(type, opBinding);
+
         return SqlTypeUtil.createMapType(
                 opBinding.getTypeFactory(),
-                (RelDataType) Objects.requireNonNull(type.left, "inferred key type"),
-                (RelDataType) Objects.requireNonNull(type.right, "inferred value type"),
+                requireNonNull(type.left, "inferred key type"),
+                requireNonNull(type.right, "inferred value type"),
                 false);
     }
 
+    @Override
     public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-        List<RelDataType> argTypes = SqlTypeUtil.deriveType(callBinding, callBinding.operands());
+        final List<RelDataType> argTypes =
+                SqlTypeUtil.deriveType(callBinding, callBinding.operands());
         if (argTypes.size() == 0) {
-            throw callBinding.newValidationError(Static.RESOURCE.mapRequiresTwoOrMoreArgs());
-        } else if (argTypes.size() % 2 > 0) {
-            throw callBinding.newValidationError(Static.RESOURCE.mapRequiresEvenArgCount());
-        } else {
-            Pair<RelDataType, RelDataType> componentType =
-                    getComponentTypes(callBinding.getTypeFactory(), argTypes);
-            if (null != componentType.left && null != componentType.right) {
-                return true;
-            } else if (throwOnFailure) {
-                throw callBinding.newValidationError(Static.RESOURCE.needSameTypeParameter());
-            } else {
-                return false;
-            }
+            throw callBinding.newValidationError(RESOURCE.mapRequiresTwoOrMoreArgs());
         }
+        if (argTypes.size() % 2 > 0) {
+            throw callBinding.newValidationError(RESOURCE.mapRequiresEvenArgCount());
+        }
+        final Pair<@Nullable RelDataType, @Nullable RelDataType> componentType =
+                getComponentTypes(callBinding.getTypeFactory(), argTypes);
+        if (null == componentType.left || null == componentType.right) {
+            if (throwOnFailure) {
+                throw callBinding.newValidationError(RESOURCE.needSameTypeParameter());
+            }
+            return false;
+        }
+        return true;
     }
 
     private static Pair<@Nullable RelDataType, @Nullable RelDataType> getComponentTypes(

@@ -598,6 +598,14 @@ class ExprCodeGenerator(
   override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression =
     throw new CodeGenException("Pattern field references are not supported yet.")
 
+  override def visitLambda(var1: RexLambda): GeneratedExpression = {
+    throw new CodeGenException("Lambdas are not supported yet.")
+  }
+
+  override def visitLambdaRef(var1: RexLambdaRef): GeneratedExpression = {
+    throw new CodeGenException("Lambda references are not supported yet.")
+  }
+
   // ----------------------------------------------------------------------------------------
 
   private def generateCallExpression(

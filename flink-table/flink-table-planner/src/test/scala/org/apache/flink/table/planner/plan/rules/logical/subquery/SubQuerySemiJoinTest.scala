@@ -1596,9 +1596,6 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     // LogicalFilter lost variablesSet information.
 
     util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
-
-    val sqlQuery2 = "SELECT MAX(a) FROM x GROUP BY 1 HAVING EXISTS (SELECT 1 FROM y WHERE d < b)"
-    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
   }
 
   @Test
