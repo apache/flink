@@ -31,7 +31,7 @@ WHERE  EXISTS (SELECT max(t2h) FROM t2
 LogicalProject(select=[t1a])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
-  LogicalProject(t2h=[$7])
+  LogicalProject(select=[t2h])
     LogicalJoin(condition=[=($0, $cor0.t1a)], joinType=[left])
       LogicalTableScan(table=[[default_catalog, default_database, t2]])
       LogicalTableScan(table=[[default_catalog, default_database, t1]])
@@ -60,9 +60,9 @@ FROM   t1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(select=[CASE(EXISTS({
+LogicalProject(variablesSet=[[$cor0]], select=[CASE(EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-  LogicalProject(t3d=[$3])
+  LogicalProject(select=[t3d])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t3]])
 }), 1, 2) AS EXPR$0])
@@ -89,14 +89,14 @@ FROM   t1
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(select=[$SCALAR_QUERY({
+LogicalProject(variablesSet=[[$cor0]], select=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-  LogicalProject(t3d=[$3])
+  LogicalProject(select=[t3d])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t3]])
 }) AS min_t3d, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
-  LogicalProject(t2h=[$7])
+  LogicalProject(select=[t2h])
     LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t2]])
 }) AS max_t2h])
@@ -133,9 +133,9 @@ WHERE  t1a = 'test'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(select=[$SCALAR_QUERY({
+LogicalProject(variablesSet=[[$cor0]], select=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-  LogicalProject($f0=[$cor0.t1d])
+  LogicalProject(select=[$cor0.t1d AS f0])
     LogicalFilter(condition=[=($0, _UTF-16LE'test')])
       LogicalTableScan(table=[[default_catalog, default_database, t3]])
 }) AS min_t1d])

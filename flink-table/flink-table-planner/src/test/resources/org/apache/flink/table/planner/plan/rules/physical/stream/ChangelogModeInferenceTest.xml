@@ -24,7 +24,7 @@ select * from src where name <> 'Tom' and score > 90
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(score=[$0], note=[$1], name=[$2], id=[$3])
+LogicalProject(select=[score, note, name, id])
 +- LogicalFilter(condition=[AND(<>($2, _UTF-16LE'Tom'), >($0, 90))])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -44,7 +44,7 @@ select * from src where name <> 'Tom'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], score=[$1], id=[$2])
+LogicalProject(select=[name, score, id])
 +- LogicalFilter(condition=[<>($0, _UTF-16LE'Tom')])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -64,7 +64,7 @@ select * from src where id > 5
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], score=[$1], id=[$2])
+LogicalProject(select=[name, score, id])
 +- LogicalFilter(condition=[>($2, 5)])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -85,7 +85,7 @@ select * from src where score > 90 and name = 'Tom' and id > 0
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(score=[$0], note=[$1], name=[$2], id=[$3])
+LogicalProject(select=[score, note, name, id])
 +- LogicalFilter(condition=[AND(>($0, 90), =($2, _UTF-16LE'Tom'), >($3, 0))])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -106,7 +106,7 @@ select * from src where name <> 'Tom'
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], score=[$1], id=[$2])
+LogicalProject(select=[name, score, id])
 +- LogicalFilter(condition=[<>($0, _UTF-16LE'Tom')])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -127,7 +127,7 @@ select * from src where name <> 'Tom' and score > 90
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(score=[$0], note=[$1], name=[$2], id=[$3])
+LogicalProject(select=[score, note, name, id])
 +- LogicalFilter(condition=[AND(<>($2, _UTF-16LE'Tom'), >($0, 90))])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
@@ -288,7 +288,7 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id])
-+- LogicalProject(name=[$0], score=[$1], detail=[$2], id=[$3])
++- LogicalProject(select=[name, score, detail, id])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -304,7 +304,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[name, score, detail,
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id])
-+- LogicalProject(name=[$0], score=[$1], detail=[$2], id=[$3])
++- LogicalProject(select=[name, score, detail, id])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
@@ -560,7 +560,7 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS freq
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, id])
-+- LogicalProject(name=[$0], score=[$1], id=[$2])
++- LogicalProject(select=[name, score, id])
    +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>

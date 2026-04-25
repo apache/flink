@@ -123,7 +123,7 @@ MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]]
       <![CDATA[
 LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(e=[$0])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T3]])
 })])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[full])
@@ -328,7 +328,7 @@ MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]]
       <![CDATA[
 LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(e=[$0])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T3]])
 })])
    +- LogicalProject(select=[a, b, c, d])
@@ -494,7 +494,7 @@ MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]]
       <![CDATA[
 LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(e=[$0])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T3]])
 })])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
@@ -745,7 +745,7 @@ MultiJoin(joinFilter=[true], isFullOuterJoin=[false], joinTypes=[[RIGHT, INNER]]
       <![CDATA[
 LogicalProject(select=[a, b, c, d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(e=[$0])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T3]])
 })])
    +- LogicalJoin(condition=[=($0, $2)], joinType=[right])

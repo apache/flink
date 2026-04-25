@@ -231,7 +231,7 @@ LogicalFilter(condition=[>($0, 10)])
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 2)), AND(NOT(<>($0, 1)), =($1, 3), true))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }), >($1, 10))])
@@ -245,7 +245,7 @@ LogicalProject(i=[$0])
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($0, 1), SEARCH($1, Sarg[2L:BIGINT, 3L:BIGINT]:BIGINT))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }), >($1, 10))])

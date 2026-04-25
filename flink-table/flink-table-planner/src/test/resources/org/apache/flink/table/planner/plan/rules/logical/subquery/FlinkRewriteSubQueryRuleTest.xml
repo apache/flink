@@ -25,7 +25,7 @@ limitations under the License.
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-  LogicalProject(e=[$1])
+  LogicalProject(select=[e])
     LogicalFilter(condition=[>($0, 10)])
       LogicalTableScan(table=[[default_catalog, default_database, y]])
 }), 0)])
@@ -54,9 +54,9 @@ LogicalProject(select=[a, b, c])
       <![CDATA[
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[>($SCALAR_QUERY({
-LogicalProject(EXPR$0=[$1])
+LogicalProject(select=[0])
   LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
-    LogicalProject(f=[$2])
+    LogicalProject(select=[f])
       LogicalFilter(condition=[>($0, 10)])
         LogicalTableScan(table=[[default_catalog, default_database, y]])
 }), 0)])

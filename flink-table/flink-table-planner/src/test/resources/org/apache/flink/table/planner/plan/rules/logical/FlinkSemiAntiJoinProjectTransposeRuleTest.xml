@@ -28,7 +28,7 @@ WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -67,7 +67,7 @@ WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])

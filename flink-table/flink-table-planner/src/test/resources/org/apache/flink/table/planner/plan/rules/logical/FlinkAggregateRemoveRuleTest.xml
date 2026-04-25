@@ -483,7 +483,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MI
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
-  LogicalProject(a=[$0])
+  LogicalProject(select=[a])
     LogicalFilter(condition=[=(1, 2)])
       LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 })])

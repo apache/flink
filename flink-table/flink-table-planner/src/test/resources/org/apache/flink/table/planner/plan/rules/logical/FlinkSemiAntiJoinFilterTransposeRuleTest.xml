@@ -27,7 +27,7 @@ SELECT * FROM (SELECT * FROM MyTable1 WHERE a > 10) t
       <![CDATA[
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(IN($1, {
-LogicalProject(e=[$1])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalProject(select=[a, b, c])
@@ -57,7 +57,7 @@ SELECT * FROM (SELECT * FROM MyTable1 WHERE a > 10) t
       <![CDATA[
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($1, {
-LogicalProject(e=[$1])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalProject(select=[a, b, c])

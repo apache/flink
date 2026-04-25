@@ -176,7 +176,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -207,7 +207,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -238,7 +238,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -269,7 +269,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($cor0.b, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -300,7 +300,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, $4, {
-LogicalProject(i=[$0], j=[$1])
+LogicalProject(select=[i, j])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -331,7 +331,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -362,7 +362,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -394,7 +394,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -426,7 +426,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -458,7 +458,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -490,7 +490,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -521,7 +521,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -552,7 +552,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -583,7 +583,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))], variablesSet=[[$cor0]])
@@ -614,7 +614,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($4, 100), IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -646,7 +646,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(>($4, 100), IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 }))])
@@ -830,7 +830,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))])
@@ -861,7 +861,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])
@@ -892,7 +892,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))])
@@ -923,7 +923,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($cor0.b, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])
@@ -954,7 +954,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, $4, {
-LogicalProject(i=[$0], j=[$1])
+LogicalProject(select=[i, j])
   LogicalFilter(condition=[<($1, 50)])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))])
@@ -985,7 +985,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(=($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])
@@ -1016,7 +1016,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])
@@ -1047,7 +1047,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])
@@ -1078,7 +1078,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($0, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.e, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])
@@ -1109,7 +1109,7 @@ LogicalProject(select=[a, f])
       <![CDATA[
 LogicalProject(select=[a, f])
 +- LogicalFilter(condition=[AND(=($2, $5), >($4, 100), NOT(IN($3, {
-LogicalProject(i=[$0])
+LogicalProject(select=[i])
   LogicalFilter(condition=[AND(>($cor0.b, $1), <($1, 50))])
     LogicalTableScan(table=[[default_catalog, default_database, z]])
 })))], variablesSet=[[$cor0]])

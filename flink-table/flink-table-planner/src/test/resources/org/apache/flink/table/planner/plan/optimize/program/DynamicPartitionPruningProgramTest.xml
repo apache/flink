@@ -565,9 +565,9 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
       <![CDATA[
 LogicalProject(select=[id, name, amount, price, fact_date_sk, id0, amount0, price0, id1, male, amount1, price1, dim_date_sk])
 +- LogicalFilter(condition=[AND(=($0, $5), IN($11, {
-LogicalProject(price=[$3])
+LogicalProject(select=[price])
   LogicalFilter(condition=[=($2, $SCALAR_QUERY({
-LogicalProject(amount=[$2])
+LogicalProject(select=[amount])
   LogicalFilter(condition=[=($2, 2000)])
     LogicalTableScan(table=[[testCatalog, test_database, dim]])
 }))])
@@ -3153,7 +3153,7 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
       <![CDATA[
 LogicalProject(select=[id, name, amount, price, fact_date_sk])
 +- LogicalFilter(condition=[IN($4, {
-LogicalProject(dim_date_sk=[$4])
+LogicalProject(select=[dim_date_sk])
   LogicalFilter(condition=[<($3, 500)])
     LogicalTableScan(table=[[testCatalog, test_database, dim]])
 })])

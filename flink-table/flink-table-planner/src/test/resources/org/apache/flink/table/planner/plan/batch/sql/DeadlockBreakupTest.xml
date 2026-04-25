@@ -144,7 +144,7 @@ LogicalProject(select=[a, b0 AS b])
       :- LogicalTableScan(table=[[default_catalog, default_database, x]])
       +- LogicalProject(select=[a, b])
          +- LogicalFilter(condition=[IN($0, {
-LogicalProject(a=[$0])
+LogicalProject(select=[a])
   LogicalFilter(condition=[>($1, 5)])
     LogicalTableScan(table=[[default_catalog, default_database, x]])
 })])

@@ -24,7 +24,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($3, {
-LogicalProject(e=[$4])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -49,7 +49,7 @@ LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b,
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($2, {
-LogicalProject(e=[$4])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -76,7 +76,7 @@ LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b,
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($2, {
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -101,7 +101,7 @@ LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b,
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(e=[$4])
+LogicalProject(select=[e])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -127,7 +127,7 @@ LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b,
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$3])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -153,7 +153,7 @@ LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b,
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(c=[$2])
+LogicalProject(select=[c])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -179,7 +179,7 @@ LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b,
       <![CDATA[
 LogicalProject(select=[a, b, c, d, e]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(b=[$1])
+LogicalProject(select=[b])
   LogicalTableScan(table=[[default_catalog, default_database, T2]])
 })]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
@@ -241,7 +241,7 @@ WHERE  t3c IN (SELECT t4b
       <![CDATA[
 LogicalProject(select=[t3a, t3b]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b)]
 +- LogicalFilter(condition=[IN($2, {
-LogicalProject(t4b=[$1])
+LogicalProject(select=[t4b])
   LogicalFilter(condition=[OR(=($cor0.t3a, $0), >($cor0.t3b, $1))])
     LogicalTableScan(table=[[default_catalog, default_database, T4]])
 })], variablesSet=[[$cor0]]), rowType=[RecordType(VARCHAR(2147483647) t3a, SMALLINT t3b, INTEGER t3c)]

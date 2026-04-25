@@ -24,7 +24,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(select=[id, name, amount, price, fact_date_sk])
 +- LogicalFilter(condition=[NOT(IN($4, {
-LogicalProject(dim_date_sk=[$4])
+LogicalProject(select=[dim_date_sk])
   LogicalFilter(condition=[<($3, 500)])
     LogicalTableScan(table=[[testCatalog, test_database, dim]])
 }))])
@@ -1148,7 +1148,7 @@ HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id,
       <![CDATA[
 LogicalProject(select=[id, name, amount, price, fact_date_sk])
 +- LogicalFilter(condition=[IN($4, {
-LogicalProject(dim_date_sk=[$4])
+LogicalProject(select=[dim_date_sk])
   LogicalFilter(condition=[<($3, 500)])
     LogicalTableScan(table=[[testCatalog, test_database, dim]])
 })])

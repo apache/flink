@@ -24,7 +24,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -48,7 +48,7 @@ LogicalProject(select=[a, b, c])
       <![CDATA[
 LogicalProject(select=[+($1, 1) AS EXPR$0, c])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -72,7 +72,7 @@ LogicalProject(select=[+($1, 1) AS EXPR$0, c])
       <![CDATA[
 LogicalProject(select=[c])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[=($cor0.b, $1)])
     LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))], variablesSet=[[$cor0]])
@@ -98,7 +98,7 @@ LogicalProject(select=[c])
       <![CDATA[
 LogicalProject(select=[a, b, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -122,7 +122,7 @@ LogicalProject(select=[a, b, c])
       <![CDATA[
 LogicalProject(select=[+($1, 1) AS EXPR$0, c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -146,7 +146,7 @@ LogicalProject(select=[+($1, 1) AS EXPR$0, c])
       <![CDATA[
 LogicalProject(select=[c])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalFilter(condition=[=($cor0.b, $1)])
     LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })], variablesSet=[[$cor0]])
@@ -172,7 +172,7 @@ LogicalProject(select=[c])
       <![CDATA[
 LogicalProject(select=[a])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -196,7 +196,7 @@ LogicalJoin(condition=[OR(IS NULL($0), IS NULL($1), =($0, $1))], joinType=[anti]
       <![CDATA[
 LogicalProject(select=[+($0, 1) AS EXPR$0])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -221,7 +221,7 @@ LogicalProject(select=[+($0, 1) AS EXPR$0])
       <![CDATA[
 LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -245,7 +245,7 @@ LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti]
       <![CDATA[
 LogicalProject(select=[b, a])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -270,7 +270,7 @@ LogicalProject(select=[b, a])
       <![CDATA[
 LogicalProject(select=[d])
 +- LogicalFilter(condition=[NOT(IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 }))])
    +- LogicalProject(select=[a, b, c, d])
@@ -339,7 +339,7 @@ LogicalProject(select=[a, b, c])
       <![CDATA[
 LogicalProject(select=[a])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -363,7 +363,7 @@ LogicalJoin(condition=[=($0, $1)], joinType=[semi])
       <![CDATA[
 LogicalProject(select=[+($0, 1) AS EXPR$0])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -388,7 +388,7 @@ LogicalProject(select=[+($0, 1) AS EXPR$0])
       <![CDATA[
 LogicalProject(select=[a, b])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -412,7 +412,7 @@ LogicalJoin(condition=[=($0, $2)], joinType=[semi])
       <![CDATA[
 LogicalProject(select=[b, a])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
@@ -437,7 +437,7 @@ LogicalProject(select=[b, a])
       <![CDATA[
 LogicalProject(select=[d])
 +- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
+LogicalProject(select=[d])
   LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 })])
    +- LogicalProject(select=[a, b, c, d])
