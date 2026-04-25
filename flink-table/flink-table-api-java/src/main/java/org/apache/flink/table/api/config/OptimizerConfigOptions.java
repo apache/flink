@@ -430,7 +430,8 @@ public class OptimizerConfigOptions {
             key("table.optimizer.dim-lookup-join.batch.size")
                     .intType()
                     .defaultValue(100)
-                    .withDescription("The batch size of dim table lookup join.");
+                    .withDescription("The batch size of dim table lookup join.")
+                    .checkValue(value -> value > 0, "batch size must be positive");
 
     /**
      * Configuration option for the flush interval of async batch lookup join.
@@ -445,7 +446,8 @@ public class OptimizerConfigOptions {
                     .longType()
                     .defaultValue(2000L)
                     .withDescription(
-                            "The flush interval of dim table lookup join in batch mode, in millis.");
+                            "The flush interval of dim table lookup join in batch mode, in millis.")
+                    .checkValue(value -> value > 0, "flush interval must be positive");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
