@@ -40,11 +40,6 @@ public class NodeQuarantineRemoveMessageParameters extends MessageParameters {
         return Collections.singletonList(nodeIdPathParameter);
     }
 
-    @Override
-    public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Collections.emptyList();
-    }
-
     /** Path parameter for the node ID. */
     public static class NodeIdPathParameter extends MessagePathParameter<String> {
 
