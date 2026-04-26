@@ -31,13 +31,13 @@ public class NodeQuarantineRemoveMessageParameters extends MessageParameters {
     public final NodeIdPathParameter nodeIdPathParameter = new NodeIdPathParameter();
 
     @Override
-    public Collection<MessageQueryParameter<?>> getQueryParameters() {
-        return Collections.emptyList();
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singletonList(nodeIdPathParameter);
     }
 
     @Override
-    public Collection<MessagePathParameter<?>> getPathParameters() {
-        return Collections.singletonList(nodeIdPathParameter);
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
     }
 
     /** Path parameter for the node ID. */
