@@ -22,18 +22,28 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 /**
  * Encapsulates the built-in metrics for {@link PredictFunction} and {@link AsyncPredictFunction}.
  *
- * <p>Registered metrics:
+ * <p>Registered metrics (all counters; latency is optional):
  *
  * <ul>
- *   <li>requests: Total number of inference requests
- *   <li>requests_success: Number of successful inference requests
- *   <li>requests_failure: Number of failed inference requests
- *   <li>latency: Histogram of inference latency in milliseconds (optional)
- *   <li>rows_output: Total number of output rows from inference
+ *   <li>{@code requests}: Total number of inference requests.
+ *   <li>{@code requests_success}: Number of successful inference requests.
+ *   <li>{@code requests_failure}: Number of failed inference requests. Together with {@code
+ *       requests_success} this sums to {@code requests} regardless of whether the failure was
+ *       signalled via a thrown {@link Throwable} or an exceptionally completed future.
+ *   <li>{@code latency}: Histogram of inference latency in milliseconds. Only registered when the
+ *       owning function returns a non-null {@link Histogram} from {@code createLatencyHistogram}.
+ *       The histogram records <b>both</b> successful and failed requests; callers that need to
+ *       separate the two should register their own histograms.
+ *   <li>{@code rows_output}: Total number of output rows emitted by successful inference requests.
+ *       A {@code null} result from a user {@code predict}/{@code asyncPredict} call is treated as a
+ *       successful request with zero output rows.
  * </ul>
  */
 @Internal
@@ -42,15 +52,16 @@ public class PredictFunctionMetrics {
     private final Counter requests;
     private final Counter requestsSuccess;
     private final Counter requestsFailure;
-    private final Histogram latency;
+    @Nullable private final Histogram latency;
     private final Counter rowsOutput;
 
-    public PredictFunctionMetrics(MetricGroup metricGroup, Histogram latencyHistogram) {
-        requests = metricGroup.counter("requests");
-        requestsSuccess = metricGroup.counter("requests_success");
-        requestsFailure = metricGroup.counter("requests_failure");
-        latency = latencyHistogram;
-        rowsOutput = metricGroup.counter("rows_output");
+    public PredictFunctionMetrics(MetricGroup metricGroup, @Nullable Histogram latencyHistogram) {
+        Preconditions.checkNotNull(metricGroup, "metricGroup must not be null");
+        this.requests = metricGroup.counter("requests");
+        this.requestsSuccess = metricGroup.counter("requests_success");
+        this.requestsFailure = metricGroup.counter("requests_failure");
+        this.latency = latencyHistogram;
+        this.rowsOutput = metricGroup.counter("rows_output");
     }
 
     public void incRequests() {
@@ -69,9 +80,38 @@ public class PredictFunctionMetrics {
         rowsOutput.inc(count);
     }
 
+    /**
+     * Records the elapsed time since {@code startTime} (in milliseconds) into the latency
+     * histogram, if one was provided. No-op otherwise.
+     */
     public void recordLatency(long startTime) {
         if (latency != null) {
             latency.update(System.currentTimeMillis() - startTime);
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // Package-private accessors for testing.
+    // ------------------------------------------------------------------------
+
+    Counter getRequests() {
+        return requests;
+    }
+
+    Counter getRequestsSuccess() {
+        return requestsSuccess;
+    }
+
+    Counter getRequestsFailure() {
+        return requestsFailure;
+    }
+
+    Counter getRowsOutput() {
+        return rowsOutput;
+    }
+
+    @Nullable
+    Histogram getLatency() {
+        return latency;
     }
 }

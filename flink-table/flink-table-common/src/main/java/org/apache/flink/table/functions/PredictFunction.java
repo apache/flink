@@ -19,11 +19,13 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
@@ -32,15 +34,24 @@ import java.util.Collection;
  *
  * <p>The output type of this table function is fixed as {@link RowData}.
  *
- * <p>This class provides built-in metrics for monitoring model inference performance, including:
+ * <p>This class provides built-in metrics for monitoring model inference performance under the
+ * {@code model_inference} metric group, including:
  *
  * <ul>
- *   <li>requests: Total number of inference requests
- *   <li>requests_success: Number of successful inference requests
- *   <li>requests_failure: Number of failed inference requests
- *   <li>latency: Histogram of inference latency in milliseconds
- *   <li>rows_output: Total number of output rows from inference
+ *   <li>{@code requests}: Total number of inference requests.
+ *   <li>{@code requests_success}: Number of successful inference requests.
+ *   <li>{@code requests_failure}: Number of failed inference requests.
+ *   <li>{@code latency}: Histogram of inference latency in milliseconds. <b>Only registered when a
+ *       subclass overrides {@link #createLatencyHistogram(MetricGroup)} to return a non-null {@link
+ *       Histogram};</b> the default implementation disables latency tracking. The histogram records
+ *       both successful and failed requests.
+ *   <li>{@code rows_output}: Total number of output rows. A {@code null} result is treated as a
+ *       successful request with zero rows.
  * </ul>
+ *
+ * <p>The request-counting invariant {@code requests == requests_success + requests_failure} is
+ * preserved even when the user {@link #predict} implementation throws an {@link Error} (such as
+ * {@link OutOfMemoryError}).
  */
 @PublicEvolving
 public abstract class PredictFunction extends TableFunction<RowData> {
@@ -58,8 +69,12 @@ public abstract class PredictFunction extends TableFunction<RowData> {
      * Create a histogram for tracking inference latency. Subclasses can override this method to
      * provide a custom histogram implementation.
      *
-     * @param metricGroup The metric group to register the histogram
-     * @return A Histogram instance, or null to disable latency tracking
+     * <p>The default implementation returns {@code null}, which disables the {@code latency}
+     * metric. Subclasses that want latency tracking should register a histogram on the given {@code
+     * metricGroup} (for example, a {@code DropwizardHistogramWrapper}) and return it.
+     *
+     * @param metricGroup The metric group to register the histogram on.
+     * @return A Histogram instance, or {@code null} to disable latency tracking.
      */
     protected Histogram createLatencyHistogram(MetricGroup metricGroup) {
         return null;
@@ -71,31 +86,56 @@ public abstract class PredictFunction extends TableFunction<RowData> {
      * <p>Subclasses must implement this method to perform the actual inference logic.
      *
      * @param inputRow - A {@link RowData} that wraps input for predict function.
-     * @return A collection of predicted results.
+     * @return A collection of predicted results. Returning {@code null} is permitted and is treated
+     *     as a successful request that produced no output.
      */
     public abstract Collection<RowData> predict(RowData inputRow);
 
     /** Invoke {@link #predict} with metrics tracking and handle exceptions. */
     public final void eval(Object... args) {
+        Preconditions.checkState(
+                metrics != null,
+                "open(FunctionContext) must be invoked before eval(...). "
+                        + "If you override open(), make sure to call super.open(context).");
+
         GenericRowData argsData = GenericRowData.of(args);
         metrics.incRequests();
         long startTime = System.currentTimeMillis();
 
+        Collection<RowData> results;
         try {
-            Collection<RowData> results = predict(argsData);
-            metrics.recordLatency(startTime);
-            metrics.incRequestsSuccess();
-
-            if (results == null) {
-                return;
-            }
-            metrics.incRowsOutput(results.size());
-            results.forEach(this::collect);
-        } catch (Exception e) {
+            results = predict(argsData);
+        } catch (Throwable t) {
             metrics.recordLatency(startTime);
             metrics.incRequestsFailure();
-            throw new FlinkRuntimeException(
-                    String.format("Failed to execute prediction with input row %s.", argsData), e);
+            // Do not embed the raw input row in the exception message to avoid leaking
+            // potentially sensitive payloads (PII, binary tensors, etc.) into logs. Emit the
+            // arity only; the original cause is still chained for debugging.
+            FlinkRuntimeException wrapped =
+                    new FlinkRuntimeException(
+                            String.format(
+                                    "Failed to execute prediction (input arity=%d).",
+                                    argsData.getArity()),
+                            t);
+            if (t instanceof Error) {
+                // Surface JVM-level errors without wrapping so callers can observe them as-is.
+                throw (Error) t;
+            }
+            throw wrapped;
         }
+
+        metrics.recordLatency(startTime);
+        metrics.incRequestsSuccess();
+
+        if (results == null) {
+            return;
+        }
+        metrics.incRowsOutput(results.size());
+        results.forEach(this::collect);
+    }
+
+    @VisibleForTesting
+    PredictFunctionMetrics getMetrics() {
+        return metrics;
     }
 }
