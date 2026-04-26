@@ -283,8 +283,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         if (!changelogMode.containsOnly(RowKind.INSERT)) {
             final ResolvedSchema schema =
                     tableSourceSpec.getContextResolvedTable().getResolvedSchema();
-            final RowType physicalRowType = getPhysicalRowType(schema);
-            final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
+            final RowType outputRowType = (RowType) getOutputType();
+            final int[] primaryKeys = getPrimaryKeyIndices(outputRowType, schema);
             final boolean hasPk = primaryKeys.length > 0;
             if (!hasPk) {
                 throw new TableException(
