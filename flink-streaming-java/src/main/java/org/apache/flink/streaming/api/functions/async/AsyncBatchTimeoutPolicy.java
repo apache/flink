@@ -65,6 +65,7 @@ public class AsyncBatchTimeoutPolicy implements Serializable {
             new AsyncBatchTimeoutPolicy(NO_TIMEOUT, TimeoutBehavior.FAIL);
 
     /** The timeout behavior when a batch operation times out. */
+    @PublicEvolving
     public enum TimeoutBehavior {
         /**
          * Fail the operator when timeout occurs. This will cause the job to fail unless handled by
