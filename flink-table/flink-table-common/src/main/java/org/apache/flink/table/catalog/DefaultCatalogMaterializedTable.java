@@ -52,6 +52,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     private final RefreshStatus refreshStatus;
     private final @Nullable String refreshHandlerDescription;
     private final @Nullable byte[] serializedRefreshHandler;
+    private final @Nullable StartMode startMode;
 
     protected DefaultCatalogMaterializedTable(
             Schema schema,
@@ -67,7 +68,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
             @Nullable RefreshMode refreshMode,
             RefreshStatus refreshStatus,
             @Nullable String refreshHandlerDescription,
-            @Nullable byte[] serializedRefreshHandler) {
+            @Nullable byte[] serializedRefreshHandler,
+            @Nullable StartMode startMode) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.distribution = distribution;
@@ -83,6 +85,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
         this.refreshStatus = checkNotNull(refreshStatus, "Refresh status must not be null.");
         this.refreshHandlerDescription = refreshHandlerDescription;
         this.serializedRefreshHandler = serializedRefreshHandler;
+        this.startMode = startMode;
 
         checkArgument(
                 options.entrySet().stream()
@@ -136,7 +139,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 refreshMode,
                 refreshStatus,
                 refreshHandlerDescription,
-                serializedRefreshHandler);
+                serializedRefreshHandler,
+                startMode);
     }
 
     @Override
@@ -155,7 +159,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 refreshMode,
                 refreshStatus,
                 refreshHandlerDescription,
-                serializedRefreshHandler);
+                serializedRefreshHandler,
+                startMode);
     }
 
     @Override
@@ -177,7 +182,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 refreshMode,
                 refreshStatus,
                 refreshHandlerDescription,
-                serializedRefreshHandler);
+                serializedRefreshHandler,
+                startMode);
     }
 
     @Override
@@ -223,6 +229,11 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     @Override
     public RefreshStatus getRefreshStatus() {
         return refreshStatus;
+    }
+
+    @Override
+    public Optional<StartMode> getStartMode() {
+        return Optional.ofNullable(startMode);
     }
 
     @Override

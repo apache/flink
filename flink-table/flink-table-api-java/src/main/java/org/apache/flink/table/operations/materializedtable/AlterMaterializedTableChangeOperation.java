@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ModifyDefinitionQuery;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
 import org.apache.flink.table.catalog.TableChange.ModifyRefreshStatus;
+import org.apache.flink.table.catalog.TableChange.ModifyStartMode;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
 import java.util.List;
@@ -120,6 +121,9 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             ModifyDefinitionQuery definitionQuery = (ModifyDefinitionQuery) tableChange;
             return String.format(
                     "  MODIFY DEFINITION QUERY TO '%s'", definitionQuery.getDefinitionQuery());
+        } else if (tableChange instanceof ModifyStartMode) {
+            ModifyStartMode startMode = (ModifyStartMode) tableChange;
+            return String.format("  MODIFY START_MODE TO '%s'", startMode.getStartMode());
         } else {
             return AlterTableChangeOperation.toString(tableChange);
         }

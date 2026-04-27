@@ -24,6 +24,8 @@ import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlStartMode;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlStartMode.SqlStartModeKind;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
@@ -36,6 +38,8 @@ import org.apache.flink.table.catalog.Interval;
 import org.apache.flink.table.catalog.Interval.TimeUnit;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.StartMode;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.ColumnPosition;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -47,10 +51,13 @@ import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlIntervalLiteral.IntervalValue;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlTimestampLiteral;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.TimestampString;
 import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -75,6 +82,51 @@ public class MaterializedTableUtils {
     public static IntervalFreshness getMaterializedTableFreshness(
             SqlIntervalLiteral sqlIntervalLiteral) {
         return IntervalFreshness.of(getFreshnessInterval(sqlIntervalLiteral));
+    }
+
+    public static StartMode getStartMode(SqlStartMode sqlStartMode) {
+        if (sqlStartMode == null) {
+            return null;
+        }
+
+        SqlStartModeKind sqlStartModeKind = sqlStartMode.getKind();
+        StartModeKind startModeKind = deriveStartModeKind(sqlStartModeKind);
+        switch (sqlStartModeKind) {
+            case FROM_NOW:
+            case RESUME_OR_FROM_NOW:
+                SqlIntervalLiteral intervalLiteral = sqlStartMode.getIntervalLiteral();
+                if (intervalLiteral == null) {
+                    return StartMode.of(startModeKind, null, false);
+                }
+
+                Interval interval = intervalFrom(intervalLiteral, "start mode");
+                validateIntervalValuePositive(interval.getInterval(), "start mode");
+                return StartMode.of(startModeKind, interval);
+
+            case RESUME_OR_FROM_BEGINNING:
+            case FROM_BEGINNING:
+                return StartMode.of(startModeKind);
+            case RESUME_OR_FROM_TIMESTAMP:
+            case FROM_TIMESTAMP:
+                SqlTimestampLiteral timestampLiteral = sqlStartMode.getTimestampLiteral();
+                if (timestampLiteral == null) {
+                    return StartMode.of(startModeKind, null, false);
+                }
+
+                TimestampString timestampString =
+                        timestampLiteral.getValueAs(TimestampString.class);
+                SqlTypeName timestampTypeName = timestampLiteral.getTypeName();
+                long millis = timestampString.getMillisSinceEpoch();
+                Instant timestamp = Instant.ofEpochMilli(millis);
+                return StartMode.of(
+                        startModeKind,
+                        timestamp,
+                        timestampTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+
+            default:
+                throw new ValidationException(
+                        String.format("Unsupported start mode: %s.", sqlStartModeKind));
+        }
     }
 
     private static Interval getFreshnessInterval(SqlIntervalLiteral sqlIntervalLiteral) {
@@ -301,6 +353,26 @@ public class MaterializedTableUtils {
                 || typeName == SqlTypeName.INTERVAL_HOUR
                 || typeName == SqlTypeName.INTERVAL_MINUTE
                 || typeName == SqlTypeName.INTERVAL_SECOND;
+    }
+
+    private static StartModeKind deriveStartModeKind(SqlStartModeKind sqlStartModeKind) {
+        switch (sqlStartModeKind) {
+            case FROM_NOW:
+                return StartModeKind.FROM_NOW;
+            case RESUME_OR_FROM_NOW:
+                return StartModeKind.RESUME_OR_FROM_NOW;
+            case RESUME_OR_FROM_BEGINNING:
+                return StartModeKind.RESUME_OR_FROM_BEGINNING;
+            case FROM_BEGINNING:
+                return StartModeKind.FROM_BEGINNING;
+            case RESUME_OR_FROM_TIMESTAMP:
+                return StartModeKind.RESUME_OR_FROM_TIMESTAMP;
+            case FROM_TIMESTAMP:
+                return StartModeKind.FROM_TIMESTAMP;
+            default:
+                throw new ValidationException(
+                        String.format("Unsupported start mode: %s.", sqlStartModeKind));
+        }
     }
 
     // Since it is only for query change, then check only persisted columns which could be

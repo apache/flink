@@ -33,6 +33,7 @@ under the License.
 
 	<modules>
 		<module>flink-table-common</module>
+		<module>flink-table-type-utils</module>
 		<module>flink-table-api-java</module>
 		<module>flink-table-api-scala</module>
 		<module>flink-table-api-bridge-base</module>

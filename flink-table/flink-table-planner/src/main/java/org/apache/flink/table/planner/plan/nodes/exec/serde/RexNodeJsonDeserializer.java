@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.calcite.RexTableArgCall.SortOrder;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.sql.BuiltInSqlOperator;
+import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator;
 import org.apache.flink.table.planner.typeutils.SymbolUtil.SerializableSymbol;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -374,7 +375,13 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         } else {
             callType = serdeContext.getRexBuilder().deriveReturnType(operator, rexOperands);
         }
-        return serdeContext.getRexBuilder().makeCall(callType, operator, rexOperands);
+        // SqlDefaultArgOperator is constructed per-call site by FlinkSqlCallBinding and not
+        // registered in any operator table. Rebuild the typed Flink instance here.
+        final SqlOperator effectiveOperator =
+                operator.getKind() == SqlKind.DEFAULT
+                        ? new SqlDefaultArgOperator(callType)
+                        : operator;
+        return serdeContext.getRexBuilder().makeCall(callType, effectiveOperator, rexOperands);
     }
 
     // --------------------------------------------------------------------------------------------

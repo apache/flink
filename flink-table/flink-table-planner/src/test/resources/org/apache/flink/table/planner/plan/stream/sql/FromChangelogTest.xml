@@ -18,19 +18,19 @@ limitations under the License.
 <Root>
   <TestCase name="testCustomOpMapping">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM FROM_CHANGELOG(input => TABLE cdc_stream, op => DESCRIPTOR(__op), op_mapping => MAP['c, r', 'INSERT', 'ub', 'UPDATE_BEFORE', 'ua', 'UPDATE_AFTER', 'd', 'DELETE'])]]>
+      <![CDATA[SELECT * FROM FROM_CHANGELOG(input => TABLE cdc_stream, op => DESCRIPTOR(__op), op_mapping => MAP['c, r', 'INSERT', 'ub', 'UPDATE_BEFORE', 'ua', 'UPDATE_AFTER', 'd', 'DELETE'], error_handling => 'SKIP')]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1])
-+- LogicalTableFunctionScan(invocation=[FROM_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'__op'), MAP(_UTF-16LE'c, r':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'INSERT':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ub':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_BEFORE':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ua':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'd':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'DELETE':VARCHAR(13) CHARACTER SET "UTF-16LE"), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
++- LogicalTableFunctionScan(invocation=[FROM_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'__op'), MAP(_UTF-16LE'c, r':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'INSERT':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ub':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_BEFORE':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ua':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'd':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'DELETE':VARCHAR(13) CHARACTER SET "UTF-16LE"), _UTF-16LE'SKIP', DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
    +- LogicalProject(id=[$0], __op=[$1], name=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_stream]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[FROM_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'__op'), MAP(_UTF-16LE'c, r':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'INSERT':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ub':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_BEFORE':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ua':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'd':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'DELETE':VARCHAR(13) CHARACTER SET "UTF-16LE"), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I,UB,UA,D])
+ProcessTableFunction(invocation=[FROM_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'__op'), MAP(_UTF-16LE'c, r':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'INSERT':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ub':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_BEFORE':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'ua':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'UPDATE_AFTER':VARCHAR(13) CHARACTER SET "UTF-16LE", _UTF-16LE'd':VARCHAR(4) CHARACTER SET "UTF-16LE", _UTF-16LE'DELETE':VARCHAR(13) CHARACTER SET "UTF-16LE"), _UTF-16LE'SKIP', DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I,UB,UA,D])
 +- TableSourceScan(table=[[default_catalog, default_database, cdc_stream]], fields=[id, __op, name], changelogMode=[I])
 ]]>
     </Resource>
@@ -42,14 +42,14 @@ ProcessTableFunction(invocation=[FROM_CHANGELOG(TABLE(#0), DESCRIPTOR(_UTF-16LE'
     <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1])
-+- LogicalTableFunctionScan(invocation=[FROM_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
++- LogicalTableFunctionScan(invocation=[FROM_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)])
    +- LogicalProject(id=[$0], op=[$1], name=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, cdc_stream]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[FROM_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I,UB,UA,D])
+ProcessTableFunction(invocation=[FROM_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[id,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I,UB,UA,D])
 +- TableSourceScan(table=[[default_catalog, default_database, cdc_stream]], fields=[id, op, name], changelogMode=[I])
 ]]>
     </Resource>

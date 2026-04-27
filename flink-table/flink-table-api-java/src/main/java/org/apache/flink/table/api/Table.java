@@ -1463,7 +1463,9 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>The operation code column defaults to {@code op}. By default, the codes {@code INSERT},
      * {@code UPDATE_BEFORE}, {@code UPDATE_AFTER}, and {@code DELETE} are recognized; pass {@code
-     * op_mapping} to use custom codes.
+     * op_mapping} to use custom codes. By default, the job fails at runtime with a {@code
+     * TableRuntimeException} when an input row's op code is {@code NULL} or not present in the
+     * mapping; pass {@code error_handling => 'SKIP'} to silently drop those rows instead.
      *
      * <p>Optional arguments can be passed using named expressions:
      *
@@ -1484,9 +1486,15 @@ public interface Table extends Explainable<Table>, Executable {
      *         "ua", "UPDATE_AFTER",
      *         "d", "DELETE").asArgument("op_mapping")
      * );
+     *
+     * // Silently skip rows with NULL or unmapped op codes instead of failing
+     * Table result = cdcStream.fromChangelog(
+     *     lit("SKIP").asArgument("error_handling")
+     * );
      * }</pre>
      *
-     * @param arguments optional named arguments for {@code op} and {@code op_mapping}
+     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
+     *     error_handling}
      * @return a dynamic {@link Table} with the op column removed and proper change operation
      *     semantics
      */

@@ -80,6 +80,11 @@ class S3ClientProvider implements AutoCloseableAsync {
     private final Duration connectionTimeout;
     private final Duration socketTimeout;
     private final Duration connectionMaxIdleTime;
+    private final boolean pathStyleAccess;
+    private final boolean chunkedEncoding;
+    private final boolean checksumValidation;
+    private final int maxConnections;
+    private final int maxRetries;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private S3ClientProvider(
@@ -91,7 +96,12 @@ class S3ClientProvider implements AutoCloseableAsync {
             Duration clientCloseTimeout,
             Duration connectionTimeout,
             Duration socketTimeout,
-            Duration connectionMaxIdleTime) {
+            Duration connectionMaxIdleTime,
+            boolean pathStyleAccess,
+            boolean chunkedEncoding,
+            boolean checksumValidation,
+            int maxConnections,
+            int maxRetries) {
         this.s3Client = s3Client;
         this.transferManager = transferManager;
         this.encryptionConfig =
@@ -102,6 +112,11 @@ class S3ClientProvider implements AutoCloseableAsync {
         this.connectionTimeout = connectionTimeout;
         this.socketTimeout = socketTimeout;
         this.connectionMaxIdleTime = connectionMaxIdleTime;
+        this.pathStyleAccess = pathStyleAccess;
+        this.chunkedEncoding = chunkedEncoding;
+        this.checksumValidation = checksumValidation;
+        this.maxConnections = maxConnections;
+        this.maxRetries = maxRetries;
     }
 
     public S3Client getS3Client() {
@@ -142,6 +157,31 @@ class S3ClientProvider implements AutoCloseableAsync {
     @VisibleForTesting
     Duration getConnectionMaxIdleTime() {
         return connectionMaxIdleTime;
+    }
+
+    @VisibleForTesting
+    boolean isPathStyleAccess() {
+        return pathStyleAccess;
+    }
+
+    @VisibleForTesting
+    boolean isChunkedEncoding() {
+        return chunkedEncoding;
+    }
+
+    @VisibleForTesting
+    boolean isChecksumValidation() {
+        return checksumValidation;
+    }
+
+    @VisibleForTesting
+    int getMaxConnections() {
+        return maxConnections;
+    }
+
+    @VisibleForTesting
+    int getMaxRetries() {
+        return maxRetries;
     }
 
     @Override
@@ -204,11 +244,12 @@ class S3ClientProvider implements AutoCloseableAsync {
         private String region;
         private String endpoint;
         private boolean pathStyleAccess = false;
+        private boolean chunkedEncoding = true;
+        private boolean checksumValidation = true;
         private int maxConnections = 50;
         private Duration connectionTimeout = Duration.ofSeconds(60);
         private Duration socketTimeout = Duration.ofSeconds(60);
         private Duration connectionMaxIdleTime = Duration.ofSeconds(60);
-        private boolean disableCertCheck = false;
         private int maxRetries = 3;
         private Duration clientCloseTimeout = Duration.ofSeconds(30);
 
@@ -249,6 +290,16 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder chunkedEncoding(boolean chunkedEncoding) {
+            this.chunkedEncoding = chunkedEncoding;
+            return this;
+        }
+
+        public Builder checksumValidation(boolean checksumValidation) {
+            this.checksumValidation = checksumValidation;
+            return this;
+        }
+
         public Builder maxConnections(int maxConnections) {
             this.maxConnections = maxConnections;
             return this;
@@ -271,11 +322,6 @@ class S3ClientProvider implements AutoCloseableAsync {
 
         public Builder clientCloseTimeout(Duration clientCloseTimeout) {
             this.clientCloseTimeout = clientCloseTimeout;
-            return this;
-        }
-
-        public Builder disableCertCheck(boolean disableCertCheck) {
-            this.disableCertCheck = disableCertCheck;
             return this;
         }
 
@@ -326,14 +372,6 @@ class S3ClientProvider implements AutoCloseableAsync {
             }
 
             URI endpointUri = (endpoint != null) ? URI.create(endpoint) : null;
-            boolean isS3Compatible = endpointUri != null;
-
-            if (isS3Compatible && !pathStyleAccess) {
-                pathStyleAccess = true;
-            }
-            if (isS3Compatible && "http".equalsIgnoreCase(endpointUri.getScheme())) {
-                disableCertCheck = true;
-            }
 
             Region awsRegion = resolveRegion(region);
             StsClient stsClient = null;
@@ -347,12 +385,12 @@ class S3ClientProvider implements AutoCloseableAsync {
                 credentialsProvider = baseProvider;
             }
 
-            S3Configuration.Builder s3ConfigBuilder =
-                    S3Configuration.builder().pathStyleAccessEnabled(pathStyleAccess);
-            if (isS3Compatible) {
-                s3ConfigBuilder.chunkedEncodingEnabled(false).checksumValidationEnabled(false);
-            }
-            S3Configuration s3Config = s3ConfigBuilder.build();
+            S3Configuration s3Config =
+                    S3Configuration.builder()
+                            .pathStyleAccessEnabled(pathStyleAccess)
+                            .chunkedEncodingEnabled(chunkedEncoding)
+                            .checksumValidationEnabled(checksumValidation)
+                            .build();
 
             ClientOverrideConfiguration overrideConfig =
                     ClientOverrideConfiguration.builder()
@@ -406,7 +444,12 @@ class S3ClientProvider implements AutoCloseableAsync {
                     clientCloseTimeout,
                     connectionTimeout,
                     socketTimeout,
-                    connectionMaxIdleTime);
+                    connectionMaxIdleTime,
+                    pathStyleAccess,
+                    chunkedEncoding,
+                    checksumValidation,
+                    maxConnections,
+                    maxRetries);
         }
 
         private AwsCredentialsProvider buildBaseCredentialsProvider() {

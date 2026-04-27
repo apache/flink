@@ -44,7 +44,6 @@ import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
@@ -53,7 +52,6 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
@@ -474,7 +472,6 @@ public class RocksDBStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
-    @Category(FailsInGHAContainerWithRootUser.class)
     public void testFailWhenNoLocalStorageDir() throws Exception {
         final File targetDir = tempFolder.newFolder();
         Assume.assumeTrue(

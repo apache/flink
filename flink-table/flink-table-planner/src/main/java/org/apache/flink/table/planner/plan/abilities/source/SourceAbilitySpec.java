@@ -38,6 +38,7 @@ import java.util.Optional;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = FilterPushDownSpec.class),
     @JsonSubTypes.Type(value = LimitPushDownSpec.class),
+    @JsonSubTypes.Type(value = MetadataFilterPushDownSpec.class),
     @JsonSubTypes.Type(value = PartitionPushDownSpec.class),
     @JsonSubTypes.Type(value = ProjectPushDownSpec.class),
     @JsonSubTypes.Type(value = ReadingMetadataSpec.class),

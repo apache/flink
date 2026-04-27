@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.memory;
-
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentSource;
+package org.apache.flink.core.memory;
 
 import java.util.List;
 

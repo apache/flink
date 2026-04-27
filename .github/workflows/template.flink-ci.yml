@@ -247,6 +247,24 @@ jobs:
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: ./tools/azure-pipelines/cache_docker_images.sh load
 
+      - name: "Create non-root user for test execution"
+        run: |
+          useradd -m -u 1001 flink
+          echo "flink ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          for sock in /var/run/docker.sock /run/docker.sock; do
+            if [ -e "$sock" ]; then
+              chmod 666 "$sock"
+              echo "Docker socket found at $sock"
+            fi
+          done
+          mkdir -p \
+            ${{ env.CONTAINER_LOCAL_WORKING_DIR }} \
+            ${{ env.CONTAINER_LOCAL_WORKING_DIR }} \
+            ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
+          chown -R flink:flink ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+          chown -R flink:flink ${{ env.MAVEN_REPO_FOLDER }}
+          chown -R flink:flink ${{ env.DOCKER_IMAGES_CACHE_FOLDER }}
+
       - name: "Test - ${{ matrix.module }}"
         id: test-run
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
@@ -254,10 +272,11 @@ jobs:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
+          DOCKER_HOST: unix:///var/run/docker.sock
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
-          ${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
-              ./tools/ci/test_controller.sh ${{ matrix.module }}
+          runuser -u flink -- bash -c '${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/azure-pipelines/uploading_watchdog.sh \
+              ./tools/ci/test_controller.sh ${{ matrix.module }}'
 
       - name: "Post-build Disk Info"
         if: ${{ always() }}
@@ -311,7 +330,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3, 4]
 
     steps:
       - name: "Flink Checkout"

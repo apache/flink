@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.RandomAccessInputView;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+import org.apache.flink.core.memory.RandomAccessInputView;
 import org.apache.flink.runtime.operators.sort.IndexedSortable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;

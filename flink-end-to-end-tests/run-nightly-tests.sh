@@ -148,7 +148,9 @@ function run_group_1 {
         #     run_test "Running Kerberized YARN application on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh dummy-fs"
         # fi
     fi
+}
 
+function run_group_2 {
     ################################################################################
     # High Availability
     ################################################################################
@@ -164,7 +166,7 @@ function run_group_1 {
     run_test "Running HA per-job cluster (rocks, incremental) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha_per_job_cluster_datastream.sh rocks true true" "skip_check_exceptions"
 }
 
-function run_group_2 {
+function run_group_3 {
     ################################################################################
     # Miscellaneous
     ################################################################################
@@ -205,6 +207,9 @@ function run_group_2 {
     run_test "TPC-H end-to-end test" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
     run_test "TPC-DS end-to-end test" "$END_TO_END_DIR/test-scripts/test_tpcds.sh"
     run_test "TPC-DS end-to-end test with adaptive batch scheduler" "$END_TO_END_DIR/test-scripts/test_tpcds.sh AdaptiveBatch run_test" "custom_check_exceptions" "$END_TO_END_DIR/test-scripts/test_tpcds.sh AdaptiveBatch check_exceptions"
+}
+
+function run_group_4 {
 
     run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_heavy_deployment.sh" "skip_check_exceptions"
 
@@ -262,9 +267,15 @@ if [ "$1" == "1" ]; then
     run_group_1
 elif [ "$1" == "2" ]; then
     run_group_2
+elif [ "$1" == "3" ]; then
+    run_group_3
+elif [ "$1" == "4" ]; then
+    run_group_4
 else
     run_group_1
     run_group_2
+    run_group_3
+    run_group_4
 fi
 
 

@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -38,7 +37,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link BlobUtils} working on non-writable directories. */
-@Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
 class BlobUtilsNonWritableTest {
 
     private static final String CANNOT_CREATE_THIS = "cannot-create-this";

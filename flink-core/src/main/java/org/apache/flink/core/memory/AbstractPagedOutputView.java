@@ -16,12 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.memory;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentWritable;
+package org.apache.flink.core.memory;
 
 import java.io.IOException;
 import java.io.UTFDataFormatException;

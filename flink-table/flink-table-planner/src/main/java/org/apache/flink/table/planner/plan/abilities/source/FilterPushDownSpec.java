@@ -99,56 +99,68 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
             DynamicTableSource tableSource,
             SourceAbilityContext context) {
         if (tableSource instanceof SupportsFilterPushDown) {
-            RexNodeToExpressionConverter converter =
-                    new RexNodeToExpressionConverter(
-                            new RexBuilder(context.getTypeFactory()),
-                            context.getSourceRowType().getFieldNames().toArray(new String[0]),
-                            context.getFunctionCatalog(),
-                            context.getCatalogManager(),
-                            Option.apply(
-                                    context.getTypeFactory()
-                                            .buildRelNodeRowType(context.getSourceRowType())));
-            List<Expression> filters =
-                    predicates.stream()
-                            .map(
-                                    p -> {
-                                        scala.Option<ResolvedExpression> expr = p.accept(converter);
-                                        if (expr.isDefined()) {
-                                            return expr.get();
-                                        } else {
-                                            throw new TableException(
-                                                    String.format(
-                                                            "%s can not be converted to Expression, please make sure %s can accept %s.",
-                                                            p.toString(),
-                                                            tableSource.getClass().getSimpleName(),
-                                                            p.toString()));
-                                        }
-                                    })
-                            .collect(Collectors.toList());
-            ExpressionResolver resolver =
-                    ExpressionResolver.resolverFor(
-                                    context.getTableConfig(),
-                                    context.getClassLoader(),
-                                    name -> Optional.empty(),
-                                    context.getFunctionCatalog()
-                                            .asLookup(
-                                                    str -> {
-                                                        throw new TableException(
-                                                                "We should not need to lookup any expressions at this point");
-                                                    }),
-                                    context.getCatalogManager().getDataTypeFactory(),
-                                    (sqlExpression, inputRowType, outputType) -> {
-                                        throw new TableException(
-                                                "SQL expression parsing is not supported at this location.");
-                                    })
-                            .build();
-            return ((SupportsFilterPushDown) tableSource).applyFilters(resolver.resolve(filters));
+            List<ResolvedExpression> resolved =
+                    resolvePredicates(predicates, context.getSourceRowType(), tableSource, context);
+            return ((SupportsFilterPushDown) tableSource).applyFilters(resolved);
         } else {
             throw new TableException(
                     String.format(
                             "%s does not support SupportsFilterPushDown.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    /**
+     * Converts {@link RexNode} predicates to {@link ResolvedExpression}s using the given row type.
+     * Shared between physical and metadata filter push-down paths.
+     */
+    static List<ResolvedExpression> resolvePredicates(
+            List<RexNode> predicates,
+            RowType rowType,
+            DynamicTableSource tableSource,
+            SourceAbilityContext context) {
+        RexNodeToExpressionConverter converter =
+                new RexNodeToExpressionConverter(
+                        new RexBuilder(context.getTypeFactory()),
+                        rowType.getFieldNames().toArray(new String[0]),
+                        context.getFunctionCatalog(),
+                        context.getCatalogManager(),
+                        Option.apply(context.getTypeFactory().buildRelNodeRowType(rowType)));
+        List<Expression> filters =
+                predicates.stream()
+                        .map(
+                                p -> {
+                                    scala.Option<ResolvedExpression> expr = p.accept(converter);
+                                    if (expr.isDefined()) {
+                                        return expr.get();
+                                    } else {
+                                        throw new TableException(
+                                                String.format(
+                                                        "%s can not be converted to Expression, please make sure %s can accept %s.",
+                                                        p.toString(),
+                                                        tableSource.getClass().getSimpleName(),
+                                                        p.toString()));
+                                    }
+                                })
+                        .collect(Collectors.toList());
+        ExpressionResolver resolver =
+                ExpressionResolver.resolverFor(
+                                context.getTableConfig(),
+                                context.getClassLoader(),
+                                name -> Optional.empty(),
+                                context.getFunctionCatalog()
+                                        .asLookup(
+                                                str -> {
+                                                    throw new TableException(
+                                                            "We should not need to lookup any expressions at this point");
+                                                }),
+                                context.getCatalogManager().getDataTypeFactory(),
+                                (sqlExpression, inputRowType, outputType) -> {
+                                    throw new TableException(
+                                            "SQL expression parsing is not supported at this location.");
+                                })
+                        .build();
+        return resolver.resolve(filters);
     }
 
     @Override

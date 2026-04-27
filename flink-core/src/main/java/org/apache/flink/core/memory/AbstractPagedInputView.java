@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.memory;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.MemorySegment;
+package org.apache.flink.core.memory;
 
 import java.io.EOFException;
 import java.io.IOException;

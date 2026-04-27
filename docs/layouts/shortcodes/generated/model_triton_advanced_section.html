@@ -15,6 +15,30 @@
             <td>Authentication token for secured Triton servers.</td>
         </tr>
         <tr>
+            <td><h5>circuit-breaker-enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable circuit breaker protection. When enabled, the circuit breaker will automatically fail fast when the server is unhealthy, preventing cascading failures and reducing load on the failing server. The circuit breaker implements a three-state model: CLOSED (normal), OPEN (failing fast), and HALF_OPEN (testing recovery). Defaults to false.</td>
+        </tr>
+        <tr>
+            <td><h5>circuit-breaker-failure-threshold</h5></td>
+            <td style="word-wrap: break-word;">0.5</td>
+            <td>Double</td>
+            <td>Failure rate threshold (0.0-1.0) that triggers the circuit breaker to open. For example, 0.5 means the circuit will open when 50% of recent requests fail. Requires a minimum of 10 requests before evaluation. Defaults to 0.5 (50%). Only effective when circuit-breaker-enabled is true.</td>
+        </tr>
+        <tr>
+            <td><h5>circuit-breaker-half-open-requests</h5></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>Number of successful test requests required in HALF_OPEN state to close the circuit. If any request fails in HALF_OPEN state, the circuit immediately reopens. Defaults to 3 requests. Only effective when circuit-breaker-enabled is true.</td>
+        </tr>
+        <tr>
+            <td><h5>circuit-breaker-timeout</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Duration to keep the circuit breaker in OPEN state before transitioning to HALF_OPEN. In HALF_OPEN state, limited requests are allowed to probe if the server has recovered. Defaults to 60 seconds. Only effective when circuit-breaker-enabled is true.</td>
+        </tr>
+        <tr>
             <td><h5>compression</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -67,6 +91,18 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Whether to flatten the batch dimension for array inputs. When true, shape [1,N] becomes [N]. Defaults to false.</td>
+        </tr>
+        <tr>
+            <td><h5>health-check-enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable periodic health checks for the Triton server. When enabled, the health checker will periodically call <code class="highlighter-rouge">/v2/health/live</code> endpoint to verify server availability. Defaults to false.</td>
+        </tr>
+        <tr>
+            <td><h5>health-check-interval</h5></td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>Interval between health check requests. Shorter intervals provide faster failure detection but increase server load. Defaults to 30 seconds. Only effective when health-check-enabled is true.</td>
         </tr>
         <tr>
             <td><h5>priority</h5></td>

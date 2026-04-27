@@ -18,10 +18,10 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;

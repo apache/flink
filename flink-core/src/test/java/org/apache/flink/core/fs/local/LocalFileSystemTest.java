@@ -30,7 +30,6 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -234,7 +233,6 @@ class LocalFileSystemTest {
     }
 
     @Test
-    @Tag("FailsInGHAContainerWithRootUser")
     @Disabled
     void testRenameFileWithNoAccess() throws IOException {
         final FileSystem fs = FileSystem.getLocalFileSystem();

@@ -623,7 +623,7 @@ under the License.
 			<dependency>
 				<groupId>net.java.dev.jna</groupId>
 				<artifactId>jna</artifactId>
-				<version>5.12.1</version>
+				<version>5.18.1</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -1031,9 +1031,6 @@ under the License.
 
 		<profile>
 			<id>github-actions</id>
-			<properties>
-				<surefire.excludedGroups.github-actions>org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser</surefire.excludedGroups.github-actions>
-			</properties>
 			<build>
 				<pluginManagement>
 					<plugins>

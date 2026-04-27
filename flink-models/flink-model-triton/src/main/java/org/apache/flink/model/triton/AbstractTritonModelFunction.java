@@ -63,8 +63,21 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTritonModelFunction.class);
 
     protected transient OkHttpClient httpClient;
+    protected transient TritonCircuitBreaker circuitBreaker;
+    protected transient TritonHealthChecker healthChecker;
 
     private final String endpoint;
+
+    /**
+     * Cached sanitized view of {@link #endpoint} used exclusively for log and error-message
+     * formatting. The raw {@link #endpoint} (which may carry {@code user:password@host}
+     * credentials) is still required for HTTP calls and for constructing request URLs, but must
+     * never be echoed to logs, metrics or exception messages, as those can end up in CI artifacts
+     * or user-facing dashboards. Computed once in the constructor so we don't pay the URI parsing
+     * cost on every log line.
+     */
+    private final String loggedEndpoint;
+
     private final String modelName;
     private final String modelVersion;
     private final Duration timeout;
@@ -94,9 +107,18 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final boolean connectionReuseEnabled;
     private final boolean connectionPoolMonitoringEnabled;
 
+    // Health check and circuit breaker configuration
+    private final boolean healthCheckEnabled;
+    private final Duration healthCheckInterval;
+    private final boolean circuitBreakerEnabled;
+    private final double circuitBreakerFailureThreshold;
+    private final Duration circuitBreakerTimeout;
+    private final int circuitBreakerHalfOpenRequests;
+
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         this.endpoint = config.get(TritonOptions.ENDPOINT);
+        this.loggedEndpoint = TritonUtils.sanitizeUrl(this.endpoint);
         this.modelName = config.get(TritonOptions.MODEL_NAME);
         this.modelVersion = config.get(TritonOptions.MODEL_VERSION);
         this.timeout = config.get(TritonOptions.TIMEOUT);
@@ -121,6 +143,16 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
         // Validate connection pool configuration
         validateConnectionPoolConfig();
+
+        // Health check and circuit breaker configuration
+        this.healthCheckEnabled = config.get(TritonOptions.HEALTH_CHECK_ENABLED);
+        this.healthCheckInterval = config.get(TritonOptions.HEALTH_CHECK_INTERVAL);
+        this.circuitBreakerEnabled = config.get(TritonOptions.CIRCUIT_BREAKER_ENABLED);
+        this.circuitBreakerFailureThreshold =
+                config.get(TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD);
+        this.circuitBreakerTimeout = config.get(TritonOptions.CIRCUIT_BREAKER_TIMEOUT);
+        this.circuitBreakerHalfOpenRequests =
+                config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
@@ -151,6 +183,61 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     connectionTimeoutMs,
                     connectionReuseEnabled,
                     connectionPoolMonitoringEnabled);
+        }
+
+        // Initialize circuit breaker if enabled
+        if (circuitBreakerEnabled) {
+            LOG.info(
+                    "Initializing circuit breaker for endpoint {} with threshold={}, timeout={}, halfOpenRequests={}",
+                    loggedEndpoint,
+                    circuitBreakerFailureThreshold,
+                    circuitBreakerTimeout,
+                    circuitBreakerHalfOpenRequests);
+
+            this.circuitBreaker =
+                    new TritonCircuitBreaker(
+                            endpoint,
+                            circuitBreakerFailureThreshold,
+                            circuitBreakerTimeout,
+                            circuitBreakerHalfOpenRequests);
+        }
+
+        // Initialize health checker if enabled
+        if (healthCheckEnabled) {
+            if (circuitBreaker == null) {
+                LOG.warn(
+                        "Health check is enabled but circuit breaker is disabled for endpoint {}. "
+                                + "Health check will run but failures will not trigger circuit breaking. "
+                                + "Consider enabling circuit-breaker-enabled for better fault tolerance.",
+                        loggedEndpoint);
+            }
+
+            LOG.info(
+                    "Initializing health checker for endpoint {} with interval {}",
+                    loggedEndpoint,
+                    healthCheckInterval);
+
+            // Pass the (possibly null) circuit breaker directly. The health checker treats a null
+            // breaker as "log-only" mode rather than relying on a dummy instance whose state
+            // nobody reads.
+            this.healthChecker =
+                    new TritonHealthChecker(
+                            endpoint, httpClient, circuitBreaker, healthCheckInterval);
+
+            // Perform an immediate health check
+            boolean initialHealth = healthChecker.checkNow();
+            if (initialHealth) {
+                LOG.info("Initial health check passed for endpoint {}", loggedEndpoint);
+            } else {
+                LOG.warn(
+                        "Initial health check failed for endpoint {}. "
+                                + "Inference requests may fail until server becomes healthy.",
+                        loggedEndpoint);
+            }
+
+            // Start periodic health checking. The scheduler uses an initial delay equal to
+            // checkInterval so it does not duplicate the eager checkNow() above.
+            healthChecker.start();
         }
     }
 
@@ -198,11 +285,56 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     @Override
     public void close() throws Exception {
-        super.close();
+        // Each cleanup step is isolated so that a failure in one does not prevent the others
+        // from running. The HTTP client in particular must always be released back to the
+        // reference-counted pool; leaking its reference across restarts would keep the shared
+        // client alive forever.
+        Exception firstFailure = null;
+
+        try {
+            super.close();
+        } catch (Exception e) {
+            firstFailure = e;
+        }
+
+        // Stop health checker first so it cannot race with the HTTP client teardown below.
+        if (this.healthChecker != null) {
+            LOG.debug("Stopping health checker for {}", loggedEndpoint);
+            try {
+                this.healthChecker.close();
+            } catch (Exception e) {
+                LOG.warn("Error closing health checker for " + loggedEndpoint, e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            }
+            this.healthChecker = null;
+        }
+
+        // Release circuit breaker (no-op, just drop the reference).
+        this.circuitBreaker = null;
+
+        // Release HTTP client last so it's always attempted even if earlier steps threw.
         if (this.httpClient != null) {
             LOG.debug("Releasing Triton HTTP client.");
-            TritonUtils.releaseHttpClient(this.httpClient);
-            httpClient = null;
+            try {
+                TritonUtils.releaseHttpClient(this.httpClient);
+            } catch (Exception e) {
+                LOG.warn("Error releasing Triton HTTP client for " + loggedEndpoint, e);
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            } finally {
+                this.httpClient = null;
+            }
+        }
+
+        if (firstFailure != null) {
+            throw firstFailure;
         }
     }
 
@@ -251,13 +383,23 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                 column.getName(),
                 column.getClass());
 
-        Preconditions.checkArgument(
-                expectedType == null || expectedType.equals(column.getDataType().getLogicalType()),
-                "%s column %s should be %s, but is a %s.",
-                inputOrOutput,
-                column.getName(),
-                expectedType,
-                column.getDataType().getLogicalType());
+        // The previous condition ({@code expectedType != null && !expectedType.equals(actual)})
+        // inverted the {@link Preconditions#checkArgument} contract: it threw whenever
+        // {@code expectedType} was null (the documented "skip type check" mode) and also whenever
+        // the actual type matched the expected one. All current call sites pass {@code
+        // expectedType = null}, so this bug would have rejected every schema had the code path
+        // been exercised. The corrected form only enforces the equality check when a specific
+        // expected type is supplied.
+        if (expectedType != null) {
+            LogicalType actualType = column.getDataType().getLogicalType();
+            Preconditions.checkArgument(
+                    expectedType.equals(actualType),
+                    "%s column %s should be %s, but is %s.",
+                    inputOrOutput,
+                    column.getName(),
+                    expectedType,
+                    actualType);
+        }
 
         // Validate that the type is supported by Triton
         try {
@@ -402,5 +544,85 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected Map<String, String> getCustomHeaders() {
         return customHeaders;
+    }
+
+    /**
+     * Checks if a request is allowed through the circuit breaker.
+     *
+     * <p>Subclasses should call this method before making inference requests. If the circuit
+     * breaker is OPEN, this method will throw an exception to fail fast.
+     *
+     * <p>The nullness of {@link #circuitBreaker} is the single source of truth: it is set in {@link
+     * #open(FunctionContext)} only when circuit breaking is enabled, so an explicit {@code
+     * circuitBreakerEnabled} check here would be redundant (and could drift out of sync with the
+     * field).
+     *
+     * @throws org.apache.flink.model.triton.exception.TritonCircuitBreakerOpenException if circuit
+     *     is OPEN
+     */
+    protected void checkCircuitBreaker() {
+        if (circuitBreaker != null) {
+            circuitBreaker.isRequestAllowed();
+        }
+    }
+
+    /**
+     * Records a successful inference request with the circuit breaker.
+     *
+     * <p>Subclasses should call this method after successful inference requests to update circuit
+     * breaker metrics.
+     */
+    protected void recordSuccess() {
+        if (circuitBreaker != null) {
+            circuitBreaker.recordSuccess();
+        }
+    }
+
+    /**
+     * Records a failed inference request with the circuit breaker.
+     *
+     * <p>Subclasses should call this method after failed inference requests to update circuit
+     * breaker metrics.
+     */
+    protected void recordFailure() {
+        if (circuitBreaker != null) {
+            circuitBreaker.recordFailure();
+        }
+    }
+
+    /**
+     * Gets the current circuit breaker instance.
+     *
+     * @return the circuit breaker, or null if not enabled
+     */
+    protected TritonCircuitBreaker getCircuitBreaker() {
+        return circuitBreaker;
+    }
+
+    /**
+     * Gets the current health checker instance.
+     *
+     * @return the health checker, or null if not enabled
+     */
+    protected TritonHealthChecker getHealthChecker() {
+        return healthChecker;
+    }
+
+    /**
+     * Checks if health checking is enabled.
+     *
+     * @return true if health checking is enabled
+     */
+    protected boolean isHealthCheckEnabled() {
+        return healthCheckEnabled;
+    }
+
+    /**
+     * Checks if circuit breaker is enabled.
+     *
+     * @return true if circuit breaker is enabled
+     */
+    protected boolean isCircuitBreakerEnabled() {
+        return circuitBreakerEnabled;
     }
 }

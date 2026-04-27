@@ -1229,12 +1229,15 @@ class Table(object):
 
         The operation code column defaults to ``op``. By default, the codes ``INSERT``,
         ``UPDATE_BEFORE``, ``UPDATE_AFTER``, and ``DELETE`` are recognized; pass
-        ``op_mapping`` to use custom codes.
+        ``op_mapping`` to use custom codes. By default, the job fails at runtime with a
+        ``TableRuntimeException`` when an input row's op code is ``NULL`` or not present
+        in the mapping; pass ``error_handling => 'SKIP'`` to silently drop those
+        rows instead.
 
         Example:
         ::
 
-            >>> from pyflink.table.expressions import descriptor, map_
+            >>> from pyflink.table.expressions import descriptor, lit, map_
             >>> # Default: reads 'op' column with standard change operation names
             >>> result = cdc_stream.from_changelog()
             >>> # With custom op column name
@@ -1249,8 +1252,13 @@ class Table(object):
             ...          "ua", "UPDATE_AFTER",
             ...          "d", "DELETE").as_argument("op_mapping")
             ... )
+            >>> # Silently skip rows with NULL or unmapped op codes instead of failing
+            >>> result = cdc_stream.from_changelog(
+            ...     lit("SKIP").as_argument("error_handling")
+            ... )
 
-        :param arguments: Optional named arguments for ``op`` and ``op_mapping``.
+        :param arguments: Optional named arguments for ``op``, ``op_mapping``, and
+                          ``error_handling``.
         :return: A dynamic :class:`~pyflink.table.Table` with the ``op`` column removed and
                  proper change operation semantics.
         """

@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.strategies.ErrorHandlingMode;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
@@ -40,6 +41,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_ERROR_HANDLING;
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_OP;
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_OP_MAPPING;
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_TABLE;
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.DEFAULT_OP_COLUMN_NAME;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}.
@@ -56,7 +63,6 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
 
     private static final long serialVersionUID = 1L;
 
-    private static final String DEFAULT_OP_COLUMN_NAME = "op";
     private static final Map<String, RowKind> DEFAULT_OP_MAPPING =
             Map.of(
                     "INSERT", RowKind.INSERT,
@@ -67,6 +73,7 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
     private final Map<String, RowKind> rawOpMap;
     private final int opColumnIndex;
     private final int[] outputIndices;
+    private final ErrorHandlingMode errorHandlingMode;
 
     private transient HashMap<StringData, RowKind> opMap;
     private transient ProjectedRowData projectedOutput;
@@ -77,7 +84,7 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
 
         final TableSemantics tableSemantics =
                 callContext
-                        .getTableSemantics(0)
+                        .getTableSemantics(ARG_TABLE)
                         .orElseThrow(() -> new IllegalStateException("Table argument expected."));
 
         final RowType inputType = (RowType) tableSemantics.dataType().getLogicalType();
@@ -91,6 +98,12 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
                         .toArray();
 
         this.rawOpMap = buildOpMap(callContext);
+
+        this.errorHandlingMode =
+                callContext
+                        .getArgumentValue(ARG_ERROR_HANDLING, String.class)
+                        .flatMap(ErrorHandlingMode::fromName)
+                        .orElse(ErrorHandlingMode.DEFAULT_MODE);
     }
 
     @Override
@@ -103,7 +116,7 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
 
     private static String resolveOpColumnName(final CallContext callContext) {
         return callContext
-                .getArgumentValue(1, ColumnList.class)
+                .getArgumentValue(ARG_OP, ColumnList.class)
                 .map(cl -> cl.getNames().get(0))
                 .orElse(DEFAULT_OP_COLUMN_NAME);
     }
@@ -114,7 +127,7 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
      */
     private static Map<String, RowKind> buildOpMap(CallContext callContext) {
         return callContext
-                .getArgumentValue(2, Map.class)
+                .getArgumentValue(ARG_OP_MAPPING, Map.class)
                 .map(FromChangelogFunction::parseOpMapping)
                 .orElse(DEFAULT_OP_MAPPING);
     }
@@ -134,22 +147,35 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
             final Context ctx,
             final RowData input,
             @Nullable final ColumnList op,
-            @Nullable final MapData opMapping) {
+            @Nullable final MapData opMapping,
+            @Nullable final StringData errorHandling) {
         if (input.isNullAt(opColumnIndex)) {
-            throw new TableRuntimeException(
+            handleInvalidOp(
                     "Received NULL op code. Every changelog row must carry an operation code.");
+            return;
         }
         final StringData opCode = input.getString(opColumnIndex);
         final RowKind rowKind = opMap.get(opCode);
         if (rowKind == null) {
-            throw new TableRuntimeException(
+            handleInvalidOp(
                     String.format(
                             "Received invalid op code '%s'. Defined op codes are: %s.",
                             opCode, opMap.keySet()));
+            return;
         }
 
         projectedOutput.replaceRow(input);
         projectedOutput.setRowKind(rowKind);
         collect(projectedOutput);
+    }
+
+    private void handleInvalidOp(final String failureMessage) {
+        switch (errorHandlingMode) {
+            case FAIL:
+                throw new TableRuntimeException(failureMessage);
+            case SKIP:
+                // silently drop the row
+                break;
+        }
     }
 }
