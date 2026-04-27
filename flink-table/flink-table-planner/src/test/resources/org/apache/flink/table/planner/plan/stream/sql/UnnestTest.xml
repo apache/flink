@@ -172,6 +172,27 @@ Calc(select=[bd_name])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNullMismatchLeftJoinNoAliasList">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) AS exploded_bd ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], exploded_bd=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- Uncollect
+      +- LogicalProject(business_data=[$cor0.business_data])
+         +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Correlate(invocation=[$UNNEST_ROWS$1($cor0.business_data)], correlate=[table($UNNEST_ROWS$1($cor0.business_data))], select=[business_data,nested,nested_array,f0], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) f0)], joinType=[LEFT])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNullMismatchLeftJoinOnNested">
     <Resource name="sql">
       <![CDATA[SELECT bd_name FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.nested.data) AS exploded_bd(bd_name) ON TRUE]]>
@@ -215,6 +236,28 @@ LogicalProject(bd_name=[$3])
 Calc(select=[bd_name])
 +- Correlate(invocation=[$UNNEST_ROWS$1(ITEM($cor0.nested_array, 0).data)], correlate=[table($UNNEST_ROWS$1(ITEM($cor0.nested_array, 0).data))], select=[business_data,nested,nested_array,bd_name], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) bd_name)], joinType=[LEFT])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNullMismatchLeftJoinOnPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM nested_not_null LEFT JOIN UNNEST(nested_not_null.business_data) AS exploded_bd ON exploded_bd <> 'debug']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(business_data=[$0], nested=[$1], nested_array=[$2], exploded_bd=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalFilter(condition=[<>($0, _UTF-16LE'debug')])
+      +- Uncollect
+         +- LogicalProject(business_data=[$cor0.business_data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Correlate(invocation=[$UNNEST_ROWS$1($cor0.business_data)], correlate=[table($UNNEST_ROWS$1($cor0.business_data))], select=[business_data,nested,nested_array,f0], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) f0)], joinType=[LEFT], condition=[<>($0, _UTF-16LE'debug')])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, nested_not_null, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
 ]]>
     </Resource>
   </TestCase>
