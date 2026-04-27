@@ -79,7 +79,8 @@ public class StreamPhysicalDeltaJoinForceValidator {
                 false, // withRowType
                 false, // withUpsertKey
                 false, // withQueryBlockAlias
-                true // withDuplicateChangesTrait
+                true, // withDuplicateChangesTrait
+                false // withRowCountAndCost
                 );
     }
 

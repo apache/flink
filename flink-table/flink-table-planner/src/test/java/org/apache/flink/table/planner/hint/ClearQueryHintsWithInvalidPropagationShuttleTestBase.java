@@ -137,6 +137,7 @@ abstract class ClearQueryHintsWithInvalidPropagationShuttleTestBase extends Tabl
                         true,
                         false,
                         true,
+                        false,
                         false);
     }
 

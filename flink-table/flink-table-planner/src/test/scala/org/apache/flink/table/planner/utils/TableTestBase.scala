@@ -1260,14 +1260,15 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   private def doVerifyExplain(explainResult: String, extraDetails: ExplainDetail*): Unit = {
     def replace(result: String, explainDetail: ExplainDetail): String = {
       val replaced = explainDetail match {
-        case ExplainDetail.ESTIMATED_COST => replaceEstimatedCost(result)
         case ExplainDetail.JSON_EXECUTION_PLAN =>
           replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(result)))
         case _ => result
       }
       replaced
     }
-    var replacedResult = explainResult
+    // Always normalize estimated cost numbers because the Optimized Physical Plan section
+    // now shows rowcount and cumulative cost by default, and these numbers are unstable.
+    var replacedResult = replaceEstimatedCost(explainResult)
     extraDetails.foreach(detail => replacedResult = replace(replacedResult, detail))
     assertEqualsOrExpand("explain", TableTestUtil.replaceStageId(replacedResult), expand = false)
   }
@@ -1293,7 +1294,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
             optimizedRels,
             detailLevel = explainLevel,
             withChangelogTraits = withChangelogTraits,
-            withAdvice = true)
+            withAdvice = true,
+            withRowCountAndCost = false)
         } else {
           optimizedRels
             .map {
@@ -1975,6 +1977,19 @@ object TableTestUtil {
    */
   def replaceStageId(s: String): String = {
     s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+  }
+
+  /** Replace the estimated cost numbers for a given plan, because they may be unstable. */
+  def replaceEstimatedCost(s: String): String = {
+    var str = s.replaceAll("\\r\\n", "\n")
+    val scientificFormRegExpr = "[+-]?[\\d]+([\\.][\\d]*)?([Ee][+-]?[0-9]{0,2})?"
+    str = str.replaceAll(s"rowcount = $scientificFormRegExpr", "rowcount = ")
+    str = str.replaceAll(s"$scientificFormRegExpr rows", "rows")
+    str = str.replaceAll(s"$scientificFormRegExpr cpu", "cpu")
+    str = str.replaceAll(s"$scientificFormRegExpr io", "io")
+    str = str.replaceAll(s"$scientificFormRegExpr network", "network")
+    str = str.replaceAll(s"$scientificFormRegExpr memory", "memory")
+    str
   }
 
   /**

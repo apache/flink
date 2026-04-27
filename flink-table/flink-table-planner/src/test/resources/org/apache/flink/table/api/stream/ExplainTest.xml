@@ -23,7 +23,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
@@ -51,7 +51,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
@@ -81,11 +81,11 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-Calc(select=[EXPR$0])
-+- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+Calc(select=[EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Calc(select=[EXPR$0])
@@ -128,8 +128,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
-+- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
@@ -164,12 +164,12 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
-Calc(select=[a, b, c, e, f])
-+- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a]])
-   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-   +- Exchange(distribution=[hash[d]])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+Calc(select=[a, b, c, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Join(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   :- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   :  +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[d]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c, e, f])
@@ -226,19 +226,19 @@ LogicalSink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
-   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[a, cnt], where=[>(cnt, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
-   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
-      +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a])
-            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[a, cnt], where=[<(cnt, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
@@ -313,9 +313,9 @@ LogicalSink(table=[default_catalog.default_database.appendSink], fields=[a, b, c
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
-+- Calc(select=[a, b, c], where=[>(a, 10)])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Calc(select=[a, b, c], where=[>(a, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
@@ -352,9 +352,9 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
-+- Exchange(distribution=[single])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- Exchange(distribution=[single]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
@@ -392,9 +392,9 @@ LogicalUnion(all=[true])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 == Optimized Physical Plan ==
-Union(all=[true], union=[a, b, c])
-:- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-+- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+Union(all=[true], union=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Union(all=[true], union=[a, b, c])
@@ -452,33 +452,33 @@ LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[id1, E
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-   +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3])
-         +- Calc(select=[id1, rowtime AS ts, text])
-            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0])
-               :- Exchange(distribution=[hash[id1]])
-               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-               +- Exchange(distribution=[hash[id2]])
-                  +- Calc(select=[id2, rowtime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+Sink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[id1]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[id1, rowtime AS ts, text]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :- Exchange(distribution=[hash[id1]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- Exchange(distribution=[hash[id2]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                  +- Calc(select=[id2, rowtime]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
-   +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3])
-         +- Calc(select=[id1, rowtime AS ts, text])
-            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0])
-               :- Exchange(distribution=[hash[id1]])
-               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime])
-               +- Exchange(distribution=[hash[id2]])
-                  +- Calc(select=[id2, rowtime])
-                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
-                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
+Sink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[id1]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[id1, rowtime AS ts, text]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-299999, leftUpperBound=179999, leftTimeIndex=2, rightTimeIndex=1], where=[AND(=(id1, id2), >(rowtime, -(rowtime0, 300000:INTERVAL MINUTE)), <(rowtime, +(rowtime0, 180000:INTERVAL MINUTE)))], select=[id1, text, rowtime, id2, rowtime0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :- Exchange(distribution=[hash[id1]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[id1, text, rowtime]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- Exchange(distribution=[hash[id2]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                  +- Calc(select=[id2, rowtime]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+                        +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
 Calc(select=[id1, rowtime AS ts, text])(reuse_id=[1])
