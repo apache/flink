@@ -30,6 +30,12 @@ import java.time.LocalDateTime;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.ORDERS_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.PAYMENTS_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.RESULT_SINK;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.STRANGER_ORDERS;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.STRANGER_PAYMENTS;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.STRANGER_USERS;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.TABLE_A;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.TABLE_B;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.USERS_SOURCE;
 
 /** {@link TableTestProgram} definitions for testing Multi-Join. */
@@ -106,6 +112,245 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Payments p ON u.user_id = p.user_id AND u.cash >= p.price")
                     .build();
 
+    static String query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1";
+    static String query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1";
+    static String query3 = "SELECT SUM(c2) AS c2, c1 FROM C group by c1";
+
+    public static final TableTestProgram MULTI_JOIN_TWO_WAY_WITH_EQUAL_PK =
+            TableTestProgram.of(
+                            "two-way-inner-join-with-equal-pk", "two way inner join with equal pk")
+                    .setupTableSource(TABLE_A)
+                    .setupTableSource(TABLE_B)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("ABSink")
+                                    .addSchema("a1 INT", "b1 INT")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO ABSink SELECT a1, b1 FROM ("
+                                    + query1
+                                    + ") JOIN ("
+                                    + query2
+                                    + ") ON a1 = b1")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_TWO_WAY_WITHOUT_PK =
+            TableTestProgram.of("two-way-inner-join-without-pk", "two way inner join without pk")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("A")
+                                    .addSchema("a1 INT", "a2 BIGINT")
+                                    .producedValues(
+                                            Row.of(1, 1L),
+                                            Row.of(1, 2L),
+                                            Row.of(1, 2L),
+                                            Row.of(1, 5L),
+                                            Row.of(2, 7L),
+                                            Row.of(1, 9L),
+                                            Row.of(1, 8L),
+                                            Row.of(3, 8L))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("B")
+                                    .addSchema("b1 INT", "b2 BIGINT")
+                                    .producedValues(
+                                            Row.of(1, 1L),
+                                            Row.of(2, 2L),
+                                            Row.of(3, 2L),
+                                            Row.of(1, 4L))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("C")
+                                    .addSchema("c1 INT", "c2 BIGINT")
+                                    .producedValues(
+                                            Row.of(1, 1L),
+                                            Row.of(2, 2L),
+                                            Row.of(3, 2L),
+                                            Row.of(2, 1L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("ABCSink")
+                                    .addSchema("a1 INT", "b1 INT", "c1 INT")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO ABCSink SELECT a1, b1, c1 FROM ("
+                                    + query1
+                                    + ") JOIN ("
+                                    + query2
+                                    + ") ON a1 = b1 JOIN ("
+                                    + query3
+                                    + ") ON c2 = b2")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_MATCHING_BOOLEANS =
+            TableTestProgram.of(
+                            "three-way-inner-join-matching-booleans",
+                            "three way inner join matching booleans")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("A")
+                                    .addSchema("a1 INT PRIMARY KEY NOT ENFORCED", "a2 BOOLEAN")
+                                    .producedValues(
+                                            Row.of(1, true),
+                                            Row.of(2, false),
+                                            Row.of(3, true),
+                                            Row.of(4, false))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("B")
+                                    .addSchema("b1 INT PRIMARY KEY NOT ENFORCED", "b2 BOOLEAN")
+                                    .producedValues(
+                                            Row.of(5, true), Row.of(6, false), Row.of(7, false))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("C")
+                                    .addSchema("c1 INT PRIMARY KEY NOT ENFORCED", "c2 BOOLEAN")
+                                    .producedValues(
+                                            Row.of(8, false), Row.of(9, false), Row.of(10, true))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("ABCSink")
+                                    .addSchema("a1 INT", "b1 INT", "c1 INT")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO ABCSink "
+                                    + "SELECT a1, b1, c1 "
+                                    + "FROM A "
+                                    + "JOIN B ON a2 = b2 "
+                                    + "JOIN C ON b2 = c2")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_MATCHING_BOOLEANS_V2 =
+            TableTestProgram.of(
+                            "three-way-inner-join-matching-booleans-v2",
+                            "three way inner join matching booleans v2")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("A")
+                                    .addSchema("a1 INT PRIMARY KEY NOT ENFORCED", "a2 BOOLEAN")
+                                    .producedValues(
+                                            Row.of(1, true),
+                                            Row.of(2, false),
+                                            Row.of(3, true),
+                                            Row.of(4, false))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("B")
+                                    .addSchema("b1 INT PRIMARY KEY NOT ENFORCED", "b2 BOOLEAN")
+                                    .producedValues(
+                                            Row.of(5, true), Row.of(6, false), Row.of(7, false))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("C")
+                                    .addSchema("c1 INT PRIMARY KEY NOT ENFORCED", "c2 BOOLEAN")
+                                    .producedValues(
+                                            Row.of(8, false), Row.of(9, false), Row.of(10, true))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("ABCSink")
+                                    .addSchema("a1 INT", "b1 INT", "c1 INT")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO ABCSink "
+                                    + "SELECT a1, b1, c1 "
+                                    + "FROM A "
+                                    + "JOIN B ON a2 = true "
+                                    + "JOIN C ON b2 = true AND c2 = true")
+                    .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_THREE_WAY_INNER_JOIN_MATCHING_BOOLEANS_NO_COMMON_KEY =
+                    TableTestProgram.of(
+                                    "three-way-inner-join-matching-booleans-no-common-join-key",
+                                    "three way inner join matching booleans no common join key")
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("A")
+                                            .addSchema(
+                                                    "a1 INT PRIMARY KEY NOT ENFORCED", "a2 BOOLEAN")
+                                            .producedValues(
+                                                    Row.of(1, true),
+                                                    Row.of(2, false),
+                                                    Row.of(3, true),
+                                                    Row.of(4, false))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("B")
+                                            .addSchema(
+                                                    "b1 INT PRIMARY KEY NOT ENFORCED", "b2 BOOLEAN")
+                                            .producedValues(
+                                                    Row.of(5, true),
+                                                    Row.of(6, false),
+                                                    Row.of(7, false))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("C")
+                                            .addSchema(
+                                                    "c1 INT PRIMARY KEY NOT ENFORCED", "c2 BOOLEAN")
+                                            .producedValues(
+                                                    Row.of(8, false),
+                                                    Row.of(9, false),
+                                                    Row.of(10, true))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("ABCSink")
+                                            .addSchema("a1 INT", "b1 INT", "c1 INT")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO ABCSink "
+                                            + "SELECT a1, b1, c1 "
+                                            + "FROM A "
+                                            + "JOIN B ON a2 = true "
+                                            + "JOIN C ON b2 = false")
+                            .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_NESTED_TYPE =
+            TableTestProgram.of(
+                            "three-way-inner-join-nested-type", "three way inner join nested type")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("A")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "user_info ROW<id STRING, region STRING>")
+                                    .producedValues(
+                                            Row.of(1, Row.of("u1", "EU")),
+                                            Row.of(2, Row.of("u2", "US")),
+                                            Row.of(3, Row.of("u3", "EU")),
+                                            Row.of(4, Row.of("u4", "EU")))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("B")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "user_info ROW<id STRING, region STRING>")
+                                    .producedValues(
+                                            Row.of(5, Row.of("u1", "EU")),
+                                            Row.of(6, Row.of("u2", "US")),
+                                            Row.of(7, Row.of("u5", "EU")))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("C")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "user_info ROW<id STRING, region STRING>")
+                                    .producedValues(
+                                            Row.of(8, Row.of("u1", "EU")),
+                                            Row.of(9, Row.of("u2", "US")),
+                                            Row.of(10, Row.of("u3", "EU")))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("ABCSink")
+                                    .addSchema("a1 INT", "b1 INT", "c1 INT")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO ABCSink "
+                                    + "SELECT A.id, B.id, C.id "
+                                    + "FROM A "
+                                    + "JOIN B ON A.user_info = B.user_info "
+                                    + "JOIN C ON B.user_info = C.user_info")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN =
             TableTestProgram.of("three-way-inner-join", "three way inner join")
                     .setupTableSource(USERS_SOURCE)
@@ -133,10 +378,102 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Payments p ON u.user_id = p.user_id")
                     .build();
 
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_INNER_JOIN =
+            TableTestProgram.of("three-way-left-inner-join", "three way left inner join")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "JOIN Payments p ON o.user_id = p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_LEFT_JOIN =
+            TableTestProgram.of("three-way-inner-left-join", "three way inner left join")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN Payments p ON o.user_id = p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_NO_COMMON_JOIN_KEY =
+            TableTestProgram.of(
+                            "three-way-inner-join-no-common-join-key",
+                            "three way inner join no common join key")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id "
+                                    + "JOIN Payments p ON u.cash = p.price")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_LEFT_JOIN_NO_COMMON_JOIN_KEY =
+            TableTestProgram.of(
+                            "three-way-inner-left-join-no-common-join-key",
+                            "three way inner left join no common join key")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN Payments p ON u.cash = p.price")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_INNER_JOIN_NO_COMMON_JOIN_KEY =
+            TableTestProgram.of(
+                            "three-way-left-inner-join-no-common-join-key",
+                            "three way left inner join no common join key")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "JOIN Payments p ON u.cash = p.price")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_JOIN_NO_COMMON_JOIN_KEY =
+            TableTestProgram.of(
+                            "three-way-left-join-no-common-join-key",
+                            "three way left join no common join key")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN Payments p ON u.cash = p.price")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_WHERE =
             TableTestProgram.of(
-                            "three-way-inner-join-with-where",
-                            "three way inner join with where clause")
+                            "three-way-left-join-with-where",
+                            "three way left join with where clause")
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -161,6 +498,209 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Orders o ON u.user_id = o.user_id "
                                     + "LEFT JOIN Payments p ON u.user_id = p.user_id "
                                     + "WHERE u.name = 'Gus' AND p.price > 10")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_WITH_WHERE =
+            TableTestProgram.of(
+                            "three-way-inner-join-with-where", "three way inner join with where")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u, Orders o, Payments p "
+                                    + "WHERE u.user_id = o.user_id "
+                                    + "AND o.user_id = p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_WITH_OR =
+            TableTestProgram.of("three-way-inner-join-with-or", "three way inner join with or")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id "
+                                    + "JOIN Payments p ON o.user_id = p.user_id OR p.price = u.cash")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_LEFT_JOIN_WITH_OR =
+            TableTestProgram.of(
+                            "three-way-inner-left-join-with-or",
+                            "three way inner left join with or")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN Payments p ON o.user_id = p.user_id OR p.price = u.cash")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_INNER_JOIN_WITH_OR =
+            TableTestProgram.of(
+                            "three-way-left-inner-join-with-or",
+                            "three way left inner join with or")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "JOIN Payments p ON o.user_id = p.user_id OR p.price = u.cash")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_JOIN_WITH_OR =
+            TableTestProgram.of("three-way-left-join-with-or", "three way left join with or")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN Payments p ON o.user_id = p.user_id OR p.price = u.cash")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_INNER_JOIN_WITH_IS_NOT_DISTINCT =
+            TableTestProgram.of(
+                            "three-way-inner-join-with-is-not-distinct",
+                            "three way inner join with is not distinct")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id IS NOT DISTINCT FROM o.user_id "
+                                    + "JOIN Payments p ON o.user_id IS NOT DISTINCT FROM p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_INNER_LEFT_JOIN_WITH_CONSTANT_CONDITION =
+            TableTestProgram.of(
+                            "three-way-inner-left-join-with-constant-condition",
+                            "three way inner left join with constant condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON TRUE "
+                                    + "LEFT JOIN Payments p ON o.user_id = p.user_id AND p.price = u.cash AND p.price < 200")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_LEFT_INNER_JOIN_WITH_CONSTANT_CONDITION =
+            TableTestProgram.of(
+                            "three-way-left-inner-join-with-constant-condition",
+                            "three way left inner join with constant condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON TRUE "
+                                    + "JOIN Payments p ON o.user_id = p.user_id AND p.price = u.cash AND p.price < 200")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_LEFT_JOIN_WITH_CONSTANT_CONDITION =
+            TableTestProgram.of(
+                            "three-way-left-join-with-constant-condition",
+                            "three way left join with constant condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON TRUE "
+                                    + "LEFT JOIN Payments p ON o.user_id = p.user_id AND p.price = u.cash AND p.price < 200")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_COMPLEX =
+            TableTestProgram.of(
+                            "three-way-inner-join-complex-condition",
+                            "three way inner join complex condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id AND u.cash >= 100 "
+                                    + "JOIN Payments p ON p.price = u.cash AND (o.user_id = p.user_id OR u.name = 'Lucas')")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_LEFT_JOIN_COMPLEX =
+            TableTestProgram.of(
+                            "three-way-inner-left-join-complex-condition",
+                            "three way inner left join complex condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "JOIN Orders o ON u.user_id = o.user_id AND u.cash >= 100 "
+                                    + "LEFT JOIN Payments p ON p.price = u.cash AND (o.user_id = p.user_id OR u.name = 'Lucas')")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_INNER_JOIN_COMPLEX =
+            TableTestProgram.of(
+                            "three-way-left-inner-join-complex-condition",
+                            "three way left inner join complex condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id AND u.cash >= 100 "
+                                    + "JOIN Payments p ON p.price = u.cash AND (o.user_id = p.user_id OR u.name = 'Lucas')")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_JOIN_COMPLEX =
+            TableTestProgram.of(
+                            "three-way-left-join-complex-condition",
+                            "three way left join complex condition")
+                    .setupTableSource(STRANGER_USERS)
+                    .setupTableSource(STRANGER_ORDERS)
+                    .setupTableSource(STRANGER_PAYMENTS)
+                    .setupTableSink(RESULT_SINK)
+                    .runSql(
+                            "INSERT INTO ResultSink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id AND u.cash >= 100 "
+                                    + "LEFT JOIN Payments p ON p.price = u.cash AND (o.user_id = p.user_id OR u.name = 'Lucas')")
                     .build();
 
     public static final TableTestProgram MULTI_JOIN_FOUR_WAY_COMPLEX =

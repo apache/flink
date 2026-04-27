@@ -130,6 +130,7 @@ public abstract class CommonSemanticTestBase implements TableTestProgramRunner {
                     sourceTestStep.apply(env, options);
                 }
                 break;
+            case SINK_WITHOUT_DATA:
             case SINK_WITH_DATA:
                 {
                     final SinkTestStep sinkTestStep = (SinkTestStep) testStep;
@@ -194,7 +195,7 @@ public abstract class CommonSemanticTestBase implements TableTestProgramRunner {
                 OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE);
     }
 
-    private Map<String, String> createSourceOptions(SourceTestStep sourceTestStep, String id) {
+    protected Map<String, String> createSourceOptions(SourceTestStep sourceTestStep, String id) {
         final Map<String, String> options = new HashMap<>();
         options.put("connector", "values");
         options.put("data-id", id);
@@ -211,12 +212,12 @@ public abstract class CommonSemanticTestBase implements TableTestProgramRunner {
         return options;
     }
 
-    private static Map<String, String> createSinkOptions() {
+    protected Map<String, String> createSinkOptions() {
         return Map.ofEntries(
                 Map.entry("connector", "values"), Map.entry("sink-insert-only", "false"));
     }
 
-    private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
+    protected List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
         if (sinkTestStep.shouldTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
