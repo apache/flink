@@ -21,9 +21,12 @@ package org.apache.flink.kubernetes.kubeclient.services;
 import org.apache.flink.kubernetes.KubernetesClientTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ServiceType}. */
 class ServiceTypeTest extends KubernetesClientTestBase {
@@ -39,5 +42,52 @@ class ServiceTypeTest extends KubernetesClientTestBase {
                 .isEqualByComparingTo(KubernetesConfigOptions.ServiceExposedType.NodePort);
         assertThat(ServiceType.classify(buildExternalServiceWithLoadBalancer("", "")))
                 .isEqualByComparingTo(KubernetesConfigOptions.ServiceExposedType.LoadBalancer);
+    }
+
+    @Test
+    void testGetRestPortFromExternalServiceWithDefaultName() {
+        final int restPort =
+                ClusterIPService.INSTANCE.getRestPortFromExternalService(
+                        buildExternalServiceWithClusterIP());
+        assertThat(restPort).isEqualTo(REST_PORT);
+    }
+
+    @Test
+    void testGetRestPortFromExternalServiceWithCustomName() {
+        final Service service =
+                new ServiceBuilder()
+                        .withNewMetadata()
+                        .withName("flink-cluster-rest")
+                        .endMetadata()
+                        .withNewSpec()
+                        .withType(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name())
+                        .addNewPort()
+                        .withName("flink-rest")
+                        .withPort(REST_PORT)
+                        .withNewTargetPort(REST_PORT)
+                        .endPort()
+                        .endSpec()
+                        .build();
+
+        final int restPort = ClusterIPService.INSTANCE.getRestPortFromExternalService(service);
+        assertThat(restPort).isEqualTo(REST_PORT);
+    }
+
+    @Test
+    void testGetRestPortFromExternalServiceFailsWhenNoPorts() {
+        final Service service =
+                new ServiceBuilder()
+                        .withNewMetadata()
+                        .withName("flink-cluster-rest")
+                        .endMetadata()
+                        .withNewSpec()
+                        .withType(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name())
+                        .endSpec()
+                        .build();
+
+        assertThatThrownBy(() -> ClusterIPService.INSTANCE.getRestPortFromExternalService(service))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to find any port")
+                .hasMessageContaining("flink-cluster-rest");
     }
 }
