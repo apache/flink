@@ -166,7 +166,9 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
 
     @Override
     public synchronized void close() {
-        transformer = null;
+        if (transformer != null) {
+            transformer.reset();
+        }
         if (exporter != null) {
             exporter.flush();
             waitForLastReportToComplete();

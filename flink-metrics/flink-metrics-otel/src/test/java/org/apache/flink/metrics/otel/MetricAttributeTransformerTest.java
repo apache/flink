@@ -172,6 +172,32 @@ class MetricAttributeTransformerTest {
     }
 
     @Test
+    void testNullAttributeValueIsPreserved() {
+        final MetricAttributeTransformer transformer = buildTransformerWithGlobalLimit(5);
+
+        final Map<String, String> input = new HashMap<>();
+        input.put("null_key", null);
+        input.put("normal_key", "long_value_to_truncate");
+
+        final Map<String, String> result = transformer.transform("m", input);
+
+        assertThat(result).containsEntry("null_key", null).containsEntry("normal_key", "long_");
+        assertNotSame(input, result);
+    }
+
+    @Test
+    void testNullAttributeValueNoOpWhenOnlyNullsPresent() {
+        final MetricAttributeTransformer transformer = buildTransformerWithGlobalLimit(5);
+
+        final Map<String, String> input = new HashMap<>();
+        input.put("null_key", null);
+
+        final Map<String, String> result = transformer.transform("m", input);
+
+        assertSame(input, result);
+    }
+
+    @Test
     void testEmptyAttributeNameIsRejected() {
         final MetricConfig cfg = new MetricConfig();
         // A config key with no attribute name suffix (the dot is the last character) must be
