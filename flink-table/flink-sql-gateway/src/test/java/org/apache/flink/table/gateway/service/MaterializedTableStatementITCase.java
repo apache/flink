@@ -492,7 +492,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .cause()
                 .hasMessageContaining(
                         String.format(
-                                "Submit continuous refresh job for materialized table %s occur exception.",
+                                "Failed to submit continuous refresh job for materialized table %s.",
                                 userShopsIdentifier.asSerializableString()));
 
         // verify the materialized table is not created

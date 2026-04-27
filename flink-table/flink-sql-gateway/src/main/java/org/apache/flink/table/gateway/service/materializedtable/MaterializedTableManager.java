@@ -232,13 +232,14 @@ public class MaterializedTableManager {
                     Collections.emptyMap(),
                     Optional.empty());
         } catch (Exception e) {
-            // drop materialized table while submit flink streaming job occur exception. Thus, weak
+            // drop materialized table if submitting the Flink streaming job encounters an
+            // exception. Thus, weak
             // atomicity is guaranteed
             operationExecutor.callExecutableOperation(
                     handle, new DropMaterializedTableOperation(materializedTableIdentifier, true));
             throw new SqlExecutionException(
                     String.format(
-                            "Submit continuous refresh job for materialized table %s occur exception.",
+                            "Failed to submit continuous refresh job for materialized table %s.",
                             materializedTableIdentifier),
                     e);
         }
@@ -288,7 +289,8 @@ public class MaterializedTableManager {
                     refreshHandler.asSummaryString(),
                     serializedRefreshHandler);
         } catch (Exception e) {
-            // drop materialized table while create refresh workflow occur exception. Thus, weak
+            // drop materialized table if creating the refresh workflow encounters an exception.
+            // Thus, weak
             // atomicity is guaranteed
             operationExecutor.callExecutableOperation(
                     handle, new DropMaterializedTableOperation(materializedTableIdentifier, true));
@@ -651,7 +653,7 @@ public class MaterializedTableManager {
 
         try {
             LOG.info(
-                    "Begin to refreshing the materialized table {}, statement: {}",
+                    "Starting refresh of the materialized table {}, statement: {}",
                     materializedTableIdentifier,
                     insertStatement);
             JobExecutionResult result =
@@ -682,7 +684,7 @@ public class MaterializedTableManager {
         } catch (Exception e) {
             throw new SqlExecutionException(
                     String.format(
-                            "Refreshing the materialized table %s occur exception.",
+                            "Failed to refresh the materialized table %s.",
                             materializedTableIdentifier),
                     e);
         }
@@ -1128,8 +1130,7 @@ public class MaterializedTableManager {
             return ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
                     serializedRefreshHandler, userCodeClassLoader);
         } catch (IOException | ClassNotFoundException e) {
-            throw new SqlExecutionException(
-                    "Deserialize ContinuousRefreshHandler occur exception.", e);
+            throw new SqlExecutionException("Failed to deserialize ContinuousRefreshHandler.", e);
         }
     }
 
@@ -1137,8 +1138,7 @@ public class MaterializedTableManager {
         try {
             return ContinuousRefreshHandlerSerializer.INSTANCE.serialize(refreshHandler);
         } catch (IOException e) {
-            throw new SqlExecutionException(
-                    "Serialize ContinuousRefreshHandler occur exception.", e);
+            throw new SqlExecutionException("Failed to serialize ContinuousRefreshHandler.", e);
         }
     }
 
