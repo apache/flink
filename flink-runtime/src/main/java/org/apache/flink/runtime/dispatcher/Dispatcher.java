@@ -1337,12 +1337,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void persistAndRunJob(ExecutionPlan executionPlan) throws Exception {
         executionPlanWriter.putExecutionPlan(executionPlan);
+        notifyJobCreated(executionPlan);
         initJobClientExpiredTime(executionPlan);
         runJob(
                 createJobMasterRunner(executionPlan),
                 ExecutionType.SUBMISSION,
                 executionPlan.getApplicationId().orElse(null));
-        notifyJobCreated(executionPlan);
     }
 
     private void notifyJobCreated(ExecutionPlan executionPlan) {
