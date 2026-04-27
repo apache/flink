@@ -84,11 +84,8 @@ class AvroTypesITCase extends AbstractTestBase {
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
                             Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
-                    .setTypeDecimalBytes(
-                            ByteBuffer.wrap(
-                                    BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                    .setTypeDecimalFixed(
-                            new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                    .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                     .build();
 
     private static final User USER_2 =
@@ -114,11 +111,8 @@ class AvroTypesITCase extends AbstractTestBase {
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
                             Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
-                    .setTypeDecimalBytes(
-                            ByteBuffer.wrap(
-                                    BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                    .setTypeDecimalFixed(
-                            new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                    .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                     .build();
 
     private static final User USER_3 =

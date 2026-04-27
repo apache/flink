@@ -24,7 +24,6 @@ import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.Timestamps;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroSerializerLargeGenericRecordTest;
@@ -109,15 +108,8 @@ public final class AvroTestUtils {
                                 Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
                         // byte array must contain the two's-complement representation of the
                         // unscaled integer value in big-endian byte order
-                        .setTypeDecimalBytes(
-                                ByteBuffer.wrap(
-                                        BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                        // array of length n can store at most
-                        // Math.floor(Math.log10(Math.pow(2, 8 * n - 1) - 1))
-                        // base-10 digits of precision
-                        .setTypeDecimalFixed(
-                                new Fixed2(
-                                        BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                        .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                        .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                         .build();
 
         final Row rowUser = new Row(23);

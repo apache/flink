@@ -299,8 +299,7 @@ class EncoderDecoderTest {
                         LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS),
                         Instant.parse("2014-03-01T12:12:12.321Z"),
                         Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS),
-                        ByteBuffer.wrap(
-                                BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()), // 20.00
+                        BigDecimal.valueOf(2000, 2), // 20.00
                         new Fixed2(
                                 BigDecimal.valueOf(2000, 2)
                                         .unscaledValue()

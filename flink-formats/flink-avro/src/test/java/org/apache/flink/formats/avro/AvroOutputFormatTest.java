@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.generated.Colors;
-import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.mock.Whitebox;
 
@@ -200,11 +199,9 @@ class AvroOutputFormatTest {
             user.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS));
 
             // 20.00
-            user.setTypeDecimalBytes(
-                    ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+            user.setTypeDecimalBytes(BigDecimal.valueOf(2000, 2));
             // 20.00
-            user.setTypeDecimalFixed(
-                    new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+            user.setTypeDecimalFixed(BigDecimal.valueOf(2000, 2));
 
             outputFormat.writeRecord(user);
         }
