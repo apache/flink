@@ -32,13 +32,15 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 
 /**
- * AST node for {@code COMPILE PLAN 'planfile' [IF NOT EXISTS] FOR [DML]}. DML can be either a
- * {@link RichSqlInsert} or a {@link SqlStatementSet}.
+ * AST node for {@code COMPILE PLAN ['planfile' [IF NOT EXISTS]] FOR [DML]}. DML can be either a
+ * {@link RichSqlInsert} or a {@link SqlStatementSet}. When the plan file path is omitted, the
+ * compiled plan is returned inline as a result set instead of being written to disk.
  */
 @Internal
 public class SqlCompilePlan extends SqlCall {
@@ -46,18 +48,24 @@ public class SqlCompilePlan extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("COMPILE PLAN", SqlKind.OTHER);
 
-    private final SqlNode planFile;
+    @Nullable private final SqlNode planFile;
     private final boolean ifNotExists;
     private SqlNode operand;
 
     public SqlCompilePlan(
-            SqlParserPos pos, SqlNode planFile, boolean ifNotExists, SqlNode operand) {
+            SqlParserPos pos, @Nullable SqlNode planFile, boolean ifNotExists, SqlNode operand) {
         super(pos);
+        if (planFile == null && ifNotExists) {
+            throw new IllegalArgumentException(
+                    "IF NOT EXISTS is only valid when a plan file path is specified.");
+        }
         this.planFile = planFile;
         this.ifNotExists = ifNotExists;
         this.operand = checkOperand(operand);
     }
 
+    /** Returns the plan file path, or null if the plan should be returned inline. */
+    @Nullable
     public String getPlanFile() {
         return SqlParseUtils.extractString(planFile);
     }
@@ -82,11 +90,13 @@ public class SqlCompilePlan extends SqlCall {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("COMPILE");
         writer.keyword("PLAN");
-        planFile.unparse(writer, leftPrec, rightPrec);
-        if (isIfNotExists()) {
-            writer.keyword("IF");
-            writer.keyword("NOT");
-            writer.keyword("EXISTS");
+        if (planFile != null) {
+            planFile.unparse(writer, leftPrec, rightPrec);
+            if (isIfNotExists()) {
+                writer.keyword("IF");
+                writer.keyword("NOT");
+                writer.keyword("EXISTS");
+            }
         }
         writer.keyword("FOR");
         operand.unparse(writer, leftPrec, rightPrec);

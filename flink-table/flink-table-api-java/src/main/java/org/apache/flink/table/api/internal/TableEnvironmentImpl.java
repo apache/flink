@@ -1022,17 +1022,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 }
             }
 
-            CompiledPlan compiledPlan;
-            if (operation instanceof StatementSetOperation) {
-                compiledPlan = compilePlan(((StatementSetOperation) operation).getOperations());
-            } else if (operation instanceof ModifyOperation) {
-                compiledPlan = compilePlan(Collections.singletonList((ModifyOperation) operation));
-            } else {
-                throw new TableException(
-                        "Unsupported operation to compile: "
-                                + operation.getClass()
-                                + ". This is a bug, please file an issue.");
-            }
+            CompiledPlan compiledPlan = compileOperationToPlan(operation);
             resourceManager.syncFileResource(
                     planResource, path -> compiledPlan.writeToFile(path, false));
             return compiledPlan;
@@ -1046,6 +1036,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public CompiledPlan compilePlan(List<ModifyOperation> operations) {
         return new CompiledPlanImpl(this, planner.compilePlan(operations));
+    }
+
+    /** Compile an operation (ModifyOperation or StatementSetOperation) into a plan. */
+    private CompiledPlan compileOperationToPlan(Operation operation) {
+        if (operation instanceof StatementSetOperation) {
+            return compilePlan(((StatementSetOperation) operation).getOperations());
+        } else if (operation instanceof ModifyOperation) {
+            return compilePlan(Collections.singletonList((ModifyOperation) operation));
+        } else {
+            throw new TableException(
+                    "Unsupported operation to compile: "
+                            + operation.getClass()
+                            + ". This is a bug, please file an issue.");
+        }
     }
 
     @Override
@@ -1360,11 +1364,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             }
         } else if (operation instanceof CompilePlanOperation) {
             CompilePlanOperation compilePlanOperation = (CompilePlanOperation) operation;
-            compilePlanAndWrite(
-                    compilePlanOperation.getFilePath(),
-                    compilePlanOperation.isIfNotExists(),
-                    compilePlanOperation.getOperation());
-            return TableResultImpl.TABLE_RESULT_OK;
+            if (compilePlanOperation.getFilePath() != null) {
+                compilePlanAndWrite(
+                        compilePlanOperation.getFilePath(),
+                        compilePlanOperation.isIfNotExists(),
+                        compilePlanOperation.getOperation());
+                return TableResultImpl.TABLE_RESULT_OK;
+            } else {
+                // No file path — return the compiled plan inline as a result set.
+                CompiledPlan compiledPlan =
+                        compileOperationToPlan(compilePlanOperation.getOperation());
+                return TableResultUtils.buildStringArrayResult(
+                        "result", new String[] {compiledPlan.asJsonString()});
+            }
         } else if (operation instanceof CompileAndExecutePlanOperation) {
             CompileAndExecutePlanOperation compileAndExecutePlanOperation =
                     (CompileAndExecutePlanOperation) operation;
