@@ -117,6 +117,7 @@ class AvroRowDataDeSerializationSchemaTest {
                                 FIELD("date", DATE()),
                                 FIELD("timestamp3", TIMESTAMP(3)),
                                 FIELD("timestamp3_2", TIMESTAMP(3)),
+                                FIELD("timestamp9", TIMESTAMP(9)),
                                 FIELD("map", MAP(STRING(), BIGINT())),
                                 FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
                                 FIELD("map2array", MAP(STRING(), ARRAY(INT()))),
@@ -124,7 +125,7 @@ class AvroRowDataDeSerializationSchemaTest {
                         .notNull();
         final RowType rowType = (RowType) dataType.getLogicalType();
 
-        final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+        final Schema schema = AvroSchemaConverter.convertToSchema(rowType, false);
         final GenericRecord record = new GenericData.Record(schema);
         record.put(0, true);
         record.put(1, (int) Byte.MAX_VALUE);
@@ -149,34 +150,35 @@ class AvroRowDataDeSerializationSchemaTest {
         record.put(12, 10087);
         record.put(13, 1589530213123L);
         record.put(14, 1589530213122L);
+        record.put(15, 1589530213123456789L);
 
         Map<String, Long> map = new HashMap<>();
         map.put("flink", 12L);
         map.put("avro", 23L);
-        record.put(15, map);
+        record.put(16, map);
 
         Map<String, Map<String, Integer>> map2map = new HashMap<>();
         Map<String, Integer> innerMap = new HashMap<>();
         innerMap.put("inner_key1", 123);
         innerMap.put("inner_key2", 234);
         map2map.put("outer_key", innerMap);
-        record.put(16, map2map);
+        record.put(17, map2map);
 
         List<Integer> list1 = Arrays.asList(1, 2, 3, 4, 5, 6);
         List<Integer> list2 = Arrays.asList(11, 22, 33, 44, 55);
         Map<String, List<Integer>> map2list = new HashMap<>();
         map2list.put("list1", list1);
         map2list.put("list2", list2);
-        record.put(17, map2list);
+        record.put(18, map2list);
 
         Map<String, String> map2 = new HashMap<>();
         map2.put("key1", null);
-        record.put(18, map2);
+        record.put(19, map2);
 
         AvroRowDataSerializationSchema serializationSchema =
-                createSerializationSchema(dataType, encoding, true);
+                createSerializationSchema(dataType, encoding, false);
         AvroRowDataDeserializationSchema deserializationSchema =
-                createDeserializationSchema(dataType, encoding, true);
+                createDeserializationSchema(dataType, encoding, false);
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
@@ -358,6 +360,10 @@ class AvroRowDataDeSerializationSchemaTest {
                 .isEqualTo(new AtomicDataType(new BigIntType(false)));
         assertThat(dataType.getChildren().get(3))
                 .isEqualTo(new AtomicDataType(new BigIntType(false)));
+        assertThat(dataType.getChildren().get(4))
+                .isEqualTo(new AtomicDataType(new BigIntType(false)));
+        assertThat(dataType.getChildren().get(5))
+                .isEqualTo(new AtomicDataType(new BigIntType(false)));
 
         assertThatThrownBy(() -> createSerializationSchema(dataType, AvroEncoding.BINARY, true))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -396,10 +402,14 @@ class AvroRowDataDeSerializationSchemaTest {
         RowData rowData2 = deserializationSchema.deserialize(output);
         assertThat(rowData2).isEqualTo(rowData);
 
-        assertThat(rowData.getTimestamp(2, 3).toLocalDateTime().toString())
+        assertThat(rowData.getTimestamp(2, 9).toInstant().toString())
+                .isEqualTo("1970-01-01T00:00:00.123456789Z");
+        assertThat(rowData.getTimestamp(3, 3).toLocalDateTime().toString())
                 .isEqualTo("2014-03-01T12:12:12.321");
-        assertThat(rowData.getTimestamp(3, 6).toLocalDateTime().toString())
-                .isEqualTo("1970-01-01T00:02:03.456");
+        assertThat(rowData.getTimestamp(4, 6).toLocalDateTime().toString())
+                .isEqualTo("1970-01-01T00:00:00.123456");
+        assertThat(rowData.getTimestamp(5, 9).toLocalDateTime().toString())
+                .isEqualTo("1970-01-01T00:00:00.123456789");
     }
 
     private AvroRowDataSerializationSchema createSerializationSchema(

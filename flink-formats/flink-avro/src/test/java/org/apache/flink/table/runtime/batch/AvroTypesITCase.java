@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.batch;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -84,11 +83,10 @@ class AvroTypesITCase extends AbstractTestBase {
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
                             Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
-                    .setTypeDecimalBytes(
-                            ByteBuffer.wrap(
-                                    BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                    .setTypeDecimalFixed(
-                            new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeTimestampNanos(
+                            Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS))
+                    .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                    .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                     .build();
 
     private static final User USER_2 =
@@ -114,11 +112,10 @@ class AvroTypesITCase extends AbstractTestBase {
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
                             Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
-                    .setTypeDecimalBytes(
-                            ByteBuffer.wrap(
-                                    BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                    .setTypeDecimalFixed(
-                            new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeTimestampNanos(
+                            Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS))
+                    .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                    .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                     .build();
 
     private static final User USER_3 =
@@ -144,11 +141,10 @@ class AvroTypesITCase extends AbstractTestBase {
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
                             Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
-                    .setTypeDecimalBytes(
-                            ByteBuffer.wrap(
-                                    BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
-                    .setTypeDecimalFixed(
-                            new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+                    .setTypeTimestampNanos(
+                            Instant.ofEpochSecond(0).plus(123456789L, ChronoUnit.NANOS))
+                    .setTypeDecimalBytes(BigDecimal.valueOf(2000, 2))
+                    .setTypeDecimalFixed(BigDecimal.valueOf(2000, 2))
                     .build();
 
     @Test
@@ -168,15 +164,15 @@ class AvroTypesITCase extends AbstractTestBase {
                 "+I[Charlie, null, blue, 1337, 1.337, null, false, [], [], null, RED, {}, null, null, "
                         + "{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": \"Berlin\", \"zip\": \"12049\"}, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12.345, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
-                        + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
+                        + "1970-01-01T00:00:00.123456Z, 1970-01-01T00:00:00.123456789Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
                         + "+I[Whatever, null, black, 42, 0.0, null, true, [hello], [true], null, GREEN, {}, "
                         + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], null, null, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
-                        + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
+                        + "1970-01-01T00:00:00.123456Z, 1970-01-01T00:00:00.123456789Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
                         + "+I[Terminator, null, yellow, 1, 0.0, null, false, [world], [false], null, GREEN, {}, "
                         + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], null, null, "
                         + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
-                        + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]";
+                        + "1970-01-01T00:00:00.123456Z, 1970-01-01T00:00:00.123456789Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]";
         TestBaseUtils.compareResultAsText(results, expected);
     }
 

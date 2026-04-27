@@ -29,8 +29,10 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.avro.generic.GenericFixed;
@@ -128,12 +130,13 @@ public class AvroToRowDataConverters {
             case TIME_WITHOUT_TIME_ZONE:
                 return AvroToRowDataConverters::convertToTime;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return AvroToRowDataConverters::convertToTimestamp;
+                return createTimestampConverter(((TimestampType) type).getPrecision());
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 if (legacyTimestampMapping) {
                     throw new UnsupportedOperationException("Unsupported type: " + type);
                 } else {
-                    return AvroToRowDataConverters::convertToTimestamp;
+                    return createTimestampConverter(
+                            ((LocalZonedTimestampType) type).getPrecision());
                 }
             case CHAR:
             case VARCHAR:
@@ -211,24 +214,37 @@ public class AvroToRowDataConverters {
         };
     }
 
-    private static TimestampData convertToTimestamp(Object object) {
-        final long millis;
-        if (object instanceof Long) {
-            millis = (Long) object;
-        } else if (object instanceof Instant) {
-            millis = ((Instant) object).toEpochMilli();
-        } else if (object instanceof LocalDateTime) {
-            return TimestampData.fromLocalDateTime((LocalDateTime) object);
-        } else {
-            JodaConverter jodaConverter = JodaConverter.getConverter();
-            if (jodaConverter != null) {
-                millis = jodaConverter.convertTimestamp(object);
+    private static AvroToRowDataConverter createTimestampConverter(int precision) {
+        return object -> {
+            if (object instanceof Long) {
+                long val = (Long) object;
+                if (precision <= 3) {
+                    return TimestampData.fromEpochMillis(val);
+                } else if (precision <= 6) {
+                    long millis = Math.floorDiv(val, 1000L);
+                    int nanosOfMilli = (int) (Math.floorMod(val, 1000L) * 1000);
+                    return TimestampData.fromEpochMillis(millis, nanosOfMilli);
+                } else {
+                    long millis = Math.floorDiv(val, 1000_000L);
+                    int nanosOfMilli = (int) Math.floorMod(val, 1000_000L);
+                    return TimestampData.fromEpochMillis(millis, nanosOfMilli);
+                }
+            } else if (object instanceof Instant) {
+                return TimestampData.fromInstant((Instant) object);
+            } else if (object instanceof LocalDateTime) {
+                return TimestampData.fromLocalDateTime((LocalDateTime) object);
             } else {
-                throw new IllegalArgumentException(
-                        "Unexpected object type for TIMESTAMP logical type. Received: " + object);
+                JodaConverter jodaConverter = JodaConverter.getConverter();
+                if (jodaConverter != null) {
+                    long millis = jodaConverter.convertTimestamp(object);
+                    return TimestampData.fromEpochMillis(millis);
+                } else {
+                    throw new IllegalArgumentException(
+                            "Unexpected object type for TIMESTAMP logical type. Received: "
+                                    + object);
+                }
             }
-        }
-        return TimestampData.fromEpochMillis(millis);
+        };
     }
 
     private static int convertToDate(Object object) {
