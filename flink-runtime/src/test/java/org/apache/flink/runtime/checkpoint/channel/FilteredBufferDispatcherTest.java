@@ -863,7 +863,7 @@ class FilteredBufferDispatcherTest {
     }
 
     /**
-     * wait-set reaching empty triggers phase2 {@code drainSpillEntriesToCheckpoint}: the sealed
+     * wait-set reaching empty triggers phase2 {@code drainSpillEntriesToCheckpoint}: the frozen
      * readers are snapshotted and streamed to the ChannelStateWriter, but the original readers and
      * store state are left intact. drainPendingSpill() then still delivers every entry to the store
      * via network buffers.
@@ -883,7 +883,7 @@ class FilteredBufferDispatcherTest {
         writer.write(payload, SEGMENT_SIZE, ch0);
         writer.flush();
 
-        // phase2: snapshots sealed readers into the ChannelStateWriter (NO_OP here); the original
+        // phase2: snapshots frozen readers into the ChannelStateWriter (NO_OP here); the original
         // reader and store state are untouched.
         writer.onChannelCheckpointStarted(99L, ch0, writer.getCurrentDrainHead());
 

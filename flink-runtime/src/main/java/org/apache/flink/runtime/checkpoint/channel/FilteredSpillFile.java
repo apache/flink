@@ -43,10 +43,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Spill file for the {@code filterAndRewrite} recovery path. Appends raw bytes to one or more
- * physical files; each logical entry is tracked in the corresponding {@link Reader}'s entry
- * deque. Readers support replay ({@link Reader#readNext}) and checkpoint snapshot
- * ({@link Reader#snapshot}). Rotates to a new file when the current one exceeds 64 MB; each
- * rotation seals the outgoing Reader. Files are created lazily on the first {@link #writeEntry}.
+ * physical files; each logical entry is tracked in the corresponding {@link Reader}'s entry deque.
+ * Readers support replay ({@link Reader#readNext}) and checkpoint snapshot ({@link
+ * Reader#snapshot}). Rotates to a new file when the current one exceeds 64 MB; each rotation
+ * freezes the outgoing Reader. Files are created lazily on the first {@link #writeEntry}.
  */
 @Internal
 public class FilteredSpillFile implements Closeable {
@@ -59,13 +59,15 @@ public class FilteredSpillFile implements Closeable {
     private FileChannel currentChannel;
     private long currentFileOffset;
     private final List<Reader> readers;
+
     /** Monotonic file-id counter; never reused. */
     private int nextFileIndex;
+
     private boolean finished;
 
     /**
-     * @param memorySegmentSize max bytes per spill entry — each entry is 1:1 aligned with a
-     *     network buffer of this size, so longer payloads must be split upstream.
+     * @param memorySegmentSize max bytes per spill entry — each entry is 1:1 aligned with a network
+     *     buffer of this size, so longer payloads must be split upstream.
      */
     public FilteredSpillFile(String[] spillDirs, int memorySegmentSize) {
         this.spillDirs = spillDirs;
@@ -78,9 +80,9 @@ public class FilteredSpillFile implements Closeable {
     }
 
     /**
-     * Appends {@code len} bytes for {@code channelInfo}, lazily opening the first file and
-     * rotating when the current file exceeds {@link #FILE_ROTATION_THRESHOLD}. Oversize entries
-     * (> {@code memorySegmentSize}) fail fast.
+     * Appends {@code len} bytes for {@code channelInfo}, lazily opening the first file and rotating
+     * when the current file exceeds {@link #FILE_ROTATION_THRESHOLD}. Oversize entries (> {@code
+     * memorySegmentSize}) fail fast.
      */
     public void writeEntry(byte[] data, int len, InputChannelInfo channelInfo) throws IOException {
         checkState(!finished, "writeEntry after finish");
@@ -100,14 +102,14 @@ public class FilteredSpillFile implements Closeable {
         currentReader().addEntry(channelInfo, entryOffset, len);
     }
 
-    /** Seals the last Reader. After finish, no more writeEntry calls are accepted. */
+    /** Freezes the last Reader. After finish, no more writeEntry calls are accepted. */
     public void finish() {
         if (finished) {
             return;
         }
         finished = true;
         if (!readers.isEmpty()) {
-            currentReader().seal();
+            currentReader().freeze();
         }
     }
 
@@ -167,15 +169,13 @@ public class FilteredSpillFile implements Closeable {
         Path currentFilePath = dirPath.resolve("spill-" + UUID.randomUUID() + ".bin");
         currentChannel =
                 FileChannel.open(
-                        currentFilePath,
-                        StandardOpenOption.CREATE_NEW,
-                        StandardOpenOption.WRITE);
+                        currentFilePath, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
         currentFileOffset = 0;
         readers.add(new Reader(currentFilePath, memorySegmentSize, nextFileIndex++));
     }
 
     private void rotateFile() throws IOException {
-        currentReader().seal();
+        currentReader().freeze();
         currentChannel.close();
         currentChannel = null;
         openNewFile();
@@ -213,10 +213,10 @@ public class FilteredSpillFile implements Closeable {
     }
 
     /**
-     * Reads entries from a single spill file. Each instance is owned by exactly one consumer
-     * thread (the original Reader by the replay path, a snapshot Reader by a checkpoint drain).
-     * The internal buffer is reused across {@link #readNext()} calls; callers must consume each
-     * Chunk before calling readNext again.
+     * Reads entries from a single spill file. Each instance is owned by exactly one consumer thread
+     * (the original Reader by the replay path, a snapshot Reader by a checkpoint drain). The
+     * internal buffer is reused across {@link #readNext()} calls; callers must consume each Chunk
+     * before calling readNext again.
      */
     public static class Reader implements Closeable {
 
@@ -225,7 +225,7 @@ public class FilteredSpillFile implements Closeable {
         private final int memorySegmentSize;
         private final int fileIndex;
         private final Deque<Entry> entries = new ArrayDeque<>();
-        private volatile boolean sealed = false;
+        private volatile boolean frozen = false;
         private final byte[] buf;
 
         Reader(Path filePath, int memorySegmentSize, int fileIndex) throws IOException {
@@ -242,7 +242,7 @@ public class FilteredSpillFile implements Closeable {
         }
 
         void addEntry(InputChannelInfo channelInfo, long offset, int length) {
-            checkState(!sealed, "addEntry after seal");
+            checkState(!frozen, "addEntry after freeze");
             entries.addLast(new Entry(channelInfo, offset, length));
         }
 
@@ -252,17 +252,17 @@ public class FilteredSpillFile implements Closeable {
         }
 
         /**
-         * Removes the head entry without disk I/O. Use after reading via {@link #readBytesAt} or
-         * to discard (e.g. phase-2 filter skipping an entry already covered by Step 1).
+         * Removes the head entry without disk I/O. Use after reading via {@link #readBytesAt} or to
+         * discard (e.g. phase-2 filter skipping an entry already covered by Step 1).
          */
         public Entry skipNextEntry() {
             return entries.pollFirst();
         }
 
         /**
-         * Reads {@code length} bytes from absolute {@code offset} into {@code dest}. Unlike
-         * {@link #readNext()} this does not mutate the entry deque, so callers can perform the
-         * I/O outside any lock that protects the deque.
+         * Reads {@code length} bytes from absolute {@code offset} into {@code dest}. Unlike {@link
+         * #readNext()} this does not mutate the entry deque, so callers can perform the I/O outside
+         * any lock that protects the deque.
          */
         public void readBytesAt(long offset, int length, byte[] dest, int destOffset)
                 throws IOException {
@@ -283,12 +283,12 @@ public class FilteredSpillFile implements Closeable {
             }
         }
 
-        void seal() {
-            sealed = true;
+        void freeze() {
+            frozen = true;
         }
 
-        public boolean isSealed() {
-            return sealed;
+        public boolean isFrozen() {
+            return frozen;
         }
 
         public boolean hasEntries() {
@@ -302,8 +302,8 @@ public class FilteredSpillFile implements Closeable {
         }
 
         /**
-         * Reads the next pending entry as a {@link Chunk}; null when there are no more entries.
-         * The Chunk's data array is the Reader's internal buffer and is overwritten by the next
+         * Reads the next pending entry as a {@link Chunk}; null when there are no more entries. The
+         * Chunk's data array is the Reader's internal buffer and is overwritten by the next
          * readNext.
          */
         public Chunk readNext() throws IOException {
@@ -331,13 +331,13 @@ public class FilteredSpillFile implements Closeable {
 
         /**
          * Independent Reader over the same file with a shallow copy of the current entries,
-         * pre-sealed. The caller owns and must close the returned Reader.
+         * pre-frozen. The caller owns and must close the returned Reader.
          */
         public Reader snapshot() throws IOException {
-            checkState(sealed, "snapshot requires sealed Reader");
+            checkState(frozen, "snapshot requires frozen Reader");
             Reader snap = new Reader(filePath, memorySegmentSize, fileIndex);
             snap.entries.addAll(this.entries);
-            snap.sealed = true;
+            snap.frozen = true;
             return snap;
         }
 

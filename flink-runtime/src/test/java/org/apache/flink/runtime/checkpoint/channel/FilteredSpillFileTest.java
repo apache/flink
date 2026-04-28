@@ -173,7 +173,7 @@ class FilteredSpillFileTest {
         }
     }
 
-    /** snapshot() creates an independent Reader with the same entries; pre-sealed. */
+    /** snapshot() creates an independent Reader with the same entries; pre-frozen. */
     @Test
     void testSnapshot() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
@@ -187,11 +187,11 @@ class FilteredSpillFileTest {
             writer.finish();
 
             FilteredSpillFile.Reader original = writer.getReaders().get(0);
-            assertThat(original.isSealed()).isTrue();
+            assertThat(original.isFrozen()).isTrue();
 
             FilteredSpillFile.Reader snap = original.snapshot();
             try {
-                assertThat(snap.isSealed()).isTrue();
+                assertThat(snap.isFrozen()).isTrue();
                 assertThat(snap.hasEntries()).isTrue();
 
                 FilteredSpillFile.Chunk chunk = snap.readNext();
@@ -208,14 +208,14 @@ class FilteredSpillFileTest {
         }
     }
 
-    /** addEntry after seal throws IllegalStateException. */
+    /** addEntry after freeze throws IllegalStateException. */
     @Test
-    void testAddEntryAfterSealThrows() throws Exception {
+    void testAddEntryAfterFreezeThrows() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
         try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(new byte[] {1}, 1, CHANNEL_0);
             writer.finish();
-            // Reader is sealed by finish(); addEntry via a new writeEntry after finish should throw
+            // Reader is frozen by finish(); addEntry via a new writeEntry after finish should throw
             assertThatThrownBy(() -> writer.writeEntry(new byte[] {2}, 1, CHANNEL_0))
                     .isInstanceOf(IllegalStateException.class);
         }

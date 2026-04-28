@@ -37,16 +37,16 @@ public interface FilteredBufferDispatcher extends AutoCloseable {
     void flush() throws IOException;
 
     /**
-     * Blocking drain of all remaining disk data into target stores. Must be called after
-     * {@link #flush()} so all Readers are sealed. Skipped on the abort path: callers that are
-     * cancelling go straight to {@link #close()}. Does not hold the dispatcher monitor while
-     * blocking; coordinator callbacks remain free to acquire it.
+     * Blocking drain of all remaining disk data into target stores. Must be called after {@link
+     * #flush()} so all Readers are frozen. Skipped on the abort path: callers that are cancelling
+     * go straight to {@link #close()}. Does not hold the dispatcher monitor while blocking;
+     * coordinator callbacks remain free to acquire it.
      */
     void drainPendingSpill() throws IOException, InterruptedException;
 
     /**
-     * Releases resources held by this dispatcher. Idempotent. Pure resource release: does NOT
-     * drain remaining disk data — call {@link #drainPendingSpill()} first on the normal path.
+     * Releases resources held by this dispatcher. Idempotent. Pure resource release: does NOT drain
+     * remaining disk data — call {@link #drainPendingSpill()} first on the normal path.
      */
     @Override
     void close() throws IOException;

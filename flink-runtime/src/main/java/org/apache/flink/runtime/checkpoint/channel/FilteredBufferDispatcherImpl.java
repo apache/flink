@@ -254,7 +254,7 @@ public class FilteredBufferDispatcherImpl
     /**
      * Called by each per-channel store when that channel's ready buffers have been snapshotted into
      * the {@link ChannelStateWriter}. On the first callback for a checkpointId, pins an immutable
-     * phase-2 view of every sealed Reader and seeds the wait-set with the pending channels.
+     * phase-2 view of every frozen Reader and seeds the wait-set with the pending channels.
      * Subsequent callbacks remove their channel; the empty wait-set triggers {@link
      * #drainSpillEntriesToCheckpoint}.
      *
@@ -273,7 +273,7 @@ public class FilteredBufferDispatcherImpl
         }
         if (checkpointId > currentCheckpointId) {
             // Pin snapshots before any drain pop can mutate entry deques. Invariant: checkpoint
-            // only starts after recovery ends, so all Readers are sealed.
+            // only starts after recovery ends, so all Readers are frozen.
             currentCheckpointId = checkpointId;
             checkpointStartPos = new HashMap<>();
             checkpointSnapshots = new ArrayList<>();
@@ -283,8 +283,8 @@ public class FilteredBufferDispatcherImpl
                 try {
                     for (FilteredSpillFile.Reader reader : spillFile.getReaders()) {
                         Preconditions.checkState(
-                                reader.isSealed(),
-                                "Reader must be sealed when checkpoint starts; writer.finish() "
+                                reader.isFrozen(),
+                                "Reader must be frozen when checkpoint starts; writer.finish() "
                                         + "must be called before checkpoint trigger.");
                         snapshots.add(reader.snapshot());
                     }
