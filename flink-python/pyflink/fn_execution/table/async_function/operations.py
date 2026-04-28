@@ -60,6 +60,11 @@ class AsyncScalarFunctionOperation(Operation, AsyncOperationMixin):
             operation_utils.extract_user_defined_function(
                 serialized_fn.udfs[0], one_arg_optimization=False)
 
+        # Mirror PythonScalarFunctionOperator.createInputCoderInfoDescriptor:
+        # Java picks FlattenRowCoder unless some UDF takes a row as input.
+        self._input_is_flatten_row = not any(
+            udf.takes_row_as_input for udf in serialized_fn.udfs)
+
         # Create the eval function
         self._eval_func = eval('lambda value: %s' % scalar_function, variable_dict)
 
@@ -139,6 +144,12 @@ class AsyncScalarFunctionOperation(Operation, AsyncOperationMixin):
         allowing multiple operations to be in-flight simultaneously.
         """
         self._raise_exception_if_exists()
+
+        # The Cython FlattenRowCoderImpl returns a reused list whose slots are
+        # overwritten by the next decode, so we must snapshot the row before
+        # the async closure can capture it.
+        if self._input_is_flatten_row:
+            value = list(value)
 
         entry = self._queue.put(None, 0, 0, value)
 
