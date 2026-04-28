@@ -24,35 +24,21 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-/**
- * Supplies per-channel network buffers to the recovery pipeline.
- *
- * <p>Two semantics are exposed: a non-blocking request used on the fast path where the caller must
- * not stall (e.g. while writing on the recovery thread), and a blocking request used where
- * backpressure is acceptable (e.g. the close() drain).
- */
+/** Supplies per-channel network buffers to the recovery pipeline. */
 @Internal
 interface BufferRequester {
 
-    /** Non-blocking request; returns {@code null} when no buffer is currently available. */
+    /** Non-blocking; returns {@code null} when no buffer is currently available. */
     @Nullable
     Buffer requestBuffer(InputChannelInfo channelInfo) throws IOException;
 
-    /** Blocking request; waits until a buffer becomes available. */
     Buffer requestBufferBlocking(InputChannelInfo channelInfo)
             throws InterruptedException, IOException;
 
     /**
-     * Releases the exclusive buffers held by every channel served by this requester. Must be
-     * called after the dispatcher's drain has finished so the underlying pools are no longer
-     * being read from. Idempotent.
-     *
-     * <p>Symmetric tear-down counterpart of {@link #requestBuffer} / {@link #requestBufferBlocking}:
-     * whoever supplies the buffers also owns their final disposal. Centralising the release here
-     * lets {@code convertRecoveredInputChannels} stop calling {@code releaseAllResources()} on the
-     * {@link org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel} —
-     * which would otherwise wipe the recovered store and exclusive segments while drain is still
-     * in flight.
+     * Releases exclusive buffers for every channel served by this requester. Idempotent. Must run
+     * after the dispatcher's drain has finished so the underlying pools are no longer being read
+     * from.
      */
     void releaseExclusiveBuffers() throws IOException;
 }

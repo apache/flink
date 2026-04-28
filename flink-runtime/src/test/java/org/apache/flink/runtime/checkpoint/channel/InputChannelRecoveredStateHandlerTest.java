@@ -306,9 +306,9 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
      * AT-FRCV (input half): finishRecovery() triggers finishReadRecoveredState() on every gate
      * exactly once; close() must NOT invoke it again (close is pure resource release).
      *
-     * <p>The internal {@code recoveryFinished} idempotency guard is verified via reflection.
-     * We also verify that the pre-filter segment — allocated during recovery — is freed by close()
-     * and not by finishRecovery(), confirming the clean separation of lifecycle concerns.
+     * <p>The internal {@code recoveryFinished} idempotency guard is verified via reflection. We
+     * also verify that the pre-filter segment — allocated during recovery — is freed by close() and
+     * not by finishRecovery(), confirming the clean separation of lifecycle concerns.
      */
     @Test
     void testFinishRecoveryTriggersConversion() throws Exception {

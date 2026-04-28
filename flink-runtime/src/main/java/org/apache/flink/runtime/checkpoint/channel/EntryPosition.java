@@ -22,18 +22,14 @@ import org.apache.flink.annotation.Internal;
 import java.util.Objects;
 
 /**
- * Position of a spill entry inside a {@link FilteredSpillFile}: the index of the owning physical
- * file in the spill file's {@code readers} list and the absolute byte offset within that file.
- *
- * <p>Total ordering is lexicographic on {@code (fileIndex, offset)} — files are drained in list
- * order, and entries within a file are drained in offset-ascending order, so this matches the
- * actual FIFO drain sequence. {@link #END} is the sentinel that compares strictly greater than any
- * real position; it is used as the {@code drainHead} once every entry has been drained.
+ * Position of a spill entry inside a {@link FilteredSpillFile}: physical file index in the spill
+ * file's {@code readers} list plus absolute byte offset within that file. Lexicographic ordering
+ * on {@code (fileIndex, offset)} matches the FIFO drain sequence. {@link #END} compares strictly
+ * greater than any real position and serves as the post-drain sentinel.
  */
 @Internal
 public final class EntryPosition implements Comparable<EntryPosition> {
 
-    /** Sentinel position that compares greater than every real entry position. */
     public static final EntryPosition END = new EntryPosition(Integer.MAX_VALUE, Long.MAX_VALUE);
 
     private final int fileIndex;

@@ -87,12 +87,8 @@ public class RemoteInputChannel extends InputChannel {
     private final ConnectionManager connectionManager;
 
     /**
-     * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
-     * is consumed by the receiving task thread.
-     *
-     * <p>Guarded by the {@link #recoveredStore} monitor (the unified channel-private lock; see the
-     * locking contract in {@link RecoveredBufferStore}). All access — reads, mutations, iteration
-     * — must happen under {@code synchronized (recoveredStore)}.
+     * Buffers enqueued by the network I/O thread and consumed by the task thread. Guarded by the
+     * {@link #recoveredStore} monitor (the unified channel-private lock).
      */
     @GuardedBy("recoveredStore")
     private final PrioritizedDeque<SequenceBuffer> receivedBuffers = new PrioritizedDeque<>();
@@ -128,16 +124,13 @@ public class RemoteInputChannel extends InputChannel {
 
     private final ChannelStatePersister channelStatePersister;
 
-    /**
-     * Store for recovered buffers. Always non-null: callers with no recovered data pass {@link
-     * RecoveredBufferStore#EMPTY}.
-     */
+    /** Always non-null: callers with no recovered data pass {@link RecoveredBufferStore#EMPTY}. */
     private final RecoveredBufferStore recoveredStore;
 
     /**
-     * True iff a priority element sits at the head of {@link #receivedBuffers} and should be
-     * consumed before the recovered store. Invariant maintained under the lock:
-     * {@code hasPendingPriorityEvent <=> receivedBuffers.getNumPriorityElements() > 0}.
+     * Invariant under lock:
+     * {@code hasPendingPriorityEvent <=> receivedBuffers.getNumPriorityElements() > 0}. A
+     * priority element bypasses the FIFO recovery-first rule.
      */
     @GuardedBy("recoveredStore")
     private boolean hasPendingPriorityEvent = false;
@@ -178,10 +171,6 @@ public class RemoteInputChannel extends InputChannel {
         this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 
-        // Callers with no recovered data pass RecoveredBufferStore.EMPTY; unconditional assignment
-        // avoids null guards throughout the class and eliminates the buggy isEmpty() guard that
-        // would discard the store reference while FilteredBufferDispatcher still has pending
-        // writes.
         this.recoveredStore = checkNotNull(recoveredStore);
         synchronized (this.recoveredStore) {
             this.recoveredStore.setDataAvailableListener(this::notifyChannelNonEmpty);
@@ -283,12 +272,10 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
-        // Single-lock decision: classify the state and pick the next buffer in one critical
-        // section so "is recovery done", "is there a priority event", "what is the next
-        // data type" cannot be torn against the underlying queues. Splitting the decision
-        // across multiple synchronized blocks would let producers slip data into
-        // receivedBuffers (or drain the store) between segments and surface a stale
-        // moreAvailable that hides queued buffers from the gate.
+        // Single critical section so "is recovery done", "is there a priority event", "what is
+        // the next data type" cannot be torn against the underlying queues. Splitting would let
+        // producers slip data into receivedBuffers (or drain the store) between segments and
+        // surface a stale moreAvailable that hides queued buffers from the gate.
         final Buffer recoveredBuffer;
         final SequenceBuffer fromReceivedBuffers;
         final DataType nextDataType;
@@ -298,10 +285,8 @@ public class RemoteInputChannel extends InputChannel {
                 if (hasPendingPriorityEvent) {
                     fromReceivedBuffers = pollPendingPriorityEvent();
                     if (fromReceivedBuffers == null) {
-                        // Defensive: invariant should keep the flag aligned with
-                        // receivedBuffers.getNumPriorityElements() > 0; if it is not,
-                        // mirror the pre-refactor behavior and yield without consuming
-                        // from the recovered store.
+                        // Invariant should keep the flag aligned with priority count; defensive
+                        // yield mirrors pre-refactor behavior.
                         return Optional.empty();
                     }
                     nextDataType = peekNextDataType();
@@ -309,8 +294,7 @@ public class RemoteInputChannel extends InputChannel {
                 } else {
                     recoveredBuffer = recoveredStore.tryTake();
                     if (recoveredBuffer == null) {
-                        // readyBuffers empty but pendingCount > 0: the drain listener
-                        // will wake us when the next buffer lands in readyBuffers.
+                        // readyBuffers empty but pendingCount > 0: drain listener wakes us.
                         return Optional.empty();
                     }
                     nextDataType = peekNextDataType();
@@ -364,25 +348,20 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     /**
-     * Returns the data type of the next buffer the consumer will see across the layered
-     * sources ({@link #recoveredStore} first, then {@link #receivedBuffers}), respecting the
-     * priority-bypass rule. Returns {@link DataType#NONE} when neither source has a visible
-     * head; this includes the case where the recovered store has only on-disk pending entries
-     * (the drain listener will fire once they land in readyBuffers).
-     *
-     * <p>Caller MUST hold the {@link #recoveredStore} monitor.
+     * Data type of the next buffer the consumer will see across {@link #recoveredStore} and
+     * {@link #receivedBuffers}, respecting the priority bypass. Caller MUST hold
+     * {@code recoveredStore}.
      */
     @GuardedBy("recoveredStore")
     private DataType peekNextDataType() {
         assert Thread.holdsLock(recoveredStore);
         if (hasPendingPriorityEvent) {
-            // Priority head bypasses the FIFO recovery-first rule.
             SequenceBuffer peeked = receivedBuffers.peek();
             return peeked != null ? peeked.buffer.getDataType() : DataType.NONE;
         }
         if (!recoveredStore.isEmpty()) {
-            // readyBuffers head if any; NONE while only pendingCount > 0 — the drain
-            // listener will wake the consumer when readyBuffers becomes non-empty.
+            // NONE while only pendingCount > 0; drain listener wakes the consumer when
+            // readyBuffers becomes non-empty.
             return recoveredStore.peekNextDataType();
         }
         SequenceBuffer peeked = receivedBuffers.peek();
@@ -390,10 +369,9 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     /**
-     * Pulls the priority head of {@link #receivedBuffers} (skipping {@link #recoveredStore})
-     * and updates {@link #hasPendingPriorityEvent} when the last priority is drained.
-     * Returns {@code null} when no priority element is pending. Caller MUST hold the
-     * {@link #recoveredStore} monitor.
+     * Polls the priority head of {@link #receivedBuffers}, skipping {@link #recoveredStore} and
+     * clearing {@link #hasPendingPriorityEvent} when the last priority drains. Caller MUST hold
+     * {@code recoveredStore}.
      */
     @GuardedBy("recoveredStore")
     @Nullable
@@ -445,7 +423,7 @@ public class RemoteInputChannel extends InputChannel {
     void releaseAllResources() throws IOException {
         if (isReleased.compareAndSet(false, true)) {
 
-            // Release recovered store (EMPTY.releaseAll() is a no-op, so no null check needed).
+            // EMPTY.releaseAll() is a no-op, so no null check needed.
             recoveredStore.releaseAll();
 
             final ArrayDeque<Buffer> releasedBuffers;
@@ -471,8 +449,7 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     int getBuffersInUseCount() {
-        // recoveredStore.size() and receivedBuffers.size() share the same monitor; collect both
-        // under the store lock so the result is a single consistent snapshot.
+        // Single snapshot under the shared monitor.
         int channelBacklog;
         synchronized (recoveredStore) {
             channelBacklog = recoveredStore.size() + receivedBuffers.size();
@@ -691,8 +668,8 @@ public class RemoteInputChannel extends InputChannel {
      * is less than backlog + initialCredit, it will request floating buffers from the buffer
      * manager, and then notify unannounced credits to the producer.
      *
-     * <p>While the recovered store is non-empty, this is a no-op: credit is gated and the upstream
-     * is not allowed to send new data (see {@link #notifyBufferAvailable}).
+     * <p>No-op while the recovered store is non-empty: credit is gated during recovery so
+     * upstream cannot send new data.
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
@@ -702,7 +679,6 @@ public class RemoteInputChannel extends InputChannel {
             stillRecovering = !recoveredStore.isEmpty();
         }
         if (stillRecovering) {
-            // Credit gated during recovery; ignore backlog signals from upstream.
             return;
         }
         notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
@@ -838,20 +814,12 @@ public class RemoteInputChannel extends InputChannel {
     /**
      * Spills all queued buffers on checkpoint start. If barrier has already been received (and
      * reordered), spill only the overtaken buffers.
-     *
-     * <p>The recoveredStore is passed to the centralized {@link
-     * ChannelStatePersister#startPersisting} so that ready-buffer snapshot and
-     * FilteredBufferDispatcher callback are handled in one place. Network inflight buffers from
-     * {@code receivedBuffers} are collected here (Remote-specific) and passed as {@code
-     * knownBuffers}.
      */
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
-        // Collect the inflight snapshot under the store lock so receivedBuffers iteration and
-        // barrier-id state are consistent. Then release the store lock before calling
-        // startPersisting — startPersisting reaches into store.checkpoint() which fires the
-        // dispatcher coordinator callback (a synchronized method on the dispatcher); the dispatcher
-        // also acquires the store lock from the recovery thread (write/flushCache → incrementPending),
-        // so holding the store lock across the dispatcher acquire would form an AB-BA deadlock.
+        // Collect the inflight snapshot under the lock for consistency, then release before
+        // calling startPersisting: that reaches store.checkpoint() which fires the dispatcher
+        // coordinator (synchronized), and the dispatcher itself acquires the store lock from
+        // the recovery thread, so holding the store lock across would deadlock AB-BA.
         final List<Buffer> inflightBuffers;
         synchronized (recoveredStore) {
             if (barrier.getId() < lastBarrierId) {
@@ -875,9 +843,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     public void checkpointStopped(long checkpointId) {
-        // stopPersisting is invoked outside the store lock for the same lock-order reason as
-        // checkpointStarted: it eventually calls into the dispatcher coordinator (notifyCheckpointStopped)
-        // and the dispatcher's synchronized methods can acquire the store lock from the recovery side.
+        // Outside the store lock for the same AB-BA reason as checkpointStarted.
         channelStatePersister.stopPersisting(checkpointId, recoveredStore);
         synchronized (recoveredStore) {
             if (lastBarrierId == checkpointId) {

@@ -41,19 +41,18 @@ class RecoveredBufferStoreTest {
 
     private static final InputChannelInfo DEFAULT_CHANNEL_INFO = new InputChannelInfo(0, 0);
 
-    /** Create store, addBuffer, tryTake. Verify the lifecycle of the store. */
+    /** addBuffer / tryTake lifecycle. */
     @Test
     void testStoreLifecycle() {
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
 
-        // Initially empty — query methods require holding the store monitor (locking contract).
+        // Query methods require holding the store monitor (locking contract).
         synchronized (store) {
             assertThat(store.isEmpty()).isTrue();
             assertThat(store.size()).isEqualTo(0);
             assertThat(store.peekNextDataType()).isEqualTo(Buffer.DataType.NONE);
         }
 
-        // Add a buffer
         NetworkBuffer buffer1 = createBuffer(new byte[] {1, 2, 3, 4});
         store.addBuffer(buffer1);
 
@@ -63,7 +62,6 @@ class RecoveredBufferStoreTest {
             assertThat(store.size()).isEqualTo(1);
             assertThat(store.peekNextDataType()).isEqualTo(Buffer.DataType.DATA_BUFFER);
 
-            // Take the buffer
             taken = store.tryTake();
             assertThat(taken).isNotNull();
             assertThat(store.isEmpty()).isTrue();
@@ -72,7 +70,6 @@ class RecoveredBufferStoreTest {
         taken.recycleBuffer();
 
         synchronized (store) {
-            // tryTake on empty returns null
             assertThat(store.tryTake()).isNull();
         }
     }
@@ -95,7 +92,6 @@ class RecoveredBufferStoreTest {
 
         store.checkpoint(writer, checkpointId);
 
-        // Verify the buffer was recorded by the writer
         assertThat(writer.getAddedInput().get(DEFAULT_CHANNEL_INFO)).hasSize(1);
 
         // The original buffer should still be in the store (retained, not consumed)
@@ -258,13 +254,13 @@ class RecoveredBufferStoreTest {
      * Verify the data-available listener is invoked OUTSIDE the store monitor.
      *
      * <p>If the listener fires while the store monitor is held, the listener's downstream lock
-     * acquisition (e.g. {@code SingleInputGate.queueChannel} taking the gate's
-     * {@code inputChannelsWithData} monitor) can deadlock against a task thread that already holds
-     * that monitor and is trying to acquire the store monitor (via {@code peekNextDataType}). This
-     * is the AB-BA deadlock pattern observed in JVM-level deadlock reports. The contract aligns
-     * with {@link RecoveredBufferStoreImpl#checkpoint} / {@link RecoveredBufferStoreImpl#releaseAll}
-     * / {@link RecoveredBufferStoreImpl#notifyCheckpointStopped}, all of which fire callbacks
-     * outside the store lock.
+     * acquisition (e.g. {@code SingleInputGate.queueChannel} taking the gate's {@code
+     * inputChannelsWithData} monitor) can deadlock against a task thread that already holds that
+     * monitor and is trying to acquire the store monitor (via {@code peekNextDataType}). This is
+     * the AB-BA deadlock pattern observed in JVM-level deadlock reports. The contract aligns with
+     * {@link RecoveredBufferStoreImpl#checkpoint} / {@link RecoveredBufferStoreImpl#releaseAll} /
+     * {@link RecoveredBufferStoreImpl#notifyCheckpointStopped}, all of which fire callbacks outside
+     * the store lock.
      */
     @Test
     void testDataAvailableListenerFiresOutsideStoreMonitor() {
@@ -461,14 +457,10 @@ class RecoveredBufferStoreTest {
         store.releaseAll();
     }
 
-    // ---------------------------------------------------------------------------
-    // Tests for coordinator notification on checkpoint
-    // ---------------------------------------------------------------------------
-
     /**
-     * Verify that the coordinator registered via setCoordinator receives
-     * onChannelCheckpointStarted during checkpoint() after snapshotting ready buffers, with the
-     * correct checkpointId and channelInfo.
+     * Verify that the coordinator registered via setCoordinator receives onChannelCheckpointStarted
+     * during checkpoint() after snapshotting ready buffers, with the correct checkpointId and
+     * channelInfo.
      */
     @Test
     void testCheckpointNotifiesCoordinatorAfterSnapshot() throws Exception {
@@ -499,9 +491,7 @@ class RecoveredBufferStoreTest {
         store.releaseAll();
     }
 
-    /**
-     * Verify checkpoint() without any ready buffers still notifies the coordinator.
-     */
+    /** Verify checkpoint() without any ready buffers still notifies the coordinator. */
     @Test
     void testCheckpointNotifiesCoordinatorEvenWhenNoReadyBuffers() throws Exception {
         InputChannelInfo channelInfo = new InputChannelInfo(1, 2);
@@ -535,8 +525,8 @@ class RecoveredBufferStoreTest {
     }
 
     /**
-     * Verify notifyCheckpointStopped forwards the call to the registered coordinator with the
-     * bound channel info.
+     * Verify notifyCheckpointStopped forwards the call to the registered coordinator with the bound
+     * channel info.
      */
     @Test
     void testNotifyCheckpointStoppedNotifiesCoordinator() {
@@ -563,10 +553,6 @@ class RecoveredBufferStoreTest {
         store.notifyCheckpointStopped(7L);
     }
 
-    // ---------------------------------------------------------------------------
-    // Tests for setDataAvailableListener via interface
-    // ---------------------------------------------------------------------------
-
     /**
      * Verify setDataAvailableListener can be called through the RecoveredBufferStore interface
      * without instanceof casts.
@@ -585,10 +571,6 @@ class RecoveredBufferStoreTest {
 
         store.releaseAll();
     }
-
-    // ---------------------------------------------------------------------------
-    // Tests for RecoveredBufferStore.EMPTY singleton
-    // ---------------------------------------------------------------------------
 
     /** Verify all methods of EMPTY return expected no-op / sentinel values. */
     @Test
@@ -636,10 +618,6 @@ class RecoveredBufferStoreTest {
         // No exception == pass
     }
 
-    // ---------------------------------------------------------------------------
-    // Locking-contract regression tests
-    // ---------------------------------------------------------------------------
-
     /**
      * Calling a {@code @GuardedBy("this")} method without holding the store monitor must trip the
      * {@code assert Thread.holdsLock(this)} guard under {@code -ea}. This locks the contract in:
@@ -673,13 +651,13 @@ class RecoveredBufferStoreTest {
     }
 
     /**
-     * Concurrent drain test: when the producer keeps appending and the consumer keeps polling,
-     * each {@code tryTake + peekNextDataType} pair observed by the consumer must be self-
-     * consistent — if {@code peekNextDataType()} returns {@code NONE} after a successful tryTake
-     * it must mean the next tryTake on the same thread also returns null (modulo any further
-     * producer activity that happened strictly after the peek), and if it returns a non-NONE type
-     * the next tryTake must return a buffer with that type. The test guards against future
-     * regressions where someone splits the take/peek pair across two store-lock acquisitions.
+     * Concurrent drain test: when the producer keeps appending and the consumer keeps polling, each
+     * {@code tryTake + peekNextDataType} pair observed by the consumer must be self- consistent —
+     * if {@code peekNextDataType()} returns {@code NONE} after a successful tryTake it must mean
+     * the next tryTake on the same thread also returns null (modulo any further producer activity
+     * that happened strictly after the peek), and if it returns a non-NONE type the next tryTake
+     * must return a buffer with that type. The test guards against future regressions where someone
+     * splits the take/peek pair across two store-lock acquisitions.
      */
     @Test
     void testTryTakePeekPairAtomicUnderConcurrency() throws Exception {

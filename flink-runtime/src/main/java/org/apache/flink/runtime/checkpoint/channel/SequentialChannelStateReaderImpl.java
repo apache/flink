@@ -68,13 +68,11 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
     public void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
             throws IOException, InterruptedException {
 
-        // Create filtering handler if filtering is needed
         ChannelStateFilteringHandler filteringHandler =
                 filterContext.isCheckpointingDuringRecoveryEnabled()
                         ? ChannelStateFilteringHandler.createFromContext(filterContext, inputGates)
                         : null;
 
-        // Create per-channel stores and FilteredBufferDispatcher when filtering is enabled
         FilteredBufferDispatcher dispatcher = null;
         if (filteringHandler != null) {
             Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel =
@@ -112,21 +110,14 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
             }
 
             if (d != null) {
+                // flush() seals Readers; finishRecovery() triggers channel conversion;
+                // drainPendingSpill() blocks without holding the dispatcher monitor.
                 d.flush();
-                // Explicit call sequence (see requirements/38544/close_drain_separation.md):
-                //   flush()              -> seal Readers
-                //   finishRecovery()     -> trigger channel conversion
-                //   drainPendingSpill()  -> blocking drain (no monitor held)
-                // try-with-resources still owns the final close() pass for resource release.
                 stateHandler.finishRecovery();
                 d.drainPendingSpill();
             } else {
                 stateHandler.finishRecovery();
             }
-            // try-with-resources auto-close is a pure resource release pass:
-            //   stateHandler.close() -> releases preFilterSegment if allocated
-            //   d.close()            -> deletes spill files / closes file channel
-            //   filteringHandler.close()
         }
     }
 
@@ -177,10 +168,6 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
         }
     }
 
-    /**
-     * Creates a RecoveredBufferStoreImpl for each RecoveredInputChannel and wires the notification
-     * callback. Only called when filtering is enabled.
-     */
     private Map<InputChannelInfo, RecoveredBufferStoreImpl> createPerChannelStores(
             InputGate[] inputGates) {
         Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel = new HashMap<>();
@@ -190,9 +177,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                 if (ch instanceof RecoveredInputChannel) {
                     RecoveredInputChannel recoveredCh = (RecoveredInputChannel) ch;
                     InputChannelInfo info = recoveredCh.getChannelInfo();
-                    // RecoveredInputChannel already creates its own store internally and wires the
-                    // notification callback. Reuse the existing store so that all paths (non-
-                    // filtering and filtering) deliver to the same store instance.
+                    // Reuse the channel's own store so filtering and non-filtering paths deliver
+                    // to the same instance.
                     RecoveredBufferStoreImpl store = recoveredCh.getStore();
                     storesByChannel.put(info, store);
                 }
@@ -201,10 +187,6 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
         return storesByChannel;
     }
 
-    /**
-     * Creates a {@link FilteredBufferDispatcher} from the per-channel stores. The requester is
-     * keyed by {@link InputChannelInfo} so each channel draws from its own pool.
-     */
     private FilteredBufferDispatcher createFilteredBufferDispatcher(
             InputGate[] inputGates,
             Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel,
@@ -214,7 +196,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
         String[] spillDirs = filterContext.getTmpDirectories();
         int memorySegmentSize = filterContext.getMemorySegmentSize();
 
-        // Use the channelStateWriter from any channel (all channels share the same writer).
+        // All channels share the same writer.
         RecoveredInputChannel anyChannel = channelMap.values().iterator().next();
 
         return new FilteredBufferDispatcherImpl(
@@ -225,10 +207,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                 new RecoveredChannelBufferRequester(channelMap));
     }
 
-    /**
-     * {@link BufferRequester} backed by a {@link RecoveredInputChannel} map, routing each channel's
-     * request to its own exclusive buffer pool.
-     */
+    /** {@link BufferRequester} routing each channel's request to its own exclusive pool. */
     private static final class RecoveredChannelBufferRequester implements BufferRequester {
 
         private final Map<InputChannelInfo, RecoveredInputChannel> channelMap;
@@ -250,11 +229,9 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
 
         @Override
         public void releaseExclusiveBuffers() throws IOException {
-            // Drain is finished. Mark each channel's drain-done flag; the actual release fires
-            // in a two-flag rendezvous (drainDone + converted) inside RecoveredInputChannel —
-            // releasing here directly would race with mailbox-driven convertRecoveredInputChannels
-            // and cause task pollNext on the not-yet-replaced gate slot to hit the released-channel
-            // checkState in RecoveredInputChannel#getNextRecoveredStateBuffer.
+            // Two-flag rendezvous (drainDone + converted): releasing here directly would race
+            // mailbox-driven convertRecoveredInputChannels and cause pollNext on the not-yet-
+            // replaced gate slot to hit the released-channel checkState.
             for (RecoveredInputChannel ch : channelMap.values()) {
                 ch.markDrainDone();
             }

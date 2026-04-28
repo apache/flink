@@ -183,11 +183,8 @@ class ChannelStateCheckpointWriter {
     }
 
     /**
-     * Writes spilled input channel state chunks to the checkpoint DataOutputStream. Each chunk is
-     * written as [4-byte length prefix][data bytes], matching the format of the buffer-based path.
-     *
-     * <p>Iterates over all chunks from the iterator, grouping consecutive chunks of the same
-     * channel into a single offset entry. The iterator is closed when done.
+     * Writes spilled input-channel state chunks as [4-byte length prefix][data bytes], matching the
+     * buffer-based path. The iterator is closed when done.
      */
     void writeInputFromSpill(
             JobVertexID jobVertexID,

@@ -51,7 +51,6 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 /** Tests for {@link FilteredBufferDispatcherImpl}. */
@@ -81,14 +80,9 @@ class FilteredBufferDispatcherTest {
     }
 
     @AfterEach
-    void tearDown() {
-        // Temp dir auto-cleaned by @TempDir
-    }
+    void tearDown() {}
 
-    /**
-     * Test-only subclass of RecoveredBufferStoreImpl that records whether setCoordinator was
-     * called and captures the registered coordinator, without using Mockito.
-     */
+    /** Records setCoordinator calls without Mockito. */
     private static class TrackingBufferStore extends RecoveredBufferStoreImpl {
         private RecoveredBufferStoreCoordinator registeredCoordinator;
         private int setCoordinatorCount = 0;
@@ -104,8 +98,6 @@ class FilteredBufferDispatcherTest {
             this.setCoordinatorCount++;
         }
     }
-
-    // --- Helper methods ---
 
     private Buffer createBuffer() {
         return new NetworkBuffer(
@@ -127,7 +119,6 @@ class FilteredBufferDispatcherTest {
         return data;
     }
 
-    /** Drains all ready buffers from a store and returns their data. */
     private List<byte[]> drainStore(RecoveredBufferStoreImpl store) {
         List<byte[]> result = new ArrayList<>();
         while (true) {
@@ -146,7 +137,6 @@ class FilteredBufferDispatcherTest {
         return result;
     }
 
-    /** Concatenates all byte arrays into a single byte array. */
     private byte[] concat(List<byte[]> chunks) {
         int totalLen = chunks.stream().mapToInt(a -> a.length).sum();
         byte[] result = new byte[totalLen];
@@ -158,12 +148,9 @@ class FilteredBufferDispatcherTest {
         return result;
     }
 
-    // --- Tests ---
-
     /** Buffer always available, no disk. All data flows to stores via buffers. */
     @Test
     void testP1MemoryPath() throws Exception {
-        // Provide plenty of buffers so no spilling happens
         Queue<Buffer> pool = createBufferPool(10);
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
@@ -187,7 +174,6 @@ class FilteredBufferDispatcherTest {
     /** Buffer supplier always returns null. Data goes to disk, replayed on close. */
     @Test
     void testP2SpillPath() throws Exception {
-        // No buffers for write, but provide blocking buffers for close drain
         Queue<Buffer> drainPool = createBufferPool(5);
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
@@ -201,13 +187,11 @@ class FilteredBufferDispatcherTest {
         writer.write(data, data.length, ch0);
         writer.flush();
 
-        // Before drain, store should have no ready buffers (data is on disk as pending)
         assertThat(tryTake(store0)).isNull();
 
         writer.drainPendingSpill();
         writer.close();
 
-        // After drain, data should be in store
         List<byte[]> buffers = drainStore(store0);
         byte[] actual = concat(buffers);
         assertThat(actual).isEqualTo(data);
@@ -218,7 +202,6 @@ class FilteredBufferDispatcherTest {
     @Test
     void testP3ReplayPath() throws Exception {
         Queue<Buffer> pool = new LinkedList<>();
-        // No buffer initially — first write spills
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
                         stores,
@@ -227,21 +210,18 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool));
 
-        // Write exactly SEGMENT_SIZE so the spill entry is auto-sealed
         byte[] data1 = createTestData(SEGMENT_SIZE, (byte) 0x11);
         writer.write(data1, data1.length, ch0);
 
-        // Now add buffers — next write triggers P3 eager drain
+        // Buffers added — next write triggers P3 eager drain.
         pool.addAll(createBufferPool(5));
 
-        // Write to ch1 — channel change flushes ch0, then P3 drains the spilled entry
         byte[] data2 = createTestData(SEGMENT_SIZE, (byte) 0x22);
         writer.write(data2, data2.length, ch1);
         writer.flush();
         writer.drainPendingSpill();
         writer.close();
 
-        // ch0's data should be replayed from disk via P3
         List<byte[]> buf0 = drainStore(store0);
         assertThat(concat(buf0)).isEqualTo(data1);
 
@@ -263,7 +243,6 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         TestBufferPool.drainOnly(drainPool));
 
-        // Write to ch0 then ch1 — both spill to disk
         byte[] d0 = createTestData(SEGMENT_SIZE, (byte) 0x10);
         byte[] d1 = createTestData(SEGMENT_SIZE, (byte) 0x20);
         writer.write(d0, d0.length, ch0);
@@ -272,7 +251,6 @@ class FilteredBufferDispatcherTest {
         writer.drainPendingSpill();
         writer.close();
 
-        // Both stores should have data after drain
         assertThat(concat(drainStore(store0))).isEqualTo(d0);
         assertThat(concat(drainStore(store1))).isEqualTo(d1);
     }
@@ -283,7 +261,6 @@ class FilteredBufferDispatcherTest {
     @Test
     void testP3EagerDrain() throws Exception {
         Queue<Buffer> pool = new LinkedList<>();
-        // No buffers initially
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
                         stores,
@@ -292,13 +269,11 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool));
 
-        // Spill 3 entries for ch0 (each exactly SEGMENT_SIZE so they auto-seal)
         for (int i = 0; i < 3; i++) {
             byte[] d = createTestData(SEGMENT_SIZE, (byte) (0x30 + i));
             writer.write(d, d.length, ch0);
         }
 
-        // Now provide buffers and write to ch1 — P3 eager drain should replay all 3 entries
         pool.addAll(createBufferPool(10));
 
         byte[] d3 = createTestData(SEGMENT_SIZE, (byte) 0x40);
@@ -307,14 +282,12 @@ class FilteredBufferDispatcherTest {
         writer.drainPendingSpill();
         writer.close();
 
-        // Verify all 3 entries were drained to store0
         List<byte[]> results = drainStore(store0);
         assertThat(results).hasSize(3);
         for (int i = 0; i < 3; i++) {
             assertThat(results.get(i)).isEqualTo(createTestData(SEGMENT_SIZE, (byte) (0x30 + i)));
         }
 
-        // ch1's data should also be correct
         assertThat(concat(drainStore(store1))).isEqualTo(d3);
     }
 
@@ -324,7 +297,7 @@ class FilteredBufferDispatcherTest {
      */
     @Test
     void testBackendDowngradeOnly() throws Exception {
-        Queue<Buffer> pool = createBufferPool(1); // Only 1 buffer available
+        Queue<Buffer> pool = createBufferPool(1);
         Queue<Buffer> drainPool = createBufferPool(5);
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
@@ -334,14 +307,13 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool, drainPool));
 
-        // Write data larger than one buffer — first SEGMENT_SIZE goes to buffer, rest to disk
+        // First SEGMENT_SIZE goes to buffer, rest to disk.
         byte[] data = createTestData(SEGMENT_SIZE * 2, (byte) 0x44);
         writer.write(data, data.length, ch0);
         writer.flush();
         writer.drainPendingSpill();
         writer.close();
 
-        // All data should be recovered
         List<byte[]> results = drainStore(store0);
         byte[] actual = concat(results);
         assertThat(actual).isEqualTo(data);
@@ -350,7 +322,7 @@ class FilteredBufferDispatcherTest {
     /** Data starts in buffer, spans to file when buffer full. */
     @Test
     void testCrossBackendRecordSpanning() throws Exception {
-        Queue<Buffer> pool = createBufferPool(1); // 1 buffer of SEGMENT_SIZE
+        Queue<Buffer> pool = createBufferPool(1);
         Queue<Buffer> drainPool = createBufferPool(5);
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
@@ -360,11 +332,9 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool, drainPool));
 
-        // Write half a buffer
         byte[] part1 = createTestData(SEGMENT_SIZE / 2, (byte) 0x55);
         writer.write(part1, part1.length, ch0);
 
-        // Write data that exceeds the remaining buffer capacity
         byte[] part2 = createTestData(SEGMENT_SIZE, (byte) 0x66);
         writer.write(part2, part2.length, ch0);
 
@@ -372,7 +342,6 @@ class FilteredBufferDispatcherTest {
         writer.drainPendingSpill();
         writer.close();
 
-        // All data should be present
         List<byte[]> results = drainStore(store0);
         byte[] actual = concat(results);
         byte[] expected = new byte[part1.length + part2.length];
@@ -393,18 +362,16 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool));
 
-        // Write partial data to ch0
         byte[] d0 = createTestData(SEGMENT_SIZE / 2, (byte) 0x77);
         writer.write(d0, d0.length, ch0);
 
-        // Switch to ch1 — should flush ch0's partial buffer
+        // Channel switch should flush ch0's partial buffer.
         byte[] d1 = createTestData(SEGMENT_SIZE / 2, (byte) 0x88);
         writer.write(d1, d1.length, ch1);
 
         writer.flush();
         writer.close();
 
-        // ch0 should have received its partial buffer
         List<byte[]> results0 = drainStore(store0);
         assertThat(concat(results0)).isEqualTo(d0);
 
@@ -432,7 +399,6 @@ class FilteredBufferDispatcherTest {
         writer.drainPendingSpill();
         writer.close();
 
-        // Both channels' data should be correct after drain
         assertThat(concat(drainStore(store0))).isEqualTo(d0);
         assertThat(concat(drainStore(store1))).isEqualTo(d1);
     }
@@ -449,26 +415,22 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool));
 
-        // Spill 2 entries to ch0 (each exactly SEGMENT_SIZE so they auto-seal)
         byte[] d1 = createTestData(SEGMENT_SIZE, (byte) 0x01);
         byte[] d2 = createTestData(SEGMENT_SIZE, (byte) 0x02);
         writer.write(d1, d1.length, ch0);
         writer.write(d2, d2.length, ch0);
 
-        // Add only 1 buffer — partial replay (only 1 of 2 entries will drain)
+        // Only 1 buffer — partial replay: only 1 of 2 entries drains.
         pool.add(createBuffer());
 
-        // Write to ch1 — channel change triggers flush, then P3 drains 1 entry
         byte[] d3 = createTestData(SEGMENT_SIZE, (byte) 0x03);
         writer.write(d3, d3.length, ch1);
 
-        // Provide remaining buffers for drain
         pool.addAll(createBufferPool(5));
         writer.flush();
         writer.drainPendingSpill();
         writer.close();
 
-        // All data should be correct
         List<byte[]> results0 = drainStore(store0);
         assertThat(results0).hasSize(2);
         assertThat(results0.get(0)).isEqualTo(d1);
@@ -487,26 +449,22 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         TestBufferPool.drainOnly(drainPool));
 
-        // Spill multiple entries
         for (int i = 0; i < 5; i++) {
             byte[] data = createTestData(SEGMENT_SIZE, (byte) i);
             writer.write(data, data.length, ch0);
         }
         writer.flush();
 
-        // Before drain, no ready buffers
         assertThat(tryTake(store0)).isNull();
 
         writer.drainPendingSpill();
 
-        // After drain, all 5 entries should be delivered to the store
         List<byte[]> results = drainStore(store0);
         assertThat(results).hasSize(5);
         for (int i = 0; i < 5; i++) {
             assertThat(results.get(i)).isEqualTo(createTestData(SEGMENT_SIZE, (byte) i));
         }
 
-        // close() is pure resource release — no additional drain
         writer.close();
         assertThat(tryTake(store0)).isNull();
     }
@@ -526,7 +484,6 @@ class FilteredBufferDispatcherTest {
         writer.flush();
         writer.drainPendingSpill();
         writer.close();
-        // Second close should not throw
         writer.close();
     }
 
@@ -546,7 +503,6 @@ class FilteredBufferDispatcherTest {
         writer.write(data, data.length, ch0);
         writer.flush();
 
-        // Verify spill files exist
         try (Stream<Path> files =
                 Files.list(tempDir).filter(p -> p.getFileName().toString().startsWith("spill-"))) {
             assertThat(files.count()).isGreaterThan(0);
@@ -555,7 +511,6 @@ class FilteredBufferDispatcherTest {
         writer.drainPendingSpill();
         writer.close();
 
-        // After close, spill files should be deleted
         try (Stream<Path> files =
                 Files.list(tempDir).filter(p -> p.getFileName().toString().startsWith("spill-"))) {
             assertThat(files.count()).isEqualTo(0);
@@ -616,17 +571,11 @@ class FilteredBufferDispatcherTest {
                 .isInstanceOf(IOException.class);
     }
 
-    /** Enough data for 3+ file rotations. All replayed correctly. */
+    /** Enough data for many spill entries. All replayed correctly. */
     @Test
     void testLargeDataMultiRotation() throws Exception {
-        // FilteredSpillFile rotates at 64MB. Use small segments and many writes to trigger rotation.
-        // For testing, we write enough data to cause rotation. FilteredSpillFile threshold is 64MB.
-        // We use a small segment size and write enough data to exceed 64MB.
-        // To avoid enormous test data, we use a smaller approach:
-        // The rotation threshold in FilteredSpillFile is 64*1024*1024.
-        // We need to write > 192MB of data for 3+ rotations.
-        // For a unit test, this is too much. Instead, we verify the mechanism works
-        // by writing enough data that results in multiple spill entries and verifying correctness.
+        // FilteredSpillFile rotates at 64MB; truly testing rotation needs >192MB which is too
+        // much for a unit test. Verify the mechanism with many entries instead.
         int entryCount = 100;
         int segmentSize = 256;
         Queue<Buffer> drainPool = new LinkedList<>();
@@ -675,8 +624,6 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool));
 
-        // The write method accepts data, length, channelInfo — this is the unified interface
-        // used by filterAndRewrite. Verify it works for multiple channels.
         byte[] d0 = createTestData(32, (byte) 0xF0);
         byte[] d1 = createTestData(32, (byte) 0xF1);
 
@@ -701,7 +648,7 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         TestBufferPool.drainOnly(drainPool));
 
-        // Write exactly 3 * SEGMENT_SIZE bytes — should create exactly 3 spill entries
+        // 3 * SEGMENT_SIZE bytes → exactly 3 spill entries, 1:1 with buffers.
         for (int i = 0; i < 3; i++) {
             byte[] data = createTestData(SEGMENT_SIZE, (byte) (0xA0 + i));
             writer.write(data, data.length, ch0);
@@ -710,7 +657,6 @@ class FilteredBufferDispatcherTest {
         writer.drainPendingSpill();
         writer.close();
 
-        // Each spill entry maps 1:1 to a buffer
         List<byte[]> results = drainStore(store0);
         assertThat(results).hasSize(3);
         for (int i = 0; i < 3; i++) {
@@ -718,10 +664,6 @@ class FilteredBufferDispatcherTest {
             assertThat(results.get(i)).isEqualTo(createTestData(SEGMENT_SIZE, (byte) (0xA0 + i)));
         }
     }
-
-    // ---------------------------------------------------------------------------
-    // Tests for dispatcher registration and wait-set state machine
-    // ---------------------------------------------------------------------------
 
     /**
      * After construction, each store has its coordinator registered to the
@@ -744,7 +686,6 @@ class FilteredBufferDispatcherTest {
                         SEGMENT_SIZE,
                         new TestBufferPool(pool));
 
-        // Both stores must have had setCoordinator called exactly once with the dispatcher.
         assertThat(trackStore0.setCoordinatorCount).isEqualTo(1);
         assertThat(trackStore0.registeredCoordinator).isSameAs(writer);
         assertThat(trackStore1.setCoordinatorCount).isEqualTo(1);
@@ -871,7 +812,8 @@ class FilteredBufferDispatcherTest {
 
         // ch0 removed on first call; second call is a no-op (already absent from set).
         writer.onChannelCheckpointStarted(10L, ch0, writer.getCurrentDrainHead());
-        writer.onChannelCheckpointStarted(10L, ch0, writer.getCurrentDrainHead()); // idempotent — no exception
+        writer.onChannelCheckpointStarted(
+                10L, ch0, writer.getCurrentDrainHead()); // idempotent — no exception
 
         writer.drainPendingSpill();
         writer.close();
@@ -923,8 +865,8 @@ class FilteredBufferDispatcherTest {
     /**
      * wait-set reaching empty triggers phase2 {@code drainSpillEntriesToCheckpoint}: the sealed
      * readers are snapshotted and streamed to the ChannelStateWriter, but the original readers and
-     * store state are left intact. drainPendingSpill() then still delivers every entry to the
-     * store via network buffers.
+     * store state are left intact. drainPendingSpill() then still delivers every entry to the store
+     * via network buffers.
      */
     @Test
     void testWaitSetEmptyTriggersPhase2SnapshotThenDrainDeliversBuffers() throws Exception {
@@ -957,13 +899,9 @@ class FilteredBufferDispatcherTest {
         assertThat(actual).isEqualTo(payload);
     }
 
-    // -----------------------------------------------------------------------------------------
-    // Phase2 disk checkpoint tests
-    // -----------------------------------------------------------------------------------------
-
     /**
-     * A recording ChannelStateWriter that captures addInputDataFromSpill calls for assertions.
-     * Drains the chunk iterator synchronously so tests can assert on actual bytes and channel info.
+     * Captures addInputDataFromSpill calls for assertions; drains the chunk iterator synchronously
+     * so tests can assert on actual bytes and channel info.
      */
     private static class RecordingChannelStateWriter
             extends ChannelStateWriter.NoOpChannelStateWriter {
@@ -1165,7 +1103,8 @@ class FilteredBufferDispatcherTest {
         writer.onChannelCheckpointStarted(checkpointId, ch1, writer.getCurrentDrainHead());
         assertThat(recordingWriter.inputDataCalls).hasSize(2);
 
-        // drainPendingSpill(): both entries additionally delivered to the stores (task-facing pipeline)
+        // drainPendingSpill(): both entries additionally delivered to the stores (task-facing
+        // pipeline)
         writer.drainPendingSpill();
         writer.close();
 
@@ -1182,10 +1121,6 @@ class FilteredBufferDispatcherTest {
         assertThat(got0).isEqualTo(payload0);
         assertThat(got1).isEqualTo(payload1);
     }
-
-    // -----------------------------------------------------------------------------------------
-    // Release listener tests: releaseAll() on a store must also drop the channel's disk entries.
-    // -----------------------------------------------------------------------------------------
 
     /**
      * After a store is released, its pending disk entries must be dropped from every Reader so the
@@ -1258,15 +1193,11 @@ class FilteredBufferDispatcherTest {
         writer.close();
     }
 
-    // -----------------------------------------------------------------------------------------
-    // onChannelCheckpointStopped tests
-    // -----------------------------------------------------------------------------------------
-
     /**
-     * After a checkpoint is aborted (i.e. all stores called notifyCheckpointStopped), a
-     * subsequent channel release must NOT trigger a phase-2 drain into the stopped checkpoint —
-     * the writer for that id is gone and any drain would either be wasted work or rely on the
-     * writer's isDone() guard to silently swallow the data.
+     * After a checkpoint is aborted (i.e. all stores called notifyCheckpointStopped), a subsequent
+     * channel release must NOT trigger a phase-2 drain into the stopped checkpoint — the writer for
+     * that id is gone and any drain would either be wasted work or rely on the writer's isDone()
+     * guard to silently swallow the data.
      */
     @Test
     void testReleaseAfterStoppedCheckpointDoesNotDrainStoppedCheckpoint() throws Exception {
@@ -1303,8 +1234,8 @@ class FilteredBufferDispatcherTest {
     }
 
     /**
-     * A late {@code onChannelCheckpointStarted} for a checkpoint that has already been stopped
-     * must be ignored as stale, even if a new checkpoint has not yet started.
+     * A late {@code onChannelCheckpointStarted} for a checkpoint that has already been stopped must
+     * be ignored as stale, even if a new checkpoint has not yet started.
      */
     @Test
     void testLateCheckpointStartedAfterStoppedIsIgnored() throws Exception {
@@ -1371,10 +1302,6 @@ class FilteredBufferDispatcherTest {
         writer.close();
     }
 
-    // -----------------------------------------------------------------------------------------
-    // AT-CABT / AT-INTR / AT-LOCK: close/drain contract regression tests
-    // -----------------------------------------------------------------------------------------
-
     /**
      * A BufferRequester whose blocking path parks indefinitely until interrupted. Used to verify
      * that callers that should NOT invoke requestBufferBlocking (e.g. close()) are not blocked.
@@ -1417,11 +1344,7 @@ class FilteredBufferDispatcherTest {
 
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
-                        stores,
-                        ChannelStateWriter.NO_OP,
-                        spillDirs,
-                        SEGMENT_SIZE,
-                        requester);
+                        stores, ChannelStateWriter.NO_OP, spillDirs, SEGMENT_SIZE, requester);
 
         byte[] data = createTestData(SEGMENT_SIZE, (byte) 0xAB);
         writer.write(data, data.length, ch0);
@@ -1460,11 +1383,7 @@ class FilteredBufferDispatcherTest {
 
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
-                        stores,
-                        ChannelStateWriter.NO_OP,
-                        spillDirs,
-                        SEGMENT_SIZE,
-                        requester);
+                        stores, ChannelStateWriter.NO_OP, spillDirs, SEGMENT_SIZE, requester);
 
         byte[] data = createTestData(SEGMENT_SIZE, (byte) 0xBC);
         writer.write(data, data.length, ch0);
@@ -1511,10 +1430,6 @@ class FilteredBufferDispatcherTest {
             assertThat(files.count()).isEqualTo(0);
         }
     }
-
-    // -----------------------------------------------------------------------------------------
-    // Phase-2 per-channel startPos filtering (drain race fix)
-    // -----------------------------------------------------------------------------------------
 
     /**
      * Phase 2 must respect each channel's recorded {@code startPos}: entries with position strictly
@@ -1672,8 +1587,8 @@ class FilteredBufferDispatcherTest {
     }
 
     /**
-     * The {@code drainHead} field must advance only after each drain bundle's {@code addBuffer},
-     * so an external observer reading {@code getCurrentDrainHead()} can rely on the invariant
+     * The {@code drainHead} field must advance only after each drain bundle's {@code addBuffer}, so
+     * an external observer reading {@code getCurrentDrainHead()} can rely on the invariant
      * "drainHead crossed e ⇒ e is in store.readyBuffers". This test exercises the public
      * observable: at flush() drainHead points at the first entry; after each drain bundle commits,
      * drainHead advances to the next entry; after the last entry drainHead reaches END.
@@ -1711,11 +1626,11 @@ class FilteredBufferDispatcherTest {
     /**
      * Before the {@link #drainPendingSpill()} bundle was made atomic, a phase-2 snapshot taken in
      * the gap between {@code reader.skipNextEntry()} (entry gone from disk-side bookkeeping) and
-     * {@code store.addBuffer()} (entry not yet in the channel's readyBuffers) would lose the
-     * entry: Step 1 captures no buffer, phase-2 sees no entry. This test exercises the invariant
-     * by injecting an {@code onChannelCheckpointStarted} call between two drain bundles and
-     * asserting that every spilled entry appears either in the channel's readyBuffers (Step 1) or
-     * in phase-2 capture — never neither.
+     * {@code store.addBuffer()} (entry not yet in the channel's readyBuffers) would lose the entry:
+     * Step 1 captures no buffer, phase-2 sees no entry. This test exercises the invariant by
+     * injecting an {@code onChannelCheckpointStarted} call between two drain bundles and asserting
+     * that every spilled entry appears either in the channel's readyBuffers (Step 1) or in phase-2
+     * capture — never neither.
      */
     @Test
     void testNoEntryLostBetweenDrainAndCheckpointTrigger() throws Exception {
@@ -1801,11 +1716,7 @@ class FilteredBufferDispatcherTest {
 
         FilteredBufferDispatcherImpl writer =
                 new FilteredBufferDispatcherImpl(
-                        stores,
-                        ChannelStateWriter.NO_OP,
-                        spillDirs,
-                        SEGMENT_SIZE,
-                        requester);
+                        stores, ChannelStateWriter.NO_OP, spillDirs, SEGMENT_SIZE, requester);
 
         // Set up checkpoint wait-set state so onChannelCheckpointStopped follows the full path.
         // notifyCheckpointStopped on the stores will call writer.onChannelCheckpointStopped.

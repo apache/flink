@@ -49,17 +49,14 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Filters recovered channel state buffers during the channel-state-unspilling phase, removing
- * records that do not belong to the current subtask after rescaling.
- *
- * <p>Uses a per-gate architecture: each {@link InputGate} gets its own {@link GateFilterHandler}
- * with the correct serializer, so multi-input tasks (e.g., TwoInputStreamTask) correctly
- * deserialize different record types on different gates.
+ * Filters recovered channel-state buffers during the unspilling phase, dropping records that don't
+ * belong to the current subtask after rescaling. Each {@link InputGate} has its own {@link
+ * GateFilterHandler} with the correct serializer so multi-input tasks deserialize different record
+ * types on different gates.
  */
 @Internal
 public class ChannelStateFilteringHandler implements Closeable {
 
-    // Wildcard allows heterogeneous record types across gates.
     private final GateFilterHandler<?>[] gateHandlers;
 
     ChannelStateFilteringHandler(GateFilterHandler<?>[] gateHandlers) {
@@ -67,14 +64,12 @@ public class ChannelStateFilteringHandler implements Closeable {
     }
 
     /**
-     * Creates a handler from the recovery context, building per-gate virtual channels based on
-     * rescaling descriptors. Returns {@code null} if no filtering is needed (e.g., source tasks or
-     * no rescaling).
+     * Builds per-gate virtual channels from the rescaling descriptor. Returns {@code null} when no
+     * filtering is needed (source tasks, no rescaling).
      */
     @Nullable
     public static ChannelStateFilteringHandler createFromContext(
             RecordFilterContext filterContext, InputGate[] inputGates) {
-        // Source tasks have no network inputs
         if (filterContext.getNumberOfGates() == 0) {
             return null;
         }
@@ -101,14 +96,9 @@ public class ChannelStateFilteringHandler implements Closeable {
     }
 
     /**
-     * Filters a recovered buffer from the specified virtual channel, writing surviving records to
-     * the given {@link FilteredBufferDispatcher}. The dispatcher manages buffer allocation, disk
-     * spilling, and delivery to the target channel's store.
-     *
-     * <p>One source buffer may produce 0 to N records written to the dispatcher: 0 if all records
-     * are filtered out, and potentially more than 1 when a spanning record completes in this
-     * buffer. The deserializer caches partial record data from previous buffers, so the output may
-     * contain data that was not in the current source buffer.
+     * Filters records from {@code sourceBuffer} on the given virtual channel and writes survivors
+     * to {@code dispatcher}. One source buffer may yield 0..N records (the deserializer caches
+     * partial-record data across buffers).
      */
     public void filterAndRewrite(
             int gateIndex,
@@ -138,7 +128,6 @@ public class ChannelStateFilteringHandler implements Closeable {
                 oldSubtaskIndex, oldChannelIndex, sourceBuffer, dispatcher, targetChannelInfo);
     }
 
-    /** Returns {@code true} if any virtual channel has a partial (spanning) record pending. */
     public boolean hasPartialData() {
         for (GateFilterHandler<?> handler : gateHandlers) {
             if (handler != null && handler.hasPartialData()) {
@@ -157,14 +146,7 @@ public class ChannelStateFilteringHandler implements Closeable {
         }
     }
 
-    // -------------------------------------------------------------------------------------------
-    // Private static helper methods
-    // -------------------------------------------------------------------------------------------
-
-    /**
-     * Creates a {@link GateFilterHandler} for a single gate. The method-level type parameter
-     * ensures type safety within each gate while allowing different gates to have different types.
-     */
+    /** Method-level {@code <T>} keeps each gate type-safe while allowing heterogeneous gates. */
     @SuppressWarnings("unchecked")
     @Nullable
     private static <T> GateFilterHandler<T> createGateHandler(
@@ -205,7 +187,7 @@ public class ChannelStateFilteringHandler implements Closeable {
                     continue;
                 }
 
-                // Only ambiguous channels need actual filtering; non-ambiguous ones pass through
+                // Only ambiguous channels need filtering; non-ambiguous ones pass through.
                 boolean isAmbiguous = rescalingDescriptor.isAmbiguous(gateIndex, oldSubtaskIndex);
 
                 RecordFilter<T> recordFilter =
@@ -228,10 +210,7 @@ public class ChannelStateFilteringHandler implements Closeable {
         return new GateFilterHandler<>(gateVirtualChannels, elementSerializer);
     }
 
-    /**
-     * Collects all old channel indexes that are mapped from any new channel index in this gate.
-     * channelMapping is new-to-old, so we iterate new indexes and collect their old counterparts.
-     */
+    /** {@code channelMapping} is new-to-old; iterate new indexes and collect the old ones. */
     private static int[] getOldChannelIndexes(RescaleMappings channelMapping, int numChannels) {
         List<Integer> oldIndexes = new ArrayList<>();
         for (int newIndex = 0; newIndex < numChannels; newIndex++) {
@@ -255,14 +234,7 @@ public class ChannelStateFilteringHandler implements Closeable {
         }
     }
 
-    // -------------------------------------------------------------------------------------------
-    // Inner classes
-    // -------------------------------------------------------------------------------------------
-
-    /**
-     * Handles record filtering for a single input gate. Each gate has its own serializer and set of
-     * virtual channels, allowing different gates to handle different record types independently.
-     */
+    /** Filters records for a single input gate; owns its own serializer and virtual channels. */
     static class GateFilterHandler<T> {
 
         private final Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels;
@@ -280,10 +252,6 @@ public class ChannelStateFilteringHandler implements Closeable {
             this.outputSerializer = new DataOutputSerializer(128);
         }
 
-        /**
-         * Deserializes records from {@code sourceBuffer}, applies the virtual channel's record
-         * filter, and writes each surviving record to the {@link FilteredBufferDispatcher}.
-         */
         void filterAndRewrite(
                 int oldSubtaskIndex,
                 int oldChannelIndex,
@@ -328,10 +296,7 @@ public class ChannelStateFilteringHandler implements Closeable {
             }
         }
 
-        /**
-         * Serializes a single stream element using the length-prefixed format (4-byte big-endian
-         * length + record bytes) and writes it to the {@link FilteredBufferDispatcher}.
-         */
+        /** Length-prefixed format: 4-byte big-endian length + record bytes. */
         private void serializeElement(
                 StreamElement element,
                 FilteredBufferDispatcher dispatcher,

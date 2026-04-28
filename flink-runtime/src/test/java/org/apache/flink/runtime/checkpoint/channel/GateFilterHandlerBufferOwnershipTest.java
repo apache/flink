@@ -148,10 +148,6 @@ class GateFilterHandlerBufferOwnershipTest {
         assertThat(sourceBuffer.isRecycled()).isTrue();
     }
 
-    // -------------------------------------------------------------------------------------------
-    // Helper methods
-    // -------------------------------------------------------------------------------------------
-
     private ChannelStateFilteringHandler.GateFilterHandler<Long> createHandler(
             RecordFilter<Long> filter) {
         RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =

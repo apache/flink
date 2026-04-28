@@ -407,29 +407,21 @@ public class SingleInputGate extends IndexedInputGate {
                     continue;
                 }
                 try {
-                    // Phase 1: Convert channel outside the lock so toInputChannel() can acquire
-                    // the store lock internally without violating the store-then-gate lock order
-                    // observed by store.addBuffer() / notifyChannelNonEmpty().
+                    // Convert outside the lock so toInputChannel() can take the store lock
+                    // internally without violating the store-then-gate order.
                     //
                     // Do NOT call inputChannel.releaseAllResources() here: the recovered store
-                    // reference has just been transferred to the physical channel for continued
-                    // consumption, and the BufferManager's exclusive segments are still being
-                    // consumed by the dispatcher's drainPendingSpill (which is concurrent with
-                    // this conversion). Releasing either now silently wipes recovered data and
-                    // the failure surfaces downstream as EOFException / record-count mismatch.
-                    // Both are released later — the store by the physical channel's own
-                    // releaseAllResources, the BufferManager by BufferRequester#releaseExclusiveBuffers
-                    // invoked from FilteredBufferDispatcherImpl#close after drain finishes.
+                    // has just been transferred to the physical channel and the BufferManager's
+                    // exclusive segments are still being consumed by the concurrent
+                    // drainPendingSpill. Both are released later — store by the physical
+                    // channel's releaseAllResources, BufferManager by
+                    // BufferRequester#releaseExclusiveBuffers from FilteredBufferDispatcher#close.
                     InputChannel realInputChannel =
                             ((RecoveredInputChannel) inputChannel).toInputChannel();
 
-                    // Phase 2: Atomically update data structures under the lock. Reading
-                    // {@code buffersInUseCount} INSIDE the gate lock closes a TOCTOU window:
-                    // a concurrent producer could otherwise add a buffer to the channel between a
-                    // lock-free read above and the {@code inputChannelsWithData.add} below, which
-                    // — combined with notifyChannelNonEmpty already running under the same gate
-                    // lock — would either skip enqueuing the channel (count read == 0) or enqueue
-                    // it twice (count read > 0 plus the listener-driven add).
+                    // Read buffersInUseCount INSIDE the gate lock to close a TOCTOU window with
+                    // a concurrent producer add → enqueue would either be skipped (count == 0)
+                    // or doubled (count > 0 plus the listener-driven add).
                     synchronized (inputChannelsWithData) {
                         int buffersInUseCount = realInputChannel.getBuffersInUseCount();
 
@@ -448,9 +440,8 @@ public class SingleInputGate extends IndexedInputGate {
                             enqueuedInputChannelsWithData.set(realInputChannel.getChannelIndex());
                         }
                     }
-                    // Gate slot is now wired to the physical channel; nothing on the gate side
-                    // can reach the old RecoveredInputChannel anymore. Signal the rendezvous so
-                    // BufferManager teardown fires once drain has also completed (whichever order).
+                    // Signal the drainDone+converted rendezvous; BufferManager teardown fires
+                    // once drain also completes.
                     ((RecoveredInputChannel) inputChannel).markConverted();
                 } catch (Throwable t) {
                     inputChannel.setError(t);

@@ -2244,8 +2244,7 @@ class RemoteInputChannelTest {
     }
 
     @Test
-    void testNextDataTypeReflectsReceivedBuffersWhenRecoveredStoreExhausted()
-            throws Exception {
+    void testNextDataTypeReflectsReceivedBuffersWhenRecoveredStoreExhausted() throws Exception {
         // When the very last tryTake empties the recovered store but receivedBuffers
         // already has a buffer queued by onBuffer (this happens in production when the
         // channel was already in inputChannelsWithData with the bit set, so the

@@ -36,39 +36,24 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Per-channel store for recovered buffers. Buffers are either ready (in-memory, available for
- * consumption) or pending (on disk, tracked by count only — the actual spill entries are owned by
- * FilteredBufferDispatcher).
+ * Per-channel store for recovered buffers. Buffers are either ready (in-memory) or pending (on
+ * disk, tracked by count only — the actual entries are owned by FilteredBufferDispatcher).
  *
- * <h3>Locking contract</h3>
+ * <h3>Locking</h3>
  *
- * <p>The store's intrinsic monitor ({@code this}) IS the channel-private lock. The store does NOT
- * synchronise its own methods; callers must hold {@code synchronized (store)} when invoking any
- * method marked {@link GuardedBy @GuardedBy("this")}. Each such method runs an
- * {@code assert Thread.holdsLock(this)} so violations surface immediately under {@code -ea}.
+ * <p>The store's intrinsic monitor IS the channel-private lock. Methods marked
+ * {@link GuardedBy @GuardedBy("this")} require the caller to hold {@code synchronized(store)};
+ * each runs {@code assert Thread.holdsLock(this)}. {@link #size()} is the deliberate exception
+ * (lock-free best-effort).
  *
- * <p>{@link #size()} is the deliberate exception: it is a lock-free best-effort read that
- * supports metric / gate-bookkeeping paths which tolerate a slightly stale value. It MUST NOT be
- * combined with {@link #isEmpty()} to derive a stronger invariant unless the caller holds the
- * store lock around both reads itself.
+ * <p>Two-phase methods ({@code *AndCaptureListener}, {@link #checkpoint}, {@link #releaseAll},
+ * {@link #notifyCheckpointStopped}) self-manage their critical section and fire any captured
+ * listener / coordinator callback after exiting the lock. This capture-then-fire-outside
+ * protocol respects the lock order {@code gate.inputChannelsWithData → store}; firing inside
+ * the store lock would form an AB-BA cycle with the consumer side.
  *
- * <p>Two-phase methods ({@link #addBufferAndCaptureListener}, {@link
- * #addBufferAfterDiskAndCaptureListener}, {@link #checkpoint}, {@link #releaseAll},
- * {@link #notifyCheckpointStopped}) self-manage their own {@code synchronized (this)} block: they
- * commit state inside the block and then fire any captured listener / coordinator callback after
- * the block has been exited (capture-then-fire-outside).
- *
- * <h3>Lock order</h3>
- *
- * <p>Gate's {@code inputChannelsWithData} → channel store. The capture-then-fire-outside protocol
- * exists so the producer side can publish a buffer (taking the store lock) and only afterwards
- * traverse the gate-side notify path (which acquires the gate lock); without it the producer would
- * form an AB-BA deadlock with the consumer (gate → store).
- *
- * <h3>Thread roles</h3>
- *
- * <p>Public consumer methods are driven by the Task thread. Producer-side mutators ({@link
- * #addBuffer}, {@link #addBufferAfterDisk}, {@link #incrementPending}) are called from the
+ * <p>Consumer methods run on the Task thread; producer-side mutators
+ * ({@link #addBuffer}, {@link #addBufferAfterDisk}, {@link #incrementPending}) run on the
  * Recovery thread via FilteredBufferDispatcher.
  */
 @Internal
@@ -83,20 +68,12 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     private int pendingCount = 0;
 
     /**
-     * Buffers that must only become consumer-visible <em>after</em> all on-disk pending entries
-     * have been drained. Used for finish/control events (currently only the per-channel
-     * {@link org.apache.flink.runtime.io.network.partition.consumer.EndOfInputChannelStateEvent})
-     * whose contract is "everything before me has been delivered". When {@link #pendingCount}
-     * drops to zero inside {@link #addBufferAndCaptureListener}, the deferred buffers are
-     * atomically promoted into {@link #readyBuffers} so the consumer sees them strictly after the
-     * last drained spill entry — a logical FIFO that does not require routing events through the
-     * spill path.
-     *
-     * <p>Not counted as part of the public {@link #size()} / {@link #isEmpty()} surface: while
-     * something is deferred, {@code pendingCount > 0} already keeps the store non-empty; the
-     * promotion to {@code readyBuffers} happens in the same critical section that drops
-     * {@code pendingCount} to zero, so the store is never observed as "empty with deferred
-     * buffers still hidden".
+     * Buffers visible to the consumer only after all on-disk entries have been drained. Used for
+     * finish/control events whose contract is "everything before me has been delivered" (currently
+     * {@link EndOfInputChannelStateEvent}). Atomically promoted into {@link #readyBuffers} when
+     * {@link #pendingCount} reaches zero — a logical FIFO without routing events through the
+     * spill path. Not counted in {@link #size()} / {@link #isEmpty()}: while something is
+     * deferred, {@code pendingCount > 0} already keeps the store non-empty.
      */
     @GuardedBy("this")
     private final ArrayDeque<Buffer> deferredBuffers = new ArrayDeque<>();
@@ -109,22 +86,13 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     @GuardedBy("this")
     private RecoveredBufferStoreCoordinator coordinator;
 
-    /**
-     * Creates a store bound to a single input channel. The bound {@link InputChannelInfo} is used
-     * when persisting ready buffers during checkpoint and when notifying the checkpoint listener.
-     */
     public RecoveredBufferStoreImpl(InputChannelInfo channelInfo) {
         this.channelInfo = checkNotNull(channelInfo);
     }
 
-    /** Returns the input channel this store is bound to. */
     public InputChannelInfo getChannelInfo() {
         return channelInfo;
     }
-
-    // ---------------------------------------------------------------------------
-    // Public interface methods (Task thread)
-    // ---------------------------------------------------------------------------
 
     @Nullable
     @Override
@@ -149,53 +117,33 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
         return readyBuffers.isEmpty() && pendingCount == 0;
     }
 
-    /**
-     * Lock-free best-effort read used by metric and gate-bookkeeping paths that can tolerate a
-     * slightly stale value. Both reads ({@code readyBuffers.size()} and {@code pendingCount}) are
-     * single-word and the worst observable inconsistency is "size off by 1 vs. the actual state",
-     * which is exactly what every other {@code unsynchronizedGetNumberOfQueuedBuffers} caller
-     * already accepts. Callers that need a consistent {@code isEmpty + size} pair must take the
-     * store lock around both calls themselves.
-     */
+    /** Lock-free best-effort read; see class javadoc. */
     @Override
     public int size() {
         return readyBuffers.size() + pendingCount;
     }
 
     /**
-     * Checkpoints the ready buffers to the given ChannelStateWriter. Ready buffers are retained and
-     * passed to the writer via CloseableIterator. After snapshotting, the registered {@link
-     * RecoveredBufferStoreCoordinator} is notified <em>outside</em> the store lock so the
-     * coordinator can safely acquire its own lock without risking a deadlock.
-     *
-     * <p>Pending spill entries on disk are checkpointed by the coordinator, which owns the spill
-     * entries and file readers, triggered via
-     * {@link RecoveredBufferStoreCoordinator#onChannelCheckpointStarted}.
+     * Snapshots ready buffers to {@code writer}, then notifies the coordinator outside the store
+     * lock. Pending spill entries on disk are checkpointed by the coordinator (which owns them),
+     * triggered via {@link RecoveredBufferStoreCoordinator#onChannelCheckpointStarted}.
      */
     @Override
     public void checkpoint(ChannelStateWriter writer, long checkpointId) throws IOException {
-        // Step 1: snapshot ready buffers AND read the coordinator's current drain head atomically
-        // under the store lock. Both reads must be a single consistent observation: the per-channel
-        // phase-2 filter compares each spill entry's position against the captured drain head, so
-        // any entry the drain bundle adds to readyBuffers after this point must also have advanced
-        // the drain head past its position before this snapshot was taken (drain bundle commits
-        // addBuffer + drainHead update atomically under the same store lock for the entry's
-        // channel; cross-channel visibility is provided by the volatile drain head).
+        // Snapshot ready buffers AND read drainHead atomically under the store lock. The drain
+        // bundle commits addBuffer + drainHead update under the same store lock, so any entry
+        // added after this point has already advanced drainHead past its position; cross-channel
+        // visibility is provided by the volatile drainHead read.
         RecoveredBufferStoreCoordinator c;
         EntryPosition startPos;
         synchronized (this) {
             c = coordinator;
             startPos = c != null ? c.getCurrentDrainHead() : EntryPosition.END;
             if (!readyBuffers.isEmpty()) {
-                // Mirror RemoteInputChannel#getInflightBuffersUnsafe: only data buffers belong
-                // in the persisted in-flight channel state. Non-data entries in readyBuffers
-                // (notably the EndOfInputChannelStateEvent that finishReadRecoveredState pushes
-                // and that the task may not yet have consumed when CDR transitions to RUNNING
-                // before stateConsumedFuture completes) are control signals — passing them to
-                // ChannelStateWriteRequest#checkBufferIsBuffer kills the writer worker thread
-                // (IllegalArgumentException), which then surfaces on every subsequent enqueue
-                // as "not running". Events stay in readyBuffers and are recycled later by the
-                // task's normal tryTake path.
+                // Only data buffers belong in persisted in-flight state. Skip non-data entries
+                // (notably EndOfInputChannelStateEvent which finishReadRecoveredState pushes
+                // ahead of the task consuming it) — they would be rejected by
+                // ChannelStateWriteRequest#checkBufferIsBuffer and kill the writer thread.
                 List<Buffer> retained = new ArrayList<>(readyBuffers.size());
                 for (Buffer buffer : readyBuffers) {
                     if (buffer.isBuffer()) {
@@ -212,9 +160,6 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
             }
         }
 
-        // Step 2: notify the coordinator outside the store lock to avoid deadlock with the
-        // coordinator's own synchronisation. The captured startPos is forwarded so the coordinator
-        // can record the per-channel cutoff for phase-2 filtering.
         if (c != null) {
             c.onChannelCheckpointStarted(checkpointId, channelInfo, startPos);
         }
@@ -222,8 +167,6 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
 
     @Override
     public void releaseAll() {
-        // Step 1: flip the released flag and recycle ready / deferred buffers under lock; capture
-        // the coordinator reference for invocation outside the lock.
         RecoveredBufferStoreCoordinator c;
         synchronized (this) {
             released = true;
@@ -239,8 +182,6 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
             c = coordinator;
         }
 
-        // Step 2: notify the coordinator outside the store lock so the coordinator can safely
-        // acquire its own lock to drop disk-resident spill entries for this channel.
         if (c != null) {
             c.onChannelReleased(channelInfo);
         }
@@ -248,8 +189,6 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
 
     @Override
     public void notifyCheckpointStopped(long checkpointId) {
-        // Capture the coordinator reference under lock; fire the notification outside so the
-        // coordinator can safely acquire its own synchronisation without risking deadlock.
         RecoveredBufferStoreCoordinator c;
         synchronized (this) {
             c = coordinator;
@@ -259,10 +198,6 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
         }
     }
 
-    // ---------------------------------------------------------------------------
-    // Setters (interface methods)
-    // ---------------------------------------------------------------------------
-
     @Override
     @GuardedBy("this")
     public void setCoordinator(RecoveredBufferStoreCoordinator coordinator) {
@@ -270,12 +205,6 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
         this.coordinator = coordinator;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>The notification listener fires when a buffer is added to a previously empty ready queue,
-     * waking up the Task thread waiting for data.
-     */
     @Override
     @GuardedBy("this")
     public void setDataAvailableListener(DataAvailableListener listener) {
@@ -283,24 +212,11 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
         this.dataAvailableListener = listener;
     }
 
-    // ---------------------------------------------------------------------------
-    // Internal methods (Recovery thread, called by FilteredBufferDispatcher)
-    // ---------------------------------------------------------------------------
-
     /**
-     * Adds a recovered buffer to the ready queue. If the queue was previously empty, the
-     * notification listener is invoked to wake up the Task thread.
-     *
-     * <p>The listener is invoked <em>outside</em> the store monitor: the listener path goes through
-     * {@code SingleInputGate.queueChannel}, which acquires the gate's {@code inputChannelsWithData}
-     * monitor. A task thread holding that monitor while peeking the store would otherwise form an
-     * AB-BA deadlock with this method. Lock-order matches the two-phase pattern used by
-     * {@link #checkpoint}, {@link #releaseAll} and {@link #notifyCheckpointStopped}.
-     *
-     * <p>Callers that wrap this method in their own {@code synchronized(store)} block must instead
-     * use {@link #addBufferAndCaptureListener(Buffer)} and fire the returned listener after exiting
-     * that outer block — otherwise the listener still runs while the outer lock is held and the
-     * AB-BA risk reappears.
+     * Adds a recovered buffer to the ready queue. The listener fires <em>outside</em> the store
+     * monitor (gate → store lock-order). Callers that already hold {@code synchronized(store)}
+     * must use {@link #addBufferAndCaptureListener(Buffer)} and fire the listener after releasing
+     * that outer lock to avoid AB-BA deadlock.
      */
     public void addBuffer(Buffer buffer) {
         DataAvailableListener listenerToFire = addBufferAndCaptureListener(buffer);
@@ -310,21 +226,15 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     }
 
     /**
-     * Variant of {@link #addBuffer(Buffer)} that captures the data-available listener inside the
-     * store monitor and returns it instead of firing it. Callers must invoke {@code
-     * onDataAvailable()} on the returned listener (if non-null) <em>after</em> releasing any outer
-     * lock that orders before the gate's {@code inputChannelsWithData} monitor — otherwise the
-     * listener would run while that outer lock is held and re-introduce the AB-BA deadlock with
-     * the task thread (gate lock → store lock).
+     * Captures the data-available listener inside the store monitor and returns it. Caller must
+     * fire it after releasing any outer lock ordered before the gate monitor.
      *
-     * <p>If {@link #pendingCount} is non-zero when this method is called, the buffer being added
-     * is necessarily a drained spill entry (the only producer path into a non-idle store goes
-     * through the dispatcher's drain), so {@code pendingCount} is decremented here. When that
-     * decrement reaches zero, any {@link #deferredBuffers} are promoted into {@link #readyBuffers}
+     * <p>When {@link #pendingCount} is non-zero, the buffer is necessarily a drained spill entry
+     * (only producer path into a non-idle store goes through dispatcher drain), so the count is
+     * decremented here; reaching zero promotes {@link #deferredBuffers} into {@link #readyBuffers}
      * in the same critical section.
      *
-     * @return the listener to fire, or {@code null} if no notification is needed (queue was already
-     *     non-empty, no listener registered, or the store has been released)
+     * @return listener to fire, or {@code null} if no notification is needed
      */
     @Nullable
     public DataAvailableListener addBufferAndCaptureListener(Buffer buffer) {
@@ -348,9 +258,8 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     }
 
     /**
-     * Increments the pending spill entry count. Called when FilteredBufferDispatcher spills data to
-     * disk; the matching decrement happens implicitly inside {@link #addBufferAndCaptureListener}
-     * when the spill entry is drained back into a buffer.
+     * Called when FilteredBufferDispatcher spills data; the matching decrement happens implicitly
+     * inside {@link #addBufferAndCaptureListener} when the entry is drained back into a buffer.
      */
     @GuardedBy("this")
     public void incrementPending() {
@@ -359,22 +268,12 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     }
 
     /**
-     * Adds a buffer that must only become consumer-visible after all on-disk entries have been
-     * drained. If no spill entries are pending, the buffer is delivered immediately as a normal
-     * ready buffer. Otherwise it is held in {@link #deferredBuffers} and atomically promoted by
-     * {@link #addBufferAndCaptureListener(Buffer)} when the count reaches zero.
-     *
-     * <p>Used by {@code RecoveredInputChannel#finishReadRecoveredState} to publish the per-channel
-     * {@code EndOfInputChannelStateEvent} so the event always lands strictly after the last
-     * recovered data buffer for the channel — preserving the contract "all data has been read"
-     * without needing the event to traverse the dispatcher's spill path.
-     *
-     * <p>The listener is invoked <em>outside</em> the store monitor for the same lock-order
-     * reasons documented on {@link #addBuffer}.
-     *
-     * <p>Callers that wrap this method in their own {@code synchronized(store)} block must instead
-     * use {@link #addBufferAfterDiskAndCaptureListener(Buffer)} and fire the returned listener
-     * after exiting that outer block.
+     * Adds a buffer that becomes consumer-visible only after all on-disk entries have been
+     * drained: delivered as a normal ready buffer when {@code pendingCount == 0}, otherwise held
+     * in {@link #deferredBuffers} and promoted when the count reaches zero. Used by
+     * {@code RecoveredInputChannel#finishReadRecoveredState} to publish
+     * {@code EndOfInputChannelStateEvent} so it always lands after the last recovered data buffer
+     * — without routing the event through the spill path.
      */
     public void addBufferAfterDisk(Buffer buffer) {
         DataAvailableListener listenerToFire = addBufferAfterDiskAndCaptureListener(buffer);
@@ -383,11 +282,7 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
         }
     }
 
-    /**
-     * Variant of {@link #addBufferAfterDisk(Buffer)} that captures the data-available listener
-     * inside the store monitor and returns it instead of firing it. Same lock-order constraints as
-     * {@link #addBufferAndCaptureListener(Buffer)} apply to the caller.
-     */
+    /** Capture-then-fire variant of {@link #addBufferAfterDisk(Buffer)}. */
     @Nullable
     public DataAvailableListener addBufferAfterDiskAndCaptureListener(Buffer buffer) {
         synchronized (this) {

@@ -127,10 +127,6 @@ class GateFilterHandlerTest {
         assertThat(values).isEmpty();
     }
 
-    // -------------------------------------------------------------------------------------------
-    // Helper methods
-    // -------------------------------------------------------------------------------------------
-
     private ChannelStateFilteringHandler.GateFilterHandler<Long> createHandler(
             RecordFilter<Long> filter) {
         RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer =

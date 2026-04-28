@@ -106,11 +106,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
-    /**
-     * Returns the store for recovered buffers. Used for store transfer during channel conversion,
-     * by {@link org.apache.flink.runtime.checkpoint.channel.RecoveredChannelStateHandler} to add
-     * recovered buffers directly, and for FilteredBufferDispatcher integration during filtering.
-     */
     public RecoveredBufferStoreImpl getStore() {
         return store;
     }
@@ -121,13 +116,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         this.channelStateWriter = checkNotNull(channelStateWriter);
     }
 
-    /**
-     * Returns the ChannelStateWriter assigned to this channel. Used by FilteredBufferDispatcher to
-     * obtain the writer for phase2 disk checkpoint without threading it through every call site.
-     *
-     * <p>Must be called after {@link #setChannelStateWriter} has been invoked (i.e., after channel
-     * state writer injection during task initialization).
-     */
+    /** Must be called after {@link #setChannelStateWriter}. */
     public ChannelStateWriter getChannelStateWriter() {
         return checkNotNull(channelStateWriter, "ChannelStateWriter has not been set yet");
     }
@@ -140,7 +129,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                     stateConsumedFuture.isDone(), "recovered state is not fully consumed");
         }
 
-        // Pass the store reference to the physical channel for continued consumption.
         final InputChannel inputChannel = toInputChannelInternal(store);
         inputChannel.checkpointStopped(lastStoppedCheckpointId);
         return inputChannel;
@@ -152,12 +140,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     /**
-     * Creates the physical InputChannel from this recovered channel.
-     *
-     * @param recoveredStore the store containing recovered buffers that have been filtered but not
-     *     yet consumed by the Task. The store reference is passed to the physical channel for
-     *     continued consumption.
-     * @return the physical InputChannel (LocalInputChannel or RemoteInputChannel)
+     * Creates the physical InputChannel; the store reference is transferred for continued
+     * consumption.
      */
     protected abstract InputChannel toInputChannelInternal(RecoveredBufferStoreImpl recoveredStore)
             throws IOException;
@@ -175,32 +159,18 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public void finishReadRecoveredState() throws IOException {
-        // Use addBufferAfterDisk so the event becomes consumer-visible only after every disk-
-        // resident spill entry for this channel has been drained. If the dispatcher never spilled
-        // (pendingCount == 0) the store delivers the event immediately as a normal ready buffer;
-        // otherwise it is held in deferredBuffers and atomically promoted into readyBuffers when
-        // the last drainPendingSpill pop hits zero. This preserves the EndOfInputChannelStateEvent
-        // contract ("everything before me has been delivered") without routing the event through
-        // the dispatcher's spill path.
+        // addBufferAfterDisk preserves the EndOfInputChannelStateEvent contract ("everything
+        // before me has been delivered"): delivered immediately when no spill, otherwise held in
+        // deferredBuffers and promoted when pendingCount hits zero.
         //
-        // Adding the event and completing the future must be atomic under the store lock,
-        // otherwise:
-        // - event first (no lock): task thread consumes EndOfInputChannelStateEvent, which
-        //   completes stateConsumedFuture. When checkpointing during recovery is disabled,
-        //   stateConsumedFuture triggers requestPartitions -> toInputChannel(), which fails
-        //   because bufferFilteringCompleteFuture is not yet done.
-        // - future first (no lock): toInputChannel() passes the store before the event is added,
+        // The event-add and future-complete must be atomic under the store lock — otherwise:
+        // - event first: task thread consumes the event, completes stateConsumedFuture, then
+        //   triggers toInputChannel() before bufferFilteringCompleteFuture is done.
+        // - future first: toInputChannel() transfers the store before the event is added,
         //   losing the EndOfInputChannelStateEvent.
-        // RecoveredBufferStoreImpl uses the same intrinsic monitor, so synchronizing on the store
-        // here makes the pair atomic.
         //
-        // The data-available listener must be fired *outside* this synchronized(store) block: the
-        // listener path goes through SingleInputGate.queueChannel which acquires the gate's
-        // inputChannelsWithData monitor, while a task thread holding that monitor calls
-        // store.peekNextDataType() / store.tryTake() under the store lock. Firing the listener
-        // while we still hold the store lock forms an AB-BA deadlock with that task thread (gate
-        // lock → store lock vs. store lock → gate lock). Capture the listener inside the store
-        // lock via addBufferAfterDiskAndCaptureListener and fire it after the lock is released.
+        // The listener fires outside the lock to avoid AB-BA with the task thread (gate → store
+        // lock vs store → gate lock).
         RecoveredBufferStore.DataAvailableListener listenerToFire;
         synchronized (store) {
             listenerToFire =
@@ -218,8 +188,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     @Nullable
     private BufferAndAvailability getNextRecoveredStateBuffer() throws IOException {
         checkState(!isReleased.get(), "Trying to read from released RecoveredInputChannel");
-        // tryTake + peekNextDataType under one lock so the consumer never observes a torn view
-        // (post-take, pre-peek) where another producer slipped a buffer in between.
+        // tryTake + peekNextDataType under one lock so the consumer never observes a torn view.
         final Buffer next;
         final Buffer.DataType nextDataType;
         synchronized (store) {
@@ -262,7 +231,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     @Override
     int getBuffersInUseCount() {
-        // size() is lock-free best-effort — see RecoveredBufferStore javadoc.
         return store.size();
     }
 
@@ -305,14 +273,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     /**
-     * Tear-down fired only after BOTH (a) drain has finished and (b) the gate slot has been
-     * replaced by the physical channel. Releases the {@link BufferManager}'s exclusive segments
-     * back to the global pool but does <em>not</em> touch the recovered store — the store
-     * reference has been transferred to the physical channel by {@link #toInputChannel} and is
-     * owned (and finally released) there. Sets {@link #isReleased} so {@link BufferManager#recycle}
-     * returns lingering segments (still in flight via buffers in the store) straight to the global
-     * pool, preventing leaks. Idempotent with {@link #releaseAllResources} via the same atomic
-     * flag, so the abort path that calls {@code releaseAllResources} stays correct.
+     * Tear-down fires only after BOTH drain has finished and the gate slot has been replaced.
+     * Does not touch the recovered store — the store reference has been transferred to the
+     * physical channel by {@link #toInputChannel}. Idempotent with {@link #releaseAllResources}
+     * via the same atomic flag.
      */
     private void releaseAfterDrain() throws IOException {
         if (isReleased.compareAndSet(false, true)) {
@@ -323,10 +287,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     private volatile boolean drainDone = false;
     private volatile boolean converted = false;
 
-    /**
-     * Signalled by {@code BufferRequester#releaseExclusiveBuffers} (invoked from
-     * {@code FilteredBufferDispatcher#close} on the recovery thread once drain has finished).
-     */
+    /** Signalled when {@code FilteredBufferDispatcher#close} finishes drain. */
     public void markDrainDone() throws IOException {
         drainDone = true;
         if (converted) {
@@ -334,11 +295,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
-    /**
-     * Signalled by {@code SingleInputGate#convertRecoveredInputChannels} on the mailbox thread
-     * after the gate slot has been replaced by the physical channel and the old RecoveredInputChannel
-     * is no longer reachable through the gate.
-     */
+    /** Signalled after the gate slot has been replaced by the physical channel. */
     public void markConverted() throws IOException {
         converted = true;
         if (drainDone) {
@@ -348,14 +305,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     @VisibleForTesting
     protected int getNumberOfQueuedBuffers() {
-        // size() is lock-free best-effort — see RecoveredBufferStore javadoc.
         return store.size();
     }
 
-    /**
-     * Non-blocking buffer request. Returns a buffer from the pool, or {@code null} if the pool is
-     * exhausted.
-     */
+    /** Non-blocking; returns {@code null} if the pool is exhausted. */
     @Nullable
     public Buffer requestBuffer() throws IOException {
         if (!exclusiveBuffersAssigned) {
@@ -371,9 +324,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
             exclusiveBuffersAssigned = true;
         }
-        // Both filtering and non-filtering modes block-wait for a Network Buffer Pool buffer. In
-        // filtering mode the pre-filter buffer is heap-allocated separately in the state handler,
-        // so this method is only called for post-filter buffers which must come from the pool.
         return bufferManager.requestBufferBlocking();
     }
 

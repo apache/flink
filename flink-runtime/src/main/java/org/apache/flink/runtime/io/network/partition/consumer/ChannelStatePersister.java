@@ -58,10 +58,6 @@ public final class ChannelStatePersister {
 
     private long lastSeenBarrier = -1L;
 
-    /**
-     * Writer must be initialized before usage. {@link #startPersisting(long, RecoveredBufferStore,
-     * List)} enforces this invariant.
-     */
     private final ChannelStateWriter channelStateWriter;
 
     ChannelStatePersister(ChannelStateWriter channelStateWriter, InputChannelInfo channelInfo) {
@@ -70,28 +66,12 @@ public final class ChannelStatePersister {
     }
 
     /**
-     * Starts persisting channel state for the given checkpoint barrier.
+     * Asserts the disk-network exclusivity invariant ({@code store.isEmpty() ||
+     * knownBuffers.isEmpty()}), then either snapshots the recovered store or writes network
+     * inflight buffers via {@link ChannelStateWriter#addInputData}.
      *
-     * <p>Performs the following steps in order:
-     *
-     * <ol>
-     *   <li>Validates that this checkpoint has not been superseded (throws {@link
-     *       CheckpointException} if a newer barrier was already received).
-     *   <li>Asserts the disk-network exclusivity invariant: {@code store.isEmpty() || knownBuffers.isEmpty()}.
-     *       Guaranteed by {@code UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM=true} (upstream does not
-     *       replay output state) combined with {@link RemoteInputChannel#getNextBuffer} draining the
-     *       store before polling {@code receivedBuffers}.
-     *   <li>Delegates ready-buffer snapshot and FilteredBufferDispatcher callback to {@link
-     *       RecoveredBufferStore#checkpoint}.
-     *   <li>Writes network inflight buffers (Remote only) via {@link
-     *       ChannelStateWriter#addInputData}.
-     * </ol>
-     *
-     * @param barrierId the barrier/checkpoint ID
-     * @param store the per-channel recovered buffer store (use {@link RecoveredBufferStore#EMPTY}
-     *     when no recovery data is present)
-     * @param knownBuffers network inflight buffers to persist (empty for LocalInputChannel)
-     * @throws CheckpointException if checkpointing fails or the checkpoint has been superseded
+     * @param store per-channel store; {@link RecoveredBufferStore#EMPTY} when no recovery data
+     * @param knownBuffers network inflight buffers (empty for LocalInputChannel)
      */
     protected void startPersisting(
             long barrierId, RecoveredBufferStore store, List<Buffer> knownBuffers)
@@ -117,21 +97,11 @@ public final class ChannelStatePersister {
             lastSeenBarrier = barrierId;
         }
 
-        // Defensive invariant check: store non-empty and knownBuffers non-empty must not coexist.
-        // Guaranteed by UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM=true (upstream has no output state
-        // to replay, so receivedBuffers stays empty of DATA_BUFFER while the recovered store is
-        // draining) together with RemoteInputChannel#getNextBuffer draining the store first.
-        // Violations here indicate one of those assumptions broke and must fail-fast rather than
-        // silently produce corrupt channel state.
-        //
-        // The store-lock acquisition here is brief and intentionally released before
-        // {@code store.checkpoint(...)} below: store.checkpoint() fires the dispatcher coordinator
-        // callback (a synchronized method on the dispatcher) and the dispatcher acquires the store
-        // lock from the recovery thread; holding the store lock across that callback would form an
-        // AB-BA deadlock. Capturing the snapshot here is sufficient — once recovery has finished
-        // (this method only fires once a physical channel has been wired up) the only writer to
-        // the store is the post-flush spill drainer, which appends; once {@code storeEmpty} has
-        // been observed true, drainPendingSpill has nothing to add.
+        // The disk-network exclusivity invariant relies on UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM
+        // (upstream replays no output state) AND RemoteInputChannel#getNextBuffer draining the
+        // store first. The brief lock here is released before store.checkpoint() because
+        // store.checkpoint() fires the dispatcher coordinator (which itself acquires the store
+        // lock from the recovery thread) — holding the lock across that callback would deadlock.
         final boolean storeEmpty;
         final int storeSize;
         synchronized (store) {
@@ -166,19 +136,9 @@ public final class ChannelStatePersister {
     }
 
     /**
-     * Marks the given checkpoint as concluded for this channel and notifies the store so that the
-     * coordinator can drop any wait-set still tied to {@code id}.
-     *
-     * <p>Called from {@code InputChannel#checkpointStopped}, which itself fires for both
-     * checkpoint completion (all barriers received) and checkpoint abort. Without notifying the
-     * store, the coordinator's wait-set for an aborted checkpoint would linger and a later
-     * release/late callback could trigger a phase-2 drain into a checkpoint the task has already
-     * given up on.
-     *
-     * @param id the checkpoint that is now stopped on this channel
-     * @param store the per-channel recovered buffer store (use {@link RecoveredBufferStore#EMPTY}
-     *     when no recovery data is present); must be the same instance the channel passes to
-     *     {@link #startPersisting}
+     * Marks {@code id} concluded on this channel and notifies the store so the coordinator drops
+     * any wait-set still tied to it (otherwise an aborted checkpoint's wait-set could linger and
+     * a later release/late callback would trigger a phase-2 drain into a concluded checkpoint).
      */
     protected void stopPersisting(long id, RecoveredBufferStore store) {
         logEvent("stopPersisting", id);

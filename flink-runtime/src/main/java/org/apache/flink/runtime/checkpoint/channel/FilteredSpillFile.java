@@ -43,18 +43,15 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Spill file for the {@code filterAndRewrite} recovery path. Appends raw bytes to one or more
- * physical files on disk; each logical entry is tracked in the corresponding {@link Reader}'s entry
- * deque. Readers support both replay ({@link Reader#readNext}) and checkpoint snapshot ({@link
- * Reader#snapshot}).
- *
- * <p>Rotates to a new file when the current one exceeds 64 MB; each rotation seals the outgoing
- * Reader and opens a new one. All Readers are sealed on {@link #finish()}. Files are created lazily
- * on the first {@link #writeEntry} call.
+ * physical files; each logical entry is tracked in the corresponding {@link Reader}'s entry
+ * deque. Readers support replay ({@link Reader#readNext}) and checkpoint snapshot
+ * ({@link Reader#snapshot}). Rotates to a new file when the current one exceeds 64 MB; each
+ * rotation seals the outgoing Reader. Files are created lazily on the first {@link #writeEntry}.
  */
 @Internal
 public class FilteredSpillFile implements Closeable {
 
-    private static final long FILE_ROTATION_THRESHOLD = 64L * 1024 * 1024; // 64 MB
+    private static final long FILE_ROTATION_THRESHOLD = 64L * 1024 * 1024;
 
     private final String[] spillDirs;
     private final int memorySegmentSize;
@@ -62,18 +59,13 @@ public class FilteredSpillFile implements Closeable {
     private FileChannel currentChannel;
     private long currentFileOffset;
     private final List<Reader> readers;
-    /** Monotonic file-id counter; never reused even if a finished Reader is removed from the list. */
+    /** Monotonic file-id counter; never reused. */
     private int nextFileIndex;
     private boolean finished;
 
     /**
-     * Creates a new spill file (lazy: the first physical file is opened on the first {@link
-     * #writeEntry} call). Arguments are assumed pre-validated by the caller (non-empty spillDirs,
-     * positive memorySegmentSize).
-     *
-     * @param spillDirs directories for writing spill files
-     * @param memorySegmentSize max bytes per spill entry. Each entry is 1:1 aligned with a network
-     *     buffer of this size; longer payloads must be split upstream.
+     * @param memorySegmentSize max bytes per spill entry — each entry is 1:1 aligned with a
+     *     network buffer of this size, so longer payloads must be split upstream.
      */
     public FilteredSpillFile(String[] spillDirs, int memorySegmentSize) {
         this.spillDirs = spillDirs;
@@ -86,12 +78,9 @@ public class FilteredSpillFile implements Closeable {
     }
 
     /**
-     * Appends {@code len} bytes from {@code data[0..len)} to the current spill file, registering an
-     * entry for {@code channelInfo} in the current Reader. Lazily opens the first file; rotates
-     * when the current file exceeds {@link #FILE_ROTATION_THRESHOLD}.
-     *
-     * <p>Entries must fit within {@code memorySegmentSize} bytes (1:1 alignment with network
-     * buffers on replay). Oversize entries fail fast via {@link IllegalArgumentException}.
+     * Appends {@code len} bytes for {@code channelInfo}, lazily opening the first file and
+     * rotating when the current file exceeds {@link #FILE_ROTATION_THRESHOLD}. Oversize entries
+     * (> {@code memorySegmentSize}) fail fast.
      */
     public void writeEntry(byte[] data, int len, InputChannelInfo channelInfo) throws IOException {
         checkState(!finished, "writeEntry after finish");
@@ -122,11 +111,7 @@ public class FilteredSpillFile implements Closeable {
         }
     }
 
-    /**
-     * Finishes (if not already done), closes the write channel, chain-closes all Readers, and
-     * deletes all spill files on disk. After close() returns, no physical spill files remain and
-     * this spill file cannot be reused.
-     */
+    /** Closes all Readers and deletes the underlying spill files. */
     @Override
     public void close() throws IOException {
         finish();
@@ -139,8 +124,6 @@ public class FilteredSpillFile implements Closeable {
             for (Reader r : readers) {
                 r.close();
             }
-            // Best-effort cleanup of all spill files. Called unconditionally so callers do not
-            // need a separate delete step.
             for (Reader r : readers) {
                 try {
                     Files.deleteIfExists(r.filePath);
@@ -151,16 +134,13 @@ public class FilteredSpillFile implements Closeable {
         }
     }
 
-    /** Returns true after {@link #finish()} has been called. */
     public boolean isFinished() {
         return finished;
     }
 
     /**
-     * Returns true when no entry is currently pending on disk — either no file was ever opened, or
-     * every entry previously written has already been consumed (via {@link Reader#readNext()}) back
-     * into memory. While idle, the dispatcher prefers P1 (direct buffer) over P2 (spill); FIFO
-     * ordering is still preserved because there are no on-disk entries to jump ahead of.
+     * True when no entry is pending on disk. While idle, the dispatcher prefers P1; FIFO ordering
+     * is preserved because there are no on-disk entries to jump ahead of.
      */
     public boolean isIdle() {
         for (Reader r : readers) {
@@ -171,7 +151,6 @@ public class FilteredSpillFile implements Closeable {
         return true;
     }
 
-    /** Returns an unmodifiable view of all Readers created so far. */
     public List<Reader> getReaders() {
         return Collections.unmodifiableList(readers);
     }
@@ -196,20 +175,16 @@ public class FilteredSpillFile implements Closeable {
     }
 
     private void rotateFile() throws IOException {
-        // Seal the current Reader before opening a new file.
         currentReader().seal();
         currentChannel.close();
         currentChannel = null;
         openNewFile();
     }
 
-    // -------------------------------------------------------------------------
-    // Chunk — the payload unit returned by Reader.readNext()
-    // -------------------------------------------------------------------------
-
     /**
-     * A single spilled-data chunk returned by {@link Reader#readNext()}. The {@code data} array is
-     * reused between calls on the same Reader; callers must consume bytes before the next readNext.
+     * Spilled-data chunk returned by {@link Reader#readNext()}. The {@code data} array is the
+     * Reader's internal buffer, reused between calls; callers must consume bytes before the next
+     * readNext.
      */
     public static final class Chunk {
 
@@ -227,26 +202,20 @@ public class FilteredSpillFile implements Closeable {
             return channelInfo;
         }
 
-        /** Returns the internal data buffer; valid bytes are {@code [0, length)}. */
+        /** Internal data buffer; valid bytes are {@code [0, length)}. */
         public byte[] getData() {
             return data;
         }
 
-        /** Number of valid bytes at the start of {@link #getData()}. */
         public int getLength() {
             return length;
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Reader — per-physical-file reader with entry deque and sealed state
-    // -------------------------------------------------------------------------
-
     /**
      * Reads entries from a single spill file. Each instance is owned by exactly one consumer
-     * thread: the original Reader by the replay path, a snapshot Reader by a checkpoint drain.
-     *
-     * <p>The internal buffer is reused across {@link #readNext()} calls; callers must consume each
+     * thread (the original Reader by the replay path, a snapshot Reader by a checkpoint drain).
+     * The internal buffer is reused across {@link #readNext()} calls; callers must consume each
      * Chunk before calling readNext again.
      */
     public static class Reader implements Closeable {
@@ -264,46 +233,36 @@ public class FilteredSpillFile implements Closeable {
             this.channel = FileChannel.open(filePath, StandardOpenOption.READ);
             this.memorySegmentSize = memorySegmentSize;
             this.fileIndex = fileIndex;
-            // Pre-allocated to memorySegmentSize; every entry is guaranteed to fit because
-            // FilteredSpillFile#writeEntry rejects oversized payloads at write time.
+            // writeEntry rejects oversized payloads, so every entry is guaranteed to fit.
             this.buf = new byte[memorySegmentSize];
         }
 
-        /** Index of this Reader's file in the spill file's {@code readers} list (0-based). */
         public int getFileIndex() {
             return fileIndex;
         }
 
-        // ---- Write side (called by FilteredSpillFile) ----
-
-        /** Registers an entry at {@code offset} with {@code length} bytes for {@code channelInfo}. */
         void addEntry(InputChannelInfo channelInfo, long offset, int length) {
             checkState(!sealed, "addEntry after seal");
             entries.addLast(new Entry(channelInfo, offset, length));
         }
 
-        /** Returns the head pending entry without consuming it, or null if empty. */
+        /** Head entry without consuming it; null if empty. */
         public Entry peekNextEntry() {
             return entries.peekFirst();
         }
 
         /**
-         * Removes the head pending entry without performing any disk I/O. Returns the dropped entry
-         * for callers that still need its metadata, or null if the deque was already empty. Use this
-         * when the caller has already read the entry's bytes via {@link #readBytesAt} or has chosen
-         * to discard it (e.g. phase-2 filter skipping an entry whose channel has already snapshotted
-         * it via Step 1).
+         * Removes the head entry without disk I/O. Use after reading via {@link #readBytesAt} or
+         * to discard (e.g. phase-2 filter skipping an entry already covered by Step 1).
          */
         public Entry skipNextEntry() {
             return entries.pollFirst();
         }
 
         /**
-         * Reads {@code length} bytes starting at absolute {@code offset} from this file into
-         * {@code dest} starting at {@code destOffset}. Throws {@link IOException} on truncation or
-         * an underlying read failure. Unlike {@link #readNext()} this method does <em>not</em>
-         * mutate the entry deque, so callers can safely perform the disk I/O outside any lock that
-         * also protects the deque.
+         * Reads {@code length} bytes from absolute {@code offset} into {@code dest}. Unlike
+         * {@link #readNext()} this does not mutate the entry deque, so callers can perform the
+         * I/O outside any lock that protects the deque.
          */
         public void readBytesAt(long offset, int length, byte[] dest, int destOffset)
                 throws IOException {
@@ -324,7 +283,6 @@ public class FilteredSpillFile implements Closeable {
             }
         }
 
-        /** Seals this Reader; no more addEntry calls are allowed after this point. */
         void seal() {
             sealed = true;
         }
@@ -333,32 +291,26 @@ public class FilteredSpillFile implements Closeable {
             return sealed;
         }
 
-        // ---- Consume side (replay or checkpoint drain) ----
-
-        /** Returns true if there are pending entries to consume. */
         public boolean hasEntries() {
             return !entries.isEmpty();
         }
 
-        /**
-         * Returns the channel of the next pending entry without consuming it, or null if empty.
-         */
+        /** Channel of the next pending entry; null if empty. */
         public InputChannelInfo peekNextChannel() {
             Entry e = entries.peekFirst();
             return e != null ? e.channelInfo : null;
         }
 
         /**
-         * Reads and returns the next pending entry as a {@link Chunk}. The Chunk's data array is
-         * the Reader's internal buffer; it is overwritten by the next readNext call. Returns null
-         * when there are no more entries.
+         * Reads the next pending entry as a {@link Chunk}; null when there are no more entries.
+         * The Chunk's data array is the Reader's internal buffer and is overwritten by the next
+         * readNext.
          */
         public Chunk readNext() throws IOException {
             Entry entry = entries.pollFirst();
             if (entry == null) {
                 return null;
             }
-            // writeEntry enforces entry.length <= memorySegmentSize, so buf always fits.
             ByteBuffer bb = ByteBuffer.wrap(buf, 0, entry.length);
             long position = entry.offset;
             while (bb.hasRemaining()) {
@@ -378,9 +330,8 @@ public class FilteredSpillFile implements Closeable {
         }
 
         /**
-         * Returns an independent Reader over the same file with a shallow copy of the current
-         * entries. The snapshot is pre-sealed. Must be called only after this Reader is sealed.
-         * The caller owns and must close the returned Reader.
+         * Independent Reader over the same file with a shallow copy of the current entries,
+         * pre-sealed. The caller owns and must close the returned Reader.
          */
         public Reader snapshot() throws IOException {
             checkState(sealed, "snapshot requires sealed Reader");
@@ -390,7 +341,6 @@ public class FilteredSpillFile implements Closeable {
             return snap;
         }
 
-        /** Returns the set of channels that still have pending entries. */
         public Set<InputChannelInfo> getPendingChannels() {
             Set<InputChannelInfo> channels = new HashSet<>();
             for (Entry e : entries) {
@@ -400,10 +350,8 @@ public class FilteredSpillFile implements Closeable {
         }
 
         /**
-         * Removes all pending entries belonging to {@code channelInfo} and returns how many were
-         * dropped. Used when a per-channel store is released so that the dispatcher can free the
-         * channel's disk-side bookkeeping eagerly instead of leaving it to {@link
-         * FilteredSpillFile#close()}.
+         * Drops all pending entries for {@code channelInfo}; returns the count. Used when a store
+         * is released so disk-side bookkeeping is freed eagerly.
          */
         public int removeEntriesForChannel(InputChannelInfo channelInfo) {
             int removed = 0;
@@ -422,14 +370,7 @@ public class FilteredSpillFile implements Closeable {
             channel.close();
         }
 
-        // ---- Entry metadata ----
-
-        /**
-         * Immutable metadata for a single spilled entry: the target channel, the byte offset in
-         * the owning file, and the payload length. Exposed publicly so the dispatcher can inspect
-         * the next entry (channel + offset + length) and perform disk I/O outside the deque-mutating
-         * commit section without re-implementing the metadata accessor surface.
-         */
+        /** Immutable metadata for a single spilled entry: target channel, offset, length. */
         public static final class Entry {
             private final InputChannelInfo channelInfo;
             private final long offset;

@@ -73,17 +73,10 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
             throws IOException, InterruptedException;
 
     /**
-     * Trigger the post-recovery business actions for this handler. For input channels this
-     * completes the per-channel buffer-filtering future and surfaces an
-     * EndOfInputChannelStateEvent via the store; for output partitions this calls
-     * finishReadRecoveredState on every checkpointable partition.
-     *
-     * <p>Must be invoked explicitly between {@code dispatcher.flush()} and
-     * {@code dispatcher.drainPendingSpill()}; see requirements/38544/close_drain_separation.md.
-     *
-     * <p>This method is idempotent: callers that hold the handler in a try-with-resources block
-     * may invoke {@code finishRecovery()} explicitly without affecting the subsequent
-     * {@link #close()} call which only releases resources.
+     * Triggers post-recovery actions: input channels complete the buffer-filtering future and
+     * publish {@code EndOfInputChannelStateEvent} via their store; output partitions call
+     * {@code finishReadRecoveredState} on every checkpointable partition. Idempotent. Must be
+     * invoked between {@code dispatcher.flush()} and {@code dispatcher.drainPendingSpill()}.
      */
     void finishRecovery() throws IOException;
 }
@@ -97,40 +90,28 @@ class InputChannelRecoveredStateHandler
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
-    /**
-     * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
-     * performed during recovery in the channel-state-unspilling thread.
-     */
+    /** When non-null, filtering runs during recovery in the channel-state-unspilling thread. */
     @Nullable private final ChannelStateFilteringHandler filteringHandler;
 
     /**
-     * Optional dispatcher for delivering filtered data. When non-null (filtering mode), filtered
-     * records are written to the dispatcher instead of directly to InputChannel buffers. The
-     * dispatcher manages buffer allocation, disk spilling, and delivery to per-channel stores.
+     * When non-null (filtering mode), filtered records are written here instead of directly to
+     * InputChannel buffers.
      */
     @Nullable private final FilteredBufferDispatcher dispatcher;
 
-    /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
     private final int memorySegmentSize;
 
     /**
-     * Reusable heap memory segment backing the pre-filter buffer in filtering mode. Lazily
-     * allocated on the first {@link #getPreFilterBuffer} call, reused for every subsequent call,
-     * and freed in {@link #close()}.
-     *
-     * <p>Reuse is safe because at most one pre-filter buffer is in flight per task at any moment.
-     * This invariant is enforced at runtime by {@link #preFilterBufferInUse}.
+     * Reusable heap segment backing the pre-filter buffer in filtering mode. Lazily allocated on
+     * first {@link #getPreFilterBuffer}, reused for subsequent calls, freed in {@link #close()}.
+     * Reuse is safe because at most one pre-filter buffer is in flight per task; the invariant is
+     * enforced at runtime by {@link #preFilterBufferInUse}.
      */
     @Nullable private MemorySegment preFilterSegment;
 
-    /**
-     * Tracks whether {@link #preFilterSegment} is currently wrapped by a live {@link Buffer} that
-     * has not yet been recycled. Flipped to {@code true} when a new buffer is issued, and flipped
-     * back to {@code false} by the custom {@link BufferRecycler} when the buffer is recycled.
-     */
+    /** True while {@link #preFilterSegment} is wrapped by a live, unreclaimed buffer. */
     private boolean preFilterBufferInUse;
 
-    /** Idempotency guard for {@link #finishRecovery()}. */
     private boolean recoveryFinished;
 
     InputChannelRecoveredStateHandler(
@@ -154,26 +135,15 @@ class InputChannelRecoveredStateHandler
         if (filteringHandler != null) {
             return getPreFilterBuffer();
         }
-        // Non-filtering mode: use existing network buffer pool allocation.
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
         Buffer buffer = channel.requestBufferBlocking();
         return new BufferWithContext<>(wrap(buffer), buffer);
     }
 
     /**
-     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
-     * Pool) in filtering mode.
-     *
-     * <p>Memory management: a single {@link MemorySegment} per task is lazily allocated on first
-     * invocation and reused across every subsequent call. The custom {@link BufferRecycler} does
-     * not free the segment — it only flips {@link #preFilterBufferInUse} back to {@code false} so
-     * the next call can reuse it. The segment itself is freed in {@link #close()}.
-     *
-     * <p>Runtime invariant check: the one-at-a-time invariant on pre-filter buffers is guaranteed
-     * by Flink's serial recovery loop and the deserializer's ownership contract. This method
-     * asserts the invariant before issuing a buffer: if a previously issued buffer has not yet been
-     * recycled, it throws {@link IllegalStateException} so any future regression fails loudly
-     * instead of silently corrupting memory.
+     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network
+     * Buffer Pool). Flink's serial recovery loop guarantees at most one is in flight at a time;
+     * the runtime check fails loudly if that ever regresses.
      */
     private BufferWithContext<Buffer> getPreFilterBuffer() {
         checkState(
@@ -186,7 +156,6 @@ class InputChannelRecoveredStateHandler
         }
         preFilterBufferInUse = true;
 
-        // The recycler keeps the segment alive for reuse; only flips the in-use flag.
         BufferRecycler recycler = segment -> preFilterBufferInUse = false;
         Buffer buffer = new NetworkBuffer(preFilterSegment, recycler);
         return new BufferWithContext<>(wrap(buffer), buffer);
@@ -306,7 +275,6 @@ class ResultSubpartitionRecoveredStateHandler
     private final boolean notifyAndBlockOnCompletion;
     private final ResultSubpartitionDistributor resultSubpartitionDistributor;
 
-    /** Idempotency guard for {@link #finishRecovery()}. */
     private boolean recoveryFinished;
 
     ResultSubpartitionRecoveredStateHandler(
@@ -316,10 +284,7 @@ class ResultSubpartitionRecoveredStateHandler
         this.writers = writers;
         this.resultSubpartitionDistributor =
                 new ResultSubpartitionDistributor(channelMapping) {
-                    /**
-                     * Override the getSubpartitionInfo to perform type checking on the
-                     * ResultPartitionWriter.
-                     */
+                    /** Adds type-checking on the ResultPartitionWriter. */
                     @Override
                     ResultSubpartitionInfo getSubpartitionInfo(
                             int partitionIndex, int subPartitionIdx) {
@@ -396,7 +361,5 @@ class ResultSubpartitionRecoveredStateHandler
     }
 
     @Override
-    public void close() throws IOException {
-        // No resources to release; finishReadRecoveredState moved to finishRecovery().
-    }
+    public void close() throws IOException {}
 }

@@ -81,16 +81,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
     private final Deque<BufferAndBacklog> toBeConsumedBuffers = new ArrayDeque<>();
 
-    /**
-     * Store for recovered buffers. Always non-null: callers with no recovered data pass {@link
-     * RecoveredBufferStore#EMPTY}.
-     */
+    /** Always non-null: callers with no recovered data pass {@link RecoveredBufferStore#EMPTY}. */
     private final RecoveredBufferStore recoveredStore;
 
     /**
-     * Flag indicating whether there is a pending priority event (e.g., checkpoint barrier) in the
-     * subpartitionView that should be consumed before recovered data. This is set by {@link
-     * #notifyPriorityEvent} and checked in {@link #getNextBuffer()}.
+     * True when a priority event (e.g. unaligned checkpoint barrier) sits in {@code
+     * subpartitionView} and must be consumed before recovered data.
      */
     private volatile boolean hasPendingPriorityEvent = false;
 
@@ -122,10 +118,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         this.taskEventPublisher = checkNotNull(taskEventPublisher);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 
-        // Callers with no recovered data pass RecoveredBufferStore.EMPTY; unconditional assignment
-        // avoids null guards throughout the class and eliminates the buggy isEmpty() guard that
-        // would discard the store reference while FilteredBufferDispatcher still has pending
-        // writes.
         this.recoveredStore = checkNotNull(recoveredStore);
         synchronized (this.recoveredStore) {
             this.recoveredStore.setDataAvailableListener(this::notifyChannelNonEmpty);
@@ -137,16 +129,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     // ------------------------------------------------------------------------
 
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
-        // Local channel has no network inflight buffers to snapshot (barriers and data arrive
-        // together via the local subpartition view). toBeConsumedBuffers contains only
-        // FullyFilledBuffer splits — ordinary data fragments that do not belong in channel state.
-        // The recoveredStore is passed so that ready buffers + FilteredBufferDispatcher callback
-        // are handled by the centralized startPersisting path. startPersisting itself manages the
-        // brief store-lock acquisition needed for the isEmpty/size assertion; it must not run
-        // under an outer store lock because store.checkpoint() fires the coordinator callback
-        // (dispatcher's synchronized method) and we must not hold the store lock when crossing
-        // into the dispatcher monitor (lock order: dispatcher → store on the recovery thread, so
-        // the reverse here would deadlock).
+        // Local channels have no network inflight buffers to snapshot (barriers and data arrive
+        // together via the local subpartition view). FullyFilledBuffer splits in
+        // toBeConsumedBuffers are ordinary data fragments and don't belong in channel state.
         channelStatePersister.startPersisting(
                 barrier.getId(), recoveredStore, Collections.emptyList());
     }
@@ -266,8 +251,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         checkError();
 
-        // Check recovered store first (recovery path). isEmpty() must run under the store lock
-        // because the store's contract requires the caller to hold it.
         final boolean stillRecovering;
         synchronized (recoveredStore) {
             stillRecovering = !recoveredStore.isEmpty();
@@ -339,14 +322,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         return getBufferAndAvailability(next);
     }
 
-    /**
-     * Consumes the next buffer from recoveredStore, handling pending priority events and dynamic
-     * availability detection for the last recovered buffer.
-     */
     private Optional<BufferAndAvailability> getNextRecoveredBuffer() throws IOException {
-        // If there is a pending priority event (e.g., unaligned checkpoint barrier), fetch it
-        // from subpartitionView first, skipping recoveredStore. This ensures priority
-        // events are processed immediately even when there are pending recovered buffers.
+        // Pending priority event bypasses the FIFO recovery-first rule so unaligned barriers can
+        // be processed immediately.
         if (hasPendingPriorityEvent) {
             checkState(subpartitionView != null, "No subpartition view available");
             BufferAndBacklog next = subpartitionView.getNextBuffer();
@@ -355,18 +333,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                     "Expected priority event, but got %s",
                     next == null ? "null" : next.buffer().getDataType());
 
-            // Check for barrier to update channel state persister.
-            // Note: maybePersist is not needed for barriers as they are not regular data buffers.
             channelStatePersister.checkForBarrier(next.buffer());
 
             Buffer.DataType expectedNextDataType = next.getNextDataType();
             if (!expectedNextDataType.hasPriority()) {
-                // Reset hasPendingPriorityEvent to false if no more priority event
                 hasPendingPriorityEvent = false;
                 synchronized (recoveredStore) {
-                    // If recoveredStore has data, the actual next element to consume is
-                    // from recoveredStore (FIFO), not from subpartitionView; otherwise
-                    // keep subpartitionView's hint.
+                    // recoveredStore (if non-empty) is FIFO ahead of subpartitionView.
                     if (!recoveredStore.isEmpty()) {
                         expectedNextDataType = peekNextDataType();
                     }
@@ -381,8 +354,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                             next.getSequenceNumber()));
         }
 
-        // tryTake + peekNextDataType together must be atomic so the consumer never observes a
-        // torn (post-take, pre-peek) view.
+        // tryTake + peekNextDataType under one lock so the consumer never observes a torn
+        // (post-take, pre-peek) view.
         final Buffer next;
         Buffer.DataType nextDataType;
         synchronized (recoveredStore) {
@@ -392,15 +365,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             }
             nextDataType = peekNextDataType();
         }
-        int sequenceNumber = Integer.MIN_VALUE; // recovered buffers use MIN_VALUE sequence range
+        int sequenceNumber = Integer.MIN_VALUE;
 
-        // If this is the last recovered buffer and nextDataType is NONE, dynamically check if
-        // subpartitionView has data available so the consumer is woken up without a round-trip.
-        // Done outside the recoveredStore lock: subpartitionView calls take producer-side locks
-        // and holding the store monitor across them would form an AB-BA cycle with the producer's
-        // notify path (subpartition lock -> gate.notifyChannelNonEmpty -> inputChannelsWithData
-        // lock; the consumer side already holds gate -> store, so adding store -> subpartition
-        // here would close the loop).
+        // subpartitionView availability check is outside the store lock: it acquires producer-
+        // side locks, and the consumer already holds gate → store, so adding store →
+        // subpartition would close an AB-BA cycle with the producer's notify path
+        // (subpartition → gate.notifyChannelNonEmpty → inputChannelsWithData).
         if (nextDataType == Buffer.DataType.NONE && subpartitionView != null) {
             ResultSubpartitionView.AvailabilityWithBacklog availability =
                     subpartitionView.getAvailabilityAndBacklog(true);
@@ -415,17 +385,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     /**
-     * Returns the data type of the next consumer-visible buffer that lives behind the
-     * {@link #recoveredStore} monitor. Returns {@link Buffer.DataType#NONE} when the store
-     * has no head ready (either fully empty or only on-disk pending entries left — in the
-     * latter case the drain listener will fire once readyBuffers becomes non-empty).
-     *
-     * <p>The {@link #subpartitionView} tier is intentionally NOT consulted here: that call
-     * acquires producer-side locks, and inspecting it under the recoveredStore monitor would
-     * create an AB-BA cycle with the producer's notify path. Callers that need the
-     * subpartitionView fallback must do it outside the lock.
-     *
-     * <p>Caller MUST hold the {@link #recoveredStore} monitor.
+     * Data type of the next consumer-visible buffer behind the store. Caller MUST hold
+     * {@code recoveredStore}. The {@link #subpartitionView} tier is deliberately not consulted —
+     * doing so under the store lock would form an AB-BA cycle with the producer's notify path.
      */
     @GuardedBy("recoveredStore")
     private Buffer.DataType peekNextDataType() {
@@ -436,7 +398,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         return Buffer.DataType.NONE;
     }
 
-    /** Consumes the next buffer from toBeConsumedBuffers (split buffers from FullyFilledBuffer). */
     private Optional<BufferAndAvailability> getNextSplitBuffer() throws IOException {
         BufferAndBacklog next = toBeConsumedBuffers.removeFirst();
         return getBufferAndAvailability(next);
@@ -479,8 +440,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
     @Override
     public void notifyPriorityEvent(int prioritySequenceNumber) {
-        // Set flag so that getNextBuffer() knows to fetch priority event from subpartitionView
-        // before consuming recovered data.
         hasPendingPriorityEvent = true;
         super.notifyPriorityEvent(prioritySequenceNumber);
     }
@@ -557,11 +516,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 subpartitionView = null;
             }
 
-            // Release recovered store (EMPTY.releaseAll() is a no-op, so no null check needed).
+            // EMPTY.releaseAll() is a no-op, so no null check needed.
             recoveredStore.releaseAll();
 
-            // Release any remaining buffers in toBeConsumedBuffers to avoid memory leak.
-            // These may be partial buffers from FullyFilledBuffer.
+            // Release partial buffers from FullyFilledBuffer splits.
             for (BufferAndBacklog bufferAndBacklog : toBeConsumedBuffers) {
                 bufferAndBacklog.buffer().recycleBuffer();
             }
@@ -582,7 +540,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     @Override
     int getBuffersInUseCount() {
         ResultSubpartitionView view = this.subpartitionView;
-        // size() is lock-free best-effort — see RecoveredBufferStore javadoc.
         return recoveredStore.size()
                 + toBeConsumedBuffers.size()
                 + (view == null ? 0 : view.getNumberOfQueuedBuffers());

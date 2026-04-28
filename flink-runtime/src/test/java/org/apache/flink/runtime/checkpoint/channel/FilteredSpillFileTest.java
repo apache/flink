@@ -54,8 +54,7 @@ class FilteredSpillFileTest {
         byte[] data = new byte[1024];
         random.nextBytes(data);
 
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(data, data.length, CHANNEL_0);
             writer.finish();
 
@@ -77,8 +76,7 @@ class FilteredSpillFileTest {
         byte[] d0 = new byte[] {1, 2, 3, 4};
         byte[] d1 = new byte[] {5, 6, 7, 8};
 
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(d0, d0.length, CHANNEL_0);
             writer.writeEntry(d1, d1.length, CHANNEL_1);
             writer.finish();
@@ -120,8 +118,7 @@ class FilteredSpillFileTest {
             random.nextBytes(chunk);
         }
 
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             for (int i = 0; i < numEntries; i++) {
                 writer.writeEntry(chunks[i], MEMORY_SEGMENT_SIZE, CHANNEL_0);
             }
@@ -146,8 +143,7 @@ class FilteredSpillFileTest {
     @Test
     void testCloseReleasesResources() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE);
+        FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE);
         writer.writeEntry(new byte[] {1, 2, 3}, 3, CHANNEL_0);
         writer.close();
 
@@ -162,8 +158,7 @@ class FilteredSpillFileTest {
         byte[] data = new byte[1024];
         new Random(42).nextBytes(data);
 
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(data, data.length, CHANNEL_0);
             writer.finish();
 
@@ -187,8 +182,7 @@ class FilteredSpillFileTest {
             data[i] = (byte) i;
         }
 
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(data, data.length, CHANNEL_0);
             writer.finish();
 
@@ -218,8 +212,7 @@ class FilteredSpillFileTest {
     @Test
     void testAddEntryAfterSealThrows() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(new byte[] {1}, 1, CHANNEL_0);
             writer.finish();
             // Reader is sealed by finish(); addEntry via a new writeEntry after finish should throw
@@ -232,8 +225,7 @@ class FilteredSpillFileTest {
     @Test
     void testPeekNextChannel() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(new byte[] {1, 2}, 2, CHANNEL_0);
             writer.writeEntry(new byte[] {3, 4}, 2, CHANNEL_1);
             writer.finish();
@@ -251,8 +243,7 @@ class FilteredSpillFileTest {
     @Test
     void testGetPendingChannels() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             writer.writeEntry(new byte[] {1}, 1, CHANNEL_0);
             writer.writeEntry(new byte[] {2}, 1, CHANNEL_1);
             writer.finish();
@@ -272,8 +263,7 @@ class FilteredSpillFileTest {
     @Test
     void testIsIdle() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             assertThat(writer.isIdle()).isTrue();
             writer.writeEntry(new byte[] {1}, 1, CHANNEL_0);
             assertThat(writer.isIdle()).isFalse();
@@ -283,18 +273,15 @@ class FilteredSpillFileTest {
     /**
      * isIdle() flips dynamically with the reader entry count: empty at start, non-idle after any
      * write, stays non-idle while entries remain even if some are partially drained, idle again
-     * only after all entries have been consumed. Must behave consistently across multiple
-     * write / drain rounds.
+     * only after all entries have been consumed. Must behave consistently across multiple write /
+     * drain rounds.
      */
     @Test
     void testIsIdleFlipsAcrossWriteDrainRounds() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        try (FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
-            // Initially idle
+        try (FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE)) {
             assertThat(writer.isIdle()).isTrue();
 
-            // --- Round 1: write 3 entries ---
             writer.writeEntry(new byte[] {1}, 1, CHANNEL_0);
             writer.writeEntry(new byte[] {2}, 1, CHANNEL_1);
             writer.writeEntry(new byte[] {3}, 1, CHANNEL_0);
@@ -302,29 +289,23 @@ class FilteredSpillFileTest {
 
             FilteredSpillFile.Reader reader = writer.getReaders().get(0);
 
-            // Partial consume (1 of 3) — still not idle
             reader.readNext();
             assertThat(writer.isIdle()).isFalse();
 
-            // Another partial consume (2 of 3) — still not idle
             reader.readNext();
             assertThat(writer.isIdle()).isFalse();
 
-            // Consume last one — now idle
             reader.readNext();
             assertThat(reader.hasEntries()).isFalse();
             assertThat(writer.isIdle()).isTrue();
 
-            // --- Round 2: write 2 more entries ---
             writer.writeEntry(new byte[] {4}, 1, CHANNEL_1);
             writer.writeEntry(new byte[] {5}, 1, CHANNEL_0);
             assertThat(writer.isIdle()).isFalse();
 
-            // Partial consume (1 of 2) — still not idle
             reader.readNext();
             assertThat(writer.isIdle()).isFalse();
 
-            // Consume remainder — idle again
             reader.readNext();
             assertThat(reader.hasEntries()).isFalse();
             assertThat(writer.isIdle()).isTrue();
@@ -335,8 +316,7 @@ class FilteredSpillFileTest {
     @Test
     void testCloseDeletesAllFiles() throws Exception {
         String[] spillDirs = {temporaryFolder.toString()};
-        FilteredSpillFile writer =
-                new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE);
+        FilteredSpillFile writer = new FilteredSpillFile(spillDirs, MEMORY_SEGMENT_SIZE);
         writer.writeEntry(new byte[64], 64, CHANNEL_0);
         List<Path> filePaths = new ArrayList<>();
         for (FilteredSpillFile.Reader r : writer.getReaders()) {
@@ -352,5 +332,4 @@ class FilteredSpillFileTest {
             assertThat(Files.exists(p)).isFalse();
         }
     }
-
 }

@@ -114,8 +114,8 @@ class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChannelStateH
      *
      * <p>Verification strategy: the {@code recoveryFinished} idempotency guard on the handler is
      * inspected via reflection. We verify it flips from false to true on the first finishRecovery()
-     * call, stays true on the second (idempotent), and remains true after close() — confirming
-     * that close() does not re-enter the finishReadRecoveredState logic.
+     * call, stays true on the second (idempotent), and remains true after close() — confirming that
+     * close() does not re-enter the finishReadRecoveredState logic.
      */
     @Test
     void testFinishRecoveryTriggersFinishReadRecoveredState() throws Exception {

@@ -20,60 +20,46 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Cross-channel coordinator notified by per-channel
- * {@link org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStore} instances on
- * lifecycle events. Implementations centralise bookkeeping that spans multiple channels (such as
- * checkpoint wait-sets or shared on-disk spill state) and react to per-channel transitions.
+ * Cross-channel coordinator notified by per-channel {@link
+ * org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStore} instances on
+ * lifecycle events. Centralises bookkeeping that spans multiple channels (checkpoint wait-sets,
+ * shared on-disk spill state).
  *
- * <p>{@link #onChannelCheckpointStarted}, {@link #onChannelCheckpointStopped} and
- * {@link #onChannelReleased} are invoked from the Task thread, <em>outside</em> the calling store's
- * lock, so implementations may freely acquire their own synchronisation without deadlock risk.
- *
- * <p>{@link #getCurrentDrainHead()} is invoked <em>inside</em> the calling store's lock so the
- * store can capture a consistent (readyBuffers, drainHead) pair atomically. Implementations must
- * therefore avoid blocking and must not acquire any lock that participates in the store-lock cycle
- * — a plain {@code volatile} read of a field maintained by the drain bundle is the intended
- * implementation.
+ * <p>The {@code onChannel*} callbacks fire from the Task thread <em>outside</em> the calling
+ * store's lock, so implementations may freely acquire their own synchronisation. {@link
+ * #getCurrentDrainHead()} fires <em>inside</em> the calling store's lock so the store can capture a
+ * consistent (readyBuffers, drainHead) pair atomically — implementations must therefore avoid
+ * blocking and must not acquire any lock participating in the store-lock cycle (a plain {@code
+ * volatile} read is the intended implementation).
  */
 @Internal
 public interface RecoveredBufferStoreCoordinator {
 
     /**
-     * Returns the current drain head — the position of the next entry the dispatcher's drain bundle
-     * will pop from the global FIFO queue. Used by {@code RecoveredBufferStore#checkpoint} to
-     * record a per-channel checkpoint cutoff (startPos) atomically with the channel's ready-buffer
-     * snapshot. Returns {@link EntryPosition#END} when the queue is empty (no more disk entries
-     * pending).
-     *
-     * <p>Reads must be cheap and lock-free; do not block, do not allocate, do not acquire any
-     * lock that the calling store holds (or that the dispatcher holds during drain).
+     * Position of the next entry the drain bundle will pop from the global FIFO. Returns {@link
+     * EntryPosition#END} when no disk entries are pending. Must be cheap and lock-free.
      */
     EntryPosition getCurrentDrainHead();
 
     /**
-     * Invoked from inside {@code RecoveredBufferStore#checkpoint} after the store has snapshotted
-     * its ready buffers. Implementations use this to maintain a wait-set across channels and, when
-     * all channels have reported in, drain pending spill entries into the checkpoint.
-     *
-     * <p>{@code startPos} is the {@code drainHead} value the store captured atomically with its
-     * ready-buffer snapshot, under the store lock. Implementations must record it as the
-     * per-channel cutoff used by phase-2 to decide which spill entries belong to this checkpoint
-     * versus this channel's Step 1 ready snapshot.
+     * Invoked from {@code RecoveredBufferStore#checkpoint} after the store has snapshotted its
+     * ready buffers. {@code startPos} is the drain-head captured atomically with that snapshot;
+     * phase-2 uses it as the per-channel cutoff to split spill entries between this channel's Step
+     * 1 snapshot and the global checkpoint drain.
      */
     void onChannelCheckpointStarted(
             long checkpointId, InputChannelInfo channelInfo, EntryPosition startPos);
 
     /**
-     * Invoked from inside {@code RecoveredBufferStore#notifyCheckpointStopped} when the owning
-     * channel has finished or aborted a checkpoint. Implementations use this to drop any wait-set
-     * still tied to the stopped checkpoint so a later {@link #onChannelReleased} or a late
-     * {@link #onChannelCheckpointStarted} cannot trigger a phase-2 drain to a checkpoint that has
-     * already been concluded by the task.
+     * Invoked from {@code RecoveredBufferStore#notifyCheckpointStopped} when the owning channel has
+     * finished or aborted a checkpoint. Used to drop a wait-set still tied to the stopped
+     * checkpoint so a later release or late start callback cannot trigger a phase-2 drain into a
+     * concluded checkpoint.
      */
     void onChannelCheckpointStopped(long checkpointId, InputChannelInfo channelInfo);
 
     /**
-     * Invoked from inside {@code RecoveredBufferStore#releaseAll} so the coordinator can drop
+     * Invoked from {@code RecoveredBufferStore#releaseAll} so the coordinator can drop
      * disk-resident spill entries still associated with the released channel.
      */
     void onChannelReleased(InputChannelInfo channelInfo);
