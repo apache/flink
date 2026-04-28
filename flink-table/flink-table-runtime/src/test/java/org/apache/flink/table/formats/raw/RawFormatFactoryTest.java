@@ -181,6 +181,29 @@ public class RawFormatFactoryTest extends TestLogger {
     }
 
     @Test
+    public void testLineDelimiterOption() {
+        final Map<String, String> tableOptions =
+                getModifiedOptions(
+                        options -> {
+                            options.put("raw.line-delimiter", "\n");
+                        });
+
+        // test deserialization schema contains line delimiter
+        final RawFormatDeserializationSchema expectedDeser =
+                new RawFormatDeserializationSchema(
+                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-8", true, "\n");
+        DeserializationSchema<RowData> actualDeser =
+                createDeserializationSchema(SCHEMA, tableOptions);
+        assertEquals(expectedDeser, actualDeser);
+
+        // test serialization schema contains line delimiter
+        final RawFormatSerializationSchema expectedSer =
+                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-8", true, "\n");
+        SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
+        assertEquals(expectedSer, actualSer);
+    }
+
+    @Test
     public void testInvalidFieldTypes() {
         try {
             createDeserializationSchema(
