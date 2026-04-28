@@ -78,6 +78,9 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     private long lastStoppedCheckpointId = -1;
 
+    private volatile boolean drainDone = false;
+    private volatile boolean storeTransferred = false;
+
     RecoveredInputChannel(
             SingleInputGate inputGate,
             int channelIndex,
@@ -268,36 +271,27 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     void releaseAllResources() throws IOException {
         if (isReleased.compareAndSet(false, true)) {
+            // Abort path: gate.close races requestLock with convertRecoveredInputChannels, so
+            // storeTransferred=false means conversion never ran and the store is still ours.
+            // After conversion the physical channel owns the store and releases it itself.
+            if (!storeTransferred) {
+                store.releaseAll();
+            }
             bufferManager.releaseAllBuffers(new ArrayDeque<>());
         }
     }
-
-    /**
-     * Tear-down fires only after BOTH drain has finished and the gate slot has been replaced. Does
-     * not touch the recovered store — the store reference has been transferred to the physical
-     * channel by {@link #toInputChannel}. Idempotent with {@link #releaseAllResources} via the same
-     * atomic flag.
-     */
-    private void releaseAfterDrain() throws IOException {
-        if (isReleased.compareAndSet(false, true)) {
-            bufferManager.releaseAllBuffers(new ArrayDeque<>());
-        }
-    }
-
-    private volatile boolean drainDone = false;
-    private volatile boolean converted = false;
 
     /** Signalled when {@code FilteredBufferDispatcher#close} finishes drain. */
     public void markDrainDone() throws IOException {
         drainDone = true;
-        if (converted) {
+        if (storeTransferred) {
             releaseAllResources();
         }
     }
 
     /** Signalled after the gate slot has been replaced by the physical channel. */
-    public void markConverted() throws IOException {
-        converted = true;
+    public void markStoreTransferred() throws IOException {
+        storeTransferred = true;
         if (drainDone) {
             releaseAllResources();
         }

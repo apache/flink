@@ -442,7 +442,7 @@ public class SingleInputGate extends IndexedInputGate {
                     }
                     // Signal the drainDone+converted rendezvous; BufferManager teardown fires
                     // once drain also completes.
-                    ((RecoveredInputChannel) inputChannel).markConverted();
+                    ((RecoveredInputChannel) inputChannel).markStoreTransferred();
                 } catch (Throwable t) {
                     inputChannel.setError(t);
                     return;
