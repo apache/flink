@@ -56,7 +56,8 @@ class JobConfigHandlerTest {
                         Collections.emptyMap(),
                         JobConfigHeaders.getInstance(),
                         new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
-                        Executors.directExecutor());
+                        Executors.directExecutor(),
+                        Collections.emptyList());
 
         final Map<String, String> globalJobParameters = new HashMap<>();
         globalJobParameters.put("foobar", "barfoo");
@@ -85,7 +86,7 @@ class JobConfigHandlerTest {
     }
 
     private Map<String, String> filterSecretValues(Map<String, String> globalJobParameters) {
-        return ConfigurationUtils.hideSensitiveValues(globalJobParameters);
+        return ConfigurationUtils.hideSensitiveValues(globalJobParameters, Collections.emptyList());
     }
 
     private HandlerRequest<EmptyRequestBody> createRequest(JobID jobId)

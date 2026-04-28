@@ -24,6 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -402,7 +403,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         responseHeaders,
                         JobConfigHeaders.getInstance(),
                         executionGraphCache,
-                        executor);
+                        executor,
+                        clusterConfiguration.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
 
         JobManagerJobConfigurationHandler jobManagerJobConfigurationHandler =
                 new JobManagerJobConfigurationHandler(

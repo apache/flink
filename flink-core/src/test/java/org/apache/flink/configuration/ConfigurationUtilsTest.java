@@ -26,6 +26,7 @@ import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -173,7 +174,7 @@ class ConfigurationUtilsTest {
         }
 
         final Map<String, String> hiddenSensitiveValues =
-                ConfigurationUtils.hideSensitiveValues(keyValuePairs);
+                ConfigurationUtils.hideSensitiveValues(keyValuePairs, Collections.emptyList());
 
         assertThat(hiddenSensitiveValues).isEqualTo(expectedKeyValuePairs);
     }

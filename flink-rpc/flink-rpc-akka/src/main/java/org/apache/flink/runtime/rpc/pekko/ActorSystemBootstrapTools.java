@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.BindException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
@@ -257,7 +258,8 @@ public class ActorSystemBootstrapTools {
                         .collect(
                                 Collectors.toMap(
                                         Map.Entry::getKey,
-                                        entry -> String.valueOf(entry.getValue().unwrapped()))));
+                                        entry -> String.valueOf(entry.getValue().unwrapped()))),
+                Collections.emptyList());
     }
 
     /**

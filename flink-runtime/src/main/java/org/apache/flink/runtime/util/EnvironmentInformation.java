@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -466,7 +467,7 @@ public class EnvironmentInformation {
             } else {
                 log.info(" Program Arguments:");
                 for (String s : commandLineArgs) {
-                    if (GlobalConfiguration.isSensitive(s)) {
+                    if (GlobalConfiguration.isSensitive(s, Collections.emptyList())) {
                         log.info(
                                 "    "
                                         + GlobalConfiguration.HIDDEN_CONTENT

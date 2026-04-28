@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.util.CompressionUtils;
@@ -342,7 +343,10 @@ final class PythonEnvUtils {
      * @throws IOException Thrown if an error occurred when python process start.
      */
     static Process startPythonProcess(
-            PythonEnvironment pythonEnv, List<String> commands, boolean redirectToPipe)
+            PythonEnvironment pythonEnv,
+            List<String> commands,
+            boolean redirectToPipe,
+            List<String> additionalSensitiveKeys)
             throws IOException {
         ProcessBuilder pythonProcessBuilder = new ProcessBuilder();
         Map<String, String> env = pythonProcessBuilder.environment();
@@ -372,7 +376,9 @@ final class PythonEnvUtils {
         }
         LOG.info(
                 "Starting Python process with environment variables: {{}}, command: {}",
-                ConfigurationUtils.hideSensitiveValues(env).entrySet().stream()
+                ConfigurationUtils.hideSensitiveValues(env, additionalSensitiveKeys)
+                        .entrySet()
+                        .stream()
                         .map(e -> e.getKey() + "=" + e.getValue())
                         .collect(Collectors.joining(", ")),
                 String.join(" ", commands));
@@ -495,7 +501,11 @@ final class PythonEnvUtils {
         pythonEnv.systemEnv.put(
                 "PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
         // start the python process.
-        return PythonEnvUtils.startPythonProcess(pythonEnv, commands, redirectToPipe);
+        return PythonEnvUtils.startPythonProcess(
+                pythonEnv,
+                commands,
+                redirectToPipe,
+                config.get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
     }
 
     public static void setPythonException(Throwable pythonException) {

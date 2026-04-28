@@ -784,7 +784,8 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
                                     LOG.info(
                                             "Dynamic Property set: {}={}",
                                             key,
-                                            GlobalConfiguration.isSensitive(key)
+                                            GlobalConfiguration.isSensitive(
+                                                            key, Collections.emptyList())
                                                     ? GlobalConfiguration.HIDDEN_CONTENT
                                                     : value);
 

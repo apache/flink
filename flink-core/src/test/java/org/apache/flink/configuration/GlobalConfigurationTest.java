@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -135,29 +136,94 @@ class GlobalConfigurationTest {
 
     @Test
     void testHiddenKey() {
-        assertThat(GlobalConfiguration.isSensitive("password123")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("123pasSword")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("PasSword")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("Secret")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("polaris.client-secret")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("client-secret")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("service-key-json")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("auth.basic.password")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("auth.basic.token")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("avro-confluent.basic-auth.user-info")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("key.avro-confluent.basic-auth.user-info"))
+        assertThat(GlobalConfiguration.isSensitive("password123", Collections.emptyList()))
                 .isTrue();
-        assertThat(GlobalConfiguration.isSensitive("value.avro-confluent.basic-auth.user-info"))
+        assertThat(GlobalConfiguration.isSensitive("123pasSword", Collections.emptyList()))
                 .isTrue();
-        assertThat(GlobalConfiguration.isSensitive("kafka.jaas.config")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("properties.ssl.truststore.password")).isTrue();
-        assertThat(GlobalConfiguration.isSensitive("properties.ssl.keystore.password")).isTrue();
-
+        assertThat(GlobalConfiguration.isSensitive("PasSword", Collections.emptyList())).isTrue();
+        assertThat(GlobalConfiguration.isSensitive("Secret", Collections.emptyList())).isTrue();
         assertThat(
                         GlobalConfiguration.isSensitive(
-                                "fs.azure.account.key.storageaccount123456.core.windows.net"))
+                                "polaris.client-secret", Collections.emptyList()))
                 .isTrue();
-        assertThat(GlobalConfiguration.isSensitive("Hello")).isFalse();
-        assertThat(GlobalConfiguration.isSensitive("metrics.reporter.dghttp.apikey")).isTrue();
+        assertThat(GlobalConfiguration.isSensitive("client-secret", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("service-key-json", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("auth.basic.password", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("auth.basic.token", Collections.emptyList()))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "avro-confluent.basic-auth.user-info", Collections.emptyList()))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "key.avro-confluent.basic-auth.user-info", Collections.emptyList()))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "value.avro-confluent.basic-auth.user-info",
+                                Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("kafka.jaas.config", Collections.emptyList()))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "properties.ssl.truststore.password", Collections.emptyList()))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "properties.ssl.keystore.password", Collections.emptyList()))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "fs.azure.account.key.storageaccount123456.core.windows.net",
+                                Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("Hello", Collections.emptyList())).isFalse();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "metrics.reporter.dghttp.apikey", Collections.emptyList()))
+                .isTrue();
+
+        // access-key / access.key / accesskey patterns
+        assertThat(GlobalConfiguration.isSensitive("s3.access-key", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("fs.s3a.access.key", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("s3.access.key", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("fs.oss.accessKeyId", Collections.emptyList()))
+                .isTrue();
+        assertThat(GlobalConfiguration.isSensitive("fs.oss.accesskey", Collections.emptyList()))
+                .isTrue();
+    }
+
+    @Test
+    void testAdditionalSensitiveKeys() {
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "my.custom.credential",
+                                Arrays.asList("my.custom.credential", "VENDOR_TOKEN_ID")))
+                .isTrue();
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "prefix.my.custom.credential.suffix",
+                                Arrays.asList("my.custom.credential")))
+                .isTrue();
+        // case-insensitive matching
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "vendor_token_id", Arrays.asList("VENDOR_TOKEN_ID")))
+                .isTrue();
+        // built-in keys are unaffected when additional list is empty
+        assertThat(GlobalConfiguration.isSensitive("password", Collections.emptyList())).isTrue();
+        // unrelated key not matched
+        assertThat(
+                        GlobalConfiguration.isSensitive(
+                                "unrelated.key", Arrays.asList("my.custom.credential")))
+                .isFalse();
     }
 }
