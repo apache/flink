@@ -163,6 +163,95 @@ class RemoteInputChannelTest {
     }
 
     @Test
+    void testPriorityFlagSetUnderLockOnPriorityEnqueue() throws Exception {
+        // Producer-side invariant: when onBuffer enqueues a priority element under the
+        // receivedBuffers lock, hasPendingPriorityEvent is also set true *inside* that same
+        // synchronized block. Externally observable consequence: the flag is already true the
+        // moment onBuffer returns to its caller (network thread), with no window in which the
+        // priority element is queued but the flag is still false.
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+        inputGate.setInputChannels(inputChannel);
+        inputChannel.requestSubpartitions();
+
+        Buffer priority =
+                toBuffer(
+                        new CheckpointBarrier(
+                                CHECKPOINT_ID,
+                                System.currentTimeMillis(),
+                                CheckpointOptions.unaligned(CHECKPOINT, getDefault())),
+                        true);
+        inputChannel.onBuffer(priority, 0, -1, 0);
+
+        assertThat(getHasPendingPriorityEvent(inputChannel)).isTrue();
+
+        inputChannel.releaseAllResources();
+    }
+
+    @Test
+    void testNormalPathPollClearsPriorityFlagInvariant() throws Exception {
+        // Consumer-side invariant: if a normal-path getNextBuffer drains the last priority
+        // element via PrioritizedDeque.poll() (which can happen when a stale `false` read of
+        // the flag routes the consumer through the normal path), the same synchronized block
+        // resets the flag so a subsequent producer flag write cannot leave the channel in a
+        // `flag=true && numPriorityElements==0` state.
+        //
+        // We simulate the "stale read sent the consumer down the normal path" outcome by
+        // manually clearing the flag (post-onBuffer) before calling getNextBuffer, so the
+        // consumer's `if (hasPendingPriorityEvent)` check sees false and falls through to the
+        // normal poll. The point under test is what getNextBuffer does under its receivedBuffers
+        // lock, not the upstream stale-read window itself.
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+        inputGate.setInputChannels(inputChannel);
+        inputChannel.requestSubpartitions();
+
+        Buffer priority =
+                toBuffer(
+                        new CheckpointBarrier(
+                                CHECKPOINT_ID,
+                                System.currentTimeMillis(),
+                                CheckpointOptions.unaligned(CHECKPOINT, getDefault())),
+                        true);
+        inputChannel.onBuffer(priority, 0, -1, 0);
+        // Force the consumer into the normal path even though a priority element is queued.
+        setHasPendingPriorityEvent(inputChannel, false);
+
+        Optional<BufferAndAvailability> first = inputChannel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().buffer().getDataType().hasPriority()).isTrue();
+        assertThat(getHasPendingPriorityEvent(inputChannel)).isFalse();
+
+        // Subsequent DATA must not trip the priority invariant: with the flag correctly cleared
+        // by the previous normal-path poll, the consumer takes the normal path again.
+        Buffer dataBuffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
+        inputChannel.onBuffer(dataBuffer, 1, -1, 0);
+
+        Optional<BufferAndAvailability> second = inputChannel.getNextBuffer();
+        assertThat(second).isPresent();
+        assertThat(second.get().buffer().getDataType()).isEqualTo(DataType.DATA_BUFFER);
+        assertThat(getHasPendingPriorityEvent(inputChannel)).isFalse();
+
+        inputChannel.releaseAllResources();
+    }
+
+    private static void setHasPendingPriorityEvent(RemoteInputChannel channel, boolean value)
+            throws ReflectiveOperationException {
+        java.lang.reflect.Field f =
+                RemoteInputChannel.class.getDeclaredField("hasPendingPriorityEvent");
+        f.setAccessible(true);
+        f.setBoolean(channel, value);
+    }
+
+    private static boolean getHasPendingPriorityEvent(RemoteInputChannel channel)
+            throws ReflectiveOperationException {
+        java.lang.reflect.Field f =
+                RemoteInputChannel.class.getDeclaredField("hasPendingPriorityEvent");
+        f.setAccessible(true);
+        return f.getBoolean(channel);
+    }
+
+    @Test
     void testExceptionOnReordering() throws Exception {
         // Setup
         final SingleInputGate inputGate = createSingleInputGate(1);
@@ -2075,13 +2164,48 @@ class RemoteInputChannelTest {
     }
 
     @Test
-    void testGetNextBufferWithMigratedRecoveredBuffers() throws Exception {
-        // given: RemoteInputChannel with recovered buffers migrated from RecoveredInputChannel
+    void testNullRecoveredStoreDefaultsToEmpty() throws Exception {
+        // When no recovered data is passed (null), the constructor must substitute EMPTY.
+        // releaseAllResources() must not throw (EMPTY.releaseAll() is a no-op).
+        SingleInputGate inputGate = createSingleInputGate(1);
+        ConnectionID connectionId =
+                new ConnectionID(
+                        org.apache.flink.runtime.clusterframework.types.ResourceID.generate(),
+                        new java.net.InetSocketAddress("localhost", 0),
+                        0);
+        RemoteInputChannel channel =
+                new RemoteInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        connectionId,
+                        InputChannelTestUtils.mockConnectionManagerWithPartitionRequestClient(
+                                mock(PartitionRequestClient.class)),
+                        0,
+                        0,
+                        0,
+                        2 /* initialCredit */,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        ChannelStateWriter.NO_OP,
+                        RecoveredBufferStore.EMPTY);
+
+        inputGate.setInputChannels(channel);
+
+        assertThat(channel.getInitialCredit()).isEqualTo(2);
+        // releaseAllResources() must not throw (EMPTY.releaseAll() is a no-op).
+        channel.releaseAllResources();
+    }
+
+    @Test
+    void testGetNextBufferWithRecoveredStore() throws Exception {
+        // given: RemoteInputChannel with recovered buffers in a store
         SingleInputGate inputGate = createSingleInputGate(1);
 
-        ArrayDeque<Buffer> recoveredBuffers = new ArrayDeque<>();
-        recoveredBuffers.add(TestBufferFactory.createBuffer(10));
-        recoveredBuffers.add(TestBufferFactory.createBuffer(20));
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
+        store.addBuffer(TestBufferFactory.createBuffer(10));
+        store.addBuffer(TestBufferFactory.createBuffer(20));
 
         ConnectionID connectionId =
                 new ConnectionID(
@@ -2104,7 +2228,7 @@ class RemoteInputChannelTest {
                         new SimpleCounter(),
                         new SimpleCounter(),
                         ChannelStateWriter.NO_OP,
-                        recoveredBuffers);
+                        store);
 
         inputGate.setInputChannels(channel);
 
@@ -2117,6 +2241,78 @@ class RemoteInputChannelTest {
         Optional<BufferAndAvailability> second = channel.getNextBuffer();
         assertThat(second).isPresent();
         assertThat(second.get().buffer().getSize()).isEqualTo(20);
+    }
+
+    @Test
+    void testNextDataTypeReflectsReceivedBuffersWhenRecoveredStoreExhausted()
+            throws Exception {
+        // When the very last tryTake empties the recovered store but receivedBuffers
+        // already has a buffer queued by onBuffer (this happens in production when the
+        // channel was already in inputChannelsWithData with the bit set, so the
+        // notifyChannelNonEmpty triggered by onBuffer is short-circuited by
+        // alreadyEnqueued), getNextBuffer must surface the receivedBuffers head as the
+        // next data type so moreAvailable() == true and the gate keeps the channel
+        // enqueued. Otherwise the queued buffer becomes invisible to the gate.
+        SingleInputGate inputGate = createSingleInputGate(1);
+
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
+        store.addBuffer(TestBufferFactory.createBuffer(10));
+        store.addBuffer(TestBufferFactory.createBuffer(20));
+
+        ConnectionID connectionId =
+                new ConnectionID(
+                        org.apache.flink.runtime.clusterframework.types.ResourceID.generate(),
+                        new java.net.InetSocketAddress("localhost", 0),
+                        0);
+        RemoteInputChannel channel =
+                new RemoteInputChannel(
+                        inputGate,
+                        0,
+                        new ResultPartitionID(),
+                        new ResultSubpartitionIndexSet(0),
+                        connectionId,
+                        InputChannelTestUtils.mockConnectionManagerWithPartitionRequestClient(
+                                mock(PartitionRequestClient.class)),
+                        0,
+                        0,
+                        0,
+                        2,
+                        new SimpleCounter(),
+                        new SimpleCounter(),
+                        ChannelStateWriter.NO_OP,
+                        store);
+
+        inputGate.setInputChannels(channel);
+        channel.requestSubpartitions();
+
+        // First take: store still has one more, moreAvailable=true (purely from store).
+        Optional<BufferAndAvailability> first = channel.getNextBuffer();
+        assertThat(first).isPresent();
+        assertThat(first.get().moreAvailable()).isTrue();
+        first.get().buffer().recycleBuffer();
+
+        // Producer-side message arrives via the network thread and lands in
+        // receivedBuffers. The data type is irrelevant for this assertion (production
+        // hits this with RECOVERY_COMPLETION but any non-priority buffer reproduces it).
+        Buffer received = TestBufferFactory.createBuffer(30);
+        channel.onBuffer(received, 0, 0, 0);
+
+        // Last take from the recovered store. Without the fix the next-data-type peek
+        // only consults the recovered store and returns NONE — the gate then sees
+        // moreAvailable=false and never re-enqueues the channel.
+        Optional<BufferAndAvailability> second = channel.getNextBuffer();
+        assertThat(second).isPresent();
+        assertThat(second.get().moreAvailable())
+                .as(
+                        "moreAvailable must reflect receivedBuffers when the recovered store is exhausted")
+                .isTrue();
+        second.get().buffer().recycleBuffer();
+
+        // Sanity: the buffer queued via onBuffer is still consumable from the post-recovery path.
+        Optional<BufferAndAvailability> third = channel.getNextBuffer();
+        assertThat(third).isPresent();
+        assertThat(third.get().buffer().getSize()).isEqualTo(30);
+        third.get().buffer().recycleBuffer();
     }
 
     private static final class TestBufferPool extends NoOpBufferPool {

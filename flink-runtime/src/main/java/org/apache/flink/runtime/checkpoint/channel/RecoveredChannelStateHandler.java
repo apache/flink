@@ -71,6 +71,21 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
      */
     void recover(Info info, int oldSubtaskIndex, BufferWithContext<Context> bufferWithContext)
             throws IOException, InterruptedException;
+
+    /**
+     * Trigger the post-recovery business actions for this handler. For input channels this
+     * completes the per-channel buffer-filtering future and surfaces an
+     * EndOfInputChannelStateEvent via the store; for output partitions this calls
+     * finishReadRecoveredState on every checkpointable partition.
+     *
+     * <p>Must be invoked explicitly between {@code dispatcher.flush()} and
+     * {@code dispatcher.drainPendingSpill()}; see requirements/38544/close_drain_separation.md.
+     *
+     * <p>This method is idempotent: callers that hold the handler in a try-with-resources block
+     * may invoke {@code finishRecovery()} explicitly without affecting the subsequent
+     * {@link #close()} call which only releases resources.
+     */
+    void finishRecovery() throws IOException;
 }
 
 class InputChannelRecoveredStateHandler
@@ -87,6 +102,13 @@ class InputChannelRecoveredStateHandler
      * performed during recovery in the channel-state-unspilling thread.
      */
     @Nullable private final ChannelStateFilteringHandler filteringHandler;
+
+    /**
+     * Optional dispatcher for delivering filtered data. When non-null (filtering mode), filtered
+     * records are written to the dispatcher instead of directly to InputChannel buffers. The
+     * dispatcher manages buffer allocation, disk spilling, and delivery to per-channel stores.
+     */
+    @Nullable private final FilteredBufferDispatcher dispatcher;
 
     /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
     private final int memorySegmentSize;
@@ -108,17 +130,22 @@ class InputChannelRecoveredStateHandler
      */
     private boolean preFilterBufferInUse;
 
+    /** Idempotency guard for {@link #finishRecovery()}. */
+    private boolean recoveryFinished;
+
     InputChannelRecoveredStateHandler(
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
             @Nullable ChannelStateFilteringHandler filteringHandler,
-            int memorySegmentSize) {
+            int memorySegmentSize,
+            @Nullable FilteredBufferDispatcher dispatcher) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
         this.filteringHandler = filteringHandler;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
         this.memorySegmentSize = memorySegmentSize;
+        this.dispatcher = dispatcher;
     }
 
     @Override
@@ -191,12 +218,14 @@ class InputChannelRecoveredStateHandler
                     recoverWithFiltering(
                             channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
                 } else {
-                    channel.onRecoveredStateBuffer(
-                            EventSerializer.toBuffer(
-                                    new SubtaskConnectionDescriptor(
-                                            oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                    false));
-                    channel.onRecoveredStateBuffer(buffer.retainBuffer());
+                    channel.getStore()
+                            .addBuffer(
+                                    EventSerializer.toBuffer(
+                                            new SubtaskConnectionDescriptor(
+                                                    oldSubtaskIndex,
+                                                    channelInfo.getInputChannelIdx()),
+                                            false));
+                    channel.getStore().addBuffer(buffer.retainBuffer());
                 }
             }
         } finally {
@@ -211,33 +240,31 @@ class InputChannelRecoveredStateHandler
             Buffer retainedBuffer)
             throws IOException, InterruptedException {
         checkState(filteringHandler != null, "filtering handler not set.");
-        List<Buffer> filteredBuffers =
-                filteringHandler.filterAndRewrite(
-                        channelInfo.getGateIdx(),
-                        oldSubtaskIndex,
-                        channelInfo.getInputChannelIdx(),
-                        retainedBuffer,
-                        channel::requestBufferBlocking);
+        checkState(dispatcher != null, "dispatcher not set.");
+        InputChannelInfo targetChannelInfo = channel.getChannelInfo();
+        filteringHandler.filterAndRewrite(
+                channelInfo.getGateIdx(),
+                oldSubtaskIndex,
+                channelInfo.getInputChannelIdx(),
+                retainedBuffer,
+                dispatcher,
+                targetChannelInfo);
+    }
 
-        int i = 0;
-        try {
-            for (; i < filteredBuffers.size(); i++) {
-                channel.onRecoveredStateBuffer(filteredBuffers.get(i));
-            }
-        } catch (Throwable t) {
-            for (int j = i; j < filteredBuffers.size(); j++) {
-                filteredBuffers.get(j).recycleBuffer();
-            }
-            throw t;
+    @Override
+    public void finishRecovery() throws IOException {
+        if (recoveryFinished) {
+            return;
+        }
+        recoveryFinished = true;
+        // note that we need to finish all RecoveredInputChannels, not just those with state
+        for (final InputGate inputGate : inputGates) {
+            inputGate.finishReadRecoveredState();
         }
     }
 
     @Override
     public void close() throws IOException {
-        // note that we need to finish all RecoveredInputChannels, not just those with state
-        for (final InputGate inputGate : inputGates) {
-            inputGate.finishReadRecoveredState();
-        }
         if (preFilterSegment != null) {
             preFilterSegment.free();
             preFilterSegment = null;
@@ -278,6 +305,9 @@ class ResultSubpartitionRecoveredStateHandler
     private final ResultPartitionWriter[] writers;
     private final boolean notifyAndBlockOnCompletion;
     private final ResultSubpartitionDistributor resultSubpartitionDistributor;
+
+    /** Idempotency guard for {@link #finishRecovery()}. */
+    private boolean recoveryFinished;
 
     ResultSubpartitionRecoveredStateHandler(
             ResultPartitionWriter[] writers,
@@ -352,12 +382,21 @@ class ResultSubpartitionRecoveredStateHandler
     }
 
     @Override
-    public void close() throws IOException {
+    public void finishRecovery() throws IOException {
+        if (recoveryFinished) {
+            return;
+        }
+        recoveryFinished = true;
         for (ResultPartitionWriter writer : writers) {
             if (writer instanceof CheckpointedResultPartition) {
                 ((CheckpointedResultPartition) writer)
                         .finishReadRecoveredState(notifyAndBlockOnCompletion);
             }
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        // No resources to release; finishReadRecoveredState moved to finishRecovery().
     }
 }

@@ -20,13 +20,11 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,7 +66,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
     }
 
     @Override
-    protected InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers)
+    protected InputChannel toInputChannelInternal(RecoveredBufferStoreImpl recoveredStore)
             throws IOException {
         RemoteInputChannel remoteInputChannel =
                 new RemoteInputChannel(
@@ -85,7 +83,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
                         numBytesIn,
                         numBuffersIn,
                         channelStateWriter,
-                        remainingBuffers);
+                        recoveredStore);
         remoteInputChannel.setup();
         return remoteInputChannel;
     }

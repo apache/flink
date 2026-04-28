@@ -46,6 +46,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStore;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
@@ -68,7 +69,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayDeque;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
@@ -953,7 +953,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                     new SimpleCounter(),
                     new SimpleCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    RecoveredBufferStore.EMPTY);
             this.expectedMessage = expectedMessage;
         }
 

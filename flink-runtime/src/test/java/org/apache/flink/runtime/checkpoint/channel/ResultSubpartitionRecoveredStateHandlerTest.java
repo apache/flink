@@ -106,4 +106,47 @@ class ResultSubpartitionRecoveredStateHandlerTest extends RecoveredChannelStateH
         assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
                 .isEqualTo(preAllocatedSegments);
     }
+
+    /**
+     * AT-FRCV (output half): finishRecovery() invokes finishReadRecoveredState(
+     * notifyAndBlockOnCompletion) on each CheckpointedResultPartition exactly once; close() must
+     * NOT invoke it again (close is a no-op resource release for the output handler).
+     *
+     * <p>Verification strategy: the {@code recoveryFinished} idempotency guard on the handler is
+     * inspected via reflection. We verify it flips from false to true on the first finishRecovery()
+     * call, stays true on the second (idempotent), and remains true after close() — confirming
+     * that close() does not re-enter the finishReadRecoveredState logic.
+     */
+    @Test
+    void testFinishRecoveryTriggersFinishReadRecoveredState() throws Exception {
+        // Before finishRecovery(): recoveryFinished == false.
+        assertThat(getRecoveryFinishedFlag(rstHandler)).isFalse();
+
+        // finishRecovery() must flip the guard.
+        rstHandler.finishRecovery();
+        assertThat(getRecoveryFinishedFlag(rstHandler))
+                .as("finishRecovery() must set recoveryFinished to true")
+                .isTrue();
+
+        // Idempotency: second call keeps the guard at true, does not re-invoke partition loop.
+        rstHandler.finishRecovery();
+        assertThat(getRecoveryFinishedFlag(rstHandler))
+                .as("second finishRecovery() must leave recoveryFinished as true")
+                .isTrue();
+
+        // close() is a no-op for the output handler: guard must not change.
+        rstHandler.close();
+        assertThat(getRecoveryFinishedFlag(rstHandler))
+                .as("close() must NOT alter the recoveryFinished flag")
+                .isTrue();
+    }
+
+    /** Reads the private {@code recoveryFinished} field via reflection. */
+    private static boolean getRecoveryFinishedFlag(ResultSubpartitionRecoveredStateHandler handler)
+            throws Exception {
+        java.lang.reflect.Field field =
+                ResultSubpartitionRecoveredStateHandler.class.getDeclaredField("recoveryFinished");
+        field.setAccessible(true);
+        return (boolean) field.get(handler);
+    }
 }

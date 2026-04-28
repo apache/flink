@@ -407,18 +407,32 @@ public class SingleInputGate extends IndexedInputGate {
                     continue;
                 }
                 try {
-                    // Phase 1: Convert channel and release resources outside the lock.
-                    // These calls may acquire the receivedBuffers lock internally, so they
-                    // run outside inputChannelsWithData lock to maintain a consistent lock
-                    // order with onRecoveredStateBuffer() which acquires receivedBuffers
-                    // first and then inputChannelsWithData.
+                    // Phase 1: Convert channel outside the lock so toInputChannel() can acquire
+                    // the store lock internally without violating the store-then-gate lock order
+                    // observed by store.addBuffer() / notifyChannelNonEmpty().
+                    //
+                    // Do NOT call inputChannel.releaseAllResources() here: the recovered store
+                    // reference has just been transferred to the physical channel for continued
+                    // consumption, and the BufferManager's exclusive segments are still being
+                    // consumed by the dispatcher's drainPendingSpill (which is concurrent with
+                    // this conversion). Releasing either now silently wipes recovered data and
+                    // the failure surfaces downstream as EOFException / record-count mismatch.
+                    // Both are released later — the store by the physical channel's own
+                    // releaseAllResources, the BufferManager by BufferRequester#releaseExclusiveBuffers
+                    // invoked from FilteredBufferDispatcherImpl#close after drain finishes.
                     InputChannel realInputChannel =
                             ((RecoveredInputChannel) inputChannel).toInputChannel();
-                    inputChannel.releaseAllResources();
-                    int buffersInUseCount = realInputChannel.getBuffersInUseCount();
 
-                    // Phase 2: Atomically update data structures under the lock.
+                    // Phase 2: Atomically update data structures under the lock. Reading
+                    // {@code buffersInUseCount} INSIDE the gate lock closes a TOCTOU window:
+                    // a concurrent producer could otherwise add a buffer to the channel between a
+                    // lock-free read above and the {@code inputChannelsWithData.add} below, which
+                    // — combined with notifyChannelNonEmpty already running under the same gate
+                    // lock — would either skip enqueuing the channel (count read == 0) or enqueue
+                    // it twice (count read > 0 plus the listener-driven add).
                     synchronized (inputChannelsWithData) {
+                        int buffersInUseCount = realInputChannel.getBuffersInUseCount();
+
                         if (inputChannelsWithData.contains(inputChannel)) {
                             inputChannelsWithData.getAndRemove(ch -> ch == inputChannel);
                         }
@@ -434,9 +448,22 @@ public class SingleInputGate extends IndexedInputGate {
                             enqueuedInputChannelsWithData.set(realInputChannel.getChannelIndex());
                         }
                     }
+                    // Gate slot is now wired to the physical channel; nothing on the gate side
+                    // can reach the old RecoveredInputChannel anymore. Signal the rendezvous so
+                    // BufferManager teardown fires once drain has also completed (whichever order).
+                    ((RecoveredInputChannel) inputChannel).markConverted();
                 } catch (Throwable t) {
                     inputChannel.setError(t);
                     return;
+                }
+            }
+        }
+
+        try (GateNotificationHelper notification =
+                new GateNotificationHelper(this, inputChannelsWithData)) {
+            synchronized (inputChannelsWithData) {
+                if (!inputChannelsWithData.isEmpty()) {
+                    notification.notifyDataAvailable();
                 }
             }
         }

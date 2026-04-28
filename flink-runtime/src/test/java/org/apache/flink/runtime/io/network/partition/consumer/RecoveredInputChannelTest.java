@@ -33,7 +33,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -254,7 +253,8 @@ class RecoveredInputChannelTest {
                     new SimpleCounter(),
                     10) {
                 @Override
-                protected InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers) {
+                protected InputChannel toInputChannelInternal(
+                        RecoveredBufferStoreImpl recoveredStore) {
                     throw new AssertionError("channel conversion succeeded");
                 }
             };
@@ -295,7 +295,7 @@ class RecoveredInputChannelTest {
         }
 
         @Override
-        protected InputChannel toInputChannelInternal(ArrayDeque<Buffer> remainingBuffers) {
+        protected InputChannel toInputChannelInternal(RecoveredBufferStoreImpl recoveredStore) {
             return new TestInputChannel(inputGate, 0);
         }
     }
