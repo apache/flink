@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpa
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStoreImpl;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilter;
@@ -36,8 +37,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,17 +53,24 @@ class GateFilterHandlerTest {
 
     private static final int BUFFER_SIZE = 1024;
     private static final SubtaskConnectionDescriptor KEY = new SubtaskConnectionDescriptor(0, 0);
+    private static final InputChannelInfo TARGET_CHANNEL = new InputChannelInfo(0, 0);
+
+    @TempDir private Path temporaryFolder;
 
     @Test
     void testAllRecordsPassFilter() throws Exception {
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
                 createHandler(RecordFilter.acceptAll());
 
-        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(TARGET_CHANNEL);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter(store);
 
-        // deserializeBuffers consumes (recycles) each buffer via the deserializer
-        List<Long> values = deserializeBuffers(result);
+        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
+        handler.filterAndRewrite(0, 0, sourceBuffer, outputWriter, TARGET_CHANNEL);
+        outputWriter.flush();
+        outputWriter.close();
+
+        List<Long> values = drainAndDeserialize(store);
         assertThat(values).containsExactly(1L, 2L, 3L);
     }
 
@@ -69,10 +79,16 @@ class GateFilterHandlerTest {
         RecordFilter<Long> rejectAll = record -> false;
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler = createHandler(rejectAll);
 
-        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(TARGET_CHANNEL);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter(store);
 
-        assertThat(result).isEmpty();
+        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
+        handler.filterAndRewrite(0, 0, sourceBuffer, outputWriter, TARGET_CHANNEL);
+        outputWriter.flush();
+        outputWriter.close();
+
+        List<Long> values = drainAndDeserialize(store);
+        assertThat(values).isEmpty();
     }
 
     @Test
@@ -80,30 +96,16 @@ class GateFilterHandlerTest {
         RecordFilter<Long> keepEven = record -> record.getValue() % 2 == 0;
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler = createHandler(keepEven);
 
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(TARGET_CHANNEL);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter(store);
+
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L, 4L, 5L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        handler.filterAndRewrite(0, 0, sourceBuffer, outputWriter, TARGET_CHANNEL);
+        outputWriter.flush();
+        outputWriter.close();
 
-        List<Long> values = deserializeBuffers(result);
+        List<Long> values = drainAndDeserialize(store);
         assertThat(values).containsExactly(2L, 4L);
-    }
-
-    @Test
-    void testSmallOutputBufferProducesMultipleBuffers() throws Exception {
-        // Use a very small output buffer size so records must span multiple buffers
-        int smallBufferSize = 8;
-        ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
-                createHandler(RecordFilter.acceptAll());
-
-        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L);
-        List<Buffer> result =
-                handler.filterAndRewrite(
-                        0, 0, sourceBuffer, () -> createEmptyBuffer(smallBufferSize));
-
-        // Each Long record needs 4 bytes length + ~9 bytes data > 8-byte buffer
-        assertThat(result.size()).isGreaterThan(1);
-
-        List<Long> values = deserializeBuffers(result);
-        assertThat(values).containsExactly(1L, 2L, 3L);
     }
 
     @Test
@@ -111,12 +113,18 @@ class GateFilterHandlerTest {
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
                 createHandler(RecordFilter.acceptAll());
 
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(TARGET_CHANNEL);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter(store);
+
         Buffer emptyBuffer = createEmptyBuffer();
         emptyBuffer.setSize(0);
 
-        List<Buffer> result = handler.filterAndRewrite(0, 0, emptyBuffer, this::createEmptyBuffer);
+        handler.filterAndRewrite(0, 0, emptyBuffer, outputWriter, TARGET_CHANNEL);
+        outputWriter.flush();
+        outputWriter.close();
 
-        assertThat(result).isEmpty();
+        List<Long> values = drainAndDeserialize(store);
+        assertThat(values).isEmpty();
     }
 
     // -------------------------------------------------------------------------------------------
@@ -138,6 +146,35 @@ class GateFilterHandlerTest {
         return new ChannelStateFilteringHandler.GateFilterHandler<>(channels, serializer);
     }
 
+    private FilteredBufferDispatcher createTestOutputWriter(RecoveredBufferStoreImpl store)
+            throws IOException {
+        Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel = new HashMap<>();
+        storesByChannel.put(TARGET_CHANNEL, store);
+
+        String[] spillDirs = new String[] {temporaryFolder.toString()};
+        BufferRequester newBufferPerRequest =
+                new BufferRequester() {
+                    @Override
+                    public Buffer requestBuffer(InputChannelInfo channelInfo) {
+                        return createEmptyBuffer();
+                    }
+
+                    @Override
+                    public Buffer requestBufferBlocking(InputChannelInfo channelInfo) {
+                        return createEmptyBuffer();
+                    }
+
+                    @Override
+                    public void releaseExclusiveBuffers() {}
+                };
+        return new FilteredBufferDispatcherImpl(
+                storesByChannel,
+                ChannelStateWriter.NO_OP,
+                spillDirs,
+                BUFFER_SIZE,
+                newBufferPerRequest);
+    }
+
     private Buffer createBufferWithRecords(Long... values) throws IOException {
         StreamElementSerializer<Long> serializer =
                 new StreamElementSerializer<>(LongSerializer.INSTANCE);
@@ -150,14 +187,11 @@ class GateFilterHandlerTest {
         DataOutputSerializer output = new DataOutputSerializer(BUFFER_SIZE);
 
         for (Long value : values) {
-            // Serialize using the same length-prefixed format as Flink
             DataOutputSerializer recordOutput = new DataOutputSerializer(64);
             serializer.serialize(new StreamRecord<>(value), recordOutput);
             int recordLength = recordOutput.length();
 
-            // Write 4-byte big-endian length prefix
             output.writeInt(recordLength);
-            // Write record bytes
             output.write(recordOutput.getSharedBuffer(), 0, recordLength);
         }
 
@@ -179,7 +213,8 @@ class GateFilterHandlerTest {
         return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
     }
 
-    private List<Long> deserializeBuffers(List<Buffer> buffers) throws IOException {
+    /** Drains all buffers from the store and deserializes Long values. */
+    private List<Long> drainAndDeserialize(RecoveredBufferStoreImpl store) throws IOException {
         StreamElementSerializer<Long> serializer =
                 new StreamElementSerializer<>(LongSerializer.INSTANCE);
         SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>
@@ -190,7 +225,8 @@ class GateFilterHandlerTest {
                 new NonReusingDeserializationDelegate<>(serializer);
 
         List<Long> values = new ArrayList<>();
-        for (Buffer buffer : buffers) {
+        Buffer buffer;
+        while ((buffer = takeUnderLock(store)) != null) {
             deserializer.setNextBuffer(buffer);
             while (true) {
                 RecordDeserializer.DeserializationResult result =
@@ -209,5 +245,11 @@ class GateFilterHandlerTest {
             }
         }
         return values;
+    }
+
+    private static Buffer takeUnderLock(RecoveredBufferStoreImpl store) {
+        synchronized (store) {
+            return store.tryTake();
+        }
     }
 }

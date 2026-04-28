@@ -101,23 +101,22 @@ public class ChannelStateFilteringHandler implements Closeable {
     }
 
     /**
-     * Filters a recovered buffer from the specified virtual channel, returning new buffers
-     * containing only the records that belong to the current subtask.
+     * Filters a recovered buffer from the specified virtual channel, writing surviving records to
+     * the given {@link FilteredBufferDispatcher}. The dispatcher manages buffer allocation, disk
+     * spilling, and delivery to the target channel's store.
      *
-     * <p>One source buffer may produce 0 to N result buffers: 0 if all records are filtered out,
-     * and potentially more than 1 when a spanning record completes in this buffer. The deserializer
-     * caches partial record data from previous buffers, so the output may contain data that was not
-     * in the current source buffer, causing the total output size to exceed one buffer capacity.
-     * This can happen with any spanning record regardless of its size.
-     *
-     * @return filtered buffers, possibly empty if all records were filtered out.
+     * <p>One source buffer may produce 0 to N records written to the dispatcher: 0 if all records
+     * are filtered out, and potentially more than 1 when a spanning record completes in this
+     * buffer. The deserializer caches partial record data from previous buffers, so the output may
+     * contain data that was not in the current source buffer.
      */
-    public List<Buffer> filterAndRewrite(
+    public void filterAndRewrite(
             int gateIndex,
             int oldSubtaskIndex,
             int oldChannelIndex,
             Buffer sourceBuffer,
-            BufferSupplier bufferSupplier)
+            FilteredBufferDispatcher dispatcher,
+            InputChannelInfo targetChannelInfo)
             throws IOException, InterruptedException {
 
         if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
@@ -135,8 +134,8 @@ public class ChannelStateFilteringHandler implements Closeable {
                             + gateIndex
                             + ". This gate is not a network input and should not have recovered buffers.");
         }
-        return gateHandler.filterAndRewrite(
-                oldSubtaskIndex, oldChannelIndex, sourceBuffer, bufferSupplier);
+        gateHandler.filterAndRewrite(
+                oldSubtaskIndex, oldChannelIndex, sourceBuffer, dispatcher, targetChannelInfo);
     }
 
     /** Returns {@code true} if any virtual channel has a partial (spanning) record pending. */
@@ -260,12 +259,6 @@ public class ChannelStateFilteringHandler implements Closeable {
     // Inner classes
     // -------------------------------------------------------------------------------------------
 
-    /** Provides buffers for re-serializing filtered records. Implementations may block. */
-    @FunctionalInterface
-    public interface BufferSupplier {
-        Buffer requestBufferBlocking() throws IOException, InterruptedException;
-    }
-
     /**
      * Handles record filtering for a single input gate. Each gate has its own serializer and set of
      * virtual channels, allowing different gates to handle different record types independently.
@@ -289,18 +282,17 @@ public class ChannelStateFilteringHandler implements Closeable {
 
         /**
          * Deserializes records from {@code sourceBuffer}, applies the virtual channel's record
-         * filter, and immediately re-serializes each surviving record into output buffers.
+         * filter, and writes each surviving record to the {@link FilteredBufferDispatcher}.
          */
-        List<Buffer> filterAndRewrite(
+        void filterAndRewrite(
                 int oldSubtaskIndex,
                 int oldChannelIndex,
                 Buffer sourceBuffer,
-                BufferSupplier bufferSupplier)
+                FilteredBufferDispatcher dispatcher,
+                InputChannelInfo targetChannelInfo)
                 throws IOException, InterruptedException {
 
             boolean sourceBufferOwnershipTransferred = false;
-            List<Buffer> resultBuffers = new ArrayList<>();
-            Buffer currentBuffer = null;
             try {
                 SubtaskConnectionDescriptor key =
                         new SubtaskConnectionDescriptor(oldSubtaskIndex, oldChannelIndex);
@@ -319,82 +311,41 @@ public class ChannelStateFilteringHandler implements Closeable {
                 while (true) {
                     DeserializationResult result = vc.getNextRecord(deserializationDelegate);
                     if (result.isFullRecord()) {
-                        if (currentBuffer == null) {
-                            currentBuffer = bufferSupplier.requestBufferBlocking();
-                        }
-                        currentBuffer =
-                                serializeElement(
-                                        deserializationDelegate.getInstance(),
-                                        currentBuffer,
-                                        resultBuffers,
-                                        bufferSupplier);
+                        serializeElement(
+                                deserializationDelegate.getInstance(),
+                                dispatcher,
+                                targetChannelInfo);
                     }
                     if (result.isBufferConsumed()) {
                         break;
                     }
                 }
-
-                if (currentBuffer != null) {
-                    if (currentBuffer.readableBytes() > 0) {
-                        resultBuffers.add(currentBuffer);
-                    } else {
-                        currentBuffer.recycleBuffer();
-                    }
-                    currentBuffer = null;
-                }
-
-                return resultBuffers;
             } catch (Throwable t) {
                 if (!sourceBufferOwnershipTransferred) {
                     sourceBuffer.recycleBuffer();
                 }
-                // Avoid double-recycle: currentBuffer may already be the last element in
-                // resultBuffers if serializeElement added it before the exception.
-                if (currentBuffer != null
-                        && (resultBuffers.isEmpty()
-                                || resultBuffers.get(resultBuffers.size() - 1) != currentBuffer)) {
-                    currentBuffer.recycleBuffer();
-                }
-                for (Buffer buf : resultBuffers) {
-                    buf.recycleBuffer();
-                }
-                resultBuffers.clear();
                 throw t;
             }
         }
 
         /**
-         * Serializes a single stream element into the current buffer using the length-prefixed
-         * format (4-byte big-endian length + record bytes) expected by Flink's record
-         * deserializers. Spills into new buffers from {@code bufferSupplier} when needed.
-         *
-         * @return the buffer to continue writing into (may differ from the input buffer).
+         * Serializes a single stream element using the length-prefixed format (4-byte big-endian
+         * length + record bytes) and writes it to the {@link FilteredBufferDispatcher}.
          */
-        private Buffer serializeElement(
+        private void serializeElement(
                 StreamElement element,
-                Buffer currentBuffer,
-                List<Buffer> resultBuffers,
-                BufferSupplier bufferSupplier)
+                FilteredBufferDispatcher dispatcher,
+                InputChannelInfo targetChannelInfo)
                 throws IOException, InterruptedException {
             outputSerializer.clear();
             serializer.serialize(element, outputSerializer);
             int recordLength = outputSerializer.length();
 
             writeLengthToBuffer(recordLength);
-            currentBuffer =
-                    writeDataToBuffer(
-                            lengthBuffer, 0, 4, currentBuffer, resultBuffers, bufferSupplier);
+            dispatcher.write(lengthBuffer, 4, targetChannelInfo);
 
             byte[] serializedData = outputSerializer.getSharedBuffer();
-            currentBuffer =
-                    writeDataToBuffer(
-                            serializedData,
-                            0,
-                            recordLength,
-                            currentBuffer,
-                            resultBuffers,
-                            bufferSupplier);
-            return currentBuffer;
+            dispatcher.write(serializedData, recordLength, targetChannelInfo);
         }
 
         private void writeLengthToBuffer(int length) {
@@ -402,49 +353,6 @@ public class ChannelStateFilteringHandler implements Closeable {
             lengthBuffer[1] = (byte) (length >> 16);
             lengthBuffer[2] = (byte) (length >> 8);
             lengthBuffer[3] = (byte) length;
-        }
-
-        /**
-         * Writes data to the current buffer, spilling into new buffers from {@code bufferSupplier}
-         * when the current one is full.
-         *
-         * @return the buffer to continue writing into (may differ from the input buffer).
-         */
-        private Buffer writeDataToBuffer(
-                byte[] data,
-                int dataOffset,
-                int dataLength,
-                Buffer currentBuffer,
-                List<Buffer> resultBuffers,
-                BufferSupplier bufferSupplier)
-                throws IOException, InterruptedException {
-            int offset = dataOffset;
-            int remaining = dataLength;
-
-            while (remaining > 0) {
-                int writableBytes = currentBuffer.getMaxCapacity() - currentBuffer.getSize();
-
-                if (writableBytes == 0) {
-                    // Buffer is full, transfer ownership to resultBuffers
-                    resultBuffers.add(currentBuffer);
-                    currentBuffer = bufferSupplier.requestBufferBlocking();
-                    writableBytes = currentBuffer.getMaxCapacity();
-                }
-
-                int bytesToWrite = Math.min(remaining, writableBytes);
-                currentBuffer
-                        .getMemorySegment()
-                        .put(
-                                currentBuffer.getMemorySegmentOffset() + currentBuffer.getSize(),
-                                data,
-                                offset,
-                                bytesToWrite);
-                currentBuffer.setSize(currentBuffer.getSize() + bytesToWrite);
-
-                offset += bytesToWrite;
-                remaining -= bytesToWrite;
-            }
-            return currentBuffer;
         }
 
         boolean hasPartialData() {
