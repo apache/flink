@@ -26,6 +26,8 @@ import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMet
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -178,6 +180,45 @@ class ChannelStateCheckpointWriter {
         } finally {
             buffer.recycleBuffer();
         }
+    }
+
+    /**
+     * Writes spilled input channel state chunks to the checkpoint DataOutputStream. Each chunk is
+     * written as [4-byte length prefix][data bytes], matching the format of the buffer-based path.
+     *
+     * <p>Iterates over all chunks from the iterator, grouping consecutive chunks of the same
+     * channel into a single offset entry. The iterator is closed when done.
+     */
+    void writeInputFromSpill(
+            JobVertexID jobVertexID,
+            int subtaskIndex,
+            CloseableIterator<FilteredSpillFile.Chunk> chunks) {
+        if (isDone()) {
+            IOUtils.closeQuietly(chunks);
+            return;
+        }
+        ChannelStatePendingResult pendingResult =
+                getChannelStatePendingResult(jobVertexID, subtaskIndex);
+        runWithChecks(
+                () -> {
+                    checkState(!pendingResult.isAllInputsReceived());
+                    try {
+                        while (chunks.hasNext()) {
+                            FilteredSpillFile.Chunk chunk = chunks.next();
+                            InputChannelInfo info = chunk.getChannelInfo();
+                            long offset = checkpointStream.getPos();
+                            dataStream.writeInt(chunk.getLength());
+                            dataStream.write(chunk.getData(), 0, chunk.getLength());
+                            long size = checkpointStream.getPos() - offset;
+                            pendingResult
+                                    .getInputChannelOffsets()
+                                    .computeIfAbsent(info, unused -> new StateContentMetaInfo())
+                                    .withDataAdded(offset, size);
+                        }
+                    } finally {
+                        chunks.close();
+                    }
+                });
     }
 
     private <K> void write(

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.Test;
@@ -277,6 +278,37 @@ class ChannelStateWriterImplTest {
         callStart(writer);
         writer.close();
         assertThatThrownBy(() -> callAddInputData(writer))
+                .hasCauseInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testAddInputDataFromSpill() throws Exception {
+        executeCallbackWithSyncWorker(
+                (writer, worker) -> {
+                    callStart(writer);
+                    FilteredSpillFile.Chunk chunk =
+                            new FilteredSpillFile.Chunk(
+                                    new InputChannelInfo(1, 1), new byte[] {1, 2, 3, 4, 5}, 5);
+                    writer.addInputDataFromSpill(
+                            CHECKPOINT_ID, CloseableIterator.ofElements(ignored -> {}, chunk));
+                    worker.processAllRequests();
+                    ChannelStateWriteResult result = writer.getAndRemoveWriteResult(CHECKPOINT_ID);
+                    assertThat(result.isDone()).isFalse();
+                });
+    }
+
+    @Test
+    void testAddInputDataFromSpillAfterClose() throws IOException {
+        ChannelStateWriterImpl writer = openWriter();
+        callStart(writer);
+        writer.close();
+        FilteredSpillFile.Chunk chunk =
+                new FilteredSpillFile.Chunk(new InputChannelInfo(1, 1), new byte[] {1, 2, 3}, 3);
+        assertThatThrownBy(
+                        () ->
+                                writer.addInputDataFromSpill(
+                                        CHECKPOINT_ID,
+                                        CloseableIterator.ofElements(ignored -> {}, chunk)))
                 .hasCauseInstanceOf(IllegalStateException.class);
     }
 
