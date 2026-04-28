@@ -385,9 +385,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     /**
-     * Data type of the next consumer-visible buffer behind the store. Caller MUST hold
-     * {@code recoveredStore}. The {@link #subpartitionView} tier is deliberately not consulted —
-     * doing so under the store lock would form an AB-BA cycle with the producer's notify path.
+     * Data type of the next consumer-visible buffer behind the store. Caller MUST hold {@code
+     * recoveredStore}. The {@link #subpartitionView} tier is deliberately not consulted — doing so
+     * under the store lock would form an AB-BA cycle with the producer's notify path.
      */
     @GuardedBy("recoveredStore")
     private Buffer.DataType peekNextDataType() {

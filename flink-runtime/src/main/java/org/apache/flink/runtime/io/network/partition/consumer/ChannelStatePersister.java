@@ -137,8 +137,8 @@ public final class ChannelStatePersister {
 
     /**
      * Marks {@code id} concluded on this channel and notifies the store so the coordinator drops
-     * any wait-set still tied to it (otherwise an aborted checkpoint's wait-set could linger and
-     * a later release/late callback would trigger a phase-2 drain into a concluded checkpoint).
+     * any wait-set still tied to it (otherwise an aborted checkpoint's wait-set could linger and a
+     * later release/late callback would trigger a phase-2 drain into a concluded checkpoint).
      */
     protected void stopPersisting(long id, RecoveredBufferStore store) {
         logEvent("stopPersisting", id);

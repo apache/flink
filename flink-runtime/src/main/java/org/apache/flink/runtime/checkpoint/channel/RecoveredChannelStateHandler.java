@@ -74,9 +74,9 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
 
     /**
      * Triggers post-recovery actions: input channels complete the buffer-filtering future and
-     * publish {@code EndOfInputChannelStateEvent} via their store; output partitions call
-     * {@code finishReadRecoveredState} on every checkpointable partition. Idempotent. Must be
-     * invoked between {@code dispatcher.flush()} and {@code dispatcher.drainPendingSpill()}.
+     * publish {@code EndOfInputChannelStateEvent} via their store; output partitions call {@code
+     * finishReadRecoveredState} on every checkpointable partition. Idempotent. Must be invoked
+     * between {@code dispatcher.flush()} and {@code dispatcher.drainPendingSpill()}.
      */
     void finishRecovery() throws IOException;
 }
@@ -141,9 +141,9 @@ class InputChannelRecoveredStateHandler
     }
 
     /**
-     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network
-     * Buffer Pool). Flink's serial recovery loop guarantees at most one is in flight at a time;
-     * the runtime check fails loudly if that ever regresses.
+     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
+     * Pool). Flink's serial recovery loop guarantees at most one is in flight at a time; the
+     * runtime check fails loudly if that ever regresses.
      */
     private BufferWithContext<Buffer> getPreFilterBuffer() {
         checkState(

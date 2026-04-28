@@ -128,9 +128,9 @@ public class RemoteInputChannel extends InputChannel {
     private final RecoveredBufferStore recoveredStore;
 
     /**
-     * Invariant under lock:
-     * {@code hasPendingPriorityEvent <=> receivedBuffers.getNumPriorityElements() > 0}. A
-     * priority element bypasses the FIFO recovery-first rule.
+     * Invariant under lock: {@code hasPendingPriorityEvent <=>
+     * receivedBuffers.getNumPriorityElements() > 0}. A priority element bypasses the FIFO
+     * recovery-first rule.
      */
     @GuardedBy("recoveredStore")
     private boolean hasPendingPriorityEvent = false;
@@ -318,8 +318,7 @@ public class RemoteInputChannel extends InputChannel {
             numBytesIn.inc(recoveredBuffer.getSize());
             numBuffersIn.inc();
             return Optional.of(
-                    new BufferAndAvailability(
-                            recoveredBuffer, nextDataType, 0, Integer.MIN_VALUE));
+                    new BufferAndAvailability(recoveredBuffer, nextDataType, 0, Integer.MIN_VALUE));
         }
 
         if (fromReceivedBuffers == null) {
@@ -348,9 +347,8 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     /**
-     * Data type of the next buffer the consumer will see across {@link #recoveredStore} and
-     * {@link #receivedBuffers}, respecting the priority bypass. Caller MUST hold
-     * {@code recoveredStore}.
+     * Data type of the next buffer the consumer will see across {@link #recoveredStore} and {@link
+     * #receivedBuffers}, respecting the priority bypass. Caller MUST hold {@code recoveredStore}.
      */
     @GuardedBy("recoveredStore")
     private DataType peekNextDataType() {
@@ -668,8 +666,8 @@ public class RemoteInputChannel extends InputChannel {
      * is less than backlog + initialCredit, it will request floating buffers from the buffer
      * manager, and then notify unannounced credits to the producer.
      *
-     * <p>No-op while the recovered store is non-empty: credit is gated during recovery so
-     * upstream cannot send new data.
+     * <p>No-op while the recovered store is non-empty: credit is gated during recovery so upstream
+     * cannot send new data.
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */

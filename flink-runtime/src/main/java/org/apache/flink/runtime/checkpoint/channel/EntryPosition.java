@@ -23,8 +23,8 @@ import java.util.Objects;
 
 /**
  * Position of a spill entry inside a {@link FilteredSpillFile}: physical file index in the spill
- * file's {@code readers} list plus absolute byte offset within that file. Lexicographic ordering
- * on {@code (fileIndex, offset)} matches the FIFO drain sequence. {@link #END} compares strictly
+ * file's {@code readers} list plus absolute byte offset within that file. Lexicographic ordering on
+ * {@code (fileIndex, offset)} matches the FIFO drain sequence. {@link #END} compares strictly
  * greater than any real position and serves as the post-drain sentinel.
  */
 @Internal

@@ -19,7 +19,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveredBufferStoreCoordinator;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
@@ -28,27 +27,27 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * Per-channel store for recovered buffers during unaligned checkpoint recovery. Buffers are
- * either in-memory (ready for consumption) or on disk (pending spill entries).
+ * Per-channel store for recovered buffers during unaligned checkpoint recovery. Buffers are either
+ * in-memory (ready for consumption) or on disk (pending spill entries).
  *
  * <h3>Locking contract</h3>
  *
- * <p>The store's intrinsic monitor IS the channel-private lock. Callers MUST hold
- * {@code synchronized(store)} when invoking the consumer-side queries ({@link #tryTake},
- * {@link #peekNextDataType}, {@link #isEmpty}) and the setters; implementations enforce this with
- * an internal {@code assert Thread.holdsLock(this)} that fires under {@code -ea}.
+ * <p>The store's intrinsic monitor IS the channel-private lock. Callers MUST hold {@code
+ * synchronized(store)} when invoking the consumer-side queries ({@link #tryTake}, {@link
+ * #peekNextDataType}, {@link #isEmpty}) and the setters; implementations enforce this with an
+ * internal {@code assert Thread.holdsLock(this)} that fires under {@code -ea}.
  *
  * <p>{@link #size()} is exempt and lock-free: a metric/bookkeeping read that tolerates a slightly
- * stale value. Callers that need a consistent {@code isEmpty + size} pair must take the lock
- * around both reads themselves.
+ * stale value. Callers that need a consistent {@code isEmpty + size} pair must take the lock around
+ * both reads themselves.
  *
- * <p>The lifecycle methods ({@link #checkpoint}, {@link #releaseAll},
- * {@link #notifyCheckpointStopped}) self-manage their store-level locking and fire any
- * coordinator callback <em>outside</em> the lock to avoid deadlock with the coordinator.
+ * <p>The lifecycle methods ({@link #checkpoint}, {@link #releaseAll}, {@link
+ * #notifyCheckpointStopped}) self-manage their store-level locking and fire any coordinator
+ * callback <em>outside</em> the lock to avoid deadlock with the coordinator.
  *
- * <p>Use {@link #EMPTY} as a sentinel when no recovered data is present, rather than holding
- * {@code null}; callers still wrap calls in {@code synchronized(store)} to keep the same call
- * shape regardless of which implementation backs the channel.
+ * <p>Use {@link #EMPTY} as a sentinel when no recovered data is present, rather than holding {@code
+ * null}; callers still wrap calls in {@code synchronized(store)} to keep the same call shape
+ * regardless of which implementation backs the channel.
  */
 @Internal
 public interface RecoveredBufferStore {

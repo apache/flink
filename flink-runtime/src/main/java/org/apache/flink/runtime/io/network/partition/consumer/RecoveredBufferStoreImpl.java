@@ -41,20 +41,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <h3>Locking</h3>
  *
- * <p>The store's intrinsic monitor IS the channel-private lock. Methods marked
- * {@link GuardedBy @GuardedBy("this")} require the caller to hold {@code synchronized(store)};
- * each runs {@code assert Thread.holdsLock(this)}. {@link #size()} is the deliberate exception
- * (lock-free best-effort).
+ * <p>The store's intrinsic monitor IS the channel-private lock. Methods marked {@link
+ * GuardedBy @GuardedBy("this")} require the caller to hold {@code synchronized(store)}; each runs
+ * {@code assert Thread.holdsLock(this)}. {@link #size()} is the deliberate exception (lock-free
+ * best-effort).
  *
  * <p>Two-phase methods ({@code *AndCaptureListener}, {@link #checkpoint}, {@link #releaseAll},
  * {@link #notifyCheckpointStopped}) self-manage their critical section and fire any captured
- * listener / coordinator callback after exiting the lock. This capture-then-fire-outside
- * protocol respects the lock order {@code gate.inputChannelsWithData → store}; firing inside
- * the store lock would form an AB-BA cycle with the consumer side.
+ * listener / coordinator callback after exiting the lock. This capture-then-fire-outside protocol
+ * respects the lock order {@code gate.inputChannelsWithData → store}; firing inside the store lock
+ * would form an AB-BA cycle with the consumer side.
  *
- * <p>Consumer methods run on the Task thread; producer-side mutators
- * ({@link #addBuffer}, {@link #addBufferAfterDisk}, {@link #incrementPending}) run on the
- * Recovery thread via FilteredBufferDispatcher.
+ * <p>Consumer methods run on the Task thread; producer-side mutators ({@link #addBuffer}, {@link
+ * #addBufferAfterDisk}, {@link #incrementPending}) run on the Recovery thread via
+ * FilteredBufferDispatcher.
  */
 @Internal
 public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
@@ -71,9 +71,9 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
      * Buffers visible to the consumer only after all on-disk entries have been drained. Used for
      * finish/control events whose contract is "everything before me has been delivered" (currently
      * {@link EndOfInputChannelStateEvent}). Atomically promoted into {@link #readyBuffers} when
-     * {@link #pendingCount} reaches zero — a logical FIFO without routing events through the
-     * spill path. Not counted in {@link #size()} / {@link #isEmpty()}: while something is
-     * deferred, {@code pendingCount > 0} already keeps the store non-empty.
+     * {@link #pendingCount} reaches zero — a logical FIFO without routing events through the spill
+     * path. Not counted in {@link #size()} / {@link #isEmpty()}: while something is deferred,
+     * {@code pendingCount > 0} already keeps the store non-empty.
      */
     @GuardedBy("this")
     private final ArrayDeque<Buffer> deferredBuffers = new ArrayDeque<>();
@@ -214,9 +214,9 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
 
     /**
      * Adds a recovered buffer to the ready queue. The listener fires <em>outside</em> the store
-     * monitor (gate → store lock-order). Callers that already hold {@code synchronized(store)}
-     * must use {@link #addBufferAndCaptureListener(Buffer)} and fire the listener after releasing
-     * that outer lock to avoid AB-BA deadlock.
+     * monitor (gate → store lock-order). Callers that already hold {@code synchronized(store)} must
+     * use {@link #addBufferAndCaptureListener(Buffer)} and fire the listener after releasing that
+     * outer lock to avoid AB-BA deadlock.
      */
     public void addBuffer(Buffer buffer) {
         DataAvailableListener listenerToFire = addBufferAndCaptureListener(buffer);
@@ -268,12 +268,12 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     }
 
     /**
-     * Adds a buffer that becomes consumer-visible only after all on-disk entries have been
-     * drained: delivered as a normal ready buffer when {@code pendingCount == 0}, otherwise held
-     * in {@link #deferredBuffers} and promoted when the count reaches zero. Used by
-     * {@code RecoveredInputChannel#finishReadRecoveredState} to publish
-     * {@code EndOfInputChannelStateEvent} so it always lands after the last recovered data buffer
-     * — without routing the event through the spill path.
+     * Adds a buffer that becomes consumer-visible only after all on-disk entries have been drained:
+     * delivered as a normal ready buffer when {@code pendingCount == 0}, otherwise held in {@link
+     * #deferredBuffers} and promoted when the count reaches zero. Used by {@code
+     * RecoveredInputChannel#finishReadRecoveredState} to publish {@code
+     * EndOfInputChannelStateEvent} so it always lands after the last recovered data buffer —
+     * without routing the event through the spill path.
      */
     public void addBufferAfterDisk(Buffer buffer) {
         DataAvailableListener listenerToFire = addBufferAfterDiskAndCaptureListener(buffer);

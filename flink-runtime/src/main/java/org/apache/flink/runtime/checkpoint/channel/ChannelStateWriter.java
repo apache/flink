@@ -126,8 +126,8 @@ public interface ChannelStateWriter extends Closeable {
             CloseableIterator<Buffer> data);
 
     /**
-     * Drains spill-file chunks into the checkpoint. Called by the dispatcher once all ready
-     * buffers are snapshotted and the wait-set is empty. The implementation closes the iterator.
+     * Drains spill-file chunks into the checkpoint. Called by the dispatcher once all ready buffers
+     * are snapshotted and the wait-set is empty. The implementation closes the iterator.
      */
     void addInputDataFromSpill(
             long checkpointId, CloseableIterator<FilteredSpillFile.Chunk> chunks);

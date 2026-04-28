@@ -198,10 +198,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
     @Override
     public void addInputDataFromSpill(
             long checkpointId, CloseableIterator<FilteredSpillFile.Chunk> chunks) {
-        LOG.trace(
-                "{} adding spill input data, checkpoint {}",
-                taskName,
-                checkpointId);
+        LOG.trace("{} adding spill input data, checkpoint {}", taskName, checkpointId);
         enqueue(buildSpillWriteRequest(jobVertexID, subtaskIndex, checkpointId, chunks), false);
     }
 

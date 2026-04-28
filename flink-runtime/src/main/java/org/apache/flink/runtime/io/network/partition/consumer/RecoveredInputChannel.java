@@ -273,10 +273,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     /**
-     * Tear-down fires only after BOTH drain has finished and the gate slot has been replaced.
-     * Does not touch the recovered store — the store reference has been transferred to the
-     * physical channel by {@link #toInputChannel}. Idempotent with {@link #releaseAllResources}
-     * via the same atomic flag.
+     * Tear-down fires only after BOTH drain has finished and the gate slot has been replaced. Does
+     * not touch the recovered store — the store reference has been transferred to the physical
+     * channel by {@link #toInputChannel}. Idempotent with {@link #releaseAllResources} via the same
+     * atomic flag.
      */
     private void releaseAfterDrain() throws IOException {
         if (isReleased.compareAndSet(false, true)) {
