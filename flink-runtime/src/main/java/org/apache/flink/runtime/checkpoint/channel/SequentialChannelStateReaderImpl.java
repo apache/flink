@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,7 +117,16 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                 stateHandler.finishRecovery();
                 d.drainPendingSpill();
             } else {
+                // Snapshot recovered channel references BEFORE finishRecovery, because
+                // finishRecovery completes bufferFilteringCompleteFuture which can race a
+                // mailbox-driven conversion. Once conversion replaces channels[i] with a
+                // physical channel, looking up RecoveredInputChannels via inputGates would
+                // miss the converted ones, and their BufferManager rendezvous would leak.
+                List<RecoveredInputChannel> recovered = collectRecoveredChannels(inputGates);
                 stateHandler.finishRecovery();
+                for (RecoveredInputChannel ch : recovered) {
+                    ch.markDrainDone();
+                }
             }
         }
     }
@@ -166,6 +176,19 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         offsetAndChannelInfo.oldSubtaskIndex);
             }
         }
+    }
+
+    private List<RecoveredInputChannel> collectRecoveredChannels(InputGate[] inputGates) {
+        List<RecoveredInputChannel> recovered = new ArrayList<>();
+        for (InputGate gate : inputGates) {
+            for (int i = 0; i < gate.getNumberOfInputChannels(); i++) {
+                InputChannel ch = gate.getChannel(i);
+                if (ch instanceof RecoveredInputChannel) {
+                    recovered.add((RecoveredInputChannel) ch);
+                }
+            }
+        }
+        return recovered;
     }
 
     private Map<InputChannelInfo, RecoveredBufferStoreImpl> createPerChannelStores(
