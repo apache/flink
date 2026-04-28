@@ -974,9 +974,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         // Concern 1: PTF function itself is non-deterministic.
         // requireDeterminism is the set of PTF output columns downstream requires to be
         // deterministic (for correct retract matching). All PTF output columns are assumed to
-        // come from PTF's own computation — there are pass-through input columns potentially, but
-        // they are ignored for now. If the PTF is non-deterministic and any of those columns are
-        // required, we cannot satisfy the requirement.
+        // come from PTF's computation — there are pass-through input columns potentially, but
+        // they are not considered specially for now. If the PTF is non-deterministic and any of
+        // those columns are required, we cannot satisfy the requirement.
         if (!requireDeterminism.isEmpty()) {
             final Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(call);
             if (ndCall.isPresent()) {
@@ -997,17 +997,11 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         // input columns need to be deterministic. requireDeterminism is therefore ignored here.
         //
         // Instead, the check is derived per-argument from the argument's input traits:
-        //   - No REQUIRE_UPDATE_BEFORE: the PTF receives updates without an old-row companion;
-        //     retracts are routed by partition key, so only partition key columns must be
-        //     deterministic.
+        //   - No REQUIRE_UPDATE_BEFORE: Retracts are routed by partition key, so only partition
+        //     key columns must be deterministic.
         //   - Has REQUIRE_UPDATE_BEFORE: the PTF explicitly requests the old row as UPDATE_BEFORE
         //     for correct state management; that row must exactly match the row previously
         //     processed, so all input columns must be deterministic.
-        //
-        // Crucially, this is based on the input argument's traits, NOT the PTF's output changelog
-        // mode. A PTF could output insert-only rows while still requiring UPDATE_BEFORE in its
-        // input (e.g., it processes retracts internally but only emits new events). The output
-        // mode does not determine what the PTF needs from its inputs.
         final List<Ord<StaticArgument>> providedInputArgs =
                 StreamPhysicalProcessTableFunction.getProvidedInputArgs(call);
         final List<RexNode> operands = call.getOperands();
