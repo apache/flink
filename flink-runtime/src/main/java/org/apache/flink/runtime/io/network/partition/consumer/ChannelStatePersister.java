@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.NotThreadSafe;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,8 +41,26 @@ import java.util.OptionalLong;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Helper class for persisting channel state via {@link ChannelStateWriter}. */
-@NotThreadSafe
+/**
+ * Helper class for persisting channel state via {@link ChannelStateWriter}.
+ *
+ * <h3>Locking contract</h3>
+ *
+ * <p>The bound {@link RecoveredBufferStore}'s intrinsic monitor IS the channel-private lock.
+ * Every state-touching method on this class — {@link #startPersisting}, {@link #stopPersisting},
+ * {@link #maybePersist}, {@link #checkForBarrier}, {@link #hasBarrierReceived} — requires the
+ * caller to hold {@code synchronized(store)}. The methods enforce this with an internal {@code
+ * assert Thread.holdsLock(store)} that fires under {@code -ea}.
+ *
+ * <p>This class deliberately holds <b>no lock of its own</b>. Concurrent access between the task
+ * thread (start/stop, getNext) and the network thread (onBuffer) is serialized by the same outer
+ * {@code synchronized(store)} on each call site, mirroring the master-branch wide-lock pattern.
+ *
+ * <p>The constraint that callers may safely cross {@link #startPersisting} (which can call back
+ * into {@link RecoveredBufferStore#checkpoint}, firing the dispatcher coordinator) holds because
+ * the dispatcher coordinator is itself lock-free — see
+ * {@code FilteredBufferDispatcherImpl}'s class-level invariants.
+ */
 public final class ChannelStatePersister {
     private static final Logger LOG = LoggerFactory.getLogger(ChannelStatePersister.class);
 
@@ -54,15 +72,27 @@ public final class ChannelStatePersister {
         BARRIER_RECEIVED
     }
 
+    @GuardedBy("store")
     private CheckpointStatus checkpointStatus = CheckpointStatus.COMPLETED;
 
+    @GuardedBy("store")
     private long lastSeenBarrier = -1L;
 
     private final ChannelStateWriter channelStateWriter;
 
-    ChannelStatePersister(ChannelStateWriter channelStateWriter, InputChannelInfo channelInfo) {
+    /**
+     * Per-channel store bound at construction. Its intrinsic monitor IS the channel-private lock
+     * that callers must hold for every state-touching method on this class.
+     */
+    private final RecoveredBufferStore store;
+
+    ChannelStatePersister(
+            ChannelStateWriter channelStateWriter,
+            InputChannelInfo channelInfo,
+            RecoveredBufferStore store) {
         this.channelStateWriter = checkNotNull(channelStateWriter);
         this.channelInfo = checkNotNull(channelInfo);
+        this.store = checkNotNull(store);
     }
 
     /**
@@ -70,12 +100,12 @@ public final class ChannelStatePersister {
      * knownBuffers.isEmpty()}), then either snapshots the recovered store or writes network
      * inflight buffers via {@link ChannelStateWriter#addInputData}.
      *
-     * @param store per-channel store; {@link RecoveredBufferStore#EMPTY} when no recovery data
      * @param knownBuffers network inflight buffers (empty for LocalInputChannel)
      */
-    protected void startPersisting(
-            long barrierId, RecoveredBufferStore store, List<Buffer> knownBuffers)
+    @GuardedBy("store")
+    protected void startPersisting(long barrierId, List<Buffer> knownBuffers)
             throws CheckpointException {
+        assert Thread.holdsLock(store);
         logEvent("startPersisting", barrierId);
         if (checkpointStatus == CheckpointStatus.BARRIER_RECEIVED && lastSeenBarrier > barrierId) {
             throw new CheckpointException(
@@ -88,26 +118,16 @@ public final class ChannelStatePersister {
         if (lastSeenBarrier < barrierId) {
             // Regardless of the current checkpointStatus, if we are notified about a more recent
             // checkpoint then we have seen so far, always mark that this more recent barrier is
-            // pending.
-            // BARRIER_RECEIVED status can happen if we have seen an older barrier, that probably
-            // has not yet been processed by the task, but task is now notifying us that checkpoint
-            // has started for even newer checkpoint. We should spill the knownBuffers and mark that
-            // we are waiting for that newer barrier to arrive
+            // pending. BARRIER_RECEIVED status can happen if we have seen an older barrier, that
+            // probably has not yet been processed by the task, but task is now notifying us that
+            // checkpoint has started for even newer checkpoint. We should spill the knownBuffers
+            // and mark that we are waiting for that newer barrier to arrive.
             checkpointStatus = CheckpointStatus.BARRIER_PENDING;
             lastSeenBarrier = barrierId;
         }
 
-        // The disk-network exclusivity invariant relies on UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM
-        // (upstream replays no output state) AND RemoteInputChannel#getNextBuffer draining the
-        // store first. The brief lock here is released before store.checkpoint() because
-        // store.checkpoint() fires the dispatcher coordinator (which itself acquires the store
-        // lock from the recovery thread) — holding the lock across that callback would deadlock.
-        final boolean storeEmpty;
-        final int storeSize;
-        synchronized (store) {
-            storeEmpty = store.isEmpty();
-            storeSize = store.size();
-        }
+        final boolean storeEmpty = store.isEmpty();
+        final int storeSize = store.size();
         checkState(
                 storeEmpty || knownBuffers.isEmpty(),
                 "Invariant violated: store has data (size=%s) AND knownBuffers non-empty (size=%s) at barrier %s. "
@@ -140,7 +160,9 @@ public final class ChannelStatePersister {
      * any wait-set still tied to it (otherwise an aborted checkpoint's wait-set could linger and a
      * later release/late callback would trigger a phase-2 drain into a concluded checkpoint).
      */
-    protected void stopPersisting(long id, RecoveredBufferStore store) {
+    @GuardedBy("store")
+    protected void stopPersisting(long id) {
+        assert Thread.holdsLock(store);
         logEvent("stopPersisting", id);
         if (id >= lastSeenBarrier) {
             checkpointStatus = CheckpointStatus.COMPLETED;
@@ -149,7 +171,9 @@ public final class ChannelStatePersister {
         store.notifyCheckpointStopped(id);
     }
 
+    @GuardedBy("store")
     protected void maybePersist(Buffer buffer) {
+        assert Thread.holdsLock(store);
         if (checkpointStatus == CheckpointStatus.BARRIER_PENDING && buffer.isBuffer()) {
             channelStateWriter.addInputData(
                     lastSeenBarrier,
@@ -159,7 +183,9 @@ public final class ChannelStatePersister {
         }
     }
 
+    @GuardedBy("store")
     protected OptionalLong checkForBarrier(Buffer buffer) throws IOException {
+        assert Thread.holdsLock(store);
         AbstractEvent event = parseEvent(buffer);
         if (event instanceof CheckpointBarrier) {
             long barrierId = ((CheckpointBarrier) event).getId();
@@ -217,12 +243,16 @@ public final class ChannelStatePersister {
         }
     }
 
+    @GuardedBy("store")
     protected boolean hasBarrierReceived() {
+        assert Thread.holdsLock(store);
         return checkpointStatus == CheckpointStatus.BARRIER_RECEIVED;
     }
 
     @Override
     public String toString() {
+        // Best-effort debug snapshot. Reads are unsynchronized on purpose: the logger must not
+        // deadlock against callers that already hold (or are about to acquire) the store lock.
         return "ChannelStatePersister(lastSeenBarrier="
                 + lastSeenBarrier
                 + " ("

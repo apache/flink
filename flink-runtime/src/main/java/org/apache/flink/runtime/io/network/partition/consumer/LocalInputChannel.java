@@ -116,9 +116,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
         this.partitionManager = checkNotNull(partitionManager);
         this.taskEventPublisher = checkNotNull(taskEventPublisher);
-        this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 
         this.recoveredStore = checkNotNull(recoveredStore);
+        this.channelStatePersister =
+                new ChannelStatePersister(stateWriter, getChannelInfo(), this.recoveredStore);
         synchronized (this.recoveredStore) {
             this.recoveredStore.setDataAvailableListener(this::notifyChannelNonEmpty);
         }
@@ -132,12 +133,15 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         // Local channels have no network inflight buffers to snapshot (barriers and data arrive
         // together via the local subpartition view). FullyFilledBuffer splits in
         // toBeConsumedBuffers are ordinary data fragments and don't belong in channel state.
-        channelStatePersister.startPersisting(
-                barrier.getId(), recoveredStore, Collections.emptyList());
+        synchronized (recoveredStore) {
+            channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
+        }
     }
 
     public void checkpointStopped(long checkpointId) {
-        channelStatePersister.stopPersisting(checkpointId, recoveredStore);
+        synchronized (recoveredStore) {
+            channelStatePersister.stopPersisting(checkpointId);
+        }
     }
 
     @Override
@@ -333,12 +337,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                     "Expected priority event, but got %s",
                     next == null ? "null" : next.buffer().getDataType());
 
-            channelStatePersister.checkForBarrier(next.buffer());
-
             Buffer.DataType expectedNextDataType = next.getNextDataType();
-            if (!expectedNextDataType.hasPriority()) {
-                hasPendingPriorityEvent = false;
-                synchronized (recoveredStore) {
+            synchronized (recoveredStore) {
+                channelStatePersister.checkForBarrier(next.buffer());
+                if (!expectedNextDataType.hasPriority()) {
+                    hasPendingPriorityEvent = false;
                     // recoveredStore (if non-empty) is FIFO ahead of subpartitionView.
                     if (!recoveredStore.isEmpty()) {
                         expectedNextDataType = peekNextDataType();
@@ -416,8 +419,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
         numBytesIn.inc(buffer.readableBytes());
         numBuffersIn.inc();
-        channelStatePersister.checkForBarrier(buffer);
-        channelStatePersister.maybePersist(buffer);
+        synchronized (recoveredStore) {
+            channelStatePersister.checkForBarrier(buffer);
+            channelStatePersister.maybePersist(buffer);
+        }
         NetworkActionsLogger.traceInput(
                 "LocalInputChannel#getNextBuffer",
                 buffer,

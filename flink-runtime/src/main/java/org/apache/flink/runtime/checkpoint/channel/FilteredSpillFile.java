@@ -28,7 +28,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
@@ -37,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -213,10 +213,14 @@ public class FilteredSpillFile implements Closeable {
     }
 
     /**
-     * Reads entries from a single spill file. Each instance is owned by exactly one consumer thread
-     * (the original Reader by the replay path, a snapshot Reader by a checkpoint drain). The
-     * internal buffer is reused across {@link #readNext()} calls; callers must consume each Chunk
-     * before calling readNext again.
+     * Reads entries from a single spill file. The original Reader is mutated by the recovery
+     * thread (write path, replay drain) and concurrently by task threads via {@link
+     * #removeEntriesForChannel} on channel release. To avoid undefined behavior on the entry
+     * deque, the backing storage is a {@link ConcurrentLinkedDeque} — its weakly consistent
+     * iterator and atomic poll/peek tolerate the writer-vs-release race that the post-iter_6
+     * dispatcher no longer wraps in any monitor. The internal byte buffer is reused across
+     * {@link #readNext()} calls; callers must consume each {@link Chunk} before calling readNext
+     * again.
      */
     public static class Reader implements Closeable {
 
@@ -224,7 +228,7 @@ public class FilteredSpillFile implements Closeable {
         final Path filePath; // accessed by FilteredSpillFile.close() to delete spill files
         private final int memorySegmentSize;
         private final int fileIndex;
-        private final Deque<Entry> entries = new ArrayDeque<>();
+        private final Deque<Entry> entries = new ConcurrentLinkedDeque<>();
         private volatile boolean frozen = false;
         private final byte[] buf;
 

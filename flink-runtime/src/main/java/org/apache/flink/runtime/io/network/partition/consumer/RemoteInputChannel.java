@@ -169,9 +169,10 @@ public class RemoteInputChannel extends InputChannel {
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
         this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
-        this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 
         this.recoveredStore = checkNotNull(recoveredStore);
+        this.channelStatePersister =
+                new ChannelStatePersister(stateWriter, getChannelInfo(), this.recoveredStore);
         synchronized (this.recoveredStore) {
             this.recoveredStore.setDataAvailableListener(this::notifyChannelNonEmpty);
         }
@@ -812,13 +813,13 @@ public class RemoteInputChannel extends InputChannel {
     /**
      * Spills all queued buffers on checkpoint start. If barrier has already been received (and
      * reordered), spill only the overtaken buffers.
+     *
+     * <p>The entire body runs under the store lock. {@code startPersisting} can call back into
+     * the dispatcher coordinator via {@code store.checkpoint()}; that callback is lock-free in
+     * the post-iter_6 design, so no AB-BA cycle forms with the recovery thread that may also
+     * touch this store.
      */
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
-        // Collect the inflight snapshot under the lock for consistency, then release before
-        // calling startPersisting: that reaches store.checkpoint() which fires the dispatcher
-        // coordinator (synchronized), and the dispatcher itself acquires the store lock from
-        // the recovery thread, so holding the store lock across would deadlock AB-BA.
-        final List<Buffer> inflightBuffers;
         synchronized (recoveredStore) {
             if (barrier.getId() < lastBarrierId) {
                 throw new CheckpointException(
@@ -834,16 +835,14 @@ public class RemoteInputChannel extends InputChannel {
                 // obsoleted checkpoint barrier sequence number.
                 resetLastBarrier();
             }
-            inflightBuffers = getInflightBuffersUnsafe(barrier.getId());
+            channelStatePersister.startPersisting(
+                    barrier.getId(), getInflightBuffersUnsafe(barrier.getId()));
         }
-
-        channelStatePersister.startPersisting(barrier.getId(), recoveredStore, inflightBuffers);
     }
 
     public void checkpointStopped(long checkpointId) {
-        // Outside the store lock for the same AB-BA reason as checkpointStarted.
-        channelStatePersister.stopPersisting(checkpointId, recoveredStore);
         synchronized (recoveredStore) {
+            channelStatePersister.stopPersisting(checkpointId);
             if (lastBarrierId == checkpointId) {
                 resetLastBarrier();
             }

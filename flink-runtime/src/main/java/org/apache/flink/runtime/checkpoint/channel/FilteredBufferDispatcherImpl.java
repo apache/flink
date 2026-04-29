@@ -28,13 +28,18 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.IOUtils.closeQuietly;
 
@@ -51,6 +56,27 @@ import static org.apache.flink.util.IOUtils.closeQuietly;
  * full, {@link #flushCache()} commits the bytes via P1 if the spill writer is idle and a buffer is
  * available, otherwise via P2. After {@link #flush()} seals all Readers, {@link
  * #drainPendingSpill()} drains the remainder; {@link #close()} releases resources.
+ *
+ * <h3>Locking discipline (post-iter_6)</h3>
+ *
+ * <p>This class holds <b>no monitor of its own</b>. The previous {@code synchronized} methods
+ * have been replaced with lock-free primitives so the per-channel store lock (held by task
+ * threads inside {@code ChannelStatePersister}) can call back into the coordinator without
+ * forming an AB-BA cycle.
+ *
+ * <ul>
+ *   <li>Recovery-thread state ({@code cache}, {@code cachePosition}, {@code cacheChannel},
+ *       {@code spillFile}, {@code flushed}, {@code closed}): single-writer; cross-thread reads
+ *       use {@code volatile}.
+ *   <li>Per-checkpoint state ({@link CheckpointWindow}) is bundled into one immutable object
+ *       and published via {@link AtomicReference}. Channel-arrival uses {@link
+ *       ConcurrentHashMap}-backed sets and an {@link AtomicInteger} counter; the channel that
+ *       drives the counter to zero fires {@link #drainSpillEntriesToCheckpoint(CheckpointWindow)}
+ *       at most once via an {@link AtomicBoolean} guard.
+ *   <li>{@link AtomicLong} {@code lastStoppedCheckpointId} advances monotonically via CAS.
+ *   <li>{@code drainHead} stays {@code volatile} as before; cross-channel Step-1 readers use
+ *       its publication to observe drain progress without taking any dispatcher-level lock.
+ * </ul>
  */
 @Internal
 public class FilteredBufferDispatcherImpl
@@ -68,38 +94,41 @@ public class FilteredBufferDispatcherImpl
     private final int memorySegmentSize;
     private final BufferRequester bufferRequester;
 
+    /** Recovery-thread private. */
     private final byte[] cache;
+
     private int cachePosition;
     private InputChannelInfo cacheChannel;
 
-    private FilteredSpillFile spillFile;
-
-    private long currentCheckpointId = -1L;
-    private long lastStoppedCheckpointId = -1L;
-    private Set<InputChannelInfo> waitSet;
+    /**
+     * Lazily initialized by recovery thread inside {@link #writeToSpillFile}. Volatile so task
+     * threads observing it after {@link #flushed} see a fully-constructed instance.
+     */
+    private volatile FilteredSpillFile spillFile;
 
     /**
-     * Phase-2 snapshot Readers pinned at the first {@link #onChannelCheckpointStarted} for the
-     * in-flight checkpoint. {@code null} when no checkpoint is in progress.
+     * Highest stopped checkpoint id seen so far. CAS-advanced from
+     * {@link #onChannelCheckpointStopped}; read by {@link #onChannelCheckpointStarted} to short-
+     * circuit late callbacks for already-finalized checkpoints.
      */
-    private List<FilteredSpillFile.Reader> checkpointSnapshots;
+    private final AtomicLong lastStoppedCheckpointId = new AtomicLong(-1L);
 
     /**
-     * Per-channel drain-head captured atomically with each channel's Step 1 ready snapshot. Phase-2
-     * skips entries strictly below {@code startPos[X]} for channel X (already covered by Step 1)
-     * and writes entries at or after as that channel's checkpoint state.
+     * Per-checkpoint window installed by the first {@link #onChannelCheckpointStarted} for a new
+     * id. The reference is replaced (or cleared) via CAS so the bundled snapshots/wait-set/start-
+     * pos all become visible together with no torn intermediate state.
      */
-    private Map<InputChannelInfo, EntryPosition> checkpointStartPos;
+    private final AtomicReference<CheckpointWindow> currentWindow = new AtomicReference<>();
 
     /**
      * Position of the next spill entry the drain bundle will pop from the global FIFO. Volatile
      * publication provides cross-channel visibility: any other channel's Step 1 read under its own
-     * store lock observes drain progress without needing the dispatcher monitor.
+     * store lock observes drain progress without needing a dispatcher monitor.
      */
     private volatile EntryPosition drainHead;
 
-    private boolean flushed;
-    private boolean closed;
+    private volatile boolean flushed;
+    private volatile boolean closed;
 
     public FilteredBufferDispatcherImpl(
             Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel,
@@ -127,7 +156,7 @@ public class FilteredBufferDispatcherImpl
     }
 
     @Override
-    public synchronized void write(byte[] data, int length, InputChannelInfo channelInfo)
+    public void write(byte[] data, int length, InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
         if (flushed || closed) {
             throw new IllegalStateException("Cannot write after " + (closed ? "close" : "flush"));
@@ -156,7 +185,7 @@ public class FilteredBufferDispatcherImpl
     }
 
     @Override
-    public synchronized void flush() throws IOException {
+    public void flush() throws IOException {
         if (flushed || closed) {
             return;
         }
@@ -222,7 +251,7 @@ public class FilteredBufferDispatcherImpl
     }
 
     @Override
-    public synchronized void close() throws IOException {
+    public void close() throws IOException {
         if (closed) {
             return;
         }
@@ -243,6 +272,13 @@ public class FilteredBufferDispatcherImpl
         // Symmetric tear-down: returns each channel's exclusive segments to the global pool now
         // that drain is no longer reading from them.
         bufferRequester.releaseExclusiveBuffers();
+        // Drop any still-pinned phase-2 snapshots so their fds are released even if the writer
+        // never advanced the iterator. The drainTriggered CAS keeps this from racing a final
+        // in-flight maybeTriggerDrain — whichever side wins owns and closes the snapshots.
+        CheckpointWindow w = currentWindow.getAndSet(null);
+        if (w != null && w.drainTriggered.compareAndSet(false, true)) {
+            closeSnapshots(w.snapshots);
+        }
     }
 
     @Override
@@ -252,63 +288,31 @@ public class FilteredBufferDispatcherImpl
     }
 
     /**
-     * Called by each per-channel store when that channel's ready buffers have been snapshotted into
-     * the {@link ChannelStateWriter}. On the first callback for a checkpointId, pins an immutable
-     * phase-2 view of every frozen Reader and seeds the wait-set with the pending channels.
-     * Subsequent callbacks remove their channel; the empty wait-set triggers {@link
-     * #drainSpillEntriesToCheckpoint}.
+     * Called by each per-channel store when that channel's ready buffers have been snapshotted
+     * into the {@link ChannelStateWriter}. The first arrival for a new checkpoint id installs an
+     * immutable {@link CheckpointWindow} via CAS (pinning frozen Reader snapshots and seeding the
+     * wait-set with the pending channels); subsequent arrivals only mark themselves done and the
+     * channel that drives {@code remaining} to zero triggers
+     * {@link #drainSpillEntriesToCheckpoint(CheckpointWindow)}.
      *
      * <p>{@code startPos} is the per-channel drain-head captured atomically with the ready-buffer
      * snapshot; phase-2 uses it to skip entries already covered by that channel's Step 1.
      */
-    public synchronized void onChannelCheckpointStarted(
+    @Override
+    public void onChannelCheckpointStarted(
             long checkpointId, InputChannelInfo channelInfo, EntryPosition startPos) {
-        if (checkpointId < currentCheckpointId) {
-            return;
-        }
-        if (checkpointId <= lastStoppedCheckpointId) {
+        if (checkpointId <= lastStoppedCheckpointId.get()) {
             // ChannelStateWriter for this id is gone; phase-2 drain into it would rely on
             // writer.isDone() to silently swallow the data.
             return;
         }
-        if (checkpointId > currentCheckpointId) {
-            // Pin snapshots before any drain pop can mutate entry deques. Invariant: checkpoint
-            // only starts after recovery ends, so all Readers are frozen.
-            currentCheckpointId = checkpointId;
-            checkpointStartPos = new HashMap<>();
-            checkpointSnapshots = new ArrayList<>();
-            waitSet = new HashSet<>();
-            if (spillFile != null) {
-                List<FilteredSpillFile.Reader> snapshots = new ArrayList<>();
-                try {
-                    for (FilteredSpillFile.Reader reader : spillFile.getReaders()) {
-                        Preconditions.checkState(
-                                reader.isFrozen(),
-                                "Reader must be frozen when checkpoint starts; writer.finish() "
-                                        + "must be called before checkpoint trigger.");
-                        snapshots.add(reader.snapshot());
-                    }
-                } catch (IOException e) {
-                    for (FilteredSpillFile.Reader snap : snapshots) {
-                        closeQuietly(snap);
-                    }
-                    throw new RuntimeException(
-                            "Failed to snapshot spill readers for checkpoint", e);
-                }
-                checkpointSnapshots = snapshots;
-                for (FilteredSpillFile.Reader snap : snapshots) {
-                    waitSet.addAll(snap.getPendingChannels());
-                }
-            }
+        CheckpointWindow window = ensureCheckpointWindow(checkpointId);
+        if (window == null) {
+            return; // a newer checkpoint already advanced past us
         }
-        if (checkpointStartPos != null) {
-            checkpointStartPos.put(channelInfo, startPos);
-        }
-        if (waitSet != null) {
-            waitSet.remove(channelInfo);
-            if (waitSet.isEmpty()) {
-                drainSpillEntriesToCheckpoint(checkpointId);
-            }
+        window.startPos.put(channelInfo, startPos);
+        if (window.waitSet.remove(channelInfo)) {
+            maybeTriggerDrain(window);
         }
     }
 
@@ -318,13 +322,27 @@ public class FilteredBufferDispatcherImpl
      * short-circuited as stale. Closes any pinned phase-2 snapshot Readers — otherwise every
      * aborted checkpoint leaks one fd per spill file.
      */
-    public synchronized void onChannelCheckpointStopped(
-            long checkpointId, InputChannelInfo channelInfo) {
-        if (checkpointId > lastStoppedCheckpointId) {
-            lastStoppedCheckpointId = checkpointId;
-        }
-        if (currentCheckpointId == checkpointId) {
-            resetCheckpointState();
+    @Override
+    public void onChannelCheckpointStopped(long checkpointId, InputChannelInfo channelInfo) {
+        long prev;
+        do {
+            prev = lastStoppedCheckpointId.get();
+            if (checkpointId <= prev) {
+                break;
+            }
+        } while (!lastStoppedCheckpointId.compareAndSet(prev, checkpointId));
+
+        CheckpointWindow w = currentWindow.get();
+        if (w != null && w.checkpointId == checkpointId) {
+            // Snapshot ownership is claimed via the drainTriggered flag: a concurrent
+            // maybeTriggerDrain that has already CAS'd drainTriggered to true now owns the
+            // snapshots and will hand them to the channel-state writer's iterator. Detach the
+            // window unconditionally so a duplicate stop does not double-close, but only the
+            // first claimant of drainTriggered closes the snapshots here.
+            currentWindow.compareAndSet(w, null);
+            if (w.drainTriggered.compareAndSet(false, true)) {
+                closeSnapshots(w.snapshots);
+            }
         }
     }
 
@@ -334,15 +352,80 @@ public class FilteredBufferDispatcherImpl
      * channel has no recorded startPos. Mutating the live snapshot would race the executor thread
      * already iterating it.
      */
-    public synchronized void onChannelReleased(InputChannelInfo channelInfo) {
-        if (spillFile != null) {
-            for (FilteredSpillFile.Reader reader : spillFile.getReaders()) {
+    @Override
+    public void onChannelReleased(InputChannelInfo channelInfo) {
+        FilteredSpillFile sf = spillFile;
+        if (sf != null) {
+            for (FilteredSpillFile.Reader reader : sf.getReaders()) {
                 reader.removeEntriesForChannel(channelInfo);
             }
         }
-        if (waitSet != null && waitSet.remove(channelInfo) && waitSet.isEmpty()) {
-            drainSpillEntriesToCheckpoint(currentCheckpointId);
+        CheckpointWindow w = currentWindow.get();
+        if (w != null && w.waitSet.remove(channelInfo)) {
+            maybeTriggerDrain(w);
         }
+    }
+
+    /**
+     * CAS-installs (or reuses) the {@link CheckpointWindow} for {@code checkpointId}. When this
+     * call is the first to advance to a higher id, it pins phase-2 Reader snapshots and seeds the
+     * wait-set; if it loses the CAS race against a concurrent caller, the speculative snapshots
+     * it created are closed before retrying so we never leak fds.
+     *
+     * @return the published window for {@code checkpointId}, or {@code null} if a strictly newer
+     *     checkpoint has already advanced past {@code checkpointId} and this caller is now stale.
+     */
+    private CheckpointWindow ensureCheckpointWindow(long checkpointId) {
+        while (true) {
+            // Re-check on each spin: a concurrent stop may have advanced lastStoppedCheckpointId
+            // past us while we were preparing snapshots, in which case we must abort.
+            if (checkpointId <= lastStoppedCheckpointId.get()) {
+                return null;
+            }
+            CheckpointWindow current = currentWindow.get();
+            if (current != null && current.checkpointId > checkpointId) {
+                return null;
+            }
+            if (current != null && current.checkpointId == checkpointId) {
+                return current;
+            }
+            // current is null or has a stale id — try to install a new window for checkpointId.
+            CheckpointWindow candidate = createCheckpointWindow(checkpointId);
+            if (currentWindow.compareAndSet(current, candidate)) {
+                if (current != null && current.drainTriggered.compareAndSet(false, true)) {
+                    closeSnapshots(current.snapshots);
+                }
+                return candidate;
+            }
+            // Lost the CAS race; close the speculative snapshots we just pinned and retry. We
+            // own them exclusively at this point — they have not been published to any other
+            // thread — so no drainTriggered claim is needed.
+            closeSnapshots(candidate.snapshots);
+        }
+    }
+
+    private CheckpointWindow createCheckpointWindow(long checkpointId) {
+        FilteredSpillFile sf = spillFile;
+        List<FilteredSpillFile.Reader> snapshots = new ArrayList<>();
+        Set<InputChannelInfo> pendingChannels = new HashSet<>();
+        if (sf != null) {
+            try {
+                for (FilteredSpillFile.Reader reader : sf.getReaders()) {
+                    Preconditions.checkState(
+                            reader.isFrozen(),
+                            "Reader must be frozen when checkpoint starts; writer.finish() "
+                                    + "must be called before checkpoint trigger.");
+                    FilteredSpillFile.Reader snap = reader.snapshot();
+                    snapshots.add(snap);
+                    pendingChannels.addAll(snap.getPendingChannels());
+                }
+            } catch (IOException e) {
+                closeSnapshots(snapshots);
+                throw new RuntimeException(
+                        "Failed to snapshot spill readers for checkpoint", e);
+            }
+        }
+        return new CheckpointWindow(checkpointId, snapshots, pendingChannels);
     }
 
     /**
@@ -350,30 +433,33 @@ public class FilteredBufferDispatcherImpl
      * snapshot Readers transfers to the iterator's {@link FilteringDrainChunkIterator#close()},
      * which releases the FileChannels even if the writer never advances the iterator (e.g. on
      * abort).
+     *
+     * <p>The {@link AtomicBoolean} guard inside {@link CheckpointWindow} ensures this fires at
+     * most once even if {@code remove + decrementAndGet} races between
+     * {@link #onChannelCheckpointStarted} and {@link #onChannelReleased}.
      */
-    private void drainSpillEntriesToCheckpoint(long checkpointId) {
-        if (checkpointSnapshots == null || checkpointSnapshots.isEmpty()) {
-            resetCheckpointState();
+    private void maybeTriggerDrain(CheckpointWindow window) {
+        if (window.remaining.decrementAndGet() != 0) {
             return;
         }
-        List<FilteredSpillFile.Reader> snapshots = checkpointSnapshots;
-        Map<InputChannelInfo, EntryPosition> startPos = checkpointStartPos;
-        checkpointSnapshots = null;
-        checkpointStartPos = null;
-        waitSet = null;
+        if (!window.drainTriggered.compareAndSet(false, true)) {
+            return;
+        }
+        // Detach the window so a stop callback after drain doesn't double-close snapshots; the
+        // iterator now owns them.
+        currentWindow.compareAndSet(window, null);
+        if (window.snapshots.isEmpty()) {
+            return;
+        }
         channelStateWriter.addInputDataFromSpill(
-                checkpointId, new FilteringDrainChunkIterator(snapshots, startPos));
+                window.checkpointId,
+                new FilteringDrainChunkIterator(window.snapshots, window.startPos));
     }
 
-    private void resetCheckpointState() {
-        if (checkpointSnapshots != null) {
-            for (FilteredSpillFile.Reader snap : checkpointSnapshots) {
-                closeQuietly(snap);
-            }
-            checkpointSnapshots = null;
+    private static void closeSnapshots(List<FilteredSpillFile.Reader> snapshots) {
+        for (FilteredSpillFile.Reader snap : snapshots) {
+            closeQuietly(snap);
         }
-        checkpointStartPos = null;
-        waitSet = null;
     }
 
     /**
@@ -485,6 +571,37 @@ public class FilteredBufferDispatcherImpl
 
     private boolean isSpillIdle() {
         return spillFile == null || spillFile.isIdle();
+    }
+
+    /**
+     * Immutable bundle of per-checkpoint coordination state. Replaces the old triple of nullable
+     * fields ({@code checkpointSnapshots} / {@code waitSet} / {@code checkpointStartPos}) with a
+     * single {@link AtomicReference}-published object so the snapshots and the wait-set become
+     * visible together with no torn intermediate state.
+     */
+    private static final class CheckpointWindow {
+
+        final long checkpointId;
+        final List<FilteredSpillFile.Reader> snapshots;
+        final Map<InputChannelInfo, EntryPosition> startPos = new ConcurrentHashMap<>();
+        final Set<InputChannelInfo> waitSet;
+        final AtomicInteger remaining;
+        final AtomicBoolean drainTriggered = new AtomicBoolean(false);
+
+        CheckpointWindow(
+                long checkpointId,
+                List<FilteredSpillFile.Reader> snapshots,
+                Set<InputChannelInfo> pendingChannels) {
+            this.checkpointId = checkpointId;
+            this.snapshots = Collections.unmodifiableList(new ArrayList<>(snapshots));
+            // ConcurrentHashMap-backed set: O(1) thread-safe remove + a plug-in source for the
+            // remaining counter without holding a lock.
+            this.waitSet = ConcurrentHashMap.newKeySet();
+            this.waitSet.addAll(pendingChannels);
+            // Counter mirrors waitSet size at construction so each successful remove drives one
+            // decrement.
+            this.remaining = new AtomicInteger(this.waitSet.size());
+        }
     }
 
     /**
