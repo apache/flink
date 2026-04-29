@@ -105,7 +105,7 @@ We only focus on the asynchronous ones here.
 First of all, we should get familiar with the return value of those asynchronous state access methods.
 
 `StateFuture<T>` is a future that will be completed with the result of the state access.
-The return bype is T. It provides multiple methods to handle the result, listed as:
+The return type is T. It provides multiple methods to handle the result, listed as:
 * `StateFuture<Void> thenAccept(Consumer<T>)`: This method takes a `Consumer` that will be called with the result
   when the state access is done. It returns a `StateFuture<Void>`, which will be finished when the
   `Consumer` is done.
