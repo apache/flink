@@ -383,6 +383,18 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Same as {@link RowSemanticTablePassThroughFunction} but with the scalar argument before the
+     * pass-through table.
+     */
+    public static class ScalarBeforeRowSemanticTablePassThroughFunction
+            extends AppendProcessTableFunctionBase {
+        public void eval(
+                Integer i, @ArgumentHint({ROW_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH}) Row r) {
+            collectObjects(r, i);
+        }
+    }
+
     /** Testing function. */
     public static class SetSemanticTablePassThroughFunction extends AppendProcessTableFunctionBase {
         public void eval(
