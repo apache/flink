@@ -1364,6 +1364,38 @@ This allows the PTF to focus on the main aggregation without the need to manuall
 
 *Note*: Pass-through columns are only available for append-only PTFs taking a single table argument and don't use timers.
 
+The `ArgumentTrait.NO_PASS_THROUGH` instructs the system to omit all framework-added columns. The output is fully
+controlled by the function's declared output type.
+
+By default, the framework prepends the `PARTITION BY` columns and appends a `rowtime` column when `on_time` is provided.
+With this trait, neither is added.
+
+Given a table `t` (containing columns `k` and `v`), and a PTF `f()`, the output of a
+`SELECT * FROM f(table_arg => TABLE t PARTITION BY k)` uses the following order:
+
+```text
+Default:              | k | <PTF output columns> |
+With NO_PASS_THROUGH: | <PTF output columns> |
+```
+
+If the PTF additionally requires `on_time`, the `rowtime` suffix is also suppressed:
+
+```text
+Default:              | k | <PTF output columns> | rowtime |
+With NO_PASS_THROUGH: | <PTF output columns> |
+```
+
+This is useful when the PTF fully owns its output schema, for example when forwarding a table argument verbatim.
+
+{{< hint warning >}}
+With this trait the function takes full responsibility for the output schema. If the PTF does not forward the
+`PARTITION BY` columns itself, downstream operators lose access to them and queries that reference them
+(e.g. `SELECT k FROM f(...)`) will fail. If the PTF does not emit a watermarked timestamp, downstream time-based
+operations (windowing, temporal joins, watermark propagation) become unavailable.
+{{< /hint >}}
+
+*Note*: `ArgumentTrait.NO_PASS_THROUGH` is mutually exclusive with `ArgumentTrait.PASS_COLUMNS_THROUGH`.
+
 {{< top >}}
 
 Updates and Changelogs
