@@ -105,7 +105,7 @@ We only focus on the asynchronous ones here.
 First of all, we should get familiar with the return value of those asynchronous state access methods.
 
 `StateFuture<T>` is a future that will be completed with the result of the state access.
-The return bype is T. It provides multiple methods to handle the result, listed as:
+The return type is T. It provides multiple methods to handle the result, listed as:
 * `StateFuture<Void> thenAccept(Consumer<T>)`: This method takes a `Consumer` that will be called with the result
   when the state access is done. It returns a `StateFuture<Void>`, which will be finished when the
   `Consumer` is done.
@@ -286,20 +286,20 @@ key if we had tuples with different values in the first field.
 The state access methods are executed asynchronously. This means that the state access methods
 will not block the current thread. With synchronous APIs, the state access methods will be executed in
 the order they are called. However, with asynchronous APIs, the state access methods will be executed
-out of order, especially for those invokes for different incoming elements. For the above example,
+out of order, especially for those invoked for different incoming elements. For the above example,
 if the `flatMap` function is invoked for two different incoming elements A and B, the state access
 methods for A and B will be executed. Firstly, `asyncGet` is executed for A, then `asyncGet` is
 allowed to execute for B. The finish order of the two `asyncGet` is not guaranteed. Thus the order
 of continuation of the two `StateFuture`s is not guaranteed. Thus invokes of `asyncClear` or
-`asyncUpdate`for A and B are not determined.
+`asyncUpdate` for A and B are not determined.
 
-Although the state access methods are executed out of order, this not mean that all the user code
-are run in parallel. The user code in the `processElement`, `flatMap` or `thenXXxx` methods
+Although the state access methods are executed out of order, this does not mean that all the user code
+is run in parallel. The user code in the `processElement`, `flatMap` or `thenXXxx` methods
 following the state access methods will be executed in a single thread (the task thread). So there
 is no concurrency issue for the user code.
 
 Typically, you don't need to worry about the execution order of the state access methods, but there
-is still some rules the Flink will ensure:
+are still some rules the Flink will ensure:
 * The execution order of user code entry `flatMap` for same-key elements are invoked strictly in
 order of element arrival.
 * The consumers or functions passed to the `thenXXxx` methods are executed in the order they are
