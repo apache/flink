@@ -24,22 +24,19 @@ import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferSto
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.IOUtils.closeQuietly;
 
@@ -57,26 +54,16 @@ import static org.apache.flink.util.IOUtils.closeQuietly;
  * available, otherwise via P2. After {@link #flush()} seals all Readers, {@link
  * #drainPendingSpill()} drains the remainder; {@link #close()} releases resources.
  *
- * <h3>Locking discipline (post-iter_6)</h3>
+ * <h3>Lock ordering</h3>
  *
- * <p>This class holds <b>no monitor of its own</b>. The previous {@code synchronized} methods
- * have been replaced with lock-free primitives so the per-channel store lock (held by task
- * threads inside {@code ChannelStatePersister}) can call back into the coordinator without
- * forming an AB-BA cycle.
- *
- * <ul>
- *   <li>Recovery-thread state ({@code cache}, {@code cachePosition}, {@code cacheChannel},
- *       {@code spillFile}, {@code flushed}, {@code closed}): single-writer; cross-thread reads
- *       use {@code volatile}.
- *   <li>Per-checkpoint state ({@link CheckpointWindow}) is bundled into one immutable object
- *       and published via {@link AtomicReference}. Channel-arrival uses {@link
- *       ConcurrentHashMap}-backed sets and an {@link AtomicInteger} counter; the channel that
- *       drives the counter to zero fires {@link #drainSpillEntriesToCheckpoint(CheckpointWindow)}
- *       at most once via an {@link AtomicBoolean} guard.
- *   <li>{@link AtomicLong} {@code lastStoppedCheckpointId} advances monotonically via CAS.
- *   <li>{@code drainHead} stays {@code volatile} as before; cross-channel Step-1 readers use
- *       its publication to observe drain progress without taking any dispatcher-level lock.
- * </ul>
+ * <p>Two locks meet on the recovery → checkpoint hand-off: each per-channel store's intrinsic
+ * monitor (<i>SMALL</i>) and this dispatcher's {@link #dispatcherLock} (<i>BIG</i>). They must
+ * always be acquired in the order <b>SMALL → BIG</b>. Code holding BIG must never reach back to
+ * any SMALL — neither directly nor through a callee — otherwise the AB-BA cycle returns. Forbidden
+ * callees from inside a {@code synchronized(dispatcherLock)} block: {@link
+ * RecoveredBufferStoreImpl#addBuffer}, {@link RecoveredBufferStoreImpl#addBufferAndCaptureListener},
+ * {@link RecoveredBufferStoreImpl#incrementPending}, any {@code synchronized(store)} block, and any
+ * {@link org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersister} entrypoint.
  */
 @Internal
 public class FilteredBufferDispatcherImpl
@@ -94,36 +81,50 @@ public class FilteredBufferDispatcherImpl
     private final int memorySegmentSize;
     private final BufferRequester bufferRequester;
 
-    /** Recovery-thread private. */
-    private final byte[] cache;
+    /**
+     * Explicit lock object instead of {@code synchronized} methods so every callsite that takes
+     * BIG is grep-visible.
+     */
+    private final Object dispatcherLock = new Object();
 
+    private final byte[] cache;
     private int cachePosition;
     private InputChannelInfo cacheChannel;
 
     /**
-     * Lazily initialized by recovery thread inside {@link #writeToSpillFile}. Volatile so task
+     * Lazily initialized by the recovery thread inside {@link #writeToSpillFile}; volatile so task
      * threads observing it after {@link #flushed} see a fully-constructed instance.
      */
     private volatile FilteredSpillFile spillFile;
 
-    /**
-     * Highest stopped checkpoint id seen so far. CAS-advanced from
-     * {@link #onChannelCheckpointStopped}; read by {@link #onChannelCheckpointStarted} to short-
-     * circuit late callbacks for already-finalized checkpoints.
-     */
-    private final AtomicLong lastStoppedCheckpointId = new AtomicLong(-1L);
+    @GuardedBy("dispatcherLock")
+    private long currentCheckpointId = -1L;
+
+    @GuardedBy("dispatcherLock")
+    private long lastStoppedCheckpointId = -1L;
+
+    @GuardedBy("dispatcherLock")
+    private Set<InputChannelInfo> waitSet;
 
     /**
-     * Per-checkpoint window installed by the first {@link #onChannelCheckpointStarted} for a new
-     * id. The reference is replaced (or cleared) via CAS so the bundled snapshots/wait-set/start-
-     * pos all become visible together with no torn intermediate state.
+     * Phase-2 snapshot Readers pinned at the first {@link #onChannelCheckpointStarted} for the
+     * in-flight checkpoint. {@code null} when no checkpoint is in progress.
      */
-    private final AtomicReference<CheckpointWindow> currentWindow = new AtomicReference<>();
+    @GuardedBy("dispatcherLock")
+    private List<FilteredSpillFile.Reader> checkpointSnapshots;
+
+    /**
+     * Per-channel drain-head captured atomically with each channel's Step 1 ready snapshot.
+     * Phase-2 skips entries strictly below {@code startPos[X]} for channel X (already covered by
+     * Step 1) and writes entries at or after as that channel's checkpoint state.
+     */
+    @GuardedBy("dispatcherLock")
+    private Map<InputChannelInfo, EntryPosition> checkpointStartPos;
 
     /**
      * Position of the next spill entry the drain bundle will pop from the global FIFO. Volatile
      * publication provides cross-channel visibility: any other channel's Step 1 read under its own
-     * store lock observes drain progress without needing a dispatcher monitor.
+     * SMALL observes drain progress without acquiring BIG.
      */
     private volatile EntryPosition drainHead;
 
@@ -212,7 +213,6 @@ public class FilteredBufferDispatcherImpl
         for (int i = 0; i < readers.size(); i++) {
             FilteredSpillFile.Reader reader = readers.get(i);
             while (true) {
-                // Lock-free peek: the original Reader is mutated only by this Recovery thread.
                 FilteredSpillFile.Reader.Entry entry = reader.peekNextEntry();
                 if (entry == null) {
                     break;
@@ -221,18 +221,13 @@ public class FilteredBufferDispatcherImpl
                 long entryOffset = entry.getOffset();
                 int entryLength = entry.getLength();
 
-                // Lock-free I/O: buffer allocation may block on the pool and disk reads may miss
-                // the page cache; keep both outside any lock so channel checkpoints are not
+                // Buffer allocation may block on the pool and disk reads may miss the page
+                // cache; keep both outside the store lock so channel checkpoints are not
                 // serialised behind them.
                 Buffer buffer = bufferRequester.requestBufferBlocking(ch);
                 byte[] data = new byte[entryLength];
                 reader.readBytesAt(entryOffset, entryLength, data, 0);
 
-                // Commit under store lock then fire listener outside. drainHead must be the last
-                // write so its volatile publication signals "drainHead crossed e ⇒ e is in
-                // store_C.readyBuffers" to cross-channel Step 1 readers. Listener is captured
-                // inside the lock and fired after to avoid AB-BA with the task thread (gate →
-                // store).
                 RecoveredBufferStoreImpl store =
                         Preconditions.checkNotNull(
                                 storesByChannel.get(ch), "No store for channel %s", ch);
@@ -241,8 +236,13 @@ public class FilteredBufferDispatcherImpl
                     reader.skipNextEntry();
                     writeChunkToBuffer(buffer, data, entryLength);
                     listener = store.addBufferAndCaptureListener(buffer);
+                    // drainHead is the last write inside the lock so its volatile publication
+                    // signals "drainHead crossed e ⇒ e is in store_C.readyBuffers" to
+                    // cross-channel Step 1 readers.
                     drainHead = computeDrainHeadFrom(i);
                 }
+                // Listener is captured inside the lock and fired here so the gate → store
+                // wake-up does not run while we hold the store lock (would AB-BA the task).
                 if (listener != null) {
                     listener.onDataAvailable();
                 }
@@ -255,9 +255,10 @@ public class FilteredBufferDispatcherImpl
         if (closed) {
             return;
         }
-        closed = true;
-        // Defensive: caller should have called flush() before close(); seal lingering data so
-        // spillFile.close() cleans up consistently.
+
+        // Phase 1 (abort path only): caller skipped flush(). flushCache reaches store.addBuffer,
+        // which acquires SMALL — must run outside dispatcherLock to keep the lock-order rule.
+        // The happy path enters with flushed=true and skips this block.
         if (!flushed) {
             flushCache();
             if (spillFile != null) {
@@ -265,20 +266,21 @@ public class FilteredBufferDispatcherImpl
             }
             flushed = true;
         }
-        if (spillFile != null) {
-            spillFile.close();
-            spillFile = null;
+
+        // Setting closed=true before deleting the spill file is what closes the
+        // close-vs-snapshot race: a concurrent onChannelCheckpointStarted either pinned its
+        // FileChannels before this block ran (POSIX keeps the file alive after unlink) or
+        // observes closed and returns before opening the file.
+        synchronized (dispatcherLock) {
+            closed = true;
+            if (spillFile != null) {
+                spillFile.close();
+                spillFile = null;
+            }
+            resetCheckpointState();
         }
-        // Symmetric tear-down: returns each channel's exclusive segments to the global pool now
-        // that drain is no longer reading from them.
+
         bufferRequester.releaseExclusiveBuffers();
-        // Drop any still-pinned phase-2 snapshots so their fds are released even if the writer
-        // never advanced the iterator. The drainTriggered CAS keeps this from racing a final
-        // in-flight maybeTriggerDrain — whichever side wins owns and closes the snapshots.
-        CheckpointWindow w = currentWindow.getAndSet(null);
-        if (w != null && w.drainTriggered.compareAndSet(false, true)) {
-            closeSnapshots(w.snapshots);
-        }
     }
 
     @Override
@@ -288,12 +290,9 @@ public class FilteredBufferDispatcherImpl
     }
 
     /**
-     * Called by each per-channel store when that channel's ready buffers have been snapshotted
-     * into the {@link ChannelStateWriter}. The first arrival for a new checkpoint id installs an
-     * immutable {@link CheckpointWindow} via CAS (pinning frozen Reader snapshots and seeding the
-     * wait-set with the pending channels); subsequent arrivals only mark themselves done and the
-     * channel that drives {@code remaining} to zero triggers
-     * {@link #drainSpillEntriesToCheckpoint(CheckpointWindow)}.
+     * On the first callback for a checkpoint id, pins an immutable phase-2 view of every frozen
+     * Reader and seeds the wait-set with their pending channels. Subsequent callbacks remove
+     * their channel; the empty wait-set triggers {@link #drainSpillEntriesToCheckpoint}.
      *
      * <p>{@code startPos} is the per-channel drain-head captured atomically with the ready-buffer
      * snapshot; phase-2 uses it to skip entries already covered by that channel's Step 1.
@@ -301,18 +300,36 @@ public class FilteredBufferDispatcherImpl
     @Override
     public void onChannelCheckpointStarted(
             long checkpointId, InputChannelInfo channelInfo, EntryPosition startPos) {
-        if (checkpointId <= lastStoppedCheckpointId.get()) {
-            // ChannelStateWriter for this id is gone; phase-2 drain into it would rely on
-            // writer.isDone() to silently swallow the data.
-            return;
-        }
-        CheckpointWindow window = ensureCheckpointWindow(checkpointId);
-        if (window == null) {
-            return; // a newer checkpoint already advanced past us
-        }
-        window.startPos.put(channelInfo, startPos);
-        if (window.waitSet.remove(channelInfo)) {
-            maybeTriggerDrain(window);
+        synchronized (dispatcherLock) {
+            if (closed) {
+                return;
+            }
+            if (checkpointId < currentCheckpointId) {
+                return;
+            }
+            if (checkpointId <= lastStoppedCheckpointId) {
+                // ChannelStateWriter for this id is gone; phase-2 drain into it would rely on
+                // writer.isDone() to silently swallow the data.
+                return;
+            }
+            if (checkpointId > currentCheckpointId) {
+                currentCheckpointId = checkpointId;
+                checkpointStartPos = new HashMap<>();
+                checkpointSnapshots = new ArrayList<>();
+                waitSet = new HashSet<>();
+                if (spillFile != null) {
+                    pinSpillSnapshots();
+                }
+            }
+            if (checkpointStartPos != null) {
+                checkpointStartPos.put(channelInfo, startPos);
+            }
+            if (waitSet != null) {
+                waitSet.remove(channelInfo);
+                if (waitSet.isEmpty()) {
+                    drainSpillEntriesToCheckpoint(checkpointId);
+                }
+            }
         }
     }
 
@@ -324,142 +341,100 @@ public class FilteredBufferDispatcherImpl
      */
     @Override
     public void onChannelCheckpointStopped(long checkpointId, InputChannelInfo channelInfo) {
-        long prev;
-        do {
-            prev = lastStoppedCheckpointId.get();
-            if (checkpointId <= prev) {
-                break;
+        synchronized (dispatcherLock) {
+            if (closed) {
+                return;
             }
-        } while (!lastStoppedCheckpointId.compareAndSet(prev, checkpointId));
-
-        CheckpointWindow w = currentWindow.get();
-        if (w != null && w.checkpointId == checkpointId) {
-            // Snapshot ownership is claimed via the drainTriggered flag: a concurrent
-            // maybeTriggerDrain that has already CAS'd drainTriggered to true now owns the
-            // snapshots and will hand them to the channel-state writer's iterator. Detach the
-            // window unconditionally so a duplicate stop does not double-close, but only the
-            // first claimant of drainTriggered closes the snapshots here.
-            currentWindow.compareAndSet(w, null);
-            if (w.drainTriggered.compareAndSet(false, true)) {
-                closeSnapshots(w.snapshots);
+            if (checkpointId > lastStoppedCheckpointId) {
+                lastStoppedCheckpointId = checkpointId;
+            }
+            if (currentCheckpointId == checkpointId) {
+                resetCheckpointState();
             }
         }
     }
 
     /**
-     * Drops every pending spill entry belonging to {@code channelInfo} from all Readers. Phase-2
-     * snapshots are intentionally not mutated: the filtering iterator drops snapshot entries whose
-     * channel has no recorded startPos. Mutating the live snapshot would race the executor thread
-     * already iterating it.
+     * Drops every pending spill entry belonging to {@code channelInfo} from all live Readers.
+     * Phase-2 snapshots are intentionally not mutated: the filtering iterator drops snapshot
+     * entries whose channel has no recorded startPos. Mutating the live snapshot would race the
+     * executor thread already iterating it.
      */
     @Override
     public void onChannelReleased(InputChannelInfo channelInfo) {
-        FilteredSpillFile sf = spillFile;
-        if (sf != null) {
-            for (FilteredSpillFile.Reader reader : sf.getReaders()) {
-                reader.removeEntriesForChannel(channelInfo);
+        synchronized (dispatcherLock) {
+            if (closed) {
+                return;
             }
-        }
-        CheckpointWindow w = currentWindow.get();
-        if (w != null && w.waitSet.remove(channelInfo)) {
-            maybeTriggerDrain(w);
-        }
-    }
-
-    /**
-     * CAS-installs (or reuses) the {@link CheckpointWindow} for {@code checkpointId}. When this
-     * call is the first to advance to a higher id, it pins phase-2 Reader snapshots and seeds the
-     * wait-set; if it loses the CAS race against a concurrent caller, the speculative snapshots
-     * it created are closed before retrying so we never leak fds.
-     *
-     * @return the published window for {@code checkpointId}, or {@code null} if a strictly newer
-     *     checkpoint has already advanced past {@code checkpointId} and this caller is now stale.
-     */
-    private CheckpointWindow ensureCheckpointWindow(long checkpointId) {
-        while (true) {
-            // Re-check on each spin: a concurrent stop may have advanced lastStoppedCheckpointId
-            // past us while we were preparing snapshots, in which case we must abort.
-            if (checkpointId <= lastStoppedCheckpointId.get()) {
-                return null;
-            }
-            CheckpointWindow current = currentWindow.get();
-            if (current != null && current.checkpointId > checkpointId) {
-                return null;
-            }
-            if (current != null && current.checkpointId == checkpointId) {
-                return current;
-            }
-            // current is null or has a stale id — try to install a new window for checkpointId.
-            CheckpointWindow candidate = createCheckpointWindow(checkpointId);
-            if (currentWindow.compareAndSet(current, candidate)) {
-                if (current != null && current.drainTriggered.compareAndSet(false, true)) {
-                    closeSnapshots(current.snapshots);
+            if (spillFile != null) {
+                // reader.removeEntriesForChannel mutates the same Reader.entries deque that
+                // drainPendingSpill (holds SMALL_C, not BIG) pops from, so the deque must be
+                // a ConcurrentLinkedDeque — that is its load-bearing role, not a decoration.
+                for (FilteredSpillFile.Reader reader : spillFile.getReaders()) {
+                    reader.removeEntriesForChannel(channelInfo);
                 }
-                return candidate;
             }
-            // Lost the CAS race; close the speculative snapshots we just pinned and retry. We
-            // own them exclusively at this point — they have not been published to any other
-            // thread — so no drainTriggered claim is needed.
-            closeSnapshots(candidate.snapshots);
+            if (waitSet != null && waitSet.remove(channelInfo) && waitSet.isEmpty()) {
+                drainSpillEntriesToCheckpoint(currentCheckpointId);
+            }
         }
     }
 
-    private CheckpointWindow createCheckpointWindow(long checkpointId) {
-        FilteredSpillFile sf = spillFile;
+    @GuardedBy("dispatcherLock")
+    private void pinSpillSnapshots() {
         List<FilteredSpillFile.Reader> snapshots = new ArrayList<>();
-        Set<InputChannelInfo> pendingChannels = new HashSet<>();
-        if (sf != null) {
-            try {
-                for (FilteredSpillFile.Reader reader : sf.getReaders()) {
-                    Preconditions.checkState(
-                            reader.isFrozen(),
-                            "Reader must be frozen when checkpoint starts; writer.finish() "
-                                    + "must be called before checkpoint trigger.");
-                    FilteredSpillFile.Reader snap = reader.snapshot();
-                    snapshots.add(snap);
-                    pendingChannels.addAll(snap.getPendingChannels());
-                }
-            } catch (IOException e) {
-                closeSnapshots(snapshots);
-                throw new RuntimeException(
-                        "Failed to snapshot spill readers for checkpoint", e);
+        try {
+            for (FilteredSpillFile.Reader reader : spillFile.getReaders()) {
+                Preconditions.checkState(
+                        reader.isFrozen(),
+                        "Reader must be frozen when checkpoint starts; writer.finish() "
+                                + "must be called before checkpoint trigger.");
+                snapshots.add(reader.snapshot());
             }
+        } catch (IOException e) {
+            for (FilteredSpillFile.Reader snap : snapshots) {
+                closeQuietly(snap);
+            }
+            throw new RuntimeException("Failed to snapshot spill readers for checkpoint", e);
         }
-        return new CheckpointWindow(checkpointId, snapshots, pendingChannels);
+        checkpointSnapshots = snapshots;
+        for (FilteredSpillFile.Reader snap : snapshots) {
+            waitSet.addAll(snap.getPendingChannels());
+        }
     }
 
     /**
-     * Hands pinned snapshot Readers off to the {@link ChannelStateWriter}. Ownership of the
-     * snapshot Readers transfers to the iterator's {@link FilteringDrainChunkIterator#close()},
-     * which releases the FileChannels even if the writer never advances the iterator (e.g. on
-     * abort).
-     *
-     * <p>The {@link AtomicBoolean} guard inside {@link CheckpointWindow} ensures this fires at
-     * most once even if {@code remove + decrementAndGet} races between
-     * {@link #onChannelCheckpointStarted} and {@link #onChannelReleased}.
+     * Hands pinned snapshot Readers off to the {@link ChannelStateWriter}. Ownership transfers to
+     * the iterator's {@link FilteringDrainChunkIterator#close()} so the FileChannels are released
+     * even if the writer never advances the iterator (e.g. on abort).
      */
-    private void maybeTriggerDrain(CheckpointWindow window) {
-        if (window.remaining.decrementAndGet() != 0) {
+    @GuardedBy("dispatcherLock")
+    private void drainSpillEntriesToCheckpoint(long checkpointId) {
+        if (checkpointSnapshots == null || checkpointSnapshots.isEmpty()) {
+            resetCheckpointState();
             return;
         }
-        if (!window.drainTriggered.compareAndSet(false, true)) {
-            return;
-        }
-        // Detach the window so a stop callback after drain doesn't double-close snapshots; the
-        // iterator now owns them.
-        currentWindow.compareAndSet(window, null);
-        if (window.snapshots.isEmpty()) {
-            return;
-        }
+        List<FilteredSpillFile.Reader> snapshots = checkpointSnapshots;
+        Map<InputChannelInfo, EntryPosition> startPos = checkpointStartPos;
+        checkpointSnapshots = null;
+        checkpointStartPos = null;
+        waitSet = null;
+        // addInputDataFromSpill submits to an async writer thread and does not reach back into
+        // any store SMALL — required for any callee invoked while holding BIG.
         channelStateWriter.addInputDataFromSpill(
-                window.checkpointId,
-                new FilteringDrainChunkIterator(window.snapshots, window.startPos));
+                checkpointId, new FilteringDrainChunkIterator(snapshots, startPos));
     }
 
-    private static void closeSnapshots(List<FilteredSpillFile.Reader> snapshots) {
-        for (FilteredSpillFile.Reader snap : snapshots) {
-            closeQuietly(snap);
+    @GuardedBy("dispatcherLock")
+    private void resetCheckpointState() {
+        if (checkpointSnapshots != null) {
+            for (FilteredSpillFile.Reader snap : checkpointSnapshots) {
+                closeQuietly(snap);
+            }
+            checkpointSnapshots = null;
         }
+        checkpointStartPos = null;
+        waitSet = null;
     }
 
     /**
@@ -482,8 +457,8 @@ public class FilteredBufferDispatcherImpl
     }
 
     /**
-     * Commits the cache via P1 (direct buffer) or P2 (spill). P1 requires the spill writer idle AND
-     * a non-blocking buffer available; otherwise spill, which preserves FIFO ordering — once
+     * Commits the cache via P1 (direct buffer) or P2 (spill). P1 requires the spill writer idle
+     * AND a non-blocking buffer available; otherwise spill, which preserves FIFO ordering — once
      * anything has been spilled, all subsequent data must also spill.
      */
     private void flushCache() throws IOException {
@@ -574,40 +549,9 @@ public class FilteredBufferDispatcherImpl
     }
 
     /**
-     * Immutable bundle of per-checkpoint coordination state. Replaces the old triple of nullable
-     * fields ({@code checkpointSnapshots} / {@code waitSet} / {@code checkpointStartPos}) with a
-     * single {@link AtomicReference}-published object so the snapshots and the wait-set become
-     * visible together with no torn intermediate state.
-     */
-    private static final class CheckpointWindow {
-
-        final long checkpointId;
-        final List<FilteredSpillFile.Reader> snapshots;
-        final Map<InputChannelInfo, EntryPosition> startPos = new ConcurrentHashMap<>();
-        final Set<InputChannelInfo> waitSet;
-        final AtomicInteger remaining;
-        final AtomicBoolean drainTriggered = new AtomicBoolean(false);
-
-        CheckpointWindow(
-                long checkpointId,
-                List<FilteredSpillFile.Reader> snapshots,
-                Set<InputChannelInfo> pendingChannels) {
-            this.checkpointId = checkpointId;
-            this.snapshots = Collections.unmodifiableList(new ArrayList<>(snapshots));
-            // ConcurrentHashMap-backed set: O(1) thread-safe remove + a plug-in source for the
-            // remaining counter without holding a lock.
-            this.waitSet = ConcurrentHashMap.newKeySet();
-            this.waitSet.addAll(pendingChannels);
-            // Counter mirrors waitSet size at construction so each successful remove drives one
-            // decrement.
-            this.remaining = new AtomicInteger(this.waitSet.size());
-        }
-    }
-
-    /**
-     * Iterates chunks from snapshot Readers, skipping entries below each channel's recorded {@code
-     * startPos} cutoff (those are covered by Step 1). Each Reader is closed eagerly when exhausted;
-     * {@link #close()} closes whatever Readers remain.
+     * Iterates chunks from snapshot Readers, skipping entries below each channel's recorded
+     * {@code startPos} cutoff (those are covered by Step 1). Each Reader is closed eagerly when
+     * exhausted; {@link #close()} closes whatever Readers remain.
      */
     private static final class FilteringDrainChunkIterator
             implements CloseableIterator<FilteredSpillFile.Chunk> {
@@ -641,12 +585,6 @@ public class FilteredBufferDispatcherImpl
             }
         }
 
-        /**
-         * Skips entries whose channel either has no recorded startPos (released before checkpoint
-         * trigger — drop everything for that channel) or whose position is strictly below the
-         * channel's startPos. Closes empty readers eagerly so FileChannel fds are released even if
-         * the writer never finishes draining the iterator.
-         */
         private void advanceToIncluded() {
             while (!remaining.isEmpty()) {
                 FilteredSpillFile.Reader r = remaining.peekFirst();
@@ -657,6 +595,9 @@ public class FilteredBufferDispatcherImpl
                 FilteredSpillFile.Reader.Entry e = r.peekNextEntry();
                 EntryPosition cutoff = startPos.get(e.getChannelInfo());
                 EntryPosition entryPos = new EntryPosition(r.getFileIndex(), e.getOffset());
+                // No startPos means the channel was released before checkpoint trigger — drop
+                // every snapshot entry for it. Below-cutoff entries are already covered by
+                // Step 1 in store_C.readyBuffers.
                 if (cutoff == null || entryPos.compareTo(cutoff) < 0) {
                     r.skipNextEntry();
                 } else {

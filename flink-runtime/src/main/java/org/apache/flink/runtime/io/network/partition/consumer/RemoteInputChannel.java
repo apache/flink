@@ -811,13 +811,10 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     /**
-     * Spills all queued buffers on checkpoint start. If barrier has already been received (and
-     * reordered), spill only the overtaken buffers.
-     *
-     * <p>The entire body runs under the store lock. {@code startPersisting} can call back into
-     * the dispatcher coordinator via {@code store.checkpoint()}; that callback is lock-free in
-     * the post-iter_6 design, so no AB-BA cycle forms with the recovery thread that may also
-     * touch this store.
+     * Spills all queued buffers on checkpoint start. If the barrier has already been received
+     * (and reordered), spill only the overtaken buffers. The entire body runs under the store
+     * lock so {@code checkpointStatus} transitions inside {@code startPersisting} cannot tear
+     * against the network thread's {@code maybePersist}.
      */
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         synchronized (recoveredStore) {
@@ -826,13 +823,10 @@ public class RemoteInputChannel extends InputChannel {
                         String.format(
                                 "Sequence number for checkpoint %d is not known (it was likely been overwritten by a newer checkpoint %d)",
                                 barrier.getId(), lastBarrierId),
-                        CheckpointFailureReason
-                                .CHECKPOINT_SUBSUMED); // currently, at most one active unaligned
-                // checkpoint is possible
+                        CheckpointFailureReason.CHECKPOINT_SUBSUMED);
             } else if (barrier.getId() > lastBarrierId) {
-                // This channel has received some obsolete barrier, older compared to the
-                // checkpointId which we are processing right now, and we should ignore that
-                // obsoleted checkpoint barrier sequence number.
+                // Older barrier already in flight — drop its sequence number; the newer
+                // checkpoint we just received takes over.
                 resetLastBarrier();
             }
             channelStatePersister.startPersisting(
