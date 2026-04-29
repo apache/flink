@@ -63,10 +63,10 @@
       </a>
     </nz-descriptions-item>
     <nz-descriptions-item nzTitle="Start Time">
-      {{ applicationDetail['start-time'] | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}
+      {{ applicationDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
     </nz-descriptions-item>
     <nz-descriptions-item nzTitle="End Time" *ngIf="applicationDetail['end-time'] > -1">
-      {{ applicationDetail['end-time'] | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}
+      {{ applicationDetail['end-time'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
     </nz-descriptions-item>
     <nz-descriptions-item nzTitle="Duration">
       {{ applicationDetail.duration | humanizeDuration }}

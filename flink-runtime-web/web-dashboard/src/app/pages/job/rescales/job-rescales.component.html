@@ -238,8 +238,8 @@
             <tbody>
               <tr *ngFor="let state of detail.schedulerStates">
                 <td>{{ state.state }}</td>
-                <td>{{ state.enterTimestampInMillis | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
-                <td>{{ state.leaveTimestampInMillis | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+                <td>{{ state.enterTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+                <td>{{ state.leaveTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
                 <td>{{ state.durationInMillis | humanizeDuration }}</td>
                 <td>{{ state.stringifiedException }}</td>
               </tr>
@@ -260,14 +260,14 @@
         <td *ngIf="rescale">
           <span>
             <strong>Start Time:</strong>
-            {{ rescale.startTimestampInMillis | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}
+            {{ rescale.startTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
           </span>
           <nz-divider nzType="vertical"></nz-divider>
           <span>
             <strong>End Time:</strong>
             {{
               rescale.endTimestampInMillis
-                ? (rescale.endTimestampInMillis | date : 'yyyy-MM-dd HH:mm:ss.SSS')
+                ? (rescale.endTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS')
                 : '-'
             }}
           </span>
@@ -434,7 +434,7 @@
             </td>
             <td>{{ jobRescaleDetails.terminatedReason || '-' }}</td>
             <td>
-              {{ jobRescaleDetails.startTimestampInMillis | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}
+              {{ jobRescaleDetails.startTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
             </td>
             <td>
               {{
@@ -445,7 +445,7 @@
             <td>
               {{
                 jobRescaleDetails.endTimestampInMillis
-                  ? (jobRescaleDetails.endTimestampInMillis | date : 'yyyy-MM-dd HH:mm:ss.SSS')
+                  ? (jobRescaleDetails.endTimestampInMillis | date: 'yyyy-MM-dd HH:mm:ss.SSS')
                   : '-'
               }}
             </td>
