@@ -26,7 +26,6 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -80,9 +79,7 @@ public class S3EncryptionConfig implements Serializable {
         this.encryptionType = encryptionType;
         this.kmsKeyId = kmsKeyId;
         this.encryptionContext =
-                encryptionContext != null
-                        ? Collections.unmodifiableMap(new HashMap<>(encryptionContext))
-                        : Collections.emptyMap();
+                encryptionContext != null ? Map.copyOf(encryptionContext) : Collections.emptyMap();
     }
 
     /** Creates a config with no encryption. */
@@ -148,7 +145,9 @@ public class S3EncryptionConfig implements Serializable {
      * @throws IllegalArgumentException if the encryption type is invalid
      */
     public static S3EncryptionConfig fromConfig(
-            @Nullable String encryptionTypeStr, @Nullable String kmsKeyId) {
+            @Nullable String encryptionTypeStr,
+            @Nullable String kmsKeyId,
+            Map<String, String> encryptionContext) {
         if (encryptionTypeStr == null
                 || encryptionTypeStr.isEmpty()
                 || "none".equalsIgnoreCase(encryptionTypeStr)) {
@@ -163,7 +162,9 @@ public class S3EncryptionConfig implements Serializable {
                 return sseS3();
             case "SSE_KMS":
             case "AWS_KMS":
-                return kmsKeyId != null && !kmsKeyId.isEmpty() ? sseKms(kmsKeyId) : sseKms();
+                return kmsKeyId != null && !kmsKeyId.isEmpty()
+                        ? sseKms(kmsKeyId, encryptionContext)
+                        : sseKms();
             default:
                 throw new IllegalArgumentException(
                         "Unknown encryption type: "

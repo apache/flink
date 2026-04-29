@@ -34,6 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Factory for creating Native S3 FileSystem instances.
@@ -190,6 +192,16 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "Example: 'arn:aws:kms:us-east-1:123456789:key/12345678-1234-1234-1234-123456789abc' "
                                     + "or 'alias/my-s3-key'");
 
+    public static final ConfigOption<Map<String, String>> SSE_KMS_ENCRYPTION_CONTEXT =
+            ConfigOptions.key("s3.sse.kms.encryption-context")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Encryption context key-value pairs for SSE-KMS. "
+                                    + "Provides additional authenticated data and enables "
+                                    + "fine-grained IAM policy conditions. "
+                                    + "Format: 'key1:value1,key2:value2'");
+
     // IAM Assume Role Configuration
     public static final ConfigOption<String> ASSUME_ROLE_ARN =
             ConfigOptions.key("s3.assume-role.arn")
@@ -312,7 +324,11 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         boolean pathStyleAccess = config.get(PATH_STYLE_ACCESS);
 
         S3EncryptionConfig encryptionConfig =
-                S3EncryptionConfig.fromConfig(config.get(SSE_TYPE), config.get(SSE_KMS_KEY_ID));
+                S3EncryptionConfig.fromConfig(
+                        config.get(SSE_TYPE),
+                        config.get(SSE_KMS_KEY_ID),
+                        config.getOptional(SSE_KMS_ENCRYPTION_CONTEXT)
+                                .orElse(Collections.emptyMap()));
         String entropyInjectionKey = config.get(ENTROPY_INJECT_KEY_OPTION);
         int numEntropyChars = -1;
         if (entropyInjectionKey != null) {

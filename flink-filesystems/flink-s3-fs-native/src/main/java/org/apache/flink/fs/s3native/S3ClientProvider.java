@@ -135,6 +135,7 @@ class S3ClientProvider implements AutoCloseableAsync {
     }
 
     @VisibleForTesting
+    @Nullable
     AwsCredentialsProvider getCredentialsProvider() {
         return credentialsProvider;
     }

@@ -79,6 +79,7 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 |-----|---------|-------------|
 | s3.sse.type | none | Encryption type: `none`, `sse-s3` (AES256), `sse-kms` (AWS KMS) |
 | s3.sse.kms.key-id | (none) | KMS key ID/ARN/alias for SSE-KMS (uses default aws/s3 key if not specified) |
+| s3.sse.kms.encryption-context | (none) | Encryption context key-value pairs for SSE-KMS. Format: `key1:value1,key2:value2`. Keys/values containing `:` must be quoted. |
 
 ### IAM Assume Role
 
@@ -128,9 +129,7 @@ This enables IAM policies to restrict access based on context values:
 ```yaml
 s3.sse.type: sse-kms
 s3.sse.kms.key-id: alias/my-key
-# Configure encryption context as key-value pairs
-s3.sse.kms.encryption-context.department: finance
-s3.sse.kms.encryption-context.project: budget-reports
+s3.sse.kms.encryption-context: {"aws:s3:arn": "arn:aws:s3:::my-bucket/my-file"}
 ```
 
 With encryption context, you can create IAM policies like:
