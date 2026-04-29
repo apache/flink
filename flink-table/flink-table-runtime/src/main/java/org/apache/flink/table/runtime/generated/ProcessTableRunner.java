@@ -28,7 +28,6 @@ import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerOnTimerContext;
-import org.apache.flink.table.runtime.operators.process.PassAllCollector;
 import org.apache.flink.table.runtime.operators.process.PassThroughCollectorBase;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.function.RunnableWithException;
@@ -57,7 +56,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
 
     // Collectors
     protected PassThroughCollectorBase evalCollector;
-    protected PassAllCollector onTimerCollector;
+    protected PassThroughCollectorBase onTimerCollector;
 
     // Current input table
     protected int inputIndex = -1;
@@ -88,7 +87,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
             RunnerContext runnerContext,
             RunnerOnTimerContext runnerOnTimerContext,
             PassThroughCollectorBase evalCollector,
-            PassAllCollector onTimerCollector) {
+            PassThroughCollectorBase onTimerCollector) {
         this.stateHandles = stateHandles;
         this.stateHashCode = stateHashCode;
         this.stateEquals = stateEquals;

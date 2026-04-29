@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFuncti
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.PassThroughMode;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
@@ -419,17 +420,25 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                                     }
                                     final RexTableArgCall tableArg = (RexTableArgCall) operand.e;
                                     final StaticArgument staticArg = staticArgs.get(0);
-                                    if (staticArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
-                                        return tableArg.getType().getFieldCount();
-                                    } else {
-                                        return tableArg.getPartitionKeys().length;
+                                    switch (staticArg.getPassThroughMode()) {
+                                        case NONE:
+                                            return 0;
+                                        case ALL:
+                                            return tableArg.getType().getFieldCount();
+                                        default:
+                                            // KEY
+                                            return tableArg.getPartitionKeys().length;
                                     }
                                 })
                         .sum();
         final RexNode onTimeArg =
                 operands.get(operands.size() - 1 - PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET);
+        final boolean noPassThrough =
+                staticArgs.stream().anyMatch(a -> a.getPassThroughMode() == PassThroughMode.NONE);
         final int suffixOutputSystemFields =
-                (onTimeArg.getKind() == SqlKind.DEFAULT || RexUtil.isNullLiteral(onTimeArg, true))
+                noPassThrough
+                                || onTimeArg.getKind() == SqlKind.DEFAULT
+                                || RexUtil.isNullLiteral(onTimeArg, true)
                         ? 0
                         : 1;
         final List<RelDataTypeField> projectedFields =

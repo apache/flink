@@ -43,6 +43,7 @@ public enum StaticArgumentTrait {
     ROW_SEMANTIC_TABLE(TABLE),
     SET_SEMANTIC_TABLE(TABLE),
     PASS_COLUMNS_THROUGH(TABLE),
+    NO_PASS_THROUGH(TABLE),
     SUPPORT_UPDATES(TABLE),
     REQUIRE_ON_TIME(TABLE),
 
@@ -80,6 +81,10 @@ public enum StaticArgumentTrait {
                 return Collections.singleton(ROW_SEMANTIC_TABLE);
             case ROW_SEMANTIC_TABLE:
                 return Collections.singleton(SET_SEMANTIC_TABLE);
+            case NO_PASS_THROUGH:
+                return Collections.singleton(PASS_COLUMNS_THROUGH);
+            case PASS_COLUMNS_THROUGH:
+                return Collections.singleton(NO_PASS_THROUGH);
             default:
                 return Collections.emptySet();
         }

@@ -104,9 +104,44 @@ public enum ArgumentTrait {
      * argument and don't use timers.
      *
      * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
-     * arguments.
+     * arguments. Mutually exclusive with {@link #NO_PASS_THROUGH}.
      */
     PASS_COLUMNS_THROUGH(false, StaticArgumentTrait.PASS_COLUMNS_THROUGH),
+
+    /**
+     * Defines that the framework won't automatically add columns to the output schema. The output
+     * is fully controlled by the function's declared output type.
+     *
+     * <p>By default, the framework prepends the columns of the PARTITION BY clause and appends a
+     * {@code rowtime} column when {@link #REQUIRE_ON_TIME} applies. With this trait, neither is
+     * added.
+     *
+     * <p>Given a table t (containing columns k and v), and a PTF f(), the output of a {@code SELECT
+     * * FROM f(table_arg => TABLE t PARTITION BY k)} uses the following order:
+     *
+     * <pre>
+     * Default:              | k | &lt;PTF output columns&gt; |
+     * With NO_PASS_THROUGH: | &lt;PTF output columns&gt; |
+     * </pre>
+     *
+     * <p>If the PTF additionally declares {@link #REQUIRE_ON_TIME}, the {@code rowtime} suffix is
+     * also suppressed:
+     *
+     * <pre>
+     * Default:              | k | &lt;PTF output columns&gt; | rowtime |
+     * With NO_PASS_THROUGH: | &lt;PTF output columns&gt; |
+     * </pre>
+     *
+     * <p>Warning: With this trait the function takes full responsibility for the output schema. If
+     * the PTF does not forward the partition key columns itself, downstream operators lose access
+     * to them and queries that reference them (e.g. {@code SELECT k FROM f(...)}) will fail. If the
+     * PTF does not emit a watermarked timestamp, downstream time-based operations (windowing,
+     * temporal joins, watermark propagation) become unavailable.
+     *
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments. Mutually exclusive with {@link #PASS_COLUMNS_THROUGH}.
+     */
+    NO_PASS_THROUGH(false, StaticArgumentTrait.NO_PASS_THROUGH),
 
     /**
      * Defines that updates are allowed as input to the given table argument. By default, a table

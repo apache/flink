@@ -318,7 +318,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 tableArgCall.getOrderKeys(),
                 RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                 consumedChangelogMode,
-                tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
+                tableArg.getPassThroughMode(),
                 tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
                 timeColumn);
     }

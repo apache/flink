@@ -343,22 +343,29 @@ public class SystemTypeInference {
                     .mapToObj(
                             pos -> {
                                 final StaticArgument arg = staticArgs.get(pos);
-                                if (arg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
-                                    return DataType.getFields(argDataTypes.get(pos)).stream();
+                                switch (arg.getPassThroughMode()) {
+                                    case NONE:
+                                        return Stream.<Field>empty();
+                                    case ALL:
+                                        return DataType.getFields(argDataTypes.get(pos)).stream();
+                                    default:
+                                        // KEY: prepend partition keys for set-semantic args,
+                                        // nothing for row-semantic args.
+                                        if (!arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                                            return Stream.<Field>empty();
+                                        }
+                                        final TableSemantics semantics =
+                                                callContext
+                                                        .getTableSemantics(pos)
+                                                        .orElseThrow(IllegalStateException::new);
+                                        final DataType rowDataType =
+                                                DataTypes.ROW(
+                                                        DataType.getFields(argDataTypes.get(pos)));
+                                        final DataType projectedRow =
+                                                Projection.of(semantics.partitionByColumns())
+                                                        .project(rowDataType);
+                                        return DataType.getFields(projectedRow).stream();
                                 }
-                                if (!arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
-                                    return Stream.<Field>empty();
-                                }
-                                final TableSemantics semantics =
-                                        callContext
-                                                .getTableSemantics(pos)
-                                                .orElseThrow(IllegalStateException::new);
-                                final DataType rowDataType =
-                                        DataTypes.ROW(DataType.getFields(argDataTypes.get(pos)));
-                                final DataType projectedRow =
-                                        Projection.of(semantics.partitionByColumns())
-                                                .project(rowDataType);
-                                return DataType.getFields(projectedRow).stream();
                             })
                     .flatMap(s -> s)
                     .collect(Collectors.toList());
@@ -383,6 +390,11 @@ public class SystemTypeInference {
         private List<Field> deriveRowtimeField(
                 CallContext callContext, List<StaticArgument> staticArgs) {
             if (this.functionKind != FunctionKind.PROCESS_TABLE) {
+                return List.of();
+            }
+            // The system rowtime suffix is one column shared across all emission paths. If any
+            // arg uses NONE the function owns the schema, so the framework adds no suffix.
+            if (staticArgs.stream().anyMatch(a -> a.getPassThroughMode() == PassThroughMode.NONE)) {
                 return List.of();
             }
             final List<DataType> args = callContext.getArgumentDataTypes();

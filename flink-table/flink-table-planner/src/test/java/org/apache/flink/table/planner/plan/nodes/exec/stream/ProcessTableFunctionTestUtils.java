@@ -1207,4 +1207,43 @@ public class ProcessTableFunctionTestUtils {
     private static String toModeSummary(ChangelogMode mode) {
         return MODE_SUMMARY.get(mode.toString());
     }
+
+    /**
+     * Test PTF that declares {@link StaticArgumentTrait#NO_PASS_THROUGH} on its single table
+     * argument by overriding {@link #getTypeInference}. With this trait, the framework prepends no
+     * partition-key prefix and appends no system rowtime - the function emits its declared output
+     * verbatim.
+     *
+     * <p>{@link ArgumentTrait} does not yet expose {@code NO_PASS_THROUGH} to user PTFs, so the
+     * declaration goes through the underlying {@link StaticArgument} API.
+     */
+    public static class NoPassThroughFunction extends ProcessTableFunction<Row> {
+
+        public void eval(Context ctx, Row input) {
+            collect(input);
+        }
+
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.NO_PASS_THROUGH)))
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            callContext
+                                                    .getTableSemantics(0)
+                                                    .orElseThrow(IllegalStateException::new)
+                                                    .dataType()
+                                                    .notNull()))
+                    .build();
+        }
+    }
 }

@@ -212,11 +212,22 @@ public class StaticArgument {
     }
 
     /**
-     * Context-aware trait check. Evaluates conditional trait rules against the given context to
-     * determine the effective traits.
+     * Returns the {@link PassThroughMode} for this table argument, derived from its traits.
+     *
+     * <ul>
+     *   <li>{@link StaticArgumentTrait#PASS_COLUMNS_THROUGH} → {@link PassThroughMode#ALL}
+     *   <li>{@link StaticArgumentTrait#NO_PASS_THROUGH} → {@link PassThroughMode#NONE}
+     *   <li>otherwise → {@link PassThroughMode#KEY} (the default)
+     * </ul>
      */
-    public boolean is(StaticArgumentTrait trait, TraitContext ctx) {
-        return resolveTraits(ctx).contains(trait);
+    public PassThroughMode getPassThroughMode() {
+        if (traits.contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+            return PassThroughMode.ALL;
+        }
+        if (traits.contains(StaticArgumentTrait.NO_PASS_THROUGH)) {
+            return PassThroughMode.NONE;
+        }
+        return PassThroughMode.KEY;
     }
 
     /**
@@ -365,6 +376,18 @@ public class StaticArgument {
                                                         String.format(
                                                                 "Invalid argument traits for argument '%s'. Trait %s requires %s.",
                                                                 name, trait, requirement));
+                                            }
+                                        }));
+        traits.forEach(
+                trait ->
+                        trait.getIncompatibleWith()
+                                .forEach(
+                                        incompatible -> {
+                                            if (traits.contains(incompatible)) {
+                                                throw new ValidationException(
+                                                        String.format(
+                                                                "Invalid argument traits for argument '%s'. Trait %s is mutually exclusive with %s.",
+                                                                name, trait, incompatible));
                                             }
                                         }));
     }

@@ -44,6 +44,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.PassThroughMode;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -84,8 +85,8 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
                     DataTypes.FIELD("k", DataTypes.BIGINT()),
                     DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3)));
 
-    // Output layout is driven by PassPartitionKeysCollector / PassAllCollector in
-    // AbstractProcessTableOperator: [partition-key, PTF-emitted label, rowtime].
+    // Output layout is driven by PassThroughCollector in AbstractProcessTableOperator:
+    // [partition-key, PTF-emitted label, rowtime].
     private static final DataType OUTPUT_TYPE =
             DataTypes.ROW(
                     DataTypes.FIELD("k", DataTypes.BIGINT()),
@@ -244,7 +245,7 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
                 new int[0],
                 new RuntimeTableSemantics.SortDirection[0],
                 RuntimeChangelogMode.serialize(ChangelogMode.insertOnly()),
-                /* passColumnsThrough */ false,
+                PassThroughMode.KEY,
                 /* hasSetSemantics */ true,
                 /* timeColumn */ 1);
     }

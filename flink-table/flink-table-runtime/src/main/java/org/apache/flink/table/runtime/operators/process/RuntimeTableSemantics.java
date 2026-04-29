@@ -22,6 +22,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.PassThroughMode;
 
 import java.io.Serializable;
 import java.util.Optional;
@@ -41,7 +42,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     private final int[] orderByColumns;
     private final SortDirection[] orderByDirections;
     private final RuntimeChangelogMode consumedChangelogMode;
-    private final boolean passColumnsThrough;
+    private final PassThroughMode passThroughMode;
     private final boolean hasSetSemantics;
     private final int timeColumn;
 
@@ -55,7 +56,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
             int[] orderByColumns,
             SortDirection[] orderByDirections,
             RuntimeChangelogMode consumedChangelogMode,
-            boolean passColumnsThrough,
+            PassThroughMode passThroughMode,
             boolean hasSetSemantics,
             int timeColumn) {
         this.argName = argName;
@@ -65,7 +66,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
         this.orderByColumns = orderByColumns;
         this.orderByDirections = orderByDirections;
         this.consumedChangelogMode = consumedChangelogMode;
-        this.passColumnsThrough = passColumnsThrough;
+        this.passThroughMode = passThroughMode;
         this.hasSetSemantics = hasSetSemantics;
         this.timeColumn = timeColumn;
     }
@@ -78,8 +79,12 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
         return inputIndex;
     }
 
-    public boolean passColumnsThrough() {
-        return passColumnsThrough;
+    /**
+     * Returns the pass-through mode of this argument: how the framework treats this argument's
+     * columns when assembling the PTF output.
+     */
+    public PassThroughMode passThroughMode() {
+        return passThroughMode;
     }
 
     public boolean hasSetSemantics() {

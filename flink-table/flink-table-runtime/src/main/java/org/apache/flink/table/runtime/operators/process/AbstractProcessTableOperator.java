@@ -63,6 +63,7 @@ import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.inference.PassThroughMode;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import javax.annotation.Nullable;
@@ -90,7 +91,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     private transient ChangelogMode changelogMode;
     private transient ReadableInternalTimeContext internalTimeContext;
     private transient PassThroughCollectorBase evalCollector;
-    private transient PassAllCollector onTimerCollector;
+    private transient PassThroughCollectorBase onTimerCollector;
     private transient StateDescriptor<?, ?>[] stateDescriptors;
     private transient State[] stateHandles;
 
@@ -333,20 +334,11 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     }
 
     private void setCollectors() {
-        final int tableCount = tableSemantics.size();
-        if (tableCount == 0
-                || tableSemantics.stream().anyMatch(RuntimeTableSemantics::passColumnsThrough)) {
-            assert tableCount <= 1;
-            // Collect from table event with all input columns (potentially none)
-            evalCollector = new PassAllCollector(output, changelogMode, 1);
-        } else {
-            // Collect from table event with partition keys for each table
-            evalCollector = new PassPartitionKeysCollector(output, changelogMode, tableSemantics);
-        }
-
-        // Collect with partition keys for each table but from timer events which only contains the
-        // key, so passing all columns is the right strategy
-        onTimerCollector = new PassAllCollector(output, changelogMode, tableCount);
+        // One collector type for both eval and onTimer; the per-arg PassThroughMode set on each
+        // RuntimeTableSemantics drives prefix and rowtime behaviour. The prefix is per-arg,
+        // the rowtime suffix is whole-PTF - see PassThroughCollector for the full contract.
+        evalCollector = new PassThroughCollector(output, changelogMode, tableSemantics);
+        onTimerCollector = new PassThroughCollector(output, changelogMode, tableSemantics);
     }
 
     private void setStateDescriptors() {
@@ -421,6 +413,9 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     private boolean shouldEnableTimers() {
         return !tableSemantics.isEmpty()
                 && tableSemantics.stream()
-                        .allMatch(input -> input.hasSetSemantics() && !input.passColumnsThrough());
+                        .allMatch(
+                                input ->
+                                        input.hasSetSemantics()
+                                                && input.passThroughMode() != PassThroughMode.ALL);
     }
 }

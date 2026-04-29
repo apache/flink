@@ -63,13 +63,16 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
         rowtime = GenericRowData.of(TimestampData.fromEpochMillis(time));
     }
 
+    /** Appends prefix and suffix columns to the function output before emitting. */
     @Override
     public void collect(RowData functionOutput) {
         repeatedPrefix.replace(prefix);
         withFunctionOutput.replace(repeatedPrefix, functionOutput);
         withRowtime.replace(withFunctionOutput, rowtime);
-        // Forward supported change flags.
-        final RowKind kind = functionOutput.getRowKind();
+        emit(withRowtime, functionOutput.getRowKind());
+    }
+
+    protected final void emit(RowData row, RowKind kind) {
         if (!changelogMode.contains(kind)) {
             throw new TableRuntimeException(
                     String.format(
@@ -77,7 +80,7 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
                                     + "Expected produced changelog mode: %s",
                             kind, changelogMode));
         }
-        withRowtime.setRowKind(kind);
-        super.collect(withRowtime);
+        row.setRowKind(kind);
+        super.collect(row);
     }
 }

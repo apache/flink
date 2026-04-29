@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoPassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoSystemArgsScalarFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoSystemArgsTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
@@ -176,6 +177,15 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testRowSemanticTablePassThroughColumns() {
         util.addTemporarySystemFunction("f", RowSemanticTablePassThroughFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1)");
+    }
+
+    @Test
+    void testNoPassThroughFunctionOwnsOutputSchema() {
+        // The function declares NO_PASS_THROUGH on its single table arg, so the framework
+        // contributes no partition-key prefix to the output.
+        // The emitted row type matches the function's declared output exactly (the input row).
+        util.addTemporarySystemFunction("f", NoPassThroughFunction.class);
+        util.verifyRelPlan("SELECT * FROM f(input => TABLE t PARTITION BY name)");
     }
 
     @Test
