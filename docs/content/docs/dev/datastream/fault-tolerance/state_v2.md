@@ -286,7 +286,7 @@ key if we had tuples with different values in the first field.
 The state access methods are executed asynchronously. This means that the state access methods
 will not block the current thread. With synchronous APIs, the state access methods will be executed in
 the order they are called. However, with asynchronous APIs, the state access methods will be executed
-out of order, especially for those invokes for different incoming elements. For the above example,
+out of order, especially for those invoked for different incoming elements. For the above example,
 if the `flatMap` function is invoked for two different incoming elements A and B, the state access
 methods for A and B will be executed. Firstly, `asyncGet` is executed for A, then `asyncGet` is
 allowed to execute for B. The finish order of the two `asyncGet` is not guaranteed. Thus the order
