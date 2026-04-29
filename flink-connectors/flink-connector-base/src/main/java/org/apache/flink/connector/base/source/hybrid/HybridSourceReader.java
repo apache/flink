@@ -227,7 +227,6 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
         }
         currentSourceIndex = index;
         currentReader = reader;
-        
         // add restored splits
         if (!restoredSplits.isEmpty()) {
             List<HybridSourceSplit> splits = new ArrayList<>(restoredSplits.size());
