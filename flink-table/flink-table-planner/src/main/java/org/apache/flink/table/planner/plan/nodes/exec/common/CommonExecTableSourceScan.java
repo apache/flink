@@ -259,10 +259,6 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
     }
 
-    protected RowType getPhysicalRowType(ResolvedSchema schema) {
-        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
-    }
-
     protected int[] getPrimaryKeyIndices(RowType sourceRowType, ResolvedSchema schema) {
         return schema.getPrimaryKey()
                 .map(k -> k.getColumns().stream().mapToInt(sourceRowType::getFieldIndex).toArray())
