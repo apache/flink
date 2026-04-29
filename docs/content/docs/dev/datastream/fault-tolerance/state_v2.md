@@ -293,13 +293,13 @@ allowed to execute for B. The finish order of the two `asyncGet` is not guarante
 of continuation of the two `StateFuture`s is not guaranteed. Thus invokes of `asyncClear` or
 `asyncUpdate`for A and B are not determined.
 
-Although the state access methods are executed out of order, this not mean that all the user code
-are run in parallel. The user code in the `processElement`, `flatMap` or `thenXXxx` methods
+Although the state access methods are executed out of order, this does not mean that all the user code
+is run in parallel. The user code in the `processElement`, `flatMap` or `thenXXxx` methods
 following the state access methods will be executed in a single thread (the task thread). So there
 is no concurrency issue for the user code.
 
 Typically, you don't need to worry about the execution order of the state access methods, but there
-is still some rules the Flink will ensure:
+are still some rules Flink will ensure:
 * The execution order of user code entry `flatMap` for same-key elements are invoked strictly in
 order of element arrival.
 * The consumers or functions passed to the `thenXXxx` methods are executed in the order they are
