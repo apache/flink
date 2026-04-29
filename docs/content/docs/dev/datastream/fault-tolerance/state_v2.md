@@ -291,7 +291,7 @@ if the `flatMap` function is invoked for two different incoming elements A and B
 methods for A and B will be executed. Firstly, `asyncGet` is executed for A, then `asyncGet` is
 allowed to execute for B. The finish order of the two `asyncGet` is not guaranteed. Thus the order
 of continuation of the two `StateFuture`s is not guaranteed. Thus invokes of `asyncClear` or
-`asyncUpdate`for A and B are not determined.
+`asyncUpdate` for A and B are not determined.
 
 Although the state access methods are executed out of order, this does not mean that all the user code
 is run in parallel. The user code in the `processElement`, `flatMap` or `thenXXxx` methods
