@@ -85,7 +85,6 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>SSE-C (customer-provided keys) via a KeyProvider interface
  *   <li>Client-side encryption via an EncryptionHandler interface
- *   <li>Encryption context for SSE-KMS (see HADOOP-19197)
  * </ul>
  *
  * <p><b>S3 URI Handling:</b> The {@link #extractKey(Path)} and {@link #extractBucketName(Path)}
@@ -155,7 +154,7 @@ public class NativeS3ObjectOperations {
             }
             if (encryptionConfig.hasEncryptionContext()) {
                 requestBuilder.ssekmsEncryptionContext(
-                        serializeEncryptionContext(encryptionConfig.getEncryptionContext()));
+                        encryptionConfig.serializeEncryptionContext());
             }
         }
     }
@@ -171,34 +170,9 @@ public class NativeS3ObjectOperations {
             }
             if (encryptionConfig.hasEncryptionContext()) {
                 requestBuilder.ssekmsEncryptionContext(
-                        serializeEncryptionContext(encryptionConfig.getEncryptionContext()));
+                        encryptionConfig.serializeEncryptionContext());
             }
         }
-    }
-
-    /**
-     * Serializes the encryption context map to a Base64-encoded JSON string as required by S3 API.
-     */
-    private String serializeEncryptionContext(java.util.Map<String, String> context) {
-        StringBuilder json = new StringBuilder("{");
-        boolean first = true;
-        for (java.util.Map.Entry<String, String> entry : context.entrySet()) {
-            if (!first) {
-                json.append(",");
-            }
-            json.append("\"")
-                    .append(escapeJson(entry.getKey()))
-                    .append("\":\"")
-                    .append(escapeJson(entry.getValue()))
-                    .append("\"");
-            first = false;
-        }
-        json.append("}");
-        return java.util.Base64.getEncoder().encodeToString(json.toString().getBytes());
-    }
-
-    private String escapeJson(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     public UploadPartResult uploadPart(
@@ -275,9 +249,8 @@ public class NativeS3ObjectOperations {
                                                 }
                                                 if (encryptionConfig.hasEncryptionContext()) {
                                                     req.ssekmsEncryptionContext(
-                                                            serializeEncryptionContext(
-                                                                    encryptionConfig
-                                                                            .getEncryptionContext()));
+                                                            encryptionConfig
+                                                                    .serializeEncryptionContext());
                                                 }
                                             }
                                         }

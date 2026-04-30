@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -230,6 +231,28 @@ public class S3EncryptionConfig implements Serializable {
             default:
                 return null;
         }
+    }
+
+    public String serializeEncryptionContext() {
+        StringBuilder json = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : encryptionContext.entrySet()) {
+            if (!first) {
+                json.append(",");
+            }
+            json.append("\"")
+                    .append(escapeJson(entry.getKey()))
+                    .append("\":\"")
+                    .append(escapeJson(entry.getValue()))
+                    .append("\"");
+            first = false;
+        }
+        json.append("}");
+        return Base64.getEncoder().encodeToString(json.toString().getBytes());
+    }
+
+    private String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @Override
