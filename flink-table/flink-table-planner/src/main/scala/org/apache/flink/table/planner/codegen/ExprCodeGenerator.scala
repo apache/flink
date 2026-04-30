@@ -552,7 +552,12 @@ class ExprCodeGenerator(
         generateNullLiteral(resultType)
 
       // We only support the JSON function inside of JSON_OBJECT or JSON_ARRAY
-      case (operand: RexNode, i) if isSupportedJsonOperand(operand, call, i) =>
+      case (operand: RexNode, i)
+          if isSupportedJsonOperand(
+            operand,
+            call,
+            i,
+            if (rexProgram == null) null else rexProgram.getExprList) =>
         generateJsonCall(operand)
 
       case (o @ _, _) => o.accept(this)
@@ -851,9 +856,11 @@ class ExprCodeGenerator(
 
       case JSON_QUERY => new JsonQueryCallGen().generate(ctx, operands, resultType)
 
-      case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
+      case JSON_OBJECT =>
+        new JsonObjectCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
-      case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)
+      case JSON_ARRAY =>
+        new JsonArrayCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
       case _: SqlThrowExceptionFunction =>
         val nullValue = generateNullLiteral(resultType)
@@ -892,7 +899,7 @@ class ExprCodeGenerator(
             generateGreatestLeast(ctx, resultType, operands, greatest = false)
 
           case BuiltInFunctionDefinitions.JSON_STRING =>
-            new JsonStringCallGen(call).generate(ctx, operands, resultType)
+            new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
@@ -940,7 +947,17 @@ class ExprCodeGenerator(
   }
 
   private def generateJsonCall(operand: RexNode) = {
-    val jsonCall = operand.asInstanceOf[RexCall]
+    // After unification of projections + condition into a single RexProgram, structurally
+    // identical sub-expressions are collapsed into one exprList entry referenced via
+    // RexLocalRef. JSON_OBJECT/JSON_ARRAY operands recognised as JSON via
+    // isSupportedJsonOperand may therefore arrive here as a RexLocalRef; resolve it back to
+    // the underlying RexCall before casting.
+    val deref = operand match {
+      case ref: RexLocalRef if rexProgram != null =>
+        rexProgram.getExprList.get(ref.getIndex)
+      case other => other
+    }
+    val jsonCall = deref.asInstanceOf[RexCall]
     val jsonOperands = jsonCall.getOperands.map(_.accept(this))
     generateCallExpression(
       ctx,

@@ -23,10 +23,13 @@ import org.apache.flink.table.planner.codegen.JsonGenerateUtils.createNodeTerm
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexCall, RexProgram}
 
 /** [[CallGenerator]] for `JSON_STRING`. */
-class JsonStringCallGen(call: RexCall) extends CallGenerator {
+class JsonStringCallGen(call: RexCall, rexProgram: RexProgram) extends CallGenerator {
+
+  def this(call: RexCall) = this(call, null)
+
   private def jsonUtils = className[SqlJsonUtils]
 
   override def generate(
@@ -34,7 +37,8 @@ class JsonStringCallGen(call: RexCall) extends CallGenerator {
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
-    val valueTerm = createNodeTerm(ctx, operands.head, call.operands.get(0))
+    val exprs = if (rexProgram == null) null else rexProgram.getExprList
+    val valueTerm = createNodeTerm(ctx, operands.head, call.operands.get(0), exprs)
 
     val resultTerm = newName(ctx, "result")
     val resultTermType = primitiveTypeTermForType(returnType)

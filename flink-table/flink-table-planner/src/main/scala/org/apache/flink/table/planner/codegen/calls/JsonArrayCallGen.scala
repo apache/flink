@@ -25,10 +25,13 @@ import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{createNodeTerm,
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.RexCall
+import org.apache.calcite.rex.{RexCall, RexProgram}
 
 /** [[CallGenerator]] for `JSON_ARRAY`. */
-class JsonArrayCallGen(call: RexCall) extends CallGenerator {
+class JsonArrayCallGen(call: RexCall, rexProgram: RexProgram) extends CallGenerator {
+
+  def this(call: RexCall) = this(call, null)
+
   private def jsonUtils = className[SqlJsonUtils]
 
   override def generate(
@@ -47,7 +50,9 @@ class JsonArrayCallGen(call: RexCall) extends CallGenerator {
       .drop(1)
       .map {
         case (elementExpr, elementIdx) =>
-          val elementTerm = createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx))
+          val exprs = if (rexProgram == null) null else rexProgram.getExprList
+          val elementTerm =
+            createNodeTerm(ctx, elementExpr, call.operands.get(elementIdx), exprs)
 
           onNull match {
             case JsonOnNull.NULL =>

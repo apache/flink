@@ -152,18 +152,13 @@ object CalcCodeGenerator {
     def produceProjectionCode: String = {
       val projection = rexProgram.getProjectList.asScala
 
-      // JSON expressions need their full RexNode tree expanded before codegen because
-      // JSON_OBJECT/JSON_ARRAY/JSON compose through nested calls and aren't supported by the
-      // RexLocalRef path; for everything else, hand the RexLocalRef itself to generateExpression
-      // so visitLocalRef both dereferences via the program and memoizes the result through
-      // ctx.reusableLocalRefExprs. Without this, identical sub-expressions across projections
-      // (e.g. SELECT UPPER(a), UPPER(a) FROM t) would be regenerated per projection.
-      val projectionExprs = projection.map {
-        case localRef: RexLocalRef if containsJson(rexProgram, localRef) =>
-          exprGenerator.generateExpression(rexProgram.expandLocalRef(localRef))
-        case other =>
-          exprGenerator.generateExpression(other)
-      }
+      // Hand the RexLocalRef itself to generateExpression so visitLocalRef dereferences via the
+      // program and memoizes the result through ctx.reusableLocalRefExprs. Without this,
+      // identical sub-expressions across projections (e.g. SELECT UPPER(a), UPPER(a) FROM t)
+      // would be regenerated per projection. JSON_OBJECT/JSON_ARRAY/JSON inspection helpers in
+      // JsonGenerateUtils now follow RexLocalRefs through the program too, so JSON projections
+      // share the cache like everything else.
+      val projectionExprs = projection.map(exprGenerator.generateExpression)
 
       val projectionExpression =
         exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
@@ -282,16 +277,6 @@ object CalcCodeGenerator {
       builder.addCondition(condition.get)
     }
     builder.getProgram
-  }
-
-  private def containsJson(rexProgram: RexProgram, rexNode: RexNode): Boolean = rexNode match {
-    case localRef: RexLocalRef =>
-      containsJson(rexProgram, rexProgram.getExprList.get(localRef.getIndex))
-    case call: RexCall =>
-      val name = call.getOperator.getName
-      name == "JSON" || name == "JSON_OBJECT" || name == "JSON_ARRAY" ||
-      call.getOperands.asScala.exists(containsJson(rexProgram, _))
-    case _ => false
   }
 
   private def checkProjectionIsIdentity(projection: java.util.List[RexNode]): Boolean = {

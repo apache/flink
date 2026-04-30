@@ -33,7 +33,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.utils.EncodingUtils
 
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rex.{RexCall, RexLocalRef, RexNode}
 
 import java.time.format.DateTimeFormatter
 
@@ -51,8 +51,15 @@ object JsonGenerateUtils {
   def createNodeTerm(
       ctx: CodeGeneratorContext,
       expression: GeneratedExpression,
-      operand: RexNode): String = {
-    if (isJsonObjectOrArrayOperand(operand) || isJsonFunctionOperand(operand)) {
+      operand: RexNode): String =
+    createNodeTerm(ctx, expression, operand, null)
+
+  def createNodeTerm(
+      ctx: CodeGeneratorContext,
+      expression: GeneratedExpression,
+      operand: RexNode,
+      exprs: java.util.List[RexNode]): String = {
+    if (isJsonObjectOrArrayOperand(operand, exprs) || isJsonFunctionOperand(operand, exprs)) {
       createRawNodeTerm(expression)
     } else {
       createNodeTerm(ctx, expression)
@@ -177,9 +184,23 @@ object JsonGenerateUtils {
     }
   }
 
+  /**
+   * Resolves [[RexLocalRef]]s through the surrounding [[org.apache.calcite.rex.RexProgram]]'s
+   * `exprList`, returning the underlying expression. Used by the JSON inspection helpers below so
+   * that operands collapsed by `RexProgramBuilder` CSE are recognised by their original kind.
+   */
+  @scala.annotation.tailrec
+  private def deref(operand: RexNode, exprs: java.util.List[RexNode]): RexNode = operand match {
+    case ref: RexLocalRef if exprs != null => deref(exprs.get(ref.getIndex), exprs)
+    case other => other
+  }
+
   /** Determines whether the given operand is a call to a JSON_OBJECT */
-  def isJsonObjectOperand(operand: RexNode): Boolean = {
-    operand match {
+  def isJsonObjectOperand(operand: RexNode): Boolean =
+    isJsonObjectOperand(operand, null)
+
+  def isJsonObjectOperand(operand: RexNode, exprs: java.util.List[RexNode]): Boolean = {
+    deref(operand, exprs) match {
       case rexCall: RexCall =>
         rexCall.getOperator match {
           case JSON_OBJECT => true
@@ -190,8 +211,11 @@ object JsonGenerateUtils {
   }
 
   /** Determines whether the given operand is a call to a JSON_ARRAY */
-  def isJsonArrayOperand(operand: RexNode): Boolean = {
-    operand match {
+  def isJsonArrayOperand(operand: RexNode): Boolean =
+    isJsonArrayOperand(operand, null)
+
+  def isJsonArrayOperand(operand: RexNode, exprs: java.util.List[RexNode]): Boolean = {
+    deref(operand, exprs) match {
       case rexCall: RexCall =>
         rexCall.getOperator match {
           case JSON_ARRAY => true
@@ -205,8 +229,11 @@ object JsonGenerateUtils {
    * Determines whether the given operand is a call to a JSON_OBJECT or JSON_ARRAY whose result
    * should be inserted as a raw value instead of as a character string.
    */
-  def isJsonObjectOrArrayOperand(operand: RexNode): Boolean = {
-    operand match {
+  def isJsonObjectOrArrayOperand(operand: RexNode): Boolean =
+    isJsonObjectOrArrayOperand(operand, null)
+
+  def isJsonObjectOrArrayOperand(operand: RexNode, exprs: java.util.List[RexNode]): Boolean = {
+    deref(operand, exprs) match {
       case rexCall: RexCall =>
         rexCall.getOperator match {
           case JSON_OBJECT | JSON_ARRAY => true
@@ -220,8 +247,11 @@ object JsonGenerateUtils {
    * Determines whether the given operand is a call to JSON function whose call currently just
    * passes through the input value as output value
    */
-  def isJsonFunctionOperand(operand: RexNode): Boolean = {
-    operand match {
+  def isJsonFunctionOperand(operand: RexNode): Boolean =
+    isJsonFunctionOperand(operand, null)
+
+  def isJsonFunctionOperand(operand: RexNode, exprs: java.util.List[RexNode]): Boolean = {
+    deref(operand, exprs) match {
       case rexCall: RexCall =>
         unwrapFunctionDefinition(rexCall) match {
           case JSON => true
@@ -237,9 +267,16 @@ object JsonGenerateUtils {
    * of a JSON_OBJECT call, we do (i % 2) == 0 to check if it's being used in second parameter, the
    * values' parameter.
    */
-  def isSupportedJsonOperand(operand: RexNode, call: RexNode, i: Int): Boolean = {
-    isJsonFunctionOperand(operand) &&
-    (isJsonArrayOperand(call) || isJsonObjectOperand(call) && (i % 2) == 0)
+  def isSupportedJsonOperand(operand: RexNode, call: RexNode, i: Int): Boolean =
+    isSupportedJsonOperand(operand, call, i, null)
+
+  def isSupportedJsonOperand(
+      operand: RexNode,
+      call: RexNode,
+      i: Int,
+      exprs: java.util.List[RexNode]): Boolean = {
+    isJsonFunctionOperand(operand, exprs) &&
+    (isJsonArrayOperand(call, exprs) || isJsonObjectOperand(call, exprs) && (i % 2) == 0)
   }
 
   /** Generates a method to convert arrays into [[ArrayNode]]. */
