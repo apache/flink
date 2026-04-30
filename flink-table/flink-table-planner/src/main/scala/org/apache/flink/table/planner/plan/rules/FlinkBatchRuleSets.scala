@@ -149,6 +149,8 @@ object FlinkBatchRuleSets {
     // push a filter past a project
     FlinkFilterProjectTransposeRule.INSTANCE,
     CoreRules.FILTER_SET_OP_TRANSPOSE,
+    // push a filter through a Correlate produced by UNNEST
+    FlinkFilterCorrelateUnnestTransposeRule.INSTANCE,
     CoreRules.FILTER_MERGE
   )
 
@@ -215,6 +217,8 @@ object FlinkBatchRuleSets {
       RelFactories.LOGICAL_BUILDER),
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
+    // push a projection through a Correlate produced by UNNEST
+    FlinkProjectCorrelateUnnestTransposeRule.INSTANCE,
     // merge projections
     FlinkProjectMergeRule.INSTANCE,
     // remove identity project
