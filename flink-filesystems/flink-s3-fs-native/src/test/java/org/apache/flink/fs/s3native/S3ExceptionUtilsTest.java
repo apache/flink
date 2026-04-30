@@ -18,7 +18,6 @@
 
 package org.apache.flink.fs.s3native;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -44,7 +43,7 @@ class S3ExceptionUtilsTest {
                 Arguments.of(
                         s3Exception(500, "internal error"),
                         "put object",
-                        "put object (HTTP 500: internal error"));
+                        "put object (HTTP 500: internal error)"));
     }
 
     @ParameterizedTest
@@ -57,16 +56,22 @@ class S3ExceptionUtilsTest {
         assertThat(result.getCause()).isSameAs(cause);
     }
 
-    @Test
-    void errorMessage_detailsHasMessage_returnsDetailsMessage() {
-        S3Exception e =
-                s3Exception(
-                        404,
-                        AwsErrorDetails.builder()
-                                .errorMessage("The specified key does not exist.")
-                                .build());
+    static Stream<Arguments> errorMessageExactCases() {
+        return Stream.of(
+                Arguments.of(
+                        s3Exception(
+                                404,
+                                AwsErrorDetails.builder()
+                                        .errorMessage("The specified key does not exist.")
+                                        .build()),
+                        "The specified key does not exist."),
+                Arguments.of(s3ExceptionStatusOnly(500), "Unknown S3 error"));
+    }
 
-        assertThat(S3ExceptionUtils.errorMessage(e)).isEqualTo("The specified key does not exist.");
+    @ParameterizedTest
+    @MethodSource("errorMessageExactCases")
+    void errorMessage_exactReturn_matchesExpected(S3Exception e, String expected) {
+        assertThat(S3ExceptionUtils.errorMessage(e)).isEqualTo(expected);
     }
 
     static Stream<Arguments> errorMessageFallbackCases() {
@@ -82,40 +87,30 @@ class S3ExceptionUtilsTest {
 
     @ParameterizedTest
     @MethodSource("errorMessageFallbackCases")
-    void errorMessage_noDetailsMessage_fallsBackToExceptionMessage(
+    void errorMessage_fallbackToExceptionMessage_containsExpected(
             S3Exception e, String expectedMessage) {
         assertThat(S3ExceptionUtils.errorMessage(e)).contains(expectedMessage);
     }
 
-    @Test
-    void errorMessage_noMessageAvailable_returnsUnknownS3Error() {
-        S3Exception e = s3ExceptionStatusOnly(500);
-
-        assertThat(S3ExceptionUtils.errorMessage(e)).isEqualTo("Unknown S3 error");
-    }
-
-    @Test
-    void errorCode_detailsHasCode_returnsErrorCode() {
-        S3Exception e = s3Exception(404, AwsErrorDetails.builder().errorCode("NoSuchKey").build());
-
-        assertThat(S3ExceptionUtils.errorCode(e)).isEqualTo("NoSuchKey");
-    }
-
-    static Stream<Arguments> errorCodeUnknownCases() {
+    static Stream<Arguments> errorCodeAllCases() {
         return Stream.of(
-                Arguments.of(s3Exception(500, "some error")),
+                Arguments.of(
+                        s3Exception(404, AwsErrorDetails.builder().errorCode("NoSuchKey").build()),
+                        "NoSuchKey"),
+                Arguments.of(s3Exception(500, "some error"), "Unknown"),
                 Arguments.of(
                         s3Exception(
                                 500,
                                 AwsErrorDetails.builder()
                                         .errorMessage("Something went wrong")
-                                        .build())));
+                                        .build()),
+                        "Unknown"));
     }
 
     @ParameterizedTest
-    @MethodSource("errorCodeUnknownCases")
-    void errorCode_noCodeAvailable_returnsUnknown(S3Exception e) {
-        assertThat(S3ExceptionUtils.errorCode(e)).isEqualTo("Unknown");
+    @MethodSource("errorCodeAllCases")
+    void errorCode_allCases_returnsExpected(S3Exception e, String expected) {
+        assertThat(S3ExceptionUtils.errorCode(e)).isEqualTo(expected);
     }
 
     private static S3Exception s3Exception(int statusCode, AwsErrorDetails details) {
