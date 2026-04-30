@@ -912,8 +912,7 @@ class ExprCodeGenerator(
             new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
 
           case _ =>
-            new BridgingSqlFunctionCallGen(call, rexProgram)
-              .generate(ctx, operands, resultType)
+            new BridgingSqlFunctionCallGen(call, rexProgram).generate(ctx, operands, resultType)
         }
 
       // advanced scalar functions
