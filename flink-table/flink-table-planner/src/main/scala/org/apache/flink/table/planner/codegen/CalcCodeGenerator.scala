@@ -192,13 +192,12 @@ object CalcCodeGenerator {
           "It should be removed by CalcRemoveRule.")
     } else if (condition.isEmpty) { // only projection
       val projectionCode = produceProjectionCode
-      val inputUnboxing = if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""
       // Cached RexLocalRef bodies are populated lazily by visitLocalRef; emit them once
       // here, after every expression has been generated, so each cached result term is
       // assigned exactly once before any consumer reads it.
       val localRefCode = ctx.reuseLocalRefCode()
       s"""
-         |$inputUnboxing
+         |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
          |$localRefCode
          |$projectionCode
          |""".stripMargin
@@ -208,10 +207,9 @@ object CalcCodeGenerator {
       val filterCondition = exprGenerator.generateExpression(rexProgram.getCondition)
       // only filter
       if (onlyFilter) {
-        val inputUnboxing = if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""
         val localRefCode = ctx.reuseLocalRefCode()
         s"""
-           |$inputUnboxing
+           |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
            |$localRefCode
            |${filterCondition.code}
            |if (${filterCondition.resultTerm}) {
