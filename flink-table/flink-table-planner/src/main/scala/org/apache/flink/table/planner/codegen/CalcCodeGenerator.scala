@@ -32,8 +32,6 @@ import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex._
 
-import javax.annotation.Nullable
-
 import scala.collection.JavaConverters._
 
 object CalcCodeGenerator {
@@ -139,23 +137,61 @@ object CalcCodeGenerator {
     val exprGenerator = new ExprCodeGenerator(ctx, false, rexProgram)
       .bindInput(inputType, inputTerm = inputTerm)
 
-    val onlyFilter = projection.size == inputType.getFieldCount &&
-      checkProjectionIsIdentity(projection.asJava)
+    val onlyFilter = projection.lengthCompare(inputType.getFieldCount) == 0 &&
+      projection.zipWithIndex.forall {
+        case (rexNode, index) =>
+          rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
+      }
+
+    def produceOutputCode(resultTerm: String): String = if (outputDirectly) {
+      s"$collectorTerm.collect($resultTerm);"
+    } else {
+      s"${OperatorCodeGenerator.generateCollect(resultTerm)}"
+    }
+
+    def produceProjectionCode: String = {
+      val projection = rexProgram.getProjectList.asScala
+
+      // JSON expressions need their full RexNode tree expanded before codegen because
+      // JSON_OBJECT/JSON_ARRAY/JSON compose through nested calls and aren't supported by the
+      // RexLocalRef path; for everything else, hand the RexLocalRef itself to generateExpression
+      // so visitLocalRef both dereferences via the program and memoizes the result through
+      // ctx.reusableLocalRefExprs. Without this, identical sub-expressions across projections
+      // (e.g. SELECT UPPER(a), UPPER(a) FROM t) would be regenerated per projection.
+      val projectionExprs = projection.map {
+        case localRef: RexLocalRef if containsJson(rexProgram, localRef) =>
+          exprGenerator.generateExpression(rexProgram.expandLocalRef(localRef))
+        case other =>
+          exprGenerator.generateExpression(other)
+      }
+
+      val projectionExpression =
+        exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
+
+      val projectionExpressionCode = projectionExpression.code
+
+      val header = if (retainHeader) {
+        s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
+      } else {
+        ""
+      }
+
+      // The cached RexLocalRef bodies (ctx.reuseLocalRefCode()) are emitted once in
+      // generateProcessCode, BEFORE the filter check, so that any filter referencing a shared
+      // sub-expression also sees the assigned result terms.
+      s"""
+         |$header
+         |$projectionExpressionCode
+         |${produceOutputCode(projectionExpression.resultTerm)}
+         |""".stripMargin
+    }
 
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
         "This calc has no useful projection and no filter. " +
           "It should be removed by CalcRemoveRule.")
     } else if (condition.isEmpty) { // only projection
-      val projectionCode = produceProjectionCode(
-        exprGenerator,
-        rexProgram,
-        outRowType,
-        outRowClass,
-        inputTerm,
-        collectorTerm,
-        retainHeader,
-        outputDirectly)
+      val projectionCode = produceProjectionCode
       val inputUnboxing = if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""
       // Cached RexLocalRef bodies are populated lazily by visitLocalRef; emit them once
       // here, after every expression has been generated, so each cached result term is
@@ -179,7 +215,7 @@ object CalcCodeGenerator {
            |$localRefCode
            |${filterCondition.code}
            |if (${filterCondition.resultTerm}) {
-           |  ${produceOutputCode(inputTerm, collectorTerm, outputDirectly)}
+           |  ${produceOutputCode(inputTerm)}
            |}
            |""".stripMargin
       } else { // both filter and projection
@@ -192,15 +228,7 @@ object CalcCodeGenerator {
         val filterLocalRefSet: Set[Int] = ctx.reusableLocalRefExprs.keySet.toSet
 
         // if any filter conditions, projection code will enter an new scope
-        val projectionCode = produceProjectionCode(
-          exprGenerator,
-          rexProgram,
-          outRowType,
-          outRowClass,
-          inputTerm,
-          collectorTerm,
-          retainHeader,
-          outputDirectly)
+        val projectionCode = produceProjectionCode
 
         val projectionInputCode = ctx.reusableInputUnboxingExprs
           .filter { case (k, _) => !filterInputSet.contains(k) }
@@ -238,62 +266,6 @@ object CalcCodeGenerator {
            |""".stripMargin
       }
     }
-  }
-
-  private def produceOutputCode(
-      resultTerm: String,
-      collectorTerm: String,
-      outputDirectly: Boolean): String = {
-    if (outputDirectly) {
-      s"$collectorTerm.collect($resultTerm);"
-    } else {
-      OperatorCodeGenerator.generateCollect(resultTerm)
-    }
-  }
-
-  private def produceProjectionCode(
-      exprGenerator: ExprCodeGenerator,
-      rexProgram: RexProgram,
-      outRowType: RowType,
-      outRowClass: Class[_ <: RowData],
-      inputTerm: String,
-      collectorTerm: String,
-      retainHeader: Boolean,
-      outputDirectly: Boolean): String = {
-    val projection = rexProgram.getProjectList.asScala
-
-    // JSON expressions need their full RexNode tree expanded before codegen because
-    // JSON_OBJECT/JSON_ARRAY/JSON compose through nested calls and aren't supported by the
-    // RexLocalRef path; for everything else, hand the RexLocalRef itself to generateExpression
-    // so visitLocalRef both dereferences via the program and memoizes the result through
-    // ctx.reusableLocalRefExprs. Without this, identical sub-expressions across projections
-    // (e.g. SELECT UPPER(a), UPPER(a) FROM t) would be regenerated per projection.
-    val projectionExprs = projection.map {
-      case localRef: RexLocalRef if containsJson(rexProgram, localRef) =>
-        exprGenerator.generateExpression(rexProgram.expandLocalRef(localRef))
-      case other =>
-        exprGenerator.generateExpression(other)
-    }
-
-    val projectionExpression =
-      exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
-
-    val projectionExpressionCode = projectionExpression.code
-
-    val header = if (retainHeader) {
-      s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
-    } else {
-      ""
-    }
-
-    // The cached RexLocalRef bodies (ctx.reuseLocalRefCode()) are emitted once in
-    // generateProcessCode, BEFORE the filter check, so that any filter referencing a shared
-    // sub-expression also sees the assigned result terms.
-    s"""
-       |$header
-       |$projectionExpressionCode
-       |${produceOutputCode(projectionExpression.resultTerm, collectorTerm, outputDirectly)}
-       |""".stripMargin
   }
 
   /**
