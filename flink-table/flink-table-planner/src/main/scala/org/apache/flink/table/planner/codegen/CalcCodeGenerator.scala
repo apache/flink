@@ -218,7 +218,7 @@ object CalcCodeGenerator {
            |""".stripMargin
       } else { // both filter and projection
         val filterInputCode = ctx.reuseInputUnboxingCode()
-        val filterInputSet: Set[(String, Int)] = ctx.reusableInputUnboxingExprs.keySet.toSet
+        val filterInputSet = Set(ctx.reusableInputUnboxingExprs.keySet.toSeq: _*)
 
         // Snapshot of cached RexLocalRef indices populated while generating the filter.
         // Entries added later (during projection generation) stay inside the if-block,
@@ -249,15 +249,12 @@ object CalcCodeGenerator {
           .map(_.code)
           .mkString("\n")
 
-        val filterInput = if (eagerInputUnboxingCode) filterInputCode else ""
-        val projectionInput = if (eagerInputUnboxingCode) projectionInputCode else ""
-
         s"""
-           |$filterInput
+           |${if (eagerInputUnboxingCode) filterInputCode else ""}
            |$filterLocalRefCode
            |${filterCondition.code}
            |if (${filterCondition.resultTerm}) {
-           |  $projectionInput
+           | ${if (eagerInputUnboxingCode) projectionInputCode else ""}
            |  $projectionLocalRefCode
            |  $projectionCode
            |}
