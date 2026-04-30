@@ -153,6 +153,9 @@ public class WebOptions {
                                             "The maximum number of the rescale records per job whose scheduler is %s. "
                                                     + "The feature will be disabled when the configuration value is smaller or equals to 0.",
                                             code(JobManagerOptions.SchedulerType.Adaptive.name()))
+                                    .linebreak()
+                                    .text(
+                                            "Note that high numbers may cause memory issues on the JobManager side.")
                                     .build());
 
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
