@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 /**
  * Base class for TopN Function.
@@ -209,23 +210,28 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         return buffer.checkSortKeyInBufferRange(sortKey, getDefaultTopNSize());
     }
 
-    protected void registerMetric(long heapSize) {
-        registerMetric(heapSize, requestCount, hitCount);
+    protected void registerMetric(LongSupplier heapSizeSupplier) {
+        registerMetric(heapSizeSupplier, () -> requestCount, () -> hitCount);
     }
 
-    protected void registerMetric(long heapSize, long requestCount, long hitCount) {
+    protected void registerMetric(
+            LongSupplier heapSizeSupplier,
+            LongSupplier requestCountSupplier,
+            LongSupplier hitCountSupplier) {
         getRuntimeContext()
                 .getMetricGroup()
                 .<Double, Gauge<Double>>gauge(
                         "topn.cache.hitRate",
-                        () ->
-                                requestCount == 0
-                                        ? 1.0
-                                        : Long.valueOf(hitCount).doubleValue() / requestCount);
+                        () -> {
+                            long requests = requestCountSupplier.getAsLong();
+                            return requests == 0
+                                    ? 1.0
+                                    : (double) hitCountSupplier.getAsLong() / requests;
+                        });
 
         getRuntimeContext()
                 .getMetricGroup()
-                .<Long, Gauge<Long>>gauge("topn.cache.size", () -> heapSize);
+                .<Long, Gauge<Long>>gauge("topn.cache.size", heapSizeSupplier::getAsLong);
     }
 
     protected void collectInsert(
@@ -386,8 +392,8 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             hitCount++;
         }
 
-        protected void registerMetric(long heapSize) {
-            topNFunction.registerMetric(heapSize, requestCount, hitCount);
+        protected void registerMetric(LongSupplier heapSizeSupplier) {
+            topNFunction.registerMetric(heapSizeSupplier, () -> requestCount, () -> hitCount);
         }
     }
 }
