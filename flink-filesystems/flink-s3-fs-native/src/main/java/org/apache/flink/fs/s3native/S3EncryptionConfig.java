@@ -151,8 +151,8 @@ public class S3EncryptionConfig implements Serializable {
     /**
      * Creates an encryption config from configuration strings.
      *
-     * @param encryptionTypeStr The encryption type: "none", "sse-s3", "sse-kms", or "SSE_S3",
-     *     "SSE_KMS"
+     * @param encryptionTypeStr The encryption type: "none", "sse-s3", "sse-kms", "aws:kms",
+     *     "aes256" (case-insensitive)
      * @param kmsKeyId The KMS key ID (required for SSE-KMS, ignored for other types)
      * @return The encryption configuration
      * @throws IllegalArgumentException if the encryption type is invalid
