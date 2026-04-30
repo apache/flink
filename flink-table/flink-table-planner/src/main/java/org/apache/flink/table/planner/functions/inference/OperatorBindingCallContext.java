@@ -37,6 +37,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCallBinding;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
@@ -64,13 +65,14 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     private final @Nullable List<Integer> inputTimeColumns;
     private final @Nullable List<ChangelogMode> inputChangelogModes;
     private final @Nullable ChangelogMode outputChangelogMode;
+    private final @Nullable List<RexNode> programExprs;
 
     public OperatorBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
             SqlOperatorBinding binding,
             RelDataType returnRelDataType) {
-        this(dataTypeFactory, definition, binding, returnRelDataType, null, null, null);
+        this(dataTypeFactory, definition, binding, returnRelDataType, null, null, null, null);
     }
 
     public OperatorBindingCallContext(
@@ -81,6 +83,26 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             @Nullable List<Integer> inputTimeColumns,
             @Nullable List<ChangelogMode> inputChangelogModes,
             @Nullable ChangelogMode outputChangelogMode) {
+        this(
+                dataTypeFactory,
+                definition,
+                binding,
+                returnRelDataType,
+                inputTimeColumns,
+                inputChangelogModes,
+                outputChangelogMode,
+                null);
+    }
+
+    public OperatorBindingCallContext(
+            DataTypeFactory dataTypeFactory,
+            FunctionDefinition definition,
+            SqlOperatorBinding binding,
+            RelDataType returnRelDataType,
+            @Nullable List<Integer> inputTimeColumns,
+            @Nullable List<ChangelogMode> inputChangelogModes,
+            @Nullable ChangelogMode outputChangelogMode,
+            @Nullable List<RexNode> programExprs) {
         super(
                 dataTypeFactory,
                 definition,
@@ -109,6 +131,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         this.inputTimeColumns = inputTimeColumns;
         this.inputChangelogModes = inputChangelogModes;
         this.outputChangelogMode = outputChangelogMode;
+        this.programExprs = programExprs;
     }
 
     @Override
@@ -146,7 +169,19 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                             new LiteralValueAccessor() {
                                 @Override
                                 public <R> R getValueAs(Class<R> clazz) {
-                                    return binding.getOperandLiteralValue(pos, clazz);
+                                    RexNode node = ((RexCallBinding) binding).operands().get(pos);
+                                    // Calc nodes carry a RexProgram whose exprList may host
+                                    // common sub-expressions; an operand that points into it
+                                    // appears here as a RexLocalRef ($tN) and must be resolved
+                                    // back to the underlying expression before Calcite tries to
+                                    // read its literal value.
+                                    while (node instanceof RexLocalRef && programExprs != null) {
+                                        node = programExprs.get(((RexLocalRef) node).getIndex());
+                                    }
+                                    if (node instanceof RexLiteral) {
+                                        return ((RexLiteral) node).getValueAs(clazz);
+                                    }
+                                    return clazz.cast(RexLiteral.value(node));
                                 }
                             },
                             clazz));

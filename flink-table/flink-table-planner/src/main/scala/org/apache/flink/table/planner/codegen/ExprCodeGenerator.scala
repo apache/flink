@@ -55,8 +55,15 @@ import scala.collection.JavaConversions._
  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
  * It can also generate type conversion codes for the result converter.
  */
-class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
+class ExprCodeGenerator(
+    ctx: CodeGeneratorContext,
+    nullableInput: Boolean,
+    val rexProgram: RexProgram)
   extends RexVisitor[GeneratedExpression] {
+
+  /** Java-friendly auxiliary constructor for callers that have no [[RexProgram]]. */
+  def this(ctx: CodeGeneratorContext, nullableInput: Boolean) =
+    this(ctx, nullableInput, null)
 
   /** term of the [[ProcessFunction]]'s context, can be changed when needed */
   var contextTerm = "ctx"
@@ -416,8 +423,61 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
   }
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
-    throw new CodeGenException("RexLocalRef are not supported yet.")
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = {
+    // addReusableLocalVariable
+    // for specific custom code generation
+    if (input1Type == null) {
+      return GeneratedExpression(
+        localRef.getName,
+        localRef.getName + "IsNull",
+        NO_CODE,
+        FlinkTypeFactory.toLogicalType(localRef.getType))
+    }
+    // for the general cases with a previous call to bindInput()
+    val input1Arity = input1Type match {
+      case r: RowType => r.getFieldCount
+      case _ => 1
+    }
+    if (localRef.getIndex >= input1Arity) {
+      val idx = localRef.getIndex
+      val target = rexProgram.getExprList.get(idx)
+      // Re-generate per visit when the underlying expression is non-deterministic so each
+      // call site invokes the operator independently. RexProgramBuilder's CSE is structural
+      // and may have collapsed identical-looking nondet calls into a single exprList entry.
+      // The check has to follow RexLocalRefs through the program's exprList: a deterministic
+      // operator with a nondeterministic input is itself effectively nondeterministic, but
+      // the default RexUtil.isDeterministic visitor stops at RexLocalRef.
+      if (!isDeterministicThroughProgram(target)) {
+        return target.accept(this)
+      }
+      val full = ctx.getReusableLocalRefExpr(idx) match {
+        case Some(cached) => cached
+        case None =>
+          val expr = target.accept(this)
+          ctx.addReusableLocalRefExpr(idx, expr)
+          expr
+      }
+      // Preserve literalValue: codegens like ExtractCallGen/TimestampAddCallGen pull the
+      // operand's literal (e.g. the EXTRACT time-unit enum) directly from GeneratedExpression
+      // instead of from the RexNode, so a stripped expression must still carry it.
+      return GeneratedExpression(
+        full.resultTerm,
+        full.nullTerm,
+        NO_CODE,
+        full.resultType,
+        full.literalValue)
+    }
+    // if inputRef index is within size of input1 we work with input1, input2 otherwise
+    val input = (input1Type, input1Term)
+
+    val index = if (input._2 == input1Term) {
+      localRef.getIndex
+    } else {
+      localRef.getIndex - input1Arity
+    }
+
+    generateInputAccess(ctx, input._1, input._2, index, nullableInput, true)
+  }
 
   def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
     val internalType = FlinkTypeFactory.toLogicalType(variable.dataType)
@@ -470,10 +530,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     }
 
     if (call.getKind == SqlKind.SEARCH) {
-      return generateSearch(
-        ctx,
-        generateExpression(call.getOperands.get(0)),
-        call.getOperands.get(1).asInstanceOf[RexLiteral])
+      val sargLiteral =
+        if (call.getOperands.get(1).isInstanceOf[RexLocalRef]) {
+          rexProgram.getExprList
+            .get(call.getOperands.get(1).asInstanceOf[RexLocalRef].getIndex)
+            .asInstanceOf[RexLiteral]
+        } else {
+          call.getOperands.get(1).asInstanceOf[RexLiteral]
+        }
+      return generateSearch(ctx, generateExpression(call.getOperands.get(0)), sargLiteral)
     }
 
     // convert operands and help giving untyped NULL literals a type
@@ -847,7 +912,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
 
           case _ =>
-            new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+            new BridgingSqlFunctionCallGen(call, rexProgram)
+              .generate(ctx, operands, resultType)
         }
 
       // advanced scalar functions
@@ -895,5 +961,47 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
               .toExternal(literal.asInstanceOf[AnyRef])
         }
     }.toArray
+  }
+
+  /**
+   * Like [[RexUtil.isDeterministic]] but follows [[RexLocalRef]]s through `rexProgram.getExprList`,
+   * so that a deterministic operator with a non-deterministic input via a shared exprList entry is
+   * correctly classified as non-deterministic.
+   */
+  private def isDeterministicThroughProgram(node: RexNode): Boolean = {
+    if (rexProgram == null) {
+      RexUtil.isDeterministic(node)
+    } else {
+      ExprCodeGenerator.isDeterministicThroughProgram(
+        node,
+        rexProgram.getExprList,
+        new java.util.HashSet[Integer]())
+    }
+  }
+}
+
+object ExprCodeGenerator {
+
+  /**
+   * Walks `node`, treating any [[RexLocalRef]] as the expression at that index in `exprs`, and
+   * returns false as soon as it sees a non-deterministic operator. `visited` guards against
+   * redundant walks of shared sub-expressions (and against cycles in malformed programs).
+   *
+   * Kept as a static helper so that a future Java port translates one-to-one.
+   */
+  private def isDeterministicThroughProgram(
+      node: RexNode,
+      exprs: java.util.List[RexNode],
+      visited: java.util.Set[Integer]): Boolean = node match {
+    case call: RexCall =>
+      call.getOperator.isDeterministic &&
+      call.getOperands.stream().allMatch(o => isDeterministicThroughProgram(o, exprs, visited))
+    case ref: RexLocalRef =>
+      !visited.add(ref.getIndex) ||
+      isDeterministicThroughProgram(exprs.get(ref.getIndex), exprs, visited)
+    case fa: RexFieldAccess =>
+      isDeterministicThroughProgram(fa.getReferenceExpr, exprs, visited)
+    case _ =>
+      true
   }
 }

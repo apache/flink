@@ -116,6 +116,11 @@ class CodeGeneratorContext(
   val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
     mutable.Map[(String, Int), GeneratedExpression]()
 
+  // map of expressions for shared RexProgram exprList entries that will be added only once
+  // exprList index -> expr
+  val reusableLocalRefExprs: mutable.LinkedHashMap[Int, GeneratedExpression] =
+    mutable.LinkedHashMap[Int, GeneratedExpression]()
+
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableConstructorStatements: mutable.LinkedHashSet[(String, String)] =
@@ -172,6 +177,9 @@ class CodeGeneratorContext(
 
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
+
+  def getReusableLocalRefExpr(index: Int): Option[GeneratedExpression] =
+    reusableLocalRefExprs.get(index)
 
   /** Prioritize using the nameCounter of the ancestor. */
   def getNameCounter: AtomicLong = if (parentCtx == null) nameCounter else parentCtx.getNameCounter
@@ -375,6 +383,15 @@ class CodeGeneratorContext(
     reusableInputUnboxingExprs.values.map(_.code).mkString("\n")
   }
 
+  /**
+   * @return
+   *   code block of statements that compute each cached RexLocalRef body exactly once, in the order
+   *   they were registered (which matches the exprList order they were first visited in)
+   */
+  def reuseLocalRefCode(): String = {
+    reusableLocalRefExprs.values.map(_.code).mkString("\n")
+  }
+
   /** Returns code block of unboxing input variables which belongs to the given inputTerm. */
   def reuseInputUnboxingCode(inputTerm: String): String = {
     val exprs = reusableInputUnboxingExprs.filter {
@@ -457,6 +474,10 @@ class CodeGeneratorContext(
       inputTerm: String,
       index: Int,
       expr: GeneratedExpression): Unit = reusableInputUnboxingExprs((inputTerm, index)) = expr
+
+  /** Adds a reusable RexLocalRef expression keyed by its index in the program's exprList. */
+  def addReusableLocalRefExpr(index: Int, expr: GeneratedExpression): Unit =
+    reusableLocalRefExprs(index) = expr
 
   /** Adds a reusable output record statement to member area. */
   def addReusableOutputRecord(

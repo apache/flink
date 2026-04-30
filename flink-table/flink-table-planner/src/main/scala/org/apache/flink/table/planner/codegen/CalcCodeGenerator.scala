@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.functions.FunctionKind
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -31,19 +32,21 @@ import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex._
 
+import javax.annotation.Nullable
+
+import scala.collection.JavaConverters._
+
 object CalcCodeGenerator {
 
   def generateCalcOperator(
       ctx: CodeGeneratorContext,
       inputTransform: Transformation[RowData],
+      inputType: RowType,
       outputType: RowType,
       projection: Seq[RexNode],
       condition: Option[RexNode],
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[RowData] = {
-    val inputType = inputTransform.getOutputType
-      .asInstanceOf[InternalTypeInfo[RowData]]
-      .toRowType
     // filter out time attributes
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val processCode = generateProcessCode(
@@ -53,8 +56,12 @@ object CalcCodeGenerator {
       classOf[BoxedWrapperRowData],
       projection,
       condition,
+      inputTerm,
+      CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
       eagerInputUnboxingCode = true,
-      retainHeader = retainHeader)
+      retainHeader = retainHeader,
+      outputDirectly = false
+    )
 
     val genOperator =
       OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
@@ -87,8 +94,10 @@ object CalcCodeGenerator {
       outRowClass,
       calcProjection,
       calcCondition,
-      collectorTerm = collectorTerm,
+      inputTerm,
+      collectorTerm,
       eagerInputUnboxingCode = false,
+      retainHeader = false,
       outputDirectly = true
     )
 
@@ -121,84 +130,214 @@ object CalcCodeGenerator {
     projection.foreach(_.accept(ScalarFunctionsValidator))
     condition.foreach(_.accept(ScalarFunctionsValidator))
 
-    val exprGenerator = new ExprCodeGenerator(ctx, false)
+    // Build a single RexProgram that contains both projections and the condition (when
+    // present). RexProgramBuilder's structural CSE collapses shared sub-expressions across
+    // them, and the visitor's RexLocalRef cache then deduplicates evaluation across all
+    // call sites.
+    val rexProgram = buildRexProgram(ctx.classLoader, inputType, projection, condition)
+
+    val exprGenerator = new ExprCodeGenerator(ctx, false, rexProgram)
       .bindInput(inputType, inputTerm = inputTerm)
 
-    val onlyFilter = projection.lengthCompare(inputType.getFieldCount) == 0 &&
-      projection.zipWithIndex.forall {
-        case (rexNode, index) =>
-          rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
-      }
-
-    def produceOutputCode(resultTerm: String): String = if (outputDirectly) {
-      s"$collectorTerm.collect($resultTerm);"
-    } else {
-      s"${OperatorCodeGenerator.generateCollect(resultTerm)}"
-    }
-
-    def produceProjectionCode: String = {
-      val projectionExprs = projection.map(exprGenerator.generateExpression)
-      val projectionExpression =
-        exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
-
-      val projectionExpressionCode = projectionExpression.code
-
-      val header = if (retainHeader) {
-        s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
-      } else {
-        ""
-      }
-
-      s"""
-         |$header
-         |$projectionExpressionCode
-         |${produceOutputCode(projectionExpression.resultTerm)}
-         |""".stripMargin
-    }
+    val onlyFilter = projection.size == inputType.getFieldCount &&
+      checkProjectionIsIdentity(projection.asJava)
 
     if (condition.isEmpty && onlyFilter) {
       throw new TableException(
         "This calc has no useful projection and no filter. " +
           "It should be removed by CalcRemoveRule.")
     } else if (condition.isEmpty) { // only projection
-      val projectionCode = produceProjectionCode
+      val projectionCode = produceProjectionCode(
+        exprGenerator,
+        rexProgram,
+        outRowType,
+        outRowClass,
+        inputTerm,
+        collectorTerm,
+        retainHeader,
+        outputDirectly)
+      val inputUnboxing = if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""
+      // Cached RexLocalRef bodies are populated lazily by visitLocalRef; emit them once
+      // here, after every expression has been generated, so each cached result term is
+      // assigned exactly once before any consumer reads it.
+      val localRefCode = ctx.reuseLocalRefCode()
       s"""
-         |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
+         |$inputUnboxing
+         |$localRefCode
          |$projectionCode
          |""".stripMargin
     } else {
-      val filterCondition = exprGenerator.generateExpression(condition.get)
+      // Routing the filter through rexProgram.getCondition() (a RexLocalRef) makes the
+      // visitor hit the same reusableLocalRefExprs cache that the projections read.
+      val filterCondition = exprGenerator.generateExpression(rexProgram.getCondition)
       // only filter
       if (onlyFilter) {
+        val inputUnboxing = if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""
+        val localRefCode = ctx.reuseLocalRefCode()
         s"""
-           |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
+           |$inputUnboxing
+           |$localRefCode
            |${filterCondition.code}
            |if (${filterCondition.resultTerm}) {
-           |  ${produceOutputCode(inputTerm)}
+           |  ${produceOutputCode(inputTerm, collectorTerm, outputDirectly)}
            |}
            |""".stripMargin
       } else { // both filter and projection
         val filterInputCode = ctx.reuseInputUnboxingCode()
-        val filterInputSet = Set(ctx.reusableInputUnboxingExprs.keySet.toSeq: _*)
+        val filterInputSet: Set[(String, Int)] = ctx.reusableInputUnboxingExprs.keySet.toSet
+
+        // Snapshot of cached RexLocalRef indices populated while generating the filter.
+        // Entries added later (during projection generation) stay inside the if-block,
+        // so we don't compute them for rows the filter rejects.
+        val filterLocalRefSet: Set[Int] = ctx.reusableLocalRefExprs.keySet.toSet
 
         // if any filter conditions, projection code will enter an new scope
-        val projectionCode = produceProjectionCode
+        val projectionCode = produceProjectionCode(
+          exprGenerator,
+          rexProgram,
+          outRowType,
+          outRowClass,
+          inputTerm,
+          collectorTerm,
+          retainHeader,
+          outputDirectly)
 
         val projectionInputCode = ctx.reusableInputUnboxingExprs
-          .filter(entry => !filterInputSet.contains(entry._1))
+          .filter { case (k, _) => !filterInputSet.contains(k) }
           .values
           .map(_.code)
           .mkString("\n")
+
+        // Partition cached RexLocalRef bodies: entries used by the filter (added before the
+        // snapshot above) are emitted unconditionally before the filter check so the filter can
+        // read their result terms; entries added only by the projection are emitted inside the
+        // if-block.
+        val filterLocalRefCode = ctx.reusableLocalRefExprs
+          .filter { case (k, _) => filterLocalRefSet.contains(k) }
+          .values
+          .map(_.code)
+          .mkString("\n")
+        val projectionLocalRefCode = ctx.reusableLocalRefExprs
+          .filter { case (k, _) => !filterLocalRefSet.contains(k) }
+          .values
+          .map(_.code)
+          .mkString("\n")
+
+        val filterInput = if (eagerInputUnboxingCode) filterInputCode else ""
+        val projectionInput = if (eagerInputUnboxingCode) projectionInputCode else ""
+
         s"""
-           |${if (eagerInputUnboxingCode) filterInputCode else ""}
+           |$filterInput
+           |$filterLocalRefCode
            |${filterCondition.code}
            |if (${filterCondition.resultTerm}) {
-           |  ${if (eagerInputUnboxingCode) projectionInputCode else ""}
+           |  $projectionInput
+           |  $projectionLocalRefCode
            |  $projectionCode
            |}
            |""".stripMargin
       }
     }
+  }
+
+  private def produceOutputCode(
+      resultTerm: String,
+      collectorTerm: String,
+      outputDirectly: Boolean): String = {
+    if (outputDirectly) {
+      s"$collectorTerm.collect($resultTerm);"
+    } else {
+      OperatorCodeGenerator.generateCollect(resultTerm)
+    }
+  }
+
+  private def produceProjectionCode(
+      exprGenerator: ExprCodeGenerator,
+      rexProgram: RexProgram,
+      outRowType: RowType,
+      outRowClass: Class[_ <: RowData],
+      inputTerm: String,
+      collectorTerm: String,
+      retainHeader: Boolean,
+      outputDirectly: Boolean): String = {
+    val projection = rexProgram.getProjectList.asScala
+
+    // JSON expressions need their full RexNode tree expanded before codegen because
+    // JSON_OBJECT/JSON_ARRAY/JSON compose through nested calls and aren't supported by the
+    // RexLocalRef path; for everything else, hand the RexLocalRef itself to generateExpression
+    // so visitLocalRef both dereferences via the program and memoizes the result through
+    // ctx.reusableLocalRefExprs. Without this, identical sub-expressions across projections
+    // (e.g. SELECT UPPER(a), UPPER(a) FROM t) would be regenerated per projection.
+    val projectionExprs = projection.map {
+      case localRef: RexLocalRef if containsJson(rexProgram, localRef) =>
+        exprGenerator.generateExpression(rexProgram.expandLocalRef(localRef))
+      case other =>
+        exprGenerator.generateExpression(other)
+    }
+
+    val projectionExpression =
+      exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
+
+    val projectionExpressionCode = projectionExpression.code
+
+    val header = if (retainHeader) {
+      s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
+    } else {
+      ""
+    }
+
+    // The cached RexLocalRef bodies (ctx.reuseLocalRefCode()) are emitted once in
+    // generateProcessCode, BEFORE the filter check, so that any filter referencing a shared
+    // sub-expression also sees the assigned result terms.
+    s"""
+       |$header
+       |$projectionExpressionCode
+       |${produceOutputCode(projectionExpression.resultTerm, collectorTerm, outputDirectly)}
+       |""".stripMargin
+  }
+
+  /**
+   * Builds a [[RexProgram]] containing `projection` and `condition` (if non-null). The visitor's
+   * [[RexLocalRef]] cache uses the program to dereference and memoize shared sub-expressions across
+   * all call sites.
+   */
+  private def buildRexProgram(
+      classLoader: ClassLoader,
+      inputType: RowType,
+      projection: Seq[RexNode],
+      condition: Option[RexNode]): RexProgram = {
+    val typeFactory = new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE)
+    val rexBuilder = new FlinkRexBuilder(typeFactory)
+    val relInputType = typeFactory.createFieldTypeFromLogicalType(inputType)
+    val builder = new RexProgramBuilder(relInputType, rexBuilder)
+    projection.foreach(p => builder.addProject(p, null))
+    if (condition.isDefined) {
+      builder.addCondition(condition.get)
+    }
+    builder.getProgram
+  }
+
+  private def containsJson(rexProgram: RexProgram, rexNode: RexNode): Boolean = rexNode match {
+    case localRef: RexLocalRef =>
+      containsJson(rexProgram, rexProgram.getExprList.get(localRef.getIndex))
+    case call: RexCall =>
+      val name = call.getOperator.getName
+      name == "JSON" || name == "JSON_OBJECT" || name == "JSON_ARRAY" ||
+      call.getOperands.asScala.exists(containsJson(rexProgram, _))
+    case _ => false
+  }
+
+  private def checkProjectionIsIdentity(projection: java.util.List[RexNode]): Boolean = {
+    var i = 0
+    val it = projection.iterator()
+    while (it.hasNext) {
+      it.next() match {
+        case ref: RexInputRef if ref.getIndex == i => // ok
+        case _ => return false
+      }
+      i += 1
+    }
+    true
   }
 
   private object ScalarFunctionsValidator extends RexVisitorImpl[Unit](true) {

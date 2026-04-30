@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rex.{RexCall, RexCallBinding}
+import org.apache.calcite.rex.{RexCall, RexCallBinding, RexProgram}
 
 import java.util.Collections
 
@@ -37,7 +37,9 @@ import java.util.Collections
  * generator will be a reference to a [[WrappingCollector]]. Furthermore, atomic types are wrapped
  * into a row by the collector.
  */
-class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
+class BridgingSqlFunctionCallGen(call: RexCall, rexProgram: RexProgram) extends CallGenerator {
+
+  def this(call: RexCall) = this(call, null)
 
   override def generate(
       ctx: CodeGeneratorContext,
@@ -51,11 +53,18 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
 
     // we could have implemented a dedicated code generation context but the closer we are to
     // Calcite the more consistent is the type inference during the data type enrichment
+    //
+    // Pass the surrounding RexProgram's exprList (when a Calc supplied one to the visitor) so
+    // that argument values can be resolved through any RexLocalRefs that point into it.
     val callContext = new OperatorBindingCallContext(
       dataTypeFactory,
       definition,
       RexCallBinding.create(function.getTypeFactory, call, Collections.emptyList()),
-      call.getType)
+      call.getType,
+      null,
+      null,
+      null,
+      if (rexProgram == null) null else rexProgram.getExprList)
 
     // create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(

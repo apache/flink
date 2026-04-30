@@ -100,6 +100,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                 CalcCodeGenerator.generateCalcOperator(
                         ctx,
                         inputTransform,
+                        (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         JavaScalaConversionUtil.toScala(projection),
                         JavaScalaConversionUtil.toScala(Optional.ofNullable(this.condition)),
