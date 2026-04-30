@@ -1,0 +1,261 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testFilterOnArrayColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, s FROM MyTable, UNNEST(d) AS T(s) WHERE d IS NOT NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], s=[$4])
++- LogicalFilter(condition=[IS NOT NULL($3)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- Calc(select=[a, d], where=[IS NOT NULL(d)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerUnnestArrayOfRowsProjectionDropsLeftColumns">
+    <Resource name="sql">
+      <![CDATA[SELECT a, x FROM MyRowArrayTable, UNNEST(b) AS T(x, y)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], x=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyRowArrayTable]])
+   +- LogicalProject(x=[$0], y=[$1])
+      +- Uncollect
+         +- LogicalProject(b=[$cor0.b])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, _1 AS x])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,_1], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyRowArrayTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerUnnestFilterOnLeftOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], s=[$4])
++- LogicalFilter(condition=[>($0, 5)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- Calc(select=[a, b, d], where=[>(a, 5)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerUnnestFilterOnRightOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, s FROM MyTable, UNNEST(d) AS T(s) WHERE s < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], s=[$4])
++- LogicalFilter(condition=[<($4, 100)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER], condition=[<($0, 100)])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerUnnestMixedPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5 AND s < 100 AND a + s > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], s=[$4])
++- LogicalFilter(condition=[AND(>($0, 5), <($4, 100), >(+($0, $4), 10))])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, f0 AS s], where=[>(+(a, f0), 10)])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER], condition=[<($0, 100)])
+   +- Calc(select=[a, b, c, d], where=[>(a, 5)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerUnnestProjectionDropsLeftColumns">
+    <Resource name="sql">
+      <![CDATA[SELECT a, s FROM MyTable, UNNEST(d) AS T(s)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], s=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(s=[$0])
+      +- Uncollect
+         +- LogicalProject(d=[$cor0.d])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- Calc(select=[a, d])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftUnnestFilterOnRightOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT a, s FROM MyTable LEFT JOIN UNNEST(d) AS T(s) ON TRUE WHERE s < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], s=[$4])
++- LogicalFilter(condition=[<($4, 100)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, s], where=[<(s, 100)])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,s], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER s)], joinType=[LEFT])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftUnnestProjectionDropsLeftColumns">
+    <Resource name="sql">
+      <![CDATA[SELECT a, s FROM MyTable LEFT JOIN UNNEST(d) AS T(s) ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], s=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{3}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(s=[$0])
+      +- Uncollect
+         +- LogicalProject(d=[$cor0.d])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,s], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER s)], joinType=[LEFT])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectAndFilterCombined">
+    <Resource name="sql">
+      <![CDATA[SELECT a, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5 AND s < 100]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], s=[$4])
++- LogicalFilter(condition=[AND(>($0, 5), <($4, 100))])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER], condition=[<($0, 100)])
+   +- Calc(select=[a, b, c, d], where=[>(a, 5)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestWithOrdinalityFilterOnPos">
+    <Resource name="sql">
+      <![CDATA[SELECT a, val, pos FROM MyTable CROSS JOIN UNNEST(d) WITH ORDINALITY AS T(val, pos) WHERE pos = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], val=[$4], pos=[$5])
++- LogicalFilter(condition=[=($5, 1)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(val=[$0], pos=[$1])
+         +- Uncollect(withOrdinality=[true])
+            +- LogicalProject(d=[$cor0.d])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, val, pos])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.d)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.d))], select=[a,b,c,d,val,pos], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER val, INTEGER pos)], joinType=[INNER], condition=[=($1, 1)])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
