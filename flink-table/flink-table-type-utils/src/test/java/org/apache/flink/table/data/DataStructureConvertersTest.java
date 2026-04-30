@@ -101,6 +101,9 @@ class DataStructureConvertersTest {
                         .convertedTo(String.class, "12345")
                         .convertedTo(byte[].class, "12345".getBytes(StandardCharsets.UTF_8))
                         .convertedTo(StringData.class, StringData.fromString("12345")),
+                TestSpec.forDataType(STRING())
+                        .convertedTo(StringData.class, StringData.fromString("SECOND"))
+                        .convertedTo(ConverterEnum.class, ConverterEnum.SECOND),
                 TestSpec.forDataType(BOOLEAN().notNull())
                         .convertedTo(Boolean.class, true)
                         .convertedTo(boolean.class, true),
@@ -593,6 +596,13 @@ class DataStructureConvertersTest {
 
     // --------------------------------------------------------------------------------------------
     // Structured types
+    // --------------------------------------------------------------------------------------------
+
+    private enum ConverterEnum {
+        FIRST,
+        SECOND
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** POJO as superclass. */
