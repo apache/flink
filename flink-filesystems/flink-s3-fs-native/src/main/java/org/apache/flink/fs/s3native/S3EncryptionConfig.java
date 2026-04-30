@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3native;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.StringUtils;
 
 import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 
@@ -26,6 +27,8 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -79,7 +82,9 @@ public class S3EncryptionConfig implements Serializable {
         this.encryptionType = encryptionType;
         this.kmsKeyId = kmsKeyId;
         this.encryptionContext =
-                encryptionContext != null ? Map.copyOf(encryptionContext) : Collections.emptyMap();
+                encryptionContext != null
+                        ? Collections.unmodifiableMap(new HashMap<>(encryptionContext))
+                        : Collections.emptyMap();
     }
 
     /** Creates a config with no encryption. */
@@ -102,8 +107,15 @@ public class S3EncryptionConfig implements Serializable {
     }
 
     /**
-     * Creates a config for SSE-KMS encryption with a specific KMS key.
+     * Creates a config for SSE-KMS encryption with the default KMS key and an encryption context.
      *
+     * @param encryptionContext The encryption context key-value pairs
+     */
+    public static S3EncryptionConfig sseKms(Map<String, String> encryptionContext) {
+        return new S3EncryptionConfig(EncryptionType.SSE_KMS, null, encryptionContext);
+    }
+
+    /**
      * @param kmsKeyId The KMS key ID, ARN, or alias (e.g., "arn:aws:kms:region:account:key/key-id"
      *     or "alias/my-key")
      */
@@ -148,23 +160,22 @@ public class S3EncryptionConfig implements Serializable {
             @Nullable String encryptionTypeStr,
             @Nullable String kmsKeyId,
             Map<String, String> encryptionContext) {
-        if (encryptionTypeStr == null
-                || encryptionTypeStr.isEmpty()
+        if (StringUtils.isNullOrWhitespaceOnly(encryptionTypeStr)
                 || "none".equalsIgnoreCase(encryptionTypeStr)) {
             return none();
         }
 
-        String normalizedType = encryptionTypeStr.toUpperCase().replace("-", "_").replace(":", "_");
+        String normalizedType = encryptionTypeStr.toLowerCase(Locale.ROOT);
 
         switch (normalizedType) {
-            case "SSE_S3":
-            case "AES256":
+            case "sse-s3":
+            case "aes256":
                 return sseS3();
-            case "SSE_KMS":
-            case "AWS_KMS":
+            case "sse-kms":
+            case "aws:kms":
                 return kmsKeyId != null && !kmsKeyId.isEmpty()
                         ? sseKms(kmsKeyId, encryptionContext)
-                        : sseKms();
+                        : sseKms(encryptionContext);
             default:
                 throw new IllegalArgumentException(
                         "Unknown encryption type: "

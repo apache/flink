@@ -38,9 +38,7 @@ class S3ExceptionUtilsTest {
                 Arguments.of(
                         s3Exception(
                                 404,
-                                AwsErrorDetails.builder()
-                                        .errorMessage("key not found")
-                                        .build()),
+                                AwsErrorDetails.builder().errorMessage("key not found").build()),
                         "delete object",
                         "delete object (HTTP 404: key not found)"),
                 Arguments.of(
@@ -68,8 +66,7 @@ class S3ExceptionUtilsTest {
                                 .errorMessage("The specified key does not exist.")
                                 .build());
 
-        assertThat(S3ExceptionUtils.errorMessage(e))
-                .isEqualTo("The specified key does not exist.");
+        assertThat(S3ExceptionUtils.errorMessage(e)).isEqualTo("The specified key does not exist.");
     }
 
     static Stream<Arguments> errorMessageFallbackCases() {
@@ -99,8 +96,7 @@ class S3ExceptionUtilsTest {
 
     @Test
     void errorCode_detailsHasCode_returnsErrorCode() {
-        S3Exception e =
-                s3Exception(404, AwsErrorDetails.builder().errorCode("NoSuchKey").build());
+        S3Exception e = s3Exception(404, AwsErrorDetails.builder().errorCode("NoSuchKey").build());
 
         assertThat(S3ExceptionUtils.errorCode(e)).isEqualTo("NoSuchKey");
     }

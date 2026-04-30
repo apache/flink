@@ -58,8 +58,7 @@ class S3EncryptionConfigTest {
     static Stream<Arguments> noArgFactories_encryptionTypeCorrect() {
         return Stream.of(
                 Arguments.of(S3EncryptionConfig.none(), NONE, false, null),
-                Arguments.of(
-                        S3EncryptionConfig.sseS3(), SSE_S3, true, ServerSideEncryption.AES256),
+                Arguments.of(S3EncryptionConfig.sseS3(), SSE_S3, true, ServerSideEncryption.AES256),
                 Arguments.of(
                         S3EncryptionConfig.sseKms(), SSE_KMS, true, ServerSideEncryption.AWS_KMS));
     }
@@ -135,11 +134,11 @@ class S3EncryptionConfigTest {
     }
 
     @Test
-    void fromConfig_sseKmsNoKeyIdWithContext_contextIgnored() {
+    void fromConfig_sseKmsDefaultKeyWithContext_contextPreserved() {
         assertThat(
                         S3EncryptionConfig.fromConfig("sse-kms", null, Map.of("env", "prod"))
                                 .hasEncryptionContext())
-                .isFalse();
+                .isTrue();
     }
 
     @Test
