@@ -93,7 +93,7 @@ object CalcCodeGenerator {
       calcProjection,
       calcCondition,
       inputTerm,
-      collectorTerm,
+      collectorTerm = collectorTerm,
       eagerInputUnboxingCode = false,
       retainHeader = false,
       outputDirectly = true
