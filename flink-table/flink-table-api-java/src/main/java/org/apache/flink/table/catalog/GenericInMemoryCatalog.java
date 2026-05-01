@@ -482,9 +482,9 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
             ObjectPath connectionPath, CatalogConnection newConnection, boolean ignoreIfNotExists)
             throws ConnectionNotExistException {
         checkNotNull(connectionPath);
+        checkNotNull(newConnection);
 
-        CatalogConnection existingConnection = connections.get(connectionPath);
-        if (existingConnection == null || newConnection == null) {
+        if (!connectionExists(connectionPath)) {
             if (ignoreIfNotExists) {
                 return;
             }

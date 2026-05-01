@@ -959,7 +959,9 @@ public interface Catalog {
      */
     default CatalogConnection getConnection(ObjectPath connectionPath)
             throws ConnectionNotExistException, CatalogException {
-        throw new ConnectionNotExistException(null, connectionPath);
+        throw new UnsupportedOperationException(
+                String.format(
+                        "getConnection(ObjectPath) is not implemented for %s.", this.getClass()));
     }
 
     /**

@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.secret.ReadableSecretStore;
 import org.apache.flink.table.secret.WritableSecretStore;
+import org.apache.flink.table.secret.exceptions.SecretException;
 
 /**
  * Factory for creating and resolving connections, handling the encryption and decryption of
@@ -54,9 +55,10 @@ public interface ConnectionFactory extends Factory {
      * @param connection the connection with all options including sensitive fields
      * @param secretStore the secret store where sensitive fields will be stored
      * @return a catalog-safe connection with sensitive fields replaced by a secret reference
+     * @throws SecretException if storing the secret fails (e.g. underlying-store error)
      */
     CatalogConnection createConnection(
-            SensitiveConnection connection, WritableSecretStore secretStore);
+            SensitiveConnection connection, WritableSecretStore secretStore) throws SecretException;
 
     /**
      * Resolves a {@link CatalogConnection} into a {@link SensitiveConnection} by retrieving secrets
@@ -66,7 +68,26 @@ public interface ConnectionFactory extends Factory {
      *     reference
      * @param secretStore the secret store from which sensitive fields are retrieved
      * @return the complete connection with all options including sensitive fields
+     * @throws SecretException if retrieving the secret fails (e.g. underlying-store error)
      */
     SensitiveConnection resolveConnection(
-            CatalogConnection connection, ReadableSecretStore secretStore);
+            CatalogConnection connection, ReadableSecretStore secretStore) throws SecretException;
+
+    /**
+     * Deletes any secrets associated with the given {@link CatalogConnection} from the provided
+     * {@link WritableSecretStore}.
+     *
+     * <p>Implementations should locate the secret reference embedded in the connection (created by
+     * {@link #createConnection(SensitiveConnection, WritableSecretStore)}) and remove the
+     * corresponding entry from the secret store. This is intended to be called when a connection is
+     * dropped or replaced (e.g. on alter), to avoid orphaned secrets.
+     *
+     * <p>The default implementation is a no-op for factories that do not externalize secrets.
+     *
+     * @param connection the catalog connection whose backing secrets should be removed
+     * @param secretStore the secret store from which secrets should be deleted
+     * @throws SecretException if removing the secret fails (e.g. underlying-store error)
+     */
+    default void deleteSecrets(CatalogConnection connection, WritableSecretStore secretStore)
+            throws SecretException {}
 }

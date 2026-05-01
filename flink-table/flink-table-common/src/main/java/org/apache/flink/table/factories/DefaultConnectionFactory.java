@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.secret.ReadableSecretStore;
 import org.apache.flink.table.secret.WritableSecretStore;
+import org.apache.flink.table.secret.exceptions.SecretException;
 import org.apache.flink.table.secret.exceptions.SecretNotFoundException;
 
 import java.util.Arrays;
@@ -55,8 +56,12 @@ import java.util.stream.Collectors;
 @Internal
 public class DefaultConnectionFactory implements ConnectionFactory {
 
-    /** Option key used to store the reference to secrets in the secret store. */
-    public static final String SECRET_REFERENCE_KEY = "encrypted_secret_key";
+    /**
+     * Reserved option key used to store the reference to secrets in the secret store. The
+     * surrounding double underscores make collision with user-supplied option names unlikely; user
+     * options containing this key will be rejected at create-time.
+     */
+    public static final String SECRET_REFERENCE_KEY = "__flink.encrypted_secret_key__";
 
     private static final Set<String> SENSITIVE_FIELD_NAMES =
             Collections.unmodifiableSet(
@@ -94,6 +99,13 @@ public class DefaultConnectionFactory implements ConnectionFactory {
             SensitiveConnection connection, WritableSecretStore secretStore) {
         Map<String, String> allOptions = connection.getOptions();
 
+        if (allOptions.containsKey(SECRET_REFERENCE_KEY)) {
+            throw new ValidationException(
+                    String.format(
+                            "Connection option '%s' is reserved and cannot be set by users.",
+                            SECRET_REFERENCE_KEY));
+        }
+
         Map<String, String> sensitiveOptions =
                 allOptions.entrySet().stream()
                         .filter(e -> SENSITIVE_FIELD_NAMES.contains(e.getKey()))
@@ -110,7 +122,14 @@ public class DefaultConnectionFactory implements ConnectionFactory {
                                         HashMap::new));
 
         if (!sensitiveOptions.isEmpty()) {
-            String secretId = secretStore.storeSecret(sensitiveOptions);
+            final String secretId;
+            try {
+                secretId = secretStore.storeSecret(sensitiveOptions);
+            } catch (SecretException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                throw new SecretException("Failed to store connection secret.", e);
+            }
             nonSensitiveOptions.put(SECRET_REFERENCE_KEY, secretId);
         }
 
@@ -133,9 +152,32 @@ public class DefaultConnectionFactory implements ConnectionFactory {
                                 "Failed to resolve connection secrets. Secret with ID '%s' not found.",
                                 secretId),
                         e);
+            } catch (SecretException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                throw new SecretException(
+                        String.format(
+                                "Failed to retrieve connection secret with ID '%s'.", secretId),
+                        e);
             }
         }
 
         return SensitiveConnection.of(options, connection.getComment());
+    }
+
+    @Override
+    public void deleteSecrets(CatalogConnection connection, WritableSecretStore secretStore) {
+        String secretId = connection.getOptions().get(SECRET_REFERENCE_KEY);
+        if (secretId != null) {
+            try {
+                secretStore.removeSecret(secretId);
+            } catch (SecretException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                throw new SecretException(
+                        String.format("Failed to remove connection secret with ID '%s'.", secretId),
+                        e);
+            }
+        }
     }
 }

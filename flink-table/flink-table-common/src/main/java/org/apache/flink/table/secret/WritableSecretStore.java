@@ -19,6 +19,7 @@
 package org.apache.flink.table.secret;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.secret.exceptions.SecretException;
 import org.apache.flink.table.secret.exceptions.SecretNotFoundException;
 
 import java.util.Map;
@@ -40,15 +41,19 @@ public interface WritableSecretStore extends SecretStore {
      *
      * @param secretData a map containing the secret data as key-value pairs to be stored
      * @return a unique identifier for the stored secret
+     * @throws SecretException if the operation fails due to underlying-store errors (network,
+     *     permission, quota, etc.)
      */
-    String storeSecret(Map<String, String> secretData);
+    String storeSecret(Map<String, String> secretData) throws SecretException;
 
     /**
      * Removes a secret from the secret store.
      *
      * @param secretId the unique identifier of the secret to remove
+     * @throws SecretException if the operation fails due to underlying-store errors (network,
+     *     permission, etc.)
      */
-    void removeSecret(String secretId);
+    void removeSecret(String secretId) throws SecretException;
 
     /**
      * Atomically updates an existing secret with new data.
@@ -58,7 +63,9 @@ public interface WritableSecretStore extends SecretStore {
      * @param secretId the unique identifier of the secret to update
      * @param newSecretData a map containing the new secret data as key-value pairs
      * @throws SecretNotFoundException if the secret with the given identifier does not exist
+     * @throws SecretException if the operation fails due to underlying-store errors (network,
+     *     permission, etc.)
      */
     void updateSecret(String secretId, Map<String, String> newSecretData)
-            throws SecretNotFoundException;
+            throws SecretNotFoundException, SecretException;
 }

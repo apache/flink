@@ -43,14 +43,17 @@ import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.listener.AlterConnectionEvent;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
 import org.apache.flink.table.catalog.listener.AlterModelEvent;
 import org.apache.flink.table.catalog.listener.AlterTableEvent;
 import org.apache.flink.table.catalog.listener.CatalogContext;
 import org.apache.flink.table.catalog.listener.CatalogModificationListener;
+import org.apache.flink.table.catalog.listener.CreateConnectionEvent;
 import org.apache.flink.table.catalog.listener.CreateDatabaseEvent;
 import org.apache.flink.table.catalog.listener.CreateModelEvent;
 import org.apache.flink.table.catalog.listener.CreateTableEvent;
+import org.apache.flink.table.catalog.listener.DropConnectionEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
 import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
@@ -63,7 +66,9 @@ import org.apache.flink.table.factories.ConnectionFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.secret.GenericInMemorySecretStore;
 import org.apache.flink.table.secret.WritableSecretStore;
+import org.apache.flink.table.secret.exceptions.SecretException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -102,6 +107,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public final class CatalogManager implements CatalogRegistry, AutoCloseable {
+
     private static final Logger LOG = LoggerFactory.getLogger(CatalogManager.class);
 
     // A map between names and catalogs.
@@ -118,6 +124,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     // Those connections take precedence over corresponding permanent connections, thus they shadow
     // connections coming from catalogs.
     private final Map<ObjectIdentifier, CatalogConnection> temporaryConnections;
+
+    // Backing store for secrets of temporary connections. Lifetime is tied to this
+    // CatalogManager — temporary connections are session-scoped, so their secrets should not
+    // be persisted in the configured (potentially persistent) writableSecretStore.
+    private final WritableSecretStore temporarySecretStore;
 
     // The name of the current catalog and database
     private @Nullable String currentCatalogName;
@@ -167,6 +178,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         temporaryTables = new HashMap<>();
         temporaryModels = new HashMap<>();
         temporaryConnections = new HashMap<>();
+        temporarySecretStore = new GenericInMemorySecretStore();
 
         // right now the default catalog is always the built-in one
         builtInCatalogName = defaultCatalogName;
@@ -1842,8 +1854,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         if (catalog.isPresent()) {
             try {
                 return Optional.of(catalog.get().getConnection(objectIdentifier.toObjectPath()));
-            } catch (Exception e) {
-                // Connection does not exist
+            } catch (ConnectionNotExistException | UnsupportedOperationException e) {
+                // ConnectionNotExistException: connection does not exist in this catalog.
+                // UnsupportedOperationException: catalog does not support connections.
                 return Optional.empty();
             }
         } else {
@@ -1906,14 +1919,46 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             throw new ValidationException(
                     "ConnectionFactory and WritableSecretStore must be configured to create connections.");
         }
+        if (getConnection(objectIdentifier).isPresent()) {
+            if (ignoreIfExists) {
+                return;
+            }
+            throw new ValidationException(
+                    String.format(
+                            "Connection with identifier '%s' already exists.",
+                            objectIdentifier.asSummaryString()));
+        }
         final CatalogConnection catalogConnection =
                 connectionFactory.createConnection(connection, writableSecretStore);
-        execute(
-                (catalog, path) ->
-                        catalog.createConnection(path, catalogConnection, ignoreIfExists),
-                objectIdentifier,
-                ignoreIfExists,
-                "CreateConnection");
+        boolean persisted = false;
+        try {
+            execute(
+                    (catalog, path) -> {
+                        catalog.createConnection(path, catalogConnection, ignoreIfExists);
+                        catalogModificationListeners.forEach(
+                                listener ->
+                                        listener.onEvent(
+                                                CreateConnectionEvent.createEvent(
+                                                        CatalogContext.createContext(
+                                                                objectIdentifier.getCatalogName(),
+                                                                catalog),
+                                                        objectIdentifier,
+                                                        catalogConnection,
+                                                        ignoreIfExists,
+                                                        false)));
+                    },
+                    objectIdentifier,
+                    ignoreIfExists,
+                    "CreateConnection");
+            persisted = true;
+        } finally {
+            if (!persisted) {
+                tryDeleteSecrets(
+                        catalogConnection,
+                        writableSecretStore,
+                        "rollback createConnection " + objectIdentifier);
+            }
+        }
     }
 
     /**
@@ -1927,27 +1972,33 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             SensitiveConnection connection,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfExists) {
-        if (connectionFactory == null || writableSecretStore == null) {
+        if (connectionFactory == null) {
             throw new ValidationException(
-                    "ConnectionFactory and WritableSecretStore must be configured to create connections.");
+                    "ConnectionFactory must be configured to create connections.");
         }
+        if (temporaryConnections.containsKey(objectIdentifier)) {
+            if (ignoreIfExists) {
+                return;
+            }
+            throw new ValidationException(
+                    String.format("Temporary connection '%s' already exists", objectIdentifier));
+        }
+        // Temporary connections are session-scoped; store secrets in an in-memory store rather
+        // than the configured (potentially persistent) writableSecretStore.
         final CatalogConnection catalogConnection =
-                connectionFactory.createConnection(connection, writableSecretStore);
-        temporaryConnections.compute(
-                objectIdentifier,
-                (k, v) -> {
-                    if (v != null) {
-                        if (!ignoreIfExists) {
-                            throw new ValidationException(
-                                    String.format(
-                                            "Temporary connection '%s' already exists",
-                                            objectIdentifier));
-                        }
-                        return v;
-                    } else {
-                        return catalogConnection;
-                    }
-                });
+                connectionFactory.createConnection(connection, temporarySecretStore);
+        temporaryConnections.put(objectIdentifier, catalogConnection);
+        Catalog catalog = getCatalog(objectIdentifier.getCatalogName()).orElse(null);
+        catalogModificationListeners.forEach(
+                listener ->
+                        listener.onEvent(
+                                CreateConnectionEvent.createEvent(
+                                        CatalogContext.createContext(
+                                                objectIdentifier.getCatalogName(), catalog),
+                                        objectIdentifier,
+                                        catalogConnection,
+                                        ignoreIfExists,
+                                        true)));
     }
 
     /**
@@ -1966,15 +2017,48 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             throw new ValidationException(
                     "ConnectionFactory and WritableSecretStore must be configured to alter connections.");
         }
-        execute(
-                (catalog, path) -> {
-                    final CatalogConnection catalogConnection =
-                            connectionFactory.createConnection(newConnection, writableSecretStore);
-                    catalog.alterConnection(path, catalogConnection, ignoreIfNotExists);
-                },
-                objectIdentifier,
-                ignoreIfNotExists,
-                "AlterConnection");
+        Optional<CatalogConnection> existingOpt = getConnection(objectIdentifier);
+        if (!existingOpt.isPresent()) {
+            if (ignoreIfNotExists) {
+                return;
+            }
+            throw new ValidationException(
+                    String.format(
+                            "Connection with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+        final CatalogConnection existing = existingOpt.get();
+        final CatalogConnection newCatalogConnection =
+                connectionFactory.createConnection(newConnection, writableSecretStore);
+        boolean persisted = false;
+        try {
+            execute(
+                    (catalog, path) -> {
+                        catalog.alterConnection(path, newCatalogConnection, ignoreIfNotExists);
+                        catalogModificationListeners.forEach(
+                                listener ->
+                                        listener.onEvent(
+                                                AlterConnectionEvent.createEvent(
+                                                        CatalogContext.createContext(
+                                                                objectIdentifier.getCatalogName(),
+                                                                catalog),
+                                                        objectIdentifier,
+                                                        newCatalogConnection,
+                                                        ignoreIfNotExists)));
+                    },
+                    objectIdentifier,
+                    ignoreIfNotExists,
+                    "AlterConnection");
+            persisted = true;
+        } finally {
+            // On success: drop the OLD secret. On failure: drop the freshly-stored NEW secret.
+            tryDeleteSecrets(
+                    persisted ? existing : newCatalogConnection,
+                    writableSecretStore,
+                    persisted
+                            ? "post-alter cleanup of old secret for " + objectIdentifier
+                            : "rollback alterConnection " + objectIdentifier);
+        }
     }
 
     /**
@@ -1985,11 +2069,39 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *     does not exist.
      */
     public void dropConnection(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        Optional<CatalogConnection> existingOpt = getConnection(objectIdentifier);
+        if (!existingOpt.isPresent()) {
+            if (ignoreIfNotExists) {
+                return;
+            }
+            throw new ValidationException(
+                    String.format(
+                            "Connection with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+        final CatalogConnection existing = existingOpt.get();
         execute(
-                (catalog, path) -> catalog.dropConnection(path, ignoreIfNotExists),
+                (catalog, path) -> {
+                    catalog.dropConnection(path, ignoreIfNotExists);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            DropConnectionEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    existing,
+                                                    ignoreIfNotExists,
+                                                    false)));
+                },
                 objectIdentifier,
                 ignoreIfNotExists,
                 "DropConnection");
+        if (connectionFactory != null && writableSecretStore != null) {
+            tryDeleteSecrets(
+                    existing, writableSecretStore, "post-drop cleanup for " + objectIdentifier);
+        }
     }
 
     /**
@@ -2004,11 +2116,45 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         CatalogConnection connection = temporaryConnections.get(objectIdentifier);
         if (connection != null) {
             temporaryConnections.remove(objectIdentifier);
+            Catalog catalog = getCatalog(objectIdentifier.getCatalogName()).orElse(null);
+            catalogModificationListeners.forEach(
+                    listener ->
+                            listener.onEvent(
+                                    DropConnectionEvent.createEvent(
+                                            CatalogContext.createContext(
+                                                    objectIdentifier.getCatalogName(), catalog),
+                                            objectIdentifier,
+                                            connection,
+                                            ignoreIfNotExists,
+                                            true)));
+            if (connectionFactory != null) {
+                tryDeleteSecrets(
+                        connection,
+                        temporarySecretStore,
+                        "post-drop cleanup of temporary " + objectIdentifier);
+            }
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
                             "Temporary connection with identifier '%s' does not exist.",
                             objectIdentifier.asSummaryString()));
+        }
+    }
+
+    /**
+     * Best-effort cleanup of a connection's secrets. The catalog state has already been mutated (or
+     * failed); a cleanup failure should not mask the user-visible result. Logs the failure (which
+     * may indicate an orphaned secret in the underlying store) and swallows the exception.
+     */
+    private void tryDeleteSecrets(
+            CatalogConnection connection, WritableSecretStore store, String context) {
+        try {
+            connectionFactory.deleteSecrets(connection, store);
+        } catch (SecretException e) {
+            LOG.warn(
+                    "Failed to delete connection secrets during {}; the catalog state is correct, but the secret may be orphaned in the secret store.",
+                    context,
+                    e);
         }
     }
 
