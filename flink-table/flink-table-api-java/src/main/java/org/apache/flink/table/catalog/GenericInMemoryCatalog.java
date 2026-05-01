@@ -20,6 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.ConnectionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ConnectionNotExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -59,6 +61,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     private final Map<String, CatalogDatabase> databases;
     private final Map<ObjectPath, CatalogBaseTable> tables;
     private final Map<ObjectPath, CatalogModel> models;
+    private final Map<ObjectPath, CatalogConnection> connections;
     private final Map<ObjectPath, CatalogFunction> functions;
     private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogPartition>> partitions;
 
@@ -79,6 +82,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         this.databases.put(defaultDatabase, new CatalogDatabaseImpl(new HashMap<>(), null));
         this.tables = new LinkedHashMap<>();
         this.models = new LinkedHashMap<>();
+        this.connections = new LinkedHashMap<>();
         this.functions = new LinkedHashMap<>();
         this.partitions = new LinkedHashMap<>();
         this.tableStats = new LinkedHashMap<>();
@@ -451,6 +455,78 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     public boolean modelExists(ObjectPath modelPath) {
         checkNotNull(modelPath);
         return databaseExists(modelPath.getDatabaseName()) && models.containsKey(modelPath);
+    }
+
+    // ------ connections ------
+
+    @Override
+    public void createConnection(
+            ObjectPath connectionPath, CatalogConnection connection, boolean ignoreIfExists)
+            throws ConnectionAlreadyExistException, DatabaseNotExistException {
+        checkNotNull(connectionPath);
+        checkNotNull(connection);
+        if (!databaseExists(connectionPath.getDatabaseName())) {
+            throw new DatabaseNotExistException(getName(), connectionPath.getDatabaseName());
+        }
+        if (connectionExists(connectionPath)) {
+            if (!ignoreIfExists) {
+                throw new ConnectionAlreadyExistException(getName(), connectionPath);
+            }
+        } else {
+            connections.put(connectionPath, connection.copy());
+        }
+    }
+
+    @Override
+    public void alterConnection(
+            ObjectPath connectionPath, CatalogConnection newConnection, boolean ignoreIfNotExists)
+            throws ConnectionNotExistException {
+        checkNotNull(connectionPath);
+
+        CatalogConnection existingConnection = connections.get(connectionPath);
+        if (existingConnection == null || newConnection == null) {
+            if (ignoreIfNotExists) {
+                return;
+            }
+            throw new ConnectionNotExistException(getName(), connectionPath);
+        }
+
+        connections.put(connectionPath, newConnection.copy());
+    }
+
+    @Override
+    public void dropConnection(ObjectPath connectionPath, boolean ignoreIfNotExists)
+            throws ConnectionNotExistException {
+        checkNotNull(connectionPath);
+        if (connectionExists(connectionPath)) {
+            connections.remove(connectionPath);
+        } else if (!ignoreIfNotExists) {
+            throw new ConnectionNotExistException(getName(), connectionPath);
+        }
+    }
+
+    @Override
+    public List<String> listConnections(String databaseName) throws DatabaseNotExistException {
+        return listObjectsUnderDatabase(connections, databaseName, k -> true);
+    }
+
+    @Override
+    public CatalogConnection getConnection(ObjectPath connectionPath)
+            throws ConnectionNotExistException {
+        checkNotNull(connectionPath);
+
+        if (!connectionExists(connectionPath)) {
+            throw new ConnectionNotExistException(getName(), connectionPath);
+        } else {
+            return connections.get(connectionPath).copy();
+        }
+    }
+
+    @Override
+    public boolean connectionExists(ObjectPath connectionPath) {
+        checkNotNull(connectionPath);
+        return databaseExists(connectionPath.getDatabaseName())
+                && connections.containsKey(connectionPath);
     }
 
     // ------ functions ------

@@ -33,6 +33,8 @@ import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.ConnectionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ConnectionNotExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -57,9 +59,11 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
+import org.apache.flink.table.factories.ConnectionFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.secret.WritableSecretStore;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -111,6 +115,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     // models coming from catalogs.
     private final Map<ObjectIdentifier, CatalogModel> temporaryModels;
 
+    // Those connections take precedence over corresponding permanent connections, thus they shadow
+    // connections coming from catalogs.
+    private final Map<ObjectIdentifier, CatalogConnection> temporaryConnections;
+
     // The name of the current catalog and database
     private @Nullable String currentCatalogName;
 
@@ -132,6 +140,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     private final MaterializedTableEnricher materializedTableEnricher;
 
+    @Nullable private final ConnectionFactory connectionFactory;
+
+    @Nullable private final WritableSecretStore writableSecretStore;
+
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
@@ -139,7 +151,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             List<CatalogModificationListener> catalogModificationListeners,
             CatalogStoreHolder catalogStoreHolder,
             SqlFactory sqlFactory,
-            MaterializedTableEnricher materializedTableEnricher) {
+            MaterializedTableEnricher materializedTableEnricher,
+            @Nullable ConnectionFactory connectionFactory,
+            @Nullable WritableSecretStore writableSecretStore) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
                 "Default catalog name cannot be null or empty");
@@ -152,6 +166,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         temporaryTables = new HashMap<>();
         temporaryModels = new HashMap<>();
+        temporaryConnections = new HashMap<>();
 
         // right now the default catalog is always the built-in one
         builtInCatalogName = defaultCatalogName;
@@ -164,6 +179,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         this.sqlFactory = sqlFactory;
         this.materializedTableEnricher =
                 checkNotNull(materializedTableEnricher, "MaterializedTableEnricher cannot be null");
+        this.connectionFactory = connectionFactory;
+        this.writableSecretStore = writableSecretStore;
     }
 
     @VisibleForTesting
@@ -202,6 +219,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         private SqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
 
         private MaterializedTableEnricher materializedTableEnricher;
+
+        private @Nullable ConnectionFactory connectionFactory;
+
+        private @Nullable WritableSecretStore writableSecretStore;
 
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
@@ -251,6 +272,16 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return this;
         }
 
+        public Builder connectionFactory(@Nullable ConnectionFactory connectionFactory) {
+            this.connectionFactory = connectionFactory;
+            return this;
+        }
+
+        public Builder writableSecretStore(@Nullable WritableSecretStore writableSecretStore) {
+            this.writableSecretStore = writableSecretStore;
+            return this;
+        }
+
         public CatalogManager build() {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
@@ -271,7 +302,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     sqlFactory,
                     materializedTableEnricher != null
                             ? materializedTableEnricher
-                            : createDefaultMaterializedTableEnricher());
+                            : createDefaultMaterializedTableEnricher(),
+                    connectionFactory,
+                    writableSecretStore);
         }
 
         private MaterializedTableEnricher createDefaultMaterializedTableEnricher() {
@@ -1791,6 +1824,194 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return ResolvedCatalogModel.of(model, resolvedInputSchema, resolvedOutputSchema);
     }
 
+    // ------ connections ------
+
+    /**
+     * Get a connection from the catalog with the given object identifier.
+     *
+     * @param objectIdentifier The fully qualified path of the connection.
+     * @return The requested connection wrapped in Optional.
+     */
+    public Optional<CatalogConnection> getConnection(ObjectIdentifier objectIdentifier) {
+        CatalogConnection temporaryConnection = temporaryConnections.get(objectIdentifier);
+        if (temporaryConnection != null) {
+            return Optional.of(temporaryConnection);
+        }
+
+        Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
+        if (catalog.isPresent()) {
+            try {
+                return Optional.of(catalog.get().getConnection(objectIdentifier.toObjectPath()));
+            } catch (Exception e) {
+                // Connection does not exist
+                return Optional.empty();
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * List all connections in the given catalog and database.
+     *
+     * @param catalogName The name of the catalog.
+     * @param databaseName The name of the database.
+     * @return A set of connection names.
+     */
+    public Set<String> listConnections(String catalogName, String databaseName) {
+        Catalog catalog = getCatalogOrError(catalogName);
+        try {
+            Set<String> connections = new HashSet<>(catalog.listConnections(databaseName));
+
+            // Add temporary connections for this catalog and database
+            temporaryConnections.keySet().stream()
+                    .filter(
+                            identifier ->
+                                    identifier.getCatalogName().equals(catalogName)
+                                            && identifier.getDatabaseName().equals(databaseName))
+                    .map(ObjectIdentifier::getObjectName)
+                    .forEach(connections::add);
+
+            return connections;
+        } catch (DatabaseNotExistException e) {
+            throw new ValidationException(
+                    String.format(
+                            "Database %s does not exist in catalog %s.", databaseName, catalogName),
+                    e);
+        } catch (CatalogException e) {
+            throw new TableException(
+                    String.format(
+                            "Failed to list connections in catalog %s and database %s.",
+                            catalogName, databaseName),
+                    e);
+        }
+    }
+
+    /**
+     * Create a permanent connection in the given fully qualified path.
+     *
+     * <p>If a {@link ConnectionFactory} and {@link WritableSecretStore} are configured, sensitive
+     * fields are extracted from the connection and stored in the secret store before persisting the
+     * non-sensitive {@link CatalogConnection} to the catalog.
+     *
+     * @param connection The connection with all options including sensitive fields.
+     * @param objectIdentifier The fully qualified path where to create the connection.
+     * @param ignoreIfExists If false exception will be thrown if the connection already exists.
+     */
+    public void createConnection(
+            SensitiveConnection connection,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfExists) {
+        if (connectionFactory == null || writableSecretStore == null) {
+            throw new ValidationException(
+                    "ConnectionFactory and WritableSecretStore must be configured to create connections.");
+        }
+        final CatalogConnection catalogConnection =
+                connectionFactory.createConnection(connection, writableSecretStore);
+        execute(
+                (catalog, path) ->
+                        catalog.createConnection(path, catalogConnection, ignoreIfExists),
+                objectIdentifier,
+                ignoreIfExists,
+                "CreateConnection");
+    }
+
+    /**
+     * Create a temporary connection in the given fully qualified path.
+     *
+     * @param connection The connection with all options including sensitive fields.
+     * @param objectIdentifier The fully qualified path where to create the connection.
+     * @param ignoreIfExists If false exception will be thrown if the connection already exists.
+     */
+    public void createTemporaryConnection(
+            SensitiveConnection connection,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfExists) {
+        if (connectionFactory == null || writableSecretStore == null) {
+            throw new ValidationException(
+                    "ConnectionFactory and WritableSecretStore must be configured to create connections.");
+        }
+        final CatalogConnection catalogConnection =
+                connectionFactory.createConnection(connection, writableSecretStore);
+        temporaryConnections.compute(
+                objectIdentifier,
+                (k, v) -> {
+                    if (v != null) {
+                        if (!ignoreIfExists) {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Temporary connection '%s' already exists",
+                                            objectIdentifier));
+                        }
+                        return v;
+                    } else {
+                        return catalogConnection;
+                    }
+                });
+    }
+
+    /**
+     * Alter a connection in the given fully qualified path.
+     *
+     * @param newConnection The new connection containing changes.
+     * @param objectIdentifier The fully qualified path where to alter the connection.
+     * @param ignoreIfNotExists If false exception will be thrown if the connection to be altered
+     *     does not exist.
+     */
+    public void alterConnection(
+            SensitiveConnection newConnection,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists) {
+        if (connectionFactory == null || writableSecretStore == null) {
+            throw new ValidationException(
+                    "ConnectionFactory and WritableSecretStore must be configured to alter connections.");
+        }
+        execute(
+                (catalog, path) -> {
+                    final CatalogConnection catalogConnection =
+                            connectionFactory.createConnection(newConnection, writableSecretStore);
+                    catalog.alterConnection(path, catalogConnection, ignoreIfNotExists);
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterConnection");
+    }
+
+    /**
+     * Drop a permanent connection from the given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the connection to be dropped.
+     * @param ignoreIfNotExists If false exception will be thrown if the connection to be dropped
+     *     does not exist.
+     */
+    public void dropConnection(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> catalog.dropConnection(path, ignoreIfNotExists),
+                objectIdentifier,
+                ignoreIfNotExists,
+                "DropConnection");
+    }
+
+    /**
+     * Drop a temporary connection from the given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the connection to be dropped.
+     * @param ignoreIfNotExists If false exception will be thrown if the connection to be dropped
+     *     does not exist.
+     */
+    public void dropTemporaryConnection(
+            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        CatalogConnection connection = temporaryConnections.get(objectIdentifier);
+        if (connection != null) {
+            temporaryConnections.remove(objectIdentifier);
+        } else if (!ignoreIfNotExists) {
+            throw new ValidationException(
+                    String.format(
+                            "Temporary connection with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+    }
+
     /**
      * A command that modifies given {@link Catalog} in an {@link ObjectPath}. This unifies error
      * handling across different commands.
@@ -1813,6 +2034,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     | TableNotExistException
                     | ModelNotExistException
                     | ModelAlreadyExistException
+                    | ConnectionNotExistException
+                    | ConnectionAlreadyExistException
                     | DatabaseNotExistException e) {
                 throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
             } catch (Exception e) {

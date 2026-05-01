@@ -20,6 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.ConnectionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ConnectionNotExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -931,5 +933,101 @@ public interface Catalog {
             boolean ignoreIfNotExists)
             throws ModelNotExistException, CatalogException {
         alterModel(modelPath, newModel, ignoreIfNotExists);
+    }
+
+    // ------ connections ------
+
+    /**
+     * Get names of all connections under this database. An empty list is returned if none exists.
+     *
+     * @return a list of the names of all connections in this database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listConnections(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns a {@link CatalogConnection} identified by the given {@link ObjectPath}.
+     *
+     * @param connectionPath Path of the connection
+     * @return The requested connection
+     * @throws ConnectionNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogConnection getConnection(ObjectPath connectionPath)
+            throws ConnectionNotExistException, CatalogException {
+        throw new ConnectionNotExistException(null, connectionPath);
+    }
+
+    /**
+     * Check if a connection exists in this catalog.
+     *
+     * @param connectionPath Path of the connection
+     * @return true if the given connection exists in the catalog false otherwise
+     * @throws CatalogException in case of any runtime exception
+     */
+    default boolean connectionExists(ObjectPath connectionPath) throws CatalogException {
+        return false;
+    }
+
+    /**
+     * Creates a new connection.
+     *
+     * @param connectionPath path of the connection to be created
+     * @param connection the CatalogConnection definition
+     * @param ignoreIfExists flag to specify behavior when a connection already exists at the given
+     *     path: if set to false, it throws a ConnectionAlreadyExistException, if set to true, do
+     *     nothing.
+     * @throws ConnectionAlreadyExistException if connection already exists and ignoreIfExists is
+     *     false
+     * @throws DatabaseNotExistException if the database in connectionPath doesn't exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void createConnection(
+            ObjectPath connectionPath, CatalogConnection connection, boolean ignoreIfExists)
+            throws ConnectionAlreadyExistException, DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "createConnection(ObjectPath, CatalogConnection, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Modifies an existing connection.
+     *
+     * @param connectionPath path of the connection to be modified
+     * @param newConnection the new connection definition
+     * @param ignoreIfNotExists flag to specify behavior when the connection does not exist: if set
+     *     to false, throw an exception, if set to true, do nothing.
+     * @throws ConnectionNotExistException if the connection does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterConnection(
+            ObjectPath connectionPath, CatalogConnection newConnection, boolean ignoreIfNotExists)
+            throws ConnectionNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "alterConnection(ObjectPath, CatalogConnection, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Drop a connection.
+     *
+     * @param connectionPath Path of the connection to be dropped
+     * @param ignoreIfNotExists Flag to specify behavior when the connection does not exist: if set
+     *     to false, throw an exception, if set to true, do nothing.
+     * @throws ConnectionNotExistException if the connection does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void dropConnection(ObjectPath connectionPath, boolean ignoreIfNotExists)
+            throws ConnectionNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "dropConnection(ObjectPath, boolean) is not implemented for %s.",
+                        this.getClass()));
     }
 }

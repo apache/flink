@@ -1,0 +1,72 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.factories;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.CatalogConnection;
+import org.apache.flink.table.catalog.SensitiveConnection;
+import org.apache.flink.table.secret.ReadableSecretStore;
+import org.apache.flink.table.secret.WritableSecretStore;
+
+/**
+ * Factory for creating and resolving connections, handling the encryption and decryption of
+ * sensitive connection fields.
+ *
+ * <p>A {@code ConnectionFactory} is responsible for:
+ *
+ * <ul>
+ *   <li>Extracting sensitive fields from a {@link SensitiveConnection} and storing them in a {@link
+ *       WritableSecretStore}, returning a {@link CatalogConnection} that is safe to persist in a
+ *       catalog.
+ *   <li>Resolving a {@link CatalogConnection} from a catalog by retrieving its secrets from a
+ *       {@link ReadableSecretStore} and returning a complete {@link SensitiveConnection}.
+ * </ul>
+ *
+ * @see org.apache.flink.table.factories.DefaultConnectionFactory
+ */
+@PublicEvolving
+public interface ConnectionFactory extends Factory {
+
+    /**
+     * Creates a {@link CatalogConnection} from a {@link SensitiveConnection} by extracting
+     * sensitive fields and storing them in the provided {@link WritableSecretStore}.
+     *
+     * <p>The returned {@link CatalogConnection} contains only non-sensitive options plus a secret
+     * reference that can be used to retrieve the sensitive fields later via {@link
+     * #resolveConnection(CatalogConnection, ReadableSecretStore)}.
+     *
+     * @param connection the connection with all options including sensitive fields
+     * @param secretStore the secret store where sensitive fields will be stored
+     * @return a catalog-safe connection with sensitive fields replaced by a secret reference
+     */
+    CatalogConnection createConnection(
+            SensitiveConnection connection, WritableSecretStore secretStore);
+
+    /**
+     * Resolves a {@link CatalogConnection} into a {@link SensitiveConnection} by retrieving secrets
+     * from the provided {@link ReadableSecretStore}.
+     *
+     * @param connection the catalog connection containing non-sensitive options and a secret
+     *     reference
+     * @param secretStore the secret store from which sensitive fields are retrieved
+     * @return the complete connection with all options including sensitive fields
+     */
+    SensitiveConnection resolveConnection(
+            CatalogConnection connection, ReadableSecretStore secretStore);
+}
