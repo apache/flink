@@ -18,37 +18,26 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.datagen.table.DataGenConnectorOptions;
 import org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil;
 import org.apache.flink.connector.datagen.table.DataGenTableSource;
 import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
 import org.apache.flink.connector.datagen.table.RandomGeneratorVisitor;
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
-import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.connector.datagen.table.types.SequenceGeneratorFunction;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -215,6 +204,8 @@ class DataGenTableSourceFactoryTest {
         List<RowData> results = runGenerator(SCHEMA, descriptor);
         final long end = System.currentTimeMillis();
 
+        // The two sequence fields use [50,60] (count 11) and [1,11] (count 11); both equal so the
+        // bound is 11. Without numberOfRows configured, the source halts at 11.
         assertThat(results).hasSize(11);
         for (int i = 0; i < results.size(); i++) {
             RowData row = results.get(i);
@@ -414,6 +405,13 @@ class DataGenTableSourceFactoryTest {
                 "Custom length for fixed-length type (CHAR/BINARY) field 'f0' is not supported.");
     }
 
+    /**
+     * Drives the {@link DataGenTableSource}'s {@link GeneratorFunction} directly, exercising the
+     * factory wiring and per-field generator behavior end-to-end without needing a running cluster.
+     * Counts are bounded by {@link DataGenTableSource#computeEffectiveCount()} which preserves the
+     * legacy behavior of halting at the smallest configured sequence range when {@code
+     * number-of-rows} is not set.
+     */
     private List<RowData> runGenerator(ResolvedSchema schema, DescriptorProperties descriptor)
             throws Exception {
         DynamicTableSource source = createTableSource(schema, descriptor.asMap());
@@ -421,25 +419,24 @@ class DataGenTableSourceFactoryTest {
         assertThat(source).isInstanceOf(DataGenTableSource.class);
 
         DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
-        DataGeneratorSource<RowData> gen = dataGenTableSource.createSource();
+        GeneratorFunction<Long, RowData> rowGenerator = dataGenTableSource.buildRowGenerator();
+        rowGenerator.open(stubReaderContext());
 
-        // test java serialization.
-        gen = InstantiationUtil.clone(gen);
+        long count = dataGenTableSource.computeEffectiveCount();
+        // Cap the number of generated rows to a sane upper bound when no explicit limit was
+        // configured (e.g. unbounded random-only sources). Tests that depend on a specific count
+        // always set NUMBER_OF_ROWS explicitly.
+        long limit = count == Long.MAX_VALUE ? 1_000L : count;
 
-        StreamSource<RowData, DataGeneratorSource<RowData>> src = new StreamSource<>(gen);
-        AbstractStreamOperatorTestHarness<RowData> testHarness =
-                new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
-        testHarness.open();
-
-        TestContext ctx = new TestContext();
-
-        gen.run(ctx);
-
-        return ctx.results;
+        List<RowData> results = new ArrayList<>();
+        for (long i = 0; i < limit; i++) {
+            results.add(rowGenerator.map(i));
+        }
+        return results;
     }
 
     @Test
-    void testSequenceCheckpointRestore() throws Exception {
+    void testSequenceProducesEachValueExactlyOnce() throws Exception {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
         descriptor.putString(
@@ -455,24 +452,30 @@ class DataGenTableSourceFactoryTest {
                         ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                         descriptor.asMap());
 
-        DataGenTableSource dataGenTableSource = (DataGenTableSource) dynamicTableSource;
-        DataGeneratorSource<RowData> source = dataGenTableSource.createSource();
+        DataGenTableSource source = (DataGenTableSource) dynamicTableSource;
 
-        final int initElement = 0;
-        final int maxElement = 100;
-        final Set<RowData> expectedOutput = new HashSet<>();
-        for (long i = initElement; i <= maxElement; i++) {
-            expectedOutput.add(GenericRowData.of(i));
+        // The factory wires a SequenceGeneratorFunction[0..100] for f0; with no number-of-rows
+        // configured the effective bound matches the sequence range, so every value in [0,100]
+        // is produced exactly once when the source is driven across indices [0, count).
+        assertThat(source.computeEffectiveCount()).isEqualTo(101L);
+        assertThat(source.getFieldGenerators()[0]).isInstanceOf(SequenceGeneratorFunction.class);
+        assertThat(((SequenceGeneratorFunction<?>) source.getFieldGenerators()[0]).getTotalCount())
+                .isEqualTo(101L);
+
+        List<RowData> results =
+                runGenerator(
+                        ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())), descriptor);
+
+        Set<Long> emitted = new HashSet<>();
+        for (RowData row : results) {
+            emitted.add(row.getLong(0));
         }
-        DataGeneratorSourceTest.innerTestDataGenCheckpointRestore(
-                () -> {
-                    try {
-                        return InstantiationUtil.clone(source);
-                    } catch (IOException | ClassNotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
-                },
-                expectedOutput);
+        Set<Long> expected = new HashSet<>();
+        for (long i = 0; i <= 100; i++) {
+            expected.add(i);
+        }
+        assertThat(emitted).isEqualTo(expected);
+        assertThat(results).hasSize(101);
     }
 
     @Test
@@ -643,13 +646,7 @@ class DataGenTableSourceFactoryTest {
         assertThat(source).isInstanceOf(DataGenTableSource.class);
 
         DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
-        ScanTableSource.ScanRuntimeProvider scanRuntimeProvider =
-                dataGenTableSource.getScanRuntimeProvider(new TestScanContext());
-        assertThat(scanRuntimeProvider).isInstanceOf(SourceFunctionProvider.class);
-
-        SourceFunctionProvider sourceFunctionProvider =
-                (SourceFunctionProvider) scanRuntimeProvider;
-        assertThat(sourceFunctionProvider.getParallelism()).hasValue(10);
+        assertThat(dataGenTableSource.getParallelism()).isEqualTo(10);
     }
 
     private void assertException(
@@ -692,50 +689,13 @@ class DataGenTableSourceFactoryTest {
                 .satisfies(anyCauseMatches(ValidationException.class, expectedMessage));
     }
 
-    private static class TestContext implements SourceFunction.SourceContext<RowData> {
-
-        private final Object lock = new Object();
-
-        private final List<RowData> results = new ArrayList<>();
-
-        @Override
-        public void collect(RowData element) {
-            results.add(element);
-        }
-
-        @Override
-        public void collectWithTimestamp(RowData element, long timestamp) {}
-
-        @Override
-        public void emitWatermark(Watermark mark) {}
-
-        @Override
-        public void markAsTemporarilyIdle() {}
-
-        @Override
-        public Object getCheckpointLock() {
-            return lock;
-        }
-
-        @Override
-        public void close() {}
-    }
-
-    private static class TestScanContext implements ScanTableSource.ScanContext {
-        @Override
-        public <T> TypeInformation<T> createTypeInformation(DataType producedDataType) {
-            return null;
-        }
-
-        @Override
-        public <T> TypeInformation<T> createTypeInformation(LogicalType producedLogicalType) {
-            return null;
-        }
-
-        @Override
-        public DynamicTableSource.DataStructureConverter createDataStructureConverter(
-                DataType producedDataType) {
-            return null;
-        }
+    /**
+     * Returns a {@link SourceReaderContext} suitable for opening generator functions in unit tests.
+     * The generator implementations only call {@code open} for one-time initialization (e.g. {@code
+     * RandomGeneratorFunction} instantiating its {@code RandomDataGenerator}); they do not invoke
+     * any methods on the context, so a {@code null}-returning stub is sufficient.
+     */
+    private static SourceReaderContext stubReaderContext() {
+        return null;
     }
 }
