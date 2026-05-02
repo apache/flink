@@ -1,8 +1,8 @@
 .idea
 gen
 web
-tsc-out
-dist
+/tsc-out
+/dist
 
 # Logs
 /logs
