@@ -46,6 +46,26 @@ class WindowTableFunctionTest extends TableTestBase {
                               |)
                               |""".stripMargin)
 
+  // Sink for tests that need to anchor a Sink rel so RedundantWatermarkAssignerRemoveRule
+  // (FLINK-14621) can fire on plans where the rowtime watermark is not consumed by any
+  // downstream operator (e.g. proctime window TVFs).
+  util.tableEnv.executeSql(s"""
+                              |CREATE TABLE windowSink (
+                              |  a INT,
+                              |  b BIGINT,
+                              |  c STRING,
+                              |  d DECIMAL(10, 3),
+                              |  rowtime TIMESTAMP(3),
+                              |  proctime TIMESTAMP_LTZ(3),
+                              |  window_start TIMESTAMP(3),
+                              |  window_end TIMESTAMP(3),
+                              |  window_time TIMESTAMP_LTZ(3)
+                              |) with (
+                              |  'connector' = 'values',
+                              |  'sink-insert-only' = 'true'
+                              |)
+                              |""".stripMargin)
+
   @Test
   def testTumbleTVF(): Unit = {
     val sql =
@@ -323,12 +343,16 @@ class WindowTableFunctionTest extends TableTestBase {
   @Test
   def testProctimeWindowTVFWithMiniBatch(): Unit = {
     enableMiniBatch()
+    // Anchored on a sink so RedundantWatermarkAssignerRemoveRule (FLINK-14621) drops the
+    // rowtime WatermarkAssigner that is unused by the proctime window TVF; the mini-batch
+    // (ProcTime) assigner is then attached directly above the table source scan.
     val sql =
       """
+        |INSERT INTO windowSink
         |SELECT *
         |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
         |""".stripMargin
-    util.verifyRelPlan(sql)
+    util.verifyRelPlanInsert(sql)
   }
 
   @Test

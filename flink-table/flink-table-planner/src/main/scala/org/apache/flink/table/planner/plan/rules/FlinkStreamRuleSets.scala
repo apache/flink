@@ -520,6 +520,11 @@ object FlinkStreamRuleSets {
     StreamPhysicalLegacySinkRule.INSTANCE
   )
 
+  /** RuleSet related to optimizing watermark assigners. */
+  val REMOVE_REDUNDANT_WATERMARK_RULES: RuleSet = RuleSets.ofList(
+    RedundantWatermarkAssignerRemoveRule.INSTANCE
+  )
+
   /**
    * RuleSet related to optimizing ChangelogNormalize:
    *   1. transpose watermark to be close to source 2. transpose projections 3. push filter either

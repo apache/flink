@@ -141,31 +141,30 @@ GlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinc
   <TestCase name="testAggWithMiniBatch">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
-+- LogicalProject(b=[$1], a=[$0], c=[$2])
-   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalSink(table=[default_catalog.default_database.aggSink], fields=[b, EXPR$1, EXPR$2, EXPR$3])
++- LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
-+- Exchange(distribution=[hash[b]])
-   +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
-      +- Calc(select=[b, a, c])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-               +- Calc(select=[b, a, c, rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+Sink(table=[default_catalog.default_database.aggSink], fields=[b, EXPR$1, EXPR$2, EXPR$3])
++- GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
+         +- Calc(select=[b, a, c])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 
 == Optimized Execution Plan ==
-GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
-+- Exchange(distribution=[hash[b]])
-   +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
-      +- Calc(select=[b, a, c])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-               +- Calc(select=[b, a, c, rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+Sink(table=[default_catalog.default_database.aggSink], fields=[b, EXPR$1, EXPR$2, EXPR$3])
++- GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
+         +- Calc(select=[b, a, c])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -243,9 +242,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])
    +- Calc(select=[a, b], where=[SEARCH(a, Sarg[(0.1..10)])])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-         +- Calc(select=[a, b, rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -446,9 +443,7 @@ Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a])
-         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- Calc(select=[b, a, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

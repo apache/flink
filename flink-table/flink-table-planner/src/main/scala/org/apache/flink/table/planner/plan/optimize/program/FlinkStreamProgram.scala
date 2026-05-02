@@ -305,6 +305,14 @@ object FlinkStreamProgram {
       FlinkGroupProgramBuilder
         .newBuilder[StreamOptimizeContext]
         .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+            .add(FlinkStreamRuleSets.REMOVE_REDUNDANT_WATERMARK_RULES)
+            .build(),
+          "remove redundant watermarks"
+        )
+        .addProgram(
           new FlinkMarkChangelogNormalizeProgram,
           "mark changelog normalize reusing same source")
         // add a HEP program for watermark transpose rules to make this optimization deterministic

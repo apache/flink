@@ -71,17 +71,13 @@ import org.apache.calcite.rel.logical.LogicalTableModify;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
 
@@ -100,7 +96,6 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.isProctimeIndicatorType;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.isTimeIndicatorType;
-import static org.apache.flink.table.planner.plan.utils.MatchUtil.isFinalOnMatchTimeIndicator;
 import static org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd;
 
 /**
@@ -189,7 +184,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
 
     private RelNode visitMatch(FlinkLogicalMatch match) {
         RelNode newInput = match.getInput().accept(this);
-        RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(newInput);
+        RexTimeIndicatorMaterializer materializer =
+                new RexTimeIndicatorMaterializer(rexBuilder, newInput);
 
         Function<Map<String, RexNode>, Map<String, RexNode>> materializeExprs =
                 rexNodesMap ->
@@ -295,7 +291,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         // check if input field contains time indicator type
         // materialize field if no time indicator is present anymore
         // if input field is already materialized, change to timestamp type
-        RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(newInput);
+        RexTimeIndicatorMaterializer materializer =
+                new RexTimeIndicatorMaterializer(rexBuilder, newInput);
         List<RexNode> newProjects =
                 program.getProjectList().stream()
                         .map(project -> program.expandLocalRef(project).accept(materializer))
@@ -379,7 +376,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             // check if input field contains time indicator type
             // materialize field if no time indicator is present anymore
             // if input field is already materialized, change to timestamp type
-            RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(newLeft);
+            RexTimeIndicatorMaterializer materializer =
+                    new RexTimeIndicatorMaterializer(rexBuilder, newLeft);
 
             RexNode newScanCall = newScan.getCall().accept(materializer);
             newRight =
@@ -585,7 +583,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                         .flatMap(input -> RelOptUtil.getFieldTypeList(input.getRowType()).stream())
                         .collect(Collectors.toList());
 
-        RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(allFields);
+        RexTimeIndicatorMaterializer materializer =
+                new RexTimeIndicatorMaterializer(rexBuilder, allFields);
 
         final RexNode newJoinFilter = multiJoin.getJoinFilter().accept(materializer);
 
@@ -788,102 +787,5 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
 
     private boolean isTimestampLtzType(RelDataType type) {
         return type.getSqlTypeName().equals(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE);
-    }
-
-    // ----------------------------------------------------------------------------------------
-    //          Materializer for RexNode including time indicator
-    // ----------------------------------------------------------------------------------------
-
-    private class RexTimeIndicatorMaterializer extends RexShuttle {
-
-        private final List<RelDataType> inputFieldTypes;
-
-        private RexTimeIndicatorMaterializer(RelNode node) {
-            this(RelOptUtil.getFieldTypeList(node.getRowType()));
-        }
-
-        private RexTimeIndicatorMaterializer(List<RelDataType> inputFieldTypes) {
-            this.inputFieldTypes = inputFieldTypes;
-        }
-
-        @Override
-        public RexNode visitCall(RexCall call) {
-            RexCall updatedCall = (RexCall) super.visitCall(call);
-
-            // materialize operands with time indicators
-            List<RexNode> materializedOperands;
-            SqlOperator updatedCallOp = updatedCall.getOperator();
-            if (updatedCallOp == FlinkSqlOperatorTable.SESSION_OLD
-                    || updatedCallOp == FlinkSqlOperatorTable.HOP_OLD
-                    || updatedCallOp == FlinkSqlOperatorTable.TUMBLE_OLD) {
-                // skip materialization for special operators
-                materializedOperands = updatedCall.getOperands();
-            } else {
-                materializedOperands =
-                        updatedCall.getOperands().stream()
-                                .map(RelTimeIndicatorConverter.this::materializeTimeIndicators)
-                                .collect(Collectors.toList());
-            }
-
-            // All calls in MEASURES and DEFINE are wrapped with FINAL/RUNNING, therefore
-            // we should treat FINAL(MATCH_ROWTIME) and FINAL(MATCH_PROCTIME) as a time attribute
-            // extraction
-            if (isFinalOnMatchTimeIndicator(call)) {
-                return updatedCall;
-            } else if (isTimeIndicatorType(updatedCall.getType())) {
-                // do not modify window time attributes and some special operators
-                if (updatedCallOp == FlinkSqlOperatorTable.TUMBLE_ROWTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.TUMBLE_PROCTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.HOP_ROWTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.HOP_PROCTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.SESSION_ROWTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.SESSION_PROCTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.MATCH_ROWTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.MATCH_PROCTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.PROCTIME
-                        || updatedCallOp == SqlStdOperatorTable.AS
-                        || updatedCallOp == SqlStdOperatorTable.CAST
-                        || updatedCallOp == FlinkSqlOperatorTable.REINTERPRET) {
-                    return updatedCall;
-                } else {
-                    // materialize function's result and operands
-                    return updatedCall.clone(
-                            timestamp(
-                                    updatedCall.getType().isNullable(),
-                                    isTimestampLtzType(updatedCall.getType())),
-                            materializedOperands);
-                }
-            } else {
-                // materialize function's operands only
-                return updatedCall.clone(updatedCall.getType(), materializedOperands);
-            }
-        }
-
-        @Override
-        public RexNode visitInputRef(RexInputRef inputRef) {
-            RelDataType oldType = inputRef.getType();
-            if (isTimeIndicatorType(oldType)) {
-                RelDataType resolvedRefType = inputFieldTypes.get(inputRef.getIndex());
-                if (!isTimeIndicatorType(resolvedRefType)) {
-                    // input has been materialized
-                    return new RexInputRef(inputRef.getIndex(), resolvedRefType);
-                }
-            }
-            return super.visitInputRef(inputRef);
-        }
-
-        @Override
-        public RexNode visitPatternFieldRef(RexPatternFieldRef fieldRef) {
-            RelDataType oldType = fieldRef.getType();
-            if (isTimeIndicatorType(oldType)) {
-                RelDataType resolvedRefType = inputFieldTypes.get(fieldRef.getIndex());
-                if (!isTimeIndicatorType(resolvedRefType)) {
-                    // input has been materialized
-                    return new RexPatternFieldRef(
-                            fieldRef.getAlpha(), fieldRef.getIndex(), resolvedRefType);
-                }
-            }
-            return super.visitPatternFieldRef(fieldRef);
-        }
     }
 }

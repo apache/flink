@@ -1398,17 +1398,15 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a0 AS a, b, c])
    +- Join(joinType=[InnerJoin], where=[((a = a0) AND (op_ts > (op_ts0 - 5000:INTERVAL SECOND)))], select=[a, b, op_ts, a0, c, op_ts0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-      :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-      :        +- DropUpdateBefore
-      :           +- Calc(select=[a, b, op_ts])
-      :              +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :  +- Calc(select=[a, b, op_ts])
+      :     +- DropUpdateBefore
+      :        +- Calc(select=[a, b, op_ts])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-            +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-               +- DropUpdateBefore
-                  +- Calc(select=[a, c, op_ts])
-                     +- Reused(reference_id=[1])
+         +- Calc(select=[a, c, op_ts])
+            +- DropUpdateBefore
+               +- Calc(select=[a, c, op_ts])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1437,17 +1435,15 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a0 AS a, b, c])
    +- Join(joinType=[InnerJoin], where=[((a = a0) AND (op_ts > (op_ts0 - 5000:INTERVAL SECOND)))], select=[a, b, op_ts, a0, c, op_ts0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-      :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-      :        +- DropUpdateBefore
-      :           +- Calc(select=[a, b, op_ts])
-      :              +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :  +- Calc(select=[a, b, op_ts])
+      :     +- DropUpdateBefore
+      :        +- Calc(select=[a, b, op_ts])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-            +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-               +- DropUpdateBefore
-                  +- Calc(select=[a, c, op_ts])
-                     +- Reused(reference_id=[1])
+         +- Calc(select=[a, c, op_ts])
+            +- DropUpdateBefore
+               +- Calc(select=[a, c, op_ts])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1476,15 +1472,11 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a0 AS a, b, c])
    +- Join(joinType=[InnerJoin], where=[((a = a0) AND (op_ts > (op_ts0 - 5000:INTERVAL SECOND)))], select=[a, b, op_ts, a0, c, op_ts0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-      :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-      :        +- Calc(select=[a, b, op_ts])
-      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :  +- Calc(select=[a, b, op_ts])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-            +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-               +- Calc(select=[a, c, op_ts])
-                  +- Reused(reference_id=[1])
+         +- Calc(select=[a, c, op_ts])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1513,15 +1505,11 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a0 AS a, b, c])
    +- Join(joinType=[InnerJoin], where=[((a = a0) AND (op_ts > (op_ts0 - 5000:INTERVAL SECOND)))], select=[a, b, op_ts, a0, c, op_ts0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[a]])
-      :  +- Calc(select=[a, b, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-      :     +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-      :        +- Calc(select=[a, b, op_ts])
-      :           +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
+      :  +- Calc(select=[a, b, op_ts])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_watermark, project=[a, b, c, op_ts], metadata=[]]], fields=[a, b, c, op_ts])(reuse_id=[1])
       +- Exchange(distribution=[hash[a]])
-         +- Calc(select=[a, c, CAST(op_ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS op_ts])
-            +- WatermarkAssigner(rowtime=[op_ts], watermark=[(op_ts - 5000:INTERVAL SECOND)])
-               +- Calc(select=[a, c, op_ts])
-                  +- Reused(reference_id=[1])
+         +- Calc(select=[a, c, op_ts])
+            +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

@@ -2559,9 +2559,8 @@ LogicalSink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a
 Sink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a2, b0, b2, b1])
 +- Join(joinType=[InnerJoin], where=[=(a1, b2)], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1]])
-   :  +- Calc(select=[a0, a1, CAST(a2 AS TIMESTAMP(3)) AS a2])
-   :     +- WatermarkAssigner(rowtime=[a2], watermark=[-(a2, 1000:INTERVAL SECOND)])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, wm_source]], fields=[a0, a1, a2])
+   :  +- Calc(select=[a0, a1, a2])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, wm_source]], fields=[a0, a1, a2])
    +- Exchange(distribution=[hash[b2]])
       +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>

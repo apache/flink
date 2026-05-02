@@ -455,15 +455,14 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, CAST(rowtime0 AS TIMESTAMP(3)) AS rowtime0])
+Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, currency0, rate, rowtime0])
 +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, rowtime, proctime, currency0, rate, rowtime0])
    :- Exchange(distribution=[hash[currency]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :     +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
    :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, RatesHistoryLegacy, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, RatesHistoryLegacy, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -489,10 +488,8 @@ LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
 Calc(select=[currency, currency0, rate1])
 +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, proctime, currency0, rate1])
    :- Exchange(distribution=[hash[currency]])
-   :  +- Calc(select=[currency, proctime], where=[(amount > 10)])
-   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   :  +- Calc(select=[currency, PROCTIME() AS proctime], where=[(amount > 10)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
       +- Calc(select=[currency, (rate + 1) AS rate1], where=[(rate < 100)])
          +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithoutWatermark, project=[currency, rate], metadata=[], filter=[]]], fields=[currency, rate])
@@ -522,15 +519,11 @@ LogicalProject(currency=[$1], currency0=[$4], rate1=[$6])
 Calc(select=[currency, currency0, rate1])
 +- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(proctime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[currency, proctime, currency0, rate1])
    :- Exchange(distribution=[hash[currency]])
-   :  +- Calc(select=[currency, proctime], where=[(amount > 10)])
-   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :        +- Calc(select=[amount, currency, rowtime, PROCTIME() AS proctime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
+   :  +- Calc(select=[currency, PROCTIME() AS proctime], where=[(amount > 10)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[amount, currency, rowtime])
    +- Exchange(distribution=[hash[currency]])
-      +- Calc(select=[currency, rate1], where=[(rate < 100)])
-         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- Calc(select=[currency, rate, (rate + 1) AS rate1, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
+      +- Calc(select=[currency, (rate + 1) AS rate1], where=[(rate < 100)])
+         +- TableSourceScan(table=[[default_catalog, default_database, RatesBinlogWithComputedColumn]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -601,8 +594,7 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
       +- GroupAggregate(groupBy=[currency], select=[currency, LAST_VALUE(rate) AS rate])
          +- Exchange(distribution=[hash[currency]])
             +- Calc(select=[currency, rate])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -637,8 +629,7 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
       +- GroupAggregate(groupBy=[currency], select=[currency, LAST_VALUE(rate) AS rate])
          +- Exchange(distribution=[hash[currency]])
             +- Calc(select=[currency, rate])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -749,8 +740,7 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
          +- GroupAggregate(groupBy=[currency], select=[currency, LAST_VALUE(rate) AS rate])
             +- Exchange(distribution=[hash[currency]])
                +- Calc(select=[currency, rate])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>
     </Resource>
   </TestCase>

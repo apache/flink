@@ -85,133 +85,11 @@
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "INT NOT NULL"
-    }, {
-      "kind" : "INPUT_REF",
       "inputIndex" : 1,
       "type" : "BIGINT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "VARCHAR(2147483647)"
-    }, {
-      "kind" : "CALL",
-      "internalName" : "$TO_TIMESTAMP$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
-        "type" : "VARCHAR(2147483647)"
-      } ],
-      "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "CALL",
       "internalName" : "$PROCTIME$1",
-      "type" : {
-        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-        "nullable" : false,
-        "precision" : 3,
-        "kind" : "PROCTIME"
-      }
-    } ],
-    "condition" : null,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "UNKNOWN"
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT NOT NULL"
-      }, {
-        "name" : "b",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : "TIMESTAMP(3)"
-      }, {
-        "name" : "proctime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
-      } ]
-    },
-    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
-  }, {
-    "id" : 3,
-    "type" : "stream-exec-watermark-assigner_1",
-    "watermarkExpr" : {
-      "kind" : "CALL",
-      "syntax" : "SPECIAL",
-      "internalName" : "$-$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
-        "type" : "TIMESTAMP(3)"
-      }, {
-        "kind" : "LITERAL",
-        "value" : "1000",
-        "type" : "INTERVAL SECOND(6) NOT NULL"
-      } ],
-      "type" : "TIMESTAMP(3)"
-    },
-    "rowtimeFieldIndex" : 3,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "UNKNOWN"
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT NOT NULL"
-      }, {
-        "name" : "b",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "proctime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
-      } ]
-    },
-    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
-  }, {
-    "id" : 4,
-    "type" : "stream-exec-calc_1",
-    "projection" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
-      "type" : "BIGINT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 4,
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -266,9 +144,9 @@
         "fieldType" : "INT NOT NULL"
       } ]
     },
-    "description" : "Calc(select=[b, proctime, a, (a + 1) AS $f3])"
+    "description" : "Calc(select=[b, PROCTIME() AS proctime, a, (a + 1) AS $f3])"
   }, {
-    "id" : 5,
+    "id" : 3,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -301,7 +179,7 @@
     },
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
-    "id" : 6,
+    "id" : 4,
     "type" : "stream-exec-python-group-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
@@ -353,7 +231,7 @@
     "outputType" : "ROW<`b` BIGINT, `EXPR$1` BIGINT>",
     "description" : "PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, proctime, 600000, 300000)], select=[b, pyFunc(a, $f3) AS EXPR$1])"
   }, {
-    "id" : 7,
+    "id" : 5,
     "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -416,20 +294,6 @@
   }, {
     "source" : 4,
     "target" : 5,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 5,
-    "target" : 6,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 6,
-    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },

@@ -47,9 +47,8 @@ LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')])
 Calc(select=[f0 AS a, f1 AS b])
 +- GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*(b) AS (f0, f1)])
    +- Exchange(distribution=[single])
-      +- WatermarkAssigner(rowtime=[d], watermark=[d])
-         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+      +- Calc(select=[a, b, c, d, PROCTIME() AS e])
+         +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -70,9 +69,7 @@ Calc(select=[bb, (f0 + 1) AS _c1, f1 AS y])
 +- GroupTableAggregate(groupBy=[bb], select=[bb, *org.apache.flink.table.planner.utils.EmptyTableAggFunc*(a, b) AS (f0, f1)])
    +- Exchange(distribution=[hash[bb]])
       +- Calc(select=[a, b, MOD(b, 5) AS bb])
-         +- WatermarkAssigner(rowtime=[d], watermark=[d])
-            +- Calc(select=[a, b, d])
-               +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -90,9 +87,8 @@ LogicalProject(f0=[$0], f0_0=[$1])
       <![CDATA[
 GroupTableAggregate(groupBy=[f0], select=[f0, EmptyTableAggFuncWithIntResultType(f1) AS (f0_0)])
 +- Exchange(distribution=[hash[f0]])
-   +- WatermarkAssigner(rowtime=[d], watermark=[d])
-      +- Calc(select=[f0, f1, f2, d, PROCTIME() AS e])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table2]], fields=[f0, f1, f2, d])
+   +- Calc(select=[f0, f1, f2, d, PROCTIME() AS e])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table2]], fields=[f0, f1, f2, d])
 ]]>
     </Resource>
   </TestCase>
@@ -110,9 +106,8 @@ LogicalProject(f0=[$0], f1=[$1])
       <![CDATA[
 GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
 +- Exchange(distribution=[single])
-   +- WatermarkAssigner(rowtime=[d], watermark=[d])
-      +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+   +- Calc(select=[a, b, c, d, PROCTIME() AS e])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -130,10 +125,8 @@ LogicalProject(a=[$0], b=[$1])
       <![CDATA[
 GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
 +- Exchange(distribution=[single])
-   +- Calc(select=[a, b, c, CAST(d AS TIMESTAMP(3)) AS d, PROCTIME_MATERIALIZE(e) AS e])
-      +- WatermarkAssigner(rowtime=[d], watermark=[d])
-         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+   +- Calc(select=[a, b, c, d, PROCTIME_MATERIALIZE(PROCTIME()) AS e])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -152,9 +145,8 @@ LogicalProject(a=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad06
 Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*(f0) AS a, f1 AS b])
 +- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
    +- Exchange(distribution=[single])
-      +- WatermarkAssigner(rowtime=[d], watermark=[d])
-         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+      +- Calc(select=[a, b, c, d, PROCTIME() AS e])
+         +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
