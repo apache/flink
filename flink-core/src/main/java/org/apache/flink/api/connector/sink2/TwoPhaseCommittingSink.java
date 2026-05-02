@@ -62,8 +62,8 @@ public interface TwoPhaseCommittingSink<InputT, CommT>
     }
 
     /**
-     * Creates a {@link Committer}. Delegates to the no-arg {@link #createCommitter()} by default
-     * to support connectors compiled against Flink 1.x that only overrode the no-arg variant.
+     * Creates a {@link Committer}. Delegates to the no-arg {@link #createCommitter()} by default to
+     * support connectors compiled against Flink 1.x that only overrode the no-arg variant.
      */
     @Override
     default Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
@@ -77,6 +77,5 @@ public interface TwoPhaseCommittingSink<InputT, CommT>
      */
     @PublicEvolving
     @Deprecated
-    interface PrecommittingSinkWriter<InputT, CommT>
-            extends CommittingSinkWriter<InputT, CommT> {}
+    interface PrecommittingSinkWriter<InputT, CommT> extends CommittingSinkWriter<InputT, CommT> {}
 }
