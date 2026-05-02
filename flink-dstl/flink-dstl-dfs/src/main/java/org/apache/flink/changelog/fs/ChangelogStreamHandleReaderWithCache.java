@@ -92,15 +92,20 @@ class ChangelogStreamHandleReaderWithCache implements ChangelogStreamHandleReade
         final FileStateHandle fileHandle = (FileStateHandle) handle;
         final RefCountedFile refCountedFile = getRefCountedFile(fileHandle);
 
-        FileInputStream fin = openAndSeek(refCountedFile, offset);
+        try {
+            FileInputStream fin = openAndSeek(refCountedFile, offset);
 
-        LOG.debug(
-                "return cached file {} (rc={}) for {} (offset={})",
-                refCountedFile.getFile(),
-                refCountedFile.getReferenceCounter(),
-                handle.getStreamStateHandleID(),
-                offset);
-        return wrapStream(fileHandle.getFilePath(), fin);
+            LOG.debug(
+                    "return cached file {} (rc={}) for {} (offset={})",
+                    refCountedFile.getFile(),
+                    refCountedFile.getReferenceCounter(),
+                    handle.getStreamStateHandleID(),
+                    offset);
+            return wrapStream(fileHandle.getFilePath(), fin);
+        } catch (IOException e) {
+            refCountedFile.release();
+            throw e;
+        }
     }
 
     private boolean canBeCached(StreamStateHandle handle) throws IOException {
@@ -144,9 +149,19 @@ class ChangelogStreamHandleReaderWithCache implements ChangelogStreamHandleReade
 
             return new RefCountedFile(file);
         } catch (IOException e) {
-            LOG.warn("Failed to download cache file. Deleting partially downloaded file {}", file.getPath(), e);
-            if (!file.delete()) {
-                LOG.warn("Could not delete partially downloaded cache file {}", file.getPath());
+            LOG.warn(
+                    "Failed to download cache file. Deleting partially downloaded file {}",
+                    file.getPath(),
+                    e);
+            try {
+                if (!Files.deleteIfExists(file.toPath())) {
+                    LOG.warn("Could not delete partially downloaded cache file {}", file.getPath());
+                }
+            } catch (IOException deleteException) {
+                LOG.warn(
+                        "Could not delete partially downloaded cache file {}",
+                        file.getPath(),
+                        deleteException);
             }
             ExceptionUtils.rethrow(e);
             return null;
@@ -162,7 +177,7 @@ class ChangelogStreamHandleReaderWithCache implements ChangelogStreamHandleReade
                 fin.getChannel().position(offset);
             }
             return fin;
-        } catch (Exception e) {
+        } catch (IOException e) {
             IOUtils.closeQuietly(fin);
             throw e;
         }
