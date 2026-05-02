@@ -44,6 +44,5 @@ public interface ReadableSecretStore extends SecretStore {
      * @throws SecretException if the operation fails due to underlying-store errors (network,
      *     permission, etc.)
      */
-    Map<String, String> getSecret(String secretId)
-            throws SecretNotFoundException, SecretException;
+    Map<String, String> getSecret(String secretId) throws SecretNotFoundException, SecretException;
 }
