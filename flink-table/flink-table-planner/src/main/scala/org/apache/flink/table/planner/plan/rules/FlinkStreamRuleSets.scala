@@ -217,8 +217,6 @@ object FlinkStreamRuleSets {
     ProjectMultiJoinTransposeRule.INSTANCE,
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
-    // push a projection through a Correlate produced by UNNEST
-    FlinkProjectCorrelateUnnestTransposeRule.INSTANCE,
     // merge projections
     FlinkProjectMergeRule.INSTANCE,
     // remove identity project
