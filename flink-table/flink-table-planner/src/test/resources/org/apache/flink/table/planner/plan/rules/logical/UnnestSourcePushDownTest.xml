@@ -35,8 +35,8 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(a, 5)]]], fields=[a, b, c, d])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(a, 5)], project=[a, d], metadata=[]]], fields=[a, d])
 ]]>
     </Resource>
   </TestCase>
@@ -59,9 +59,9 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- Calc(select=[a, b, c, d], where=[LIKE(c, 'foo%')])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c, d])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- Calc(select=[a, d], where=[LIKE(c, 'foo%')])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, c, d], metadata=[]]], fields=[a, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -84,8 +84,8 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(a, 5)]]], fields=[a, b, c, d])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(a, 5)], project=[a, d], metadata=[]]], fields=[a, d])
 ]]>
     </Resource>
   </TestCase>
@@ -132,8 +132,8 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s], where=[<(f0, 100)])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0)], joinType=[LEFT])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(a, 5)]]], fields=[a, b, c, d])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[LEFT])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(a, 5)], project=[a, d], metadata=[]]], fields=[a, d])
 ]]>
     </Resource>
   </TestCase>
@@ -179,8 +179,8 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
 ]]>
     </Resource>
   </TestCase>

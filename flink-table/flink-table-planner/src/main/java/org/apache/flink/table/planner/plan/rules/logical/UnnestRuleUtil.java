@@ -65,7 +65,11 @@ final class UnnestRuleUtil {
                 || def == BuiltInFunctionDefinitions.INTERNAL_UNNEST_ROWS_WITH_ORDINALITY;
     }
 
-    private static RelNode unwrap(RelNode rel) {
+    /**
+     * Unwraps planner shells ({@link HepRelVertex}, {@link RelSubset}) to expose the underlying
+     * {@link RelNode}. Returns the input unchanged if it is not a planner shell.
+     */
+    static RelNode unwrap(RelNode rel) {
         if (rel instanceof HepRelVertex) {
             return unwrap(((HepRelVertex) rel).getCurrentRel());
         }

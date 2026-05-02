@@ -35,8 +35,8 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- Calc(select=[a, b, c, d], where=[IS NOT NULL(d)])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- Calc(select=[a, d], where=[IS NOT NULL(d)])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -59,7 +59,7 @@ LogicalProject(a=[$0], x=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, _1 AS x])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,_1], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1)], joinType=[INNER])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER])
    +- TableSourceScan(table=[[default_catalog, default_database, MyRowArrayTable]], fields=[a, b])
 ]]>
     </Resource>
@@ -83,8 +83,8 @@ LogicalProject(a=[$0], b=[$1], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,b,c,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, BIGINT c, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- Calc(select=[a, b, c, d], where=[>(a, 5)])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,b,d,f0], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+   +- Calc(select=[a, b, d], where=[>(a, 5)])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -156,7 +156,7 @@ LogicalProject(a=[$0], s=[$4])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.d)], correlate=[table($UNNEST_ROWS$1($cor0.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
    +- Calc(select=[a, d])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>

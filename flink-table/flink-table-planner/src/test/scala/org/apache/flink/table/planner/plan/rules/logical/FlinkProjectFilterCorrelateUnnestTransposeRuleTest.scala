@@ -23,10 +23,12 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
- * Test for [[FlinkFilterCorrelateUnnestTransposeRule]]. The rule is wired into
- * [[org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets.FILTER_RULES]] /
- * [[org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets.FILTER_RULES]], so the standard
- * batch optimization chain exercises it after [[LogicalUnnestRule]] runs.
+ * Test for [[FlinkProjectCorrelateUnnestTransposeRule]] and
+ * [[FlinkFilterCorrelateUnnestTransposeRule]]. Both rules are wired into
+ * [[org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets.PROJECT_RULES]] /
+ * [[org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets.FILTER_RULES]] (and the stream
+ * equivalents), so the standard batch optimization chain exercises them after
+ * [[LogicalUnnestRule]] runs.
  */
 class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
 
@@ -35,6 +37,27 @@ class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
   @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Int, Int, Long, Array[Int])]("MyTable", 'a, 'b, 'c, 'd)
+    util.addTableSource[(Int, Array[(Int, String)])]("MyRowArrayTable", 'a, 'b)
+  }
+
+  @Test
+  def testInnerUnnestProjectionDropsLeftColumns(): Unit = {
+    util.verifyRelPlan("SELECT a, s FROM MyTable, UNNEST(d) AS T(s)")
+  }
+
+  @Test
+  def testLeftUnnestProjectionDropsLeftColumns(): Unit = {
+    util.verifyRelPlan("SELECT a, s FROM MyTable LEFT JOIN UNNEST(d) AS T(s) ON TRUE")
+  }
+
+  @Test
+  def testInnerUnnestArrayOfRowsProjectionDropsLeftColumns(): Unit = {
+    util.verifyRelPlan("SELECT a, x FROM MyRowArrayTable, UNNEST(b) AS T(x, y)")
+  }
+
+  @Test
+  def testProjectAndFilterCombined(): Unit = {
+    util.verifyRelPlan("SELECT a, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5 AND s < 100")
   }
 
   @Test
