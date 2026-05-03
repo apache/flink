@@ -26,6 +26,8 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Correlate;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -43,13 +45,38 @@ final class UnnestRuleUtil {
 
     private UnnestRuleUtil() {}
 
-    /** Returns whether the right input of {@code correlate} is a Flink UNNEST table function. */
+    /**
+     * Returns whether the right input of {@code correlate} is a Flink UNNEST table function. The
+     * matcher looks through {@link LogicalProject} and {@link LogicalFilter} wrappers because
+     * {@link LogicalUnnestRule} keeps a wrapper Project for renaming/CAST and the filter rule may
+     * push a right-only predicate as a {@link LogicalFilter} above the {@link
+     * LogicalTableFunctionScan}. Earlier strict matching (direct TFS only) silently disabled this
+     * rule for LEFT correlate, {@code WITH ORDINALITY}, and right-side filter pushdown shapes.
+     */
     static boolean isUnnestCorrelate(Correlate correlate) {
-        RelNode right = unwrap(correlate.getRight());
-        if (!(right instanceof LogicalTableFunctionScan)) {
-            return false;
+        return findUnnestTableFunctionScan(correlate.getRight()) != null;
+    }
+
+    /**
+     * Walks through planner shells and {@link LogicalProject} / {@link LogicalFilter} wrappers to
+     * locate the underlying UNNEST {@link LogicalTableFunctionScan}, or returns {@code null} if
+     * none is found.
+     */
+    static LogicalTableFunctionScan findUnnestTableFunctionScan(RelNode rel) {
+        rel = unwrap(rel);
+        if (rel instanceof LogicalProject) {
+            return findUnnestTableFunctionScan(((LogicalProject) rel).getInput());
         }
-        return isUnnestCall(((LogicalTableFunctionScan) right).getCall());
+        if (rel instanceof LogicalFilter) {
+            return findUnnestTableFunctionScan(((LogicalFilter) rel).getInput());
+        }
+        if (rel instanceof LogicalTableFunctionScan) {
+            LogicalTableFunctionScan tfs = (LogicalTableFunctionScan) rel;
+            if (isUnnestCall(tfs.getCall())) {
+                return tfs;
+            }
+        }
+        return null;
     }
 
     private static boolean isUnnestCall(RexNode call) {

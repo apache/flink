@@ -108,8 +108,9 @@ public class FlinkProjectCorrelateUnnestTransposeRule
                 projectInputs.intersect(ImmutableBitSet.range(0, leftFieldCount));
         ImmutableBitSet usedLeftCols = projectLeftRefs.union(correlate.getRequiredColumns());
 
-        // Nothing to prune: rule is a no-op.
-        if (usedLeftCols.cardinality() == leftFieldCount) {
+        // Nothing to prune: rule is a no-op. Also defensively bail if no left columns survive,
+        // which would produce a zero-column Project that some Calcite paths reject.
+        if (usedLeftCols.cardinality() == leftFieldCount || usedLeftCols.cardinality() == 0) {
             return;
         }
 
@@ -221,6 +222,7 @@ public class FlinkProjectCorrelateUnnestTransposeRule
      */
     private static class CorrelationFieldAccessRebinder extends RexShuttle {
         private final CorrelationId oldCorId;
+        private final CorrelationId newCorId;
         private final RexCorrelVariable newCorVar;
         private final Map<Integer, Integer> indexMapping;
         private final RexBuilder rexBuilder;
@@ -231,6 +233,7 @@ public class FlinkProjectCorrelateUnnestTransposeRule
                 Map<Integer, Integer> indexMapping,
                 RexBuilder rexBuilder) {
             this.oldCorId = oldCorId;
+            this.newCorId = newCorVar.id;
             this.newCorVar = newCorVar;
             this.indexMapping = indexMapping;
             this.rexBuilder = rexBuilder;
@@ -244,7 +247,10 @@ public class FlinkProjectCorrelateUnnestTransposeRule
         @Override
         public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
             RexNode refExpr = fieldAccess.getReferenceExpr().accept(this);
-            if (refExpr == newCorVar) {
+            // Semantic id check (rather than reference equality on `newCorVar`) so the rebinder
+            // remains correct if Calcite ever interns/normalizes RexCorrelVariable instances.
+            if (refExpr instanceof RexCorrelVariable
+                    && ((RexCorrelVariable) refExpr).id.equals(newCorId)) {
                 int oldFieldIdx = fieldAccess.getField().getIndex();
                 Integer newFieldIdx = indexMapping.get(oldFieldIdx);
                 if (newFieldIdx == null) {

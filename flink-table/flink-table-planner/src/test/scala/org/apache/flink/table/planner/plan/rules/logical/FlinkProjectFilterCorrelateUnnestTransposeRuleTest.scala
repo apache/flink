@@ -50,8 +50,14 @@ class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
     util.verifyRelPlan("SELECT a, s FROM MyTable LEFT JOIN UNNEST(d) AS T(s) ON TRUE")
   }
 
+  /**
+   * UNNEST of an ARRAY of ROWs. The table has only two columns ({@code a} selected by the project,
+   * {@code b} required by the correlation), so there is nothing to prune from the left input — the
+   * rule correctly no-ops. The test still locks in the post-rule plan shape for ARRAY&lt;ROW&gt; so a
+   * future regression in correlation handling for that shape would surface as a plan diff.
+   */
   @Test
-  def testInnerUnnestArrayOfRowsProjectionDropsLeftColumns(): Unit = {
+  def testInnerUnnestArrayOfRowsAllLeftColumnsUsed(): Unit = {
     util.verifyRelPlan("SELECT a, x FROM MyRowArrayTable, UNNEST(b) AS T(x, y)")
   }
 
