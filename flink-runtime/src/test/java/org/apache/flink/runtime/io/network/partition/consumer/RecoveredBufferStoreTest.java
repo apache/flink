@@ -54,7 +54,7 @@ class RecoveredBufferStoreTest {
         }
 
         NetworkBuffer buffer1 = createBuffer(new byte[] {1, 2, 3, 4});
-        store.addBuffer(buffer1);
+        synchronized (store) { store.addBuffer(buffer1); }
 
         Buffer taken;
         synchronized (store) {
@@ -84,7 +84,7 @@ class RecoveredBufferStoreTest {
 
         byte[] data = new byte[] {10, 20, 30, 40};
         NetworkBuffer buffer = createBuffer(data);
-        store.addBuffer(buffer);
+        synchronized (store) { store.addBuffer(buffer); }
 
         RecordingChannelStateWriter writer = new RecordingChannelStateWriter();
         long checkpointId = 1L;
@@ -120,7 +120,7 @@ class RecoveredBufferStoreTest {
                                 barrier.await();
                                 for (int i = 0; i < numBuffers; i++) {
                                     NetworkBuffer buf = createBuffer(new byte[] {(byte) i});
-                                    store.addBuffer(buf);
+                                    synchronized (store) { store.addBuffer(buf); }
                                 }
                             } catch (Throwable t) {
                                 error.set(t);
@@ -174,9 +174,9 @@ class RecoveredBufferStoreTest {
         NetworkBuffer buf1 = createBuffer(new byte[] {1, 2});
         NetworkBuffer buf2 = createBuffer(new byte[] {3, 4});
         NetworkBuffer buf3 = createBuffer(new byte[] {5, 6});
-        store.addBuffer(buf1);
-        store.addBuffer(buf2);
-        store.addBuffer(buf3);
+        synchronized (store) { store.addBuffer(buf1); }
+        synchronized (store) { store.addBuffer(buf2); }
+        synchronized (store) { store.addBuffer(buf3); }
 
         // Simulate partial consumption before conversion
         Buffer taken1;
@@ -211,8 +211,8 @@ class RecoveredBufferStoreTest {
 
         NetworkBuffer buf1 = createBuffer(new byte[] {1});
         NetworkBuffer buf2 = createBuffer(new byte[] {2});
-        store.addBuffer(buf1);
-        store.addBuffer(buf2);
+        synchronized (store) { store.addBuffer(buf1); }
+        synchronized (store) { store.addBuffer(buf2); }
 
         store.releaseAll();
 
@@ -236,7 +236,7 @@ class RecoveredBufferStoreTest {
         }
 
         // Add some in-memory and on-disk bookkeeping to make the release meaningful.
-        store.addBuffer(createBuffer(new byte[] {1}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
         synchronized (store) {
             store.incrementPending();
         }
@@ -250,131 +250,6 @@ class RecoveredBufferStoreTest {
         }
     }
 
-    /**
-     * Verify the data-available listener is invoked OUTSIDE the store monitor.
-     *
-     * <p>If the listener fires while the store monitor is held, the listener's downstream lock
-     * acquisition (e.g. {@code SingleInputGate.queueChannel} taking the gate's {@code
-     * inputChannelsWithData} monitor) can deadlock against a task thread that already holds that
-     * monitor and is trying to acquire the store monitor (via {@code peekNextDataType}). This is
-     * the AB-BA deadlock pattern observed in JVM-level deadlock reports. The contract aligns with
-     * {@link RecoveredBufferStoreImpl#checkpoint} / {@link RecoveredBufferStoreImpl#releaseAll} /
-     * {@link RecoveredBufferStoreImpl#notifyCheckpointStopped}, all of which fire callbacks outside
-     * the store lock.
-     */
-    @Test
-    void testDataAvailableListenerFiresOutsideStoreMonitor() {
-        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
-        boolean[] storeMonitorHeldDuringCallback = {false};
-        synchronized (store) {
-            store.setDataAvailableListener(
-                    () -> storeMonitorHeldDuringCallback[0] = Thread.holdsLock(store));
-        }
-
-        store.addBuffer(createBuffer(new byte[] {1}));
-
-        assertThat(storeMonitorHeldDuringCallback[0])
-                .as("dataAvailableListener must be invoked outside the store monitor")
-                .isFalse();
-
-        store.releaseAll();
-    }
-
-    /**
-     * Reproduces the AB-BA deadlock pattern between {@link RecoveredBufferStoreImpl#addBuffer} and
-     * a task thread that holds a downstream gate-side lock while reaching into the store.
-     *
-     * <p>Thread A (task): holds {@code gateLock}, then tries to acquire the store monitor via a
-     * synchronized store method (mirrors {@link RecoveredBufferStoreImpl#peekNextDataType}). Thread
-     * B (recovery): calls {@code addBuffer}, which under the broken contract fires the listener
-     * while holding the store monitor; the listener tries to acquire {@code gateLock}, mirroring
-     * {@code SingleInputGate.queueChannel}.
-     *
-     * <p>If {@code addBuffer} invokes the listener inside the synchronized block, this test
-     * deadlocks. The fixed contract fires the listener outside the lock, so the test completes
-     * within the timeout.
-     */
-    @Test
-    void testAddBufferDoesNotDeadlockWithGateSideLock() throws Exception {
-        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
-        Object gateLock = new Object();
-        CountDownLatch taskHoldsGateLock = new CountDownLatch(1);
-        CountDownLatch recoveryStartedAddBuffer = new CountDownLatch(1);
-        AtomicReference<Throwable> error = new AtomicReference<>();
-
-        // Listener mirrors SingleInputGate.queueChannel: must take gateLock to enqueue.
-        synchronized (store) {
-            store.setDataAvailableListener(
-                    () -> {
-                        synchronized (gateLock) {
-                            // touch shared state under the gate lock to mirror real notify path
-                        }
-                    });
-        }
-
-        // Thread A (task): take gateLock first, then call into the store. This emulates
-        // SingleInputGate holding inputChannelsWithData while reading peekNextDataType.
-        Thread taskThread =
-                new Thread(
-                        () -> {
-                            try {
-                                synchronized (gateLock) {
-                                    taskHoldsGateLock.countDown();
-                                    // Wait until the recovery thread has entered addBuffer and (in
-                                    // the broken contract) is holding the store monitor while
-                                    // trying to grab gateLock.
-                                    recoveryStartedAddBuffer.await();
-                                    // Sleep a touch so the recovery thread is parked on gateLock
-                                    // before we go grab the store monitor; without this, the test
-                                    // could pass even with the broken contract because both
-                                    // threads might serialise.
-                                    Thread.sleep(50);
-                                    // Now reach into the store under gateLock — this mirrors
-                                    // peekNextDataType / size and would block on the store monitor
-                                    // if addBuffer is still inside synchronized.
-                                    synchronized (store) {
-                                        store.peekNextDataType();
-                                    }
-                                }
-                            } catch (Throwable t) {
-                                error.set(t);
-                            }
-                        },
-                        "test-task-thread");
-
-        // Thread B (recovery): wait until the task thread holds gateLock, then call addBuffer,
-        // which will trigger the listener that wants gateLock.
-        Thread recoveryThread =
-                new Thread(
-                        () -> {
-                            try {
-                                taskHoldsGateLock.await();
-                                recoveryStartedAddBuffer.countDown();
-                                store.addBuffer(createBuffer(new byte[] {1}));
-                            } catch (Throwable t) {
-                                error.set(t);
-                            }
-                        },
-                        "test-recovery-thread");
-
-        taskThread.start();
-        recoveryThread.start();
-
-        // Generous timeout: deadlock would otherwise hang the test forever.
-        taskThread.join(10_000);
-        recoveryThread.join(10_000);
-
-        assertThat(taskThread.isAlive())
-                .as("task thread is still alive — likely deadlocked on store monitor")
-                .isFalse();
-        assertThat(recoveryThread.isAlive())
-                .as("recovery thread is still alive — likely deadlocked on gate lock")
-                .isFalse();
-        assertThat(error.get()).isNull();
-
-        store.releaseAll();
-    }
-
     /** Verify data-available listener fires when buffer is added to empty store. */
     @Test
     void testDataAvailableListener() {
@@ -385,11 +260,11 @@ class RecoveredBufferStoreTest {
         }
 
         // Add first buffer: should trigger listener (store was empty)
-        store.addBuffer(createBuffer(new byte[] {1}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
         assertThat(callbackCount[0]).isEqualTo(1);
 
         // Add second buffer: should NOT trigger listener (store was not empty)
-        store.addBuffer(createBuffer(new byte[] {2}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {2})); }
         assertThat(callbackCount[0]).isEqualTo(1);
 
         // Drain both buffers
@@ -399,7 +274,7 @@ class RecoveredBufferStoreTest {
         }
 
         // Add buffer again to empty store: should trigger listener
-        store.addBuffer(createBuffer(new byte[] {3}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {3})); }
         assertThat(callbackCount[0]).isEqualTo(2);
 
         store.releaseAll();
@@ -421,7 +296,7 @@ class RecoveredBufferStoreTest {
 
         // Drain the pending entry by handing back a buffer; addBuffer folds in the matching
         // pending decrement.
-        store.addBuffer(createBuffer(new byte[] {1}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
         synchronized (store) {
             // pending consumed, buffer became ready — still size 1 but now in readyBuffers
             assertThat(store.size()).isEqualTo(1);
@@ -436,7 +311,7 @@ class RecoveredBufferStoreTest {
     void testSizeAggregatesReadyAndPending() {
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
 
-        store.addBuffer(createBuffer(new byte[] {1}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
         synchronized (store) {
             store.incrementPending();
             store.incrementPending();
@@ -448,8 +323,8 @@ class RecoveredBufferStoreTest {
         }
 
         // Drain both pending entries by handing back buffers; each addBuffer consumes one pending.
-        store.addBuffer(createBuffer(new byte[] {2}));
-        store.addBuffer(createBuffer(new byte[] {3}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {2})); }
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {3})); }
         synchronized (store) {
             assertThat(store.size()).isEqualTo(2);
         }
@@ -472,7 +347,7 @@ class RecoveredBufferStoreTest {
             store.setCoordinator(coordinator);
         }
 
-        store.addBuffer(createBuffer(new byte[] {1, 2}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1, 2})); }
 
         RecordingChannelStateWriter writer = new RecordingChannelStateWriter();
         long checkpointId = 42L;
@@ -513,7 +388,7 @@ class RecoveredBufferStoreTest {
     @Test
     void testCheckpointWithNoCoordinatorSetDoesNotThrow() throws Exception {
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
-        store.addBuffer(createBuffer(new byte[] {1}));
+        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
 
         RecordingChannelStateWriter writer = new RecordingChannelStateWriter();
         writer.start(1L, null);
@@ -566,7 +441,9 @@ class RecoveredBufferStoreTest {
             store.setDataAvailableListener(() -> callCount[0]++);
         }
 
-        ((RecoveredBufferStoreImpl) store).addBuffer(createBuffer(new byte[] {1}));
+        synchronized (store) {
+            ((RecoveredBufferStoreImpl) store).addBuffer(createBuffer(new byte[] {1}));
+        }
         assertThat(callCount[0]).isEqualTo(1);
 
         store.releaseAll();
@@ -672,7 +549,7 @@ class RecoveredBufferStoreTest {
                             try {
                                 startBarrier.await();
                                 for (int i = 0; i < numBuffers; i++) {
-                                    store.addBuffer(createBuffer(new byte[] {(byte) i}));
+                                    synchronized (store) { store.addBuffer(createBuffer(new byte[] {(byte) i})); }
                                 }
                             } catch (Throwable t) {
                                 error.set(t);

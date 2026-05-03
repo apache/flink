@@ -172,7 +172,7 @@ class ChannelStatePersisterTest {
                 checkpointId, CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault()));
 
         RecoveredBufferStoreImpl nonEmptyStore = new RecoveredBufferStoreImpl(channelInfo);
-        nonEmptyStore.addBuffer(buildSomeBuffer());
+        synchronized (nonEmptyStore) { nonEmptyStore.addBuffer(buildSomeBuffer()); }
         ChannelStatePersister persister =
                 newPersister(channelStateWriter, channelInfo, nonEmptyStore);
         assertThatThrownBy(
