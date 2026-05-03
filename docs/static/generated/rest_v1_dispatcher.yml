@@ -898,6 +898,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MetricCollectionResponseBody"
+  /jobs/{jobid}/metrics/top-n:
+    get:
+      description: "Returns Top N metrics for a job including CPU consumers, backpressured\
+        \ operators, and GC-intensive tasks."
+      operationId: getTopNMetrics
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: "#/components/schemas/JobID"
+      - name: topN
+        in: query
+        description: Positive integer (1..100) controlling how many entries are returned
+          for each Top N dimension. Defaults to 5 when omitted.
+        required: false
+        style: form
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopNMetricsResponseBody"
   /jobs/{jobid}/plan:
     get:
       description: Returns the dataflow plan of a job.
@@ -1991,6 +2019,19 @@ components:
           - $ref: "#/components/schemas/SavepointInfo"
         status:
           $ref: "#/components/schemas/QueueStatus"
+    BackpressureOperatorInfo:
+      type: object
+      properties:
+        backpressureRatio:
+          type: number
+          format: double
+        operatorId:
+          type: string
+        operatorName:
+          type: string
+        subtaskId:
+          type: integer
+          format: int32
     CheckpointAlignment:
       type: object
       properties:
@@ -2302,6 +2343,21 @@ components:
         total:
           type: integer
           format: int64
+    CpuConsumerInfo:
+      type: object
+      properties:
+        cpuPercentage:
+          type: number
+          format: double
+        operatorName:
+          type: string
+        subtaskId:
+          type: integer
+          format: int32
+        taskManagerId:
+          type: string
+        taskName:
+          type: string
     DashboardConfiguration:
       type: object
       properties:
@@ -2422,6 +2478,18 @@ components:
         time:
           type: integer
           format: int64
+    GcTaskInfo:
+      type: object
+      properties:
+        gcTimePercentage:
+          type: number
+          format: double
+        taskId:
+          type: string
+        taskManagerId:
+          type: string
+        taskName:
+          type: string
     HardwareDescription:
       type: object
       properties:
@@ -3915,6 +3983,21 @@ components:
       - FULL
       - ON_CPU
       - OFF_CPU
+    TopNMetricsResponseBody:
+      type: object
+      properties:
+        topBackpressureOperators:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackpressureOperatorInfo"
+        topCpuConsumers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CpuConsumerInfo"
+        topGcIntensiveTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/GcTaskInfo"
     TriggerCause:
       type: string
       enum:

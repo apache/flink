@@ -1,0 +1,113 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div class="topn-metrics-container">
+  <div class="topn-metrics-section">
+    <h3>Top N CPU Consumers</h3>
+    <nz-table #cpuTable [nzData]="topCpuConsumers" [nzShowPagination]="false" [nzSize]="'small'">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Subtask ID</th>
+          <th>Operator Name</th>
+          <th>Task Name</th>
+          <th>CPU Usage</th>
+          <th>TaskManager</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of cpuTable.data; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td>{{ item.subtaskId }}</td>
+          <td>{{ item.operatorName }}</td>
+          <td>{{ item.taskName }}</td>
+          <td [class.high-cpu]="item.cpuPercentage > 80">
+            {{ formatPercentage(item.cpuPercentage) }}
+          </td>
+          <td>{{ item.taskManagerId }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+    <div *ngIf="topCpuConsumers.length === 0" class="no-data">
+      <p>No CPU metrics available</p>
+    </div>
+  </div>
+
+  <div class="topn-metrics-section">
+    <h3>Top N Backpressure Operators</h3>
+    <nz-table
+      #bpTable
+      [nzData]="topBackpressureOperators"
+      [nzShowPagination]="false"
+      [nzSize]="'small'"
+    >
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Operator ID</th>
+          <th>Operator Name</th>
+          <th>Subtask ID</th>
+          <th>Backpressure Ratio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of bpTable.data; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td>{{ item.operatorId }}</td>
+          <td>{{ item.operatorName }}</td>
+          <td>{{ item.subtaskId }}</td>
+          <td [class.high-backpressure]="item.backpressureRatio > 0.5">
+            {{ formatPercentage(item.backpressureRatio * 100) }}
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
+    <div *ngIf="topBackpressureOperators.length === 0" class="no-data">
+      <p>No backpressure metrics available</p>
+    </div>
+  </div>
+
+  <div class="topn-metrics-section">
+    <h3>Top N GC Intensive Tasks</h3>
+    <nz-table #gcTable [nzData]="topGcIntensiveTasks" [nzShowPagination]="false" [nzSize]="'small'">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Task ID</th>
+          <th>Task Name</th>
+          <th>GC Time Percentage</th>
+          <th>TaskManager</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of gcTable.data; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td>{{ item.taskId }}</td>
+          <td>{{ item.taskName }}</td>
+          <td [class.high-gc]="item.gcTimePercentage > 30">
+            {{ formatPercentage(item.gcTimePercentage) }}
+          </td>
+          <td>{{ item.taskManagerId }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+    <div *ngIf="topGcIntensiveTasks.length === 0" class="no-data">
+      <p>No GC metrics available</p>
+    </div>
+  </div>
+</div>

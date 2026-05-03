@@ -30,7 +30,8 @@ export const JOB_MODULE_DEFAULT_CONFIG: Required<JobModuleConfig> = {
     { title: 'TimeLine', path: 'timeline' },
     { title: 'Checkpoints', path: 'checkpoints' },
     { title: 'Configuration', path: 'configuration' },
-    { title: 'Rescales', path: 'rescales' }
+    { title: 'Rescales', path: 'rescales' },
+    { title: 'TopN Metric', path: 'topn-metric' }
   ]
 };
 
