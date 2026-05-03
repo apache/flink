@@ -682,15 +682,11 @@ LogicalProject(user=[$0], product=[$1])
 
 == Optimized Physical Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 !ok
 
 # test explain plan for insert
@@ -725,15 +721,11 @@ LogicalProject(user=[$0], product=[$1])
 
 == Optimized Physical Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 !ok
 
 # test explain insert
@@ -844,15 +836,11 @@ LogicalProject(user=[$0], product=[$1])
 
 == Optimized Physical Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 
 == Physical Execution Plan ==
 {
@@ -862,28 +850,6 @@ Calc(select=[user, product])
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
     "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[user, product, ts])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "WatermarkAssigner[]",
-    "pact" : "Operator",
-    "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
   }, {
     "id" : ,
     "type" : "Calc[]",
@@ -909,16 +875,12 @@ LogicalProject(user=[$0], product=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
 
 == Optimized Physical Plan ==
-Calc(select=[user, product]): rowcount = 1.0E8, cumulative cost = {4.0E8 rows, 2.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)]): rowcount = 1.0E8, cumulative cost = {3.0E8 rows, 2.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
-   +- Calc(select=[user, product, ts]): rowcount = 1.0E8, cumulative cost = {2.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts]): rowcount = 1.0E8, cumulative cost = {1.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
+Calc(select=[user, product]): rowcount = 1.0E8, cumulative cost = {2.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts]): rowcount = 1.0E8, cumulative cost = {1.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 !ok
 
 # test explain select with CHANGELOG_MODE
@@ -932,15 +894,11 @@ LogicalProject(user=[$0], product=[$1])
 
 == Optimized Physical Plan ==
 Calc(select=[user, product], changelogMode=[I])
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I])
-   +- Calc(select=[user, product, ts], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts], changelogMode=[I])
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 !ok
 
 # test explain select with all details
@@ -953,16 +911,12 @@ LogicalProject(user=[$0], product=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, orders]])
 
 == Optimized Physical Plan ==
-Calc(select=[user, product], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {4.0E8 rows, 2.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
-+- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {3.0E8 rows, 2.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
-   +- Calc(select=[user, product, ts], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {2.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {1.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
+Calc(select=[user, product], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {2.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts], changelogMode=[I]): rowcount = 1.0E8, cumulative cost = {1.0E8 rows, 1.0E8 cpu, 3.6E9 io, 0.0 network, 0.0 memory}
 
 == Optimized Execution Plan ==
 Calc(select=[user, product])
-+- WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])
-   +- Calc(select=[user, product, ts])
-      +- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
++- TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])
 
 == Physical Execution Plan ==
 {
@@ -972,28 +926,6 @@ Calc(select=[user, product])
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[user, product, amount, ts])",
     "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[user, product, ts])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "WatermarkAssigner[]",
-    "pact" : "Operator",
-    "contents" : "[]:WatermarkAssigner(rowtime=[ts], watermark=[(ts - 1000:INTERVAL SECOND)])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
   }, {
     "id" : ,
     "type" : "Calc[]",
