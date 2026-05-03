@@ -34,7 +34,7 @@ jobs:
     if: github.repository_owner == 'apache'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       -  run: |
             chmod +x ${{ github.workspace }}/.github/workflows/community-review.sh
       - name: Run community review script to set labels
