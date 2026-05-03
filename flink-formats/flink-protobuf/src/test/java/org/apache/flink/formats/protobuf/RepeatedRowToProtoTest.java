@@ -24,14 +24,14 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal array of primitive data to proto data. */
-public class RepeatedRowToProtoTest {
+class RepeatedRowToProtoTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row =
                 GenericRowData.of(
                         1,
@@ -43,14 +43,14 @@ public class RepeatedRowToProtoTest {
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedTest.class);
         RepeatedTest repeatedTest = RepeatedTest.parseFrom(bytes);
-        assertEquals(3, repeatedTest.getBCount());
-        assertEquals(1L, repeatedTest.getB(0));
-        assertEquals(2L, repeatedTest.getB(1));
-        assertEquals(3L, repeatedTest.getB(2));
+        assertThat(repeatedTest.getBCount()).isEqualTo(3);
+        assertThat(repeatedTest.getB(0)).isEqualTo(1L);
+        assertThat(repeatedTest.getB(1)).isEqualTo(2L);
+        assertThat(repeatedTest.getB(2)).isEqualTo(3L);
     }
 
     @Test
-    public void testEmptyArray() throws Exception {
+    void testEmptyArray() throws Exception {
         RowData row =
                 GenericRowData.of(
                         1,
@@ -62,14 +62,14 @@ public class RepeatedRowToProtoTest {
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedTest.class);
         RepeatedTest repeatedTest = RepeatedTest.parseFrom(bytes);
-        assertEquals(0, repeatedTest.getBCount());
+        assertThat(repeatedTest.getBCount()).isEqualTo(0);
     }
 
     @Test
-    public void testNull() throws Exception {
+    void testNull() throws Exception {
         RowData row = GenericRowData.of(1, null, false, 0.1f, 0.01, StringData.fromString("hello"));
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedTest.class);
         RepeatedTest repeatedTest = RepeatedTest.parseFrom(bytes);
-        assertEquals(0, repeatedTest.getBCount());
+        assertThat(repeatedTest.getBCount()).isEqualTo(0);
     }
 }

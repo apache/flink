@@ -89,7 +89,8 @@ public final class SpecificInputTypeStrategies {
                     logical(LogicalTypeFamily.NUMERIC),
                     logical(LogicalTypeRoot.STRUCTURED_TYPE),
                     logical(LogicalTypeRoot.DISTINCT_TYPE),
-                    logical(LogicalTypeRoot.BOOLEAN));
+                    logical(LogicalTypeRoot.BOOLEAN),
+                    logical(LogicalTypeRoot.VARIANT));
 
     /** See {@link JsonQueryOnErrorEmptyArgumentTypeStrategy}. */
     public static final ArgumentTypeStrategy JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR =
@@ -120,6 +121,14 @@ public final class SpecificInputTypeStrategies {
     /** Input strategy for {@link BuiltInFunctionDefinitions#ML_PREDICT}. */
     public static final InputTypeStrategy ML_PREDICT_INPUT_TYPE_STRATEGY =
             MLPredictTypeStrategy.ML_PREDICT_INPUT_TYPE_STRATEGY;
+
+    /** Input strategy for {@link BuiltInFunctionDefinitions#TO_CHANGELOG}. */
+    public static final InputTypeStrategy TO_CHANGELOG_INPUT_TYPE_STRATEGY =
+            ToChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
+
+    /** Input strategy for {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}. */
+    public static final InputTypeStrategy FROM_CHANGELOG_INPUT_TYPE_STRATEGY =
+            FromChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
 
     /** See {@link ExtractInputTypeStrategy}. */
     public static final InputTypeStrategy EXTRACT = new ExtractInputTypeStrategy();
@@ -181,6 +190,9 @@ public final class SpecificInputTypeStrategies {
      * BuiltInFunctionDefinitions#LEAD}.
      */
     public static final InputTypeStrategy LEAD_LAG = new LeadLagInputTypeStrategy();
+
+    /** Type strategy for {@link BuiltInFunctionDefinitions#TO_TIMESTAMP_LTZ}. */
+    public static final InputTypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzInputTypeStrategy();
 
     private SpecificInputTypeStrategies() {
         // no instantiation

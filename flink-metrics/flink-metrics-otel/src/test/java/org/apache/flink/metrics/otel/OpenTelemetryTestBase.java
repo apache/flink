@@ -20,7 +20,7 @@ package org.apache.flink.metrics.otel;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
-import org.apache.flink.core.testutils.TestContainerExtension;
+import org.apache.flink.core.testutils.RetryingTestContainerExtension;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -34,14 +34,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.output.BaseConsumer;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
+import javax.annotation.Nonnull;
+
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,12 +60,15 @@ public class OpenTelemetryTestBase {
 
     private static final Duration TIME_OUT = Duration.ofMinutes(2);
 
+    @TempDir static Path outputDir;
+
     @RegisterExtension
     @Order(1)
-    private static final AllCallbackWrapper<TestContainerExtension<OtelTestContainer>>
+    private static final AllCallbackWrapper<RetryingTestContainerExtension<OtelTestContainer>>
             OTEL_EXTENSION =
                     new AllCallbackWrapper<>(
-                            new TestContainerExtension<>(() -> new OtelTestContainer()));
+                            new RetryingTestContainerExtension<>(
+                                    () -> new OtelTestContainer(outputDir)));
 
     @BeforeEach
     public void setup() {
@@ -111,6 +120,43 @@ public class OpenTelemetryTestBase {
                                         return null;
                                     });
                 });
+    }
+
+    public static void eventuallyConsumeAllJson(
+            final ThrowingConsumer<List<JsonNode>, Exception> jsonConsumer) throws Exception {
+        eventually(
+                () -> {
+                    getOtelContainer()
+                            .copyFileFromContainer(
+                                    getOtelContainer().getOutputLogPath().toString(),
+                                    inputStream -> {
+                                        final List<String> rawLines = readRawLines(inputStream);
+
+                                        final ObjectMapper mapper = new ObjectMapper();
+                                        final List<JsonNode> jsonLines = new ArrayList<>();
+                                        for (final String rawLine : rawLines) {
+                                            jsonLines.add(
+                                                    mapper.readValue(rawLine, JsonNode.class));
+                                        }
+                                        try {
+                                            jsonConsumer.accept(jsonLines);
+                                        } catch (Throwable t) {
+                                            throw new ConsumeDataLogException(t, rawLines);
+                                        }
+                                        return null;
+                                    });
+                });
+    }
+
+    private static @Nonnull List<String> readRawLines(final InputStream inputStream)
+            throws IOException {
+        final List<String> rawLines = new ArrayList<>();
+        final BufferedReader input = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        while ((line = input.readLine()) != null) {
+            rawLines.add(line);
+        }
+        return rawLines;
     }
 
     public static void eventually(ThrowingRunnable<Exception> runnable) throws Exception {

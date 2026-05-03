@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -484,4 +485,9 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
      * @param cleanupTime timestamp for the timer
      */
     abstract void registerTimer(Context ctx, long cleanupTime);
+
+    @Override
+    public boolean useInterruptibleTimers(ReadableConfig config) {
+        return true;
+    }
 }

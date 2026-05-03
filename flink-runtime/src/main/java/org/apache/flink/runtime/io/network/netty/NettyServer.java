@@ -26,10 +26,11 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.epoll.Epoll;
-import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.unix.Errors;
@@ -211,8 +212,11 @@ class NettyServer {
         String name =
                 NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
-        NioEventLoopGroup nioGroup =
-                new NioEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
+        MultiThreadIoEventLoopGroup nioGroup =
+                new MultiThreadIoEventLoopGroup(
+                        config.getServerNumThreads(),
+                        getNamedThreadFactory(name),
+                        NioIoHandler.newFactory());
         bootstrap.group(nioGroup).channel(NioServerSocketChannel.class);
     }
 
@@ -222,8 +226,11 @@ class NettyServer {
         String name =
                 NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
-        EpollEventLoopGroup epollGroup =
-                new EpollEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
+        MultiThreadIoEventLoopGroup epollGroup =
+                new MultiThreadIoEventLoopGroup(
+                        config.getServerNumThreads(),
+                        getNamedThreadFactory(name),
+                        EpollIoHandler.newFactory());
         bootstrap.group(epollGroup).channel(EpollServerSocketChannel.class);
     }
 

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
@@ -51,6 +52,8 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
 
     @Nullable private VertexParallelism availableVertexParallelism;
 
+    private boolean hasDesiredResources = false;
+
     public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
         cancellingStateValidator.expectInput(asserter);
     }
@@ -68,6 +71,15 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
         this.availableVertexParallelism = availableVertexParallelism;
     }
 
+    public void setHasDesiredResources(boolean hasDesiredResources) {
+        this.hasDesiredResources = hasDesiredResources;
+    }
+
+    @Override
+    public boolean hasDesiredResources() {
+        return hasDesiredResources;
+    }
+
     @Override
     public void goToCanceling(
             ExecutionGraph executionGraph,
@@ -82,6 +94,11 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
 
     @Override
     public void archiveFailure(RootExceptionHistoryEntry failure) {}
+
+    @Override
+    public RescaleTimeline getRescaleTimeline() {
+        return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
+    }
 
     @Override
     public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {

@@ -134,7 +134,7 @@ from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
 from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction, \
-    TableAggregateFunction
+    TableAggregateFunction, AsyncScalarFunction
 
 __all__ = [
     'TableEnvironment',
@@ -151,6 +151,7 @@ __all__ = [
     'TableFunction',
     'AggregateFunction',
     'TableAggregateFunction',
+    'AsyncScalarFunction',
     'FunctionContext',
     'DataView',
     'ListView',

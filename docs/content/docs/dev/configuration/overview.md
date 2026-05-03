@@ -104,7 +104,7 @@ ext {
     flinkVersion = '{{< version >}}'
     scalaBinaryVersion = '{{< scala_version >}}'
     slf4jVersion = '1.7.36'
-    log4jVersion = '2.24.3'
+    log4jVersion = '2.25.3'
 }
 sourceCompatibility = javaVersion
 targetCompatibility = javaVersion

@@ -28,14 +28,22 @@ public interface ParserResource {
     /** Resources. */
     ParserResource RESOURCE = Resources.create(ParserResource.class);
 
-    @Resources.BaseMessage("Multiple WATERMARK statements is not supported yet.")
+    @Resources.BaseMessage("Multiple WATERMARK declarations are not supported yet.")
     Resources.ExInst<ParseException> multipleWatermarksUnsupported();
 
     @Resources.BaseMessage("OVERWRITE expression is only used with INSERT statement.")
     Resources.ExInst<ParseException> overwriteIsOnlyUsedWithInsert();
 
     @Resources.BaseMessage(
-            "CREATE SYSTEM FUNCTION is not supported, system functions can only be registered as temporary function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.")
+            "CREATE SYSTEM CONNECTION is not supported, system connections can only be registered as temporary connections, you can use CREATE TEMPORARY SYSTEM CONNECTION instead.")
+    Resources.ExInst<ParseException> createSystemConnectionOnlySupportTemporary();
+
+    @Resources.BaseMessage(
+            "DROP SYSTEM CONNECTION is not supported, system connections can only be dropped as temporary connections, you can use DROP TEMPORARY SYSTEM CONNECTION instead.")
+    Resources.ExInst<ParseException> dropSystemConnectionOnlySupportTemporary();
+
+    @Resources.BaseMessage(
+            "CREATE SYSTEM FUNCTION is not supported, system functions can only be registered as temporary functions, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.")
     Resources.ExInst<ParseException> createSystemFunctionOnlySupportTemporary();
 
     @Resources.BaseMessage("Duplicate EXPLAIN DETAIL is not allowed.")
@@ -49,8 +57,9 @@ public interface ParserResource {
             "Columns identifiers without types in the schema are supported on CTAS/RTAS statements only.")
     Resources.ExInst<ParseException> columnsIdentifiersUnsupported();
 
-    @Resources.BaseMessage("CREATE FUNCTION USING JAR syntax is not applicable to {0} language.")
-    Resources.ExInst<ParseException> createFunctionUsingJar(String language);
+    @Resources.BaseMessage(
+            "CREATE FUNCTION USING JAR/ARTIFACT syntax is not applicable to {0} language.")
+    Resources.ExInst<ParseException> createFunction(String language);
 
     @Resources.BaseMessage("WITH DRAIN could only be used after WITH SAVEPOINT.")
     Resources.ExInst<ParseException> withDrainOnlyUsedWithSavepoint();
@@ -61,6 +70,10 @@ public interface ParserResource {
     @Resources.BaseMessage(
             "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.")
     Resources.ExInst<ParseException> unsupportedFreshnessType();
+
+    @Resources.BaseMessage(
+            "START_MODE literal must be an interval for FROM_NOW and RESUME_OR_FROM_NOW modes.")
+    Resources.ExInst<ParseException> unsupportedStartModeType();
 
     @Resources.BaseMessage("CREATE TEMPORARY MATERIALIZED TABLE is not supported.")
     Resources.ExInst<ParseException> createTemporaryMaterializedTableUnsupported();

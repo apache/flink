@@ -405,6 +405,7 @@ insert into sink_with_pk(a)
 select
   cast(a1 as integer) a
 from cdc t1, lateral table(ndTableFunc(a)) as T(a1)
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -418,7 +419,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], targetColumns
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]], fields=[a, EXPR$1, EXPR$2], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]], fields=[a, EXPR$1, EXPR$2], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[CAST(EXPR$0 AS INTEGER) AS a, null:BIGINT AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2])
    +- Correlate(invocation=[ndTableFunc($cor0.a)], correlate=[table(ndTableFunc($cor0.a))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
@@ -431,6 +432,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], targetColumns=[[0]],
 insert into sink_with_pk
 select a, b, c
 from cdc t1 join lateral table(ndTableFunc(a)) as T(a1) on true
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -444,7 +446,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, c])
    +- Correlate(invocation=[ndTableFunc($cor0.a)], correlate=[table(ndTableFunc($cor0.a))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
@@ -457,6 +459,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], up
 insert into sink_with_pk
 select a, b, c
 from cdc t1 join lateral table(ndTableFunc(a)) as T(a1) on true
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -470,7 +473,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, c])
    +- Correlate(invocation=[ndTableFunc($cor0.a)], correlate=[table(ndTableFunc($cor0.a))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
@@ -484,6 +487,7 @@ insert into sink_with_pk
 select
   t1.a, t1.b, a1
 from cdc t1, lateral table(ndTableFunc(a)) as T(a1)
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -497,7 +501,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, a1], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, a1], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, EXPR$0 AS a1])
    +- Correlate(invocation=[ndTableFunc($cor0.a)], correlate=[table(ndTableFunc($cor0.a))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc]], fields=[a, b, c, d])
@@ -515,6 +519,7 @@ from (
 on t1.a = t2.a
   -- non deterministic function in remaining condition
   and t1.b > ndFunc(t2.b)
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -531,7 +536,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b0 AS b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], joinCondition=[(b > ndFunc(b0))], select=[a, b, a0, b0, c], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
@@ -581,6 +586,7 @@ from (
 on t1.a = t2.a
   -- check dim table data's freshness
   and t2.b > UNIX_TIMESTAMP() - 300
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -597,7 +603,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ve
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b AS version, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, a, b, c], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
@@ -903,6 +909,7 @@ from (
   select *, proctime() proctime from cdc
 ) t1 join dim_without_pk for system_time as of t1.proctime as t2
 on t1.a = t2.a
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -919,7 +926,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
@@ -935,6 +942,7 @@ from (
   select *, proctime() proctime from cdc
 ) t1 join dim_without_pk for system_time as of t1.proctime as t2
 on t1.a = t2.a
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -951,7 +959,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a0, c], upsertMaterialize=[true], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
@@ -1072,6 +1080,7 @@ logistics.logistics_source,
 now()
 FROM t_order AS ord
 LEFT JOIN t_logistics AS logistics ON ord.order_id=logistics.order_id
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1085,7 +1094,7 @@ LogicalSink(table=[default_catalog.default_database.t_join_sink], fields=[order_
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.t_join_sink], fields=[order_id, order_name, logistics_id, logistics_target, logistics_source, logistics_time], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.t_join_sink], fields=[order_id, order_name, logistics_id, logistics_target, logistics_source, logistics_time], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[CAST(order_id AS INTEGER) AS order_id, order_name, logistics_id, logistics_target, logistics_source, CAST(NOW() AS TIMESTAMP(6)) AS logistics_time])
    +- Join(joinType=[LeftOuterJoin], where=[(order_id = order_id0)], select=[order_id, order_name, logistics_id, logistics_target, logistics_source, order_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
       :- Exchange(distribution=[hash[order_id]])
@@ -1105,6 +1114,7 @@ from (
 ) t1 left join dim_with_pk for system_time as of t1.proctime as t2
 on t1.a = t2.a
   and t1.b > UNIX_TIMESTAMP() - 300
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1121,7 +1131,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ve
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b0 AS version, c])
    +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], joinCondition=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, b, a0, b0, c], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
@@ -1545,6 +1555,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[metadata_
 insert into sink_with_pk
 select t1.a, t1.metadata_1, T.c1
 from cdc_with_meta t1, lateral table(str_split(c)) as T(c1)
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1559,7 +1570,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[CAST(a AS INTEGER) AS a, CAST(metadata_1 AS BIGINT) AS b, EXPR$0 AS c])
    +- Correlate(invocation=[str_split($cor0.c)], correlate=[table(str_split($cor0.c))], select=[a,b,c,d,metadata_1,metadata_2,metadata_3,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BOOLEAN d, INTEGER metadata_1, VARCHAR(2147483647) metadata_2, BIGINT metadata_3, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]], fields=[a, b, c, d, metadata_1, metadata_2, metadata_3])
@@ -1931,6 +1942,7 @@ from (
   select *, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') `day` from cdc
 ) t
 group by `day`, a
+on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1945,7 +1957,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cn
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, cnt, day])
    +- GroupAggregate(groupBy=[day, a], select=[day, a, COUNT_RETRACT(*) AS cnt])
       +- Exchange(distribution=[hash[day, a]])
@@ -1962,6 +1974,7 @@ select
   ndFunc(a), count(*) cnt, c
 from cdc
 group by ndFunc(a), c
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1975,7 +1988,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, cnt, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, cnt, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[EXPR$0, cnt, c])
    +- GroupAggregate(groupBy=[EXPR$0, c], select=[EXPR$0, c, COUNT_RETRACT(*) AS cnt])
       +- Exchange(distribution=[hash[EXPR$0, c]])
@@ -1998,6 +2011,7 @@ join (
   from cdc
 ) t2
   on t1.b = t2.b
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -2013,7 +2027,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[CAST(a AS INTEGER) AS a, CAST(a0 AS BIGINT) AS b, c-day AS c])
    +- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, a0, b0, c-day], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
       :- Exchange(distribution=[hash[b]])
@@ -2237,6 +2251,7 @@ PATTERN (A)
 DEFINE
   A AS A.a > 1
 ) AS T1
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -2250,7 +2265,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, CAST(PROCTIME_MATERIALIZE(matchProctime) AS VARCHAR(2147483647)) AS EXPR$2])
    +- Match(partitionBy=[c], orderBy=[proctime ASC], measures=[FINAL(A.a) AS a, FINAL(A.b) AS b, FINAL(MATCH_PROCTIME()) AS matchProctime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$0, 0), 1)}])
       +- Exchange(distribution=[hash[c]])
@@ -2277,6 +2292,7 @@ PATTERN (A)
 DEFINE
   A AS A.a > 1
 ) AS T1
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -2290,7 +2306,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, CAST(PROCTIME_MATERIALIZE(matchProctime) AS VARCHAR(2147483647)) AS EXPR$2])
    +- Match(partitionBy=[c], orderBy=[proctime ASC], measures=[FINAL(A.a) AS a, FINAL(A.b) AS b, FINAL(MATCH_PROCTIME()) AS matchProctime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$0, 0), 1)}])
       +- Exchange(distribution=[hash[c]])
@@ -2311,6 +2327,7 @@ SELECT
   ,ndAggFunc(a) OVER (PARTITION BY a ORDER BY proctime
     ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) nd
 FROM T1
+ON CONFLICT DO DEDUPLICATE
       ]]>
     </Resource>
     <Resource name="ast">
@@ -2322,7 +2339,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd])
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, w0$o0 AS uv, b, w0$o1 AS nd])
    +- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, proctime, $3, COUNT(DISTINCT b) AS w0$o0, ndAggFunc($3) AS w0$o1])
       +- Exchange(distribution=[hash[a]])
@@ -2343,6 +2360,7 @@ SELECT
   ,ndAggFunc(a) OVER (PARTITION BY a ORDER BY proctime
     ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) nd
 FROM T1
+ON CONFLICT DO DEDUPLICATE
       ]]>
     </Resource>
     <Resource name="ast">
@@ -2354,7 +2372,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd])
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, uv, b, nd], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, w0$o0 AS uv, b, w0$o1 AS nd])
    +- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, proctime, $3, COUNT(DISTINCT b) AS w0$o0, ndAggFunc($3) AS w0$o1])
       +- Exchange(distribution=[hash[a]])
@@ -2424,6 +2442,7 @@ from (
 ) t
 where rn = 1
 group by a, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -2439,7 +2458,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qm
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, qmt, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, qmt, day])
    +- GroupAggregate(groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS qmt])
       +- Exchange(distribution=[hash[a, day]])
@@ -3053,7 +3072,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, EXPR$1
          +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day, b])
             +- Reused(reference_id=[1])
 
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day], where=[(b > 100)])
    +- Reused(reference_id=[1])
 ]]>
@@ -3066,6 +3085,7 @@ insert into sink_with_pk
 select a, b, `day`
 from cdc_with_computed_col
 where b > 100
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -3079,7 +3099,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day], where=[(b > 100)])
    +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
@@ -3176,6 +3196,7 @@ from src
 union all
 select a, b, c, metadata_3
 from cdc_with_meta
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -3191,7 +3212,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Union(all=[true], union=[a, b, c, d])
    :- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, c, d])
    +- Calc(select=[CAST(a AS INTEGER) AS a, b, c, metadata_3])
@@ -3240,6 +3261,7 @@ from src
 union
 select a, b, c, metadata_3
 from cdc_with_meta
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -3255,7 +3277,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, d], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- GroupAggregate(groupBy=[a, b, c, d], select=[a, b, c, d])
    +- Exchange(distribution=[hash[a, b, c, d]])
       +- Union(all=[true], union=[a, b, c, d])
@@ -3437,6 +3459,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 insert into sink_with_pk
 select metadata_1, b, metadata_2
 from upsert_src_with_meta
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -3449,7 +3472,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[metad
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[metadata_1, b, metadata_2])
    +- ChangelogNormalize(key=[a])
       +- Exchange(distribution=[hash[a]])
@@ -3463,6 +3486,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, 
 insert into sink_with_pk
 select metadata_1, b, metadata_2
 from upsert_src_with_meta
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -3475,7 +3499,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[metad
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[metadata_1, b, metadata_2], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[metadata_1, b, metadata_2])
    +- ChangelogNormalize(key=[a])
       +- Exchange(distribution=[hash[a]])

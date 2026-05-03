@@ -25,7 +25,7 @@ import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
@@ -37,7 +37,7 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.Runnables;
-import org.apache.flink.runtime.webmonitor.history.retaining.CompositeJobRetainedStrategy;
+import org.apache.flink.runtime.webmonitor.history.retaining.CompositeArchiveRetainedStrategy;
 import org.apache.flink.runtime.webmonitor.utils.LogUrlUtil;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
@@ -81,7 +81,7 @@ import java.util.function.Consumer;
  * jobs for which the JobManager may have already shut down.
  *
  * <p>The HistoryServer regularly checks a set of directories for job archives created by the {@link
- * FsJobArchivist} and caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
+ * FsJsonArchivist} and caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
  *
  * <p>All configuration options are defined in{@link HistoryServerOptions}.
  *
@@ -93,6 +93,8 @@ import java.util.function.Consumer;
  *   <li>/config
  *   <li>/joboverview
  *   <li>/jobs/:jobid/*
+ *   <li>/applications/overview
+ *   <li>/applications/:applicationid/*
  * </ul>
  *
  * <p>and relies on static files that are served by the {@link
@@ -110,7 +112,17 @@ public class HistoryServer {
     private final long webRefreshIntervalMillis;
     private final File webDir;
 
+    /**
+     * The archive fetcher is responsible for fetching job archives that are not part of an
+     * application (legacy jobs created before application archiving was introduced in FLINK-38761).
+     */
     private final HistoryServerArchiveFetcher archiveFetcher;
+
+    /**
+     * The archive fetcher is responsible for fetching application archives and their associated job
+     * archives.
+     */
+    private final HistoryServerApplicationArchiveFetcher applicationArchiveFetcher;
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
@@ -161,7 +173,7 @@ public class HistoryServer {
     }
 
     public HistoryServer(Configuration config) throws IOException, FlinkException {
-        this(config, (event) -> {});
+        this(config, (event) -> {}, (event) -> {});
     }
 
     /**
@@ -175,7 +187,9 @@ public class HistoryServer {
      */
     public HistoryServer(
             Configuration config,
-            Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener)
+            Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener,
+            Consumer<HistoryServerApplicationArchiveFetcher.ArchiveEvent>
+                    applicationArchiveEventListener)
             throws IOException, FlinkException {
         Preconditions.checkNotNull(config);
         Preconditions.checkNotNull(jobArchiveEventListener);
@@ -199,8 +213,10 @@ public class HistoryServer {
 
         webDir = clearWebDir(config);
 
-        boolean cleanupExpiredArchives =
+        boolean cleanupExpiredJobs =
                 config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
+        boolean cleanupExpiredApplications =
+                config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_APPLICATIONS);
 
         String refreshDirectories = config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
         if (refreshDirectories == null) {
@@ -235,8 +251,15 @@ public class HistoryServer {
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
-                        cleanupExpiredArchives,
-                        CompositeJobRetainedStrategy.createFrom(config));
+                        cleanupExpiredJobs,
+                        CompositeArchiveRetainedStrategy.createForJobFromConfig(config));
+        applicationArchiveFetcher =
+                new HistoryServerApplicationArchiveFetcher(
+                        refreshDirs,
+                        webDir,
+                        applicationArchiveEventListener,
+                        cleanupExpiredApplications,
+                        CompositeArchiveRetainedStrategy.createForApplicationFromConfig(config));
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -339,7 +362,11 @@ public class HistoryServer {
 
     private Runnable getArchiveFetchingRunnable() {
         return Runnables.withUncaughtExceptionHandler(
-                () -> archiveFetcher.fetchArchives(), FatalExitExceptionHandler.INSTANCE);
+                () -> {
+                    archiveFetcher.fetchArchives();
+                    applicationArchiveFetcher.fetchArchives();
+                },
+                FatalExitExceptionHandler.INSTANCE);
     }
 
     void stop() {

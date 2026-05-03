@@ -53,21 +53,20 @@ import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransfor
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.CollectionUtil.iteratorToList;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test for {@link RuntimeExecutionMode#BATCH} execution on the DataStream API.
@@ -75,12 +74,12 @@ import static org.junit.Assert.assertThat;
  * <p>We use a {@link MiniClusterWithClientResource} with a single TaskManager with 1 slot to verify
  * that programs in BATCH execution mode can be executed in stages.
  */
-public class DataStreamBatchExecutionITCase {
+class DataStreamBatchExecutionITCase {
     private static final int DEFAULT_PARALLELISM = 1;
 
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
@@ -92,7 +91,7 @@ public class DataStreamBatchExecutionITCase {
      * that by suffixing the attempt number to records and asserting the correct number.
      */
     @Test
-    public void batchFailoverWithKeyByBarrier() throws Exception {
+    void batchFailoverWithKeyByBarrier() throws Exception {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
@@ -109,9 +108,8 @@ public class DataStreamBatchExecutionITCase {
 
             // only the operators after the key-by "barrier" are restarted and will have the
             // "attempt 1" suffix
-            assertThat(
-                    iteratorToList(result),
-                    containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+            assertThat(iteratorToList(result))
+                    .containsExactlyInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1");
         }
     }
 
@@ -121,7 +119,7 @@ public class DataStreamBatchExecutionITCase {
      * check that by suffixing the attempt number to records and asserting the correct number.
      */
     @Test
-    public void batchFailoverWithRebalanceBarrier() throws Exception {
+    void batchFailoverWithRebalanceBarrier() throws Exception {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
@@ -138,9 +136,8 @@ public class DataStreamBatchExecutionITCase {
 
             // only the operators after the rebalance "barrier" are restarted and will have the
             // "attempt 1" suffix
-            assertThat(
-                    iteratorToList(result),
-                    containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+            assertThat(iteratorToList(result))
+                    .containsExactlyInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1");
         }
     }
 
@@ -150,7 +147,7 @@ public class DataStreamBatchExecutionITCase {
      * that by suffixing the attempt number to records and asserting the correct number.
      */
     @Test
-    public void batchFailoverWithRescaleBarrier() throws Exception {
+    void batchFailoverWithRescaleBarrier() throws Exception {
 
         final StreamExecutionEnvironment env = getExecutionEnvironment();
 
@@ -170,14 +167,13 @@ public class DataStreamBatchExecutionITCase {
 
             // only the operators after the rescale "barrier" are restarted and will have the
             // "attempt 1" suffix
-            assertThat(
-                    iteratorToList(result),
-                    containsInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1"));
+            assertThat(iteratorToList(result))
+                    .containsExactlyInAnyOrder("foo-a0-b0-c1-d1", "bar-a0-b0-c1-d1");
         }
     }
 
     @Test
-    public void batchReduceSingleResultPerKey() throws Exception {
+    void batchReduceSingleResultPerKey() throws Exception {
         StreamExecutionEnvironment env = getExecutionEnvironment();
         DataStreamSource<Long> numbers = env.fromSequence(0, 10);
 
@@ -187,12 +183,12 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
             List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
-            assertThat(results, equalTo(Arrays.asList(30L, 25L)));
+            assertThat(results).containsExactly(30L, 25L);
         }
     }
 
     @Test
-    public void batchSumSingleResultPerKey() throws Exception {
+    void batchSumSingleResultPerKey() throws Exception {
         StreamExecutionEnvironment env = getExecutionEnvironment();
         DataStreamSource<Long> numbers = env.fromSequence(0, 10);
 
@@ -202,7 +198,7 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
             List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
-            assertThat(results, equalTo(Arrays.asList(30L, 25L)));
+            assertThat(results).containsExactly(30L, 25L);
         }
     }
 
@@ -212,7 +208,7 @@ public class DataStreamBatchExecutionITCase {
      * <p>Here, the first input is keyed while the second input is not keyed.
      */
     @Test
-    public void batchKeyedNonKeyedTwoInputOperator() throws Exception {
+    void batchKeyedNonKeyedTwoInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -248,18 +244,16 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
-            assertThat(
-                    results,
-                    equalTo(
-                            Arrays.asList(
-                                    "(regular4,4)",
-                                    "(regular3,3)",
-                                    "(regular3,2)",
-                                    "(regular4,1)",
-                                    "(regular1,2)",
-                                    "(regular1,3)",
-                                    "(regular2,1)",
-                                    "(regular2,4)")));
+            assertThat(results)
+                    .containsExactly(
+                            "(regular4,4)",
+                            "(regular3,3)",
+                            "(regular3,2)",
+                            "(regular4,1)",
+                            "(regular1,2)",
+                            "(regular1,3)",
+                            "(regular2,1)",
+                            "(regular2,4)");
         }
     }
 
@@ -269,7 +263,7 @@ public class DataStreamBatchExecutionITCase {
      * <p>Here, the first input is not keyed while the second input is keyed.
      */
     @Test
-    public void batchNonKeyedKeyedTwoInputOperator() throws Exception {
+    void batchNonKeyedKeyedTwoInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -304,24 +298,22 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
-            assertThat(
-                    results,
-                    equalTo(
-                            Arrays.asList(
-                                    "(regular4,4)",
-                                    "(regular3,3)",
-                                    "(regular3,2)",
-                                    "(regular4,1)",
-                                    "(regular1,2)",
-                                    "(regular1,3)",
-                                    "(regular2,1)",
-                                    "(regular2,4)")));
+            assertThat(results)
+                    .containsExactly(
+                            "(regular4,4)",
+                            "(regular3,3)",
+                            "(regular3,2)",
+                            "(regular4,1)",
+                            "(regular1,2)",
+                            "(regular1,3)",
+                            "(regular2,1)",
+                            "(regular2,4)");
         }
     }
 
     /** Verifies that all broadcast input is processed before keyed input. */
     @Test
-    public void batchKeyedBroadcastExecution() throws Exception {
+    void batchKeyedBroadcastExecution() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -359,26 +351,24 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
-            assertThat(
-                    results,
-                    equalTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular2,5): [bc2=bc2, bc1=bc1, bc3=bc3]")));
+            assertThat(results)
+                    .containsExactly(
+                            "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular2,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular2,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular2,5): [bc2=bc2, bc1=bc1, bc3=bc3]");
         }
     }
 
     /** Verifies that all broadcast input is processed before regular input. */
     @Test
-    public void batchBroadcastExecution() throws Exception {
+    void batchBroadcastExecution() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -412,22 +402,20 @@ public class DataStreamBatchExecutionITCase {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
             // regular, that is non-keyed input is not sorted by timestamp. For keyed inputs
             // this is a by-product of the grouping/sorting we use to get the keyed groups.
-            assertThat(
-                    results,
-                    equalTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
-                                    "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]")));
+            assertThat(results)
+                    .containsExactly(
+                            "(regular1,1): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,2): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,4): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,5): [bc2=bc2, bc1=bc1, bc3=bc3]",
+                            "(regular1,3): [bc2=bc2, bc1=bc1, bc3=bc3]");
         }
     }
 
     @Test
-    public void batchMixedKeyedAndNonKeyedTwoInputOperator() throws Exception {
+    void batchMixedKeyedAndNonKeyedTwoInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -470,22 +458,20 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
-            assertThat(
-                    results,
-                    equalTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc3, bc2, bc1]",
-                                    "(regular1,2): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,4): [bc3, bc2, bc1]",
-                                    "(regular2,3): [bc3, bc2, bc1]",
-                                    "(regular2,5): [bc3, bc2, bc1]")));
+            assertThat(results)
+                    .containsExactly(
+                            "(regular1,1): [bc3, bc2, bc1]",
+                            "(regular1,2): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,4): [bc3, bc2, bc1]",
+                            "(regular2,3): [bc3, bc2, bc1]",
+                            "(regular2,5): [bc3, bc2, bc1]");
         }
     }
 
     @Test
-    public void batchMixedKeyedAndNonKeyedMultiInputOperator() throws Exception {
+    void batchMixedKeyedAndNonKeyedMultiInputOperator() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -532,17 +518,15 @@ public class DataStreamBatchExecutionITCase {
 
         try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
             List<String> results = CollectionUtil.iteratorToList(resultIterator);
-            assertThat(
-                    results,
-                    equalTo(
-                            Arrays.asList(
-                                    "(regular1,1): [bc3, bc2, bc1]",
-                                    "(regular1,2): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,3): [bc3, bc2, bc1]",
-                                    "(regular1,4): [bc3, bc2, bc1]",
-                                    "(regular2,3): [bc3, bc2, bc1]",
-                                    "(regular2,5): [bc3, bc2, bc1]")));
+            assertThat(results)
+                    .containsExactly(
+                            "(regular1,1): [bc3, bc2, bc1]",
+                            "(regular1,2): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,3): [bc3, bc2, bc1]",
+                            "(regular1,4): [bc3, bc2, bc1]",
+                            "(regular2,3): [bc3, bc2, bc1]",
+                            "(regular2,5): [bc3, bc2, bc1]");
         }
     }
 

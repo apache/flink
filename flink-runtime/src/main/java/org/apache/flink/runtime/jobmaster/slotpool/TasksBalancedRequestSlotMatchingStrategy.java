@@ -20,8 +20,8 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
+import org.apache.flink.runtime.scheduler.taskexecload.TaskExecutionLoad;
 import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueue;
@@ -42,7 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.scheduler.loading.WeightLoadable.sortByLoadingDescend;
+import static org.apache.flink.runtime.scheduler.taskexecload.HasTaskExecutionLoad.sortByTaskExecutionLoadDesc;
 
 /**
  * The tasks balanced based implementation of {@link RequestSlotMatchingStrategy} that matches the
@@ -57,20 +57,20 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
     /** The {@link PhysicalSlotElement} comparator to compare loading. */
     static final class PhysicalSlotElementComparator implements Comparator<PhysicalSlotElement> {
 
-        private final Map<ResourceID, LoadingWeight> taskExecutorsLoading;
+        private final Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap;
 
-        PhysicalSlotElementComparator(Map<ResourceID, LoadingWeight> taskExecutorsLoading) {
-            this.taskExecutorsLoading = Preconditions.checkNotNull(taskExecutorsLoading);
+        PhysicalSlotElementComparator(Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap) {
+            this.taskExecutionLoadMap = Preconditions.checkNotNull(taskExecutionLoadMap);
         }
 
         @Override
         public int compare(PhysicalSlotElement left, PhysicalSlotElement right) {
-            final LoadingWeight leftLoad =
-                    taskExecutorsLoading.getOrDefault(
-                            left.getResourceID(), DefaultLoadingWeight.EMPTY);
-            final LoadingWeight rightLoad =
-                    taskExecutorsLoading.getOrDefault(
-                            right.getResourceID(), DefaultLoadingWeight.EMPTY);
+            final TaskExecutionLoad leftLoad =
+                    taskExecutionLoadMap.getOrDefault(
+                            left.getResourceID(), DefaultTaskExecutionLoad.EMPTY);
+            final TaskExecutionLoad rightLoad =
+                    taskExecutionLoadMap.getOrDefault(
+                            right.getResourceID(), DefaultTaskExecutionLoad.EMPTY);
             return leftLoad.compareTo(rightLoad);
         }
     }
@@ -115,9 +115,10 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
 
         private final PhysicalSlotElementComparator physicalSlotElementComparator;
 
-        PhysicalSlotElementPriorityComparator(Map<ResourceID, LoadingWeight> taskExecutorsLoading) {
+        PhysicalSlotElementPriorityComparator(
+                Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap) {
             this.physicalSlotElementComparator =
-                    new PhysicalSlotElementComparator(taskExecutorsLoading);
+                    new PhysicalSlotElementComparator(taskExecutionLoadMap);
         }
 
         @Override
@@ -130,7 +131,7 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
     public Collection<RequestSlotMatch> matchRequestsAndSlots(
             Collection<? extends PhysicalSlot> slots,
             Collection<PendingRequest> pendingRequests,
-            Map<ResourceID, LoadingWeight> taskExecutorsLoad) {
+            Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap) {
         ResourceRequestPreMappings resourceRequestPreMappings =
                 ResourceRequestPreMappings.createFrom(pendingRequests, slots);
         if (!resourceRequestPreMappings.isMatchingFulfilled()) {
@@ -138,24 +139,27 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
         }
 
         final Collection<RequestSlotMatch> resultingMatches = new ArrayList<>();
-        final List<PendingRequest> sortedRequests = sortByLoadingDescend(pendingRequests);
+        final List<PendingRequest> sortedRequests = sortByTaskExecutionLoadDesc(pendingRequests);
 
-        logDebugInfo(slots, taskExecutorsLoad, sortedRequests);
+        logDebugInfo(slots, taskExecutionLoadMap, sortedRequests);
 
         Collection<PhysicalSlotElement> slotElements =
                 slots.stream().map(PhysicalSlotElement::new).collect(Collectors.toList());
         final Map<ResourceProfile, HeapPriorityQueue<PhysicalSlotElement>> profileSlots =
-                getSlotCandidatesByProfile(slotElements, taskExecutorsLoad);
+                getSlotCandidatesByProfile(slotElements, taskExecutionLoadMap);
         final Map<ResourceID, Set<PhysicalSlotElement>> taskExecutorSlots =
                 groupSlotsByTaskExecutor(slotElements);
         for (PendingRequest request : sortedRequests) {
             ResourceProfile requestProfile = request.getResourceProfile();
             Optional<PhysicalSlotElement> bestSlotEleOpt =
                     tryMatchPhysicalSlot(
-                            request, profileSlots, taskExecutorsLoad, resourceRequestPreMappings);
+                            request,
+                            profileSlots,
+                            taskExecutionLoadMap,
+                            resourceRequestPreMappings);
             if (bestSlotEleOpt.isPresent()) {
                 PhysicalSlotElement slotElement = bestSlotEleOpt.get();
-                updateTaskExecutorsLoad(taskExecutorsLoad, request, slotElement);
+                updateTaskExecutorsLoad(taskExecutionLoadMap, request, slotElement);
                 updateReferenceRemainingSlots(profileSlots, taskExecutorSlots, slotElement);
                 resourceRequestPreMappings.decrease(
                         requestProfile, slotElement.getResourceProfile());
@@ -166,26 +170,26 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
     }
 
     private static void updateTaskExecutorsLoad(
-            Map<ResourceID, LoadingWeight> taskExecutorsLoad,
+            Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap,
             PendingRequest request,
             PhysicalSlotElement slotElement) {
-        taskExecutorsLoad.compute(
+        taskExecutionLoadMap.compute(
                 slotElement.getResourceID(),
-                (ignoredId, oldLoading) ->
-                        Objects.isNull(oldLoading)
-                                ? request.getLoading()
-                                : oldLoading.merge(request.getLoading()));
+                (ignoredId, oldLoad) ->
+                        Objects.isNull(oldLoad)
+                                ? request.getTaskExecutionLoad()
+                                : oldLoad.merge(request.getTaskExecutionLoad()));
     }
 
     private static void logDebugInfo(
             Collection<? extends PhysicalSlot> slots,
-            Map<ResourceID, LoadingWeight> taskExecutorsLoad,
+            Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap,
             List<PendingRequest> sortedRequests) {
         LOG.debug(
-                "Available slots: {}, sortedRequests: {}, taskExecutorsLoad: {}",
+                "Available slots: {}, sortedRequests: {}, taskExecutionLoadMap: {}",
                 slots,
                 sortedRequests,
-                taskExecutorsLoad);
+                taskExecutionLoadMap);
     }
 
     private Map<ResourceID, Set<PhysicalSlotElement>> groupSlotsByTaskExecutor(
@@ -198,10 +202,10 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
 
     private Map<ResourceProfile, HeapPriorityQueue<PhysicalSlotElement>> getSlotCandidatesByProfile(
             Collection<PhysicalSlotElement> slotElements,
-            Map<ResourceID, LoadingWeight> taskExecutorsLoad) {
+            Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap) {
         final Map<ResourceProfile, HeapPriorityQueue<PhysicalSlotElement>> result = new HashMap<>();
         final PhysicalSlotElementPriorityComparator physicalSlotElementPriorityComparator =
-                new PhysicalSlotElementPriorityComparator(taskExecutorsLoad);
+                new PhysicalSlotElementPriorityComparator(taskExecutionLoadMap);
         for (PhysicalSlotElement slotEle : slotElements) {
             result.compute(
                     slotEle.getResourceProfile(),
@@ -221,7 +225,7 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
     private Optional<PhysicalSlotElement> tryMatchPhysicalSlot(
             PendingRequest request,
             Map<ResourceProfile, HeapPriorityQueue<PhysicalSlotElement>> profileToSlotMap,
-            Map<ResourceID, LoadingWeight> taskExecutorsLoad,
+            Map<ResourceID, TaskExecutionLoad> taskExecutionLoadMap,
             ResourceRequestPreMappings resourceRequestPreMappings) {
         final ResourceProfile requestProfile = request.getResourceProfile();
 
@@ -242,7 +246,7 @@ public enum TasksBalancedRequestSlotMatchingStrategy implements RequestSlotMatch
                             return Objects.isNull(slots) ? null : slots.peek();
                         })
                 .filter(Objects::nonNull)
-                .min(new PhysicalSlotElementComparator(taskExecutorsLoad));
+                .min(new PhysicalSlotElementComparator(taskExecutionLoadMap));
     }
 
     private void updateReferenceRemainingSlots(

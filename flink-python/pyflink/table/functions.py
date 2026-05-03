@@ -815,3 +815,75 @@ class SumWithRetractAggFunction(AggregateFunction):
             if acc[0] is not None:
                 accumulator[0] += acc[0]
                 accumulator[1] += acc[1]
+
+
+@Internal()
+class WelfordM2AggFunction(AggregateFunction):
+    def create_accumulator(self):
+        # [n, mean , m2]
+        return [0, 0.0, 0.0]
+
+    def get_value(self, accumulator):
+        if accumulator[0] <= 0 or accumulator[2] <= 0:
+            return None
+        else:
+            return accumulator[2]
+
+    def accumulate(self, accumulator, *args):
+        if args[0] is None:
+            return
+
+        accumulator[0] += 1
+        if accumulator[0] <= 0:
+            return
+
+        val = float(args[0])
+        delta = val - accumulator[1]
+        accumulator[1] += delta / accumulator[0]
+        delta2 = val - accumulator[1]
+        accumulator[2] += delta * delta2
+
+    def retract(self, accumulator, *args):
+        if args[0] is None:
+            return
+
+        accumulator[0] -= 1
+        if accumulator[0] <= 0:
+            if accumulator[0] == 0:
+                accumulator[1] = 0.0
+                accumulator[2] = 0.0
+            return
+
+        val = float(args[0])
+        delta2 = val - accumulator[1]
+        accumulator[1] -= delta2 / accumulator[0]
+        delta = val - accumulator[1]
+        accumulator[2] -= delta * delta2
+
+    def merge(self, accumulator, accumulators):
+        negative_sum = 0
+        for acc in accumulators:
+            if acc[0] <= 0:
+                negative_sum += acc[0]
+                continue
+
+            if accumulator[0] == 0:
+                accumulator[0] = acc[0]
+                accumulator[1] = acc[1]
+                accumulator[2] = acc[2]
+                continue
+
+            new_n = accumulator[0] + acc[0]
+            delta_mean = acc[1] - accumulator[1]
+            new_mean = accumulator[1] + acc[0] / new_n * delta_mean
+            new_m2 = accumulator[2] + acc[2] + accumulator[0] * acc[
+                0] / new_n * delta_mean * delta_mean
+
+            accumulator[0] = new_n
+            accumulator[1] = new_mean
+            accumulator[2] = new_m2
+
+        accumulator[0] += negative_sum
+        if accumulator[0] <= 0:
+            accumulator[1] = 0.0
+            accumulator[2] = 0.0

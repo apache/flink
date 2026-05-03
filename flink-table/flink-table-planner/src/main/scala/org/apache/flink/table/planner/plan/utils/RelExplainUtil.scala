@@ -825,7 +825,7 @@ object RelExplainUtil {
 
     val inNames = grouping.map(inFields(_)) ++ auxGrouping.map(inFields(_)) ++ aggStrings
     val outNames = grouping.indices.map(outFields(_)) ++
-      (grouping.length + 1 until grouping.length + 1 + auxGrouping.length).map(outFields(_)) ++
+      (grouping.length until grouping.length + auxGrouping.length).map(outFields(_)) ++
       outFieldNames
     inNames
       .zip(outNames)

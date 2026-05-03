@@ -1,0 +1,338 @@
+{
+  "flinkVersion" : "2.2",
+  "nodes" : [ {
+    "id" : 52,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`leftSrc`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a1",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "a0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "a2",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_a1_a0",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "a1", "a0" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_a1",
+              "columns" : [ "a1" ]
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, leftSrc]], fields=[a1, a0, a2])"
+  }, {
+    "id" : 53,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 54,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[a1]])"
+  }, {
+    "id" : 55,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`rightSrc`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "b0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "b2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b1",
+              "dataType" : "INT NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_b0_b1",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "b0", "b1" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_b1",
+              "columns" : [ "b1" ]
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, rightSrc]], fields=[b0, b2, b1])"
+  }, {
+    "id" : 56,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 57,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 2 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "Exchange(distribution=[hash[b1]])"
+  }, {
+    "id" : 58,
+    "type" : "stream-exec-delta-join_1",
+    "configuration" : {
+      "table.exec.async-lookup.buffer-capacity" : "100",
+      "table.exec.async-lookup.timeout" : "3 min"
+    },
+    "joinType" : "INNER",
+    "leftJoinKeys" : [ 0 ],
+    "leftUpsertKey" : [ 0, 1 ],
+    "lookupRightTableJoinSpec" : {
+      "lookupTable" : {
+        "lookupTableSource" : {
+          "table" : {
+            "identifier" : "`default_catalog`.`default_database`.`rightSrc`",
+            "resolvedTable" : {
+              "schema" : {
+                "columns" : [ {
+                  "name" : "b0",
+                  "dataType" : "DOUBLE NOT NULL"
+                }, {
+                  "name" : "b2",
+                  "dataType" : "VARCHAR(2147483647)"
+                }, {
+                  "name" : "b1",
+                  "dataType" : "INT NOT NULL"
+                } ],
+                "primaryKey" : {
+                  "name" : "PK_b0_b1",
+                  "type" : "PRIMARY_KEY",
+                  "columns" : [ "b0", "b1" ]
+                },
+                "indexes" : [ {
+                  "name" : "INDEX_b1",
+                  "columns" : [ "b1" ]
+                } ]
+              }
+            }
+          }
+        },
+        "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL> NOT NULL"
+      },
+      "lookupKeys" : {
+        "2" : {
+          "type" : "FieldRef",
+          "index" : 0
+        }
+      },
+      "remainingCondition" : null
+    },
+    "rightJoinKeys" : [ 2 ],
+    "rightUpsertKey" : [ 0, 2 ],
+    "lookupLeftTableJoinSpec" : {
+      "lookupTable" : {
+        "lookupTableSource" : {
+          "table" : {
+            "identifier" : "`default_catalog`.`default_database`.`leftSrc`",
+            "resolvedTable" : {
+              "schema" : {
+                "columns" : [ {
+                  "name" : "a1",
+                  "dataType" : "INT NOT NULL"
+                }, {
+                  "name" : "a0",
+                  "dataType" : "DOUBLE NOT NULL"
+                }, {
+                  "name" : "a2",
+                  "dataType" : "VARCHAR(2147483647)"
+                } ],
+                "primaryKey" : {
+                  "name" : "PK_a1_a0",
+                  "type" : "PRIMARY_KEY",
+                  "columns" : [ "a1", "a0" ]
+                },
+                "indexes" : [ {
+                  "name" : "INDEX_a1",
+                  "columns" : [ "a1" ]
+                } ]
+              }
+            }
+          }
+        },
+        "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)> NOT NULL"
+      },
+      "lookupKeys" : {
+        "0" : {
+          "type" : "FieldRef",
+          "index" : 2
+        }
+      },
+      "remainingCondition" : null
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "DeltaJoin(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, a0, a2, b0, b2, b1])",
+    "asyncOptions" : {
+      "capacity " : 100,
+      "timeout" : 180000,
+      "is-key-ordered" : true,
+      "output-mode" : "ORDERED"
+    }
+  }, {
+    "id" : 59,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`snk`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a1",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "a0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "a2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "b2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b1",
+              "dataType" : "INT NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_a0_b0_a1_b1",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "a0", "b0", "a1", "b1" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "upsertMaterializeStrategy" : "MAP",
+    "inputUpsertKey" : [ 0, 1, 3, 5 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.snk], fields=[a1, a0, a2, b0, b2, b1])"
+  } ],
+  "edges" : [ {
+    "source" : 52,
+    "target" : 53,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 53,
+    "target" : 54,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 55,
+    "target" : 56,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 56,
+    "target" : 57,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 54,
+    "target" : 58,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 57,
+    "target" : 58,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 58,
+    "target" : 59,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

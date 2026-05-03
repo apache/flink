@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -46,7 +45,7 @@ public class SqlAlterTableOptionsConverter
             SqlAlterTableOptions alterTableOptions,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(alterTableOptions, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(alterTableOptions, context);
         final Map<String, String> partitionKVs = alterTableOptions.getPartitionKVs();
         // it's altering partitions
         if (partitionKVs != null) {
@@ -62,16 +61,14 @@ public class SqlAlterTableOptionsConverter
                                                             partitionSpec.getPartitionSpec(),
                                                             tableIdentifier)));
             Map<String, String> newProps = new HashMap<>(catalogPartition.getProperties());
-            newProps.putAll(
-                    OperationConverterUtils.getProperties(alterTableOptions.getPropertyList()));
+            newProps.putAll(alterTableOptions.getProperties());
             return new AlterPartitionPropertiesOperation(
                     tableIdentifier,
                     partitionSpec,
                     new CatalogPartitionImpl(newProps, catalogPartition.getComment()));
         } else {
             // it's altering a table
-            Map<String, String> changeOptions =
-                    OperationConverterUtils.getProperties(alterTableOptions.getPropertyList());
+            Map<String, String> changeOptions = alterTableOptions.getProperties();
             Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
             newOptions.putAll(changeOptions);
             return new AlterTableChangeOperation(

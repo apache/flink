@@ -1,6 +1,6 @@
 ---
 title: 内幕
-icon: <i class="fa fa-book title dessert" aria-hidden="true"></i>
+icon: <i class="fa fa-book title digestif" aria-hidden="true"></i>
 bold: true
 bookCollapseSection: true
 weight: 10

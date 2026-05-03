@@ -46,16 +46,16 @@ class SourceOperatorWatermarksTest {
     @BeforeEach
     void setup() throws Exception {
         context =
-                new SourceOperatorTestContext(
-                        false,
-                        true,
-                        WatermarkStrategy.forGenerator(
-                                        ctx ->
-                                                new SourceOperatorAlignmentTest
-                                                        .PunctuatedGenerator())
-                                .withTimestampAssigner((r, t) -> r),
-                        new MockOutput<>(new ArrayList<>()),
-                        false);
+                SourceOperatorTestContext.builder()
+                        .setUsePerSplitOutputs(true)
+                        .setWatermarkStrategy(
+                                WatermarkStrategy.forGenerator(
+                                                ctx ->
+                                                        new SourceOperatorAlignmentTest
+                                                                .PunctuatedGenerator())
+                                        .withTimestampAssigner((r, t) -> r))
+                        .setOutput(new MockOutput<>(new ArrayList<>()))
+                        .build();
         operator = context.getOperator();
     }
 

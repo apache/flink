@@ -56,6 +56,8 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_TYPED_SET_SEMANTIC_TABLE,
                 ProcessTableFunctionTestPrograms.PROCESS_TYPED_SET_SEMANTIC_TABLE_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_ARGS,
+                ProcessTableFunctionTestPrograms.PROCESS_INTERVAL_DAY_ARGS,
+                ProcessTableFunctionTestPrograms.PROCESS_INTERVAL_YEAR_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_EMPTY_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH,
                 ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_PASS_THROUGH,
@@ -85,6 +87,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_NAMED_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_UNNAMED_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_LATE_EVENTS,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_LATE_EVENTS,
                 ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_ON_TIME,
@@ -96,7 +99,11 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_LIST_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_MAP_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT,
+                ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_WITH_SCALAR_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_STATEFUL_MULTI_INPUT_WITH_TIMEOUT,
-                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_MULTI_INPUT);
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_MULTI_INPUT,
+                ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY,
+                ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_ORDER_BY,
+                ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY_TABLE_API);
     }
 }

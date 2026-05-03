@@ -54,8 +54,8 @@ public class DeltaJoinCache {
     protected static final String METRIC_TOTAL_NON_EMPTY_VALUE_SIZE = "totalNonEmptyValues";
 
     // use LinkedHashMap to keep order
-    private final Cache<RowData, LinkedHashMap<RowData, Object>> leftCache;
-    private final Cache<RowData, LinkedHashMap<RowData, Object>> rightCache;
+    private final Cache<RowData, LinkedHashMap<RowData, RowData>> leftCache;
+    private final Cache<RowData, LinkedHashMap<RowData, RowData>> rightCache;
 
     // metrics
     private final AtomicLong leftTotalSize = new AtomicLong(0L);
@@ -116,12 +116,12 @@ public class DeltaJoinCache {
     }
 
     @Nullable
-    public LinkedHashMap<RowData, Object> getData(RowData key, boolean requestRightCache) {
+    public LinkedHashMap<RowData, RowData> getData(RowData key, boolean requestRightCache) {
         return requestRightCache ? rightCache.getIfPresent(key) : leftCache.getIfPresent(key);
     }
 
     public void buildCache(
-            RowData key, LinkedHashMap<RowData, Object> ukDataMap, boolean buildRightCache) {
+            RowData key, LinkedHashMap<RowData, RowData> ukDataMap, boolean buildRightCache) {
         Preconditions.checkState(getData(key, buildRightCache) == null);
         if (buildRightCache) {
             rightCache.put(key, ukDataMap);
@@ -132,7 +132,7 @@ public class DeltaJoinCache {
         }
     }
 
-    public void upsertCache(RowData key, RowData uk, Object data, boolean upsertRightCache) {
+    public void upsertCache(RowData key, RowData uk, RowData data, boolean upsertRightCache) {
         if (upsertRightCache) {
             upsert(rightCache, key, uk, data, rightTotalSize);
         } else {
@@ -141,16 +141,16 @@ public class DeltaJoinCache {
     }
 
     private void upsert(
-            Cache<RowData, LinkedHashMap<RowData, Object>> cache,
+            Cache<RowData, LinkedHashMap<RowData, RowData>> cache,
             RowData key,
             RowData uk,
-            Object data,
+            RowData data,
             AtomicLong cacheTotalSize) {
         cache.asMap()
                 .computeIfPresent(
                         key,
                         (k, v) -> {
-                            Object oldData = v.put(uk, data);
+                            RowData oldData = v.put(uk, data);
                             if (oldData == null) {
                                 cacheTotalSize.incrementAndGet();
                             }
@@ -175,7 +175,7 @@ public class DeltaJoinCache {
     }
 
     private class DeltaJoinCacheRemovalListener
-            implements RemovalListener<RowData, LinkedHashMap<RowData, Object>> {
+            implements RemovalListener<RowData, LinkedHashMap<RowData, RowData>> {
 
         private final boolean isLeftCache;
 
@@ -185,7 +185,7 @@ public class DeltaJoinCache {
 
         @Override
         public void onRemoval(
-                RemovalNotification<RowData, LinkedHashMap<RowData, Object>> removalNotification) {
+                RemovalNotification<RowData, LinkedHashMap<RowData, RowData>> removalNotification) {
             if (removalNotification.getValue() == null) {
                 return;
             }
@@ -201,12 +201,12 @@ public class DeltaJoinCache {
     // ===== visible for test =====
 
     @VisibleForTesting
-    public Cache<RowData, LinkedHashMap<RowData, Object>> getLeftCache() {
+    public Cache<RowData, LinkedHashMap<RowData, RowData>> getLeftCache() {
         return leftCache;
     }
 
     @VisibleForTesting
-    public Cache<RowData, LinkedHashMap<RowData, Object>> getRightCache() {
+    public Cache<RowData, LinkedHashMap<RowData, RowData>> getRightCache() {
         return rightCache;
     }
 

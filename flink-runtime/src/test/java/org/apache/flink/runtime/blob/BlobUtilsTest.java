@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -169,6 +170,95 @@ class BlobUtilsTest {
                         () ->
                                 blobStore.get(
                                         jobId,
+                                        blobKey,
+                                        tempDir.resolve(UUID.randomUUID().toString()).toFile()))
+                .isInstanceOf(FileNotFoundException.class);
+        assertThat(incomingFile).doesNotExist();
+        assertThat(storageFile).doesNotExist();
+    }
+
+    @Test
+    void testCheckAndDeleteCorruptedBlobsDeletesCorruptedBlobsForApplication() throws IOException {
+        final ApplicationID applicationId = new ApplicationID();
+
+        final byte[] validContent = "valid".getBytes(StandardCharsets.UTF_8);
+        final BlobKey validPermanentBlobKey =
+                TestingBlobUtils.writePermanentBlob(tempDir, applicationId, validContent);
+
+        final PermanentBlobKey corruptedBlobKey =
+                TestingBlobUtils.writePermanentBlob(tempDir, applicationId, validContent);
+        FileUtils.writeFileUtf8(
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                tempDir.toString(), applicationId, corruptedBlobKey)),
+                "corrupted");
+
+        BlobUtils.checkAndDeleteCorruptedBlobs(tempDir, LOG);
+
+        final List<BlobKey> blobKeys =
+                BlobUtils.listBlobsInDirectory(tempDir).stream()
+                        .map(BlobUtils.Blob::getBlobKey)
+                        .collect(Collectors.toList());
+        assertThat(blobKeys).containsExactly(validPermanentBlobKey);
+    }
+
+    @Test
+    void testMoveTempFileToStoreSucceedsForApplication() throws IOException {
+        final FileSystemBlobStore blobStore =
+                new FileSystemBlobStore(
+                        new LocalFileSystem(), TempDirUtils.newFolder(tempDir).toString());
+        final ApplicationID applicationId = new ApplicationID();
+        final File storageFile = tempDir.resolve(UUID.randomUUID().toString()).toFile();
+        final File incomingFile = TempDirUtils.newFile(tempDir);
+        final byte[] fileContent = {1, 2, 3, 4};
+        final BlobKey blobKey =
+                BlobKey.createKey(
+                        BlobKey.BlobType.PERMANENT_BLOB,
+                        BlobUtils.createMessageDigest().digest(fileContent));
+        Files.write(incomingFile.toPath(), fileContent);
+
+        BlobUtils.moveTempFileToStore(
+                incomingFile, applicationId, blobKey, storageFile, LOG, blobStore);
+
+        assertThat(incomingFile).doesNotExist();
+        assertThat(storageFile).hasBinaryContent(fileContent);
+
+        final File blobStoreFile = tempDir.resolve(UUID.randomUUID().toString()).toFile();
+        assertThat(blobStore.get(applicationId, blobKey, blobStoreFile)).isTrue();
+        assertThat(blobStoreFile).hasBinaryContent(fileContent);
+    }
+
+    @Test
+    void testCleanupIfMoveTempFileToStoreFailsForApplication() throws IOException {
+        final File storageFile = tempDir.resolve(UUID.randomUUID().toString()).toFile();
+
+        final File incomingFile = TempDirUtils.newFile(tempDir);
+        Files.write(incomingFile.toPath(), new byte[] {1, 2, 3, 4});
+
+        final FileSystemBlobStore blobStore =
+                new FileSystemBlobStore(
+                        new LocalFileSystem(), TempDirUtils.newFolder(tempDir).toString());
+
+        final ApplicationID applicationId = new ApplicationID();
+        final BlobKey blobKey = BlobKey.createKey(BlobKey.BlobType.PERMANENT_BLOB);
+        assertThatThrownBy(
+                        () ->
+                                BlobUtils.internalMoveTempFileToStore(
+                                        incomingFile,
+                                        applicationId,
+                                        blobKey,
+                                        storageFile,
+                                        LOG,
+                                        blobStore,
+                                        (source, target) -> {
+                                            throw new IOException("Test Failure");
+                                        }))
+                .isInstanceOf(IOException.class);
+
+        assertThatThrownBy(
+                        () ->
+                                blobStore.get(
+                                        applicationId,
                                         blobKey,
                                         tempDir.resolve(UUID.randomUUID().toString()).toFile()))
                 .isInstanceOf(FileNotFoundException.class);

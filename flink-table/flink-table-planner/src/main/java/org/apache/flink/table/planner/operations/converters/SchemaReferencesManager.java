@@ -22,7 +22,9 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.expressions.ColumnReferenceFinder;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -31,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -84,16 +87,19 @@ public class SchemaReferencesManager {
         this.distributionKeys = distributionKeys;
     }
 
-    public static SchemaReferencesManager create(ResolvedCatalogTable catalogTable) {
+    private static SchemaReferencesManager create(
+            ResolvedCatalogBaseTable catalogBaseTable,
+            Set<String> partitionKeys,
+            Set<String> distributionKeys) {
         Map<String, Set<String>> columnToReferences = new HashMap<>();
         Map<String, Set<String>> columnToDependencies = new HashMap<>();
-        catalogTable.getResolvedSchema().getColumns().stream()
+        catalogBaseTable.getResolvedSchema().getColumns().stream()
                 .filter(column -> column instanceof Column.ComputedColumn)
                 .forEach(
                         column -> {
                             Set<String> referencedColumns =
                                     ColumnReferenceFinder.findReferencedColumn(
-                                            column.getName(), catalogTable.getResolvedSchema());
+                                            column.getName(), catalogBaseTable.getResolvedSchema());
                             for (String referencedColumn : referencedColumns) {
                                 columnToReferences
                                         .computeIfAbsent(referencedColumn, key -> new HashSet<>())
@@ -105,22 +111,44 @@ public class SchemaReferencesManager {
                         });
 
         return new SchemaReferencesManager(
-                new HashSet<>(catalogTable.getResolvedSchema().getColumnNames()),
+                new HashSet<>(catalogBaseTable.getResolvedSchema().getColumnNames()),
                 columnToReferences,
                 columnToDependencies,
-                catalogTable
+                catalogBaseTable
                         .getResolvedSchema()
                         .getPrimaryKey()
                         .map(constraint -> new HashSet<>(constraint.getColumns()))
                         .orElse(new HashSet<>()),
                 ColumnReferenceFinder.findWatermarkReferencedColumn(
-                        catalogTable.getResolvedSchema()),
-                new HashSet<>(catalogTable.getPartitionKeys()),
-                new HashSet<>(
-                        catalogTable
-                                .getDistribution()
-                                .map(TableDistribution::getBucketKeys)
-                                .orElse(List.of())));
+                        catalogBaseTable.getResolvedSchema()),
+                partitionKeys,
+                distributionKeys);
+    }
+
+    public static SchemaReferencesManager create(ResolvedCatalogBaseTable<?> catalogTable) {
+        final Set<String> partitionKeys;
+        final Set<String> distributionKeys;
+        if (catalogTable instanceof ResolvedCatalogTable) {
+            partitionKeys = new HashSet<>(((ResolvedCatalogTable) catalogTable).getPartitionKeys());
+            distributionKeys =
+                    toDistributionKeys(((ResolvedCatalogTable) catalogTable).getDistribution());
+        } else if (catalogTable instanceof ResolvedCatalogMaterializedTable) {
+            partitionKeys =
+                    new HashSet<>(
+                            ((ResolvedCatalogMaterializedTable) catalogTable).getPartitionKeys());
+            distributionKeys =
+                    toDistributionKeys(
+                            ((ResolvedCatalogMaterializedTable) catalogTable).getDistribution());
+        } else {
+            throw new UnsupportedOperationException(
+                    "Schema references manager is unsupported for " + catalogTable.getClass());
+        }
+        return create(catalogTable, partitionKeys, distributionKeys);
+    }
+
+    private static Set<String> toDistributionKeys(Optional<TableDistribution> tableDistribution) {
+        return new HashSet<>(
+                tableDistribution.map(TableDistribution::getBucketKeys).orElse(List.of()));
     }
 
     public void dropColumn(String columnName, Supplier<String> errorMsg) {
@@ -221,5 +249,29 @@ public class SchemaReferencesManager {
                                             .collect(Collectors.toList());
                             builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
                         });
+    }
+
+    public static Schema buildSchemaForAlterSchemaDrop(
+            ResolvedCatalogBaseTable oldTable,
+            List<TableChange> tableChanges,
+            Set<String> columnsToDrop) {
+        Schema.Builder schemaBuilder = Schema.newBuilder();
+        SchemaReferencesManager.buildUpdatedColumn(
+                schemaBuilder,
+                oldTable,
+                (builder, column) -> {
+                    if (!columnsToDrop.contains(column.getName())) {
+                        builder.fromColumns(List.of(column));
+                    }
+                });
+        if (tableChanges.stream().noneMatch(c -> c instanceof TableChange.DropConstraint)) {
+            SchemaReferencesManager.buildUpdatedPrimaryKey(
+                    schemaBuilder, oldTable, Function.identity());
+        }
+
+        if (tableChanges.stream().noneMatch(c -> c instanceof TableChange.DropWatermark)) {
+            SchemaReferencesManager.buildUpdatedWatermark(schemaBuilder, oldTable);
+        }
+        return schemaBuilder.build();
     }
 }

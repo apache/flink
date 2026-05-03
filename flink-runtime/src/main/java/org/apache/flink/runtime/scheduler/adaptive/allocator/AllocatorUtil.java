@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 
@@ -35,13 +35,13 @@ class AllocatorUtil {
 
     private AllocatorUtil() {}
 
-    static Map<SlotSharingGroupId, SlotSharingSlotAllocator.SlotSharingGroupMetaInfo>
+    static Map<SlotSharingGroup, SlotSharingSlotAllocator.SlotSharingGroupMetaInfo>
             getSlotSharingGroupMetaInfos(JobInformation jobInformation) {
         return SlotSharingSlotAllocator.SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
     }
 
     static int getMinimumRequiredSlots(
-            Map<SlotSharingGroupId, SlotSharingSlotAllocator.SlotSharingGroupMetaInfo>
+            Map<SlotSharingGroup, SlotSharingSlotAllocator.SlotSharingGroupMetaInfo>
                     slotSharingGroupMetaInfos) {
         return slotSharingGroupMetaInfos.values().stream()
                 .map(SlotSharingSlotAllocator.SlotSharingGroupMetaInfo::getMaxLowerBound)

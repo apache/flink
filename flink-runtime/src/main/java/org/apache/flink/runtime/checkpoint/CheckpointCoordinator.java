@@ -29,7 +29,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -80,7 +79,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -187,7 +185,7 @@ public class CheckpointCoordinator {
     private final long alignedCheckpointTimeout;
 
     /** Actor that receives status updates from the execution graph this coordinator works for. */
-    private JobStatusListener jobStatusListener;
+    private CheckpointCoordinatorDeActivator deActivator;
 
     /**
      * The current periodic trigger. Used to deduplicate concurrently scheduled checkpoints if any.
@@ -241,6 +239,8 @@ public class CheckpointCoordinator {
 
     private final boolean isExactlyOnceMode;
 
+    private final boolean recoverOutputOnDownstreamTask;
+
     /** Flag represents there is an in-flight trigger request. */
     private boolean isTriggering = false;
 
@@ -255,6 +255,10 @@ public class CheckpointCoordinator {
     private boolean baseLocationsForCheckpointInitialized = false;
 
     private boolean forceFullSnapshot;
+
+    private final long initialTriggeringDelay;
+
+    private long triggerDelay;
 
     // --------------------------------------------------------------------------------------------
 
@@ -313,25 +317,12 @@ public class CheckpointCoordinator {
         // sanity checks
         checkNotNull(checkpointStorage);
 
-        // max "in between duration" can be one year - this is to prevent numeric overflows
-        long minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
-        if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
-            minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
-        }
-
-        // it does not make sense to schedule checkpoints more often then the desired
-        // time between checkpoints
-        long baseInterval = chkConfig.getCheckpointInterval();
-        if (baseInterval < minPauseBetweenCheckpoints) {
-            baseInterval = minPauseBetweenCheckpoints;
-        }
-
         this.job = checkNotNull(job);
-        this.baseInterval = baseInterval;
+        this.baseInterval = chkConfig.getCheckpointInterval();
         this.baseIntervalDuringBacklog = chkConfig.getCheckpointIntervalDuringBacklog();
         this.nextCheckpointTriggeringRelativeTime = Long.MAX_VALUE;
         this.checkpointTimeout = chkConfig.getCheckpointTimeout();
-        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        this.minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
         this.coordinatorsToCheckpoint =
                 Collections.unmodifiableCollection(coordinatorsToCheckpoint);
         this.pendingCheckpoints = new LinkedHashMap<>();
@@ -344,6 +335,7 @@ public class CheckpointCoordinator {
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
+        this.recoverOutputOnDownstreamTask = chkConfig.isRecoverOutputOnDownstreamTask();
         this.alignedCheckpointTimeout = chkConfig.getAlignedCheckpointTimeout();
         this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
@@ -385,6 +377,8 @@ public class CheckpointCoordinator {
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
         this.statsTracker = checkNotNull(statsTracker, "Statistic tracker can not be null");
         this.vertexFinishedStateCheckerFactory = checkNotNull(vertexFinishedStateCheckerFactory);
+        this.initialTriggeringDelay = chkConfig.getInitialTriggeringDelay();
+        this.triggerDelay = initialTriggeringDelay;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1726,9 +1720,12 @@ public class CheckpointCoordinator {
      *
      * @param tasks Set of job vertices to restore. State for these vertices is restored via {@link
      *     Execution#setInitialState(JobManagerTaskRestore)}.
+     * @param allowNonRestoredState Allow checkpoint state that cannot be mapped to any job vertex
+     *     in tasks.
      * @return True, if a checkpoint was found and its state was restored, false otherwise.
      */
-    public boolean restoreInitialCheckpointIfPresent(final Set<ExecutionJobVertex> tasks)
+    public boolean restoreInitialCheckpointIfPresent(
+            final Set<ExecutionJobVertex> tasks, final boolean allowNonRestoredState)
             throws Exception {
         final OptionalLong restoredCheckpointId =
                 restoreLatestCheckpointedStateInternal(
@@ -1736,7 +1733,7 @@ public class CheckpointCoordinator {
                         OperatorCoordinatorRestoreBehavior.RESTORE_IF_CHECKPOINT_PRESENT,
                         false, // initial checkpoints exist only on JobManager failover. ok if not
                         // present.
-                        false,
+                        allowNonRestoredState,
                         true); // JobManager failover means JobGraphs match exactly.
 
         return restoredCheckpointId.isPresent();
@@ -1816,7 +1813,11 @@ public class CheckpointCoordinator {
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
-                            latest.getCheckpointID(), tasks, operatorStates, allowNonRestoredState);
+                            latest.getCheckpointID(),
+                            tasks,
+                            operatorStates,
+                            allowNonRestoredState,
+                            recoverOutputOnDownstreamTask);
 
             stateAssignmentOperation.assignStates();
 
@@ -2049,7 +2050,9 @@ public class CheckpointCoordinator {
             }
 
             periodicScheduling = true;
-            scheduleTriggerWithDelay(clock.relativeTimeMillis(), getRandomInitDelay());
+            scheduleTriggerWithDelay(clock.relativeTimeMillis(), triggerDelay);
+            // minimize delay for subsequent restarts of checkpoint scheduler
+            triggerDelay = minPauseBetweenCheckpoints;
         }
     }
 
@@ -2111,10 +2114,6 @@ public class CheckpointCoordinator {
         }
     }
 
-    private long getRandomInitDelay() {
-        return ThreadLocalRandom.current().nextLong(minPauseBetweenCheckpoints, baseInterval + 1L);
-    }
-
     private void scheduleTriggerWithDelay(long currentRelativeTime, long initDelay) {
         nextCheckpointTriggeringRelativeTime = currentRelativeTime + initDelay;
         currentPeriodicTrigger = new ScheduledTrigger();
@@ -2139,18 +2138,24 @@ public class CheckpointCoordinator {
     //  job status listener that schedules / cancels periodic checkpoints
     // ------------------------------------------------------------------------
 
-    public JobStatusListener createActivatorDeactivator(boolean allTasksOutputNonBlocking) {
+    public CheckpointCoordinatorDeActivator createActivatorDeactivator(
+            boolean allTasksOutputNonBlocking) {
         synchronized (lock) {
             if (shutdown) {
                 throw new IllegalArgumentException("Checkpoint coordinator is shut down");
             }
 
-            if (jobStatusListener == null) {
-                jobStatusListener =
-                        new CheckpointCoordinatorDeActivator(this, allTasksOutputNonBlocking);
+            if (deActivator == null) {
+                if (allTasksOutputNonBlocking) {
+                    // checkpoint scheduler should only be activated in allTasksOutputNonBlocking
+                    // case (FLIP-331)
+                    deActivator = new ExecutionTrackingCheckpointCoordinatorDeActivator(this);
+                } else {
+                    deActivator = CheckpointCoordinatorDeActivator.alwaysStopping(this);
+                }
             }
 
-            return jobStatusListener;
+            return deActivator;
         }
     }
 

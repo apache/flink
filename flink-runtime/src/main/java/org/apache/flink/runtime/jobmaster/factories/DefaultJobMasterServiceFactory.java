@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.factories;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
@@ -59,6 +60,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
     private final ClassLoader userCodeClassloader;
     private final ShuffleMaster<?> shuffleMaster;
     private final Collection<FailureEnricher> failureEnrichers;
+    private final JobStatusListener singleJobApplication;
     private final long initializationTimestamp;
 
     public DefaultJobMasterServiceFactory(
@@ -74,6 +76,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
             FatalErrorHandler fatalErrorHandler,
             ClassLoader userCodeClassloader,
             Collection<FailureEnricher> failureEnrichers,
+            JobStatusListener singleJobApplication,
             long initializationTimestamp) {
         this.executor = executor;
         this.rpcService = rpcService;
@@ -88,6 +91,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
         this.userCodeClassloader = userCodeClassloader;
         this.shuffleMaster = jobManagerSharedServices.getShuffleMaster();
         this.failureEnrichers = failureEnrichers;
+        this.singleJobApplication = singleJobApplication;
         this.initializationTimestamp = initializationTimestamp;
     }
 
@@ -128,6 +132,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
                         BlocklistUtils.loadBlocklistHandlerFactory(
                                 jobMasterConfiguration.getConfiguration()),
                         failureEnrichers,
+                        singleJobApplication,
                         initializationTimestamp);
 
         jobMaster.start();

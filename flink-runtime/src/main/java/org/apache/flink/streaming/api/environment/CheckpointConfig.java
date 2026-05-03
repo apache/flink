@@ -640,6 +640,19 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointDirectory);
+        configuration
+                .getOptional(CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT)
+                .ifPresent(this::setPauseSourcesUntilFirstCheckpoint);
+    }
+
+    public void setPauseSourcesUntilFirstCheckpoint(boolean pauseCheckpointsIfTasksNotRunning) {
+        this.configuration.set(
+                CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT,
+                pauseCheckpointsIfTasksNotRunning);
+    }
+
+    public boolean isPauseSourcesUntilFirstCheckpoint() {
+        return this.configuration.get(CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT);
     }
 
     private void setCheckpointDirectory(String checkpointDirectory) {

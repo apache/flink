@@ -41,6 +41,8 @@ class CastConverter extends CustomizedConverter {
                         .createFieldTypeFromLogicalType(
                                 targetType.getOutputDataType().getLogicalType());
 
-        return context.getRelBuilder().getRexBuilder().makeAbstractCast(targetRelDataType, child);
+        return context.getRelBuilder()
+                .getRexBuilder()
+                .makeAbstractCast(targetRelDataType, child, false);
     }
 }

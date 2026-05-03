@@ -536,7 +536,7 @@ WITH (
 alter table orders2 add product string first;
 [ERROR] Could not execute SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Failed to execute ALTER TABLE statement.
-Try to add a column `product` which already exists in the table.
+Column `product` already exists in the table.
 !error
 
 # test alter table schema add a column after a nonexistent column

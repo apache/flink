@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -150,6 +151,7 @@ public class LogicalRelDataTypeConverterTest {
                 new MultisetType(VarCharType.ofEmptyLiteral()),
                 new MultisetType(BinaryType.ofEmptyLiteral()),
                 new MultisetType(VarBinaryType.ofEmptyLiteral()),
+                new BitmapType(),
                 RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                 RowType.of(
                         new LogicalType[] {

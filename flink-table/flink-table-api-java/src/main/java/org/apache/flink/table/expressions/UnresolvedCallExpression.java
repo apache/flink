@@ -34,10 +34,10 @@ import java.util.stream.Collectors;
 /**
  * Unresolved call expression for calling a function identified by a {@link FunctionDefinition}.
  *
- * <p>This is purely an API facing expression with unvalidated arguments and unknown output data
+ * <p>This is purely an API-facing expression with unvalidated arguments and unknown output data
  * type.
  *
- * <p>A unresolved call contains:
+ * <p>An unresolved call contains:
  *
  * <ul>
  *   <li>a {@link FunctionDefinition} that identifies the function to be called

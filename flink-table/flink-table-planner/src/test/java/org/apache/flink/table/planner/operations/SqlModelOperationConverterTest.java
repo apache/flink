@@ -58,9 +58,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test for testing convert model statement to operation. */
-public class SqlModelOperationConverterTest extends SqlNodeToOperationConversionTestBase {
+class SqlModelOperationConverterTest extends SqlNodeToOperationConversionTestBase {
     @Test
-    public void testCreateModel() {
+    void testCreateModel() {
         final String sql =
                 "CREATE MODEL model1 \n"
                         + "INPUT(a bigint comment 'column a', b varchar, c int, d varchar)\n"
@@ -102,7 +102,7 @@ public class SqlModelOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testDropModel() throws Exception {
+    void testDropModel() throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         if (!catalogManager.getCatalog("cat1").isPresent()) {
             catalogManager.registerCatalog("cat1", catalog);
@@ -135,7 +135,7 @@ public class SqlModelOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testDescribeModel() {
+    void testDescribeModel() {
         Operation operation = parse("DESCRIBE MODEL m1");
         assertThat(operation).isInstanceOf(DescribeModelOperation.class);
         DescribeModelOperation describeModelOperation = (DescribeModelOperation) operation;
@@ -202,7 +202,7 @@ public class SqlModelOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testAlterModel() throws Exception {
+    void testAlterModel() throws Exception {
         Catalog catalog = new GenericInMemoryCatalog("default", "default");
         if (!catalogManager.getCatalog("cat1").isPresent()) {
             catalogManager.registerCatalog("cat1", catalog);

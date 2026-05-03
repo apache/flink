@@ -88,6 +88,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "   OVERWRITING OPTIONS\n"
                                 + ")");
 
+        util.tableEnv().executeSql("CREATE TABLE retract_src2 LIKE retract_src");
+
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE upsert_src (\n"
@@ -135,7 +137,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     @TestTemplate
     void testCalc() {
         String sql =
-                String.format("insert into %s select a, b, c from append_src1", getSinkTableName());
+                String.format(
+                        "insert into %s select a, b, c from append_src1 %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -143,8 +147,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNonDeterministicFilter1() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, c from append_src1 where c < cast(now() as bigint)",
-                        getSinkTableName());
+                        "insert into %s select a, b, c from append_src1 where c < cast(now() as bigint) %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -152,8 +156,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNonDeterministicFilter2() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, c from append_src1 where a <> 1 and c < cast(now() as bigint)",
-                        getSinkTableName());
+                        "insert into %s select a, b, c from append_src1 where a <> 1 and c < cast(now() as bigint) %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -161,8 +165,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNestedNonDeterministicFilter() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, c from append_src1 where c < cast(cast(now() as int) as bigint)",
-                        getSinkTableName());
+                        "insert into %s select a, b, c from append_src1 where c < cast(cast(now() as int) as bigint) %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -170,8 +174,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNonDeterministicProjection() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, cast(now() as bigint) from append_src1",
-                        getSinkTableName());
+                        "insert into %s select a, b, cast(now() as bigint) from append_src1 %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -179,8 +183,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNestedNonDeterministicProjection() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, cast(cast(now() as int) as bigint) from append_src1",
-                        getSinkTableName());
+                        "insert into %s select a, b, cast(cast(now() as int) as bigint) from append_src1 %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -214,8 +218,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                 String.format(
                         "insert into %s select a, max(b), max(c) "
                                 + "from TABLE(TUMBLE(TABLE append_src1, DESCRIPTOR(rt), INTERVAL '1' MINUTE)) "
-                                + "group by a, window_start, window_end",
-                        getSinkTableName());
+                                + "group by a, window_start, window_end "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -231,7 +236,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + ") LIKE pk_upsert_snk");
         String sql =
                 "insert into pk_upsert_snk_with_time_col select a, b, c, window_start, window_end "
-                        + "from TABLE(TUMBLE(TABLE append_src1, DESCRIPTOR(rt), INTERVAL '1' MINUTE))";
+                        + "from TABLE(TUMBLE(TABLE append_src1, DESCRIPTOR(rt), INTERVAL '1' MINUTE)) "
+                        + "on conflict do deduplicate";
         verifyRelPlanInsert(sql);
     }
 
@@ -316,7 +322,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "  EXCLUDING CONSTRAINTS\n"
                                 + ")");
 
-        String sql = "insert into another_pk_upsert_snk select a, b, c from retract_src";
+        String sql =
+                "insert into another_pk_upsert_snk select a, b, c from retract_src on conflict do deduplicate";
         verifyRelPlanInsert(sql);
     }
 
@@ -337,13 +344,42 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     }
 
     @TestTemplate
-    void testJoin() {
+    void testJoinWithInsertOnly() {
         String sql =
                 String.format(
                         "insert into %s select T1.a, T2.b, T1.c "
                                 + "from append_src1 T1 join append_src2 T2 "
-                                + "on T1.a = T2.a",
-                        getSinkTableName());
+                                + "on T1.a = T2.a "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
+        verifyRelPlanInsert(sql);
+    }
+
+    @TestTemplate
+    void testJoinWithUpdateBefore() {
+        assumeTrue(testSinkWithPk);
+
+        String sql =
+                String.format(
+                        "insert into %s select T1.a, T2.b, T1.c "
+                                + "from retract_src T1 join retract_src2 T2 "
+                                + "on T1.a = T2.a and T1.b = T2.b "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
+        verifyRelPlanInsert(sql);
+    }
+
+    @TestTemplate
+    void testUpsertJoinWithOnlyUpdateAfter() {
+        assumeTrue(testSinkWithPk);
+
+        String sql =
+                String.format(
+                        "insert into %s select T1.a, T2.b, T1.c "
+                                + "from retract_src T1 join retract_src2 T2 "
+                                + "on T1.a = T2.a "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -359,8 +395,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + ") T1 join ("
                                 + "   select * from TABLE(TUMBLE(TABLE append_src2, DESCRIPTOR(rt), INTERVAL '1' MINUTES))"
                                 + ") T2 "
-                                + "on T1.a = T2.a and T1.window_start = T2.window_start and T1.window_end = T2.window_end",
-                        getSinkTableName());
+                                + "on T1.a = T2.a and T1.window_start = T2.window_start and T1.window_end = T2.window_end "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -374,8 +411,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "from append_src1 T1 join append_src2 T2 "
                                 + "on T1.a = T2.a and "
                                 + "  T1.rt > T2.rt - INTERVAL '1' MINUTES and "
-                                + "  T1.rt < T2.rt + INTERVAL '1' MINUTES",
-                        getSinkTableName());
+                                + "  T1.rt < T2.rt + INTERVAL '1' MINUTES "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -383,8 +421,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testLimit() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, c from append_src1 limit 10",
-                        getSinkTableName());
+                        "insert into %s select a, b, c from append_src1 limit 10 %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -406,8 +444,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "   select *, proctime() as pt from append_src1 "
                                 + ") T1 "
                                 + "join dim_src FOR SYSTEM_TIME AS OF T1.pt AS T2 "
-                                + "on T1.a = T2.a",
-                        getSinkTableName());
+                                + "on T1.a = T2.a "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -428,8 +467,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "   select *, proctime() as pt from append_src1 "
                                 + ") T1 "
                                 + "join dim_src FOR SYSTEM_TIME AS OF T1.pt AS T2 "
-                                + "on T1.a = T2.a",
-                        getSinkTableName());
+                                + "on T1.a = T2.a "
+                                + "%s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -437,8 +477,8 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testUnion() {
         String sql =
                 String.format(
-                        "insert into %s select a, b, c from append_src1 union all select a, b, c from append_src2",
-                        getSinkTableName());
+                        "insert into %s select a, b, c from append_src1 union all select a, b, c from append_src2 %s",
+                        getSinkTableName(), getOnConflictIfSinkWithPk());
         verifyRelPlanInsert(sql);
     }
 
@@ -458,9 +498,10 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
         // right: disallow
         // merged: disallow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
-        stmtSet.addInsertSql("insert into pk_upsert_snk select a, b, c/2 from my_view");
         stmtSet.addInsertSql(
-                "insert into pk_upsert_snk2 select a, max(b), sum(c) from my_view group by a");
+                "insert into pk_upsert_snk select a, b, c/2 from my_view on conflict do deduplicate");
+        stmtSet.addInsertSql(
+                "insert into pk_upsert_snk2 select a, max(b), sum(c) from my_view group by a on conflict do deduplicate");
         verifyRelPlanInsert(stmtSet);
     }
 
@@ -482,8 +523,9 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
         // merged: disallow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
         stmtSet.addInsertSql(
-                "insert into pk_upsert_snk select a, max(b), sum(c) from my_view group by a");
-        stmtSet.addInsertSql("insert into pk_upsert_snk2 select a, b, c/2 from my_view");
+                "insert into pk_upsert_snk select a, max(b), sum(c) from my_view group by a on conflict do deduplicate");
+        stmtSet.addInsertSql(
+                "insert into pk_upsert_snk2 select a, b, c/2 from my_view on conflict do deduplicate");
         verifyRelPlanInsert(stmtSet);
     }
 
@@ -504,8 +546,10 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
         // right: allow
         // merged: allow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
-        stmtSet.addInsertSql("insert into pk_upsert_snk select a, b, c/3 from my_view");
-        stmtSet.addInsertSql("insert into pk_upsert_snk2 select a, b, c/2 from my_view");
+        stmtSet.addInsertSql(
+                "insert into pk_upsert_snk select a, b, c/3 from my_view on conflict do deduplicate");
+        stmtSet.addInsertSql(
+                "insert into pk_upsert_snk2 select a, b, c/2 from my_view on conflict do deduplicate");
         verifyRelPlanInsert(stmtSet);
     }
 
@@ -568,6 +612,10 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
 
     private String getSinkTableName() {
         return testSinkWithPk ? "pk_upsert_snk" : "no_pk_snk";
+    }
+
+    private String getOnConflictIfSinkWithPk() {
+        return testSinkWithPk ? "on conflict do deduplicate" : "";
     }
 
     private void enableMiniBatch() {

@@ -29,7 +29,8 @@ export const JOB_MODULE_DEFAULT_CONFIG: Required<JobModuleConfig> = {
     { title: 'Data Skew', path: 'dataskew' },
     { title: 'TimeLine', path: 'timeline' },
     { title: 'Checkpoints', path: 'checkpoints' },
-    { title: 'Configuration', path: 'configuration' }
+    { title: 'Configuration', path: 'configuration' },
+    { title: 'Rescales', path: 'rescales' }
   ]
 };
 

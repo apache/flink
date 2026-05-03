@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.2-SNAPSHOT</version>
+		<version>2.4-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-tests-java17</artifactId>
@@ -32,6 +32,10 @@
 	<description>Module that collects Java 17-specific test code.</description>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<source.java.version>17</source.java.version>
+	</properties>
 
 	<dependencies>
 		<!-- For Java record (de)serialization -->
@@ -59,6 +63,21 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- For Table API Java record type extraction -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 		<!-- Base testing tools -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -75,6 +94,13 @@
 				<artifactId>maven-checkstyle-plugin</artifactId>
 				<configuration>
 					<suppressionsLocation>/tools/maven/suppressions-tests-java17.xml</suppressionsLocation>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>${source.java.version}</source>
 				</configuration>
 			</plugin>
 		</plugins>

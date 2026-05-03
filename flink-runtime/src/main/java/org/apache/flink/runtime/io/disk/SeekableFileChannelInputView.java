@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.io.disk;
 
+import org.apache.flink.core.memory.AbstractPagedInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MathUtils;
 

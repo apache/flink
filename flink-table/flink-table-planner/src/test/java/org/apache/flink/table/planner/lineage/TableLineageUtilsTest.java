@@ -54,7 +54,8 @@ class TableLineageUtilsTest {
                             Column.physical("c", DataTypes.BOOLEAN())),
                     Collections.emptyList(),
                     null,
-                    Collections.emptyList());
+                    Collections.emptyList(),
+                    null);
     private static final Schema CATALOG_TABLE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CATALOG_TABLE_RESOLVED_SCHEMA).build();
     private static final Map<String, String> TABLE_OPTIONS = new HashMap<>();

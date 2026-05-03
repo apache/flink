@@ -1,0 +1,49 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.history;
+
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Tests for the {@link FsJsonArchivist}. */
+class FsJsonArchivistTest {
+
+    @Test
+    void testArchiveJsons(@TempDir File tmpFolder) throws Exception {
+        final Path tmpPath = new Path(tmpFolder.getAbsolutePath(), "test-file");
+
+        final Collection<ArchivedJson> toArchive = new ArrayList<>(2);
+        toArchive.add(new ArchivedJson("dir1", "hello"));
+        toArchive.add(new ArchivedJson("dir1/dir11", "world"));
+
+        FsJsonArchivist.writeArchivedJsons(tmpPath, toArchive);
+        final Collection<ArchivedJson> restored = FsJsonArchivist.readArchivedJsons(tmpPath);
+
+        assertThat(restored).containsExactlyElementsOf(toArchive);
+    }
+}

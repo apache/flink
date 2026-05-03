@@ -203,7 +203,7 @@ class PartitionableSourceITCase extends BatchTestBase {
     tEnv
       .asInstanceOf[TestingTableEnvironment]
       .getResourceManager
-      .registerJarResources(
+      .registerResources(
         Collections.singletonList(new ResourceUri(ResourceType.JAR, udfJarFile.toURI.toString)))
 
     tEnv.executeSql("create temporary function trimUDF as 'TrimUDF'")

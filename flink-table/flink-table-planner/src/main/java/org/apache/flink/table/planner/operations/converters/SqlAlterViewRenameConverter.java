@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterViewRename;
+import org.apache.flink.sql.parser.ddl.view.SqlAlterViewRename;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
@@ -34,7 +34,7 @@ public class SqlAlterViewRenameConverter implements SqlNodeConverter<SqlAlterVie
         validateAlterView(alterView, context);
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
-                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullViewName()));
+                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
         ObjectIdentifier newViewIdentifier =
                 context.getCatalogManager()
                         .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullNewViewName()));

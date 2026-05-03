@@ -113,8 +113,9 @@ class AbstractUdfStreamOperatorLifecycleTest {
 
     private static final String ALL_METHODS_RICH_FUNCTION =
             "[close[], getIterationRuntimeContext[], getRuntimeContext[]"
-                    + ", open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
-                    + "org.apache.flink.api.common.functions.RuntimeContext]]";
+                    + ", open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface"
+                    + " org.apache.flink.api.common.functions.RuntimeContext]"
+                    + ", useInterruptibleTimers[interface org.apache.flink.configuration.ReadableConfig]]";
 
     private static final List<String> ACTUAL_ORDER_TRACKING =
             Collections.synchronizedList(new ArrayList<String>(EXPECTED_CALL_ORDER_FULL.size()));

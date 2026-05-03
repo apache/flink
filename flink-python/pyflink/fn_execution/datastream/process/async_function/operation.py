@@ -23,6 +23,7 @@ from typing import TypeVar, Generic, List, Iterable, Callable, Optional
 
 from pyflink.datastream import RuntimeContext
 from pyflink.datastream.functions import AsyncFunctionDescriptor, AsyncRetryStrategy
+from pyflink.fn_execution.datastream.operations import AsyncOperationMixin
 from pyflink.fn_execution.datastream.process.async_function.queue import \
     UnorderedStreamElementQueue, StreamElementQueue, OrderedStreamElementQueue, ResultFuture
 from pyflink.fn_execution.datastream.process.operations import Operation
@@ -289,7 +290,7 @@ class AsyncFunctionRunner(threading.Thread):
         asyncio.run_coroutine_threadsafe(wrapped_function, self._loop)
 
 
-class AsyncOperation(Operation):
+class AsyncOperation(Operation, AsyncOperationMixin):
     def __init__(self, serialized_fn, operator_state_backend):
         super(AsyncOperation, self).__init__(serialized_fn, operator_state_backend)
         (

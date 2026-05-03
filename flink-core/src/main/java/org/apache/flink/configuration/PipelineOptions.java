@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig.ClosureCleanerLevel;
 import org.apache.flink.configuration.description.Description;
@@ -328,4 +329,28 @@ public class PipelineOptions {
                                     + "while still using watermark alignment, set this parameter to true. "
                                     + "The default value is false. Note: This parameter may be "
                                     + "removed in future releases.");
+
+    @Experimental
+    public static final ConfigOption<Integer> WATERMARK_ALIGNMENT_BUFFER_SIZE =
+            key("pipeline.watermark-alignment.buffer-size")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "Controls size of the ring buffer used to smooth out watermark alignment "
+                                    + "due to the inherent latency of the alignment process. Allowed watermarks "
+                                    + "are announced at the updateInterval and this means they are often out of date "
+                                    + "after the round trip, which means that watermark alignment might be pausing splits too much using this outdated information. "
+                                    + "To address this problem, when pausing consumption of records, "
+                                    + "max allowed watermark is not checked against the latest value of the watermark in "
+                                    + "any given split/source, but against the oldest value in the ring buffer, that is "
+                                    + "updated at every updateInterval. This is the config option that controls "
+                                    + "the size of the ring buffer. The default buffer size is 3. Buffer size of 1 "
+                                    + "can result in under utilised job's resources when processing backlog of records. "
+                                    + "Size of the buffer de facto delays the application of the watermark alignment "
+                                    + "process by that many updateIntervals. With the default size 3, splits can produce "
+                                    + "arbitrary amount of records for the duration of 3 * updateInterval before watermark "
+                                    + "alignment might pause them. You can set the watermarkBufferSize to 0 to restore "
+                                    + "pre Flink 2.3 behaviour with sampling disabled and always using the latest watermark. "
+                                    + "The default value of 3 has been chosen to cover the round trip delay of watermark alignment "
+                                    + "that is equal to 2 updateIntervals plus one more to cover for network/GC or other hiccups. ");
 }

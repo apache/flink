@@ -31,8 +31,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.disk.RandomAccessInputView;
-import org.apache.flink.runtime.io.disk.RandomAccessOutputView;
+import org.apache.flink.core.memory.RandomAccessInputView;
+import org.apache.flink.core.memory.RandomAccessOutputView;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
@@ -52,6 +52,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
@@ -1147,5 +1148,24 @@ class BinaryRowDataTest {
 
         assertThat(row.getVariant(0)).isEqualTo(v1);
         assertThat(row.getVariant(1)).isEqualTo(v2);
+    }
+
+    @Test
+    public void testBitmap() {
+        BinaryRowData row = new BinaryRowData(3);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+
+        Bitmap bm1 = Bitmap.empty();
+        bm1.add(1L, 100L);
+        Bitmap bm2 = Bitmap.empty();
+        bm2.add(0xFFFF + 1);
+        writer.setNullAt(0);
+        writer.writeBitmap(1, bm1);
+        writer.writeBitmap(2, bm2);
+        writer.complete();
+
+        assertThat(row.isNullAt(0)).isTrue();
+        assertThat(row.getBitmap(1)).isEqualTo(bm1);
+        assertThat(row.getBitmap(2)).isEqualTo(bm2);
     }
 }

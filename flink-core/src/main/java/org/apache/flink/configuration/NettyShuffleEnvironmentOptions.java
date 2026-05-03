@@ -325,6 +325,34 @@ public class NettyShuffleEnvironmentOptions {
                                             code(NETWORK_REQUEST_BACKOFF_MAX.key()))
                                     .build());
 
+    /** Whether to improve the rebalance and rescale partitioners to adaptive partition. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Boolean> ADAPTIVE_PARTITIONER_ENABLED =
+            key("taskmanager.network.adaptive-partitioner.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable adaptive partitioner feature for rescale and rebalance partitioners based on the load of the downstream tasks.");
+
+    /**
+     * Maximum number of channels to traverse when looking for the most idle channel for rescale and
+     * rebalance partitioners when {@link #ADAPTIVE_PARTITIONER_ENABLED} is true.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE =
+            key("taskmanager.network.adaptive-partitioner.max-traverse-size")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Maximum number of channels to traverse when looking for the most idle channel for rescale and rebalance partitioners when %s is enabled.",
+                                            code(ADAPTIVE_PARTITIONER_ENABLED.key()))
+                                    .linebreak()
+                                    .text(
+                                            "Note, the value of the configuration option must be greater than `1`.")
+                                    .build());
+
     // ------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */

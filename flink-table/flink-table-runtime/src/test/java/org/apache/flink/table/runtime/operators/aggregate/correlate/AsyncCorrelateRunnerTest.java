@@ -40,7 +40,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,10 +53,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests {@link AsyncCorrelateRunner}. */
-public class AsyncCorrelateRunnerTest {
+class AsyncCorrelateRunnerTest {
 
     @Test
-    public void testRows() throws Exception {
+    void testRows() throws Exception {
         TestResultFuture resultFuture = new TestResultFuture();
         AsyncCorrelateRunner runner =
                 new AsyncCorrelateRunner(
@@ -84,7 +84,7 @@ public class AsyncCorrelateRunnerTest {
     }
 
     @Test
-    public void testException() throws Exception {
+    void testException() throws Exception {
         TestResultFuture resultFuture = new TestResultFuture();
         AsyncCorrelateRunner runner =
                 new AsyncCorrelateRunner(

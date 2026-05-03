@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -44,7 +44,7 @@ class PhysicalSlotRequestUtils {
                         Collections.emptyList(),
                         preferredAllocations,
                         Collections.emptySet()),
-                DefaultLoadingWeight.EMPTY,
+                DefaultTaskExecutionLoad.EMPTY,
                 true);
     }
 
@@ -71,7 +71,7 @@ class PhysicalSlotRequestUtils {
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet()),
-                DefaultLoadingWeight.EMPTY,
+                DefaultTaskExecutionLoad.EMPTY,
                 false);
     }
 }

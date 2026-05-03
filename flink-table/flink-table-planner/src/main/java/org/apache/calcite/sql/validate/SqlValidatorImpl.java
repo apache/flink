@@ -189,15 +189,15 @@ import static org.apache.calcite.util.Util.first;
  *
  * <p>Lines 5357 ~ 5363, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  *
- * <p>Lines 5782-5784, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5784-5786, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 5838-5840, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 5840-5842, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
  *
  * <p>Lines 7267-7290, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7335-7352, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 7337-7354, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7397-7405, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 7399-7407, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -788,7 +788,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         return 0;
     }
 
-    private SqlNode maybeCast(SqlNode node, RelDataType currentType, RelDataType desiredType) {
+    protected SqlNode maybeCast(SqlNode node, RelDataType currentType, RelDataType desiredType) {
         return SqlTypeUtil.equalSansNullability(typeFactory, currentType, desiredType)
                 ? node
                 : SqlStdOperatorTable.CAST.createCall(
@@ -2593,16 +2593,18 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 // in order to make visible the left items
                 // of the JOIN tree.
                 scopes.put(node, usingScope);
-                registerFrom(
-                        parentScope,
-                        usingScope,
-                        register,
-                        ((SqlCall) node).operand(0),
-                        enclosingNode,
-                        alias,
-                        extendList,
-                        forceNullable,
-                        true);
+                newOperand =
+                        registerFrom(
+                                parentScope,
+                                usingScope,
+                                register,
+                                ((SqlCall) node).operand(0),
+                                enclosingNode,
+                                alias,
+                                extendList,
+                                forceNullable,
+                                true);
+                sbc.setOperand(0, newOperand);
                 return sbc;
             // ----- FLINK MODIFICATION END -----
 

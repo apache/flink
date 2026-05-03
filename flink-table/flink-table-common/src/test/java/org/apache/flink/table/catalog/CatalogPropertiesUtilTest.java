@@ -20,7 +20,9 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.api.Test;
@@ -118,6 +120,7 @@ class CatalogPropertiesUtilTest {
                         .column("f2", DataTypes.STRING().getLogicalType().asSerializableString())
                         .primaryKey("f1")
                         .indexNamed("f1", Collections.singletonList("f1"))
+                        .immutableColumns("f2")
                         .build();
 
         final TableDistribution hashDist =
@@ -135,8 +138,12 @@ class CatalogPropertiesUtilTest {
         List<Index> indexes =
                 Collections.singletonList(
                         DefaultIndex.newIndex("f1", Collections.singletonList("f1")));
+        final ImmutableColumnsConstraint immutableColumns =
+                ImmutableColumnsConstraint.immutableColumns(
+                        "IMMUTABLE_COLUMNS_f2", Collections.singletonList("f2"));
         final ResolvedSchema resolvedSchema =
-                new ResolvedSchema(columns, Collections.emptyList(), primaryKey, indexes);
+                new ResolvedSchema(
+                        columns, Collections.emptyList(), primaryKey, indexes, immutableColumns);
 
         return Stream.of(
                 new ResolvedCatalogTable(
@@ -158,16 +165,17 @@ class CatalogPropertiesUtilTest {
                                 .schema(schema)
                                 .comment("some comment")
                                 .distribution(unknownDist)
-                                .definitionQuery("SELECT 1, 'two'")
-                                .freshness(IntervalFreshness.ofHour("123"))
-                                .logicalRefreshMode(
-                                        CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS)
-                                .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
-                                .refreshStatus(CatalogMaterializedTable.RefreshStatus.ACTIVATED)
+                                .originalQuery("SELECT 1, 'two'")
+                                .expandedQuery("SELECT 1, 'two'")
+                                .freshness(IntervalFreshness.ofHour(123))
+                                .logicalRefreshMode(LogicalRefreshMode.CONTINUOUS)
+                                .refreshMode(RefreshMode.CONTINUOUS)
+                                .refreshStatus(RefreshStatus.ACTIVATED)
                                 .refreshHandlerDescription("description")
                                 .build(),
                         resolvedSchema,
                         RefreshMode.CONTINUOUS,
-                        IntervalFreshness.ofHour("123")));
+                        IntervalFreshness.ofHour(123),
+                        StartMode.of(StartMode.StartModeKind.FROM_BEGINNING)));
     }
 }

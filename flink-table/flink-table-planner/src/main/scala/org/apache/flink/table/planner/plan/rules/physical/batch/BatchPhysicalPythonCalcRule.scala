@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalPythonCalc
+import org.apache.flink.table.planner.plan.utils.AsyncUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -35,7 +36,8 @@ class BatchPhysicalPythonCalcRule(config: Config) extends ConverterRule(config) 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
-    program.getExprList.asScala.exists(containsPythonCall(_))
+    program.getExprList.asScala.exists(containsPythonCall(_)) && program.getExprList.stream
+      .noneMatch(AsyncUtil.containsAsyncCall)
   }
 
   def convert(rel: RelNode): RelNode = {

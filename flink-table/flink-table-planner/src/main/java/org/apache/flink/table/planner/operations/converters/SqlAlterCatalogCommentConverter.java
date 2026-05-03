@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterCatalogComment;
+import org.apache.flink.sql.parser.ddl.catalog.SqlAlterCatalogComment;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterCatalogCommentOperation;
-
-import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.util.NlsString;
 
 /** A converter for {@link SqlAlterCatalogComment}. */
 public class SqlAlterCatalogCommentConverter implements SqlNodeConverter<SqlAlterCatalogComment> {
@@ -32,9 +29,6 @@ public class SqlAlterCatalogCommentConverter implements SqlNodeConverter<SqlAlte
     public Operation convertSqlNode(
             SqlAlterCatalogComment sqlAlterCatalogComment, ConvertContext context) {
         return new AlterCatalogCommentOperation(
-                sqlAlterCatalogComment.catalogName(),
-                ((SqlCharStringLiteral) sqlAlterCatalogComment.getComment())
-                        .getValueAs(NlsString.class)
-                        .getValue());
+                sqlAlterCatalogComment.catalogName(), sqlAlterCatalogComment.getComment());
     }
 }

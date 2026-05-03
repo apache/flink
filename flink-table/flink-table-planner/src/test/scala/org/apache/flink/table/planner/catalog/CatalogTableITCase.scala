@@ -595,7 +595,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => tableEnv.executeSql(query).await())
-      .withMessageContaining("Incompatible types for sink column 'c' at position 1.")
+      .withMessageContaining("Incompatible types for sink column 'c' at position 2.")
   }
 
   @TestTemplate

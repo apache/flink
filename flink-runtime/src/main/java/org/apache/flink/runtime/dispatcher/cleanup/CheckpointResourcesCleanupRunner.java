@@ -190,11 +190,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
 
     @Override
     public CompletableFuture<JobDetails> requestJobDetails(Duration timeout) {
-        return requestJob(timeout)
-                .thenApply(
-                        executionGraphInfo ->
-                                JobDetails.createDetailsForJob(
-                                        executionGraphInfo.getArchivedExecutionGraph()));
+        return requestJob(timeout).thenApply(JobDetails::createDetailsForJob);
     }
 
     @Override
@@ -216,19 +212,13 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
     }
 
     private static JobStatus getJobStatus(JobResult jobResult) {
-        return jobResult.getApplicationStatus().deriveJobStatus();
+        return jobResult.getJobStatus().orElseThrow();
     }
 
     private static ExecutionGraphInfo generateExecutionGraphInfo(
             JobResult jobResult, long initializationTimestamp) {
         return new ExecutionGraphInfo(
                 ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                        jobResult.getJobId(),
-                        "unknown",
-                        getJobStatus(jobResult),
-                        null,
-                        jobResult.getSerializedThrowable().orElse(null),
-                        null,
-                        initializationTimestamp));
+                        jobResult, initializationTimestamp));
     }
 }

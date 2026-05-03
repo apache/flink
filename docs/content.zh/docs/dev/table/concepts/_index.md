@@ -1,7 +1,8 @@
 ---
-title: 流式概念
-bookCollapseSection: true
-weight: 4
+title: "Concepts"
+layout: redirect
+redirect_to: /docs/concepts/sql-table-concepts/
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

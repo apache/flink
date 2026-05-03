@@ -36,26 +36,30 @@ public class DefaultMaterializedTableEnricher implements MaterializedTableEnrich
     private final IntervalFreshness defaultContinuousFreshness;
     private final IntervalFreshness defaultFullFreshness;
     private final Duration freshnessThreshold;
+    private final StartMode defaultStartMode;
 
     public static DefaultMaterializedTableEnricher create(
             final Duration defaultContinuousFreshness,
             final Duration defaultFullFreshness,
-            final Duration freshnessThreshold) {
+            final Duration freshnessThreshold,
+            final StartMode defaultStartMode) {
         final IntervalFreshness continuousFreshness =
                 IntervalFreshness.fromDuration(defaultContinuousFreshness);
         final IntervalFreshness fullFreshness =
                 IntervalFreshness.fromDuration(defaultFullFreshness);
         return new DefaultMaterializedTableEnricher(
-                continuousFreshness, fullFreshness, freshnessThreshold);
+                continuousFreshness, fullFreshness, freshnessThreshold, defaultStartMode);
     }
 
     private DefaultMaterializedTableEnricher(
             final IntervalFreshness defaultContinuousFreshness,
             final IntervalFreshness defaultFullFreshness,
-            final Duration freshnessThreshold) {
+            final Duration freshnessThreshold,
+            final StartMode startMode) {
         this.defaultContinuousFreshness = defaultContinuousFreshness;
         this.defaultFullFreshness = defaultFullFreshness;
         this.freshnessThreshold = freshnessThreshold;
+        this.defaultStartMode = startMode;
     }
 
     @Override
@@ -68,7 +72,8 @@ public class DefaultMaterializedTableEnricher implements MaterializedTableEnrich
                 deriveRefreshMode(
                         table.getLogicalRefreshMode(), finalFreshness, freshnessThreshold);
 
-        return new MaterializedTableEnrichmentResult(finalFreshness, finalRefreshMode);
+        final StartMode startMode = deriveStartMode(table);
+        return new MaterializedTableEnrichmentResult(finalFreshness, finalRefreshMode, startMode);
     }
 
     /**
@@ -111,5 +116,9 @@ public class DefaultMaterializedTableEnricher implements MaterializedTableEnrich
         // Validate that freshness can be converted to cron for FULL mode
         IntervalFreshness.validateFreshnessForCron(freshness);
         return RefreshMode.FULL;
+    }
+
+    private StartMode deriveStartMode(final CatalogMaterializedTable table) {
+        return table.getStartMode().orElse(defaultStartMode);
     }
 }

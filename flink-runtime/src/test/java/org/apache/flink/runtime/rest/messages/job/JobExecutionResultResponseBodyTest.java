@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -64,7 +64,7 @@ public class JobExecutionResultResponseBodyTest
                         JobExecutionResultResponseBody.created(
                                 new JobResult.Builder()
                                         .jobId(TEST_JOB_ID)
-                                        .applicationStatus(ApplicationStatus.SUCCEEDED)
+                                        .jobStatus(JobStatus.FINISHED)
                                         .netRuntime(TEST_NET_RUNTIME)
                                         .accumulatorResults(TEST_ACCUMULATORS)
                                         .serializedThrowable(
@@ -76,7 +76,7 @@ public class JobExecutionResultResponseBodyTest
                         JobExecutionResultResponseBody.created(
                                 new JobResult.Builder()
                                         .jobId(TEST_JOB_ID)
-                                        .applicationStatus(ApplicationStatus.FAILED)
+                                        .jobStatus(JobStatus.FAILED)
                                         .netRuntime(TEST_NET_RUNTIME)
                                         .accumulatorResults(TEST_ACCUMULATORS)
                                         .build())
@@ -117,8 +117,8 @@ public class JobExecutionResultResponseBodyTest
 
             assertThat(actualJobExecutionResult.getJobId())
                     .isEqualTo(expectedJobExecutionResult.getJobId());
-            assertThat(actualJobExecutionResult.getApplicationStatus())
-                    .isEqualTo(expectedJobExecutionResult.getApplicationStatus());
+            assertThat(actualJobExecutionResult.getJobStatus())
+                    .isEqualTo(expectedJobExecutionResult.getJobStatus());
             assertThat(actualJobExecutionResult.getNetRuntime())
                     .isEqualTo(expectedJobExecutionResult.getNetRuntime());
             assertThat(actualJobExecutionResult.getAccumulatorResults())

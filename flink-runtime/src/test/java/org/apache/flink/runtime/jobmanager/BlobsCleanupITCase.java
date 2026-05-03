@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -29,7 +30,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -207,14 +207,14 @@ public class BlobsCleanupITCase extends TestLogger {
                 // then the tasks will fail again and the restart strategy will finalise the job
                 final JobResult jobResult = resultFuture.get();
                 assertThat(jobResult.isSuccess(), is(false));
-                assertThat(jobResult.getApplicationStatus(), is(ApplicationStatus.FAILED));
+                assertThat(jobResult.getJobStatus().orElse(null), is(JobStatus.FAILED));
             } else if (testCase == TestCase.JOB_IS_CANCELLED) {
 
                 miniCluster.cancelJob(jid);
 
                 final JobResult jobResult = resultFuture.get();
                 assertThat(jobResult.isSuccess(), is(false));
-                assertThat(jobResult.getApplicationStatus(), is(ApplicationStatus.CANCELED));
+                assertThat(jobResult.getJobStatus().orElse(null), is(JobStatus.CANCELED));
             } else {
                 final JobResult jobResult = resultFuture.get();
                 Throwable cause =

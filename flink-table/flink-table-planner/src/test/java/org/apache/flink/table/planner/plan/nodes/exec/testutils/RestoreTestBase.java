@@ -205,6 +205,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                                                                                         savepointPath))));
     }
 
+    // ====================================================================================
+    // Extension points for adjusting test combinations
+    // ====================================================================================
+
+    /**
+     * Can be overridden with a collection of programs that should be ignored for a particular
+     * version of the node under test.
+     */
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        return Collections.emptyMap();
+    }
+
     /**
      * The method can be overridden in a subclass to test multiple savepoint files for a given
      * program and a node in a particular version. This can be useful e.g. to test a node against
@@ -212,9 +224,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
      */
     protected Stream<String> getSavepointPaths(
             TableTestProgram program, ExecNodeMetadata metadata) {
-        return Stream.of(getSavepointPath(program, metadata, null));
+        if (programsToIgnore()
+                .getOrDefault(metadata.version(), Collections.emptyList())
+                .contains(program)) {
+            return Stream.empty();
+        } else {
+            return Stream.of(getSavepointPath(program, metadata, null));
+        }
     }
 
+    /** Can be used in {@link #getSavepointPaths(TableTestProgram, ExecNodeMetadata)}. */
     protected final String getSavepointPath(
             TableTestProgram program,
             ExecNodeMetadata metadata,
@@ -228,6 +247,10 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
         return builder.toString();
     }
+
+    // ====================================================================================
+    // End of extension points
+    // ====================================================================================
 
     private void registerSinkObserver(
             final List<CompletableFuture<?>> futures,
@@ -244,7 +267,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     if (!ignoreAfter) {
                         expected.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
-                    final List<String> actual = getExpectedResults(sinkTestStep, tableName);
+                    final List<String> actual = getActualResults(sinkTestStep, tableName);
                     final boolean shouldComplete =
                             CollectionUtils.isEqualCollection(actual, expected);
                     if (shouldComplete) {
@@ -278,6 +301,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             options.put("data-id", id);
             options.put("terminating", "false");
             options.put("runtime-source", "NewSource");
+            enablePerRecordWatermarks(sourceTestStep, options);
             sourceTestStep.apply(tEnv, options);
         }
 
@@ -355,11 +379,22 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     afterRestoreSource == AfterRestoreSource.NO_RESTORE
                             ? sourceTestStep.dataBeforeRestore
                             : sourceTestStep.dataAfterRestore;
+
             final String id = TestValuesTableFactory.registerData(data);
+
+            if (sourceTestStep.treatDataBeforeRestoreAsConsumedData) {
+                final Collection<Row> consumedData =
+                        afterRestoreSource == AfterRestoreSource.NO_RESTORE
+                                ? Collections.emptyList()
+                                : sourceTestStep.dataBeforeRestore;
+                TestValuesTableFactory.registerConsumedData(consumedData, id);
+            }
+
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
             options.put("runtime-source", "NewSource");
+            enablePerRecordWatermarks(sourceTestStep, options);
             if (afterRestoreSource == AfterRestoreSource.INFINITE) {
                 options.put("terminating", "false");
             }
@@ -401,18 +436,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         } else {
             compiledPlan.execute().await();
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-                List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
-                assertThat(expectedResults)
+                List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);
+                assertThat(actualResults)
                         .as("%s", program.id)
                         .containsExactlyInAnyOrder(
-                                Stream.concat(
-                                                sinkTestStep
-                                                        .getExpectedBeforeRestoreAsStrings()
-                                                        .stream(),
-                                                sinkTestStep
-                                                        .getExpectedAfterRestoreAsStrings()
-                                                        .stream())
-                                        .toArray(String[]::new));
+                                sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
             }
         }
     }
@@ -428,11 +456,23 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
     }
 
-    private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
+    private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
         if (sinkTestStep.shouldTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
             return TestValuesTableFactory.getResultsAsStrings(tableName);
+        }
+    }
+
+    private static void enablePerRecordWatermarks(
+            SourceTestStep sourceTestStep, Map<String, String> options) {
+        // This is in sync with SemanticTestBase and is a better default for time-based testing
+        // because processing-time watermark emission would otherwise lead to flaky tests.
+        // Restore tests that fail with this setting can override it in the test program.
+        if (sourceTestStep.schemaComponents.stream().anyMatch(c -> c.startsWith("WATERMARK FOR"))) {
+            options.put("disable-lookup", "true");
+            options.put("enable-watermark-push-down", "true");
+            options.put("scan.watermark.emit.strategy", "on-event");
         }
     }
 }

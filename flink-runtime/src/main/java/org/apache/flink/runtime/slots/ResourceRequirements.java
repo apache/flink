@@ -17,6 +17,8 @@
 
 package org.apache.flink.runtime.slots;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.Preconditions;
 
@@ -35,21 +37,29 @@ public class ResourceRequirements implements Serializable {
 
     private final JobID jobId;
 
+    private final ApplicationID applicationId;
+
     private final String targetAddress;
 
     private final Collection<ResourceRequirement> resourceRequirements;
 
     private ResourceRequirements(
             JobID jobId,
+            ApplicationID applicationId,
             String targetAddress,
             Collection<ResourceRequirement> resourceRequirements) {
         this.jobId = Preconditions.checkNotNull(jobId);
+        this.applicationId = Preconditions.checkNotNull(applicationId);
         this.targetAddress = Preconditions.checkNotNull(targetAddress);
         this.resourceRequirements = Preconditions.checkNotNull(resourceRequirements);
     }
 
     public JobID getJobId() {
         return jobId;
+    }
+
+    public ApplicationID getApplicationId() {
+        return applicationId;
     }
 
     public String getTargetAddress() {
@@ -60,15 +70,26 @@ public class ResourceRequirements implements Serializable {
         return resourceRequirements;
     }
 
+    @VisibleForTesting
     public static ResourceRequirements create(
             JobID jobId,
             String targetAddress,
             Collection<ResourceRequirement> resourceRequirements) {
-        return new ResourceRequirements(jobId, targetAddress, resourceRequirements);
+        return create(jobId, new ApplicationID(), targetAddress, resourceRequirements);
     }
 
-    public static ResourceRequirements empty(JobID jobId, String targetAddress) {
-        return new ResourceRequirements(jobId, targetAddress, Collections.emptyList());
+    public static ResourceRequirements create(
+            JobID jobId,
+            ApplicationID applicationId,
+            String targetAddress,
+            Collection<ResourceRequirement> resourceRequirements) {
+        return new ResourceRequirements(jobId, applicationId, targetAddress, resourceRequirements);
+    }
+
+    public static ResourceRequirements empty(
+            JobID jobId, ApplicationID applicationId, String targetAddress) {
+        return new ResourceRequirements(
+                jobId, applicationId, targetAddress, Collections.emptyList());
     }
 
     @Override
@@ -81,13 +102,14 @@ public class ResourceRequirements implements Serializable {
         }
         ResourceRequirements that = (ResourceRequirements) o;
         return Objects.equals(jobId, that.jobId)
+                && Objects.equals(applicationId, that.applicationId)
                 && Objects.equals(targetAddress, that.targetAddress)
                 && Objects.equals(resourceRequirements, that.resourceRequirements);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jobId, targetAddress, resourceRequirements);
+        return Objects.hash(jobId, applicationId, targetAddress, resourceRequirements);
     }
 
     @Override
@@ -95,6 +117,8 @@ public class ResourceRequirements implements Serializable {
         return "ResourceRequirements{"
                 + "jobId="
                 + jobId
+                + ", applicationId="
+                + applicationId
                 + ", targetAddress='"
                 + targetAddress
                 + '\''

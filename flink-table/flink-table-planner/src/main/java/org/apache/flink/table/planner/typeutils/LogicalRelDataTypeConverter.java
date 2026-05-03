@@ -22,12 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.schema.BitmapRelDataType;
 import org.apache.flink.table.planner.plan.schema.RawRelDataType;
 import org.apache.flink.table.planner.plan.schema.StructuredRelDataType;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -460,6 +462,11 @@ public final class LogicalRelDataTypeConverter {
         }
 
         @Override
+        public RelDataType visit(BitmapType bitmapType) {
+            return new BitmapRelDataType(bitmapType);
+        }
+
+        @Override
         public RelDataType visit(LogicalType other) {
             throw new TableException(
                     String.format(
@@ -587,6 +594,8 @@ public final class LogicalRelDataTypeConverter {
                     return ((StructuredRelDataType) relDataType).getStructuredType();
                 } else if (relDataType instanceof RawRelDataType) {
                     return ((RawRelDataType) relDataType).getRawType();
+                } else if (relDataType instanceof BitmapRelDataType) {
+                    return ((BitmapRelDataType) relDataType).getBitmapType();
                 }
             // fall through
             case REAL:

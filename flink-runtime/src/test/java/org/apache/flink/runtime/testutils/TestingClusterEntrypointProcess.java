@@ -21,8 +21,8 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -117,10 +117,10 @@ public class TestingClusterEntrypointProcess extends TestJvmProcess {
         }
 
         @Override
-        protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
+        protected ArchivedApplicationStore createArchivedApplicationStore(
                 Configuration configuration, ScheduledExecutor scheduledExecutor)
                 throws IOException {
-            return new MemoryExecutionGraphInfoStore();
+            return new MemoryArchivedApplicationStore();
         }
 
         @Override

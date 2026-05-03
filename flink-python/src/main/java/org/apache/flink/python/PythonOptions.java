@@ -261,6 +261,28 @@ public class PythonOptions {
                                     + "Note that currently it still doesn't support to execute Python user-defined functions in `thread` mode in all places. "
                                     + "It will fall back to `process` mode in these cases.");
 
+    public static final ConfigOption<String> PYTHON_LOGGING_DEFAULT_LEVEL =
+            ConfigOptions.key("python.logging.default.level")
+                    .stringType()
+                    .defaultValue("INFO")
+                    .withDescription(
+                            "Controls the default log level of python loggers, available values: OFF, ERROR, WARN, INFO, DEBUG, TRACE.");
+
+    public static final ConfigOption<Map<String, String>> PYTHON_LOGGING_LEVEL_OVERRIDE =
+            ConfigOptions.key("python.logging.level.overrides")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "This option controls the log levels for specifically named loggers. "
+                                    + "The expected format is \"Name: LogLevel...\". Supports a logging "
+                                    + "hierarchy based off of names that are '.' separated. For example, by specifying the value "
+                                    + "\"a.b.c.Foo: DEBUG\", the logger for the class 'a.b.c.Foo' will be configured to "
+                                    + "output logs at the DEBUG level. Similarly, by specifying the value \"a.b.c:WARN\", "
+                                    + "all loggers underneath the 'a.b.c' package will be configured to output logs at the WARN "
+                                    + "level. System.out and System.err levels are configured via loggers of the corresponding "
+                                    + "name. Also, note that when multiple overrides are specified, the exact name followed by "
+                                    + "the closest parent takes precedence.");
+
     // ------------------------------------------------------------------------------------------
     // config options used for internal purpose
     // ------------------------------------------------------------------------------------------

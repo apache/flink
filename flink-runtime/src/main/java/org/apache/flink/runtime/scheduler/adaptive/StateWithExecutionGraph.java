@@ -55,6 +55,8 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.VertexEndOfDataListener;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -69,6 +71,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -101,6 +104,8 @@ abstract class StateWithExecutionGraph implements State {
 
     private final VertexEndOfDataListener vertexEndOfDataListener;
 
+    private final Durable durable;
+
     StateWithExecutionGraph(
             Context context,
             ExecutionGraph executionGraph,
@@ -118,6 +123,7 @@ abstract class StateWithExecutionGraph implements State {
         this.userCodeClassLoader = userClassCodeLoader;
         this.failureCollection = new ArrayList<>(failureCollection);
         this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
+        this.durable = new Durable();
 
         FutureUtils.assertNoException(
                 executionGraph
@@ -135,6 +141,11 @@ abstract class StateWithExecutionGraph implements State {
                                     }
                                 },
                                 context.getMainThreadExecutor()));
+    }
+
+    @Override
+    public Durable getDurable() {
+        return durable;
     }
 
     ExecutionGraph getExecutionGraph() {
@@ -156,6 +167,7 @@ abstract class StateWithExecutionGraph implements State {
 
     @Override
     public void onLeave(Class<? extends State> newState) {
+        getDurable().setLeaveTimestamp(Instant.now().toEpochMilli());
         if (!StateWithExecutionGraph.class.isAssignableFrom(newState)) {
             // we are leaving the StateWithExecutionGraph --> we need to dispose temporary services
             operatorCoordinatorHandler.disposeAllOperatorCoordinators();
@@ -448,7 +460,7 @@ abstract class StateWithExecutionGraph implements State {
     }
 
     /** Context of the {@link StateWithExecutionGraph} state. */
-    interface Context extends StateTransitions.ToFinished {
+    interface Context extends RescaleContext, StateTransitions.ToFinished {
 
         /**
          * Run the given action if the current state equals the expected state.

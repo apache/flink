@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobStatus;
 
 import org.junit.jupiter.api.Test;
@@ -113,6 +114,34 @@ class ApplicationStatusTest {
     @Test
     void testUnknownApplicationStatusForMissingJobStatus() {
         assertThat(ApplicationStatus.fromJobStatus(null)).isEqualTo(ApplicationStatus.UNKNOWN);
+    }
+
+    @Test
+    void testFailedApplicationStatusFromApplicationState() {
+        assertThat(ApplicationStatus.fromApplicationState(ApplicationState.FAILED))
+                .isEqualTo(ApplicationStatus.FAILED);
+    }
+
+    @Test
+    void testCancelledApplicationStatusFromApplicationState() {
+        assertThat(ApplicationStatus.fromApplicationState(ApplicationState.CANCELED))
+                .isEqualTo(ApplicationStatus.CANCELED);
+    }
+
+    @Test
+    void testSucceededApplicationStatusFromApplicationState() {
+        assertThat(ApplicationStatus.fromApplicationState(ApplicationState.FINISHED))
+                .isEqualTo(ApplicationStatus.SUCCEEDED);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = ApplicationState.class,
+            names = {"CREATED", "RUNNING", "FAILING", "CANCELING"})
+    public void testUnknownApplicationStatusFromNonTerminalApplicationState(
+            ApplicationState applicationState) {
+        assertThat(ApplicationStatus.fromApplicationState(applicationState))
+                .isEqualTo(ApplicationStatus.UNKNOWN);
     }
 
     private static Iterable<Integer> exitCodes(Iterable<ApplicationStatus> statuses) {

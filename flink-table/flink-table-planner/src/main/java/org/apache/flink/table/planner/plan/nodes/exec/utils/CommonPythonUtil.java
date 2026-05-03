@@ -60,6 +60,7 @@ import org.apache.flink.table.runtime.functions.aggregate.ListAggWithRetractAggF
 import org.apache.flink.table.runtime.functions.aggregate.ListAggWsWithRetractAggFunction;
 import org.apache.flink.table.runtime.functions.aggregate.MaxWithRetractAggFunction;
 import org.apache.flink.table.runtime.functions.aggregate.MinWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.WelfordM2AggFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -534,6 +535,9 @@ public class CommonPythonUtil {
         }
         if (javaBuiltInAggregateFunction instanceof SumWithRetractAggFunction) {
             return BuiltInPythonAggregateFunction.SUM_RETRACT;
+        }
+        if (javaBuiltInAggregateFunction instanceof WelfordM2AggFunction) {
+            return BuiltInPythonAggregateFunction.WELFORD_M2;
         }
         throw new TableException(
                 "Aggregate function "

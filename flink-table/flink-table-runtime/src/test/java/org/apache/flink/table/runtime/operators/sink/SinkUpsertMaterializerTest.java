@@ -45,12 +45,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,18 +70,17 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link SinkUpsertMaterializer}. */
-@RunWith(Parameterized.class)
-public class SinkUpsertMaterializerTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class SinkUpsertMaterializerTest {
 
     static final int UPSERT_KEY = 0;
 
-    @Parameter(0)
-    public SinkUpsertMaterializeStrategy strategy;
+    @Parameter SinkUpsertMaterializeStrategy strategy;
 
     @Parameter(1)
-    public SinkUpsertMaterializerStateBackend stateBackend;
+    SinkUpsertMaterializerStateBackend stateBackend;
 
-    @Parameterized.Parameters(name = "stateStrategy={0}, stateBackend={1}, ")
+    @Parameters(name = "stateStrategy={0}, stateBackend={1}, ")
     public static Collection<Object[]> generateTestParameters() {
         List<Object[]> result = new ArrayList<>();
         for (SinkUpsertMaterializerStateBackend backend :
@@ -137,8 +137,8 @@ public class SinkUpsertMaterializerTest {
      * IntType}. That might cause {@link ArrayIndexOutOfBoundsException} because string serializer
      * expects the first number to be the length of the string.
      */
-    @Test
-    public void testUpsertKeySerializerFailure() throws Exception {
+    @TestTemplate
+    void testUpsertKeySerializerFailure() throws Exception {
         LogicalType[] types = new LogicalType[] {new VarCharType(), new IntType()};
         // project int field, while in the original record it's string
 
@@ -157,8 +157,8 @@ public class SinkUpsertMaterializerTest {
         }
     }
 
-    @Test
-    public void testUpsertKeySerializerSilentCorruption() throws Exception {
+    @TestTemplate
+    void testUpsertKeySerializerSilentCorruption() throws Exception {
         LogicalType[] types =
                 new LogicalType[] {new VarCharType(), new BigIntType(), new IntType()};
         // project int field, while in the original record it's string
@@ -179,8 +179,8 @@ public class SinkUpsertMaterializerTest {
         }
     }
 
-    @Test
-    public void testUpsertEqualizer() throws Exception {
+    @TestTemplate
+    void testUpsertEqualizer() throws Exception {
         LogicalType[] types = new LogicalType[] {new IntType(), new BigIntType()};
 
         OneInputStreamOperator<RowData, RowData> materializer = createOperator(types, 1);
@@ -200,8 +200,8 @@ public class SinkUpsertMaterializerTest {
         }
     }
 
-    @Test
-    public void testNoUpsertKeyFlow() throws Exception {
+    @TestTemplate
+    void testNoUpsertKeyFlow() throws Exception {
         KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
                 createHarness(createOperatorWithoutUpsertKey());
 
@@ -242,8 +242,8 @@ public class SinkUpsertMaterializerTest {
         testHarness.close();
     }
 
-    @Test
-    public void testInputHasUpsertKeyWithNonDeterministicColumn() throws Exception {
+    @TestTemplate
+    void testInputHasUpsertKeyWithNonDeterministicColumn() throws Exception {
         OneInputStreamOperator<RowData, RowData> materializer =
                 createOperator(LOGICAL_TYPES, UPSERT_KEY);
         KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
@@ -283,13 +283,13 @@ public class SinkUpsertMaterializerTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRetractionWithoutUpsertKey() throws Exception {
+    @TestTemplate
+    void testRetractionWithoutUpsertKey() throws Exception {
         testRetractions((int[]) null);
     }
 
-    @Test
-    public void testRetractionWithUpsertKey() throws Exception {
+    @TestTemplate
+    void testRetractionWithUpsertKey() throws Exception {
         testRetractions(UPSERT_KEY);
     }
 
@@ -476,8 +476,8 @@ public class SinkUpsertMaterializerTest {
         return testHarness;
     }
 
-    @Test
-    public void testEmptyUpsertKey() throws Exception {
+    @TestTemplate
+    void testEmptyUpsertKey() throws Exception {
         testRecovery(createOperator(LOGICAL_TYPES), createOperatorWithoutUpsertKey());
         testRecovery(createOperatorWithoutUpsertKey(), createOperator(LOGICAL_TYPES));
     }
@@ -499,8 +499,8 @@ public class SinkUpsertMaterializerTest {
         }
     }
 
-    @Test
-    public void testStateIsBounded() throws Exception {
+    @TestTemplate
+    void testStateIsBounded() throws Exception {
         int dop = 2;
         int numIterations = 10;
         OperatorSnapshotFinalizer[] snapshots = new OperatorSnapshotFinalizer[dop];

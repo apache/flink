@@ -28,9 +28,9 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -38,41 +38,44 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies that with {@code uidHash} a job could restore state from an existing savepoint, and the
  * job would still be able to restored from the checkpoints taken after restarted correctly without
  * losing states due to mismatched operator id.
  */
-public class CheckpointRestoreWithUidHashITCase {
+class CheckpointRestoreWithUidHashITCase {
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @TempDir private File tempDir;
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Rule
-    public final MiniClusterResource miniClusterResource =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(1)
@@ -82,14 +85,15 @@ public class CheckpointRestoreWithUidHashITCase {
 
     private SharedReference<List<Integer>> result;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         startWaitingForCheckpointLatch = sharedObjects.add(new CountDownLatch(1));
         result = sharedObjects.add(new ArrayList<>());
     }
 
     @Test
-    public void testRestoreFromSavepointBySetUidHash() throws Exception {
+    void testRestoreFromSavepointBySetUidHash(@InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
         final int maxNumber = 100;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -101,19 +105,18 @@ public class CheckpointRestoreWithUidHashITCase {
                         "test-uid",
                         null,
                         null);
-        JobID jobId = miniClusterResource.getMiniCluster().submitJob(firstJob).get().getJobID();
-        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobId, false);
+        JobID jobId = miniCluster.submitJob(firstJob).get().getJobID();
+        waitForAllTaskRunning(miniCluster, jobId, false);
 
         // The source would emit some records and start waiting for the checkpoint to happen.
         // With this latch we ensures the savepoint happens in a fixed position and no following
         // records are emitted after savepoint is triggered.
         startWaitingForCheckpointLatch.get().await();
         String savepointPath =
-                miniClusterResource
-                        .getMiniCluster()
+                miniCluster
                         .triggerSavepoint(
                                 jobId,
-                                TMP_FOLDER.newFolder().getAbsolutePath(),
+                                tempDir.getAbsolutePath(),
                                 true,
                                 SavepointFormatType.CANONICAL)
                         .get();
@@ -131,12 +134,15 @@ public class CheckpointRestoreWithUidHashITCase {
                         null,
                         sourceOperatorIds.getGeneratedOperatorID().toHexString(),
                         savepointPath);
-        miniClusterResource.getMiniCluster().executeJobBlocking(secondJob);
-        assertThat(result.get(), contains(IntStream.range(0, maxNumber).boxed().toArray()));
+        miniCluster.executeJobBlocking(secondJob);
+        assertThat(result.get())
+                .containsExactlyElementsOf(
+                        IntStream.range(0, maxNumber).boxed().collect(Collectors.toList()));
     }
 
     @Test
-    public void testRestoreCheckpointAfterFailoverWithUidHashSet() throws Exception {
+    void testRestoreCheckpointAfterFailoverWithUidHashSet(
+            @InjectMiniCluster MiniCluster miniCluster) throws Exception {
         final int maxNumber = 100;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -152,8 +158,10 @@ public class CheckpointRestoreWithUidHashITCase {
                         new OperatorID().toHexString(),
                         null);
 
-        miniClusterResource.getMiniCluster().executeJobBlocking(jobGraph);
-        assertThat(result.get(), contains(IntStream.range(0, maxNumber).boxed().toArray()));
+        miniCluster.executeJobBlocking(jobGraph);
+        assertThat(result.get())
+                .containsExactlyElementsOf(
+                        IntStream.range(0, maxNumber).boxed().collect(Collectors.toList()));
     }
 
     private JobGraph createJobGraph(

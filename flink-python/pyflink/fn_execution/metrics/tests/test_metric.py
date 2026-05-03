@@ -52,6 +52,31 @@ class MetricTests(PyFlinkTestCase):
         with self.assertRaises(RuntimeError):
             fc.get_metric_group()
 
+    def test_function_context_runtime_info(self):
+        fc = FunctionContext(
+            None, {},
+            task_name='MyTask',
+            task_name_with_subtasks='MyTask (1/4)',
+            number_of_parallel_subtasks=4,
+            max_number_of_parallel_subtasks=128,
+            index_of_this_subtask=0,
+            attempt_number=2)
+        self.assertEqual('MyTask', fc.get_task_name())
+        self.assertEqual('MyTask (1/4)', fc.get_task_name_with_subtasks())
+        self.assertEqual(4, fc.get_number_of_parallel_subtasks())
+        self.assertEqual(128, fc.get_max_number_of_parallel_subtasks())
+        self.assertEqual(0, fc.get_index_of_this_subtask())
+        self.assertEqual(2, fc.get_attempt_number())
+
+    def test_function_context_runtime_info_defaults(self):
+        fc = FunctionContext(None, {})
+        self.assertIsNone(fc.get_task_name())
+        self.assertIsNone(fc.get_task_name_with_subtasks())
+        self.assertIsNone(fc.get_number_of_parallel_subtasks())
+        self.assertIsNone(fc.get_max_number_of_parallel_subtasks())
+        self.assertIsNone(fc.get_index_of_this_subtask())
+        self.assertIsNone(fc.get_attempt_number())
+
     def test_get_metric_name(self):
         new_group = MetricTests.base_metric_group.add_group('my_group')
         self.assertEqual(

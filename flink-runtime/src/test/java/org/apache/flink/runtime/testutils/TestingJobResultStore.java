@@ -18,19 +18,24 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+
+import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 
 /**
  * {@code TestingJobResultStore} is a {@link JobResultStore} implementation that can be used in
@@ -41,13 +46,15 @@ public class TestingJobResultStore implements JobResultStore {
     public static final JobResult DUMMY_JOB_RESULT = createSuccessfulJobResult(new JobID());
 
     public static JobResult createSuccessfulJobResult(JobID jobId) {
-        return createJobResult(jobId, ApplicationStatus.SUCCEEDED);
+        return createJobResult(jobId, JobStatus.FINISHED);
     }
 
-    public static JobResult createJobResult(JobID jobId, ApplicationStatus applicationStatus) {
+    public static JobResult createJobResult(JobID jobId, @Nullable JobStatus jobStatus) {
         return new JobResult.Builder()
                 .jobId(jobId)
-                .applicationStatus(applicationStatus)
+                .applicationId(ApplicationID.fromHexString(jobId.toHexString()))
+                .jobName(DEFAULT_STREAMING_JOB_NAME)
+                .jobStatus(jobStatus)
                 .netRuntime(1)
                 .build();
     }

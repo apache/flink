@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.utils;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.functions.AsyncScalarFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -32,6 +33,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.TimeZone;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.fail;
 
@@ -316,6 +318,39 @@ public class JavaUserDefinedScalarFunctions {
         @Override
         public PythonEnv getPythonEnv() {
             return null;
+        }
+    }
+
+    /** Test for Async Python Scalar Function. */
+    public static class AsyncPythonScalarFunction extends AsyncScalarFunction
+            implements PythonFunction {
+        private final String name;
+
+        public AsyncPythonScalarFunction(String name) {
+            this.name = name;
+        }
+
+        public void eval(CompletableFuture<Integer> future, Integer i, Integer j) {
+            future.complete(i + j);
+        }
+
+        public void eval(CompletableFuture<String> future, String a) {
+            future.complete(a);
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
+
+        @Override
+        public PythonEnv getPythonEnv() {
+            return new PythonEnv(PythonEnv.ExecType.PROCESS);
         }
     }
 }

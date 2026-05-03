@@ -119,7 +119,7 @@ class StreamOperatorNameTest extends OperatorNameTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
 
-        verifyInsert("insert into MySink select c, a, b from MyTable");
+        verifyInsert("insert into MySink select c, a, b from MyTable on conflict do deduplicate");
     }
 
     /** Verify Deduplicate. */

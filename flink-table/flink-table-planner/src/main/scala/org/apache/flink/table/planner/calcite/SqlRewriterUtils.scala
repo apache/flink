@@ -17,18 +17,15 @@
  */
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator.ExplicitTableSqlSelect
 import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlCall, rewriteSqlSelect, rewriteSqlValues, rewriteSqlWith}
 import org.apache.flink.util.Preconditions.checkArgument
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
-import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlBasicCall, SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil, SqlWith}
+import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil, SqlWith}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlValidatorException
 import org.apache.calcite.util.Static.RESOURCE
 
@@ -78,38 +75,6 @@ class SqlRewriterUtils(validator: FlinkCalciteSqlValidator) {
       assignedFields,
       targetPosition,
       unsupportedErrorMessage)
-  }
-
-  // This code snippet is copied from the SqlValidatorImpl.
-  def maybeCast(
-      node: SqlNode,
-      currentType: RelDataType,
-      desiredType: RelDataType,
-      typeFactory: RelDataTypeFactory): SqlNode = {
-    if (
-      currentType == desiredType
-      || (currentType.isNullable != desiredType.isNullable
-        && typeFactory.createTypeWithNullability(currentType, desiredType.isNullable)
-        == desiredType)
-    ) {
-      node
-    } else {
-      // See FLINK-26460 for more details
-      val sqlDataTypeSpec =
-        if (SqlTypeUtil.isNull(currentType) && SqlTypeUtil.isMap(desiredType)) {
-          val keyType = desiredType.getKeyType
-          val valueType = desiredType.getValueType
-          new SqlDataTypeSpec(
-            new SqlMapTypeNameSpec(
-              SqlTypeUtil.convertTypeToSpec(keyType).withNullable(keyType.isNullable),
-              SqlTypeUtil.convertTypeToSpec(valueType).withNullable(valueType.isNullable),
-              SqlParserPos.ZERO),
-            SqlParserPos.ZERO)
-        } else {
-          SqlTypeUtil.convertTypeToSpec(desiredType)
-        }
-      SqlStdOperatorTable.CAST.createCall(SqlParserPos.ZERO, node, sqlDataTypeSpec)
-    }
   }
 }
 

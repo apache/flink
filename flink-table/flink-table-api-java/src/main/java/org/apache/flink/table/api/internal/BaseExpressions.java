@@ -28,12 +28,12 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -48,6 +48,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.toMilliInter
 import static org.apache.flink.table.expressions.ApiExpressionUtils.toMonthInterval;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedType;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
@@ -75,6 +76,24 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ATAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AVG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_AND;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_ANDNOT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_AND_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_AND_CARDINALITY_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_BUILD_CARDINALITY_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_CARDINALITY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_FROM_BYTES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_OR;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_OR_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_OR_CARDINALITY_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_ARRAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_BYTES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_TO_STRING;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR_CARDINALITY_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -108,6 +127,8 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INET_ATON;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INET_NTOA;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_CAP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
@@ -618,32 +639,59 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns a new value being cast to {@code toType}. A cast error throws an exception and fails
-     * the job. When performing a cast operation that may fail, like {@link DataTypes#STRING()} to
-     * {@link DataTypes#INT()}, one should rather use {@link #tryCast(DataType)}, in order to handle
-     * errors. If {@link ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this
-     * function behaves like {@link #tryCast(DataType)}.
+     * Returns a new value being cast to {@code toType}.
      *
-     * <p>E.g. {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
-     * null.cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
-     * {@code "non-number".cast(DataTypes.INT())} throws an exception and fails the job.
+     * <p>A cast error throws an exception and fails the job. When performing a cast operation that
+     * may fail, like {@link DataTypes#STRING()} to {@link DataTypes#INT()}, one should rather use
+     * {@link #tryCast(DataType)}, to handle errors.
+     *
+     * <p>E.g. {@code lit("42").cast(DataTypes.INT())} returns {@code 42}; {@code
+     * lit(null).cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
+     * {@code lit("non-number").cast(DataTypes.INT())} throws an exception and fails the job.
      */
     public OutType cast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), typeLiteral(toType)));
     }
 
     /**
+     * Returns a new value being cast to {@code toType}.
+     *
+     * <p>This method takes {@link UnresolvedDataType} that, for example, originates from {@link
+     * DataTypes#of(Class)} or {@link DataTypes#of(String)}. The data type will be resolved to a
+     * fully qualified {@link DataType}.
+     *
+     * @see #cast(DataType)
+     */
+    public OutType cast(UnresolvedDataType toType) {
+        return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), unresolvedType(toType)));
+    }
+
+    /**
      * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
      * the job.
      *
-     * <p>E.g. {@code "42".tryCast(DataTypes.INT())} returns {@code 42}; {@code
-     * null.tryCast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
-     * {@code "non-number".tryCast(DataTypes.INT())} returns {@code null} of type {@link
-     * DataTypes#INT()}; {@code coalesce("non-number".tryCast(DataTypes.INT()), 0)} returns {@code
-     * 0} of type {@link DataTypes#INT()}.
+     * <p>E.g. {@code lit("42").tryCast(DataTypes.INT())} returns {@code 42}; {@code
+     * lit(null).tryCast(DataTypes.STRING())} returns {@code null} of type {@link
+     * DataTypes#STRING()}; {@code lit("non-number").tryCast(DataTypes.INT())} returns {@code null}
+     * of type {@link DataTypes#INT()}; {@code coalesce(lit("non-number").tryCast(DataTypes.INT()),
+     * 0)} returns {@code 0} of type {@link DataTypes#INT()}.
      */
     public OutType tryCast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));
+    }
+
+    /**
+     * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
+     * the job.
+     *
+     * <p>This method takes {@link UnresolvedDataType} that, for example, originates from {@link
+     * DataTypes#of(Class)} or {@link DataTypes#of(String)}. The data type will be resolved to a
+     * fully qualified {@link DataType}.
+     *
+     * @see #tryCast(DataType)
+     */
+    public OutType tryCast(UnresolvedDataType toType) {
+        return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), unresolvedType(toType)));
     }
 
     /** Specifies ascending order of an expression i.e. a field for orderBy unresolvedCall. */
@@ -1389,6 +1437,60 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType urlEncode() {
         return toApiSpecificExpression(unresolvedCall(URL_ENCODE, toExpr()));
+    }
+
+    /**
+     * Converts an IPv4 address string to its numeric representation. This function follows MySQL
+     * INET_ATON behavior.
+     *
+     * <p>The conversion formula is: A * 256^3 + B * 256^2 + C * 256 + D for an IP address A.B.C.D
+     *
+     * <p>MySQL-compatible short-form IPv4 addresses are supported:
+     *
+     * <ul>
+     *   <li>a — the value is stored directly as an address (value must be in [0, 255])
+     *   <li>a.b — interpreted as a.0.0.b
+     *   <li>a.b.c — interpreted as a.b.0.c
+     *   <li>a.b.c.d — standard dotted-decimal format
+     * </ul>
+     *
+     * <p>Leading zeros in octets are parsed as decimal (not octal), consistent with MySQL.
+     *
+     * <p>Examples:
+     *
+     * <ul>
+     *   <li>INET_ATON('1') returns 1 (single number)
+     *   <li>INET_ATON('127.0.0.1') returns 2130706433
+     *   <li>INET_ATON('127.1') returns 2130706433 (short-form: 127.0.0.1)
+     *   <li>INET_ATON('0.0.0.0') returns 0
+     * </ul>
+     *
+     * @return the numeric representation of the IP address, or null if the input is null or invalid
+     */
+    public OutType inetAton() {
+        return toApiSpecificExpression(unresolvedCall(INET_ATON, toExpr()));
+    }
+
+    /**
+     * Converts a numeric IPv4 address representation back to its string format.
+     *
+     * <p>Accepts any integer numeric type (TINYINT, SMALLINT, INT, BIGINT). The input must be in
+     * the valid IPv4 range [0, 4294967295]. Negative values return null, consistent with MySQL's
+     * {@code INET_NTOA(-1) = NULL} behavior.
+     *
+     * <p>Examples:
+     *
+     * <ul>
+     *   <li>INET_NTOA(2130706433) returns '127.0.0.1'
+     *   <li>INET_NTOA(0) returns '0.0.0.0'
+     *   <li>INET_NTOA(-1) returns NULL
+     * </ul>
+     *
+     * @return the IPv4 address string in dotted-decimal notation, or null if the input is null,
+     *     negative, or out of valid range
+     */
+    public OutType inetNtoa() {
+        return toApiSpecificExpression(unresolvedCall(INET_NTOA, toExpr()));
     }
 
     /**
@@ -2516,5 +2618,228 @@ public abstract class BaseExpressions<InType, OutType> {
                         .toArray(Expression[]::new);
         return toApiSpecificExpression(
                 ApiExpressionUtils.unresolvedCall(OBJECT_UPDATE, expressions));
+    }
+
+    // Bitmap functions
+
+    /**
+     * Computes the AND (intersection) of two bitmaps.
+     *
+     * <p>If any of the inputs are null, the result is null.
+     *
+     * @param bitmap2 the bitmap to perform AND operation with
+     * @return a BITMAP expression
+     */
+    public OutType bitmapAnd(InType bitmap2) {
+        return toApiSpecificExpression(
+                unresolvedCall(BITMAP_AND, toExpr(), objectToExpression(bitmap2)));
+    }
+
+    /**
+     * Computes the AND NOT (difference) of two bitmaps.
+     *
+     * <p>If any of the inputs are null, the result is null.
+     *
+     * @param bitmap2 the bitmap to perform AND NOT operation with
+     * @return a BITMAP expression
+     */
+    public OutType bitmapAndnot(InType bitmap2) {
+        return toApiSpecificExpression(
+                unresolvedCall(BITMAP_ANDNOT, toExpr(), objectToExpression(bitmap2)));
+    }
+
+    /**
+     * Aggregates the AND (intersection) of multiple bitmaps.
+     *
+     * <p>NOTE: The retraction variant of this function may have significant performance overhead
+     * with large bitmaps.
+     *
+     * @return a BITMAP expression
+     */
+    public OutType bitmapAndAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_AND_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates the AND (intersection) of multiple bitmaps and returns its 64-bit cardinality.
+     *
+     * <p>NOTE: The retraction variant of this function may have significant performance overhead
+     * with large bitmaps.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapAndCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_AND_CARDINALITY_AGG, toExpr()));
+    }
+
+    /**
+     * Creates a bitmap from an array of 32-bit integers.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a BITMAP expression
+     */
+    public OutType bitmapBuild() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_BUILD, toExpr()));
+    }
+
+    /**
+     * Aggregates 32-bit integers into a bitmap.
+     *
+     * @return a BITMAP expression
+     */
+    public OutType bitmapBuildAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_BUILD_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates 32-bit integers into a bitmap and returns its 64-bit cardinality.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapBuildCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_BUILD_CARDINALITY_AGG, toExpr()));
+    }
+
+    /**
+     * Returns the cardinality of a bitmap.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapCardinality() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_CARDINALITY, toExpr()));
+    }
+
+    /**
+     * Converts an array of bytes to a bitmap.
+     *
+     * <p>Following the format defined in <a
+     * href="https://github.com/RoaringBitmap/RoaringFormatSpec">32-bit RoaringBitmap format
+     * specification</a>.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a BITMAP expression
+     */
+    public OutType bitmapFromBytes() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_FROM_BYTES, toExpr()));
+    }
+
+    /**
+     * Computes the OR (union) of two bitmaps.
+     *
+     * <p>If any of the inputs are null, the result is null.
+     *
+     * @param bitmap2 the bitmap to perform OR operation with
+     * @return a BITMAP expression
+     */
+    public OutType bitmapOr(InType bitmap2) {
+        return toApiSpecificExpression(
+                unresolvedCall(BITMAP_OR, toExpr(), objectToExpression(bitmap2)));
+    }
+
+    /**
+     * Aggregates the OR (union) of multiple bitmaps.
+     *
+     * <p>NOTE: The retraction variant of this function may have significant performance overhead
+     * with large bitmaps.
+     *
+     * @return a BITMAP expression
+     */
+    public OutType bitmapOrAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_OR_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates the OR (union) of multiple bitmaps and returns its 64-bit cardinality.
+     *
+     * <p>NOTE: The retraction variant of this function may have significant performance overhead
+     * with large bitmaps.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapOrCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_OR_CARDINALITY_AGG, toExpr()));
+    }
+
+    /**
+     * Converts a bitmap to an array of 32-bit integers, the values are sorted by {@link
+     * Integer#compareUnsigned}.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return an ARRAY&lt;INT&gt; expression
+     */
+    public OutType bitmapToArray() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_TO_ARRAY, toExpr()));
+    }
+
+    /**
+     * Converts a bitmap to an array of bytes.
+     *
+     * <p>Following the format defined in <a
+     * href="https://github.com/RoaringBitmap/RoaringFormatSpec">32-bit RoaringBitmap format
+     * specification</a>.
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a VARBINARY expression
+     */
+    public OutType bitmapToBytes() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_TO_BYTES, toExpr()));
+    }
+
+    /**
+     * Converts a bitmap to a string, the values are sorted by {@link Integer#compareUnsigned}. The
+     * string will be truncated and end with "..." if it is too long.
+     *
+     * <p>For example:
+     *
+     * <ul>
+     *   <li>{@code "{}"}, {@code "{1,2,3,4,5}"}
+     *   <li>Negative values (converted to unsigned): {@code "{0,1,4294967294,4294967295}"}
+     *   <li>String too long: {@code "{1,2,3,...}"}
+     * </ul>
+     *
+     * <p>If the input is null, the result is null.
+     *
+     * @return a STRING expression
+     */
+    public OutType bitmapToString() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_TO_STRING, toExpr()));
+    }
+
+    /**
+     * Computes the XOR (symmetric difference) of two bitmaps.
+     *
+     * <p>If any of the inputs are null, the result is null.
+     *
+     * @param bitmap2 the bitmap to perform XOR operation with
+     * @return a BITMAP expression
+     */
+    public OutType bitmapXor(InType bitmap2) {
+        return toApiSpecificExpression(
+                unresolvedCall(BITMAP_XOR, toExpr(), objectToExpression(bitmap2)));
+    }
+
+    /**
+     * Aggregates the XOR (symmetric difference) of multiple bitmaps.
+     *
+     * @return a BITMAP expression
+     */
+    public OutType bitmapXorAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_XOR_AGG, toExpr()));
+    }
+
+    /**
+     * Aggregates the XOR (symmetric difference) of multiple bitmaps and returns its 64-bit
+     * cardinality.
+     *
+     * @return a BIGINT expression
+     */
+    public OutType bitmapXorCardinalityAgg() {
+        return toApiSpecificExpression(unresolvedCall(BITMAP_XOR_CARDINALITY_AGG, toExpr()));
     }
 }

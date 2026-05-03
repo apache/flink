@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
@@ -270,6 +271,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
             Collection<FailureEnricher> failureEnrichers,
+            JobStatusListener singleJobApplication,
             long initializationTimestamp)
             throws Exception {
 
@@ -320,6 +322,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 };
         final String jobName = executionPlan.getName();
         final JobID jid = executionPlan.getJobID();
+        final ApplicationID applicationId =
+                executionPlan
+                        .getApplicationId()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "The job does not have an associated application."));
 
         this.executionPlan = checkNotNull(executionPlan);
 
@@ -361,6 +370,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 checkNotNull(slotPoolServiceSchedulerFactory)
                         .createSlotPoolService(
                                 jid,
+                                applicationId,
                                 createDeclarativeSlotPoolFactory(
                                         jobMasterConfiguration.getConfiguration()),
                                 getMainThreadExecutor());
@@ -384,6 +394,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         JobStatusListener schedulerListener =
                 JobStatusListener.combine(
                         jobStatusListener,
+                        singleJobApplication,
                         (jobId, newJobStatus, timestamp) ->
                                 jobManagerJobMetricGroup.addEvent(
                                         Events.JobStatusChangeEvent.builder(JobMaster.class)

@@ -120,9 +120,9 @@ SQL gateway now supports executing SQL jobs in application mode, serving as a re
 
 ##### [FLINK-31836](https://issues.apache.org/jira/browse/FLINK-31836)
 
-Flink SQL now supports C-style escape strings. See the [documentation](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/table/sql/queries/overview/#syntax) for more details.
+Flink SQL now supports C-style escape strings. See the [documentation](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/sql/reference/queries/overview/#syntax) for more details.
 
-A new `QUALIFY` clause has been added as a more concise syntax for filtering outputs of window functions. See the [Top-N](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/table/sql/queries/topn/) and [Deduplication](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/dev/table/sql/queries/deduplication/) examples.
+A new `QUALIFY` clause has been added as a more concise syntax for filtering outputs of window functions. See the [Top-N](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/sql/reference/queries/topn/) and [Deduplication](https://nightlies.apache.org/flink/flink-docs-release-2.0/docs/sql/reference/queries/deduplication/) examples.
 
 ### Connectors
 

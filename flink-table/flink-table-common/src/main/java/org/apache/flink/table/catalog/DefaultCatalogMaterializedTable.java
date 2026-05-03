@@ -44,13 +44,15 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
 
     private final @Nullable Long snapshot;
 
-    private final String definitionQuery;
+    private final String originalQuery;
+    private final String expandedQuery;
     private final IntervalFreshness freshness;
     private final LogicalRefreshMode logicalRefreshMode;
     private final RefreshMode refreshMode;
     private final RefreshStatus refreshStatus;
     private final @Nullable String refreshHandlerDescription;
     private final @Nullable byte[] serializedRefreshHandler;
+    private final @Nullable StartMode startMode;
 
     protected DefaultCatalogMaterializedTable(
             Schema schema,
@@ -59,20 +61,23 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot,
-            String definitionQuery,
+            String originalQuery,
+            String expandedQuery,
             @Nullable IntervalFreshness freshness,
             LogicalRefreshMode logicalRefreshMode,
             @Nullable RefreshMode refreshMode,
             RefreshStatus refreshStatus,
             @Nullable String refreshHandlerDescription,
-            @Nullable byte[] serializedRefreshHandler) {
+            @Nullable byte[] serializedRefreshHandler,
+            @Nullable StartMode startMode) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
         this.distribution = distribution;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
-        this.definitionQuery = checkNotNull(definitionQuery, "Definition query must not be null.");
+        this.originalQuery = checkNotNull(originalQuery, "Original query must not be null.");
+        this.expandedQuery = checkNotNull(expandedQuery, "Expanded query must not be null.");
         this.freshness = freshness;
         this.logicalRefreshMode =
                 checkNotNull(logicalRefreshMode, "Logical refresh mode must not be null.");
@@ -80,6 +85,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
         this.refreshStatus = checkNotNull(refreshStatus, "Refresh status must not be null.");
         this.refreshHandlerDescription = refreshHandlerDescription;
         this.serializedRefreshHandler = serializedRefreshHandler;
+        this.startMode = startMode;
 
         checkArgument(
                 options.entrySet().stream()
@@ -126,13 +132,15 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 partitionKeys,
                 options,
                 snapshot,
-                definitionQuery,
+                originalQuery,
+                expandedQuery,
                 freshness,
                 logicalRefreshMode,
                 refreshMode,
                 refreshStatus,
                 refreshHandlerDescription,
-                serializedRefreshHandler);
+                serializedRefreshHandler,
+                startMode);
     }
 
     @Override
@@ -144,13 +152,15 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 partitionKeys,
                 options,
                 snapshot,
-                definitionQuery,
+                originalQuery,
+                expandedQuery,
                 freshness,
                 logicalRefreshMode,
                 refreshMode,
                 refreshStatus,
                 refreshHandlerDescription,
-                serializedRefreshHandler);
+                serializedRefreshHandler,
+                startMode);
     }
 
     @Override
@@ -165,13 +175,15 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 partitionKeys,
                 options,
                 snapshot,
-                definitionQuery,
+                originalQuery,
+                expandedQuery,
                 freshness,
                 logicalRefreshMode,
                 refreshMode,
                 refreshStatus,
                 refreshHandlerDescription,
-                serializedRefreshHandler);
+                serializedRefreshHandler,
+                startMode);
     }
 
     @Override
@@ -190,8 +202,13 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     }
 
     @Override
-    public String getDefinitionQuery() {
-        return definitionQuery;
+    public String getOriginalQuery() {
+        return originalQuery;
+    }
+
+    @Override
+    public String getExpandedQuery() {
+        return expandedQuery;
     }
 
     @Override
@@ -212,6 +229,11 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     @Override
     public RefreshStatus getRefreshStatus() {
         return refreshStatus;
+    }
+
+    @Override
+    public Optional<StartMode> getStartMode() {
+        return Optional.ofNullable(startMode);
     }
 
     @Override
@@ -239,7 +261,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 && Objects.equals(partitionKeys, that.partitionKeys)
                 && Objects.equals(options, that.options)
                 && Objects.equals(snapshot, that.snapshot)
-                && Objects.equals(definitionQuery, that.definitionQuery)
+                && Objects.equals(originalQuery, that.originalQuery)
+                && Objects.equals(expandedQuery, that.expandedQuery)
                 && Objects.equals(freshness, that.freshness)
                 && logicalRefreshMode == that.logicalRefreshMode
                 && refreshMode == that.refreshMode
@@ -257,7 +280,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                         partitionKeys,
                         options,
                         snapshot,
-                        definitionQuery,
+                        originalQuery,
+                        expandedQuery,
                         freshness,
                         logicalRefreshMode,
                         refreshMode,
@@ -283,8 +307,11 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 + options
                 + ", snapshot="
                 + snapshot
-                + ", definitionQuery='"
-                + definitionQuery
+                + ", originalQuery='"
+                + originalQuery
+                + '\''
+                + ", expandedQuery='"
+                + expandedQuery
                 + '\''
                 + ", freshness="
                 + freshness

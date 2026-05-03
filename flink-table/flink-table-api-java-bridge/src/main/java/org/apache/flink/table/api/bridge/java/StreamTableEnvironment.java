@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
@@ -631,6 +632,42 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     DataStream<Row> toChangelogStream(
             Table table, Schema targetSchema, ChangelogMode changelogMode);
+
+    /**
+     * Converts the given {@link Table} into a {@link DataStream} of changelog entries.
+     *
+     * <p>Compared to {@link #toDataStream(Table)}, this method produces instances of {@link Row}
+     * and sets the {@link RowKind} flag that is contained in every record during runtime. The
+     * runtime behavior is similar to that of a {@link DynamicTableSink}.
+     *
+     * <p>This method requires an explicitly declared {@link ChangelogMode}. For example, use {@link
+     * ChangelogMode#upsert()} if the stream will not contain {@link RowKind#UPDATE_BEFORE}, or
+     * {@link ChangelogMode#insertOnly()} for non-updating streams.
+     *
+     * <p>Note that the type system of the table ecosystem is richer than the one of the DataStream
+     * API. The table runtime will make sure to properly serialize the output records to the first
+     * operator of the DataStream API. Afterwards, the {@link Types} semantics of the DataStream API
+     * need to be considered.
+     *
+     * <p>If the input table contains a single rowtime column, it will be propagated into a stream
+     * record's timestamp. Watermarks will be propagated as well. However, it is also possible to
+     * write out the rowtime as a metadata column. See {@link #toChangelogStream(Table, Schema)} for
+     * more information and examples on how to declare a {@link Schema}.
+     *
+     * @param table The {@link Table} to convert. It can be updating or insert-only.
+     * @param targetSchema The {@link Schema} that decides about the final external representation
+     *     in {@link DataStream} records.
+     * @param changelogMode The required kinds of changes in the result changelog. An exception will
+     *     be thrown if the given updating table cannot be represented in this changelog mode.
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     *     from the primary key of the sink.
+     * @return The converted changelog stream of {@link Row}.
+     */
+    DataStream<Row> toChangelogStream(
+            Table table,
+            Schema targetSchema,
+            ChangelogMode changelogMode,
+            InsertConflictStrategy conflictStrategy);
 
     /**
      * Returns a {@link StatementSet} that integrates with the Java-specific {@link DataStream} API.

@@ -2,7 +2,7 @@
   "flinkVersion" : "",
   "nodes" : [ {
     "id" : 1,
-    "type" : "stream-exec-table-source-scan_1",
+    "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -31,7 +31,6 @@
                 "rexNode" : {
                   "kind" : "CALL",
                   "internalName" : "$PROCTIME$1",
-                  "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
                     "nullable" : false,
@@ -86,7 +85,6 @@
     }, {
       "kind" : "CALL",
       "internalName" : "$PROCTIME$1",
-      "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false,
@@ -366,7 +364,7 @@
     "description" : "Calc(select=[$3 AS $0, w0$o0 AS $1])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",

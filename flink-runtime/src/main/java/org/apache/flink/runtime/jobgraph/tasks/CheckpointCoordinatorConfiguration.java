@@ -25,6 +25,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Configuration settings for the {@link CheckpointCoordinator}. This includes the checkpoint
@@ -71,6 +72,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean enableCheckpointsAfterTasksFinish;
 
+    private final boolean recoverOutputOnDownstreamTask;
+
+    private final boolean pauseSourcesUntilFirstCheckpoint;
+
     /**
      * @deprecated use {@link #builder()}.
      */
@@ -98,6 +103,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 isUnalignedCheckpoint,
                 0,
                 checkpointIdOfIgnoredInFlightData,
+                false,
+                false,
                 false);
     }
 
@@ -113,7 +120,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             boolean isUnalignedCheckpointsEnabled,
             long alignedCheckpointTimeout,
             long checkpointIdOfIgnoredInFlightData,
-            boolean enableCheckpointsAfterTasksFinish) {
+            boolean enableCheckpointsAfterTasksFinish,
+            boolean recoverOutputOnDownstreamTask,
+            boolean pauseSourcesUntilFirstCheckpoint) {
 
         if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
             // interval of max value means disable periodic checkpoint
@@ -132,10 +141,19 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 !isUnalignedCheckpointsEnabled || maxConcurrentCheckpoints <= 1,
                 "maxConcurrentCheckpoints can't be > 1 if UnalignedCheckpoints enabled");
 
+        // max "in between duration" can be one year - this is to prevent numeric overflows
+        if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
+            minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
+        }
+        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        // it does not make sense to schedule checkpoints more often then the desired
+        // time between checkpoints
+        if (checkpointInterval < minPauseBetweenCheckpoints) {
+            checkpointInterval = minPauseBetweenCheckpoints;
+        }
         this.checkpointInterval = checkpointInterval;
         this.checkpointIntervalDuringBacklog = checkpointIntervalDuringBacklog;
         this.checkpointTimeout = checkpointTimeout;
-        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
         this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
         this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
         this.isExactlyOnce = isExactlyOnce;
@@ -144,6 +162,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.alignedCheckpointTimeout = alignedCheckpointTimeout;
         this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
         this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
+        this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+        this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
     }
 
     public long getCheckpointInterval() {
@@ -198,6 +218,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return enableCheckpointsAfterTasksFinish;
     }
 
+    public boolean isRecoverOutputOnDownstreamTask() {
+        return recoverOutputOnDownstreamTask;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -217,7 +241,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && checkpointRetentionPolicy == that.checkpointRetentionPolicy
                 && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
                 && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
-                && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish;
+                && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish
+                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask;
     }
 
     @Override
@@ -233,7 +258,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 alignedCheckpointTimeout,
                 tolerableCheckpointFailureNumber,
                 checkpointIdOfIgnoredInFlightData,
-                enableCheckpointsAfterTasksFinish);
+                enableCheckpointsAfterTasksFinish,
+                recoverOutputOnDownstreamTask);
     }
 
     @Override
@@ -261,11 +287,32 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + checkpointIdOfIgnoredInFlightData
                 + ", enableCheckpointsAfterTasksFinish="
                 + enableCheckpointsAfterTasksFinish
+                + ", recoverOutputOnDownstreamTask="
+                + recoverOutputOnDownstreamTask
                 + '}';
     }
 
     public static CheckpointCoordinatorConfigurationBuilder builder() {
         return new CheckpointCoordinatorConfigurationBuilder();
+    }
+
+    public long getInitialTriggeringDelay() {
+        return pauseSourcesUntilFirstCheckpoint
+                // if sources a waiting for a checkpoint then trigger a checkpoint ASAP (not waiting
+                // for checkpoint interval) to unblock them; however, we still need to:
+                // 1. honor the min pause between checkpoints
+                // 2. avoid checkpointing all the jobs on this JM simultaneously (hence *2)
+                // 3. account for 0 configured min pause (hence +1)
+                ? ThreadLocalRandom.current()
+                        .nextLong(minPauseBetweenCheckpoints, minPauseBetweenCheckpoints * 2 + 1)
+                // otherwise, we can delay the first checkpoint by checkpoint interval
+                // additionally, increase the upper bound by 1 to avoid equal lower/upper bounds -
+                // unless it might cause an overflow
+                : ThreadLocalRandom.current()
+                        .nextLong(
+                                minPauseBetweenCheckpoints,
+                                checkpointInterval
+                                        + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
@@ -283,6 +330,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private long alignedCheckpointTimeout = 0;
         private long checkpointIdOfIgnoredInFlightData;
         private boolean enableCheckpointsAfterTasksFinish;
+        private boolean recoverOutputOnDownstreamTask;
+        private boolean pauseSourcesUntilFirstCheckpoint;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -297,7 +346,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     isUnalignedCheckpointsEnabled,
                     alignedCheckpointTimeout,
                     checkpointIdOfIgnoredInFlightData,
-                    enableCheckpointsAfterTasksFinish);
+                    enableCheckpointsAfterTasksFinish,
+                    recoverOutputOnDownstreamTask,
+                    pauseSourcesUntilFirstCheckpoint);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -368,6 +419,18 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setEnableCheckpointsAfterTasksFinish(
                 boolean enableCheckpointsAfterTasksFinish) {
             this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setPauseSourcesUntilFirstCheckpoint(
+                boolean pauseSourcesUntilFirstCheckpoint1) {
+            pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint1;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setRecoverOutputOnDownstreamTask(
+                boolean recoverOutputOnDownstreamTask) {
+            this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
             return this;
         }
     }

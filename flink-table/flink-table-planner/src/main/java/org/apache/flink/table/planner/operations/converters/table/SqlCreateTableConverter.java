@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTable;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.planner.operations.converters.MergeTableLikeUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -69,12 +70,12 @@ public class SqlCreateTableConverter extends AbstractCreateTableConverter<SqlCre
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                return SqlCreateTableConverter.this.getDerivedTableOptions(sqlCreateTable);
+                return sqlCreateTable.getProperties();
             }
 
             @Override
             public List<String> getMergedPartitionKeys() {
-                return SqlCreateTableConverter.this.getDerivedPartitionKeys(sqlCreateTable);
+                return sqlCreateTable.getPartitionKeyList();
             }
 
             @Override

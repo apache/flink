@@ -31,6 +31,8 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -159,6 +161,16 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
      */
     @PublicEvolving
     public interface SourceSwitchContext<EnumT> {
+        /**
+         * Returns the previous {@link SplitEnumerator} from memory.
+         *
+         * <p>{@link SplitEnumerator} instances are not persistent. When jobs restart or checkpoint
+         * recovery occurs, the previous enumerator state is not maintained. In these cases, this
+         * method will return null.
+         *
+         * @return an instance of a {@link SplitEnumerator} or null.
+         */
+        @Nullable
         EnumT getPreviousEnumerator();
     }
 

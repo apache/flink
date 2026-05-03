@@ -1,7 +1,8 @@
 ---
-title: SQL
-bookCollapseSection: true
-weight: 32
+title: "SQL"
+layout: redirect
+redirect_to: /docs/sql/reference/
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

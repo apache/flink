@@ -38,9 +38,9 @@ import java.util.Collection;
 @Public
 public interface Committer<CommT> extends AutoCloseable {
     /**
-     * Commit the given list of {@link CommT}.
+     * Commit the given collection of {@link CommitRequest}.
      *
-     * @param committables A list of commit requests staged by the sink writer.
+     * @param committables A collection of commit requests staged by the sink writer.
      * @throws IOException for reasons that may yield a complete restart of the job.
      */
     void commit(Collection<CommitRequest<CommT>> committables)
@@ -49,7 +49,7 @@ public interface Committer<CommT> extends AutoCloseable {
     /**
      * A request to commit a specific committable.
      *
-     * @param <CommT>
+     * @param <CommT> The type of information needed to commit the staged data
      */
     @Public
     interface CommitRequest<CommT> {

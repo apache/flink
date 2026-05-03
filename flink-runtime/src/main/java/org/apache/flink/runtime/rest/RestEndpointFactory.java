@@ -32,7 +32,6 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
-import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -56,7 +55,6 @@ public interface RestEndpointFactory<T extends RestfulGateway> {
     static ExecutionGraphCache createExecutionGraphCache(
             RestHandlerConfiguration restConfiguration) {
         return new DefaultExecutionGraphCache(
-                restConfiguration.getTimeout(),
-                Duration.ofMillis(restConfiguration.getRefreshInterval()));
+                restConfiguration.getTimeout(), restConfiguration.getExecutionGraphCacheTTL());
     }
 }

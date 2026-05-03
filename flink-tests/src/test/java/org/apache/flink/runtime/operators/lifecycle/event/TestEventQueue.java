@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.operators.lifecycle.event;
 
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 
 import java.io.Serializable;
 import java.util.List;
@@ -49,7 +49,7 @@ public interface TestEventQueue extends Serializable {
         TestEventNextAction handle(TestEvent e);
     }
 
-    static TestEventQueue createShared(SharedObjects sharedObjects) {
+    static TestEventQueue createShared(SharedObjectsExtension sharedObjects) {
         return new SharedTestEventQueue(sharedObjects.add(new TestEventQueueImpl()));
     }
 }

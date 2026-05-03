@@ -1447,6 +1447,48 @@ class Expression(Generic[T]):
         """
         return _unary_op("urlEncode")(self)
 
+    def inet_aton(self) -> 'Expression':
+        """
+        Converts an IPv4 address string to its numeric representation (BIGINT).
+        This function follows MySQL INET_ATON behavior.
+
+        The conversion formula is: A * 256^3 + B * 256^2 + C * 256 + D for an IP address A.B.C.D
+
+        Supports MySQL-compatible short-form IPv4 addresses:
+          - a — the value is stored directly as an address (value must be in [0, 255])
+          - a.b — interpreted as a.0.0.b
+          - a.b.c — interpreted as a.b.0.c
+          - a.b.c.d — standard dotted-decimal format
+
+        Examples:
+          - lit('1').inet_aton() returns 1 (single number)
+          - lit('127.0.0.1').inet_aton() returns 2130706433
+          - lit('127.1').inet_aton() returns 2130706433 (short-form: 127.0.0.1)
+          - lit('0.0.0.0').inet_aton() returns 0
+
+        :return: the numeric representation of the IP address, or null if the input is
+                 null or invalid
+        """
+        return _unary_op("inetAton")(self)
+
+    def inet_ntoa(self) -> 'Expression[str]':
+        """
+        Converts a numeric IPv4 address representation back to its string format.
+
+        Accepts any integer numeric type (TINYINT, SMALLINT, INT, BIGINT). The input must be
+        in the valid IPv4 range [0, 4294967295]. Negative values return null, consistent with
+        MySQL's INET_NTOA(-1) = NULL behavior.
+
+        Examples:
+          - lit(2130706433).inet_ntoa() returns '127.0.0.1'
+          - lit(0).inet_ntoa() returns '0.0.0.0'
+          - lit(-1).inet_ntoa() returns null
+
+        :return: the IPv4 address string in dotted-decimal notation, or null if the input is
+                 null, negative, or out of valid range
+        """
+        return _unary_op("inetNtoa")(self)
+
     def parse_url(self, part_to_extract: Union[str, 'Expression[str]'],
                   key: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
@@ -2232,6 +2274,203 @@ class Expression(Generic[T]):
                  field values
         """
         return _varargs_op("objectUpdate")(self, *kv)
+
+    # ---------------------------- Bitmap functions -----------------------------
+
+    def bitmap_and(self, bitmap2) -> 'Expression':
+        """
+        Computes the AND (intersection) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform AND operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapAnd")(self, bitmap2)
+
+    def bitmap_andnot(self, bitmap2) -> 'Expression':
+        """
+        Computes the AND NOT (difference) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform AND NOT operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapAndnot")(self, bitmap2)
+
+    def bitmap_and_agg(self):
+        """
+        Aggregates the AND (intersection) of multiple bitmaps.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapAndAgg")(self)
+
+    def bitmap_and_cardinality_agg(self):
+        """
+        Aggregates the AND (intersection) of multiple bitmaps and returns its 64-bit cardinality.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapAndCardinalityAgg")(self)
+
+    def bitmap_build(self) -> 'Expression':
+        """
+        Creates a bitmap from an array of 32-bit integers.
+
+        If the input is null, the result is null.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapBuild")(self)
+
+    def bitmap_build_agg(self):
+        """
+        Aggregates 32-bit integers into a bitmap.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapBuildAgg")(self)
+
+    def bitmap_build_cardinality_agg(self):
+        """
+        Aggregates 32-bit integers into a bitmap and returns its 64-bit cardinality.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapBuildCardinalityAgg")(self)
+
+    def bitmap_cardinality(self) -> 'Expression':
+        """
+        Returns the cardinality of a bitmap.
+
+        If the input is null, the result is null.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapCardinality")(self)
+
+    def bitmap_from_bytes(self) -> 'Expression':
+        """
+        Converts an array of bytes to a bitmap.
+
+        Following the format defined in `32-bit RoaringBitmap format specification \
+        <https://github.com/RoaringBitmap/RoaringFormatSpec>`_.
+
+        If the input is null, the result is null.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapFromBytes")(self)
+
+    def bitmap_or(self, bitmap2) -> 'Expression':
+        """
+        Computes the OR (union) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform OR operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapOr")(self, bitmap2)
+
+    def bitmap_or_agg(self):
+        """
+        Aggregates the OR (union) of multiple bitmaps.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapOrAgg")(self)
+
+    def bitmap_or_cardinality_agg(self):
+        """
+        Aggregates the OR (union) of multiple bitmaps and returns its 64-bit cardinality.
+
+        NOTE: The retraction variant of this function may have significant performance overhead
+        with large bitmaps.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapOrCardinalityAgg")(self)
+
+    def bitmap_to_array(self) -> 'Expression':
+        """
+        Converts a bitmap to an array of 32-bit integers, the values are sorted by \
+        :py:meth:`Integer.compareUnsigned`.
+
+        If the input is null, the result is null.
+
+        :return: an ARRAY<INT> expression
+        """
+        return _unary_op("bitmapToArray")(self)
+
+    def bitmap_to_bytes(self) -> 'Expression':
+        """
+        Converts a bitmap to an array of bytes.
+
+        Following the format defined in `32-bit RoaringBitmap format specification \
+        <https://github.com/RoaringBitmap/RoaringFormatSpec>`_.
+
+        If the input is null, the result is null.
+
+        :return: a VARBINARY expression
+        """
+        return _unary_op("bitmapToBytes")(self)
+
+    def bitmap_to_string(self) -> 'Expression':
+        """
+        Converts a bitmap to a string, the values are sorted by `Integer.compareUnsigned` in Java.
+        The string will be truncated and end with "..." if it is too long.
+
+        For example:
+
+        - ``"{}"``, ``"{1,2,3,4,5}"``
+        - Negative values (converted to unsigned): ``"{0,1,4294967294,4294967295}"``
+        - String too long: ``"{1,2,3,...}"``
+
+        If the input is null, the result is null.
+
+        :return: a STRING expression
+        """
+        return _unary_op("bitmapToString")(self)
+
+    def bitmap_xor(self, bitmap2) -> 'Expression':
+        """
+        Computes the XOR (symmetric difference) of two bitmaps.
+
+        If any of the inputs are null, the result is null.
+
+        :param bitmap2: the bitmap to perform XOR operation with
+        :return: a BITMAP expression
+        """
+        return _binary_op("bitmapXor")(self, bitmap2)
+
+    def bitmap_xor_agg(self):
+        """
+        Aggregates the XOR (symmetric difference) of multiple bitmaps.
+
+        :return: a BITMAP expression
+        """
+        return _unary_op("bitmapXorAgg")(self)
+
+    def bitmap_xor_cardinality_agg(self):
+        """
+        Aggregates the XOR (symmetric difference) of multiple bitmaps and returns its 64-bit
+        cardinality.
+
+        :return: a BIGINT expression
+        """
+        return _unary_op("bitmapXorCardinalityAgg")(self)
 
 
 # add the docs

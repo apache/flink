@@ -1,7 +1,8 @@
 ---
-title: Materialized Table
-bookCollapseSection: true
-weight: 33
+title: "Materialized Table"
+layout: redirect
+redirect_to: /docs/sql/materialized-table/
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

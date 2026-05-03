@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.api.InsertConflictStrategy
+import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{SinkUpsertMaterializeStrategy, TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY}
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -33,8 +35,11 @@ import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
  * Stream physical RelNode to write data into an external sink defined by a [[DynamicTableSink]].
@@ -48,7 +53,8 @@ class StreamPhysicalSink(
     tableSink: DynamicTableSink,
     targetColumns: Array[Array[Int]],
     abilitySpecs: Array[SinkAbilitySpec],
-    val upsertMaterialize: Boolean = false)
+    val upsertMaterialize: Boolean = false,
+    val conflictStrategy: InsertConflictStrategy)
   extends Sink(
     cluster,
     traitSet,
@@ -72,7 +78,8 @@ class StreamPhysicalSink(
       tableSink,
       targetColumns,
       abilitySpecs,
-      upsertMaterialize)
+      upsertMaterialize,
+      conflictStrategy)
   }
 
   def copy(newUpsertMaterialize: Boolean): StreamPhysicalSink = {
@@ -85,7 +92,8 @@ class StreamPhysicalSink(
       tableSink,
       targetColumns,
       abilitySpecs,
-      newUpsertMaterialize)
+      newUpsertMaterialize,
+      conflictStrategy)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -120,6 +128,7 @@ class StreamPhysicalSink(
         .filter(strategy => !strategy.equals(SinkUpsertMaterializeStrategy.LEGACY))
         .orElse(null),
       UpsertKeyUtil.getSmallestKey(inputUpsertKeys),
+      conflictStrategy,
       getRelDetailedDescription)
   }
 
@@ -127,5 +136,37 @@ class StreamPhysicalSink(
     super
       .explainTerms(pw)
       .itemIf("upsertMaterialize", "true", upsertMaterialize)
+      .itemIf("conflictStrategy", conflictStrategy, conflictStrategy != null)
+  }
+
+  def isDeduplicateConflictStrategy: Boolean = {
+    conflictStrategy != null && conflictStrategy.getBehavior == ConflictBehavior.DEDUPLICATE
+  }
+
+  def primaryKeysContainsUpsertKey: Boolean = {
+    val primaryKeys = contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
+    val pks = ImmutableBitSet.of(primaryKeys: _*)
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
+    val changeLogUpsertKeys = fmq.getUpsertKeys(getInput)
+    changeLogUpsertKeys != null && changeLogUpsertKeys.exists(pks.contains)
+  }
+
+  def getUpsertKeyNames: String = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
+    val changeLogUpsertKeys = fmq.getUpsertKeys(getInput)
+    if (changeLogUpsertKeys == null) {
+      "none"
+    } else {
+      val fieldNames = contextResolvedTable.getResolvedSchema.getColumnNames
+      changeLogUpsertKeys
+        .map(uk => uk.toArray.map(fieldNames.get).mkString("[", ", ", "]"))
+        .mkString(", ")
+    }
+  }
+
+  def getPrimaryKeyNames: String = {
+    val fieldNames = contextResolvedTable.getResolvedSchema.getColumnNames
+    val primaryKeys = contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
+    primaryKeys.map(fieldNames.get).mkString("[", ", ", "]")
   }
 }

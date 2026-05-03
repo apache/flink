@@ -20,10 +20,10 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
+import org.apache.flink.runtime.scheduler.taskexecload.HasTaskExecutionLoad;
+import org.apache.flink.runtime.scheduler.taskexecload.TaskExecutionLoad;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -33,7 +33,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** Represents execution vertices that will run the same shared slot. */
-public class ExecutionSlotSharingGroup implements WeightLoadable {
+public class ExecutionSlotSharingGroup implements HasTaskExecutionLoad {
 
     private final Set<ExecutionVertexID> executionVertexIds;
 
@@ -69,14 +69,14 @@ public class ExecutionSlotSharingGroup implements WeightLoadable {
                 + executionVertexIds
                 + ", slotSharingGroup="
                 + slotSharingGroup
-                + ", loadingWeight="
-                + getLoading()
+                + ", taskExecutionLoad="
+                + getTaskExecutionLoad()
                 + '}';
     }
 
     @Nonnull
     @Override
-    public LoadingWeight getLoading() {
-        return new DefaultLoadingWeight(executionVertexIds.size());
+    public TaskExecutionLoad getTaskExecutionLoad() {
+        return new DefaultTaskExecutionLoad(executionVertexIds.size());
     }
 }

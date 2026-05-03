@@ -29,7 +29,7 @@ import java.util.Objects;
 /**
  * An unresolved reference to a field, table, or local reference.
  *
- * <p>This is a purely API facing expression that will be resolved into {@link
+ * <p>This is a purely API-facing expression that will be resolved into {@link
  * FieldReferenceExpression}, {@link LocalReferenceExpression}, or {@link TableReferenceExpression}.
  */
 @PublicEvolving

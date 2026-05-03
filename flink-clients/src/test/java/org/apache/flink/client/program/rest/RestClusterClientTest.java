@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program.rest;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -35,7 +36,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -191,6 +191,7 @@ class RestClusterClientTest {
 
     private JobGraph jobGraph;
     private JobID jobId;
+    private ApplicationID applicationId;
 
     private static final Configuration restConfig;
 
@@ -214,6 +215,7 @@ class RestClusterClientTest {
 
         jobGraph = JobGraphTestUtils.emptyJobGraph();
         jobId = jobGraph.getJobID();
+        applicationId = ApplicationID.generate();
     }
 
     @AfterEach
@@ -880,7 +882,7 @@ class RestClusterClientTest {
                         // On an UNKNOWN JobResult it should be retried
                         JobExecutionResultResponseBody.created(
                                 new JobResult.Builder()
-                                        .applicationStatus(ApplicationStatus.UNKNOWN)
+                                        .jobStatus(null)
                                         .jobId(jobId)
                                         .netRuntime(Long.MAX_VALUE)
                                         .accumulatorResults(
@@ -891,7 +893,7 @@ class RestClusterClientTest {
                                         .build()),
                         JobExecutionResultResponseBody.created(
                                 new JobResult.Builder()
-                                        .applicationStatus(ApplicationStatus.SUCCEEDED)
+                                        .jobStatus(JobStatus.FINISHED)
                                         .jobId(jobId)
                                         .netRuntime(Long.MAX_VALUE)
                                         .accumulatorResults(
@@ -902,7 +904,7 @@ class RestClusterClientTest {
                                         .build()),
                         JobExecutionResultResponseBody.created(
                                 new JobResult.Builder()
-                                        .applicationStatus(ApplicationStatus.FAILED)
+                                        .jobStatus(JobStatus.FAILED)
                                         .jobId(jobId)
                                         .netRuntime(Long.MAX_VALUE)
                                         .serializedThrowable(
@@ -1265,10 +1267,12 @@ class RestClusterClientTest {
         final JobDetailsInfo jobDetailsInfo =
                 new JobDetailsInfo(
                         jobId,
+                        applicationId,
                         "foobar",
                         false,
                         JobStatus.RUNNING,
                         JobType.STREAMING,
+                        null,
                         1,
                         2,
                         1,

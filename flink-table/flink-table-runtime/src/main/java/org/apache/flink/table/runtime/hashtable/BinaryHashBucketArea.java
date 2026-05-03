@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.disk.RandomAccessInputView;
+import org.apache.flink.core.memory.RandomAccessInputView;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.util.MathUtils;

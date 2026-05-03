@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterModelReset;
+import org.apache.flink.sql.parser.ddl.model.SqlAlterModelReset;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ModelChange;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelReset}. */
+/** A converter for {@link org.apache.flink.sql.parser.ddl.model.SqlAlterModelReset}. */
 public class SqlAlterModelResetConverter
         extends AbstractSqlAlterModelConverter<SqlAlterModelReset> {
 
@@ -41,7 +41,7 @@ public class SqlAlterModelResetConverter
         ResolvedCatalogModel existingModel =
                 getExistingModel(
                         context,
-                        sqlAlterModelReset.fullModelName(),
+                        sqlAlterModelReset.getFullName(),
                         sqlAlterModelReset.ifModelExists());
 
         Set<String> resetKeys = sqlAlterModelReset.getResetKeys();
@@ -55,7 +55,7 @@ public class SqlAlterModelResetConverter
             return new AlterModelChangeOperation(
                     context.getCatalogManager()
                             .qualifyIdentifier(
-                                    UnresolvedIdentifier.of(sqlAlterModelReset.fullModelName())),
+                                    UnresolvedIdentifier.of(sqlAlterModelReset.getFullName())),
                     modelChanges,
                     null,
                     sqlAlterModelReset.ifModelExists());
@@ -67,7 +67,7 @@ public class SqlAlterModelResetConverter
         return new AlterModelChangeOperation(
                 context.getCatalogManager()
                         .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelReset.fullModelName())),
+                                UnresolvedIdentifier.of(sqlAlterModelReset.getFullName())),
                 modelChanges,
                 existingModel.copy(newOptions),
                 sqlAlterModelReset.ifModelExists());

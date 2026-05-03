@@ -1,7 +1,8 @@
 ---
-title: SQL Gateway
-bookCollapseSection: true
-weight: 92
+title: "SQL Gateway"
+layout: redirect
+redirect_to: /docs/sql/sql-gateway/
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

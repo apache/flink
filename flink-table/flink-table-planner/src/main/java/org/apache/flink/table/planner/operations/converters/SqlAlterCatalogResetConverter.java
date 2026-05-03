@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterCatalogReset;
+import org.apache.flink.sql.parser.ddl.catalog.SqlAlterCatalogReset;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.operations.Operation;

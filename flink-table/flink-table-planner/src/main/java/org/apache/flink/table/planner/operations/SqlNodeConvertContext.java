@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.SqlToRexConverter;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
@@ -36,7 +37,6 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.validate.SqlValidator;
 
 import javax.annotation.Nullable;
 
@@ -63,7 +63,7 @@ public class SqlNodeConvertContext implements SqlNodeConverter.ConvertContext {
     }
 
     @Override
-    public SqlValidator getSqlValidator() {
+    public FlinkCalciteSqlValidator getSqlValidator() {
         return flinkPlanner.getOrCreateSqlValidator();
     }
 

@@ -18,13 +18,19 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.multipleinput.output.BlackHoleOutput;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.AfterEach;
@@ -50,8 +56,14 @@ class HashAggTest {
     @BeforeEach
     void before() throws Exception {
         ioManager = new IOManagerAsync();
+        StreamConfig config = new StreamConfig(new Configuration());
+        config.setOperatorID(new OperatorID());
         operator =
-                new SumHashAggTestOperator(40 * 32 * 1024) {
+                new SumHashAggTestOperator(
+                        40 * 32 * 1024,
+                        new MockStreamTaskBuilder(MockEnvironment.builder().build()).build(),
+                        config,
+                        new BlackHoleOutput()) {
 
                     @Override
                     Object getOwner() {

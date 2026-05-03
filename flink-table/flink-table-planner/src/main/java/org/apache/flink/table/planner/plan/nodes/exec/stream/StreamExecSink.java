@@ -25,6 +25,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.InsertConflictStrategy;
+import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
@@ -53,6 +55,8 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerV2;
+import org.apache.flink.table.runtime.operators.sink.WatermarkCompactingSinkMaterializer;
+import org.apache.flink.table.runtime.operators.sink.WatermarkTimestampAssigner;
 import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetStateConfig;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
@@ -98,19 +102,49 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
         producedTransformations = {
             CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
             CommonExecSink.PARTITIONER_TRANSFORMATION,
+            StreamExecSink.WATERMARK_TIMESTAMP_ASSIGNER_TRANSFORMATION,
             CommonExecSink.UPSERT_MATERIALIZE_TRANSFORMATION,
             CommonExecSink.TIMESTAMP_INSERTER_TRANSFORMATION,
             CommonExecSink.SINK_TRANSFORMATION
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+// Version 2: Fixed the data type used for creating constraint enforcer and sink upsert
+// materializer. Since this version the sink works correctly with persisted metadata columns.
+// We introduced a new version, because statements that were never rolling back to a value from
+// state could run succesfully. We allow those jobs to be upgraded. Without a new versions such jobs
+// would fail on restore, because the state serializer would differ
+@ExecNodeMetadata(
+        name = "stream-exec-sink",
+        version = 2,
+        consumedOptions = {
+            "table.exec.sink.not-null-enforcer",
+            "table.exec.sink.type-length-enforcer",
+            "table.exec.sink.upsert-materialize",
+            "table.exec.sink.keyed-shuffle",
+            "table.exec.sink.rowtime-inserter"
+        },
+        producedTransformations = {
+            CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
+            CommonExecSink.PARTITIONER_TRANSFORMATION,
+            StreamExecSink.WATERMARK_TIMESTAMP_ASSIGNER_TRANSFORMATION,
+            CommonExecSink.UPSERT_MATERIALIZE_TRANSFORMATION,
+            CommonExecSink.TIMESTAMP_INSERTER_TRANSFORMATION,
+            CommonExecSink.SINK_TRANSFORMATION
+        },
+        minPlanVersion = FlinkVersion.v2_3,
+        minStateVersion = FlinkVersion.v2_3)
 public class StreamExecSink extends CommonExecSink implements StreamExecNode<Object> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecSink.class);
+
+    public static final String WATERMARK_TIMESTAMP_ASSIGNER_TRANSFORMATION =
+            "watermark-timestamp-assigner";
 
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
     public static final String FIELD_NAME_UPSERT_MATERIALIZE_STRATEGY = "upsertMaterializeStrategy";
     public static final String FIELD_NAME_INPUT_UPSERT_KEY = "inputUpsertKey";
+    public static final String FIELD_NAME_CONFLICT_STRATEGY = "conflictStrategy";
 
     /** New introduced state metadata to enable operator-level state TTL configuration. */
     public static final String STATE_NAME = "sinkMaterializeState";
@@ -131,6 +165,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     private final int[] inputUpsertKey;
 
     @Nullable
+    @JsonProperty(FIELD_NAME_CONFLICT_STRATEGY)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final InsertConflictStrategy conflictStrategy;
+
+    @Nullable
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
@@ -144,6 +183,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             boolean upsertMaterialize,
             SinkUpsertMaterializeStrategy upsertMaterializeStrategy,
             int[] inputUpsertKey,
+            @Nullable InsertConflictStrategy conflictStrategy,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
@@ -158,6 +198,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
                         : null,
                 inputUpsertKey,
+                conflictStrategy,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -175,6 +216,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                     SinkUpsertMaterializeStrategy sinkUpsertMaterializeStrategy,
             @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKey,
+            @Nullable @JsonProperty(FIELD_NAME_CONFLICT_STRATEGY)
+                    InsertConflictStrategy conflictStrategy,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -193,6 +236,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         this.inputUpsertKey = inputUpsertKey;
         this.stateMetadataList = stateMetadataList;
         this.upsertMaterializeStrategy = sinkUpsertMaterializeStrategy;
+        // Keep null to track if ON CONFLICT was explicitly specified
+        this.conflictStrategy = conflictStrategy;
     }
 
     @SuppressWarnings("unchecked")
@@ -292,10 +337,17 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 StateConfigUtil.createTtlConfig(
                         StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList));
 
+        final String[] pkFieldNames =
+                Arrays.stream(primaryKeys)
+                        .mapToObj(idx -> physicalRowType.getFieldNames().get(idx))
+                        .toArray(String[]::new);
+
         final OneInputStreamOperator<RowData, RowData> operator =
                 createSumOperator(
                         config,
                         physicalRowType,
+                        primaryKeys,
+                        pkFieldNames,
                         inputUpsertKey,
                         upsertKeyEqualiser,
                         upsertKeyHashFunction,
@@ -303,15 +355,29 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                         rowEqualiser,
                         rowHashFunction);
 
-        final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
-        final List<String> pkFieldNames =
-                Arrays.stream(primaryKeys)
-                        .mapToObj(idx -> fieldNames[idx])
-                        .collect(Collectors.toList());
+        // For ERROR/NOTHING strategies, apply WatermarkTimestampAssigner first
+        // This assigns the current watermark as the timestamp to each record,
+        // which is required for the WatermarkCompactingSinkMaterializer to work correctly
+        Transformation<RowData> transformForMaterializer = inputTransform;
+        if (isErrorOrNothingConflictStrategy()) {
+            // Use input parallelism to preserve watermark semantics
+            transformForMaterializer =
+                    ExecNodeUtil.createOneInputTransformation(
+                            inputTransform,
+                            createTransformationMeta(
+                                    WATERMARK_TIMESTAMP_ASSIGNER_TRANSFORMATION,
+                                    "WatermarkTimestampAssigner",
+                                    "WatermarkTimestampAssigner",
+                                    config),
+                            new WatermarkTimestampAssigner(),
+                            inputTransform.getOutputType(),
+                            inputTransform.getParallelism(),
+                            false);
+        }
 
         OneInputTransformation<RowData, RowData> materializeTransform =
                 ExecNodeUtil.createOneInputTransformation(
-                        inputTransform,
+                        transformForMaterializer,
                         createTransformationMeta(
                                 UPSERT_MATERIALIZE_TRANSFORMATION,
                                 String.format(
@@ -334,6 +400,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     private OneInputStreamOperator<RowData, RowData> createSumOperator(
             ExecNodeConfig config,
             RowType physicalRowType,
+            int[] primaryKeys,
+            String[] pkFieldNames,
             int[] inputUpsertKey,
             GeneratedRecordEqualiser upsertKeyEqualiser,
             GeneratedHashFunction upsertKeyHashFunction,
@@ -341,6 +409,22 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             GeneratedRecordEqualiser rowEqualiser,
             GeneratedHashFunction rowHashFunction) {
 
+        // Check if we should use the watermark-compacting materializer for ERROR/NOTHING strategies
+        if (isErrorOrNothingConflictStrategy()) {
+            RowType keyType = RowTypeUtils.projectRowType(physicalRowType, primaryKeys);
+
+            return WatermarkCompactingSinkMaterializer.create(
+                    ttlConfig,
+                    conflictStrategy,
+                    physicalRowType,
+                    rowEqualiser,
+                    upsertKeyEqualiser,
+                    inputUpsertKey,
+                    keyType,
+                    pkFieldNames);
+        }
+
+        // Use existing logic for DEDUPLICATE (legacy behavior)
         SinkUpsertMaterializeStrategy sinkUpsertMaterializeStrategy =
                 Optional.ofNullable(upsertMaterializeStrategy)
                         .orElse(SinkUpsertMaterializeStrategy.LEGACY);
@@ -364,6 +448,12 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                                 TimeDomain.EVENT_TIME,
                                 ttlConfig,
                                 config));
+    }
+
+    private boolean isErrorOrNothingConflictStrategy() {
+        return conflictStrategy != null
+                && (conflictStrategy.getBehavior() == ConflictBehavior.ERROR
+                        || conflictStrategy.getBehavior() == ConflictBehavior.NOTHING);
     }
 
     private static SequencedMultiSetStateConfig createStateConfig(
@@ -390,5 +480,10 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             default:
                 throw new IllegalArgumentException("Unsupported strategy: " + strategy);
         }
+    }
+
+    @Override
+    protected final boolean legacyPhysicalTypeEnabled() {
+        return getVersion() == 1;
     }
 }

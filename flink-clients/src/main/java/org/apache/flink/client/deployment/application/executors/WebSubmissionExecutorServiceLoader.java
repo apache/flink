@@ -63,6 +63,6 @@ public class WebSubmissionExecutorServiceLoader implements PipelineExecutorServi
 
     @Override
     public Stream<String> getExecutorNames() {
-        return Stream.<String>builder().add(EmbeddedExecutor.NAME).build();
+        return Stream.<String>builder().add(WebSubmissionExecutor.NAME).build();
     }
 }

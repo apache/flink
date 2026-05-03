@@ -27,18 +27,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.legacy.io.TextInputFormat;
-import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for rich DataSource and DataSink input output formats accessing RuntimeContext by checking
  * accumulator values.
  */
-public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
+class RichInputOutputITCase extends JavaProgramTestBase {
 
     private String inputPath;
     private static ConcurrentLinkedQueue<Integer> readCalls;
@@ -50,7 +50,7 @@ public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
     }
 
     @Override
-    protected void testProgram() throws Exception {
+    protected JobExecutionResult testProgram() throws Exception {
         // test verifying the number of records read and written vs the accumulator counts
 
         readCalls = new ConcurrentLinkedQueue<Integer>();
@@ -62,10 +62,12 @@ public class RichInputOutputITCase extends JavaProgramTestBaseJUnit4 {
         JobExecutionResult result = env.execute();
         Object a = result.getAllAccumulatorResults().get("DATA_SOURCE_ACCUMULATOR");
         Object b = result.getAllAccumulatorResults().get("DATA_SINK_ACCUMULATOR");
-        long recordsRead = (Long) a;
-        long recordsWritten = (Long) b;
-        assertEquals(recordsRead, readCalls.size());
-        assertEquals(recordsWritten, writeCalls.size());
+        int recordsRead = Math.toIntExact((Long) a);
+        int recordsWritten = Math.toIntExact((Long) b);
+        assertThat(readCalls).hasSize(recordsRead);
+        assertThat(writeCalls).hasSize(recordsWritten);
+
+        return result;
     }
 
     private static final class TestInputFormat extends TextInputFormat {

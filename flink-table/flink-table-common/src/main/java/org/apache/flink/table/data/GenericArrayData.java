@@ -20,6 +20,7 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -257,6 +258,11 @@ public final class GenericArrayData implements ArrayData {
     @Override
     public MapData getMap(int pos) {
         return (MapData) getObject(pos);
+    }
+
+    @Override
+    public Bitmap getBitmap(int pos) {
+        return (Bitmap) getObject(pos);
     }
 
     private Object getObject(int pos) {

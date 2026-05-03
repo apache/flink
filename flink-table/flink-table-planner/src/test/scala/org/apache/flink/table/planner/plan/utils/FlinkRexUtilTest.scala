@@ -353,8 +353,8 @@ class FlinkRexUtilTest {
             rexBuilder.makeCall(GREATER_THAN, a, rexBuilder.makeLiteral("l"))),
           rexBuilder.makeCall(
             OR,
-            rexBuilder.makeCall(EQUALS, a, b),
-            rexBuilder.makeCall(LESS_THAN, c, d),
+            rexBuilder.makeCall(EQUALS, b, a),
+            rexBuilder.makeCall(GREATER_THAN, d, c),
             rexBuilder.makeCall(LESS_THAN, b, rexBuilder.makeLiteral("k")))
         )
         .toString,

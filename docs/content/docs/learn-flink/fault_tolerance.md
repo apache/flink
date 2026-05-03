@@ -207,8 +207,8 @@ once, the following must be true:
 
 ## Hands-on
 
-The [Flink Operations Playground]({{< ref "docs/try-flink/flink-operations-playground" >}}) includes a section on
-[Observing Failure & Recovery]({{< ref "docs/try-flink/flink-operations-playground" >}}#observing-failure--recovery).
+The [Flink Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}) includes a section on
+[Observing Failure & Recovery]({{< ref "docs/getting-started/flink-operations-playground" >}}#observing-failure--recovery).
 
 {{< top >}}
 

@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort;
@@ -184,6 +185,7 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
         if (visitChild
                 && (source instanceof BatchExecCalc
                         || source instanceof BatchExecPythonCalc
+                        || source instanceof BatchExecPythonAsyncCalc
                         || source instanceof BatchExecSort
                         || source instanceof BatchExecCorrelate
                         || source instanceof BatchExecPythonCorrelate)) {

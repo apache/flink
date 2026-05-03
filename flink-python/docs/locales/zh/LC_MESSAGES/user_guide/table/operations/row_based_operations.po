@@ -1,0 +1,133 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/table/operations/row_based_operations.rst:19
+msgid "Row-based Operations"
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:21
+msgid "This page describes how to use row-based operations in PyFlink Table API."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:25
+msgid "Map"
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:27
+msgid ""
+"Performs a ``map`` operation with a python :doc:`general scalar function "
+"<../udfs>` or :doc:`vectorized scalar function <../udfs>`. The output "
+"will be flattened if the output type is a composite type."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:57
+msgid ""
+"It also supports to take a Row object (containing all the columns of the "
+"input table) as input."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:76
+msgid ""
+"Note The input columns should not be specified when using func2 in the "
+"map operation."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:79
+msgid ""
+"It also supports to use :doc:`vectorized scalar function <../udfs>` in "
+"the ``map`` operation. It should be noted that the input type and output "
+"type should be pandas.DataFrame instead of Row in this case."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:101
+msgid "FlatMap"
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:103
+msgid ""
+"Performs a ``flat_map`` operation with a python :doc:`table function "
+"<../udfs>`."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:132
+msgid ""
+"The python :doc:`table function <../udfs>` could also be used in "
+"``join_lateral`` and ``left_outer_join_lateral``."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:149
+msgid "Aggregate"
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:151
+msgid ""
+"Performs an ``aggregate`` operation with a python :doc:`general aggregate"
+" function <../udfs>` or :doc:`vectorized aggregate function <../udfs>`."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:231
+msgid ""
+"Note Similar to ``map`` operation, if you specify the aggregate function "
+"without the input columns in ``aggregate`` operation, it will take Row or"
+" Pandas.DataFrame as input which contains all the columns of the input "
+"table including the grouping keys. Note You have to close the “aggregate”"
+" with a select statement and it should not contain aggregate functions in"
+" the select statement. Besides, the output of aggregate will be flattened"
+" if it is a composite type."
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:240
+msgid "FlatAggregate"
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:242
+msgid ""
+"Performs a ``flat_aggregate`` operation with a python general :doc:`Table"
+" Aggregate Function <../udfs>`"
+msgstr ""
+
+#: ../../user_guide/table/operations/row_based_operations.rst:244
+msgid ""
+"Similar to ``GroupBy Aggregation``, ``FlatAggregate`` groups the inputs "
+"on the grouping keys. Different from ``AggregateFunction``, "
+"``TableAggregateFunction`` could return 0, 1, or more records for a "
+"grouping key. Similar to ``aggregate``, you have to close the "
+"``flat_aggregate`` with a select statement and the select statement "
+"should not contain aggregate functions."
+msgstr ""
+

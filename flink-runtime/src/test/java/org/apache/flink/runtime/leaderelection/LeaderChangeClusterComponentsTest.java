@@ -20,7 +20,6 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -114,7 +113,7 @@ class LeaderChangeClusterComponentsTest {
         highAvailabilityServices.revokeDispatcherLeadership().get();
 
         JobResult jobResult = jobResultFuture.get();
-        assertThat(jobResult.getApplicationStatus()).isEqualTo(ApplicationStatus.UNKNOWN);
+        assertThat(jobResult.getJobStatus().isPresent()).isFalse();
 
         highAvailabilityServices.grantDispatcherLeadership();
 

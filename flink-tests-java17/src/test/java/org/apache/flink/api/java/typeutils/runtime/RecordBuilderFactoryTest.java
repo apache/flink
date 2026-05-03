@@ -107,6 +107,6 @@ class RecordBuilderFactoryTest {
 
         assertThatThrownBy(builder::build)
                 .hasMessage("Could not instantiate record")
-                .hasCause(new IllegalArgumentException());
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 }

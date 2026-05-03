@@ -24,13 +24,19 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.StartMode;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TestSchemaResolver;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -66,13 +72,20 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                     Column.physical("age", DataTypes.INT()),
                     Column.physical("tss", DataTypes.TIMESTAMP(3)),
                     Column.physical("partition", DataTypes.VARCHAR(10)));
-    private static final UniqueConstraint CONSTRAINTS =
+    private static final UniqueConstraint PK_CONSTRAINT =
             UniqueConstraint.primaryKey("primary_constraint", Collections.singletonList("id"));
+    private static final ImmutableColumnsConstraint IMMUTABLE_COLS_CONSTRAINT =
+            ImmutableColumnsConstraint.immutableColumns(
+                    "imt_constraint", Collections.singletonList("name"));
     private static final List<String> PARTITION_KEYS = Collections.singletonList("partition");
 
     private static final ResolvedSchema CREATE_RESOLVED_SCHEMA =
             new ResolvedSchema(
-                    CREATE_COLUMNS, Collections.emptyList(), CONSTRAINTS, Collections.emptyList());
+                    CREATE_COLUMNS,
+                    Collections.emptyList(),
+                    PK_CONSTRAINT,
+                    Collections.emptyList(),
+                    IMMUTABLE_COLS_CONSTRAINT);
 
     private static final Schema CREATE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CREATE_RESOLVED_SCHEMA).build();
@@ -94,8 +107,11 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                             .build(),
                     CREATE_RESOLVED_SCHEMA);
 
-    private static final String DEFINITION_QUERY = "SELECT id, region, county FROM T";
-    private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute("3");
+    private static final String DEFAULT_ORIGINAL_QUERY = "SELECT id, region, county FROM T";
+    private static final String DEFAULT_EXPANDED_QUERY =
+            String.format(
+                    "SELECT id, region, county FROM %s.%s.T", TEST_CATALOG, TEST_DEFAULT_DATABASE);
+    private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute(3);
     private static final ResolvedCatalogMaterializedTable EXPECTED_CATALOG_MATERIALIZED_TABLE =
             new ResolvedCatalogMaterializedTable(
                     CatalogMaterializedTable.newBuilder()
@@ -103,16 +119,17 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                             .comment("test materialized table")
                             .partitionKeys(PARTITION_KEYS)
                             .options(EXPECTED_OPTIONS)
-                            .definitionQuery(DEFINITION_QUERY)
+                            .originalQuery(DEFAULT_ORIGINAL_QUERY)
+                            .expandedQuery(DEFAULT_EXPANDED_QUERY)
                             .freshness(FRESHNESS)
-                            .logicalRefreshMode(
-                                    CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
-                            .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
-                            .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                            .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
+                            .refreshMode(RefreshMode.CONTINUOUS)
+                            .refreshStatus(RefreshStatus.INITIALIZING)
                             .build(),
                     CREATE_RESOLVED_SCHEMA,
-                    CatalogMaterializedTable.RefreshMode.CONTINUOUS,
-                    FRESHNESS);
+                    RefreshMode.CONTINUOUS,
+                    FRESHNESS,
+                    StartMode.of(StartModeKind.FROM_BEGINNING));
 
     private static final TestRefreshHandler REFRESH_HANDLER =
             new TestRefreshHandler("jobID: xxx, clusterId: yyy");
@@ -237,19 +254,17 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         assertThat(actualMaterializedTable.getPartitionKeys()).isEqualTo(PARTITION_KEYS);
         // validate options
         assertThat(actualMaterializedTable.getOptions()).isEqualTo(expectedOptions);
-        // validate definition query
-        assertThat(actualMaterializedTable.getDefinitionQuery()).isEqualTo(DEFINITION_QUERY);
+        // validate expanded query
+        assertThat(actualMaterializedTable.getExpandedQuery()).isEqualTo(DEFAULT_EXPANDED_QUERY);
         // validate freshness
         assertThat(actualMaterializedTable.getDefinitionFreshness()).isEqualTo(FRESHNESS);
         // validate logical refresh mode
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
+                .isSameAs(LogicalRefreshMode.AUTOMATIC);
         // validate refresh mode
-        assertThat(actualMaterializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
         // validate refresh status
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.INITIALIZING);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.INITIALIZING);
         // validate refresh handler
         assertThat(actualMaterializedTable.getRefreshHandlerDescription())
                 .isEqualTo(Optional.empty());
@@ -373,7 +388,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         // alter materialized table refresh handler
         ResolvedCatalogMaterializedTable updatedMaterializedTable =
                 EXPECTED_CATALOG_MATERIALIZED_TABLE.copy(
-                        CatalogMaterializedTable.RefreshStatus.ACTIVATED,
+                        RefreshStatus.ACTIVATED,
                         REFRESH_HANDLER.asSummaryString(),
                         REFRESH_HANDLER.toBytes());
         catalog.alterTable(tablePath, updatedMaterializedTable, Collections.emptyList(), false);
@@ -386,8 +401,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
 
         CatalogMaterializedTable actualMaterializedTable = (CatalogMaterializedTable) actualTable;
         // validate refresh status
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         // validate refresh handler
         assertThat(actualMaterializedTable.getRefreshHandlerDescription().get())
                 .isEqualTo(REFRESH_HANDLER.asSummaryString());

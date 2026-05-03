@@ -56,6 +56,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setAllExecutionsToRunning;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForAllTasksRunning;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCheckpointInProgress;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCompletedCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForJobStatusRunning;
@@ -66,7 +67,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
     @Test
     void testStateSizeIsConsideredForLocalRecoveryOnRestart() throws Exception {
-        final JobGraph jobGraph = createJobGraphWithCheckpointing(JOB_VERTEX);
+        final JobGraph jobGraph =
+                createJobGraphWithCheckpointing(
+                        // disable automatic checkpointing to avoid races with manual checkpoints
+                        Long.MAX_VALUE, JOB_VERTEX);
         final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(PARALLELISM);
         final List<JobAllocationsInformation> capturedAllocations = new ArrayList<>();
         final boolean localRecoveryEnabled = true;
@@ -100,6 +104,18 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
         // Transition job and all subtasks to RUNNING state.
         waitForJobStatusRunning(scheduler);
         runInMainThread(() -> setAllExecutionsToRunning(scheduler));
+        // Wait for all task executions to actually reach RUNNING state before triggering
+        // checkpoint.
+        // In slower CI environments, state transitions may not complete immediately, causing
+        // checkpoint triggers to be rejected if tasks are still in DEPLOYING/INITIALIZING state.
+        final ExecutionGraph executionGraph =
+                scheduler
+                        .getState()
+                        .as(StateWithExecutionGraph.class)
+                        .map(StateWithExecutionGraph::getExecutionGraph)
+                        .orElseThrow(
+                                () -> new IllegalStateException("ExecutionGraph not available"));
+        waitForAllTasksRunning(executionGraph);
 
         // Trigger a checkpoint
         CompletableFuture<CompletedCheckpoint> completedCheckpointFuture =

@@ -27,6 +27,18 @@
             <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.adaptive-partitioner.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable adaptive partitioner feature for rescale and rebalance partitioners based on the load of the downstream tasks.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.adaptive-partitioner.max-traverse-size</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>Integer</td>
+            <td>Maximum number of channels to traverse when looking for the most idle channel for rescale and rebalance partitioners when <code class="highlighter-rouge">taskmanager.network.adaptive-partitioner.enabled</code> is enabled.<br />Note, the value of the configuration option must be greater than `1`.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.compression.codec</h5></td>
             <td style="word-wrap: break-word;">LZ4</td>
             <td><p>Enum</p></td>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs.storage;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
@@ -60,8 +61,7 @@ public class GSBlobStorageImpl implements GSBlobStorage {
         LOGGER.trace("Creating writable blob for identifier {}", blobIdentifier);
         Preconditions.checkNotNull(blobIdentifier);
 
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
-        com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
+        com.google.cloud.WriteChannel writeChannel = createWriteChannel(blobIdentifier);
         return new WriteChannel(blobIdentifier, writeChannel);
     }
 
@@ -75,10 +75,21 @@ public class GSBlobStorageImpl implements GSBlobStorage {
         Preconditions.checkNotNull(blobIdentifier);
         Preconditions.checkArgument(chunkSize.getBytes() > 0);
 
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
-        com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
+        com.google.cloud.WriteChannel writeChannel = createWriteChannel(blobIdentifier);
         writeChannel.setChunkSize((int) chunkSize.getBytes());
         return new WriteChannel(blobIdentifier, writeChannel);
+    }
+
+    /**
+     * Creates a write channel for the given blob identifier with appropriate preconditions.
+     *
+     * @param blobIdentifier The blob identifier to create the write channel for
+     * @return The write channel with appropriate write options
+     */
+    private com.google.cloud.WriteChannel createWriteChannel(GSBlobIdentifier blobIdentifier) {
+        BlobInfo existingBlob = storage.get(blobIdentifier.bucketName, blobIdentifier.objectName);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
+        return storage.writer(blobInfo, getBlobWriteOption(existingBlob));
     }
 
     @Override
@@ -153,9 +164,72 @@ public class GSBlobStorageImpl implements GSBlobStorage {
         for (GSBlobIdentifier blobIdentifier : sourceBlobIdentifiers) {
             builder.addSource(blobIdentifier.objectName);
         }
+        BlobInfo existingTargetBlob =
+                storage.get(targetBlobIdentifier.bucketName, targetBlobIdentifier.objectName);
+        Storage.BlobTargetOption precondition = getBlobTargetOption(existingTargetBlob);
+        Storage.ComposeRequest request = builder.setTargetOptions(precondition).build();
 
-        Storage.ComposeRequest request = builder.build();
         storage.compose(request);
+    }
+
+    /**
+     * Generic helper to create blob options with appropriate preconditions. This ensures that the
+     * operations become idempotent or atomic, allowing the GCS client to safely retry the 503
+     * errors.
+     *
+     * <p>For a target object that does not yet exist, sets the DoesNotExist precondition. This will
+     * cause the request to fail if the object is created before the request runs.
+     *
+     * <p>If the destination already exists, sets a generation-match precondition. This will cause
+     * the request to fail if the existing object's generation changes before the request runs.
+     *
+     * @param blobInfo The blob info to create the option for, or null if the blob does not exist
+     * @param doesNotExistSupplier Supplier for the doesNotExist option
+     * @param generationMatchFunction Function to create generationMatch option from generation
+     *     number
+     * @param <T> The type of the blob option (BlobTargetOption or BlobWriteOption)
+     * @return The appropriate option for the blob
+     */
+    @VisibleForTesting
+    <T> T getBlobOption(
+            BlobInfo blobInfo,
+            java.util.function.Supplier<T> doesNotExistSupplier,
+            java.util.function.Function<Long, T> generationMatchFunction) {
+        if (blobInfo == null) {
+            return doesNotExistSupplier.get();
+        } else {
+            return generationMatchFunction.apply(blobInfo.getGeneration());
+        }
+    }
+
+    /**
+     * Creates the appropriate BlobTargetOption for the given blob info.
+     *
+     * @param blobInfo The blob info to create the target option for, or null if the blob does not
+     *     exist
+     * @return The appropriate target option for the blob
+     */
+    @VisibleForTesting
+    Storage.BlobTargetOption getBlobTargetOption(BlobInfo blobInfo) {
+        return getBlobOption(
+                blobInfo,
+                Storage.BlobTargetOption::doesNotExist,
+                Storage.BlobTargetOption::generationMatch);
+    }
+
+    /**
+     * Creates the appropriate BlobWriteOption for the given blob info.
+     *
+     * @param blobInfo The blob info to create the write option for, or null if the blob does not
+     *     exist
+     * @return The appropriate write option for the blob
+     */
+    @VisibleForTesting
+    Storage.BlobWriteOption getBlobWriteOption(BlobInfo blobInfo) {
+        return getBlobOption(
+                blobInfo,
+                Storage.BlobWriteOption::doesNotExist,
+                Storage.BlobWriteOption::generationMatch);
     }
 
     @Override

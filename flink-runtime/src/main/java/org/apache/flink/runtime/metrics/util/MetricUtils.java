@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -87,6 +88,8 @@ public class MetricUtils {
     @VisibleForTesting static final String METRIC_GROUP_MANAGED_MEMORY = "Managed";
     private static final String WRITER_SUFFIX = ": " + ConfigConstants.WRITER_NAME;
     private static final String COMMITTER_SUFFIX = ": " + ConfigConstants.COMMITTER_NAME;
+
+    private static Boolean fileDescriptorWarningShown = false;
 
     private MetricUtils() {}
 
@@ -340,6 +343,13 @@ public class MetricUtils {
     }
 
     static void instantiateFileDescriptorMetrics(MetricGroup metrics) {
+        if (OperatingSystem.isWindows()) {
+            if (!fileDescriptorWarningShown) {
+                fileDescriptorWarningShown = true;
+                LOG.info("Running on Windows, FileDescriptor metrics will not be available.");
+            }
+            return;
+        }
         try {
             final com.sun.management.OperatingSystemMXBean mxBean =
                     (com.sun.management.OperatingSystemMXBean)

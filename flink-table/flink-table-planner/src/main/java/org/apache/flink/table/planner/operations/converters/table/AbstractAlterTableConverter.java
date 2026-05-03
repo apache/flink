@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -36,12 +35,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.utils.ValidationUtils;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
-
-import org.apache.calcite.sql.SqlIdentifier;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /** Abstract class for ALTER TABLE converters. */
@@ -52,32 +47,11 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
     protected abstract Operation convertToOperation(
             T sqlAlterTable, ResolvedCatalogTable oldTable, ConvertContext context);
 
-    protected final Schema getOldSchema(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getUnresolvedSchema();
-    }
-
-    protected final TableDistribution getOldTableDistribution(
-            ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getDistribution().orElse(null);
-    }
-
-    protected final List<String> getOldPartitionKeys(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getPartitionKeys();
-    }
-
-    protected final String getOldComment(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getComment();
-    }
-
-    protected final Map<String, String> getOldOptions(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getOptions();
-    }
-
     @Override
     public final Operation convertSqlNode(T sqlAlterTable, ConvertContext context) {
-        CatalogManager catalogManager = context.getCatalogManager();
-        final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
-        Optional<ContextResolvedTable> optionalCatalogTable =
+        final CatalogManager catalogManager = context.getCatalogManager();
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
+        final Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
 
         if (optionalCatalogTable.isEmpty() || optionalCatalogTable.get().isTemporary()) {
@@ -89,9 +63,7 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
                             "Table %s doesn't exist or is a temporary table.", tableIdentifier));
         }
         ValidationUtils.validateTableKind(
-                optionalCatalogTable.get().getTable(),
-                CatalogBaseTable.TableKind.TABLE,
-                "alter table");
+                optionalCatalogTable.get().getTable(), TableKind.TABLE, "alter table");
 
         return convertToOperation(
                 sqlAlterTable, optionalCatalogTable.get().getResolvedTable(), context);
@@ -123,32 +95,13 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
                 alterTable.ifTableExists());
     }
 
-    protected static String getColumnName(SqlIdentifier identifier) {
-        if (!identifier.isSimple()) {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "%sAlter nested row type %s is not supported yet.",
-                            EX_MSG_PREFIX, identifier));
-        }
-        return identifier.getSimple();
-    }
-
-    protected final ObjectIdentifier getIdentifier(SqlAlterTable node, ConvertContext context) {
+    protected final ObjectIdentifier resolveIdentifier(SqlAlterTable node, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }
 
     protected TableDistribution getTableDistribution(
             SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
-        if (alterTable instanceof SqlAlterTableSchema) {
-            final Optional<TableDistribution> tableDistribution =
-                    ((SqlAlterTableSchema) alterTable)
-                            .getDistribution()
-                            .map(OperationConverterUtils::getDistributionFromSqlDistribution);
-            if (tableDistribution.isPresent()) {
-                return tableDistribution.get();
-            }
-        }
         return oldTable.getDistribution().orElse(null);
     }
 }

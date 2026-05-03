@@ -26,5 +26,9 @@ Welcome to Flink Python Docs!
     :maxdepth: 2
     :hidden:
 
+    getting_started/index
+    user_guide/index
+    cookbook/index
+    developer_guide/index
     reference/index
     examples/index

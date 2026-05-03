@@ -42,8 +42,10 @@ public final class FailingSqlTestStep implements TestStep {
     FailingSqlTestStep(
             String sql, Class<? extends Exception> expectedException, String expectedErrorMessage) {
         Preconditions.checkArgument(
+                // UnsupportedOperationException is a special case in GenerateUtils#generateCompare
                 expectedException == ValidationException.class
-                        || expectedException == TableRuntimeException.class,
+                        || expectedException == TableRuntimeException.class
+                        || expectedException == UnsupportedOperationException.class,
                 "Usually a SQL query should fail with either validation or runtime exception. "
                         + "Otherwise this might require an update to the exception design.");
         this.sql = sql;

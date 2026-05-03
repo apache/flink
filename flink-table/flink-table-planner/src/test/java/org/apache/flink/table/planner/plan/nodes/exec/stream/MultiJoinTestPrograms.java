@@ -1823,4 +1823,34 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Shipments4K AS S ON U.k3 = S.k3 AND U.k2 > 150 AND U.k4 = S.k4 "
                                     + "WHERE U.k2 > 50")
                     .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_WITH_HINT =
+            TableTestProgram.of(
+                            "three-way-inner-join-with-hint",
+                            "three way inner join using MULTI_JOIN hint")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false)
+                    .setupTableSource(USERS_SOURCE)
+                    .setupTableSource(ORDERS_SOURCE)
+                    .setupTableSource(PAYMENTS_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment1]",
+                                            "+I[2, Bob, order2, payment2]",
+                                            "+I[2, Bob, order3, payment2]",
+                                            "+I[1, Gus, order1, payment3]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT /*+ MULTI_JOIN(u, o, p) */ u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM Users u "
+                                    + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                                    + "INNER JOIN Payments p ON u.user_id = p.user_id")
+                    .build();
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -39,6 +40,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.APPLICATION_RELATED_CONTENT;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
@@ -166,6 +168,7 @@ class BlobServerConnection extends Thread {
 
         final File blobFile;
         final JobID jobId;
+        final ApplicationID applicationId;
         final BlobKey blobKey;
 
         try {
@@ -178,25 +181,40 @@ class BlobServerConnection extends Thread {
             // Receive the jobId and key
             if (mode == JOB_UNRELATED_CONTENT) {
                 jobId = null;
+                applicationId = null;
             } else if (mode == JOB_RELATED_CONTENT) {
                 byte[] jidBytes = new byte[JobID.SIZE];
                 readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
                 jobId = JobID.fromByteArray(jidBytes);
+                applicationId = null;
+            } else if (mode == APPLICATION_RELATED_CONTENT) {
+                byte[] appIdBytes = new byte[ApplicationID.SIZE];
+                readFully(inputStream, appIdBytes, 0, ApplicationID.SIZE, "ApplicationID");
+                applicationId = ApplicationID.fromByteArray(appIdBytes);
+                jobId = null;
             } else {
                 throw new IOException("Unknown type of BLOB addressing: " + mode + '.');
             }
             blobKey = BlobKey.readFromInputStream(inputStream);
 
             checkArgument(
-                    blobKey instanceof TransientBlobKey || jobId != null,
+                    blobKey instanceof TransientBlobKey || jobId != null || applicationId != null,
                     "Invalid BLOB addressing for permanent BLOBs");
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                        "Received GET request for BLOB {}/{} from {}.",
-                        jobId,
-                        blobKey,
-                        clientSocket.getInetAddress());
+                if (mode == APPLICATION_RELATED_CONTENT) {
+                    LOG.debug(
+                            "Received GET request for BLOB application {}/{} from {}.",
+                            applicationId,
+                            blobKey,
+                            clientSocket.getInetAddress());
+                } else {
+                    LOG.debug(
+                            "Received GET request for BLOB {}/{} from {}.",
+                            jobId,
+                            blobKey,
+                            clientSocket.getInetAddress());
+                }
             }
 
             // up to here, an error can give a good message
@@ -218,7 +236,11 @@ class BlobServerConnection extends Thread {
             try {
                 // copy the file to local store if it does not exist yet
                 try {
-                    blobFile = blobServer.getFileInternal(jobId, blobKey);
+                    if (applicationId != null) {
+                        blobFile = blobServer.getFileInternal(applicationId, blobKey);
+                    } else {
+                        blobFile = blobServer.getFileInternal(jobId, blobKey);
+                    }
 
                     // enforce a 2GB max for now (otherwise the protocol's length field needs to be
                     // increased)
@@ -228,12 +250,21 @@ class BlobServerConnection extends Thread {
 
                     outputStream.write(RETURN_OKAY);
                 } catch (Throwable t) {
-                    LOG.error(
-                            "GET operation failed for BLOB {}/{} from {}.",
-                            jobId,
-                            blobKey,
-                            clientSocket.getInetAddress(),
-                            t);
+                    if (applicationId != null) {
+                        LOG.error(
+                                "GET operation failed for BLOB application {}/{} from {}.",
+                                applicationId,
+                                blobKey,
+                                clientSocket.getInetAddress(),
+                                t);
+                    } else {
+                        LOG.error(
+                                "GET operation failed for BLOB {}/{} from {}.",
+                                jobId,
+                                blobKey,
+                                clientSocket.getInetAddress(),
+                                t);
+                    }
                     try {
                         writeErrorToStream(outputStream, t);
                     } catch (IOException e) {
@@ -312,12 +343,20 @@ class BlobServerConnection extends Thread {
             }
 
             final JobID jobId;
+            final ApplicationID applicationId;
             if (mode == JOB_UNRELATED_CONTENT) {
                 jobId = null;
+                applicationId = null;
             } else if (mode == JOB_RELATED_CONTENT) {
                 byte[] jidBytes = new byte[JobID.SIZE];
                 readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
                 jobId = JobID.fromByteArray(jidBytes);
+                applicationId = null;
+            } else if (mode == APPLICATION_RELATED_CONTENT) {
+                byte[] appIdBytes = new byte[ApplicationID.SIZE];
+                readFully(inputStream, appIdBytes, 0, ApplicationID.SIZE, "ApplicationID");
+                applicationId = ApplicationID.fromByteArray(appIdBytes);
+                jobId = null;
             } else {
                 throw new IOException("Unknown type of BLOB addressing.");
             }
@@ -329,25 +368,43 @@ class BlobServerConnection extends Thread {
                     throw new EOFException("Read an incomplete BLOB type");
                 } else if (read == TRANSIENT_BLOB.ordinal()) {
                     blobType = TRANSIENT_BLOB;
+                    checkArgument(
+                            applicationId == null, "Invalid BLOB addressing for transient BLOBs");
                 } else if (read == PERMANENT_BLOB.ordinal()) {
                     blobType = PERMANENT_BLOB;
-                    checkArgument(jobId != null, "Invalid BLOB addressing for permanent BLOBs");
+                    checkArgument(
+                            jobId != null || applicationId != null,
+                            "Invalid BLOB addressing for permanent BLOBs");
                 } else {
                     throw new IOException("Invalid data received for the BLOB type: " + read);
                 }
             }
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                        "Received PUT request for BLOB of job {} with from {}.",
-                        jobId,
-                        clientSocket.getInetAddress());
+                if (applicationId != null) {
+                    LOG.debug(
+                            "Received PUT request for BLOB of application {} from {}.",
+                            applicationId,
+                            clientSocket.getInetAddress());
+                } else {
+                    LOG.debug(
+                            "Received PUT request for BLOB of job {} with from {}.",
+                            jobId,
+                            clientSocket.getInetAddress());
+                }
             }
 
             incomingFile = blobServer.createTemporaryFilename();
             byte[] digest = readFileFully(inputStream, incomingFile, buf);
 
-            BlobKey blobKey = blobServer.moveTempFileToStore(incomingFile, jobId, digest, blobType);
+            final BlobKey blobKey;
+            if (applicationId != null) {
+                blobKey =
+                        blobServer.moveTempFileToStore(
+                                incomingFile, applicationId, digest, blobType);
+            } else {
+                blobKey = blobServer.moveTempFileToStore(incomingFile, jobId, digest, blobType);
+            }
 
             // Return computed key to client for validation
             outputStream.write(RETURN_OKAY);

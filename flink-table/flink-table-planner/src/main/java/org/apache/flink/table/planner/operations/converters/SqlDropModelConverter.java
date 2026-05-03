@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlDropModel;
+import org.apache.flink.sql.parser.ddl.model.SqlDropModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
@@ -30,11 +30,11 @@ public class SqlDropModelConverter implements SqlNodeConverter<SqlDropModel> {
     @Override
     public Operation convertSqlNode(SqlDropModel sqlDropModel, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropModel.fullModelName());
+                UnresolvedIdentifier.of(sqlDropModel.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
         return new DropModelOperation(
-                identifier, sqlDropModel.getIfExists(), sqlDropModel.getIsTemporary());
+                identifier, sqlDropModel.getIfExists(), sqlDropModel.isTemporary());
     }
 }

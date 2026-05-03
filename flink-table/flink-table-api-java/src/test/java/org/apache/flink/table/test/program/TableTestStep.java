@@ -20,11 +20,18 @@ package org.apache.flink.table.test.program;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -58,25 +65,28 @@ public abstract class TableTestStep implements TestStep {
     public final @Nullable TableDistribution distribution;
     public final List<String> partitionKeys;
     public final Map<String, String> options;
+    public final List<List<String>> indexes;
 
     TableTestStep(
             String name,
             List<String> schemaComponents,
             @Nullable TableDistribution distribution,
             List<String> partitionKeys,
-            Map<String, String> options) {
+            Map<String, String> options,
+            List<List<String>> indexes) {
         this.name = name;
         this.schemaComponents = schemaComponents;
         this.distribution = distribution;
         this.partitionKeys = partitionKeys;
         this.options = options;
+        this.indexes = indexes;
     }
 
-    public TableResult apply(TableEnvironment env) {
-        return apply(env, Collections.emptyMap());
+    public void apply(TableEnvironment env) {
+        apply(env, Collections.emptyMap());
     }
 
-    public TableResult apply(TableEnvironment env, Map<String, String> extraOptions) {
+    public void apply(TableEnvironment env, Map<String, String> extraOptions) {
         final Map<String, String> allOptions = new HashMap<>(options);
         allOptions.putAll(extraOptions);
 
@@ -97,7 +107,41 @@ public abstract class TableTestStep implements TestStep {
                                 .map(e -> String.format("'%s'='%s'", e.getKey(), e.getValue()))
                                 .collect(Collectors.joining(",\n")));
 
-        return env.executeSql(createTable);
+        env.executeSql(createTable);
+        if (indexes.isEmpty()) {
+            return;
+        }
+
+        Optional<Catalog> currentCatalogOp = env.getCatalog(env.getCurrentCatalog());
+        Preconditions.checkState(currentCatalogOp.isPresent());
+        Catalog catalog = currentCatalogOp.get();
+
+        String currentDatabaseName = env.getCurrentDatabase();
+        ObjectPath tablePath = new ObjectPath(currentDatabaseName, name);
+        CatalogTable oldTable;
+        try {
+            oldTable = (CatalogTable) catalog.getTable(tablePath);
+            catalog.dropTable(tablePath, false);
+        } catch (TableNotExistException e) {
+            throw new IllegalStateException(e);
+        }
+        Schema schema = oldTable.getUnresolvedSchema();
+        Schema.Builder schemaBuilder = Schema.newBuilder().fromSchema(schema);
+        indexes.forEach(schemaBuilder::index);
+        CatalogTable newTable =
+                CatalogTable.newBuilder()
+                        .schema(schemaBuilder.build())
+                        .comment(oldTable.getComment())
+                        .partitionKeys(oldTable.getPartitionKeys())
+                        .options(oldTable.getOptions())
+                        .snapshot(oldTable.getSnapshot().orElse(null))
+                        .distribution(oldTable.getDistribution().orElse(null))
+                        .build();
+        try {
+            catalog.createTable(tablePath, newTable, false);
+        } catch (TableAlreadyExistException | DatabaseNotExistException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /** Builder pattern for {@link SourceTestStep} and {@link SinkTestStep}. */

@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 
 import java.util.Arrays;
+import java.util.function.Function;
 
 /** Utilities for creating {@link JobGraph JobGraphs} for testing purposes. */
 public class JobGraphTestUtils {
 
     public static JobGraph emptyJobGraph() {
-        return JobGraphBuilder.newStreamingJobGraphBuilder().build();
+        final JobGraph jobGraph = JobGraphBuilder.newStreamingJobGraphBuilder().build();
+        jobGraph.setApplicationId(new ApplicationID());
+        return jobGraph;
     }
 
     public static JobGraph singleNoOpJobGraph() {
@@ -34,19 +38,35 @@ public class JobGraphTestUtils {
         jobVertex.setInvokableClass(NoOpInvokable.class);
         jobVertex.setParallelism(1);
 
-        return JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(jobVertex).build();
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(jobVertex).build();
+        jobGraph.setApplicationId(new ApplicationID());
+        return jobGraph;
     }
 
     public static JobGraph streamingJobGraph(JobVertex... jobVertices) {
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertices(Arrays.asList(jobVertices))
-                .build();
+        return streamingJobGraph(Function.identity(), jobVertices);
+    }
+
+    public static JobGraph streamingJobGraph(
+            Function<JobGraphBuilder, JobGraphBuilder> transformJgb, JobVertex... jobVertices) {
+        final JobGraph jobGraph =
+                transformJgb
+                        .apply(
+                                JobGraphBuilder.newStreamingJobGraphBuilder()
+                                        .addJobVertices(Arrays.asList(jobVertices)))
+                        .build();
+        jobGraph.setApplicationId(new ApplicationID());
+        return jobGraph;
     }
 
     public static JobGraph batchJobGraph(JobVertex... jobVertices) {
-        return JobGraphBuilder.newBatchJobGraphBuilder()
-                .addJobVertices(Arrays.asList(jobVertices))
-                .build();
+        final JobGraph jobGraph =
+                JobGraphBuilder.newBatchJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(jobVertices))
+                        .build();
+        jobGraph.setApplicationId(new ApplicationID());
+        return jobGraph;
     }
 
     private JobGraphTestUtils() {

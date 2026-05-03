@@ -32,6 +32,7 @@ public class TableSemanticsMock implements TableSemantics {
     private final DataType dataType;
     private final int[] partitionByColumns;
     private final int[] orderByColumns;
+    private final SortDirection[] orderByDirections;
     private final int timeColumn;
     private final ChangelogMode changelogMode;
 
@@ -48,6 +49,10 @@ public class TableSemanticsMock implements TableSemantics {
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
         this.orderByColumns = orderByColumns;
+        this.orderByDirections = new SortDirection[orderByColumns.length];
+        for (int i = 0; i < orderByColumns.length; i++) {
+            this.orderByDirections[i] = SortDirection.ASC_NULLS_LAST;
+        }
         this.timeColumn = timeColumn;
         this.changelogMode = changelogMode;
     }
@@ -65,6 +70,11 @@ public class TableSemanticsMock implements TableSemantics {
     @Override
     public int[] orderByColumns() {
         return orderByColumns;
+    }
+
+    @Override
+    public SortDirection[] orderByDirections() {
+        return orderByDirections;
     }
 
     @Override

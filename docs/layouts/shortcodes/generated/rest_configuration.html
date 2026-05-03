@@ -51,6 +51,12 @@
             <td>Duration from write after which cached checkpoints statistics are cleaned up. For backwards compatibility, if no value is configured, <code class="highlighter-rouge">web.refresh-interval</code> will be used instead.</td>
         </tr>
         <tr>
+            <td><h5>rest.cache.execution-graph.timeout</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Time-to-live for cached ExecutionGraph. If not set, defaults to the value of <code class="highlighter-rouge">web.refresh-interval</code>. Setting this to 0 means the cache will always fetch fresh data, which is useful for real-time state synchronization scenarios.</td>
+        </tr>
+        <tr>
             <td><h5>rest.client.max-content-length</h5></td>
             <td style="word-wrap: break-word;">104857600</td>
             <td>Integer</td>

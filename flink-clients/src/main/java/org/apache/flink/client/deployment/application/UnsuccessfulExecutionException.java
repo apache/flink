@@ -20,30 +20,34 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
+
+import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Exception that signals the failure of an application with a given {@link ApplicationStatus}. */
+/** Exception that signals the failure of a job with a given {@link JobStatus}. */
 @Internal
 public class UnsuccessfulExecutionException extends JobExecutionException {
 
-    private final ApplicationStatus status;
+    @Nullable private final JobStatus status;
 
     public UnsuccessfulExecutionException(
             final JobID jobID,
-            final ApplicationStatus status,
+            @Nullable final JobStatus status,
             final String message,
             final Throwable cause) {
         super(jobID, message, cause);
-        this.status = checkNotNull(status);
+        this.status = status;
     }
 
-    public ApplicationStatus getStatus() {
-        return status;
+    public Optional<JobStatus> getStatus() {
+        return Optional.ofNullable(status);
     }
 
     public static UnsuccessfulExecutionException fromJobResult(
@@ -64,13 +68,13 @@ public class UnsuccessfulExecutionException extends JobExecutionException {
         } catch (Throwable t) {
 
             final JobID jobID = result.getJobId();
-            final ApplicationStatus status = result.getApplicationStatus();
+            final JobStatus status = result.getJobStatus().orElse(null);
 
-            return status == ApplicationStatus.CANCELED || status == ApplicationStatus.FAILED
+            return status == JobStatus.CANCELED || status == JobStatus.FAILED
                     ? new UnsuccessfulExecutionException(
-                            jobID, status, "Application Status: " + status.name(), t)
+                            jobID, status, "Job Status: " + status.name(), t)
                     : new UnsuccessfulExecutionException(
-                            jobID, ApplicationStatus.UNKNOWN, "Job failed for unknown reason.", t);
+                            jobID, null, "Job failed for unknown reason.", t);
         }
     }
 }

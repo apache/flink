@@ -19,10 +19,16 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.TableSemantics.SortDirection;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,11 +40,20 @@ import java.util.stream.Collectors;
 public class PartitionQueryOperation implements QueryOperation {
 
     private final List<ResolvedExpression> partitionExpressions;
+    private final List<ResolvedExpression> orderExpressions;
     private final QueryOperation child;
 
     public PartitionQueryOperation(
             List<ResolvedExpression> partitionExpressions, QueryOperation child) {
+        this(partitionExpressions, List.of(), child);
+    }
+
+    public PartitionQueryOperation(
+            List<ResolvedExpression> partitionExpressions,
+            List<ResolvedExpression> orderExpressions,
+            QueryOperation child) {
         this.partitionExpressions = partitionExpressions;
+        this.orderExpressions = orderExpressions;
         this.child = child;
     }
 
@@ -50,14 +65,80 @@ public class PartitionQueryOperation implements QueryOperation {
                 .toArray();
     }
 
+    public List<ResolvedExpression> getOrderExpressions() {
+        return orderExpressions;
+    }
+
+    public int[] getOrderKeys() {
+        return orderExpressions.stream().mapToInt(this::extractFieldIndex).toArray();
+    }
+
+    public SortDirection[] getOrderDirections() {
+        return orderExpressions.stream()
+                .map(this::extractSortDirection)
+                .toArray(SortDirection[]::new);
+    }
+
+    private int extractFieldIndex(ResolvedExpression orderExpr) {
+        // Order expressions are typically CallExpressions wrapping ORDER_ASC or ORDER_DESC
+        if (orderExpr instanceof CallExpression) {
+            final CallExpression call = (CallExpression) orderExpr;
+            if (call.getChildren().size() == 1) {
+                final Expression child = call.getChildren().get(0);
+                if (child instanceof FieldReferenceExpression) {
+                    return ((FieldReferenceExpression) child).getFieldIndex();
+                }
+            }
+        }
+        // Fallback: if it's directly a field reference
+        if (orderExpr instanceof FieldReferenceExpression) {
+            return ((FieldReferenceExpression) orderExpr).getFieldIndex();
+        }
+        throw new TableException(
+                "Unable to extract field index from order expression: " + orderExpr);
+    }
+
+    private SortDirection extractSortDirection(ResolvedExpression orderExpr) {
+        // Check if wrapped in ORDER_ASC or ORDER_DESC
+        if (orderExpr instanceof CallExpression) {
+            final CallExpression call = (CallExpression) orderExpr;
+            final FunctionDefinition functionDef = call.getFunctionDefinition();
+
+            if (functionDef == BuiltInFunctionDefinitions.ORDER_DESC) {
+                return SortDirection.DESC_NULLS_FIRST;
+            } else if (functionDef == BuiltInFunctionDefinitions.ORDER_ASC) {
+                return SortDirection.ASC_NULLS_LAST;
+            }
+        }
+        // Default to ASC if no explicit direction
+        return SortDirection.ASC_NULLS_LAST;
+    }
+
     @Override
     public String asSerializableString(SqlFactory sqlFactory) {
-        return String.format(
-                "(%s\n) PARTITION BY (%s)",
-                OperationUtils.indent(child.asSerializableString(sqlFactory)),
-                partitionExpressions.stream()
-                        .map(expr -> expr.asSerializableString(sqlFactory))
-                        .collect(Collectors.joining(", ")));
+        String result =
+                String.format(
+                        "(%s\n)", OperationUtils.indent(child.asSerializableString(sqlFactory)));
+
+        if (!partitionExpressions.isEmpty()) {
+            result +=
+                    " PARTITION BY ("
+                            + partitionExpressions.stream()
+                                    .map(expr -> expr.asSerializableString(sqlFactory))
+                                    .collect(Collectors.joining(", "))
+                            + ")";
+        }
+
+        if (!orderExpressions.isEmpty()) {
+            result +=
+                    " ORDER BY ("
+                            + orderExpressions.stream()
+                                    .map(expr -> expr.asSerializableString(sqlFactory))
+                                    .collect(Collectors.joining(", "))
+                            + ")";
+        }
+
+        return result;
     }
 
     @Override

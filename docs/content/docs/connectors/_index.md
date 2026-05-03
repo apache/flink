@@ -3,7 +3,7 @@ title: Connectors
 icon: <i class="fa fa-random title maindish" aria-hidden="true"></i>
 bold: true
 bookCollapseSection: true
-weight: 6
+weight: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

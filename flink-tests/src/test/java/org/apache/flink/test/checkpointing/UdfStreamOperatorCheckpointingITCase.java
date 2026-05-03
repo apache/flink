@@ -32,12 +32,12 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.EvictingQueue;
 
-import org.junit.Assert;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.Random;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test ensuring that the persistent state defined by the implementations of {@link
@@ -46,8 +46,7 @@ import java.util.Random;
  * <p>The topology currently tests the proper behaviour of the {@link StreamGroupedReduceOperator}
  * operator.
  */
-@SuppressWarnings("serial")
-public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
+class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
 
     private static final long NUM_INPUT = 500_000L;
     private static final int NUM_OUTPUT = 1_000;
@@ -94,7 +93,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         // Checking the result of the built-in aggregate
         for (int i = 0; i < PARALLELISM; i++) {
             for (Long value : MinEvictingQueueSink.queues[i]) {
-                Assert.assertTrue("Value different from 1 found, was " + value + ".", value == 1);
+                assertThat(value).as("Value different from 1 found, was " + value + ".").isOne();
             }
         }
 
@@ -105,9 +104,9 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
             while (!SumEvictingQueueSink.queues[i].isEmpty()) {
                 sum += ++prevCount;
                 Long value = SumEvictingQueueSink.queues[i].remove();
-                Assert.assertTrue(
-                        "Unexpected reduce value " + value + " instead of " + sum + ".",
-                        value == sum);
+                assertThat(value)
+                        .as("Unexpected reduce value " + value + " instead of " + sum + ".")
+                        .isEqualTo(sum);
             }
         }
     }

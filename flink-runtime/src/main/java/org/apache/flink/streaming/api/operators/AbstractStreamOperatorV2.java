@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator.OutputAdjustment;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -113,9 +115,16 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
     public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
+        this(parameters, numberOfInputs, OutputAdjustment.noAdjustment());
+    }
+
+    public AbstractStreamOperatorV2(
+            StreamOperatorParameters<OUT> parameters,
+            int numberOfInputs,
+            OutputAdjustment<OUT> outputAdjustment) {
         final Environment environment = parameters.getContainingTask().getEnvironment();
         config = parameters.getStreamConfig();
-        output = parameters.getOutput();
+        output = outputAdjustment.apply(parameters.getOutput());
         metrics =
                 environment
                         .getMetricGroup()
@@ -236,9 +245,10 @@ public abstract class AbstractStreamOperatorV2<OUT>
         beforeInitializeStateHandler();
         stateHandler.initializeOperatorState(this);
 
-        if (useInterruptibleTimers()
+        if (useInterruptibleTimers(runtimeContext.getJobConfiguration())
                 && areInterruptibleTimersConfigured()
                 && getTimeServiceManager().isPresent()) {
+            LOG.info("Interruptible timers enabled for {}", getClass().getSimpleName());
             watermarkProcessor =
                     new MailboxWatermarkProcessor(
                             output, mailboxExecutor, getTimeServiceManager().get());
@@ -254,7 +264,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
      *     {@code false} if splittable timers should never be used.
      */
     @Internal
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return false;
     }
 

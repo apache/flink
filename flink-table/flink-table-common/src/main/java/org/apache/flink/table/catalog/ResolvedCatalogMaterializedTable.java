@@ -49,15 +49,19 @@ public class ResolvedCatalogMaterializedTable
 
     private final IntervalFreshness freshness;
 
+    private final StartMode startMode;
+
     public ResolvedCatalogMaterializedTable(
             CatalogMaterializedTable origin,
             ResolvedSchema resolvedSchema,
             RefreshMode refreshMode,
-            IntervalFreshness freshness) {
+            IntervalFreshness freshness,
+            StartMode startMode) {
         this.origin = checkNotNull(origin, "Original catalog materialized table must not be null.");
         this.resolvedSchema = checkNotNull(resolvedSchema, "Resolved schema must not be null.");
         this.refreshMode = checkNotNull(refreshMode, "Refresh mode must not be null.");
         this.freshness = checkNotNull(freshness, "Freshness must not be null.");
+        this.startMode = checkNotNull(startMode, "Start mode must not be null.");
     }
 
     @Override
@@ -73,13 +77,17 @@ public class ResolvedCatalogMaterializedTable
     @Override
     public CatalogBaseTable copy() {
         return new ResolvedCatalogMaterializedTable(
-                (CatalogMaterializedTable) origin.copy(), resolvedSchema, refreshMode, freshness);
+                (CatalogMaterializedTable) origin.copy(),
+                resolvedSchema,
+                refreshMode,
+                freshness,
+                startMode);
     }
 
     @Override
     public ResolvedCatalogMaterializedTable copy(Map<String, String> options) {
         return new ResolvedCatalogMaterializedTable(
-                origin.copy(options), resolvedSchema, refreshMode, freshness);
+                origin.copy(options), resolvedSchema, refreshMode, freshness, startMode);
     }
 
     @Override
@@ -91,7 +99,8 @@ public class ResolvedCatalogMaterializedTable
                 origin.copy(refreshStatus, refreshHandlerDescription, serializedRefreshHandler),
                 resolvedSchema,
                 refreshMode,
-                freshness);
+                freshness,
+                startMode);
     }
 
     @Override
@@ -120,6 +129,16 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
+    public String getOriginalQuery() {
+        return origin.getOriginalQuery();
+    }
+
+    @Override
+    public String getExpandedQuery() {
+        return origin.getExpandedQuery();
+    }
+
+    @Override
     public CatalogMaterializedTable getOrigin() {
         return origin;
     }
@@ -127,11 +146,6 @@ public class ResolvedCatalogMaterializedTable
     @Override
     public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
-    }
-
-    @Override
-    public String getDefinitionQuery() {
-        return origin.getDefinitionQuery();
     }
 
     @Override
@@ -170,6 +184,10 @@ public class ResolvedCatalogMaterializedTable
         return origin.getSerializedRefreshHandler();
     }
 
+    public Optional<StartMode> getStartMode() {
+        return Optional.of(startMode);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -200,15 +218,6 @@ public class ResolvedCatalogMaterializedTable
 
     /** Convert this object to a {@link ResolvedCatalogTable} object for planner optimize query. */
     public ResolvedCatalogTable toResolvedCatalogTable() {
-        return new ResolvedCatalogTable(
-                CatalogTable.newBuilder()
-                        .schema(getUnresolvedSchema())
-                        .comment(getComment())
-                        .distribution(getDistribution().orElse(null))
-                        .partitionKeys(getPartitionKeys())
-                        .options(getOptions())
-                        .snapshot(getSnapshot().orElse(null))
-                        .build(),
-                getResolvedSchema());
+        return new ResolvedCatalogTable(origin.toCatalogTable(), getResolvedSchema());
     }
 }

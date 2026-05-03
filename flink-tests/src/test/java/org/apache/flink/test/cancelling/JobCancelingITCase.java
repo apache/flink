@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -32,37 +33,40 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for canceling the job. */
-@SuppressWarnings("serial")
-public class JobCancelingITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class JobCancelingITCase {
 
     private static final int PARALLELISM = 4;
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
-
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(PARALLELISM)
                             .build());
 
     @Test
-    public void testCancelingWhileBackPressured() throws Exception {
+    void testCancelingWhileBackPressured(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> client)
+            throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.getConfig().enableObjectReuse();
@@ -94,16 +98,15 @@ public class JobCancelingITCase extends TestLogger {
         StreamGraph streamGraph = env.getStreamGraph();
         JobGraph jobGraph = streamGraph.getJobGraph();
 
-        ClusterClient<?> client = MINI_CLUSTER.getClusterClient();
         JobID jobID = client.submitJob(jobGraph).get();
-        waitForAllTaskRunning(MINI_CLUSTER.getMiniCluster(), jobID, false);
+        waitForAllTaskRunning(miniCluster, jobID, false);
         // give a bit of time of back pressure to build up
         Thread.sleep(100);
 
         client.cancel(jobID).get();
         while (!client.getJobStatus(jobID).get().isTerminalState()) {}
 
-        assertEquals(JobStatus.CANCELED, client.getJobStatus(jobID).get());
+        assertThat(client.getJobStatus(jobID).get()).isEqualTo(JobStatus.CANCELED);
     }
 
     private static class InfiniteLongSourceFunction implements SourceFunction<Long> {

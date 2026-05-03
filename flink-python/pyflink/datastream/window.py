@@ -171,7 +171,7 @@ class TimeWindow(Window):
         return self.start == other.start and self.end < other.end or self.start < other.start
 
     def __le__(self, other: 'TimeWindow'):
-        return self.__eq__(other) and self.__lt__(other)
+        return self.__eq__(other) or self.__lt__(other)
 
     def __repr__(self):
         return "TimeWindow(start={}, end={})".format(self.start, self.end)

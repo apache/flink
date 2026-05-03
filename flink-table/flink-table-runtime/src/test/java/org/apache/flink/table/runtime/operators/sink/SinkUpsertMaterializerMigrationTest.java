@@ -30,11 +30,13 @@ import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetSt
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,20 +61,20 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 
 /** Test for {@link SinkUpsertMaterializer} migration. */
-@RunWith(Parameterized.class)
-public class SinkUpsertMaterializerMigrationTest implements MigrationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class SinkUpsertMaterializerMigrationTest implements MigrationTest {
 
     private static final String FOLDER_NAME = "sink-upsert-materializer";
 
-    @Parameterized.Parameter(0)
+    @Parameter
     @SuppressWarnings({"ClassEscapesDefinedScope", "DefaultAnnotationParam"})
-    public SinkOperationMode migrateFrom;
+    SinkOperationMode migrateFrom;
 
-    @Parameterized.Parameter(1)
+    @Parameter(1)
     @SuppressWarnings("ClassEscapesDefinedScope")
-    public SinkOperationMode migrateTo;
+    SinkOperationMode migrateTo;
 
-    @Parameterized.Parameters(name = "{0} -> {1}")
+    @Parameters(name = "name = {0} -> {1}")
     public static List<Object[]> parameters() {
         List<Object[]> result = new ArrayList<>();
         Set<FlinkVersion> versions = FlinkVersion.rangeOf(FlinkVersion.v2_2, FlinkVersion.v2_2);
@@ -92,8 +94,8 @@ public class SinkUpsertMaterializerMigrationTest implements MigrationTest {
         return result;
     }
 
-    @Test
-    public void testMigration() throws Exception {
+    @TestTemplate
+    void testMigration() throws Exception {
         String path = getResourceFilename(FOLDER_NAME + "/" + getFileName(migrateFrom));
         try (OneInputStreamOperatorTestHarness<RowData, RowData> harness =
                 createHarness(migrateTo, path)) {

@@ -308,8 +308,11 @@ public class JobManagerOptions {
                     .withDescription(
                             "Directory for JobManager to store the archives of completed jobs.");
 
-    /** The job store cache size in bytes which is used to keep completed jobs in memory. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_CACHE_SIZE}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Long> JOB_STORE_CACHE_SIZE =
             key("jobstore.cache-size")
                     .longType()
@@ -317,7 +320,11 @@ public class JobManagerOptions {
                     .withDescription(
                             "The job store cache size in bytes which is used to keep completed jobs in memory.");
 
-    /** The time in seconds after which a completed job expires and is purged from the job store. */
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_EXPIRATION_TIME}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Long> JOB_STORE_EXPIRATION_TIME =
             key("jobstore.expiration-time")
@@ -326,9 +333,11 @@ public class JobManagerOptions {
                     .withDescription(
                             "The time in seconds after which a completed job expires and is purged from the job store.");
 
-    /** The max number of completed jobs that can be kept in the job store. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
-    @Documentation.OverrideDefault("infinite")
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_MAX_CAPACITY}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
             key("jobstore.max-capacity")
                     .intType()
@@ -337,8 +346,11 @@ public class JobManagerOptions {
                             "The max number of completed jobs that can be kept in the job store. "
                                     + "NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.");
 
-    /** Config parameter determining the job store implementation in session cluster. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    /**
+     * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_TYPE}
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<JobStoreType> JOB_STORE_TYPE =
             key("jobstore.type")
                     .enumType(JobStoreType.class)
@@ -358,6 +370,74 @@ public class JobManagerOptions {
 
     /** Type of job store implementation. */
     public enum JobStoreType {
+        File,
+        Memory
+    }
+
+    /** The cache size in bytes which is used to keep completed applications in memory. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Long> COMPLETED_APPLICATION_STORE_CACHE_SIZE =
+            key("completed-application-store.cache-size")
+                    .longType()
+                    .defaultValue(50L * 1024L * 1024L)
+                    .withDeprecatedKeys("jobstore.cache-size")
+                    .withDescription(
+                            "The cache size in bytes which is used to keep completed applications in memory.");
+
+    /** The time after which a completed application expires and is purged from the store. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Duration> COMPLETED_APPLICATION_STORE_EXPIRATION_TIME =
+            key("completed-application-store.expiration-time")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The time after which a completed application expires and is purged from the store.");
+
+    /** The max number of completed applications that can be kept in the store. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    @Documentation.OverrideDefault("infinite")
+    public static final ConfigOption<Integer> COMPLETED_APPLICATION_STORE_MAX_CAPACITY =
+            key("completed-application-store.max-capacity")
+                    .intType()
+                    .defaultValue(Integer.MAX_VALUE)
+                    .withDeprecatedKeys("jobstore.max-capacity")
+                    .withDescription(
+                            "The max number of completed applications that can be kept in the store. "
+                                    + "NOTICE: if memory store keeps too many applications in session cluster, it may cause FullGC or OOM in jm.");
+
+    /**
+     * Config parameter determining the store implementation in session cluster.
+     *
+     * <p>FLINK-38845 replaces job store with application store because every job is now associated
+     * with an application. The legacy job store expires jobs individually, risking partial loss of
+     * an application's job history and breaking application-level consistency. The application
+     * store manages and expires applications (with all its jobs) as a whole, ensuring complete,
+     * consistent, and queryable application state until explicitly discarded.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<ArchivedApplicationStoreType>
+            COMPLETED_APPLICATION_STORE_TYPE =
+                    key("completed-application-store.type")
+                            .enumType(ArchivedApplicationStoreType.class)
+                            .defaultValue(ArchivedApplicationStoreType.File)
+                            .withDeprecatedKeys("jobstore.type")
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Determines which store implementation is used in session cluster. Accepted values are:")
+                                            .list(
+                                                    text(
+                                                            "'File': the file store keeps the completed applications in files"),
+                                                    text(
+                                                            "'Memory': the memory store keeps the completed applications in memory. You"
+                                                                    + " may need to limit the %s to mitigate FullGC or OOM when there are too many applications",
+                                                            code(
+                                                                    COMPLETED_APPLICATION_STORE_MAX_CAPACITY
+                                                                            .key())))
+                                            .build());
+
+    /** Type of archived application store implementation. */
+    public enum ArchivedApplicationStoreType {
         File,
         Memory
     }

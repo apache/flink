@@ -23,17 +23,14 @@ import org.apache.flink.table.catalog.Constraint.ConstraintType;
 import org.apache.flink.table.catalog.UniqueConstraint;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
 /** Mixin for {@link UniqueConstraint}. */
 @Internal
-abstract class UniqueConstraintMixin {
+abstract class UniqueConstraintMixin extends AbstractConstraintMixin {
 
-    static final String NAME = "name";
-    static final String ENFORCED = "enforced";
     static final String TYPE = "type";
     static final String COLUMNS = "columns";
 
@@ -44,15 +41,8 @@ abstract class UniqueConstraintMixin {
             @JsonProperty(TYPE) ConstraintType type,
             @JsonProperty(COLUMNS) List<String> columns) {}
 
-    @JsonProperty(NAME)
-    public abstract String getName();
-
     @JsonProperty(TYPE)
     public abstract ConstraintType getType();
-
-    @JsonProperty(ENFORCED)
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-    public abstract boolean isEnforced();
 
     @JsonProperty(COLUMNS)
     public abstract List<String> getColumns();

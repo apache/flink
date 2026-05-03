@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -313,6 +314,22 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 totalAndDefaultSlotProfilesToPendingTaskManagers.getOrDefault(
                         Tuple2.of(totalResourceProfile, defaultSlotResourceProfile),
                         Collections.emptySet()));
+    }
+
+    @Override
+    public int getAssignedTasks(InstanceID instanceId) {
+        FineGrainedTaskManagerRegistration taskManagerRegistration =
+                taskManagerRegistrations.get(instanceId);
+        if (Objects.isNull(taskManagerRegistration)) {
+            return 0;
+        }
+        int totalAssignedTasks = 0;
+        for (TaskManagerSlotInformation slot :
+                taskManagerRegistration.getAllocatedSlots().values()) {
+            final int assignedTasks = slot.getAssignedTasks();
+            totalAssignedTasks = totalAssignedTasks + assignedTasks;
+        }
+        return totalAssignedTasks;
     }
 
     @Override

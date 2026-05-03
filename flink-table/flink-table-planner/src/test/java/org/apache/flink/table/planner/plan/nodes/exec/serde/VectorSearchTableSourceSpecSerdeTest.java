@@ -78,7 +78,8 @@ public class VectorSearchTableSourceSpecSerdeTest {
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
                         null,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        null);
 
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()

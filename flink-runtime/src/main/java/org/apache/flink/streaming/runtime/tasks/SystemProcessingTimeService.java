@@ -141,7 +141,7 @@ public class SystemProcessingTimeService implements TimerService {
     private ScheduledFuture<?> scheduleRepeatedly(
             ProcessingTimeCallback callback, long initialDelay, long period, boolean fixedDelay) {
         final long nextTimestamp = getCurrentProcessingTime() + initialDelay;
-        final Runnable task = wrapOnTimerCallback(callback, nextTimestamp, period);
+        final Runnable task = wrapOnTimerCallback(callback, nextTimestamp, period, fixedDelay);
 
         // we directly try to register the timer and only react to the status on exception
         // that way we save unnecessary volatile accesses for each timer
@@ -281,12 +281,13 @@ public class SystemProcessingTimeService implements TimerService {
     }
 
     private Runnable wrapOnTimerCallback(ProcessingTimeCallback callback, long timestamp) {
-        return new ScheduledTask(status, exceptionHandler, callback, timestamp, 0);
+        return new ScheduledTask(status, exceptionHandler, callback, timestamp, 0, false);
     }
 
     private Runnable wrapOnTimerCallback(
-            ProcessingTimeCallback callback, long nextTimestamp, long period) {
-        return new ScheduledTask(status, exceptionHandler, callback, nextTimestamp, period);
+            ProcessingTimeCallback callback, long nextTimestamp, long period, boolean fixedDelay) {
+        return new ScheduledTask(
+                status, exceptionHandler, callback, nextTimestamp, period, fixedDelay);
     }
 
     private static final class ScheduledTask implements Runnable {
@@ -296,18 +297,21 @@ public class SystemProcessingTimeService implements TimerService {
 
         private long nextTimestamp;
         private final long period;
+        private final boolean fixedDelay;
 
         ScheduledTask(
                 AtomicInteger serviceStatus,
                 ExceptionHandler exceptionHandler,
                 ProcessingTimeCallback callback,
                 long timestamp,
-                long period) {
+                long period,
+                boolean fixedDelay) {
             this.serviceStatus = serviceStatus;
             this.exceptionHandler = exceptionHandler;
             this.callback = callback;
             this.nextTimestamp = timestamp;
             this.period = period;
+            this.fixedDelay = fixedDelay;
         }
 
         @Override
@@ -320,7 +324,8 @@ public class SystemProcessingTimeService implements TimerService {
             } catch (Exception ex) {
                 exceptionHandler.handleException(ex);
             }
-            nextTimestamp += period;
+            nextTimestamp =
+                    fixedDelay ? System.currentTimeMillis() + period : nextTimestamp + period;
         }
     }
 }

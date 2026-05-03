@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BatchExecutionOptions;
@@ -119,6 +120,7 @@ class TaskExecutorPartitionLifecycleTest {
     private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
             new SettableLeaderRetrievalService();
     private final JobID jobId = new JobID();
+    private final ApplicationID applicationId = new ApplicationID();
 
     private Configuration configuration;
 
@@ -611,6 +613,7 @@ class TaskExecutorPartitionLifecycleTest {
                             .requestSlot(
                                     slotStatus.getSlotID(),
                                     jobId,
+                                    applicationId,
                                     taskDeploymentDescriptor.getAllocationId(),
                                     ResourceProfile.ZERO,
                                     jobMasterAddress,

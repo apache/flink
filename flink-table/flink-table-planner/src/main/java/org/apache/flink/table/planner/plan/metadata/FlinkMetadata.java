@@ -254,4 +254,19 @@ public abstract class FlinkMetadata {
             Set<ImmutableBitSet> getUpsertKeys(RelNode r, RelMetadataQuery mq);
         }
     }
+
+    /** Metadata about which combinations of columns are unmodified corresponding each pk. */
+    public interface ImmutableColumns extends Metadata {
+        Method METHOD = Types.lookupMethod(ImmutableColumns.class, "getImmutableColumns");
+
+        MetadataDef<ImmutableColumns> DEF =
+                MetadataDef.of(ImmutableColumns.class, ImmutableColumns.Handler.class, METHOD);
+
+        ImmutableBitSet getImmutableColumns();
+
+        /** Handler API. */
+        interface Handler extends MetadataHandler<ImmutableColumns> {
+            ImmutableBitSet getImmutableColumns(RelNode r, RelMetadataQuery mq);
+        }
+    }
 }

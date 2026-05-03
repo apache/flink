@@ -25,6 +25,8 @@ import traceback
 
 import grpc
 
+from pyflink.common import Configuration
+
 # In order to remove confusing infos produced by beam.
 logging.getLogger().setLevel(logging.WARNING)
 
@@ -98,6 +100,11 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
                    unused_context):
         pass
 
+    def configure(self, config: Configuration):
+        logging.getLogger().setLevel(self._get_log_level_from_options_dict(config))
+        self._set_log_level_overrides(config)
+        return self
+
     def _start_sdk_worker_main(self, start_worker_request: beam_fn_api_pb2.StartWorkerRequest):
         params = start_worker_request.params
         self._parse_param_lock.acquire()
@@ -131,7 +138,6 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
             # Send all logs to the runner.
             fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-            logging.getLogger().setLevel(logging.INFO)
             # Remove all the built-in log handles
             logging.getLogger().handlers = []
             logging.getLogger().addHandler(fn_log_handler)
@@ -181,3 +187,48 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             self._parse_param_lock.release()
             if fn_log_handler:
                 fn_log_handler.close()
+
+    @staticmethod
+    def _get_log_level_from_options_dict(config) -> int:
+        """Get log level from options dict's entry `default_sdk_harness_log_level`.
+        If not specified, default log level is logging.INFO.
+        """
+        dict_level = config.get_string('python.logging.default.level', 'INFO')
+        log_level = dict_level
+        if log_level.isdecimal():
+            log_level = int(log_level)
+        else:
+            # labeled log level
+            log_level = getattr(logging, log_level, None)
+            if not isinstance(log_level, int):
+                # unknown log level.
+                _LOGGER.error("Unknown log level %s. Use default value INFO.", dict_level)
+                log_level = logging.INFO
+
+        return log_level
+
+    @staticmethod
+    def _set_log_level_overrides(config) -> None:
+        """Set module log level overrides from options dict's entry
+        `sdk_harness_log_level_overrides`.
+        """
+        from pyflink.java_gateway import get_gateway
+        jvm = get_gateway().jvm
+        parsed_overrides = config._j_configuration.get(
+            jvm.org.apache.flink.python.PythonOptions.PYTHON_LOGGING_LEVEL_OVERRIDE)
+
+        if not isinstance(parsed_overrides, dict):
+            if parsed_overrides is not None:
+                _LOGGER.error(
+                    "Unable to parse logging options: %s",
+                    parsed_overrides)
+            return
+
+        for module_name, log_level in parsed_overrides.items():
+            try:
+                logging.getLogger(module_name).setLevel(log_level)
+            except Exception as e:
+                # Never crash the worker when exception occurs during log level setting
+                # but logging the error.
+                _LOGGER.error(
+                    "Error occurred when setting log level for %s: %s", module_name, e)

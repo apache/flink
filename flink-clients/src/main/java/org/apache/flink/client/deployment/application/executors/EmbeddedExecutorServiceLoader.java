@@ -38,7 +38,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoader {
 
-    private final Collection<JobID> submittedJobIds;
+    private final Collection<JobID> applicationJobIds;
+
+    private final Collection<JobID> suspendedJobIds;
+
+    private final Collection<JobID> terminalJobIds;
 
     private final DispatcherGateway dispatcherGateway;
 
@@ -47,24 +51,38 @@ public class EmbeddedExecutorServiceLoader implements PipelineExecutorServiceLoa
     /**
      * Creates an {@link EmbeddedExecutorServiceLoader}.
      *
-     * @param submittedJobIds a list that is going to be filled by the {@link EmbeddedExecutor} with
-     *     the job ids of the new jobs that will be submitted. This is essentially used to return
-     *     the submitted job ids to the caller.
+     * @param applicationJobIds a list that is going to be filled by the {@link EmbeddedExecutor}
+     *     with job ids of all jobs that are part of the current application execution. This is
+     *     essentially used to return the job ids to the caller.
+     * @param suspendedJobIds ids of jobs that are suspended from a previous application execution,
+     *     which are not supposed to be modified by the {@link EmbeddedExecutor}.
+     * @param terminalJobIds ids of jobs that are already in a terminal state in a previous
+     *     application execution, which are not supposed to be modified by the {@link
+     *     EmbeddedExecutor}.
      * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit
      *     jobs.
      */
     public EmbeddedExecutorServiceLoader(
-            final Collection<JobID> submittedJobIds,
+            final Collection<JobID> applicationJobIds,
+            final Collection<JobID> suspendedJobIds,
+            final Collection<JobID> terminalJobIds,
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor retryExecutor) {
-        this.submittedJobIds = checkNotNull(submittedJobIds);
+        this.applicationJobIds = checkNotNull(applicationJobIds);
+        this.suspendedJobIds = checkNotNull(suspendedJobIds);
+        this.terminalJobIds = checkNotNull(terminalJobIds);
         this.dispatcherGateway = checkNotNull(dispatcherGateway);
         this.retryExecutor = checkNotNull(retryExecutor);
     }
 
     @Override
     public PipelineExecutorFactory getExecutorFactory(final Configuration configuration) {
-        return new EmbeddedExecutorFactory(submittedJobIds, dispatcherGateway, retryExecutor);
+        return new EmbeddedExecutorFactory(
+                applicationJobIds,
+                suspendedJobIds,
+                terminalJobIds,
+                dispatcherGateway,
+                retryExecutor);
     }
 
     @Override

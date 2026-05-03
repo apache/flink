@@ -18,7 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlPartitionUtils;
+import org.apache.flink.sql.parser.SqlParseUtils;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -60,7 +61,7 @@ public class SqlAddPartitions extends SqlAlterTable {
     }
 
     public LinkedHashMap<String, String> getPartitionKVs(int i) {
-        return SqlPartitionUtils.getPartitionKVs(getPartSpecs().get(i));
+        return SqlParseUtils.getPartitionKVs(getPartSpecs().get(i));
     }
 
     public List<SqlNodeList> getPartProps() {
@@ -78,8 +79,8 @@ public class SqlAddPartitions extends SqlAlterTable {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.newlineAndIndent();
         writer.keyword("ADD");
         if (ifPartitionNotExists) {

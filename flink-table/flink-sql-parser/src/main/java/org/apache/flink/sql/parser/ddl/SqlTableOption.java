@@ -17,16 +17,16 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
+
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 
@@ -56,11 +56,11 @@ public class SqlTableOption extends SqlCall {
     }
 
     public String getKeyString() {
-        return ((NlsString) SqlLiteral.value(key)).getValue();
+        return SqlParseUtils.extractString(key);
     }
 
     public String getValueString() {
-        return ((NlsString) SqlLiteral.value(value)).getValue();
+        return SqlParseUtils.extractString(value);
     }
 
     @Override

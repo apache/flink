@@ -161,7 +161,7 @@ arithmetic:
   - sql: numeric1 - numeric2
     table: NUMERIC1 - NUMERIC2
     description: 返回 numeric1 减 numeric2。
-  - sql: numeric1 * numberic2
+  - sql: numeric1 * numeric2
     table: NUMERIC1 * NUMERIC2
     description: 返回 numeric1 乘以 numeric2。
   - sql: numeric1 / numeric2
@@ -276,7 +276,7 @@ arithmetic:
     table: randInteger(INT1, INT2)
     description: |
       返回范围为 [0, INT2) 的伪随机整数，初始种子为 INT1。
-      如果两个 RAND_INTGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
+      如果两个 RAND_INTEGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
   - sql: UUID()
     table: uuid()
     description: |
@@ -313,28 +313,6 @@ arithmetic:
       如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
       此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
       例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。
-  - sql: PERCENTILE(expr, percentage[, frequency])
-    table: expr.percentile(percentage[, frequency])
-    description: |
-      返回 expr 的 percentage 百分位值。
-      
-      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
-
-      percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
-      如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。
-      frequency 描述了 expr 的统计次数，默认值为 1。
-
-      如果没有 expr 恰好位于指定的百分位上，则结果通过对两个最接近的 expr 进行线性插值来计算。
-      如果 expr 或 frequency 为 `NULL`，或者 frequency 不是正数，则将忽略该输入行。
-
-      注意: 建议在窗口场景中使用此函数，因为它通常能提供更好的性能。
-      在常规的分组聚合场景中，用户应注意每条记录引发的全面排序带来的性能开销。
-
-      `value <NUMERIC>, percentage [<NUMERIC NOT NULL> | <ARRAY<NUMERIC NOT NULL> NOT NULL>], frequency <INTEGER_NUMERIC>`
-      `(INTEGER_NUMERIC: TINYINT, SMALLINT, INTEGER, BIGINT)`
-      `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
-
-      如果 percentage 是数字，返回类型为 `DOUBLE`；如果 percentage 是数组，返回类型为 `ARRAY<DOUBLE>`。 如果 percentage 是空数组，则返回 `NULL`。
 
 string:
   - sql: string1 || string2
@@ -504,7 +482,7 @@ string:
     description: |
       将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
 
-      E.g., SELECT TRANSLATE3('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
+      E.g., SELECT TRANSLATE('www.apache.org', 'wapcheorg', ' APCHEcom') or 'www.apache.org'.translate('wapcheorg', ' APCHEcom') returns "   .APACHE.com".
       
       `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
 
@@ -590,8 +568,26 @@ string:
   - sql: URL_ENCODE(string)
     table: STRING.urlEncode()
     description:
-      使用 UTF-8 编码方案将字符串转换为“application/x-www-form-urlencoded”格式。
+      使用 UTF-8 编码方案将字符串转换为"application/x-www-form-urlencoded"格式。
       如果输入为 NULL，或者编码过程出现问题，或者不支持编码方案，则会返回 NULL。
+  - sql: INET_ATON(string)
+    table: STRING.inetAton()
+    description: |
+      将 IPv4 地址字符串转换为数值表示（BIGINT）。部分兼容 MySQL INET_ATON。
+
+      支持 MySQL 兼容的短格式地址：a.b 被解释为 a.0.0.b，a.b.c 被解释为 a.b.0.c。
+      八位字节中的前导零按十进制解析（而非八进制），与 MySQL 保持一致。
+      如果输入为 NULL 或无效，则返回 NULL。
+
+      例如，INET_ATON('127.0.0.1') 返回 2130706433；INET_ATON('127.1') 返回 2130706433（短格式）。
+  - sql: INET_NTOA(integer)
+    table: INTEGER.inetNtoa()
+    description: |
+      将数值 IPv4 地址表示转换回字符串格式。
+
+      输入必须在有效的 IPv4 范围内 [0, 4294967295]。如果输入为 NULL 或超出范围，则返回 NULL。
+
+      例如，INET_NTOA(2130706433) 返回 '127.0.0.1'；INET_NTOA(0) 返回 '0.0.0.0'。
   - sql: PARSE_URL(string1, string2[, string3])
     table: STRING1.parseUrl(STRING2[, STRING3])
     description: |
@@ -623,10 +619,10 @@ string:
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
   - sql: JSON_QUOTE(string)
     table: STRING.JsonQuote()
-    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning the result as a string. If the argument is NULL, the function returns NULL.
+    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters (`"`, `\`, `/`, `\b`, `\f`, `\n`, `\r`, `\t`), and returning the result as a string. If the argument is NULL, the function returns NULL.
   - sql: JSON_UNQUOTE(string)
     table: STRING.JsonUnquote()
-    description: Unquotes JSON value, unescapes escaped special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+    description: Unquotes JSON value, unescapes escaped special characters (`"`, `\`, `/`, `\b`, `\f`, `\n`, `\r`, `\t`, `\u` hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
   - sql: ELT(index, expr[, exprs]*)
     table: index.elt(expr, exprs...)
     description: |
@@ -702,9 +698,9 @@ temporal:
   - sql: CURRENT_ROW_TIMESTAMP()
     description: |
       返回本地时区的当前 SQL 时间戳，返回类型为 TIMESTAMP_LTZ(3)。无论是在批处理模式还是流模式下，都会为每条记录进行取值。
-  - sql: EXTRACT(timeinteravlunit FROM temporal)
+  - sql: EXTRACT(timeintervalunit FROM temporal)
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
-    description: 返回从时间 temporal 的时间间隔单位部分 timeinteravlunit 提取的 long 值。例如 `EXTRACT(DAY FROM DATE '2006-06-05')` 返回 5。
+    description: 返回从时间 temporal 的时间间隔单位部分 timeintervalunit 提取的 long 值。例如 `EXTRACT(DAY FROM DATE '2006-06-05')` 返回 5。
   - sql: YEAR(date)
     description: |
       从 SQL 日期 date 返回年份。相当于 EXTRACT(YEAR FROM date)。例如 `YEAR(DATE '1994-09-27')` 返回 1994。
@@ -735,7 +731,7 @@ temporal:
   - sql: HOUR(timestamp)
     description: |
       从 SQL 时间戳 timestamp 返回小时单位部分的小时（0 到 23 之间的整数）数。相当于 EXTRACT(HOUR FROM timestamp)。
-      例如 `MINUTE(TIMESTAMP '1994-09-27 13:14:15')` 返回 14。
+      例如 `HOUR(TIMESTAMP '1994-09-27 13:14:15')` 返回 13。
   - sql: MINUTE(timestamp)
     description: |
       从 SQL 时间戳 timestamp 返回分钟单位的分钟数（0 到 59 之间的整数）。相当于 EXTRACT(MINUTE FROM timestamp)。
@@ -749,10 +745,10 @@ temporal:
     description: |
       返回将时间点 timepoint 向下取值到时间单位 timeintervalunit 的值。例如 `FLOOR(TIME '12:44:31' TO MINUTE)`
       返回 12:44:00。
-  - sql: CEIL(timespoint TO timeintervaluntit)
+  - sql: CEIL(timepoint TO timeintervalunit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: |
-      返回将时间点 timespoint 向上取值到时间单位 timeintervaluntit 的值。例如 `CEIL(TIME '12:44:31' TO MINUTE)`
+      返回将时间点 timepoint 向上取值到时间单位 timeintervalunit 的值。例如 `CEIL(TIME '12:44:31' TO MINUTE)`
       返回 12:45:00。
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
     table: temporalOverlaps(TIMEPOINT1, TEMPORAL1, TIMEPOINT2, TEMPORAL2)
@@ -766,11 +762,12 @@ temporal:
     description: |
       将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
+    description: Returns the timestamp with the interval added. The unit for the interval is given by the first argument, which should be one of the following values. SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, or YEAR. E.g., TIMESTAMPADD(WEEK, 1, TIMESTAMP '2020-01-01 00:00:00') returns TIMESTAMP '2020-01-08 00:00:00'; TIMESTAMPADD(QUARTER, 1, TIMESTAMP '2020-01-01 00:00:00') returns TIMESTAMP '2020-04-01 00:00:00'.
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: |
       返回 timepoint1 和 timepoint2 之间时间间隔。间隔的单位由第一个参数给出，它应该是以下值之一：
-      SECOND，MINUTE，HOUR，DAY，MONTH 或 YEAR。
+      SECOND，MINUTE，HOUR，DAY，WEEK，MONTH，QUARTER 或 YEAR。
   - sql: CONVERT_TZ(string1, string2, string3)
     table: convertTz(STRING1, STRING2, STRING3)
     description: |
@@ -812,11 +809,40 @@ temporal:
     table: toDate(STRING1[, STRING2])
     description: 将格式为 string2（默认为 'yyyy-MM-dd'）的字符串 string1 转换为日期。
   - sql: TO_TIMESTAMP_LTZ(numeric[, precision])
-    table: toTimestampLtz(NUMERIC, PRECISION)
-    description: Converts an epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3). If no precision is provided, the default precision is 3. If any input is null, the function will return null.
+    table: toTimestampLtz(NUMERIC[, PRECISION])
+    description: |
+      Converts a numeric epoch value to a TIMESTAMP_LTZ.
+
+      - numeric: the epoch value to convert. The meaning of this value depends on the precision parameter.
+      - precision: an integer (0-9) that determines the unit of the numeric value (default 3). The precision changes how the numeric input is interpreted:
+
+        - TO_TIMESTAMP_LTZ(epochSeconds, 0) interprets the value as seconds since epoch
+        - TO_TIMESTAMP_LTZ(epochMillis, 3) interprets the value as milliseconds since epoch
+        - TO_TIMESTAMP_LTZ(epochMicros, 6) interprets the value as microseconds since epoch
+        - TO_TIMESTAMP_LTZ(epochNanos, 9) interprets the value as nanoseconds since epoch
+
+      Other precision values between 0 and 9 are also supported, where the numeric value represents units of 10^(-precision) seconds.
+      The output type is TIMESTAMP_LTZ(3) for precision 0-3, and TIMESTAMP_LTZ(precision) for precision 4-9.
+      Returns NULL if any input is NULL.
+
+      E.g., TO_TIMESTAMP_LTZ(1234567890, 0) returns TIMESTAMP_LTZ(3) '2009-02-13 23:31:30.000',
+      TO_TIMESTAMP_LTZ(1234567890123, 3) returns TIMESTAMP_LTZ(3) '2009-02-13 23:31:30.123',
+      TO_TIMESTAMP_LTZ(1234567890123456789, 9) returns TIMESTAMP_LTZ(9) '2009-02-13 23:31:30.123456789'.
   - sql: TO_TIMESTAMP_LTZ(string1[, string2[, string3]])
     table: toTimestampLtz(STRING1[, STRING2[, STRING3]])
-    description: Converts a timestamp string string1 with format string2 (by default 'yyyy-MM-dd HH:mm:ss.SSS') in time zone string3 (by default 'UTC') to a TIMESTAMP_LTZ. If any input is null, the function will return null.
+    description: |
+      Converts a timestamp string to a TIMESTAMP_LTZ.
+
+      - string1: the timestamp string to parse
+      - string2: the format pattern (default 'yyyy-MM-dd HH:mm:ss'). The pattern follows Java's DateTimeFormatter syntax, where 'S' represents fractional seconds (e.g., 'SSS' for milliseconds, 'SSSSSSSSS' for nanoseconds).
+      - string3: the time zone of the input string (default 'UTC'). Supports zone IDs such as 'UTC', 'Asia/Shanghai', or 'America/Los_Angeles'.
+
+      The output precision is inferred from the number of 'S' characters in the format pattern, with a minimum of 3. E.g., format 'yyyy-MM-dd HH:mm:ss.SS' returns TIMESTAMP_LTZ(3), format 'yyyy-MM-dd HH:mm:ss.SSSSSS' returns TIMESTAMP_LTZ(6).
+      Returns NULL if any input is NULL.
+
+      E.g., TO_TIMESTAMP_LTZ('2023-01-01 00:00:00') parses using default format and UTC,
+      TO_TIMESTAMP_LTZ('2023-01-01 12:30:00.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS') parses with nanosecond precision,
+      TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai') parses in Shanghai time zone.
   - sql: TO_TIMESTAMP(string1[, string2])
     table: toTimestamp(STRING1[, STRING2])
     description: 将格式为 string2（默认为：'yyyy-MM-dd HH:mm:ss'）的字符串 string1 转换为 timestamp，不带时区。
@@ -1067,6 +1093,8 @@ json:
       JSON_STRING('Hello, World!')
       -- '[1,2]'
       JSON_STRING(ARRAY[1, 2])
+      -- '{"k1":"v1"}'
+      JSON_STRING(PARSE_JSON('{"k1":"v1"}'))
       ```
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
@@ -1241,7 +1269,6 @@ variant:
       同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
       allowDuplicateKeys 的值为 false。
 
-
   - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
     description: |
       尽可能将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，则返回 NULL。如果希望抛出错误而不是返回 NULL，
@@ -1250,6 +1277,20 @@ variant:
       如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
       同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
       allowDuplicateKeys 的值为 false。
+
+  - sql: JSON_STRING(variant)
+    description: |
+      Generate a json string from a Variant object.
+
+  - sql: variant '[' INT ']'
+    table: VARIANT.at(INT)
+    description: |
+      如果这是一个 ARRAY 类型的 VARIANT，则返回一个 VARIANT，其值为指定索引处的元素。索引从 1 开始，如果索引超出范围，则返回 NULL。
+
+  - sql: variant '[' STRING ']'
+    table: VARIANT.at(STRING)
+    description: |
+      如果这是一个 MAP 类型的 VARIANT，则返回一个 VARIANT，其值为指定 key 对应的值。否则返回 NULL。
 
 
 valueconstruction:
@@ -1373,7 +1414,99 @@ hashfunctions:
       使用 SHA-2 系列散列函数（SHA-224，SHA-256，SHA-384 或 SHA-512）返回散列值。第一个参数 string 是要散列的字符串，
       第二个参数 hashLength 是结果的位数（224，256，384 或 512）。如果 string 或 hashLength 为 `NULL`，则返回 `NULL`。
 
-auxilary:
+bitmap:
+  - sql: BITMAP_AND(bitmap1, bitmap2)
+    table: bitmap1.bitmapAnd(bitmap2)
+    description: |
+      计算两个位图的交集（AND）。
+            
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      返回一个 `BITMAP`。如果任一参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_ANDNOT(bitmap1, bitmap2)
+    table: bitmap1.bitmapAndnot(bitmap2)
+    description: |
+      计算两个位图的差集（AND NOT）。
+      
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      返回一个 `BITMAP`。如果任一参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_BUILD(array)
+    table: array.bitmapBuild()
+    description: |
+      从 32 位整数数组创建位图。
+      
+      `array ARRAY<INT>`
+      
+      返回一个 `BITMAP`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_CARDINALITY(bitmap)
+    table: bitmap.bitmapCardinality()
+    description: |
+      返回位图的基数。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_FROM_BYTES(bytes)
+    table: bytes.bitmapFromBytes()
+    description: |
+      将字节数组转换为位图。
+      
+      遵循 [32-bit RoaringBitmap format specification](https://github.com/RoaringBitmap/RoaringFormatSpec) 定义的格式。
+            
+      `bytes <BINARY | VARBINARY>`
+      
+      返回一个 `BITMAP`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_OR(bitmap1, bitmap2)
+    table: bitmap1.bitmapOr(bitmap2)
+    description: |
+      计算两个位图的并集（OR）。
+      
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      返回一个 `BITMAP`。如果任一参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_TO_ARRAY(bitmap)
+    table: bitmap.bitmapToArray()
+    description: |
+      将位图转换为 32 位整数数组，值按 `Integer.compareUnsigned` 排序。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `ARRAY<INT>`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_TO_BYTES(bitmap)
+    table: bitmap.bitmapToBytes()
+    description: |
+      将位图转换为字节数组。
+      
+      遵循 [32-bit RoaringBitmap format specification](https://github.com/RoaringBitmap/RoaringFormatSpec) 定义的格式。
+            
+      `bitmap BITMAP`
+      
+      返回一个 `VARBINARY`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_TO_STRING(bitmap)
+    table: bitmap.bitmapToString()
+    description: |
+      将位图转换为字符串，值按 `Integer.compareUnsigned` 排序。如果字符串过长，将被截断并以 "..." 结尾。
+      
+      例如：
+      
+      - `"{}"`, `"{1,2,3,4,5}"`
+      - 负值（转换为无符号）: `"{0,1,4294967294,4294967295}"`
+      - 字符串过长: `"{1,2,3,...}"`
+      
+      `bitmap BITMAP`
+      
+      返回一个 `STRING`。如果参数为 `NULL`，则返回 `NULL`。
+  - sql: BITMAP_XOR(bitmap1, bitmap2)
+    table: bitmap1.bitmapXor(bitmap2)
+    description: |
+      计算两个位图的异或（XOR）。
+      
+      `bitmap1 BITMAP, bitmap2 BITMAP`
+      
+      返回一个 `BITMAP`。如果任一参数为 `NULL`，则返回 `NULL`。
+
+auxiliary:
   - table: callSql(STRING)
     description: |
       对 SQL 表达式的调用。
@@ -1497,6 +1630,102 @@ aggregate:
         JSON_ARRAYAGG(product)
       FROM orders
       ```
+  - sql: PERCENTILE(expr, percentage[, frequency])
+    table: expr.percentile(percentage[, frequency])
+    description: |
+      返回 expr 的 percentage 百分位值。
+      
+      E.g., SELECT PERCENTILE(age, 0.25) FROM (VALUES  (10), (20), (30), (40)) AS age or $('age').percentile(0.25) returns 17.5
+
+      percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
+      如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。
+      frequency 描述了 expr 的统计次数，默认值为 1。
+
+      如果没有 expr 恰好位于指定的百分位上，则结果通过对两个最接近的 expr 进行线性插值来计算。
+      如果 expr 或 frequency 为 `NULL`，或者 frequency 不是正数，则将忽略该输入行。
+
+      注意: 建议在窗口场景中使用此函数，因为它通常能提供更好的性能。
+      在常规的分组聚合场景中，用户应注意每条记录引发的全面排序带来的性能开销。
+
+      `value <NUMERIC>, percentage [<NUMERIC NOT NULL> | <ARRAY<NUMERIC NOT NULL> NOT NULL>], frequency <INTEGER_NUMERIC>`
+      `(INTEGER_NUMERIC: TINYINT, SMALLINT, INTEGER, BIGINT)`
+      `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
+
+      如果 percentage 是数字，返回类型为 `DOUBLE`；如果 percentage 是数组，返回类型为 `ARRAY<DOUBLE>`。 如果 percentage 是空数组，则返回 `NULL`。
+
+bitmapagg:
+  - sql: BITMAP_AND_AGG(bitmap)
+    table: bitmap.bitmapAndAgg()
+    description: |
+      聚合多个位图的交集 (AND)。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BITMAP`。
+  - sql: BITMAP_AND_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapAndCardinalityAgg()
+    description: |
+      聚合多个位图的交集（AND）并返回其 64 位基数。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。
+  - sql: BITMAP_BUILD_AGG(value)
+    table: value.bitmapBuildAgg()
+    description: |
+      将 32 位整数聚合成位图。
+      
+      `value INT`
+      
+      返回一个 `BITMAP`。
+  - sql: BITMAP_BUILD_CARDINALITY_AGG(value)
+    table: value.bitmapBuildCardinalityAgg()
+    description: |
+      将 32 位整数聚合成位图并返回其 64 位基数。
+      
+      `value INT`
+      
+      返回一个 `BIGINT`。
+  - sql: BITMAP_OR_AGG(bitmap)
+    table: bitmap.bitmapOrAgg()
+    description: |
+      聚合多个位图的并集 (OR)。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BITMAP`。
+  - sql: BITMAP_OR_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapOrCardinalityAgg()
+    description: |
+      聚合多个位图的并集（OR）并返回其 64 位基数。
+      
+      注意：该函数的回撤版本在处理大位图时可能有显著的性能开销。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。
+  - sql: BITMAP_XOR_AGG(bitmap)
+    table: bitmap.bitmapXorAgg()
+    description: |
+      聚合多个位图的异或 (XOR)。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BITMAP`。
+  - sql: BITMAP_XOR_CARDINALITY_AGG(bitmap)
+    table: bitmap.bitmapXorCardinalityAgg()
+    description: |
+      聚合多个位图的异或（XOR）并返回其 64 位基数。
+      
+      `bitmap BITMAP`
+      
+      返回一个 `BIGINT`。
 
 catalog:
   - sql: CURRENT_DATABASE()

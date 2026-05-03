@@ -216,6 +216,15 @@ class FlinkRelMdHandlerTestBase {
   protected lazy val temporalTableStreamScan: StreamPhysicalDataStreamScan =
     createDataStreamScan(ImmutableList.of("TemporalTable4"), streamPhysicalTraits)
 
+  protected lazy val tableWithImmutableColsLogicalScan: LogicalTableScan =
+    createTableSourceTable(
+      ImmutableList.of("projected_table_source_table_with_immutable_cols"),
+      logicalTraits)
+  protected lazy val tableWithImmutableColsStreamScan: StreamPhysicalDataStreamScan =
+    createTableSourceTable(
+      ImmutableList.of("projected_table_source_table_with_immutable_cols"),
+      streamPhysicalTraits)
+
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
     .add("a", SqlTypeName.BIGINT)
@@ -2694,6 +2703,25 @@ class FlinkRelMdHandlerTestBase {
     (batchLookupJoin, streamLookupJoin)
   }
 
+  protected def getStreamLookupJoinsWithImmutableCols(
+      leftInput: RelNode,
+      temporalTable: RelOptTable,
+      joinInfo: JoinInfo,
+      joinType: JoinRelType,
+      calcOnTemporalTable: Option[RexProgram]): StreamPhysicalLookupJoin = {
+    new StreamPhysicalLookupJoin(
+      cluster,
+      streamPhysicalTraits,
+      leftInput,
+      temporalTable,
+      calcOnTemporalTable,
+      joinInfo,
+      joinType,
+      Option.empty[RelHint],
+      false
+    )
+  }
+
   // select * from MyTable1 join MyTable4 on MyTable1.b = MyTable4.a
   protected lazy val logicalInnerJoinOnUniqueKeys: RelNode = relBuilder
     .scan("MyTable1")
@@ -3277,7 +3305,7 @@ class FlinkRelMdHandlerTestBase {
         ImmutableList.of(calcOnStudentScan),
         relBuilder.call(
           FlinkSqlOperatorTable.TUMBLE,
-          new RexTableArgCall(outputRowType, 0, Array(), Array()),
+          new RexTableArgCall(outputRowType, 0, Array(), Array(), Array()),
           relBuilder.call(FlinkSqlOperatorTable.DESCRIPTOR, relBuilder.literal("ptime")),
           rexBuilder.makeIntervalLiteral(
             bd(600000L),

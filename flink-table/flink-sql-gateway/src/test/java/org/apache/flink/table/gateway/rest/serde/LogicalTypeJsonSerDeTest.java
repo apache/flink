@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -195,6 +196,7 @@ class LogicalTypeJsonSerDeTest {
                         new MultisetType(VarCharType.ofEmptyLiteral()),
                         new MultisetType(BinaryType.ofEmptyLiteral()),
                         new MultisetType(VarBinaryType.ofEmptyLiteral()),
+                        new BitmapType(),
                         RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                         RowType.of(
                                 new LogicalType[] {

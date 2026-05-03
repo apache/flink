@@ -60,9 +60,10 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
@@ -281,16 +282,15 @@ public class RestClient implements AutoCloseableAsync {
                 };
 
         if (group == null) {
-            // No NioEventLoopGroup constructor available that allows passing nThreads,
-            // threadFactory,
-            // and selectStrategyFactory without also passing a SelectorProvider, so mimicking its
+            // No NioIoHandler constructor available that allows only passing selectStrategyFactory
+            // without also passing a SelectorProvider, so mimicking its
             // default value seen in other constructors
             group =
-                    new NioEventLoopGroup(
+                    new MultiThreadIoEventLoopGroup(
                             1,
                             new ExecutorThreadFactory("flink-rest-client-netty"),
-                            SelectorProvider.provider(),
-                            selectStrategyFactory);
+                            NioIoHandler.newFactory(
+                                    SelectorProvider.provider(), selectStrategyFactory));
             useInternalEventLoopGroup = true;
         } else {
             Preconditions.checkArgument(

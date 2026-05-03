@@ -80,6 +80,14 @@ export const RUNNING_JOB_ROUTES: Routes = [
           path: 'configuration'
         }
       },
+      {
+        path: 'rescales',
+        loadComponent: () =>
+          import('@flink-runtime-web/pages/job/rescales/job-rescales.component').then(m => m.JobRescalesComponent),
+        data: {
+          path: 'rescales'
+        }
+      },
       { path: '**', redirectTo: 'overview', pathMatch: 'full' }
     ]
   }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 
 import java.io.File;
@@ -36,4 +37,15 @@ public interface BlobView {
      * @throws IOException If the copy fails
      */
     boolean get(JobID jobId, BlobKey blobKey, File localFile) throws IOException;
+
+    /**
+     * Copies a blob to a local file.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param blobKey The blob ID
+     * @param localFile The local file to copy to
+     * @return whether the file was copied (<tt>true</tt>) or not (<tt>false</tt>)
+     * @throws IOException If the copy fails
+     */
+    boolean get(ApplicationID applicationId, BlobKey blobKey, File localFile) throws IOException;
 }

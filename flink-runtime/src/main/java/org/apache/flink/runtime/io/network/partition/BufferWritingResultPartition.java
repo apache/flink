@@ -65,7 +65,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     private TimerGauge hardBackPressuredTimeMsPerSecond = new TimerGauge();
 
-    private long totalWrittenBytes;
+    private final long[] writtenBytesPerSubpartition;
 
     public BufferWritingResultPartition(
             String owningTaskName,
@@ -91,6 +91,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         this.subpartitions = checkNotNull(subpartitions);
         this.unicastBufferBuilders = new BufferBuilder[subpartitions.length];
+        this.writtenBytesPerSubpartition = new long[subpartitions.length];
     }
 
     @Override
@@ -114,6 +115,11 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public long getSizeOfQueuedBuffersUnsafe() {
+        long totalWrittenBytes = 0;
+        for (int i = 0; i < subpartitions.length; i++) {
+            totalWrittenBytes += writtenBytesPerSubpartition[i];
+        }
+
         long totalNumberOfBytes = 0;
 
         for (ResultSubpartition subpartition : subpartitions) {
@@ -121,6 +127,12 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         }
 
         return totalWrittenBytes - totalNumberOfBytes;
+    }
+
+    @Override
+    public long getBytesInQueueUnsafe(int targetSubpartition) {
+        return writtenBytesPerSubpartition[targetSubpartition]
+                - subpartitions[targetSubpartition].getTotalNumberOfBytesUnsafe();
     }
 
     @Override
@@ -151,7 +163,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-        totalWrittenBytes += record.remaining();
+        writtenBytesPerSubpartition[targetSubpartition] += record.remaining();
 
         BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
@@ -171,7 +183,9 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     @Override
     public void broadcastRecord(ByteBuffer record) throws IOException {
-        totalWrittenBytes += ((long) record.remaining() * numSubpartitions);
+        for (int i = 0; i < subpartitions.length; i++) {
+            writtenBytesPerSubpartition[i] += record.remaining();
+        }
 
         BufferBuilder buffer = appendBroadcastDataForNewRecord(record);
 
@@ -197,11 +211,11 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         try (BufferConsumer eventBufferConsumer =
                 EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
-            totalWrittenBytes += ((long) eventBufferConsumer.getWrittenBytes() * numSubpartitions);
-            for (ResultSubpartition subpartition : subpartitions) {
+            for (int i = 0; i < subpartitions.length; i++) {
                 // Retain the buffer so that it can be recycled by each subpartition of
                 // targetPartition
-                subpartition.add(eventBufferConsumer.copy(), 0);
+                subpartitions[i].add(eventBufferConsumer.copy(), 0);
+                writtenBytesPerSubpartition[i] += eventBufferConsumer.getWrittenBytes();
             }
         }
     }
@@ -246,8 +260,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         finishBroadcastBufferBuilder();
         finishUnicastBufferBuilders();
 
-        for (ResultSubpartition subpartition : subpartitions) {
-            totalWrittenBytes += subpartition.finish();
+        for (int i = 0; i < subpartitions.length; i++) {
+            writtenBytesPerSubpartition[i] += subpartitions[i].finish();
         }
 
         super.finish();
@@ -340,7 +354,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     protected int addToSubpartition(
             int targetSubpartition, BufferConsumer bufferConsumer, int partialRecordLength)
             throws IOException {
-        totalWrittenBytes += bufferConsumer.getWrittenBytes();
+        writtenBytesPerSubpartition[targetSubpartition] += bufferConsumer.getWrittenBytes();
         return subpartitions[targetSubpartition].add(bufferConsumer, partialRecordLength);
     }
 

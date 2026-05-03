@@ -159,7 +159,7 @@ the burden of comprehending the concepts and differences between streaming and b
 maintain Flink streaming or batch jobs. All operations are done on Materialized tables, which can significantly accelerate ETL pipeline
 development.
 
-More information about this feature can be found here: [Materialized Table Overview](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/table/materialized-table/overview/)
+More information about this feature can be found here: [Materialized Table Overview](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/sql/materialized-table/overview/)
 
 #### Introduce Catalog-related Syntax
 

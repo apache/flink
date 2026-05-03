@@ -19,17 +19,27 @@
 package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.dispatcher.ApplicationBootstrap;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithPersistenceComponents;
 import org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherGatewayService;
+import org.apache.flink.runtime.highavailability.ApplicationResult;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -51,8 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>It instantiates a {@link
  * org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayService
- * DispatcherGatewayService} with an {@link ApplicationDispatcherBootstrap} containing the user's
- * program.
+ * DispatcherGatewayService} with an {@link ApplicationBootstrap} containing the user's program.
  */
 @Internal
 public class ApplicationDispatcherGatewayServiceFactory
@@ -62,7 +71,7 @@ public class ApplicationDispatcherGatewayServiceFactory
 
     private final DispatcherFactory dispatcherFactory;
 
-    private final PackagedProgram application;
+    private final PackagedProgram program;
 
     private final RpcService rpcService;
 
@@ -71,12 +80,12 @@ public class ApplicationDispatcherGatewayServiceFactory
     public ApplicationDispatcherGatewayServiceFactory(
             Configuration configuration,
             DispatcherFactory dispatcherFactory,
-            PackagedProgram application,
+            PackagedProgram program,
             RpcService rpcService,
             PartialDispatcherServices partialDispatcherServices) {
         this.configuration = configuration;
         this.dispatcherFactory = dispatcherFactory;
-        this.application = checkNotNull(application);
+        this.program = checkNotNull(program);
         this.rpcService = rpcService;
         this.partialDispatcherServices = partialDispatcherServices;
     }
@@ -86,10 +95,38 @@ public class ApplicationDispatcherGatewayServiceFactory
             DispatcherId fencingToken,
             Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobResults,
+            Collection<AbstractApplication> recoveredApplications,
+            Collection<ApplicationResult> recoveredDirtyApplicationResults,
             ExecutionPlanWriter executionPlanWriter,
-            JobResultStore jobResultStore) {
+            JobResultStore jobResultStore,
+            ApplicationStore applicationStore,
+            ApplicationResultStore applicationResultStore) {
 
-        final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
+        final List<JobInfo> recoveredJobInfos = getRecoveredJobInfos(recoveredJobs);
+        final List<JobInfo> recoveredTerminalJobInfos =
+                getRecoveredTerminalJobInfos(recoveredDirtyJobResults);
+
+        final Tuple2<Integer, Integer> jobCountLimits =
+                ApplicationJobUtils.getJobCountLimits(configuration);
+        ApplicationJobUtils.maybeFixIds(configuration);
+        final ApplicationID applicationId =
+                configuration
+                        .getOptional(ApplicationOptionsInternal.FIXED_APPLICATION_ID)
+                        .map(ApplicationID::fromHexString)
+                        .orElseGet(ApplicationID::new);
+
+        PackagedProgramApplication bootstrapApplication =
+                new PackagedProgramApplication(
+                        applicationId,
+                        program,
+                        recoveredJobInfos,
+                        recoveredTerminalJobInfos,
+                        configuration,
+                        jobCountLimits.f0,
+                        jobCountLimits.f1,
+                        true,
+                        configuration.get(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR),
+                        configuration.get(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH));
 
         final Dispatcher dispatcher;
         try {
@@ -99,18 +136,16 @@ public class ApplicationDispatcherGatewayServiceFactory
                             fencingToken,
                             recoveredJobs,
                             recoveredDirtyJobResults,
+                            recoveredApplications,
+                            recoveredDirtyApplicationResults,
                             (dispatcherGateway, scheduledExecutor, errorHandler) ->
-                                    new ApplicationDispatcherBootstrap(
-                                            application,
-                                            recoveredJobIds,
-                                            configuration,
-                                            dispatcherGateway,
-                                            scheduledExecutor,
-                                            errorHandler),
-                            PartialDispatcherServicesWithJobPersistenceComponents.from(
+                                    new ApplicationBootstrap(bootstrapApplication),
+                            PartialDispatcherServicesWithPersistenceComponents.from(
                                     partialDispatcherServices,
                                     executionPlanWriter,
-                                    jobResultStore));
+                                    jobResultStore,
+                                    applicationStore,
+                                    applicationResultStore));
         } catch (Exception e) {
             throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
         }
@@ -120,7 +155,18 @@ public class ApplicationDispatcherGatewayServiceFactory
         return DefaultDispatcherGatewayService.from(dispatcher);
     }
 
-    private List<JobID> getRecoveredJobIds(final Collection<ExecutionPlan> recoveredJobs) {
-        return recoveredJobs.stream().map(ExecutionPlan::getJobID).collect(Collectors.toList());
+    private List<JobInfo> getRecoveredJobInfos(final Collection<ExecutionPlan> recoveredJobs) {
+        return recoveredJobs.stream()
+                .map(
+                        executionPlan ->
+                                new JobInfoImpl(executionPlan.getJobID(), executionPlan.getName()))
+                .collect(Collectors.toList());
+    }
+
+    private List<JobInfo> getRecoveredTerminalJobInfos(
+            final Collection<JobResult> recoveredDirtyJobResults) {
+        return recoveredDirtyJobResults.stream()
+                .map(jobResult -> new JobInfoImpl(jobResult.getJobId(), jobResult.getJobName()))
+                .collect(Collectors.toList());
     }
 }

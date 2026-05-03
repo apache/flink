@@ -20,19 +20,18 @@ package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import java.util.Collections;
 import java.util.stream.Collectors;
 
-/** Converter for ALTER TABLE ADD ... schema operations. */
+/** Converter for ALTER [MATERIALIZED ]TABLE ADD ... schema operations. */
 public class SchemaAddConverter extends SchemaConverter {
 
-    public SchemaAddConverter(ResolvedCatalogTable oldTable, ConvertContext context) {
+    public SchemaAddConverter(ResolvedCatalogBaseTable<?> oldTable, ConvertContext context) {
         super(oldTable, context);
     }
 
@@ -41,9 +40,10 @@ public class SchemaAddConverter extends SchemaConverter {
         if (primaryKey != null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base table has already defined the primary key constraint %s. You might "
+                            "%sThe current %s has already defined the primary key constraint %s. You might "
                                     + "want to drop it before adding a new one.",
-                            EX_MSG_PREFIX,
+                            exMsgPrefix,
+                            tableKindStr,
                             primaryKey.getColumnNames().stream()
                                     .collect(Collectors.joining("`, `", "[`", "`]"))));
         }
@@ -53,25 +53,14 @@ public class SchemaAddConverter extends SchemaConverter {
     }
 
     @Override
-    protected void checkAndCollectDistributionChange(TableDistribution newDistribution) {
-        if (distribution != null) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe base table has already defined the distribution `%s`. "
-                                    + "You can modify it or drop it before adding a new one.",
-                            EX_MSG_PREFIX, distribution));
-        }
-        changesCollector.add(TableChange.add(newDistribution));
-    }
-
-    @Override
     protected void checkAndCollectWatermarkChange() {
         if (watermarkSpec != null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base table has already defined the watermark strategy `%s` AS %s. You might "
+                            "%sThe current %s has already defined the watermark strategy `%s` AS %s. You might "
                                     + "want to drop it before adding a new one.",
-                            EX_MSG_PREFIX,
+                            exMsgPrefix,
+                            tableKindStr,
                             watermarkSpec.getColumnName(),
                             ((SqlCallExpression) watermarkSpec.getWatermarkExpression())
                                     .getSqlExpression()));
@@ -88,8 +77,8 @@ public class SchemaAddConverter extends SchemaConverter {
         if (sortedColumnNames.contains(columnName)) {
             throw new ValidationException(
                     String.format(
-                            "%sTry to add a column `%s` which already exists in the table.",
-                            EX_MSG_PREFIX, columnName));
+                            "%sColumn `%s` already exists in the %s.",
+                            exMsgPrefix, columnName, tableKindStr));
         }
 
         if (columnPosition.isFirstColumn()) {

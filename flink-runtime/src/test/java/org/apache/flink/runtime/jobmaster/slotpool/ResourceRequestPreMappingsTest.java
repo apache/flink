@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
@@ -357,7 +357,7 @@ class ResourceRequestPreMappingsTest {
                     PendingRequest.createNormalRequest(
                             new SlotRequestId(),
                             Preconditions.checkNotNull(requiredProfile),
-                            DefaultLoadingWeight.EMPTY,
+                            DefaultTaskExecutionLoad.EMPTY,
                             Collections.emptyList()));
         }
         return pendingRequests;

@@ -20,14 +20,12 @@ package org.apache.flink.sql.parser;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nullable;
 
@@ -69,7 +67,7 @@ public class SqlPartitionSpecProperty extends SqlCall {
 
     @Nullable
     public String getValueString() {
-        return value != null ? ((NlsString) SqlLiteral.value(value)).getValue() : null;
+        return SqlParseUtils.extractString(value);
     }
 
     @Override

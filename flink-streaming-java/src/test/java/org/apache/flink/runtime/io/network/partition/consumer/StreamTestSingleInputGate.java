@@ -205,6 +205,11 @@ public class StreamTestSingleInputGate<T> {
         }
     }
 
+    /** Sets an error on the specified channel. */
+    public void setChannelError(int channel, Throwable error) {
+        inputChannels[channel].setError(error);
+    }
+
     /** Returns true iff all input queues are empty. */
     public boolean allQueuesEmpty() {
         for (int i = 0; i < numInputChannels; i++) {

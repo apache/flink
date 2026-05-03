@@ -42,12 +42,21 @@ import java.util.Collections;
  * Stream {@link ExecNode} to read data from an external source defined by a {@link
  * ScanTableSource}.
  */
+// Version 1: Initial version
 @ExecNodeMetadata(
         name = "stream-exec-table-source-scan",
         version = 1,
         producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+// Version 2: Fixed overwriting of transformation UIDs and names for the last transformation
+// returned by DataStreamScanProvider and TransformationScanProvider.
+@ExecNodeMetadata(
+        name = "stream-exec-table-source-scan",
+        version = 2,
+        producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_3,
+        minStateVersion = FlinkVersion.v2_3)
 public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         implements StreamExecNode<RowData> {
 
@@ -92,5 +101,10 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         // It's better to use StreamExecutionEnvironment.createInput()
         // rather than addLegacySource() for streaming, because it take care of checkpoint.
         return env.createInput(inputFormat, outputTypeInfo).name(operatorName).getTransformation();
+    }
+
+    @Override
+    protected final boolean legacyUidsEnabled() {
+        return getVersion() == 1;
     }
 }

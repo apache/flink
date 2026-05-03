@@ -18,8 +18,10 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ReadableConfig;
 
 /**
  * An base interface for all rich user-defined functions. This class defines methods for the life
@@ -112,4 +114,30 @@ public interface RichFunction extends Function {
      * @param t The runtime context.
      */
     void setRuntimeContext(RuntimeContext t);
+
+    /**
+     * Can be overridden to enable interruptible timers for this particular function even if config
+     * option is enabled. By default, interruptible timers are disabled. NOTE: operator that
+     * executes the function is expected to:
+     *
+     * <ol>
+     *   <li>Inherit org.apache.flink.streaming.api.operators.AbstractStreamOperator or
+     *       org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2 (or handle watermarks
+     *       similarly)
+     *   <li>Pass {@link org.apache.flink.api.common.operators.MailboxExecutor MailboxExecutor} to
+     *       it in one of the following ways:
+     *       <ul>
+     *         <li>Pass org.apache.flink.streaming.api.operators.StreamOperatorParameters to super
+     *             constructor
+     *         <li>Set via
+     *             org.apache.flink.streaming.api.operators.YieldingOperator.setMailboxExecutor
+     *         <li>Set via org.apache.flink.streaming.api.operators.YieldingOperatorFactory
+     *       </ul>
+     *   <li>Not override watermark handling methods or call super
+     * </ol>
+     */
+    @Internal
+    default boolean useInterruptibleTimers(ReadableConfig config) {
+        return false;
+    }
 }

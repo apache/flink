@@ -32,7 +32,7 @@ Flink Table API & SQL empowers users to perform data manipulation and administra
 ## Implementation Guide
 
 To call a procedure, it must be available in a catalog. To provide procedures in a catalog, you need to implement the procedure and then return it using the `Catalog.getProcedure(ObjectPath procedurePath)` method.
-The following steps will guild you on how to implement and provide a procedure in a catalog.
+The following steps will guide you on how to implement and provide a procedure in a catalog.
 
 ### Procedure Class
 
@@ -125,7 +125,7 @@ class GenerateSequenceProcedure extends Procedure {
 {{< /tabs >}}
 
 ### Type Inference
-The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both procedure parameters and return types must be mapped to a [data type]({{< ref "docs/dev/table/types" >}}).
+The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both procedure parameters and return types must be mapped to a [data type]({{< ref "docs/sql/reference/data-types" >}}).
 
 From a logical perspective, the planner needs information about expected types, precision, and scale. From a JVM perspective, the planner needs information about how internal data structures are represented as JVM objects when calling a procedure.
 
@@ -139,7 +139,7 @@ Note: although the return type in `call` method must be array type `T[]`, if use
 
 The automatic type inference inspects the procedure's class and `call` methods to derive data types for the arguments and result of a procedure. `@DataTypeHint` and `@ProcedureHint` annotations support the automatic extraction.
 
-For a full list of classes that can be implicitly mapped to a data type, please refer to the [data type extraction section]({{< ref "docs/dev/table/types" >}}#data-type-extraction).
+For a full list of classes that can be implicitly mapped to a data type, please refer to the [data type extraction section]({{< ref "docs/sql/reference/data-types" >}}#data-type-extraction).
 
 **`@DataTypeHint`**
 

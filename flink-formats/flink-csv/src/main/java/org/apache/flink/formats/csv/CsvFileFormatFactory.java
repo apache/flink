@@ -46,11 +46,13 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.function.SerializableSupplier;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import org.apache.commons.text.StringEscapeUtils;
@@ -60,13 +62,18 @@ import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_TRAILING_COMMA;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.EMPTY_STRING_AS_NULL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.FAIL_ON_MISSING_COLUMNS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_TRAILING_UNMAPPABLE;
 import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.TRIM_SPACES;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** CSV format factory for file system. */
@@ -125,15 +132,14 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
             final RowType physicalRowType = (RowType) physicalDataType.getLogicalType();
             final CsvSchema schema = buildCsvSchema(physicalRowType, formatOptions);
 
-            final boolean ignoreParseErrors =
-                    formatOptions.getOptional(IGNORE_PARSE_ERRORS).isPresent();
+            final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
             final Converter<JsonNode, RowData, Void> converter =
                     (Converter)
                             new CsvToRowDataConverters(ignoreParseErrors)
                                     .createRowConverter(projectedRowType, true);
             CsvReaderFormat<RowData> csvReaderFormat =
                     new CsvReaderFormat<>(
-                            JacksonMapperFactory::createCsvMapper,
+                            createCsvMapperFactory(formatOptions),
                             ignored -> schema,
                             JsonNode.class,
                             converter,
@@ -216,5 +222,39 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         options.getOptional(NULL_LITERAL).ifPresent(csvBuilder::setNullValue);
 
         return csvBuilder.build();
+    }
+
+    /**
+     * Creates a {@link SerializableSupplier} for {@link CsvMapper} that applies the configured
+     * {@link CsvParser.Feature} options.
+     */
+    private static SerializableSupplier<CsvMapper> createCsvMapperFactory(
+            ReadableConfig formatOptions) {
+        final boolean trimSpaces = formatOptions.get(TRIM_SPACES);
+        final boolean ignoreTrailingUnmappable = formatOptions.get(IGNORE_TRAILING_UNMAPPABLE);
+        final boolean allowTrailingComma = formatOptions.get(ALLOW_TRAILING_COMMA);
+        final boolean failOnMissingColumns = formatOptions.get(FAIL_ON_MISSING_COLUMNS);
+        final boolean emptyStringAsNull = formatOptions.get(EMPTY_STRING_AS_NULL);
+
+        return () -> {
+            CsvMapper mapper = JacksonMapperFactory.createCsvMapper();
+            configureFeature(mapper, CsvParser.Feature.TRIM_SPACES, trimSpaces);
+            configureFeature(
+                    mapper, CsvParser.Feature.IGNORE_TRAILING_UNMAPPABLE, ignoreTrailingUnmappable);
+            configureFeature(mapper, CsvParser.Feature.ALLOW_TRAILING_COMMA, allowTrailingComma);
+            configureFeature(
+                    mapper, CsvParser.Feature.FAIL_ON_MISSING_COLUMNS, failOnMissingColumns);
+            configureFeature(mapper, CsvParser.Feature.EMPTY_STRING_AS_NULL, emptyStringAsNull);
+            return mapper;
+        };
+    }
+
+    private static void configureFeature(
+            CsvMapper mapper, CsvParser.Feature feature, boolean enabled) {
+        if (enabled) {
+            mapper.enable(feature);
+        } else {
+            mapper.disable(feature);
+        }
     }
 }

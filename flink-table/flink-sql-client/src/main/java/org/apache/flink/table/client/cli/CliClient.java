@@ -36,6 +36,7 @@ import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
+import org.jline.reader.Reference;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
@@ -332,6 +333,11 @@ public class CliClient implements AutoCloseable {
             builder.highlighter(new SqlClientSyntaxHighlighter(executor));
         }
         LineReader lineReader = builder.build();
+
+        lineReader
+                .getKeyMaps()
+                .get(LineReader.MAIN)
+                .bind(new Reference(LineReader.EXPAND_OR_COMPLETE), "\t");
 
         // this option is disabled for now for correct backslash escaping
         // a "SELECT '\'" query should return a string with a backslash

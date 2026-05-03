@@ -612,6 +612,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withQueryBlockAlias = false)
   }
 
+  /** Java-friendly overload that accepts a list of [[ExplainDetail]]s. */
+  def verifyRelPlan(query: String, extraDetails: java.util.List[ExplainDetail]): Unit = {
+    verifyRelPlan(query, extraDetails.asScala.toSeq: _*)
+  }
+
   /**
    * Verify the AST (abstract syntax tree) and the optimized rel plan for the given INSERT
    * statement.

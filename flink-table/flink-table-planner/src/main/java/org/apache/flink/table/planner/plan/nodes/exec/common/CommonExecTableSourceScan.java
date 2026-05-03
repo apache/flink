@@ -43,7 +43,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
-import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -61,7 +60,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -119,7 +117,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             PlannerBase planner, ExecNodeConfig config) {
         final Transformation<RowData> sourceTransform;
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final TransformationMetadata meta = createTransformationMeta(SOURCE_TRANSFORMATION, config);
+        final TransformationMetadata metadata =
+                createTransformationMeta(SOURCE_TRANSFORMATION, config);
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =
@@ -139,7 +138,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                             env,
                             function,
                             sourceFunctionProvider.isBounded(),
-                            meta.getName(),
+                            metadata.getName(),
                             outputTypeInfo,
                             sourceParallelism,
                             sourceParallelismConfigured);
@@ -158,10 +157,10 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             ((TransformationWithLineage<RowData>) sourceTransform)
                     .setLineageVertex(sourceLineageVertex);
             if (function instanceof ParallelSourceFunction && sourceParallelismConfigured) {
-                meta.fill(sourceTransform);
+                metadata.fill(sourceTransform);
                 return new SourceTransformationWrapper<>(sourceTransform);
             } else {
-                return meta.fill(sourceTransform);
+                return metadata.fill(sourceTransform);
             }
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
@@ -169,8 +168,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             lineageVertex = TableLineageUtils.extractLineageDataset(inputFormat);
             sourceTransform =
                     createInputFormatTransformation(
-                            env, inputFormat, outputTypeInfo, meta.getName());
-            meta.fill(sourceTransform);
+                            env, inputFormat, outputTypeInfo, metadata.getName());
+            metadata.fill(sourceTransform);
         } else if (provider instanceof SourceProvider) {
             final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             lineageVertex = TableLineageUtils.extractLineageDataset(source);
@@ -179,22 +178,26 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
-                                    meta.getName(),
+                                    metadata.getName(),
                                     outputTypeInfo)
                             .getTransformation();
-            meta.fill(sourceTransform);
+            metadata.fill(sourceTransform);
         } else if (provider instanceof DataStreamScanProvider) {
             sourceTransform =
                     ((DataStreamScanProvider) provider)
-                            .produceDataStream(createProviderContext(config), env)
+                            .produceDataStream(createProviderContext(metadata, config), env)
                             .getTransformation();
-            meta.fill(sourceTransform);
+            if (legacyUidsEnabled()) {
+                metadata.fill(sourceTransform);
+            }
             sourceTransform.setOutputType(outputTypeInfo);
         } else if (provider instanceof TransformationScanProvider) {
             sourceTransform =
                     ((TransformationScanProvider) provider)
-                            .createTransformation(createProviderContext(config));
-            meta.fill(sourceTransform);
+                            .createTransformation(createProviderContext(metadata, config));
+            if (legacyUidsEnabled()) {
+                metadata.fill(sourceTransform);
+            }
             sourceTransform.setOutputType(outputTypeInfo);
         } else {
             throw new UnsupportedOperationException(
@@ -308,15 +311,6 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
     }
 
-    private ProviderContext createProviderContext(ExecNodeConfig config) {
-        return name -> {
-            if (this instanceof StreamExecNode && config.shouldSetUid()) {
-                return Optional.of(createTransformationUid(name, config));
-            }
-            return Optional.empty();
-        };
-    }
-
     /**
      * Adopted from {@link StreamExecutionEnvironment#addSource(SourceFunction, String,
      * TypeInformation)} but with custom {@link Boundedness}.
@@ -376,4 +370,6 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
             String operatorName);
+
+    protected abstract boolean legacyUidsEnabled();
 }

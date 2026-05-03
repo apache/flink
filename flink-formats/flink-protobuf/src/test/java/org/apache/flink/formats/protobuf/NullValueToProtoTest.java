@@ -26,19 +26,18 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
 import com.google.protobuf.ByteString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.formats.protobuf.ProtobufTestHelper.mapOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test conversion of null values from flink internal data to proto data. Proto data does not permit
  * null values in array/map data.
  */
-public class NullValueToProtoTest {
+class NullValueToProtoTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row =
                 GenericRowData.of(
                         // string
@@ -90,80 +89,78 @@ public class NullValueToProtoTest {
                         false);
         NullTest nullTest = NullTest.parseFrom(bytes);
         // string map
-        assertEquals(2, nullTest.getStringMapCount());
-        assertTrue(nullTest.getStringMapMap().containsKey(""));
-        assertTrue(nullTest.getStringMapMap().containsKey("key"));
-        assertEquals("value", nullTest.getStringMapMap().get(""));
-        assertEquals("", nullTest.getStringMapMap().get("key"));
+        assertThat(nullTest.getStringMapCount()).isEqualTo(2);
+        assertThat(nullTest.getStringMapMap().containsKey("")).isTrue();
+        assertThat(nullTest.getStringMapMap().containsKey("key")).isTrue();
+        assertThat(nullTest.getStringMapMap().get("")).isEqualTo("value");
+        assertThat(nullTest.getStringMapMap().get("key")).isEqualTo("");
         // int32 map
-        assertEquals(2, nullTest.getIntMapCount());
-        assertTrue(nullTest.getIntMapMap().containsKey(0));
-        assertTrue(nullTest.getIntMapMap().containsKey(1));
-        assertEquals(Integer.valueOf(1), nullTest.getIntMapMap().get(0));
-        assertEquals(Integer.valueOf(0), nullTest.getIntMapMap().get(1));
+        assertThat(nullTest.getIntMapCount()).isEqualTo(2);
+        assertThat(nullTest.getIntMapMap().containsKey(0)).isTrue();
+        assertThat(nullTest.getIntMapMap().containsKey(1)).isTrue();
+        assertThat(nullTest.getIntMapMap().get(0)).isEqualTo(Integer.valueOf(1));
+        assertThat(nullTest.getIntMapMap().get(1)).isEqualTo(Integer.valueOf(0));
         // int64 map
-        assertEquals(2, nullTest.getIntMapCount());
-        assertTrue(nullTest.getLongMapMap().containsKey(0L));
-        assertTrue(nullTest.getLongMapMap().containsKey(1L));
-        assertEquals(Long.valueOf(1L), nullTest.getLongMapMap().get(0L));
-        assertEquals(Long.valueOf(0L), nullTest.getLongMapMap().get(1L));
+        assertThat(nullTest.getIntMapCount()).isEqualTo(2);
+        assertThat(nullTest.getLongMapMap().containsKey(0L)).isTrue();
+        assertThat(nullTest.getLongMapMap().containsKey(1L)).isTrue();
+        assertThat(nullTest.getLongMapMap().get(0L)).isEqualTo(Long.valueOf(1L));
+        assertThat(nullTest.getLongMapMap().get(1L)).isEqualTo(Long.valueOf(0L));
         // bool map
-        assertEquals(2, nullTest.getBooleanMapCount());
-        assertTrue(nullTest.getBooleanMapMap().containsKey(false));
-        assertTrue(nullTest.getBooleanMapMap().containsKey(true));
-        assertEquals(Boolean.TRUE, nullTest.getBooleanMapMap().get(false));
-        assertEquals(Boolean.FALSE, nullTest.getBooleanMapMap().get(true));
+        assertThat(nullTest.getBooleanMapCount()).isEqualTo(2);
+        assertThat(nullTest.getBooleanMapMap().containsKey(false)).isTrue();
+        assertThat(nullTest.getBooleanMapMap().containsKey(true)).isTrue();
+        assertThat(nullTest.getBooleanMapMap().get(false)).isEqualTo(Boolean.TRUE);
+        assertThat(nullTest.getBooleanMapMap().get(true)).isEqualTo(Boolean.FALSE);
         // float map
-        assertEquals(1, nullTest.getFloatMapCount());
-        assertEquals(Float.valueOf(0.0f), nullTest.getFloatMapMap().get("key"));
+        assertThat(nullTest.getFloatMapCount()).isEqualTo(1);
+        assertThat(nullTest.getFloatMapMap().get("key")).isEqualTo(Float.valueOf(0.0f));
         // double map
-        assertEquals(1, nullTest.getDoubleMapCount());
-        assertEquals(Double.valueOf(0.0), nullTest.getDoubleMapMap().get("key"));
+        assertThat(nullTest.getDoubleMapCount()).isEqualTo(1);
+        assertThat(nullTest.getDoubleMapMap().get("key")).isEqualTo(Double.valueOf(0.0));
         // enum map
-        assertEquals(1, nullTest.getEnumMapCount());
-        assertEquals(NullTest.Corpus.UNIVERSAL, nullTest.getEnumMapMap().get("key"));
+        assertThat(nullTest.getEnumMapCount()).isEqualTo(1);
+        assertThat(nullTest.getEnumMapMap().get("key")).isEqualTo(NullTest.Corpus.UNIVERSAL);
         // message map
-        assertEquals(1, nullTest.getMessageMapCount());
-        assertEquals(
-                NullTest.InnerMessageTest.getDefaultInstance(),
-                nullTest.getMessageMapMap().get("key"));
+        assertThat(nullTest.getMessageMapCount()).isEqualTo(1);
+        assertThat(nullTest.getMessageMapMap().get("key"))
+                .isEqualTo(NullTest.InnerMessageTest.getDefaultInstance());
         // bytes map
-        assertEquals(1, nullTest.getBytesMapCount());
-        assertEquals(ByteString.EMPTY, nullTest.getBytesMapMap().get("key"));
+        assertThat(nullTest.getBytesMapCount()).isEqualTo(1);
+        assertThat(nullTest.getBytesMapMap().get("key")).isEqualTo(ByteString.EMPTY);
 
         // string array
-        assertEquals(1, nullTest.getStringArrayCount());
-        assertEquals("", nullTest.getStringArrayList().get(0));
+        assertThat(nullTest.getStringArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getStringArrayList().get(0)).isEqualTo("");
         // int array
-        assertEquals(1, nullTest.getIntArrayCount());
-        assertEquals(Integer.valueOf(0), nullTest.getIntArrayList().get(0));
+        assertThat(nullTest.getIntArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getIntArrayList().get(0)).isEqualTo(Integer.valueOf(0));
         // long array
-        assertEquals(1, nullTest.getLongArrayCount());
-        assertEquals(Long.valueOf(0L), nullTest.getLongArrayList().get(0));
+        assertThat(nullTest.getLongArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getLongArrayList().get(0)).isEqualTo(Long.valueOf(0L));
         // float array
-        assertEquals(1, nullTest.getFloatArrayCount());
-        assertEquals(Float.valueOf(0), nullTest.getFloatArrayList().get(0));
+        assertThat(nullTest.getFloatArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getFloatArrayList().get(0)).isEqualTo(Float.valueOf(0));
         // double array
-        assertEquals(1, nullTest.getDoubleArrayCount());
-        assertEquals(Double.valueOf(0), nullTest.getDoubleArrayList().get(0));
+        assertThat(nullTest.getDoubleArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getDoubleArrayList().get(0)).isEqualTo(Double.valueOf(0));
         // boolean array
-        assertEquals(1, nullTest.getBooleanArrayCount());
-        assertEquals(Boolean.FALSE, nullTest.getBooleanArrayList().get(0));
+        assertThat(nullTest.getBooleanArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getBooleanArrayList().get(0)).isEqualTo(Boolean.FALSE);
         // enum array
-        assertEquals(1, nullTest.getEnumArrayCount());
-        assertEquals(NullTest.Corpus.UNIVERSAL, nullTest.getEnumArrayList().get(0));
+        assertThat(nullTest.getEnumArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getEnumArrayList().get(0)).isEqualTo(NullTest.Corpus.UNIVERSAL);
         // message array
-        assertEquals(1, nullTest.getMessageArrayCount());
-        assertEquals(
-                NullTest.InnerMessageTest.getDefaultInstance(),
-                nullTest.getMessageArrayList().get(0));
+        assertThat(nullTest.getMessageArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getMessageArrayList().get(0))
+                .isEqualTo(NullTest.InnerMessageTest.getDefaultInstance());
         // bytes array
-        assertEquals(1, nullTest.getBytesArrayCount());
-        assertEquals(ByteString.EMPTY, nullTest.getBytesArrayList().get(0));
+        assertThat(nullTest.getBytesArrayCount()).isEqualTo(1);
+        assertThat(nullTest.getBytesArrayList().get(0)).isEqualTo(ByteString.EMPTY);
     }
 
     @Test
-    public void testNullStringLiteral() throws Exception {
+    void testNullStringLiteral() throws Exception {
         RowData row =
                 GenericRowData.of(
                         // string
@@ -214,6 +211,6 @@ public class NullValueToProtoTest {
                         new PbFormatConfig(NullTest.class.getName(), false, false, "NULL"),
                         false);
         NullTest nullTest = NullTest.parseFrom(bytes);
-        assertEquals("NULL", nullTest.getStringMapMap().get("key"));
+        assertThat(nullTest.getStringMapMap().get("key")).isEqualTo("NULL");
     }
 }

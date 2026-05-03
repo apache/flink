@@ -32,3 +32,4 @@
 # limitations under the License.
 
 org.apache.flink.util.TestLoggerExtension
+org.apache.flink.util.TestNameProviderExtension

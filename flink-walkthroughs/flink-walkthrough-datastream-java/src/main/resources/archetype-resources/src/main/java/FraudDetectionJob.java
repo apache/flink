@@ -18,6 +18,7 @@
 
 package ${package};
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.walkthrough.common.sink.AlertSink;
@@ -26,25 +27,37 @@ import org.apache.flink.walkthrough.common.entity.Transaction;
 import org.apache.flink.walkthrough.common.source.TransactionSource;
 
 /**
- * Skeleton code for the datastream walkthrough
+ * Skeleton code for the DataStream API walkthrough.
+ *
+ * <p>This job reads an infinite stream of credit card transactions, detects fraudulent
+ * patterns, and outputs alerts.
+ *
+ * <p>To run this example in your IDE:
+ * <ul>
+ *   <li>IntelliJ IDEA: Go to Run > Edit Configurations > Modify options > Select
+ *       "include dependencies with 'Provided' scope"</li>
+ * </ul>
  */
 public class FraudDetectionJob {
-	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<Transaction> transactions = env
-			.addSource(new TransactionSource())
-			.name("transactions");
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<Alert> alerts = transactions
-			.keyBy(Transaction::getAccountId)
-			.process(new FraudDetector())
-			.name("fraud-detector");
+        DataStream<Transaction> transactions = env
+            .fromSource(
+                TransactionSource.unbounded(),
+                WatermarkStrategy.noWatermarks(),
+                "transactions");
 
-		alerts
-			.addSink(new AlertSink())
-			.name("send-alerts");
+        DataStream<Alert> alerts = transactions
+            .keyBy(Transaction::getAccountId)
+            .process(new FraudDetector())
+            .name("fraud-detector");
 
-		env.execute("Fraud Detection");
-	}
+        alerts
+            .addSink(new AlertSink())
+            .name("send-alerts");
+
+        env.execute("Fraud Detection");
+    }
 }

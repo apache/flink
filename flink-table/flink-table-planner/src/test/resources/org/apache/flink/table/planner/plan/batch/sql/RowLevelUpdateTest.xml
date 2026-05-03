@@ -605,7 +605,8 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
@@ -616,7 +617,8 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -632,6 +634,17 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])",
     "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[0 AS $f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
   }, {
     "id" : ,
     "type" : "HashAggregate[]",
@@ -716,7 +729,8 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
@@ -728,7 +742,8 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+                  +- Calc(select=[0 AS $f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -755,6 +770,17 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])",
     "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[0 AS $f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
   }, {
     "id" : ,
     "type" : "HashAggregate[]",

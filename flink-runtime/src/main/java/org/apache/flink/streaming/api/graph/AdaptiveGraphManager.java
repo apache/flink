@@ -188,7 +188,11 @@ public class AdaptiveGraphManager
                         userClassloader,
                         this);
 
-        this.jobGraph = createAndInitializeJobGraph(streamGraph, streamGraph.getJobID());
+        this.jobGraph =
+                createAndInitializeJobGraph(
+                        streamGraph,
+                        streamGraph.getOptionalJobId().orElse(null),
+                        streamGraph.getApplicationId().orElse(null));
 
         this.defaultSlotSharingGroup = new SlotSharingGroup();
 

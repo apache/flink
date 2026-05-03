@@ -4946,8 +4946,8 @@ public class HyperLogLogPlusPlus {
             int i = 0;
             int shift = 0;
             while (idx < m && i < REGISTERS_PER_WORD) {
-                long mIdx = (word >>> shift) & REGISTER_WORD_MASK;
-                zInverse += 1.0 / (1 << mIdx);
+                int mIdx = (int) ((word >>> shift) & REGISTER_WORD_MASK);
+                zInverse += 1.0 / (1L << mIdx);
                 if (mIdx == 0) {
                     v += 1.0d;
                 }

@@ -67,6 +67,8 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.bitmap.RoaringBitmapData;
 import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -155,6 +157,9 @@ public class DataFormatConverters {
         t2C.put(
                 DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(long.class),
                 LongConverter.INSTANCE);
+
+        t2C.put(DataTypes.BITMAP().bridgedTo(Bitmap.class), BitmapConverter.INSTANCE);
+        t2C.put(DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class), BitmapConverter.INSTANCE);
 
         TYPE_TO_CONVERTER = Collections.unmodifiableMap(t2C);
     }
@@ -742,6 +747,29 @@ public class DataFormatConverters {
         @Override
         Variant toExternalImpl(RowData row, int column) {
             return row.getVariant(column);
+        }
+    }
+
+    public static final class BitmapConverter extends IdentityConverter<Bitmap> {
+
+        private static final long serialVersionUID = 1L;
+
+        public static final BitmapConverter INSTANCE = new BitmapConverter();
+
+        private BitmapConverter() {}
+
+        @Override
+        Bitmap toInternalImpl(Bitmap value) {
+            if (!(value instanceof RoaringBitmapData)) {
+                throw new UnsupportedOperationException(
+                        "Unsupported bitmap type: " + value.getClass().getSimpleName() + ".");
+            }
+            return value;
+        }
+
+        @Override
+        Bitmap toExternalImpl(RowData row, int column) {
+            return row.getBitmap(column);
         }
     }
 

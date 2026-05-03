@@ -37,42 +37,42 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.curator.test.TestingServer;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test the election of a new JobManager leader. */
-public class ZooKeeperLeaderElectionITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ZooKeeperLeaderElectionITCase {
 
     private static final Duration RPC_TIMEOUT = Duration.ofMinutes(1L);
 
     private static TestingServer zkServer;
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir Path tempFolder;
 
-    @BeforeClass
-    public static void setup() throws Exception {
+    @BeforeAll
+    static void setup() throws Exception {
         zkServer = ZooKeeperTestUtils.createAndStartZookeeperTestingServer();
     }
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    @AfterAll
+    static void tearDown() throws Exception {
         if (zkServer != null) {
             zkServer.close();
             zkServer = null;
@@ -86,14 +86,14 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
      * successfully executed.
      */
     @Test
-    public void testJobExecutionOnClusterWithLeaderChange() throws Exception {
+    void testJobExecutionOnClusterWithLeaderChange() throws Exception {
         final int numDispatchers = 3;
         final int numTMs = 2;
         final int numSlotsPerTM = 2;
 
         final Configuration configuration =
                 ZooKeeperTestUtils.createZooKeeperHAConfig(
-                        zkServer.getConnectString(), tempFolder.newFolder().getAbsolutePath());
+                        zkServer.getConnectString(), tempFolder.toString());
 
         // speed up refused registration retries
         configuration.set(ClusterOptions.REFUSED_REGISTRATION_DELAY, Duration.ofMillis(50L));
@@ -156,7 +156,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
                     leaderDispatcherGateway.requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
             BlockingOperator.unblock();
 
-            assertThat(jobResultFuture.get().isSuccess(), is(true));
+            assertThat(jobResultFuture.get().isSuccess()).isTrue();
 
             resourceManagerLeaderRetrieval.stop();
         }
@@ -185,7 +185,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         return miniCluster.getDispatcherGatewayFuture().get();
     }
 
-    private JobGraph createJobGraph(int parallelism) throws IOException {
+    private JobGraph createJobGraph(int parallelism) {
         BlockingOperator.isBlocking = true;
         final JobVertex vertex = new JobVertex("blocking operator");
         vertex.setParallelism(parallelism);

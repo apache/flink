@@ -36,6 +36,8 @@ import static org.apache.flink.docs.rest.OpenApiSpecGenerator.createDocumentatio
  */
 public class SqlGatewayOpenApiSpecGenerator {
 
+    public static final String SQL_GATEWAY_OPEN_API_TITLE = "Flink SQL Gateway REST API";
+
     /**
      * Generates the Sql Gateway REST API OpenAPI spec.
      *
@@ -51,7 +53,7 @@ public class SqlGatewayOpenApiSpecGenerator {
                 continue;
             }
             createDocumentationFile(
-                    "Flink SQL Gateway REST API",
+                    SQL_GATEWAY_OPEN_API_TITLE,
                     new DocumentingSqlGatewayRestEndpoint(),
                     apiVersion,
                     Paths.get(

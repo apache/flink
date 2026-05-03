@@ -153,19 +153,11 @@ public final class RestAPIStabilityTestUtils {
 
         // check for entirely new calls, for which the snapshot should be updated
         for (final JsonNode curCall : cur.calls) {
-            final List<Tuple2<JsonNode, CompatibilityCheckResult>> compatibilityCheckResults =
-                    old.calls.stream()
-                            .map(
-                                    oldCall ->
-                                            Tuple2.of(
-                                                    curCall, checkCompatibility(oldCall, curCall)))
-                            .collect(Collectors.toList());
-
-            if (compatibilityCheckResults.stream()
+            if (old.calls.stream()
+                    .map(oldCall -> checkCompatibility(oldCall, curCall))
                     .noneMatch(
                             result ->
-                                    result.f1.getBackwardCompatibility()
-                                            == Compatibility.IDENTICAL)) {
+                                    result.getBackwardCompatibility() == Compatibility.IDENTICAL)) {
                 Assertions.fail(
                         "API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"

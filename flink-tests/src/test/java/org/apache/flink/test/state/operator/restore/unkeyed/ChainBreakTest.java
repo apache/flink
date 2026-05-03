@@ -31,11 +31,7 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /** Verifies that the state of all operators is restored if a topology change breaks up a chain. */
-public class ChainBreakTest extends AbstractNonKeyedOperatorRestoreTestBase {
-
-    public ChainBreakTest(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
+class ChainBreakTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
     @SnapshotsGenerator
     public void generateSnapshots(FlinkVersion targetVersion) throws Exception {
@@ -43,7 +39,7 @@ public class ChainBreakTest extends AbstractNonKeyedOperatorRestoreTestBase {
     }
 
     @Override
-    public void createRestoredJob(StreamExecutionEnvironment env) {
+    protected void createRestoredJob(StreamExecutionEnvironment env) {
         /**
          * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
          * Modified job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map) -> StatefulMap3

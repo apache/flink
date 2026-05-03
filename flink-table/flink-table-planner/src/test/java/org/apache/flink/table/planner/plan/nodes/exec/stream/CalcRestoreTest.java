@@ -41,6 +41,7 @@ public class CalcRestoreTest extends RestoreTestBase {
                 CalcTestPrograms.CALC_PROJECT_PUSHDOWN,
                 CalcTestPrograms.CALC_SARG,
                 CalcTestPrograms.CALC_UDF_SIMPLE,
-                CalcTestPrograms.CALC_UDF_COMPLEX);
+                CalcTestPrograms.CALC_UDF_COMPLEX,
+                CalcTestPrograms.CALC_CURRENT_TIMESTAMP);
     }
 }

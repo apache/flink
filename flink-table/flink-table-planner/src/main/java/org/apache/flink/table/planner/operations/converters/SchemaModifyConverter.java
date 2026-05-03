@@ -22,9 +22,8 @@ import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import javax.annotation.Nullable;
@@ -34,14 +33,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/** Converter for ALTER TABLE MODIFY ... schema operations. */
+/** Converter for ALTER [MATERIALIZED ]TABLE MODIFY ... schema operations. */
 public class SchemaModifyConverter extends SchemaConverter {
 
-    private final ResolvedCatalogTable oldTable;
+    private final ResolvedCatalogBaseTable<?> oldBaseTable;
 
-    public SchemaModifyConverter(ResolvedCatalogTable oldTable, ConvertContext context) {
-        super(oldTable, context);
-        this.oldTable = oldTable;
+    public SchemaModifyConverter(ResolvedCatalogBaseTable<?> oldBaseTable, ConvertContext context) {
+        super(oldBaseTable, context);
+        this.oldBaseTable = oldBaseTable;
     }
 
     @Override
@@ -50,11 +49,10 @@ public class SchemaModifyConverter extends SchemaConverter {
         if (!sortedColumnNames.contains(columnName)) {
             throw new ValidationException(
                     String.format(
-                            "%sTry to modify a column `%s` which does not exist in the table.",
-                            EX_MSG_PREFIX, columnName));
+                            "%sColumn `%s` does not exist in the table.", exMsgPrefix, columnName));
         }
 
-        Column oldColumn = unwrap(oldTable.getResolvedSchema().getColumn(columnName));
+        Column oldColumn = unwrap(oldBaseTable.getResolvedSchema().getColumn(columnName));
         if (columnPosition.isFirstColumn()) {
             sortedColumnNames.remove(columnName);
             sortedColumnNames.add(0, columnName);
@@ -89,9 +87,9 @@ public class SchemaModifyConverter extends SchemaConverter {
         if (primaryKey == null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base table does not define any primary key constraint. You might "
+                            "%sThe current %s does not define any primary key constraint. You might "
                                     + "want to add a new one.",
-                            EX_MSG_PREFIX));
+                            exMsgPrefix, tableKindStr));
         }
         changeBuilders.add(
                 schema ->
@@ -100,25 +98,13 @@ public class SchemaModifyConverter extends SchemaConverter {
     }
 
     @Override
-    protected void checkAndCollectDistributionChange(TableDistribution newDistribution) {
-        if (distribution == null) {
-            throw new ValidationException(
-                    String.format(
-                            "%sThe base table does not define any distribution. You might "
-                                    + "want to add a new one.",
-                            EX_MSG_PREFIX));
-        }
-        changesCollector.add(TableChange.modify(newDistribution));
-    }
-
-    @Override
     protected void checkAndCollectWatermarkChange() {
         if (watermarkSpec == null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base table does not define any watermark. You might "
+                            "%sThe current %s does not define any watermark. You might "
                                     + "want to add a new one.",
-                            EX_MSG_PREFIX));
+                            exMsgPrefix, tableKindStr));
         }
         changeBuilders.add(
                 schema ->

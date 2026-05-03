@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
@@ -36,6 +37,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
@@ -132,7 +134,10 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
 
     private String jobName;
 
-    private JobID jobId;
+    @Nullable private JobID jobId;
+
+    /** ID of the application this job belongs to. */
+    @Nullable private ApplicationID applicationId;
 
     private final Configuration jobConfiguration;
     private transient ExecutionConfig executionConfig;
@@ -199,6 +204,8 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     // declared
     private byte[] serializedWatermarkDeclarations;
 
+    private final Set<String> userJarsToSkip = new HashSet<>();
+
     public StreamGraph(
             Configuration jobConfiguration,
             ExecutionConfig executionConfig,
@@ -208,7 +215,6 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = checkNotNull(checkpointConfig);
         this.savepointRestoreSettings = checkNotNull(savepointRestoreSettings);
-        this.jobId = new JobID();
         this.jobName = "(unnamed job)";
 
         // create an empty new stream graph.
@@ -260,6 +266,10 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     public void addJar(Path jar) {
         if (jar == null) {
             throw new IllegalArgumentException();
+        }
+
+        if (userJarsToSkip.contains(jar.getName())) {
+            return;
         }
 
         if (!userJars.contains(jar)) {
@@ -385,6 +395,12 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
                                 cfg.getCheckpointIdOfIgnoredInFlightData())
                         .setAlignedCheckpointTimeout(cfg.getAlignedCheckpointTimeout().toMillis())
                         .setEnableCheckpointsAfterTasksFinish(isEnableCheckpointsAfterTasksFinish())
+                        .setRecoverOutputOnDownstreamTask(
+                                jobConfiguration.get(
+                                        CheckpointingOptions
+                                                .UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM))
+                        .setPauseSourcesUntilFirstCheckpoint(
+                                cfg.isPauseSourcesUntilFirstCheckpoint())
                         .build(),
                 serializedStateBackend,
                 getJobConfiguration()
@@ -1160,16 +1176,28 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     /** Gets the assembled {@link JobGraph} with a random {@link JobID}. */
     @VisibleForTesting
     public JobGraph getJobGraph() {
-        return getJobGraph(Thread.currentThread().getContextClassLoader(), jobId);
+        return getJobGraph(Thread.currentThread().getContextClassLoader(), jobId, applicationId);
     }
 
     public JobGraph getJobGraph(ClassLoader userClassLoader) {
-        return getJobGraph(userClassLoader, jobId);
+        return getJobGraph(userClassLoader, jobId, applicationId);
     }
 
     /** Gets the assembled {@link JobGraph} with a specified {@link JobID}. */
-    public JobGraph getJobGraph(ClassLoader userClassLoader, @Nullable JobID jobID) {
-        return StreamingJobGraphGenerator.createJobGraph(userClassLoader, this, jobID);
+    public JobGraph getJobGraph(ClassLoader userClassLoader, @Nullable JobID jobId) {
+        return getJobGraph(userClassLoader, jobId, applicationId);
+    }
+
+    /**
+     * Gets the assembled {@link JobGraph} with a specified {@link JobID} and a specified {@link
+     * ApplicationID}.
+     */
+    public JobGraph getJobGraph(
+            ClassLoader userClassLoader,
+            @Nullable JobID jobId,
+            @Nullable ApplicationID applicationId) {
+        return StreamingJobGraphGenerator.createJobGraph(
+                userClassLoader, this, jobId, applicationId);
     }
 
     public String getStreamingPlanAsJSON() {
@@ -1258,12 +1286,32 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     }
 
     public void setJobId(JobID jobId) {
-        this.jobId = jobId;
+        this.jobId = checkNotNull(jobId);
+    }
+
+    public Optional<JobID> getOptionalJobId() {
+        return Optional.ofNullable(jobId);
     }
 
     @Override
     public JobID getJobID() {
-        return jobId;
+        return checkNotNull(jobId);
+    }
+
+    @Override
+    public void setApplicationId(ApplicationID applicationId) {
+        this.applicationId = checkNotNull(applicationId);
+    }
+
+    @Override
+    public Optional<ApplicationID> getApplicationId() {
+        return Optional.ofNullable(applicationId);
+    }
+
+    public void addUserJarToSkip(String userJarName) {
+        LOG.info("Add user jar to skip uploading: {}", userJarName);
+        userJarsToSkip.add(userJarName);
+        userJars.removeIf(jar -> userJarName.equals(jar.getName()));
     }
 
     /**

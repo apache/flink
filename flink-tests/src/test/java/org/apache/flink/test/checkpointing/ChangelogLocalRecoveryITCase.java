@@ -33,19 +33,18 @@ import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.Collectio
 import org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.CountFunction;
 import org.apache.flink.test.util.InfiniteIntegerSource;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -64,18 +63,22 @@ import static org.apache.flink.test.checkpointing.ChangelogRecoveryITCaseBase.ge
  * Local recovery IT case for changelog. It never fails because local recovery is nice but not
  * necessary.
  */
-@RunWith(Parameterized.class)
-public class ChangelogLocalRecoveryITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class ChangelogLocalRecoveryITCase {
 
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int NUM_TASK_SLOTS = 1;
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private File tempFolder;
 
-    @Parameterized.Parameter public Configuration configuration;
+    private final Configuration configuration;
 
-    @Parameterized.Parameters(name = "delegated state backend type = {0}")
-    public static Collection<Configuration> parameter() {
+    private ChangelogLocalRecoveryITCase(Configuration configuration) {
+        this.configuration = configuration;
+    }
+
+    @Parameters(name = "delegated state backend type = {0}")
+    private static Collection<Configuration> parameters() {
         return Arrays.asList(
                 new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"),
                 new Configuration()
@@ -87,15 +90,11 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
     }
 
     private MiniClusterWithClientResource cluster;
-    private static String workingDir;
 
-    @BeforeClass
-    public static void setWorkingDir() throws IOException {
-        workingDir = TEMPORARY_FOLDER.newFolder("work").getAbsolutePath();
-    }
+    @BeforeEach
+    void setup() throws Exception {
+        String workingDir = tempFolder.getAbsolutePath();
 
-    @Before
-    public void setup() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, 1);
 
@@ -104,7 +103,10 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         configuration.set(TASK_MANAGER_PROCESS_WORKING_DIR_BASE, workingDir);
         configuration.set(LOCAL_RECOVERY, true);
         FsStateChangelogStorageFactory.configure(
-                configuration, TEMPORARY_FOLDER.newFolder(), Duration.ofMillis(1000), 1);
+                configuration,
+                TempDirUtils.newFolder(tempFolder.toPath()),
+                Duration.ofMillis(1000),
+                1);
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -116,8 +118,8 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         cluster.getMiniCluster().overrideRestoreModeForChangelogStateBackend();
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         cluster.after();
     }
 
@@ -131,9 +133,9 @@ public class ChangelogLocalRecoveryITCase extends TestLogger {
         return env.getStreamGraph().getJobGraph();
     }
 
-    @Test
-    public void testRestartTM() throws Exception {
-        File checkpointFolder = TEMPORARY_FOLDER.newFolder();
+    @TestTemplate
+    void testRestartTM() throws Exception {
+        File checkpointFolder = TempDirUtils.newFolder(tempFolder.toPath());
         MiniCluster miniCluster = cluster.getMiniCluster();
         StreamExecutionEnvironment env1 = getEnv(configuration, checkpointFolder, true, 200, 800);
         JobGraph firstJobGraph = buildJobGraph(env1);

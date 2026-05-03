@@ -83,6 +83,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
@@ -119,6 +120,8 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
+import org.apache.flink.table.secret.SecretStore;
+import org.apache.flink.table.secret.SecretStoreFactory;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -251,17 +254,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         userClassLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         final Executor executor = executorFactory.create(settings.getConfiguration());
 
-        final CatalogStoreFactory catalogStoreFactory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(
-                        settings.getConfiguration(), userClassLoader);
-        final CatalogStoreFactory.Context context =
-                TableFactoryUtil.buildCatalogStoreFactoryContext(
-                        settings.getConfiguration(), userClassLoader);
-        catalogStoreFactory.open(context);
-        final CatalogStore catalogStore =
-                settings.getCatalogStore() != null
-                        ? settings.getCatalogStore()
-                        : catalogStoreFactory.createCatalogStore();
+        final ApiFactoryUtil.CatalogStoreResult catalogStoreResult =
+                ApiFactoryUtil.getOrCreateCatalogStore(
+                        settings.getCatalogStore(), settings.getConfiguration(), userClassLoader);
+        final CatalogStore catalogStore = catalogStoreResult.getCatalogStore();
+        final CatalogStoreFactory catalogStoreFactory = catalogStoreResult.getCatalogStoreFactory();
+
+        final ApiFactoryUtil.SecretStoreResult secretStoreResult =
+                ApiFactoryUtil.getOrCreateSecretStore(
+                        settings.getSecretStore(), settings.getConfiguration(), userClassLoader);
+        final SecretStore secretStore = secretStoreResult.getSecretStore();
+        final SecretStoreFactory secretStoreFactory = secretStoreResult.getSecretStoreFactory();
+        // TODO (FLINK-38261): pass secret store to catalog manager for encryption/decryption
 
         // use configuration to init table config
         final TableConfig tableConfig = TableConfig.getDefault();

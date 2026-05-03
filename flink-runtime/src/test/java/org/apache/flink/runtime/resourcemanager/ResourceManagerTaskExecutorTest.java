@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -26,6 +28,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
@@ -48,6 +51,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -222,7 +226,8 @@ class ResourceManagerTaskExecutorTest {
                                     1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                             DEFAULT_SLOT_PROFILE,
                             DEFAULT_SLOT_PROFILE,
-                            taskExecutorGateway.getAddress());
+                            taskExecutorGateway.getAddress(),
+                            1);
 
             CompletableFuture<RegistrationResponse> firstFuture =
                     rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
@@ -287,7 +292,8 @@ class ResourceManagerTaskExecutorTest {
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         DEFAULT_SLOT_PROFILE,
                         DEFAULT_SLOT_PROFILE.multiply(numberSlots),
-                        taskExecutorGateway.getAddress());
+                        taskExecutorGateway.getAddress(),
+                        numberSlots);
         final RegistrationResponse registrationResponse =
                 rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT).get();
         assertThat(registrationResponse).isInstanceOf(TaskExecutorRegistrationSuccess.class);
@@ -364,7 +370,111 @@ class ResourceManagerTaskExecutorTest {
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         DEFAULT_SLOT_PROFILE,
                         DEFAULT_SLOT_PROFILE,
-                        taskExecutorAddress),
+                        taskExecutorAddress,
+                        1),
                 TIMEOUT);
+    }
+
+    @Test
+    void testRequestTaskManagerDetailsInfo() throws Exception {
+        final Duration fastTimeout = Duration.ofMillis(1L);
+        try {
+            final OneShotLatch startConnection = new OneShotLatch();
+            final OneShotLatch finishConnection = new OneShotLatch();
+
+            // first registration is with blocking connection
+            rpcService.setRpcGatewayFutureFunction(
+                    rpcGateway ->
+                            CompletableFuture.supplyAsync(
+                                    () -> {
+                                        startConnection.trigger();
+                                        try {
+                                            finishConnection.await();
+                                        } catch (InterruptedException ignored) {
+                                        }
+                                        return rpcGateway;
+                                    },
+                                    EXECUTOR_EXTENSION.getExecutor()));
+
+            TaskExecutorRegistration taskExecutorRegistration =
+                    new TaskExecutorRegistration(
+                            taskExecutorGateway.getAddress(),
+                            taskExecutorResourceID,
+                            dataPort,
+                            jmxPort,
+                            hardwareDescription,
+                            new TaskExecutorMemoryConfiguration(
+                                    1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
+                            DEFAULT_SLOT_PROFILE,
+                            DEFAULT_SLOT_PROFILE,
+                            taskExecutorGateway.getAddress(),
+                            0);
+
+            CompletableFuture<RegistrationResponse> firstFuture =
+                    rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
+            assertThatFuture(firstFuture)
+                    .as(
+                            "Should have failed because connection to taskmanager is delayed beyond timeout")
+                    .eventuallyFails()
+                    .withThrowableOfType(Exception.class)
+                    .withCauseInstanceOf(TimeoutException.class)
+                    .withMessageContaining("ResourceManagerGateway.registerTaskExecutor");
+
+            startConnection.await();
+
+            // second registration after timeout is with no delay, expecting it to be succeeded
+            rpcService.resetRpcGatewayFutureFunction();
+            CompletableFuture<RegistrationResponse> secondFuture =
+                    rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT);
+            RegistrationResponse response = secondFuture.get();
+
+            // Test request task manager information before slot report.
+            TaskManagerInfoWithSlots taskManagerInfoWithSlots =
+                    rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
+
+            assertThat(taskManagerInfoWithSlots.getTaskManagerInfo().getAssignedTasks()).isZero();
+            assertThat(taskManagerInfoWithSlots.getAllocatedSlots())
+                    .allMatch(slotInfo -> slotInfo.getAssignedTasks() == 0);
+
+            // on success, send slot report for taskmanager registration
+            final JobID ignoredJobID = new JobID();
+            final SlotReport slotReport =
+                    new SlotReport(
+                            Arrays.asList(
+                                    new SlotStatus(
+                                            new SlotID(taskExecutorResourceID, 1),
+                                            ResourceProfile.ANY,
+                                            ignoredJobID,
+                                            new AllocationID(),
+                                            1),
+                                    new SlotStatus(
+                                            new SlotID(taskExecutorResourceID, 1),
+                                            ResourceProfile.ANY,
+                                            ignoredJobID,
+                                            new AllocationID(),
+                                            0)));
+            rmGateway
+                    .sendSlotReport(
+                            taskExecutorResourceID,
+                            ((TaskExecutorRegistrationSuccess) response).getRegistrationId(),
+                            slotReport,
+                            TIMEOUT)
+                    .get();
+
+            // let the remaining part of the first registration proceed
+            finishConnection.trigger();
+            Thread.sleep(1L);
+
+            // Test request task manager information after slot report.
+            taskManagerInfoWithSlots =
+                    rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
+            assertThat(taskManagerInfoWithSlots.getTaskManagerInfo().getAssignedTasks()).isOne();
+            assertThat(
+                            taskManagerInfoWithSlots.getAllocatedSlots().stream()
+                                    .map(SlotInfo::getAssignedTasks))
+                    .containsExactlyInAnyOrder(0, 1);
+        } finally {
+            rpcService.resetRpcGatewayFutureFunction();
+        }
     }
 }

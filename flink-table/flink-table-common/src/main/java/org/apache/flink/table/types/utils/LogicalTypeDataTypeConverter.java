@@ -28,6 +28,7 @@ import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -257,6 +258,11 @@ public final class LogicalTypeDataTypeConverter {
         @Override
         public DataType visit(DescriptorType descriptorType) {
             return new AtomicDataType(descriptorType);
+        }
+
+        @Override
+        public DataType visit(BitmapType bitmapType) {
+            return new AtomicDataType(bitmapType);
         }
 
         @Override

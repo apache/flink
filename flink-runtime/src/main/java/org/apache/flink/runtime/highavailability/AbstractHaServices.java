@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
@@ -67,6 +68,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     private final JobResultStore jobResultStore;
 
+    private final ApplicationResultStore applicationResultStore;
+
     private final DefaultLeaderElectionService leaderElectionService;
 
     protected AbstractHaServices(
@@ -74,12 +77,14 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
             LeaderElectionDriverFactory driverFactory,
             Executor ioExecutor,
             BlobStoreService blobStoreService,
-            JobResultStore jobResultStore) {
+            JobResultStore jobResultStore,
+            ApplicationResultStore applicationResultStore) {
 
         this.configuration = checkNotNull(config);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.blobStoreService = checkNotNull(blobStoreService);
         this.jobResultStore = checkNotNull(jobResultStore);
+        this.applicationResultStore = checkNotNull(applicationResultStore);
 
         this.leaderElectionService = new DefaultLeaderElectionService(driverFactory);
     }
@@ -143,6 +148,16 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     @Override
     public JobResultStore getJobResultStore() throws Exception {
         return jobResultStore;
+    }
+
+    @Override
+    public ApplicationStore getApplicationStore() throws Exception {
+        return createApplicationStore();
+    }
+
+    @Override
+    public ApplicationResultStore getApplicationResultStore() throws Exception {
+        return applicationResultStore;
     }
 
     @Override
@@ -247,6 +262,14 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
      * @throws Exception if the submitted execution plan store could not be created
      */
     protected abstract ExecutionPlanStore createExecutionPlanStore() throws Exception;
+
+    /**
+     * Create the submitted application store for the job manager.
+     *
+     * @return Submitted application store
+     * @throws Exception if the submitted application store could not be created
+     */
+    protected abstract ApplicationStore createApplicationStore() throws Exception;
 
     /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes

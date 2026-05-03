@@ -154,6 +154,18 @@ public enum ProtoUtils {
                                                 .setValue(entry.getValue())
                                                 .build())
                         .collect(Collectors.toList()));
+        builder.setRuntimeContext(
+                FlinkFnApi.UserDefinedDataStreamFunction.RuntimeContext.newBuilder()
+                        .setTaskName(runtimeContext.getTaskInfo().getTaskName())
+                        .setTaskNameWithSubtasks(
+                                runtimeContext.getTaskInfo().getTaskNameWithSubtasks())
+                        .setNumberOfParallelSubtasks(
+                                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks())
+                        .setMaxNumberOfParallelSubtasks(
+                                runtimeContext.getTaskInfo().getMaxNumberOfParallelSubtasks())
+                        .setIndexOfThisSubtask(runtimeContext.getTaskInfo().getIndexOfThisSubtask())
+                        .setAttemptNumber(runtimeContext.getTaskInfo().getAttemptNumber())
+                        .build());
         return builder.build();
     }
 

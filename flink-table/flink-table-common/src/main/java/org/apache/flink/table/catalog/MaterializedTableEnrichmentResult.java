@@ -33,11 +33,15 @@ public class MaterializedTableEnrichmentResult {
 
     private final IntervalFreshness freshness;
     private final RefreshMode refreshMode;
+    private final StartMode startMode;
 
     public MaterializedTableEnrichmentResult(
-            final IntervalFreshness freshness, final RefreshMode refreshMode) {
+            final IntervalFreshness freshness,
+            final RefreshMode refreshMode,
+            final StartMode startMode) {
         this.freshness = freshness;
         this.refreshMode = refreshMode;
+        this.startMode = startMode;
     }
 
     public IntervalFreshness getFreshness() {
@@ -46,5 +50,9 @@ public class MaterializedTableEnrichmentResult {
 
     public RefreshMode getRefreshMode() {
         return refreshMode;
+    }
+
+    public StartMode getStartMode() {
+        return startMode;
     }
 }

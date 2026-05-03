@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.FileUtils;
 
@@ -65,5 +66,19 @@ public interface PermanentBlobService extends Closeable {
         // The default implementation doesn't guarantee that the file won't be deleted concurrently
         // by other threads while reading the contents.
         return FileUtils.readAllBytes(getFile(jobId, key).toPath());
+    }
+
+    /**
+     * Returns the path to a local copy of the file associated with the provided application ID and
+     * blob key.
+     *
+     * @param applicationId ID of the application this blob belongs to
+     * @param key BLOB key associated with the requested file
+     * @return The path to the file.
+     * @throws java.io.FileNotFoundException if the BLOB does not exist;
+     * @throws IOException if any other error occurs when retrieving the file
+     */
+    default File getFile(ApplicationID applicationId, PermanentBlobKey key) throws IOException {
+        throw new UnsupportedOperationException();
     }
 }

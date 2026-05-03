@@ -328,4 +328,56 @@ class CheckpointingOptionsTest {
                 .as("Interruptible timers should be disabled when runtime mode is BATCH")
                 .isFalse();
     }
+
+    @Test
+    void testIsCheckpointingDuringRecoveryEnabled() {
+        // Test when both options are disabled (default) - should return false
+        Configuration defaultConfig = new Configuration();
+        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(defaultConfig))
+                .as("During-recovery should be disabled by default")
+                .isFalse();
+
+        // Test when during-recovery is enabled but recover-output-on-downstream is disabled
+        Configuration onlyDuringRecoveryConfig = new Configuration();
+        onlyDuringRecoveryConfig.set(
+                CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
+        assertThat(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
+                                onlyDuringRecoveryConfig))
+                .as(
+                        "During-recovery should be disabled when recover-output-on-downstream is not enabled")
+                .isFalse();
+
+        // Test when recover-output-on-downstream is enabled but during-recovery is disabled
+        Configuration onlyRecoverOnDownstreamConfig = new Configuration();
+        onlyRecoverOnDownstreamConfig.set(
+                CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
+        assertThat(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
+                                onlyRecoverOnDownstreamConfig))
+                .as("During-recovery should be disabled when during-recovery option is not enabled")
+                .isFalse();
+
+        // Test when both options are enabled - should return true
+        Configuration bothEnabledConfig = new Configuration();
+        bothEnabledConfig.set(CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
+        bothEnabledConfig.set(CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
+        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(bothEnabledConfig))
+                .as(
+                        "During-recovery should be enabled when both recover-output-on-downstream and during-recovery are enabled")
+                .isTrue();
+
+        // Test when recover-output-on-downstream is explicitly false and during-recovery is true
+        Configuration explicitlyDisabledConfig = new Configuration();
+        explicitlyDisabledConfig.set(
+                CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, false);
+        explicitlyDisabledConfig.set(
+                CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
+        assertThat(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
+                                explicitlyDisabledConfig))
+                .as(
+                        "During-recovery should be disabled when recover-output-on-downstream is explicitly false")
+                .isFalse();
+    }
 }

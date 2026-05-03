@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -64,6 +65,8 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.Executors;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -148,6 +151,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private CheckpointStorageAccess checkpointStorageAccess;
 
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
+    @Nullable private ChannelStateWriter channelStateWriter;
 
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
@@ -494,5 +499,16 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     public void setExternalFailureCauseConsumer(Consumer<Throwable> externalFailureCauseConsumer) {
         this.externalFailureCauseConsumer = Optional.of(externalFailureCauseConsumer);
+    }
+
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        this.channelStateWriter = channelStateWriter;
+    }
+
+    @Override
+    @Nullable
+    public ChannelStateWriter getChannelStateWriter() {
+        return this.channelStateWriter;
     }
 }

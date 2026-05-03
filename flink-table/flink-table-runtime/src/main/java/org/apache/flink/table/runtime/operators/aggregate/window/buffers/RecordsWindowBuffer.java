@@ -39,6 +39,7 @@ import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An implementation of {@link WindowBuffer} that buffers input elements in a {@link
@@ -78,20 +79,27 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
     @Override
     public void addElement(RowData key, long sliceEnd, RowData element) throws Exception {
-        // track the lowest trigger time, if watermark exceeds the trigger time,
-        // it means there are some elements in the buffer belong to a window going to be fired,
-        // and we need to flush the buffer into state for firing.
-        minSliceEnd = Math.min(sliceEnd, minSliceEnd);
-
         reuseWindowKey.replace(sliceEnd, key);
-        LookupInfo<WindowKey, Iterator<RowData>> lookup = recordsBuffer.lookup(reuseWindowKey);
-        try {
-            recordsBuffer.append(lookup, recordSerializer.toBinaryRow(element));
-        } catch (EOFException e) {
-            // buffer is full, flush it to state
-            flush();
-            // remember to add the input element again
-            addElement(key, sliceEnd, element);
+        while (true) {
+            LookupInfo<WindowKey, Iterator<RowData>> lookup = recordsBuffer.lookup(reuseWindowKey);
+            try {
+                recordsBuffer.append(lookup, recordSerializer.toBinaryRow(element));
+                // Track the lowest trigger time. If watermark exceeds the trigger time,
+                // it means there are some elements in the buffer belong to a window going
+                // to be fired, and we need to flush the buffer into state for firing.
+                minSliceEnd = Math.min(sliceEnd, minSliceEnd);
+                break;
+            } catch (EOFException e) {
+                if (recordsBuffer.getNumKeys() == 0) {
+                    // Buffer is empty, retry won't help (record is too large for the buffer)
+                    throw e;
+                }
+                // Buffer has data, flush and retry
+                flush();
+                checkState(
+                        recordsBuffer.getNumKeys() == 0,
+                        "The recordsBuffer should be empty after flushing.");
+            }
         }
     }
 

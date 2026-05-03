@@ -102,7 +102,8 @@ class FlinkCalciteCatalogReaderTest {
                         Collections.emptyList(),
                         Collections.emptyList(),
                         null,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        null);
         final CatalogTable catalogTable =
                 ConnectorCatalogTable.source(
                         new TestTableSource(

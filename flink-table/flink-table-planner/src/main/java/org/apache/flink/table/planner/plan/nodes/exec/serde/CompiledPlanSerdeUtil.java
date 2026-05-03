@@ -21,12 +21,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.DefaultIndex;
+import org.apache.flink.table.catalog.ImmutableColumnsConstraint;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -176,6 +178,7 @@ public class CompiledPlanSerdeUtil {
         module.addSerializer(new RexNodeJsonSerializer());
         module.addSerializer(new AggregateCallJsonSerializer());
         module.addSerializer(new ChangelogModeJsonSerializer());
+        module.addSerializer(new InsertConflictStrategyJsonSerializer());
         module.addSerializer(new LogicalWindowJsonSerializer());
         module.addSerializer(new RexWindowBoundJsonSerializer());
         module.addSerializer(new WindowReferenceJsonSerializer());
@@ -204,6 +207,8 @@ public class CompiledPlanSerdeUtil {
         module.addDeserializer(RexLiteral.class, (StdDeserializer) new RexNodeJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
         module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
+        module.addDeserializer(
+                InsertConflictStrategy.class, new InsertConflictStrategyJsonDeserializer());
         module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());
         module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
         module.addDeserializer(WindowReference.class, new WindowReferenceJsonDeserializer());
@@ -226,6 +231,8 @@ public class CompiledPlanSerdeUtil {
     private static void registerMixins(SimpleModule module) {
         module.setMixInAnnotation(WatermarkSpec.class, WatermarkSpecMixin.class);
         module.setMixInAnnotation(UniqueConstraint.class, UniqueConstraintMixin.class);
+        module.setMixInAnnotation(
+                ImmutableColumnsConstraint.class, ImmutableColumnsConstraintMixin.class);
         module.setMixInAnnotation(DefaultIndex.class, DefaultIndexMixin.class);
     }
 

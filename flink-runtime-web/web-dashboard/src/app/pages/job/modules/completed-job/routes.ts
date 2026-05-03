@@ -53,6 +53,7 @@ const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobMo
           { title: 'TimeLine', path: 'timeline' },
           { title: 'Checkpoints', path: 'checkpoints' },
           { title: 'Job Configuration', path: 'configuration' },
+          { title: 'Rescales', path: 'rescales' },
           { title: 'Cluster Configuration', path: 'cluster_configuration' }
         ]
       : JOB_MODULE_DEFAULT_CONFIG.routerTabs
@@ -127,6 +128,14 @@ export const COMPLETED_JOB_ROUES: Routes = [
           ),
         data: {
           path: 'configuration'
+        }
+      },
+      {
+        path: 'rescales',
+        loadComponent: () =>
+          import('@flink-runtime-web/pages/job/rescales/job-rescales.component').then(m => m.JobRescalesComponent),
+        data: {
+          path: 'rescales'
         }
       },
       {

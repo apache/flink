@@ -18,20 +18,20 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,9 +49,10 @@ public abstract class SqlTableColumn extends SqlCall {
 
     protected final SqlIdentifier name;
 
-    protected final SqlNode comment;
+    protected final SqlCharStringLiteral comment;
 
-    private SqlTableColumn(SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment) {
+    private SqlTableColumn(
+            SqlParserPos pos, SqlIdentifier name, @Nullable SqlCharStringLiteral comment) {
         super(pos);
         this.name = requireNonNull(name, "Column name should not be null");
         this.comment = comment;
@@ -80,8 +81,8 @@ public abstract class SqlTableColumn extends SqlCall {
         return name;
     }
 
-    public Optional<SqlNode> getComment() {
-        return Optional.ofNullable(comment);
+    public String getComment() {
+        return SqlParseUtils.extractString(comment);
     }
 
     /** A regular, physical column. */
@@ -94,7 +95,7 @@ public abstract class SqlTableColumn extends SqlCall {
         public SqlRegularColumn(
                 SqlParserPos pos,
                 SqlIdentifier name,
-                @Nullable SqlNode comment,
+                @Nullable SqlCharStringLiteral comment,
                 SqlDataTypeSpec type,
                 @Nullable SqlTableConstraint constraint) {
             super(pos, name, comment);
@@ -144,7 +145,7 @@ public abstract class SqlTableColumn extends SqlCall {
         public SqlMetadataColumn(
                 SqlParserPos pos,
                 SqlIdentifier name,
-                @Nullable SqlNode comment,
+                @Nullable SqlCharStringLiteral comment,
                 SqlDataTypeSpec type,
                 @Nullable SqlNode metadataAlias,
                 boolean isVirtual) {
@@ -159,8 +160,7 @@ public abstract class SqlTableColumn extends SqlCall {
         }
 
         public Optional<String> getMetadataAlias() {
-            return Optional.ofNullable(metadataAlias)
-                    .map(alias -> ((NlsString) SqlLiteral.value(alias)).getValue());
+            return Optional.ofNullable(metadataAlias).map(SqlParseUtils::extractString);
         }
 
         public boolean isVirtual() {
@@ -196,7 +196,10 @@ public abstract class SqlTableColumn extends SqlCall {
         private final SqlNode expr;
 
         public SqlComputedColumn(
-                SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment, SqlNode expr) {
+                SqlParserPos pos,
+                SqlIdentifier name,
+                @Nullable SqlCharStringLiteral comment,
+                SqlNode expr) {
             super(pos, name, comment);
             this.expr = requireNonNull(expr, "Column expression should not be null");
         }

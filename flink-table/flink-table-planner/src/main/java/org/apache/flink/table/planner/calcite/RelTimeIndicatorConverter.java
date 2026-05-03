@@ -705,7 +705,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             // cast rowTime indicator to regular timestamp
             return rexBuilder.makeAbstractCast(
                     timestamp(expr.getType().isNullable(), isTimestampLtzType(expr.getType())),
-                    expr);
+                    expr,
+                    false);
         } else if (isProctimeIndicatorType(expr.getType())) {
             // generate procTime access
             return rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE, expr);

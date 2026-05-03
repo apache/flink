@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 
 import java.time.Duration;
 
@@ -74,4 +75,14 @@ public class MaterializedTableConfigOptions {
                     .defaultValue(Duration.ofHours(1))
                     .withDescription(
                             "The default freshness interval for full refresh mode when the FRESHNESS clause is omitted in a materialized table definition.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<StartModeKind> MATERIALIZED_TABLE_DEFAULT_START_MODE =
+            key("materialized-table.default-start-mode")
+                    .enumType(StartModeKind.class)
+                    .defaultValue(StartModeKind.FROM_BEGINNING)
+                    .withDescription(
+                            "The default start mode for materialized tables."
+                                    + "Supported values: FROM_BEGINNING, FROM_NOW, "
+                                    + "RESUME_OR_FROM_BEGINNING, RESUME_OR_FROM_NOW.");
 }

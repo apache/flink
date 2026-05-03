@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
@@ -39,12 +40,13 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
     BaseTemporalSortOperator() {}
 
     @Override
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return true;
     }
 
     @Override
     public void open() throws Exception {
+        super.open();
         InternalTimerService<VoidNamespace> internalTimerService =
                 getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
         timerService = new SimpleTimerService(internalTimerService);

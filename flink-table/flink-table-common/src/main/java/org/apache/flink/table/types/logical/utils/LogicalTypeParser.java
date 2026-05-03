@@ -26,6 +26,7 @@ import org.apache.flink.table.legacy.utils.TypeStringUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -334,7 +335,8 @@ public final class LogicalTypeParser {
         NOT,
         DESCRIPTOR,
         STRUCTURED,
-        VARIANT
+        VARIANT,
+        BITMAP
     }
 
     private static final Set<String> KEYWORDS =
@@ -582,6 +584,8 @@ public final class LogicalTypeParser {
                     return new DescriptorType();
                 case VARIANT:
                     return new VariantType();
+                case BITMAP:
+                    return new BitmapType();
                 default:
                     throw parsingError("Unsupported type: " + token().value);
             }

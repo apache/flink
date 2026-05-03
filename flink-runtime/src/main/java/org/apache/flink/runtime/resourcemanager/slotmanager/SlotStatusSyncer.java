@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -56,6 +57,7 @@ public interface SlotStatusSyncer {
      *
      * @param instanceId of the task manager
      * @param jobId of the slot
+     * @param applicationId of the application
      * @param targetAddress of the job
      * @param resourceProfile of the slot
      * @return a {@link CompletableFuture} of the slot allocation, which will be completed
@@ -64,6 +66,7 @@ public interface SlotStatusSyncer {
     CompletableFuture<Void> allocateSlot(
             InstanceID instanceId,
             JobID jobId,
+            ApplicationID applicationId,
             String targetAddress,
             ResourceProfile resourceProfile);
 

@@ -95,6 +95,17 @@ public interface TableSemantics {
     int[] orderByColumns();
 
     /**
+     * Returns information about the sort direction for each ORDER BY column. Applies only to table
+     * arguments with set semantics.
+     *
+     * <p>The returned array has the same length as {@link #orderByColumns()} and each element
+     * corresponds to the sort direction of the column at the same index.
+     *
+     * @return An array of {@link SortDirection} values corresponding to the ORDER BY columns.
+     */
+    SortDirection[] orderByDirections();
+
+    /**
      * Returns information about the time attribute of the passed table. The time attribute column
      * powers the concept of rowtime and timers. Applies to both table arguments with row and set
      * semantics.
@@ -116,4 +127,40 @@ public interface TableSemantics {
      *     type inference phase as the changelog mode is still unknown.
      */
     Optional<ChangelogMode> changelogMode();
+
+    /** The sort direction for ORDER BY columns in table arguments with set semantics. */
+    @PublicEvolving
+    enum SortDirection {
+        /** Ascending order with nulls first. */
+        ASC_NULLS_FIRST(false, true),
+        /** Ascending order with nulls last. */
+        ASC_NULLS_LAST(false, false),
+        /** Descending order with nulls first. */
+        DESC_NULLS_FIRST(true, true),
+        /** Descending order with nulls last. */
+        DESC_NULLS_LAST(true, false);
+
+        private final boolean descending;
+        private final boolean nullsFirst;
+
+        SortDirection(boolean descending, boolean nullsFirst) {
+            this.descending = descending;
+            this.nullsFirst = nullsFirst;
+        }
+
+        /** Returns true if this is a descending sort direction. */
+        public boolean isDescending() {
+            return descending;
+        }
+
+        /** Returns true if nulls should be sorted first. */
+        public boolean isNullsFirst() {
+            return nullsFirst;
+        }
+
+        /** Returns true if nulls should be sorted last. */
+        public boolean isNullsLast() {
+            return !nullsFirst;
+        }
+    }
 }

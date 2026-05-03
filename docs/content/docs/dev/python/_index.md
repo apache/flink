@@ -1,7 +1,11 @@
 ---
-title: Python API
-bookCollapseSection: true
-weight: 4
+title: "PyFlink"
+layout: redirect
+redirect_to: /api/python/user_guide/
+bookHidden: true
+aliases:
+  - /dev/python/
+  - /docs/dev/python/overview
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

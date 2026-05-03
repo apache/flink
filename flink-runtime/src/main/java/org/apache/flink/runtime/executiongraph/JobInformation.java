@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -30,10 +32,13 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableCollection;
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Container class for job information which is stored in the {@link ExecutionGraph}. */
 public class JobInformation implements Serializable {
@@ -61,6 +66,9 @@ public class JobInformation implements Serializable {
     /** URLs specifying the classpath to add to the class loader. */
     private final ImmutableCollection<URL> requiredClasspathURLs;
 
+    @Nullable private final ApplicationID applicationId;
+
+    @VisibleForTesting
     public JobInformation(
             JobID jobId,
             JobType jobType,
@@ -69,6 +77,26 @@ public class JobInformation implements Serializable {
             Configuration jobConfiguration,
             Collection<PermanentBlobKey> requiredJarFileBlobKeys,
             Collection<URL> requiredClasspathURLs) {
+        this(
+                jobId,
+                jobType,
+                jobName,
+                serializedExecutionConfig,
+                jobConfiguration,
+                requiredJarFileBlobKeys,
+                requiredClasspathURLs,
+                null);
+    }
+
+    public JobInformation(
+            JobID jobId,
+            JobType jobType,
+            String jobName,
+            SerializedValue<ExecutionConfig> serializedExecutionConfig,
+            Configuration jobConfiguration,
+            Collection<PermanentBlobKey> requiredJarFileBlobKeys,
+            Collection<URL> requiredClasspathURLs,
+            @Nullable ApplicationID applicationId) {
         this.jobId = Preconditions.checkNotNull(jobId);
         this.jobType = Preconditions.checkNotNull(jobType);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -79,6 +107,7 @@ public class JobInformation implements Serializable {
                 ImmutableList.copyOf(Preconditions.checkNotNull(requiredJarFileBlobKeys));
         this.requiredClasspathURLs =
                 ImmutableList.copyOf(Preconditions.checkNotNull(requiredClasspathURLs));
+        this.applicationId = applicationId;
     }
 
     public JobID getJobId() {
@@ -107,6 +136,10 @@ public class JobInformation implements Serializable {
 
     public ImmutableCollection<URL> getRequiredClasspathURLs() {
         return requiredClasspathURLs;
+    }
+
+    public Optional<ApplicationID> getApplicationId() {
+        return Optional.ofNullable(applicationId);
     }
 
     // All fields are immutable, so return this directly.

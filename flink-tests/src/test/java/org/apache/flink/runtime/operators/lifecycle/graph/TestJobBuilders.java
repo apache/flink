@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.HashMap;
@@ -59,7 +59,7 @@ public class TestJobBuilders {
     public interface TestingGraphBuilder {
 
         default TestJobWithDescription build(
-                SharedObjects shared,
+                SharedObjectsExtension shared,
                 ThrowingConsumer<Configuration, Exception> modifyConfig,
                 ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment)
                 throws Exception {
@@ -67,7 +67,7 @@ public class TestJobBuilders {
         }
 
         TestJobWithDescription build(
-                SharedObjects shared,
+                SharedObjectsExtension shared,
                 ThrowingConsumer<Configuration, Exception> modifyConfig,
                 ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment,
                 StateBackend stateBackend)
@@ -80,7 +80,7 @@ public class TestJobBuilders {
             new TestingGraphBuilder() {
                 @Override
                 public TestJobWithDescription build(
-                        SharedObjects shared,
+                        SharedObjectsExtension shared,
                         ThrowingConsumer<Configuration, Exception> confConsumer,
                         ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer,
                         StateBackend stateBackend)
@@ -134,7 +134,7 @@ public class TestJobBuilders {
             new TestingGraphBuilder() {
                 @Override
                 public TestJobWithDescription build(
-                        SharedObjects shared,
+                        SharedObjectsExtension shared,
                         ThrowingConsumer<Configuration, Exception> confConsumer,
                         ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer,
                         StateBackend stateBackend)

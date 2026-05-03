@@ -25,8 +25,8 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
@@ -35,7 +35,7 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
-import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.PersistenceComponentFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
@@ -389,9 +389,9 @@ public class ClusterEntrypointTest extends TestLogger {
         }
 
         @Override
-        protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
+        protected ArchivedApplicationStore createArchivedApplicationStore(
                 Configuration configuration, ScheduledExecutor scheduledExecutor) {
-            return new MemoryExecutionGraphInfoStore();
+            return new MemoryArchivedApplicationStore();
         }
 
         @Override
@@ -459,7 +459,7 @@ public class ClusterEntrypointTest extends TestLogger {
         public DispatcherRunner createDispatcherRunner(
                 LeaderElection leaderElection,
                 FatalErrorHandler fatalErrorHandler,
-                JobPersistenceComponentFactory jobPersistenceComponentFactory,
+                PersistenceComponentFactory persistenceComponentFactory,
                 Executor ioExecutor,
                 RpcService rpcService,
                 PartialDispatcherServices partialDispatcherServices)

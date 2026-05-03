@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
 import java.util.List;
 
 /** SHOW [FULL] MODULES sql call. */
@@ -47,7 +46,7 @@ public class SqlShowModules extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.EMPTY_LIST;
+        return List.of();
     }
 
     @Override

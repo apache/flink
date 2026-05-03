@@ -155,4 +155,50 @@ class CompressionUtilsTest {
         }
         return mode;
     }
+
+    @Test
+    void testIsCompressedFile() {
+        // Supported extensions (lowercase)
+        assertThat(CompressionUtils.isCompressedFile("a.zip")).isTrue();
+        assertThat(CompressionUtils.isCompressedFile("a.jar")).isTrue();
+        assertThat(CompressionUtils.isCompressedFile("a.tar")).isTrue();
+        assertThat(CompressionUtils.isCompressedFile("a.tar.gz")).isTrue();
+        assertThat(CompressionUtils.isCompressedFile("a.tgz")).isTrue();
+
+        // Case-insensitive
+        assertThat(CompressionUtils.isCompressedFile("A.ZIP")).isTrue();
+        assertThat(CompressionUtils.isCompressedFile("A.Tar.Gz")).isTrue();
+
+        // With path prefix
+        assertThat(CompressionUtils.isCompressedFile("/tmp/a.zip")).isTrue();
+
+        // Unsupported extensions / no extension
+        assertThat(CompressionUtils.isCompressedFile("a.txt")).isFalse();
+        assertThat(CompressionUtils.isCompressedFile("a.gz")).isFalse();
+        assertThat(CompressionUtils.isCompressedFile("a.rar")).isFalse();
+        assertThat(CompressionUtils.isCompressedFile("archive")).isFalse();
+    }
+
+    @Test
+    void testGetBaseNameWithoutExtension() {
+        // Common extensions
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("a.zip")).isEqualTo("a");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("a.jar")).isEqualTo("a");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("a.tar")).isEqualTo("a");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("a.tgz")).isEqualTo("a");
+
+        // .tar.gz compound extension (case-insensitive)
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("a.tar.gz")).isEqualTo("a");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("a.TAR.GZ")).isEqualTo("a");
+
+        // Filenames with multiple dots
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("x.y.zip")).isEqualTo("x.y");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("x.y.tar.gz")).isEqualTo("x.y");
+
+        // No extension / dot-prefixed hidden files
+        assertThat(CompressionUtils.getBaseNameWithoutExtension("archive")).isEqualTo("archive");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension(".hidden")).isEqualTo(".hidden");
+        assertThat(CompressionUtils.getBaseNameWithoutExtension(".hidden.zip"))
+                .isEqualTo(".hidden");
+    }
 }

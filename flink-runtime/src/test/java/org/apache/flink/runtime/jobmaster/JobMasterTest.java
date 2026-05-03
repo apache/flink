@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -499,6 +500,7 @@ class JobMasterTest {
         @Override
         public SlotPoolService createSlotPoolService(
                 @Nonnull JobID jobId,
+                @Nonnull ApplicationID applicationId,
                 DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
                 @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
             return new TestingSlotPool(jobId, hasReceivedSlotOffers);
@@ -1083,6 +1085,7 @@ class JobMasterTest {
 
         final JobGraph inputSplitJobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(source).build();
+        inputSplitJobGraph.setApplicationId(new ApplicationID());
         RestartStrategyUtils.configureFixedDelayRestartStrategy(inputSplitJobGraph, 100, 0L);
 
         try (final JobMaster jobMaster =

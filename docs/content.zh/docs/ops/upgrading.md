@@ -153,7 +153,7 @@ DataStream<String> mappedEvents = event
 
  
 有关详细信息，
- 请参阅 [table state management section]({{< ref "docs/dev/table/concepts/overview" >}}#state-management)。
+ 请参阅 [table state management section]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#state-management)。
 
 ## 升级 Flink 框架版本
 
@@ -244,6 +244,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
 ## 兼容性速查表
 
  Savepoint 在 Flink 版本之间是兼容的，如下表所示：
+
+***注意***：此处的“兼容”仅指 Savepoint 内部数据格式的兼容性，并不包含 SQL 算子或其他上层改动的兼容性。
+在实践中，只要 Flink SQL 语义没有发生变化，这种状态格式的兼容性通常也能保证作业级别的兼容性。
 
 <table class="table table-bordered" style="font-size:8pt">
   <thead>

@@ -29,7 +29,8 @@ import java.util.List;
  * A wrapper around {@link FileSystemFactory} that ensures the plugin classloader is used for all
  * {@link FileSystem} operations.
  */
-public class PluginFileSystemFactory implements FileSystemFactory {
+public class PluginFileSystemFactory
+        implements FileSystemFactory, WrappingProxy<FileSystemFactory> {
     private final FileSystemFactory inner;
     private final ClassLoader loader;
 
@@ -62,6 +63,16 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
             return new ClassLoaderFixingFileSystem(inner.create(fsUri), loader);
         }
+    }
+
+    @Override
+    public int getPriority() {
+        return inner.getPriority();
+    }
+
+    @Override
+    public FileSystemFactory getWrappedDelegate() {
+        return inner;
     }
 
     @Override

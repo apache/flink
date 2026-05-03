@@ -40,10 +40,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for {@link StreamExecutionEnvironment}. */
-public class StreamExecutionEnvironmentITCase {
+class StreamExecutionEnvironmentITCase {
 
     @RegisterExtension
-    public static final MiniClusterExtension MINI_CLUSTER =
+    private static final MiniClusterExtension MINI_CLUSTER =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -51,7 +51,7 @@ public class StreamExecutionEnvironmentITCase {
                             .build());
 
     @Test
-    public void executeThrowsProgramInvocationException() {
+    void executeThrowsProgramInvocationException() {
         Configuration config = new Configuration(MINI_CLUSTER.getClientConfiguration());
         config.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
         config.set(DeploymentOptions.ATTACHED, true);

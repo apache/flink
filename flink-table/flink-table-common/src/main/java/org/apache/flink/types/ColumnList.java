@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -46,15 +47,22 @@ public final class ColumnList implements Serializable {
     private final List<DataType> dataTypes;
 
     private ColumnList(List<String> names, List<DataType> dataTypes) {
-        this.names = Preconditions.checkNotNull(names, "Names must not be null.");
-        this.dataTypes = Preconditions.checkNotNull(dataTypes, "Data types must be null.");
+        Preconditions.checkNotNull(names, "Names must not be null.");
+        Preconditions.checkNotNull(dataTypes, "Data types must not be null.");
+        Preconditions.checkArgument(
+                names.stream().noneMatch(Objects::isNull), "Names must not contain null elements.");
+        Preconditions.checkArgument(
+                dataTypes.stream().noneMatch(Objects::isNull),
+                "Data types must not contain null elements.");
         Preconditions.checkArgument(
                 dataTypes.isEmpty() || dataTypes.size() == names.size(),
                 "Mismatch between data types and names.");
+        this.names = List.copyOf(names);
+        this.dataTypes = List.copyOf(dataTypes);
     }
 
     public static ColumnList of(List<String> names, List<DataType> dataTypes) {
-        return new ColumnList(List.copyOf(names), List.copyOf(dataTypes));
+        return new ColumnList(names, dataTypes);
     }
 
     public static ColumnList of(List<String> names) {
@@ -104,5 +112,22 @@ public final class ColumnList implements Serializable {
                             }
                         })
                 .collect(Collectors.joining(", ", "(", ")"));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final ColumnList that = (ColumnList) o;
+        return Objects.equals(names, that.names) && Objects.equals(dataTypes, that.dataTypes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(names, dataTypes);
     }
 }

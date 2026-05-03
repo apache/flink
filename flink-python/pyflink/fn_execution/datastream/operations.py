@@ -42,3 +42,10 @@ class TwoInputOperation(ABC):
 
     def process_element2(self, value):
         raise NotImplementedError
+
+
+class AsyncOperationMixin:
+    """Mixin interface for async operations that require output processor."""
+
+    def set_output_processor(self, output_processor):
+        raise NotImplementedError

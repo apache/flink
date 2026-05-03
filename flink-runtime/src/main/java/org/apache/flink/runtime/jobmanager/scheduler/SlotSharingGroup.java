@@ -23,6 +23,7 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -40,6 +41,8 @@ public class SlotSharingGroup implements java.io.Serializable {
     private final Set<JobVertexID> ids = new TreeSet<>();
 
     private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
+
+    private String slotSharingGroupName;
 
     // Represents resources of all tasks in the group. Default to be UNKNOWN.
     private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
@@ -70,12 +73,44 @@ public class SlotSharingGroup implements java.io.Serializable {
         return resourceProfile;
     }
 
+    public String getSlotSharingGroupName() {
+        return slotSharingGroupName;
+    }
+
+    public void setSlotSharingGroupName(String slotSharingGroupName) {
+        this.slotSharingGroupName = slotSharingGroupName;
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
 
     @Override
+    public int hashCode() {
+        return Objects.hash(slotSharingGroupId);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SlotSharingGroup that = (SlotSharingGroup) o;
+        return Objects.equals(slotSharingGroupId, that.slotSharingGroupId);
+    }
+
+    @Override
     public String toString() {
-        return "SlotSharingGroup{" + "ids=" + ids + ", resourceProfile=" + resourceProfile + '}';
+        return "SlotSharingGroup{"
+                + "ids="
+                + ids
+                + ", slotSharingGroupId="
+                + slotSharingGroupId
+                + ", slotSharingGroupName='"
+                + slotSharingGroupName
+                + '\''
+                + ", resourceProfile="
+                + resourceProfile
+                + '}';
     }
 }

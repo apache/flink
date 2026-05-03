@@ -63,7 +63,7 @@ class RpcSSLAuthITCase {
         sslConfig1.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
         sslConfig1.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
         sslConfig1.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-        sslConfig1.set(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        sslConfig1.set(SecurityOptions.SSL_ALGORITHMS, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
 
         // !!! This config has KEY_STORE_FILE / UNTRUSTED_KEY_STORE_FILE !!!
         // If this is presented by a client, it will trust the server, but the server will
@@ -75,7 +75,7 @@ class RpcSSLAuthITCase {
         sslConfig2.set(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
         sslConfig2.set(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
         sslConfig2.set(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-        sslConfig2.set(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        sslConfig2.set(SecurityOptions.SSL_ALGORITHMS, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
 
         RpcService rpcService1 = null;
         RpcService rpcService2 = null;

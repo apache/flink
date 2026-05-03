@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableReset;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -39,7 +39,7 @@ public class SqlAlterTableResetConverter extends AbstractAlterTableConverter<Sql
             SqlAlterTableReset alterTableReset,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(alterTableReset, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(alterTableReset, context);
         Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
         // reset empty or 'connector' key is not allowed
         Set<String> resetKeys = alterTableReset.getResetKeys();

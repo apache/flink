@@ -23,11 +23,16 @@ import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
+import org.apache.flink.table.catalog.TableChange.ModifyDefinitionQuery;
+import org.apache.flink.table.catalog.TableChange.ModifyRefreshHandler;
+import org.apache.flink.table.catalog.TableChange.ModifyRefreshStatus;
+import org.apache.flink.table.catalog.TableChange.ModifyStartMode;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -36,66 +41,89 @@ import java.util.stream.Collectors;
 @Internal
 public class AlterMaterializedTableChangeOperation extends AlterMaterializedTableOperation {
 
-    private final List<MaterializedTableChange> tableChanges;
-    private final CatalogMaterializedTable catalogMaterializedTable;
+    private final Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable;
+    private final ResolvedCatalogMaterializedTable oldTable;
+    private MaterializedTableChangeHandler handler;
+    private CatalogMaterializedTable newTable;
+    private List<TableChange> tableChanges;
 
     public AlterMaterializedTableChangeOperation(
             ObjectIdentifier tableIdentifier,
-            List<MaterializedTableChange> tableChanges,
-            CatalogMaterializedTable catalogMaterializedTable) {
+            Function<ResolvedCatalogMaterializedTable, List<TableChange>> tableChangeForTable,
+            ResolvedCatalogMaterializedTable oldTable) {
         super(tableIdentifier);
-        this.tableChanges = tableChanges;
-        this.catalogMaterializedTable = catalogMaterializedTable;
+        this.tableChangeForTable = tableChangeForTable;
+        this.oldTable = oldTable;
     }
 
-    public List<MaterializedTableChange> getTableChanges() {
+    public List<TableChange> getTableChanges() {
+        if (tableChanges == null) {
+            tableChanges = tableChangeForTable.apply(oldTable);
+        }
         return tableChanges;
     }
 
-    public CatalogMaterializedTable getCatalogMaterializedTable() {
-        return catalogMaterializedTable;
+    public AlterMaterializedTableChangeOperation copyAsTableChangeOperation() {
+        return new AlterMaterializedTableChangeOperation(
+                tableIdentifier, tableChangeForTable, oldTable);
+    }
+
+    public CatalogMaterializedTable getNewTable() {
+        if (newTable == null) {
+            newTable =
+                    MaterializedTableChangeHandler.buildNewMaterializedTable(
+                            getHandlerWithChanges());
+        }
+        return newTable;
+    }
+
+    protected MaterializedTableChangeHandler getHandlerWithChanges() {
+        if (handler == null) {
+            handler =
+                    MaterializedTableChangeHandler.getHandlerWithChanges(
+                            oldTable, getTableChanges());
+        }
+        return handler;
     }
 
     @Override
     public TableResultInternal execute(Context ctx) {
         ctx.getCatalogManager()
-                .alterTable(
-                        getCatalogMaterializedTable(),
-                        getTableChanges().stream()
-                                .map(TableChange.class::cast)
-                                .collect(Collectors.toList()),
-                        getTableIdentifier(),
-                        false);
+                .alterTable(getNewTable(), getTableChanges(), getTableIdentifier(), false);
         return TableResultImpl.TABLE_RESULT_OK;
     }
 
     @Override
     public String asSummaryString() {
         String changes =
-                tableChanges.stream()
+                getTableChanges().stream()
                         .map(AlterMaterializedTableChangeOperation::toString)
                         .collect(Collectors.joining(",\n"));
         return String.format(
-                "ALTER MATERIALIZED TABLE %s\n%s", tableIdentifier.asSummaryString(), changes);
+                "%s %s\n%s", getOperationName(), tableIdentifier.asSummaryString(), changes);
     }
 
-    private static String toString(MaterializedTableChange tableChange) {
-        if (tableChange instanceof TableChange.ModifyRefreshStatus) {
-            TableChange.ModifyRefreshStatus refreshStatus =
-                    (TableChange.ModifyRefreshStatus) tableChange;
+    protected String getOperationName() {
+        return "ALTER MATERIALIZED TABLE";
+    }
+
+    private static String toString(TableChange tableChange) {
+        if (tableChange instanceof ModifyRefreshStatus) {
+            ModifyRefreshStatus refreshStatus = (ModifyRefreshStatus) tableChange;
             return String.format(
                     "  MODIFY REFRESH STATUS TO '%s'", refreshStatus.getRefreshStatus());
-        } else if (tableChange instanceof TableChange.ModifyRefreshHandler) {
-            TableChange.ModifyRefreshHandler refreshHandler =
-                    (TableChange.ModifyRefreshHandler) tableChange;
+        } else if (tableChange instanceof ModifyRefreshHandler) {
+            ModifyRefreshHandler refreshHandler = (ModifyRefreshHandler) tableChange;
             return String.format(
                     "  MODIFY REFRESH HANDLER DESCRIPTION TO '%s'",
                     refreshHandler.getRefreshHandlerDesc());
-        } else if (tableChange instanceof TableChange.ModifyDefinitionQuery) {
-            TableChange.ModifyDefinitionQuery definitionQuery =
-                    (TableChange.ModifyDefinitionQuery) tableChange;
+        } else if (tableChange instanceof ModifyDefinitionQuery) {
+            ModifyDefinitionQuery definitionQuery = (ModifyDefinitionQuery) tableChange;
             return String.format(
-                    " MODIFY DEFINITION QUERY TO '%s'", definitionQuery.getDefinitionQuery());
+                    "  MODIFY DEFINITION QUERY TO '%s'", definitionQuery.getDefinitionQuery());
+        } else if (tableChange instanceof ModifyStartMode) {
+            ModifyStartMode startMode = (ModifyStartMode) tableChange;
+            return String.format("  MODIFY START_MODE TO '%s'", startMode.getStartMode());
         } else {
             return AlterTableChangeOperation.toString(tableChange);
         }

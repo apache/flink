@@ -330,7 +330,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2]
+        group: [1, 2, 3, 4]
 
     steps:
       - name: "Flink Checkout"

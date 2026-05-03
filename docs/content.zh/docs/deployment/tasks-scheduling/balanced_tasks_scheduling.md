@@ -1,5 +1,5 @@
 ---
-title: Balanced Tasks Scheduling
+title: Task 均衡调度
 weight: 5
 type: docs
 
@@ -23,101 +23,99 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Balanced Tasks Scheduling
+<a name="balanced-tasks-scheduling"></a>
 
-This page describes the background and principle of balanced tasks scheduling, 
-how to use it when running streaming jobs.
+# Task 均衡调度
 
-## Background
+本文档描述了 Task 均衡调度的背景和原理，以及如何在流处理作业中使用它。
 
-When the parallelism of all vertices within a Flink streaming job is inconsistent,
-the [default strategy]({{< ref "docs/deployment/config" >}}#taskmanager-load-balance-mode)
-of Flink to deploy tasks sometimes leads some `TaskManagers` have more tasks while others have fewer tasks, 
-resulting in excessive resource utilization at some `TaskManagers` 
-that contain more tasks and becoming a bottleneck for the entire job processing.
+<a name="background"></a>
 
-{{< img src="/fig/deployments/tasks-scheduling/tasks_scheduling_skew_case.svg" alt="The Skew Case of Tasks Scheduling" class="offset" width="50%" >}}
+## 背景
 
-As shown in figure (a), given a Flink job comprising two vertices, `JobVertex-A (JV-A)` and `JobVertex-B (JV-B)`, 
-with parallelism degrees of `6` and `3` respectively,
-and both vertices sharing the same slot sharing group.
-Under the default tasks scheduling strategy, as illustrated in figure (b), 
-the distribution of tasks across `TaskManagers` may result in significant disparities in task load. 
-Specifically, the `TaskManager`s with the highest number of tasks may host `4` tasks, 
-while the one with the lowest load may have only `2` tasks. 
-Consequently, the `TaskManager`s bearing 4 tasks is prone to become a performance bottleneck for the entire job.
+当 Flink 流处理作业中所有顶点的并行度不一致时，Flink 部署 Task 的[默认策略]({{< ref "docs/deployment/config" >}}#taskmanager-load-balance-mode)有时会导致某些 TaskManager 部署的 Task 较多，而其他 TaskManager 部署的 Task 较少，从而造成部署 Task 较多的 TaskManager 资源使用过度，成为整个作业处理的瓶颈。
 
-Therefore, Flink provides the task-quantity-based balanced tasks scheduling capability. 
-Within the job's resource view, it aims to ensure that the number of tasks 
-scheduled to each `TaskManager` as close as possible to,
-thereby improving the resource usage skew among `TaskManagers`.
+{{< img src="/fig/deployments/tasks-scheduling/tasks_scheduling_skew_case.svg" alt="任务调度倾斜示例" class="offset" width="50%" >}}
 
-<span class="label label-info">Note</span> The presence of inconsistent parallelism does not imply that this strategy must be used, as this is not always the case in practice.
+如图（a）所示，假设 Flink 作业包含两个顶点：`JobVertex-A(JV-A)` 和 `JobVertex-B(JV-B)`，并行度分别为 `6` 和 `3`，且两个顶点属于同一个 Slot 共享组。在默认 Task 调度策略下，如图（b）所示，Task 在 TaskManager 之间的分布可能导致 Task 负载显著不均。具体来说，Task 数量最多的 TaskManager 可能承载 `4` 个任务，而负载最低的 TaskManager 可能只有 `2` 个任务。因此，承载 4 个 Task 的 TaskManager 容易成为整个作业的性能瓶颈。
 
-## Principle
+因此，Flink 提供了基于 Task 数量的 Task 均衡调度能力。在作业的资源视图中，它旨在确保分配给每个 TaskManager 的任务数量尽可能接近，从而改善 TaskManager 之间的资源使用倾斜。
 
-The task-quantity-based load balancing tasks scheduling strategy completes the assignment of tasks to `TaskManagers` in two phases: 
-- The tasks-to-slots assignment phase 
-- The slots-to-TaskManagers assignment phase
+<span class="label label-info">注意</span> 并非并行度不一致就必须使用此策略，需根据实际情况判断。
 
-This section will use two examples to illustrate the simplified process and principle of 
-how the task-quantity-based tasks scheduling strategy handles the assignments in these two phases.
+<a name="principle"></a>
 
-### The tasks-to-slots assignment phase
+## 原理
 
-Taking the job shown in figure (c) as an example, it contains five job vertices with parallelism degrees of `1`, `4`, `4`, `2`, and `3`, respectively.
-All five job vertices belong to the default slot sharing group.  
+基于 Task 数量的负载均衡调度策略将 Task 分配给 TaskManager 的过程分为两个阶段：
+- Task 到 Slot 的分配阶段
+- Slot 到 TaskManager 的分配阶段
 
-{{< img src="/fig/deployments/tasks-scheduling/tasks_to_slots_allocation_principle.svg" alt="The Tasks To Slots Allocation Principle Demo" class="offset" width="65%" >}}
+本节将通过两个示例对基于 Task 数量的调度策略在上述两个阶段中处理 Task 分配的简化流程及其原理加以说明。
 
-During the tasks-to-slots assignment phase, this tasks scheduling strategy:  
-- First directly assigns the tasks of the vertices with the highest parallelism to the `i-th` slot. 
+<a name="the-tasks-to-slots-assignment-phase"></a>
 
-  That is, task `JV-Bi` is assigned directly to `sloti`, and task `JV-Ci` is assigned directly to `sloti`.
+### Task 到 Slot 的分配阶段
 
-- Next, for tasks belonging to job vertices with sub-maximal parallelism, they are assigned in a round-robin fashion across the slots within the current
-slot sharing group until all tasks are allocated.
+以图（c）所示的作业为例，它包含五个作业顶点，并行度分别为 `1`、`4`、`4`、`2` 和 `3`。这五个作业顶点都属于默认 Slot 共享组。
 
-As shown in figure (e), under the task-quantity-based assignment strategy, the range (max-min difference) of the number of tasks per slot is `1`, 
-which is better than the range of `3` under the default strategy shown in figure (d).
+{{< img src="/fig/deployments/tasks-scheduling/tasks_to_slots_allocation_principle.svg" alt="Task 到 Slot 分配原理示例" class="offset" width="65%" >}}
 
-Thus, this ensures a more balanced distribution of the number of tasks across slots.
+在 Task 到 Slot 的分配阶段，该调度策略：
+- 首先直接将并行度最高顶点的 Task 分配到第 `i` 个 Slot。
 
-### The slots-to-TaskManagers assignment phase
+  即将任务 `JV-Bi` 直接分配到 `sloti`，将任务 `JV-Ci` 也直接分配到 `sloti`。
 
-As shown in figure (f), given a Flink job comprising two vertices, `JV-A` and `JV-B`, with parallelism of `6` and `3` respectively,
-and both vertices sharing the same slot sharing group.
+- 接下来，对于属于次高并行度作业顶点的 Task ，以轮询方式分配给当前 Slot 共享组内的 Slot，直到所有 Task 分配完毕。
 
-{{< img src="/fig/deployments/tasks-scheduling/slots_to_taskmanagers_allocation_principle.svg" alt="The Slots to TaskManagers Allocation Principle Demo" class="offset" width="75%" >}}
+如图（e）所示，在基于 Task 数量的分配策略下，每个 Slot 的任务数量范围（最大值与最小值之差）为 `1`，这优于图（d）所示默认策略下的范围 `3`。
 
-The assignment result after the first phase is shown in figure (g), 
-where `Slot0`, `Slot1`, and `Slot2` each contain `2` tasks, while the remaining slots contain `1` task each.
+因此，这确保了 Slot 之间 Task 数量更加均衡地分布。
 
-Subsequently:
-- The strategy submits all slot requests and waits until all slot resources required for the current job are ready.
+<a name="the-slots-to-taskmanagers-assignment-phase"></a>
 
-Once the slot resources are ready:  
-- The strategy then sorts all slot requests in descending order based on the number of tasks contained in each request. 
-Afterward, it sequentially assigns each slot request to the `TaskManager` with the smallest current tasks loading. 
-This process continues until all slot requests have been allocated.
+### Slot 到 TaskManager 的分配阶段
 
-The final assignment result is shown in figure (i), where each `TaskManager` ends up with exactly `3` tasks, 
-resulting in a task count difference of `0` between `TaskManagers`. In contrast, the scheduling result under the default strategy, 
-shown in figure (h), has a task count difference of `2` between `TaskManagers`. 
+如图（f）所示，假设 Flink 作业包含两个顶点 `JV-A` 和 `JV-B`，并行度分别为 `6` 和 `3`，且两个顶点属于同一个 Slot 共享组。
 
-Therefore, if you are seeing performance bottlenecks of the sort described above,
-then using this load balancing tasks scheduling strategy can improve performance.
-Be aware that you should not use this strategy, if you are not seeing these bottlenecks,
-as you may experience performance degradation.
+{{< img src="/fig/deployments/tasks-scheduling/slots_to_taskmanagers_allocation_principle.svg" alt="Slot 到 TaskManager 分配原理示例" class="offset" width="75%" >}}
 
-## Usage
+第一阶段的分配结果如图（g）所示，其中 `Slot0`、`Slot1` 和 `Slot2` 各包含 `2` 个 Task ，其余 Slot 各包含 `1` 个 Task 。
 
-You can enable balanced tasks scheduling through the following configuration item: 
+随后：
+- 策略提交所有 Slot 请求，并等待当前作业所需的所有 Slot 资源准备就绪。
+
+Slot 资源准备就绪后：
+- 首先根据每个请求包含的 Task 数量按降序对所有 Slot 请求进行排序。然后，依次将每个 Slot 请求分配给当前 Task 负载最小的 TaskManager。此过程持续进行，直到所有 Slot 请求分配完毕。
+
+最终分配结果如图（i）所示，每个 TaskManager 最终恰好承载 `3` 个 Task ，TaskManager 之间的 Task 数量差异为 `0`。相比之下，默认策略下的调度结果如图（h）所示，TaskManager 之间的 Task 数量差异为 `2`。
+
+因此，如果你遇到上述描述的性能瓶颈问题，使用这种 Task 负载均衡调度策略可以改善性能。请注意，如果你没有遇到这些瓶颈问题，则不应使用此策略，因为这可能导致性能下降。
+
+<a name="usage"></a>
+
+## 使用方法
+
+你可以通过以下配置项启用 Task 均衡调度：
 
 - `taskmanager.load-balance.mode`: `tasks`
 
-## More details
+<span class="label label-info">注意</span> 在故障切换场景中，
+当资源被释放并处理资源请求时，资源视图的延迟更新可能导致分配结果未达到最优平衡。
+在这种情况下，可通过适当增大
+[`slot.request.max-interval`]({{< ref "docs/deployment/config" >}}#slot-request-max-interval) 的数值来改善此问题。
+例如，每次可尝试以 `50` 毫秒为增量进行调整。
+提高该数值将使作业调度期间的槽位请求与可用资源视图更加稳定，从而使任务能够尽可能均衡分配。
+但相应地，这会延长任务调度阶段的整体时长。
+因此，增大此配置值也会增加 [`slot.request.timeout`]({{< ref "docs/deployment/config" >}}#slot-request-timeout) 参数超时的风险。
+值得强调的是，若在充分提高该选项数值后，仍出现非最优的任务均衡现象，
+可在 <a href="https://issues.apache.org/jira/browse/FLINK-38715">FLINK-38715</a> 中报告此问题，
+报告中应包含调度相关配置的说明及观察到的具体现象描述。
 
-See the <a href="https://cwiki.apache.org/confluence/x/U56zDw">FLIP-370</a> for more details.
+<a name="more-details"></a>
+
+## 更多详情
+
+更多详细信息请参阅 [FLIP-370](https://cwiki.apache.org/confluence/x/U56zDw)。
 
 {{< top >}}

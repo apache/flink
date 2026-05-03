@@ -67,6 +67,16 @@ public class TestingBatchExecNode implements BatchExecNode<RowData> {
     }
 
     @Override
+    public String getTypeAsString() {
+        return "";
+    }
+
+    @Override
+    public int getVersion() {
+        return 0;
+    }
+
+    @Override
     public String getDescription() {
         return description;
     }

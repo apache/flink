@@ -28,13 +28,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_TRAILING_COMMA;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.EMPTY_STRING_AS_NULL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.FAIL_ON_MISSING_COLUMNS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_TRAILING_UNMAPPABLE;
 import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.TRIM_SPACES;
 import static org.apache.flink.formats.csv.CsvFormatOptions.WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION;
 
 /** A class with common CSV format constants and utility methods. */
@@ -102,6 +107,11 @@ class CsvCommons {
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
         options.add(WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION);
+        options.add(TRIM_SPACES);
+        options.add(IGNORE_TRAILING_UNMAPPABLE);
+        options.add(ALLOW_TRAILING_COMMA);
+        options.add(FAIL_ON_MISSING_COLUMNS);
+        options.add(EMPTY_STRING_AS_NULL);
         return options;
     }
 
@@ -115,6 +125,11 @@ class CsvCommons {
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
         options.add(WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION);
+        options.add(TRIM_SPACES);
+        options.add(IGNORE_TRAILING_UNMAPPABLE);
+        options.add(ALLOW_TRAILING_COMMA);
+        options.add(FAIL_ON_MISSING_COLUMNS);
+        options.add(EMPTY_STRING_AS_NULL);
         return options;
     }
 }

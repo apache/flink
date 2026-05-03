@@ -567,4 +567,24 @@ public class CoreOptions {
                 .longType()
                 .defaultValue(0L);
     }
+
+    /**
+     * Explicitly resolves the conflict between multiple FileSystemFactory implementations when
+     * multiple jars are loaded for the same scheme. Primary use is to allow configuration based
+     * migration between file systems without the need to build separate images.
+     *
+     * <p>Config key pattern: {@code fs.<scheme>.priority.<factoryClassName>}
+     */
+    public static ConfigOption<Integer> fileSystemFactoryPriority(String scheme, String className) {
+        return ConfigOptions.key("fs." + scheme + ".priority." + className)
+                .intType()
+                .noDefaultValue()
+                .withDescription(
+                        "Priority for the filesystem factory '"
+                                + className
+                                + "' when multiple factories register for the '"
+                                + scheme
+                                + "' scheme. Higher priority wins. "
+                                + "When not set, the factory's declared priority is used.");
+    }
 }

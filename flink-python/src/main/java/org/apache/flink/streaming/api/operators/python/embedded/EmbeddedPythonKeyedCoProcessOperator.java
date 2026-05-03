@@ -36,8 +36,6 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 
-import pemja.core.object.PyIterator;
-
 import java.util.List;
 
 import static org.apache.flink.python.PythonOptions.MAP_STATE_READ_CACHE_SIZE;
@@ -149,15 +147,14 @@ public class EmbeddedPythonKeyedCoProcessOperator<K, IN1, IN2, OUT>
         onTimerContext.timeDomain = timeDomain;
         onTimerContext.timer = timer;
 
-        PyIterator results =
-                (PyIterator)
-                        interpreter.invokeMethod("operation", "on_timer", timer.getTimestamp());
-
-        while (results.hasNext()) {
-            OUT result = outputDataConverter.toInternal(results.next());
-            collector.collect(result);
+        try (EmbeddedPythonIterator results =
+                EmbeddedPythonIterator.from(
+                        interpreter.invokeMethod("operation", "on_timer", timer.getTimestamp()))) {
+            while (results.hasNext()) {
+                OUT result = outputDataConverter.toInternal(results.next());
+                collector.collect(result);
+            }
         }
-        results.close();
 
         onTimerContext.timeDomain = null;
         onTimerContext.timer = null;

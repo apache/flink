@@ -4366,6 +4366,7 @@ SqlCreate SqlCreate() :
 {
     <CREATE> { s = span(); }
     [
+        LOOKAHEAD(2)
         <OR> <REPLACE> {
             replace = true;
         }

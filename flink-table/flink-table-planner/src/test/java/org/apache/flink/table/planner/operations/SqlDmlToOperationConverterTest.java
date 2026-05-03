@@ -53,34 +53,34 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Test cases for the DML statements for {@link SqlNodeToOperationConversion}. */
-public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
+class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
-    public void testExplainWithSelect() {
+    void testExplainWithSelect() {
         final String sql = "explain select * from t1";
         checkExplainSql(sql);
     }
 
     @Test
-    public void testExplainWithInsert() {
+    void testExplainWithInsert() {
         final String sql = "explain insert into t2 select * from t1";
         checkExplainSql(sql);
     }
 
     @Test
-    public void testExplainWithUnion() {
+    void testExplainWithUnion() {
         final String sql = "explain select * from t1 union select * from t2";
         checkExplainSql(sql);
     }
 
     @Test
-    public void testExplainWithExplainDetails() {
+    void testExplainWithExplainDetails() {
         String sql = "explain changelog_mode, estimated_cost, json_execution_plan select * from t1";
         checkExplainSql(sql);
     }
 
     @Test
-    public void testSqlInsertWithStaticPartition() {
+    void testSqlInsertWithStaticPartition() {
         final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -93,7 +93,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlInsertWithDynamicTableOptions() {
+    void testSqlInsertWithDynamicTableOptions() {
         final String sql =
                 "insert into t1 /*+ OPTIONS('k1'='v1', 'k2'='v2') */\n"
                         + "select a, b, c, d from t2";
@@ -109,7 +109,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testDynamicTableWithInvalidOptions() {
+    void testDynamicTableWithInvalidOptions() {
         final String sql = "select * from t1 /*+ OPTIONS('opt1', 'opt2') */";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -120,7 +120,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testBeginStatementSet() {
+    void testBeginStatementSet() {
         final String sql = "BEGIN STATEMENT SET";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(BeginStatementSetOperation.class);
@@ -131,7 +131,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testEnd() {
+    void testEnd() {
         final String sql = "END";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(EndStatementSetOperation.class);
@@ -142,7 +142,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlRichExplainWithSelect() {
+    void testSqlRichExplainWithSelect() {
         final String sql = "explain plan for select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -151,7 +151,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlRichExplainWithInsert() {
+    void testSqlRichExplainWithInsert() {
         final String sql = "explain plan for insert into t1 select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -160,7 +160,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlRichExplainWithStatementSet() {
+    void testSqlRichExplainWithStatementSet() {
         final String sql =
                 "explain plan for statement set begin "
                         + "insert into t1 select a, b, c, d from t2 where a > 1;"
@@ -173,7 +173,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testExplainDetailsWithSelect() {
+    void testExplainDetailsWithSelect() {
         final String sql =
                 "explain estimated_cost, changelog_mode, plan_advice select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
@@ -182,7 +182,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testExplainDetailsWithInsert() {
+    void testExplainDetailsWithInsert() {
         final String sql =
                 "explain estimated_cost, changelog_mode, plan_advice insert into t1 select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
@@ -191,7 +191,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testExplainDetailsWithStatementSet() {
+    void testExplainDetailsWithStatementSet() {
         final String sql =
                 "explain estimated_cost, changelog_mode, plan_advice statement set begin "
                         + "insert into t1 select a, b, c, d from t2 where a > 1;"
@@ -215,7 +215,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlExecuteWithStatementSet() {
+    void testSqlExecuteWithStatementSet() {
         final String sql =
                 "execute statement set begin "
                         + "insert into t1 select a, b, c, d from t2 where a > 1;"
@@ -228,7 +228,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlRichExplainWithExecuteStatementSet() {
+    void testSqlRichExplainWithExecuteStatementSet() {
         final String sql =
                 "EXPLAIN EXECUTE STATEMENT SET BEGIN "
                         + "INSERT INTO t1 SELECT a, b, c, d FROM t2 WHERE a > 1;"
@@ -241,7 +241,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlExecuteWithInsert() {
+    void testSqlExecuteWithInsert() {
         final String sql = "execute insert into t1 select a, b, c, d from t2 where a > 1";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -250,7 +250,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlRichExplainWithExecuteInsert() {
+    void testSqlRichExplainWithExecuteInsert() {
         final String sql = "EXPLAIN EXECUTE INSERT INTO t1 SELECT a, b, c, d FROM t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -259,7 +259,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlExecuteWithSelect() {
+    void testSqlExecuteWithSelect() {
         final String sql = "execute select a, b, c, d from t2 where a > 1";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -268,7 +268,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testSqlRichExplainWithExecuteSelect() {
+    void testSqlRichExplainWithExecuteSelect() {
         final String sql = "EXPLAIN EXECUTE SELECT a, b, c, d FROM t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
@@ -277,7 +277,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testDelete() throws Exception {
+    void testDelete() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
         CatalogTable catalogTable =
@@ -311,7 +311,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testUpdate() throws Exception {
+    void testUpdate() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
         CatalogTable catalogTable =
@@ -340,7 +340,7 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testTruncateTable() {
+    void testTruncateTable() {
         String sql = "TRUNCATE TABLE t1";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);

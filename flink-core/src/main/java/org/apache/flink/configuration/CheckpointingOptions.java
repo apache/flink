@@ -627,6 +627,18 @@ public class CheckpointingOptions {
                                                     "the important considerations"))
                                     .build());
 
+    public static final ConfigOption<Boolean> PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT =
+            key("pipeline.sources.pause-until-first-checkpoint")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Don't pull any data from sources until the first checkpoint is triggered. "
+                                    + "This might be helpful in reducing recovery times in cases where "
+                                    + "recovered records from unaligned checkpoint compete with new incoming records for processing. "
+                                    + "Incompatible with value 0 (disabled) for "
+                                    + CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG
+                                            .key());
+
     // TODO: deprecated
     // Currently, both two file merging mechanism can work simultaneously:
     //  1. If UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE=1 and
@@ -645,6 +657,42 @@ public class CheckpointingOptions {
                             "Defines the maximum number of subtasks that share the same channel state file. "
                                     + "It can reduce the number of small files when enable unaligned checkpoint. "
                                     + "Each subtask will create a new channel state file when this is configured to 1.");
+
+    @Experimental
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
+    public static final ConfigOption<Boolean> UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM =
+            ConfigOptions.key(
+                            "execution.checkpointing.unaligned.recover-output-on-downstream.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether recovering output buffers of upstream task on downstream task directly "
+                                    + "when job restores from the unaligned checkpoint.");
+
+    @Experimental
+    @Documentation.Section(Documentation.Sections.COMMON_CHECKPOINTING)
+    public static final ConfigOption<Boolean> CHECKPOINTING_DURING_RECOVERY_ENABLED =
+            ConfigOptions.key("execution.checkpointing.during-recovery.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to enable checkpointing during recovery from an unaligned checkpoint. "
+                                                    + "When enabled, the job can take checkpoints while still recovering channel state "
+                                                    + "(inflight data) from a previous unaligned checkpoint. This avoids the need to "
+                                                    + "wait for full recovery before the first checkpoint can be triggered, which "
+                                                    + "reduces the window of vulnerability to failures during recovery.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "This option requires %s to be enabled. "
+                                                    + "It does not require unaligned checkpoints to be currently enabled, because "
+                                                    + "a job may restore from an unaligned checkpoint while having unaligned "
+                                                    + "checkpoints disabled for the new execution.",
+                                            TextElement.code(
+                                                    UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM.key()))
+                                    .build());
 
     /**
      * Determines whether checkpointing is enabled based on the configuration.
@@ -740,5 +788,25 @@ public class CheckpointingOptions {
             return false;
         }
         return config.get(ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
+    }
+
+    /**
+     * Determines whether unaligned checkpoint support during recovery is enabled.
+     *
+     * <p>This feature requires {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} to be enabled. Note
+     * that it does not require unaligned checkpoints to be currently enabled, because a job may
+     * restore from an unaligned checkpoint while having unaligned checkpoints disabled for the new
+     * execution.
+     *
+     * @param config the configuration to check
+     * @return {@code true} if unaligned checkpointing during recovery is enabled, {@code false}
+     *     otherwise
+     */
+    @Internal
+    public static boolean isCheckpointingDuringRecoveryEnabled(Configuration config) {
+        if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
+            return false;
+        }
+        return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED);
     }
 }

@@ -42,11 +42,7 @@ function onSwitch(tabId) {
         // check input elements that contain the selected tabId
         // and uncheck all others
         .forEach(input => {
-            if (input.matches(selectorForId)) {
-                input.setAttribute("checked", "checked")
-            } else {
-                input.removeAttribute("checked")
-            }
+            input.checked = input.matches(selectorForId);
         });
 }
 

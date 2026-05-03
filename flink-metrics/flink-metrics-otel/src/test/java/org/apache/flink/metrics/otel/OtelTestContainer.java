@@ -20,12 +20,11 @@ package org.apache.flink.metrics.otel;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.images.builder.ImageFromDockerfile;
-import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
-import org.testcontainers.images.builder.dockerfile.statement.MultiArgsStatement;
 import org.testcontainers.utility.Base58;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
@@ -42,31 +41,18 @@ class OtelTestContainer extends GenericContainer<OtelTestContainer> {
     private static final Path CONFIG_PATH =
             Paths.get("src/test/resources/").resolve("otel-config.yaml");
 
-    public OtelTestContainer() {
-        super(
-                new ImageFromDockerfile("flink/opentelemetry-collector")
-                        .withDockerfileFromBuilder(
-                                OtelTestContainer::buildOpentelemetryCollectorImage));
+    public OtelTestContainer(Path outputDir) {
+        super(DockerImageName.parse("otel/opentelemetry-collector:0.111.0"));
         withNetworkAliases(randomString("otel-collector", 6));
         addExposedPort(DEFAULT_HTTP_PORT);
         addExposedPort(DEFAULT_GRPC_PORT);
         withCopyFileToContainer(
                 MountableFile.forHostPath(CONFIG_PATH.toString()), "otel-config.yaml");
+        withCopyFileToContainer(
+                MountableFile.forHostPath(
+                        new File(outputDir.toFile(), LOG_FILE).getAbsolutePath(), 755),
+                getOutputLogPath().toString());
         withCommand("--config", "otel-config.yaml");
-    }
-
-    private static void buildOpentelemetryCollectorImage(DockerfileBuilder builder) {
-        builder
-                // otel image doesn't have mkdir - use alpine instead.
-                .from("alpine:3.20")
-                // Create the output data directory - otel image doesn't have any directory to write
-                // to on its own.
-                .run("mkdir -p " + DATA_DIR)
-                .from("otel/opentelemetry-collector:0.111.0")
-                // Copy the output data directory from alpine. It has to be owned by the otel user.
-                .withStatement(
-                        new MultiArgsStatement("COPY --from=0 --chown=10001", DATA_DIR, DATA_DIR))
-                .build();
     }
 
     public Path getOutputLogPath() {

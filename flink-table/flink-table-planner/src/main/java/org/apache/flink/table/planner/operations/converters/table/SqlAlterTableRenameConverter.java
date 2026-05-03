@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableRename;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -35,7 +35,7 @@ public class SqlAlterTableRenameConverter extends AbstractAlterTableConverter<Sq
             SqlAlterTableRename sqlAlterTable,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
         UnresolvedIdentifier newUnresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterTable.fullNewTableName());
         ObjectIdentifier newTableIdentifier =

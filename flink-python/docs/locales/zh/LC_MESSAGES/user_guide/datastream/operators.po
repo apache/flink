@@ -1,0 +1,251 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/datastream/operators.rst:21
+msgid "Operators"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:23
+msgid ""
+"Operators transform one or more DataStreams into a new DataStream. "
+"Programs can combine multiple transformations into sophisticated dataflow"
+" topologies."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:27
+msgid "DataStream Transformations"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:29
+msgid ""
+"DataStream programs in Flink are regular programs that implement "
+"transformations on data streams (e.g., mapping, filtering, reducing). "
+"Please see :flinkdoc:`operators "
+"<docs/dev/datastream/operators/overview/>` for an overview of the "
+"available transformations in Python DataStream API."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:34
+msgid "Functions"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:36
+msgid ""
+"Transformations accept user-defined functions as input to define the "
+"functionality of the transformations. The following section describes "
+"different ways of defining Python user-defined functions in Python "
+"DataStream API."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:40
+msgid "Implementing Function Interfaces"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:42
+msgid ""
+"Different Function interfaces are provided for different transformations "
+"in the Python DataStream API. For example, ``MapFunction`` is provided "
+"for the ``map`` transformation, ``FilterFunction`` is provided for the "
+"``filter`` transformation, etc. Users can implement the corresponding "
+"Function interface according to the type of the transformation. Take "
+"MapFunction for instance:"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:59
+msgid "Lambda Function"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:61
+msgid ""
+"As shown in the following example, the transformations can also accept a "
+"lambda function to define the functionality of the transformation:"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:69
+msgid ""
+"``ConnectedStream.map()`` and ``ConnectedStream.flat_map()`` do not "
+"support lambda function and must accept ``CoMapFunction`` and "
+"``CoFlatMapFunction`` separately."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:73
+msgid "Python Function"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:75
+msgid ""
+"Users could also use Python function to define the functionality of the "
+"transformation:"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:86
+msgid "Output Type"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:88
+msgid ""
+"Users could specify the output type information of the transformation "
+"explicitly in Python DataStream API. If not specified, the output type "
+"will be ``Types.PICKLED_BYTE_ARRAY`` by default, and the result data will"
+" be serialized using pickle serializer. For more details about the pickle"
+" serializer, please refer to :ref:`pickle-serialization` in the "
+":doc:`data_types` page."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:92
+msgid ""
+"Generally, the output type needs to be specified in the following "
+"scenarios."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:95
+msgid "Convert DataStream into Table"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:152
+msgid ""
+"The output type must be specified for the flat_map operation in the above"
+" example which will be used as the output type of the reduce operation "
+"implicitly. The reason is that ``t_env.from_data_stream(ds)`` requires "
+"the output type of ``ds`` must be a composite type."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:157
+msgid "Write DataStream to Sink"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:171
+msgid ""
+"Generally, the output type needs to be specified for the map operation in"
+" the above example if the sink only accepts special kinds of data, e.g. "
+"Row, etc."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:174
+msgid "Operator Chaining"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:176
+msgid ""
+"By default, multiple non-shuffle Python functions will be chained "
+"together to avoid the serialization and deserialization and improve the "
+"performance. There are also cases where you may want to disable the "
+"chaining, e.g., there is a ``flatmap`` function which will produce a "
+"large number of elements for each input element and disabling the "
+"chaining allows to process its output in a different parallelism."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:181
+msgid "Operator chaining could be disabled in one of the following ways:"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:183
+msgid ""
+"Disable chaining with following operators by adding a :flinkdoc:`key_by "
+"<docs/dev/datastream/operators/overview/#keyby>` operation, "
+":flinkdoc:`shuffle <docs/dev/datastream/operators/overview/#random-"
+"partitioning>` operation, :flinkdoc:`rescale "
+"<docs/dev/datastream/operators/overview/#rescaling>` operation, "
+":flinkdoc:`rebalance <docs/dev/datastream/operators/overview/#rescaling>`"
+" operation or :flinkdoc:`partition_custom "
+"<docs/dev/datastream/operators/overview/#custom-partitioning>` operation "
+"after the current operator."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:190
+msgid ""
+"Disable chaining with preceding operators by applying a "
+":flinkdoc:`start_new_chain <docs/dev/datastream/operators/overview"
+"/#start-new-chain>` operation for the current operator."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:192
+msgid ""
+"Disable chaining with preceding and following operators by applying a "
+":flinkdoc:`disable_chaining <docs/dev/datastream/operators/overview"
+"/#disable-chaining>` operation for the current operator."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:194
+msgid ""
+"Disable chaining of two operators by setting different parallelisms or "
+"different :flinkdoc:`slot sharing group "
+"<docs/dev/datastream/operators/overview/#set-slot-sharing-group>` for "
+"them."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:196
+msgid ""
+"You could also disable all the operator chaining via configuration "
+"``python.operator-chaining.enabled`` (see :doc:`../configuration`)."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:200
+msgid "Bundling Python Functions"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:202
+msgid ""
+"To run Python functions in any non-local mode, it is strongly recommended"
+" bundling your Python functions definitions using the config option "
+"``python-files`` (see :doc:`../configuration`), if your Python functions "
+"live outside the file where the ``main()`` function is defined. "
+"Otherwise, you may run into ``ModuleNotFoundError: No module named "
+"'my_function'`` if you define Python functions in a file called "
+"``my_function.py``."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:209
+msgid "Loading resources in Python Functions"
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:211
+msgid ""
+"There are scenarios when you want to load some resources in Python "
+"functions first, then running computation over and over again, without "
+"having to re-load the resources. For example, you may want to load a "
+"large deep learning model only once, then run batch prediction against "
+"the model multiple times."
+msgstr ""
+
+#: ../../user_guide/datastream/operators.rst:216
+msgid ""
+"Overriding the ``open`` method inherited from the base class ``Function``"
+" is exactly what you need."
+msgstr ""
+

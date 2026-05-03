@@ -24,10 +24,10 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
-import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -37,7 +37,7 @@ import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobmanager.HaServicesJobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.HaServicesPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -111,7 +111,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             HeartbeatServices heartbeatServices,
             DelegationTokenManager delegationTokenManager,
             MetricRegistry metricRegistry,
-            ExecutionGraphInfoStore executionGraphInfoStore,
+            ArchivedApplicationStore archivedApplicationStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
             Collection<FailureEnricher> failureEnrichers,
             FatalErrorHandler fatalErrorHandler)
@@ -197,7 +197,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final HistoryServerArchivist historyServerArchivist =
                     HistoryServerArchivist.createHistoryServerArchivist(
-                            configuration, webMonitorEndpoint, ioExecutor);
+                            configuration, webMonitorEndpoint, webMonitorEndpoint, ioExecutor);
 
             final DispatcherOperationCaches dispatcherOperationCaches =
                     new DispatcherOperationCaches(
@@ -213,7 +213,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             () ->
                                     JobManagerMetricGroup.createJobManagerMetricGroup(
                                             metricRegistry, hostname),
-                            executionGraphInfoStore,
+                            archivedApplicationStore,
                             fatalErrorHandler,
                             historyServerArchivist,
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
@@ -226,7 +226,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                     dispatcherRunnerFactory.createDispatcherRunner(
                             highAvailabilityServices.getDispatcherLeaderElection(),
                             fatalErrorHandler,
-                            new HaServicesJobPersistenceComponentFactory(highAvailabilityServices),
+                            new HaServicesPersistenceComponentFactory(highAvailabilityServices),
                             ioExecutor,
                             rpcService,
                             partialDispatcherServices);

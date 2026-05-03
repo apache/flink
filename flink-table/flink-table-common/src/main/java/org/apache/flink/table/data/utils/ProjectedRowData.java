@@ -29,6 +29,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.util.Arrays;
@@ -170,6 +171,11 @@ public class ProjectedRowData implements RowData {
     @Override
     public Variant getVariant(int pos) {
         return row.getVariant(indexMapping[pos]);
+    }
+
+    @Override
+    public Bitmap getBitmap(int pos) {
+        return row.getBitmap(indexMapping[pos]);
     }
 
     @Override

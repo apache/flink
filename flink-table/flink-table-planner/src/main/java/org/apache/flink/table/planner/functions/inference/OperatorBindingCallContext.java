@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -46,7 +45,9 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import javax.annotation.Nullable;
 
 import java.util.AbstractList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -114,7 +115,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     public boolean isArgumentLiteral(int pos) {
         // Semantically a descriptor can be considered a literal,
         // however, Calcite represents them as a call
-        return binding.isOperandLiteral(pos, false) || isDescriptor(pos);
+        return binding.isOperandLiteral(pos, false) || isDescriptor(pos) || isMapConstructor(pos);
     }
 
     @Override
@@ -131,10 +132,13 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         if (isArgumentNull(pos)) {
             return Optional.empty();
         }
-        // Semantically a descriptor can be considered a literal,
-        // Calcite represents them as a call
+        // Calcite represents DESCRIPTOR and MAP constructors as RexCall, not RexLiteral.
+        // Handle them explicitly by extracting values from the call operands.
         if (isDescriptor(pos) && clazz == ColumnList.class) {
             return Optional.ofNullable((T) convertColumnList(pos));
+        }
+        if (isMapConstructor(pos) && clazz == Map.class) {
+            return Optional.ofNullable((T) convertMap(pos));
         }
         try {
             return Optional.ofNullable(
@@ -194,21 +198,23 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
     }
 
     private boolean isDescriptor(int pos) {
+        return isRexCallOfKind(pos, SqlKind.DESCRIPTOR);
+    }
+
+    private boolean isMapConstructor(int pos) {
+        return isRexCallOfKind(pos, SqlKind.MAP_VALUE_CONSTRUCTOR);
+    }
+
+    private boolean isRexCallOfKind(int pos, SqlKind kind) {
         if (binding instanceof RexCallBinding) {
-            final List<RexNode> operands = ((RexCallBinding) binding).operands();
-            final RexNode operand = operands.get(pos);
-            return operand.getKind() == SqlKind.DESCRIPTOR;
+            final RexNode operand = ((RexCallBinding) binding).operands().get(pos);
+            return operand.getKind() == kind;
         }
         return false;
     }
 
     private boolean isDefault(int pos) {
-        if (binding instanceof RexCallBinding) {
-            final List<RexNode> operands = ((RexCallBinding) binding).operands();
-            final RexNode operand = operands.get(pos);
-            return operand.getKind() == SqlKind.DEFAULT;
-        }
-        return false;
+        return isRexCallOfKind(pos, SqlKind.DEFAULT);
     }
 
     private @Nullable RexTableArgCall getTableArgCall(int pos) {
@@ -222,8 +228,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
     private ColumnList convertColumnList(int pos) {
         if (binding instanceof RexCallBinding) {
-            final List<RexNode> operands = ((RexCallBinding) binding).operands();
-            final RexCall call = (RexCall) operands.get(pos);
+            final RexCall call = (RexCall) ((RexCallBinding) binding).operands().get(pos);
             final List<String> names =
                     call.getOperands().stream()
                             .map(RexLiteral::stringValue)
@@ -231,6 +236,27 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
             return ColumnList.of(names);
         }
         return null;
+    }
+
+    /**
+     * Extracts a {@code Map<String, String>} from a MAP_VALUE_CONSTRUCTOR RexCall whose operands
+     * are alternating key-value literal pairs.
+     */
+    private @Nullable Map<String, String> convertMap(int pos) {
+        if (!(binding instanceof RexCallBinding)) {
+            return null;
+        }
+        final RexCall call = (RexCall) ((RexCallBinding) binding).operands().get(pos);
+        final List<RexNode> operands = call.getOperands();
+        final Map<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < operands.size(); i += 2) {
+            final @Nullable String key = RexLiteral.stringValue(operands.get(i));
+            final @Nullable String value = RexLiteral.stringValue(operands.get(i + 1));
+            if (key != null) {
+                map.put(key, value);
+            }
+        }
+        return map;
     }
 
     private @Nullable StaticArgument getStaticArg(int pos) {
@@ -253,6 +279,8 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
+        private final int[] orderByColumns;
+        private final SortDirection[] orderByDirections;
         private final int timeColumn;
         private final @Nullable ChangelogMode changelogMode;
 
@@ -262,10 +290,11 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
                 RexTableArgCall tableArgCall,
                 int timeColumn,
                 @Nullable ChangelogMode changelogMode) {
-            checkNoOrderBy(tableArgCall);
             return new OperatorBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
                     tableArgCall.getPartitionKeys(),
+                    tableArgCall.getOrderKeys(),
+                    RexTableArgCall.toSortDirections(tableArgCall.getSortOrder()),
                     timeColumn,
                     changelogMode);
         }
@@ -273,18 +302,16 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
         private OperatorBindingTableSemantics(
                 DataType dataType,
                 int[] partitionByColumns,
+                int[] orderByColumns,
+                SortDirection[] orderByDirections,
                 int timeColumn,
                 @Nullable ChangelogMode changelogMode) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
+            this.orderByColumns = orderByColumns;
+            this.orderByDirections = orderByDirections;
             this.timeColumn = timeColumn;
             this.changelogMode = changelogMode;
-        }
-
-        private static void checkNoOrderBy(RexTableArgCall tableArgCall) {
-            if (tableArgCall.getOrderKeys().length > 0) {
-                throw new ValidationException("ORDER BY clause is currently not supported.");
-            }
         }
 
         private static DataType createDataType(DataType tableDataType, StaticArgument staticArg) {
@@ -309,7 +336,12 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         @Override
         public int[] orderByColumns() {
-            return new int[0];
+            return orderByColumns;
+        }
+
+        @Override
+        public SortDirection[] orderByDirections() {
+            return orderByDirections;
         }
 
         @Override

@@ -154,11 +154,15 @@ public class RestServerEndpointITCase {
 
         final Configuration sslConfig = new Configuration(config);
         sslConfig.set(SecurityOptions.SSL_REST_ENABLED, true);
+        sslConfig.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         sslConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
         sslConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
         sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
         sslConfig.set(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
         sslConfig.set(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
+        sslConfig.set(SecurityOptions.SSL_REST_VERIFY_HOSTNAME, true);
 
         final Configuration sslRestAuthConfig = new Configuration(sslConfig);
         sslRestAuthConfig.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
@@ -244,9 +248,15 @@ public class RestServerEndpointITCase {
                                 staticFileServerHandler)
                         .withHandler(new TestUnavailableHandler(mockGatewayRetriever))
                         .buildAndStart();
-        restClient = new RestClient(config, EXECUTOR_EXTENSION.getExecutor());
-
         serverAddress = serverEndpoint.getServerAddress();
+
+        restClient =
+                new RestClient(
+                        config,
+                        EXECUTOR_EXTENSION.getExecutor(),
+                        serverAddress.getHostName(),
+                        serverEndpoint.getRestPort(),
+                        null);
     }
 
     @AfterEach

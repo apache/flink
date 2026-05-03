@@ -31,7 +31,8 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.datastream.functions import AsyncFunctionDescriptor
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
-from pyflink.fn_execution.datastream.process.async_function.operation import AsyncOperation
+from pyflink.fn_execution.datastream.process.async_function.operation import AsyncOperation, \
+    AsyncOperationMixin
 from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
 from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
@@ -141,7 +142,7 @@ cdef class FunctionOperation(Operation):
             self._has_side_output = False
         if not self._has_side_output:
             self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
-            if isinstance(self.operation, AsyncOperation):
+            if isinstance(self.operation, AsyncOperationMixin):
                 self.operation.set_output_processor(self._main_output_processor)
 
         self.operation.open()
@@ -196,10 +197,16 @@ cdef class FunctionOperation(Operation):
                         while input_processor.has_next():
                             self.process_element(input_processor.next())
                         self._main_output_processor.process_outputs(o, self.operation.finish_bundle())
-                    elif isinstance(self.operation, AsyncOperation):
-                        while input_processor.has_next():
-                            # it processes the input asynchronously
-                            self.process_element(o, input_processor.next())
+                    elif isinstance(self.operation, AsyncOperationMixin):
+                        # it processes the input asynchronously
+                        if isinstance(self.operation, AsyncOperation):
+                            # for datastream
+                            while input_processor.has_next():
+                                self.process_element(o, input_processor.next())
+                        else:
+                            # for table & sql
+                            while input_processor.has_next():
+                                self.process_element(input_processor.next())
                     else:
                         while input_processor.has_next():
                             self._main_output_processor.process_outputs(

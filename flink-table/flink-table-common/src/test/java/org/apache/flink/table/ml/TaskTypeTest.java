@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.ml;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TaskType}. */
-public class TaskTypeTest {
+class TaskTypeTest {
 
     @Test
-    public void testEnumValues() {
+    void testEnumValues() {
         assertThat(TaskType.values()).hasSize(5);
         assertThat(TaskType.valueOf("REGRESSION")).isEqualTo(TaskType.REGRESSION);
         assertThat(TaskType.valueOf("CLUSTERING")).isEqualTo(TaskType.CLUSTERING);
@@ -37,7 +37,7 @@ public class TaskTypeTest {
     }
 
     @Test
-    public void testGetName() {
+    void testGetName() {
         assertThat(TaskType.REGRESSION.getName()).isEqualTo("regression");
         assertThat(TaskType.CLUSTERING.getName()).isEqualTo("clustering");
         assertThat(TaskType.CLASSIFICATION.getName()).isEqualTo("classification");
@@ -46,7 +46,7 @@ public class TaskTypeTest {
     }
 
     @Test
-    public void testFromName() {
+    void testFromName() {
         assertThat(TaskType.fromName("regression")).isEqualTo(TaskType.REGRESSION);
         assertThat(TaskType.fromName("clustering")).isEqualTo(TaskType.CLUSTERING);
         assertThat(TaskType.fromName("classification")).isEqualTo(TaskType.CLASSIFICATION);
@@ -55,13 +55,13 @@ public class TaskTypeTest {
     }
 
     @Test
-    public void testFromNameWithInvalidName() {
+    void testFromNameWithInvalidName() {
         assertThatThrownBy(() -> TaskType.fromName("invalid_task_type"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testIsValidTaskType() {
+    void testIsValidTaskType() {
         assertThat(TaskType.isValidTaskType("regression")).isTrue();
         assertThat(TaskType.isValidTaskType("clustering")).isTrue();
         assertThat(TaskType.isValidTaskType("classification")).isTrue();

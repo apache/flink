@@ -582,6 +582,47 @@ trait StreamTableEnvironment extends TableEnvironment {
       changelogMode: ChangelogMode): DataStream[Row]
 
   /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * Compared to [[toDataStream(Table)]], this method produces instances of [[Row]] and sets the
+   * [[RowKind]] flag that is contained in every record during runtime. The runtime behavior is
+   * similar to that of a [[DynamicTableSink]].
+   *
+   * This method requires an explicitly declared [[ChangelogMode]]. For example, use
+   * [[ChangelogMode.upsert()]] if the stream will not contain [[RowKind.UPDATE_BEFORE]], or
+   * [[ChangelogMode.insertOnly()]] for non-updating streams.
+   *
+   * Note that the type system of the table ecosystem is richer than the one of the DataStream API.
+   * The table runtime will make sure to properly serialize the output records to the first operator
+   * of the DataStream API. Afterwards, the [[org.apache.flink.api.common.typeinfo.Types]] semantics
+   * of the DataStream API need to be considered.
+   *
+   * If the input table contains a single rowtime column, it will be propagated into a stream
+   * record's timestamp. Watermarks will be propagated as well. However, it is also possible to
+   * write out the rowtime as a metadata column. See [[toChangelogStream(Table, Schema)]] for more
+   * information and examples on how to declare a [[Schema]].
+   *
+   * @param table
+   *   The [[Table]] to convert. It can be updating or insert-only.
+   * @param targetSchema
+   *   The [[Schema]] that decides about the final external representation in [[DataStream]]
+   *   records.
+   * @param changelogMode
+   *   The required kinds of changes in the result changelog. An exception will be thrown if the
+   *   given updating table cannot be represented in this changelog mode.
+   * @param conflictStrategy
+   *   Conflict strategy to use for conflicts when an upsert key differs from the primary key of the
+   *   sink.
+   * @return
+   *   The converted changelog stream of [[Row]].
+   */
+  def toChangelogStream(
+      table: Table,
+      targetSchema: Schema,
+      changelogMode: ChangelogMode,
+      conflictStrategy: InsertConflictStrategy): DataStream[Row]
+
+  /**
    * Returns a [[StatementSet]] that integrates with the Scala-specific [[DataStream]] API.
    *
    * It accepts pipelines defined by DML statements or [[Table]] objects. The planner can optimize

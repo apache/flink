@@ -62,8 +62,8 @@ class JarSubmissionITCase {
                 TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(
                                 blobServerExtension.getCustomExtension().getBlobServerPort())
-                        .setSubmitFunction(
-                                jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+                        .setSubmitApplicationFunction(
+                                application -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .build();
 
         final JarHandlers handlers =

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
@@ -91,32 +92,33 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
 
             // Get value state descriptors
             for (StateValueColumnConfiguration columnConfig : keyValueProjections.f1) {
-                TypeInformation valueTypeInfo = columnConfig.getValueTypeInfo();
+                TypeSerializer valueTypeSerializer = columnConfig.getValueTypeSerializer();
 
                 switch (columnConfig.getStateType()) {
                     case VALUE:
                         columnConfig.setStateDescriptor(
                                 new ValueStateDescriptor<>(
-                                        columnConfig.getStateName(), valueTypeInfo));
+                                        columnConfig.getStateName(), valueTypeSerializer));
                         break;
 
                     case LIST:
                         columnConfig.setStateDescriptor(
                                 new ListStateDescriptor<>(
-                                        columnConfig.getStateName(), valueTypeInfo));
+                                        columnConfig.getStateName(), valueTypeSerializer));
                         break;
 
                     case MAP:
-                        TypeInformation<?> mapKeyTypeInfo = columnConfig.getMapKeyTypeInfo();
-                        if (mapKeyTypeInfo == null) {
+                        TypeSerializer<?> mapKeyTypeSerializer =
+                                columnConfig.getMapKeyTypeSerializer();
+                        if (mapKeyTypeSerializer == null) {
                             throw new ConfigurationException(
-                                    "Map key type information is required for map state");
+                                    "Map key type serializer is required for map state");
                         }
                         columnConfig.setStateDescriptor(
                                 new MapStateDescriptor<>(
                                         columnConfig.getStateName(),
-                                        mapKeyTypeInfo,
-                                        valueTypeInfo));
+                                        mapKeyTypeSerializer,
+                                        valueTypeSerializer));
                         break;
 
                     default:

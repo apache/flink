@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.testjar;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -38,7 +39,8 @@ import java.util.List;
  */
 public class MultiExecuteJob {
 
-    public static PackagedProgram getProgram(int noOfJobs, boolean attached) throws FlinkException {
+    public static PackagedProgram getProgram(int noOfJobs, boolean attached, boolean batchMode)
+            throws FlinkException {
         try {
             return PackagedProgram.newBuilder()
                     .setUserClassPaths(
@@ -47,7 +49,10 @@ public class MultiExecuteJob {
                                             .toURI()
                                             .toURL()))
                     .setEntryPointClassName(MultiExecuteJob.class.getName())
-                    .setArguments(String.valueOf(noOfJobs), Boolean.toString(attached))
+                    .setArguments(
+                            String.valueOf(noOfJobs),
+                            Boolean.toString(attached),
+                            Boolean.toString(batchMode))
                     .build();
         } catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
             throw new FlinkException("Could not load the provided entrypoint class.", e);
@@ -57,10 +62,15 @@ public class MultiExecuteJob {
     public static void main(String[] args) throws Exception {
         int noOfExecutes = Integer.parseInt(args[0]);
         boolean attached = args.length > 1 && Boolean.parseBoolean(args[1]);
+        boolean batchMode = args.length > 2 && Boolean.parseBoolean(args[2]);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         for (int i = 0; i < noOfExecutes; i++) {
+            if (batchMode) {
+                env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+            }
+
             final List<Integer> input = new ArrayList<>();
             input.add(1);
             input.add(2);

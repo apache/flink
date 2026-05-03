@@ -206,6 +206,7 @@ class ResourceManagerTest {
         assertThat(taskManagerInfo.getJmxPort()).isEqualTo(jmxPort);
         assertThat(taskManagerInfo.getNumberSlots()).isEqualTo(0);
         assertThat(taskManagerInfo.getNumberAvailableSlots()).isEqualTo(0);
+        assertThat(taskManagerInfo.getAssignedTasks()).isZero();
         assertThat(taskManagerInfoWithSlots.getAllocatedSlots()).isEmpty();
     }
 
@@ -254,7 +255,8 @@ class ResourceManagerTest {
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         ResourceProfile.ZERO,
                         ResourceProfile.ZERO,
-                        taskExecutorAddress);
+                        taskExecutorAddress,
+                        1);
         final CompletableFuture<RegistrationResponse> registrationFuture =
                 resourceManagerGateway.registerTaskExecutor(
                         taskExecutorRegistration, TestingUtils.TIMEOUT);
@@ -767,7 +769,8 @@ class ResourceManagerTest {
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         ResourceProfile.fromResources(1, 1024),
                         ResourceProfile.fromResources(1, 1024).multiply(slotCount),
-                        taskExecutorGateway.getAddress());
+                        taskExecutorGateway.getAddress(),
+                        slotCount);
         RegistrationResponse registrationResult =
                 resourceManagerGateway
                         .registerTaskExecutor(taskExecutorRegistration, TestingUtils.TIMEOUT)

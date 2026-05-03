@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -67,8 +67,8 @@ class TasksBalancedRequestSlotMatchingStrategyTest {
                         pendingRequests,
                         new HashMap<>() {
                             {
-                                put(tmLocation1.getResourceID(), DefaultLoadingWeight.EMPTY);
-                                put(tmLocation2.getResourceID(), new DefaultLoadingWeight(9));
+                                put(tmLocation1.getResourceID(), DefaultTaskExecutionLoad.EMPTY);
+                                put(tmLocation2.getResourceID(), new DefaultTaskExecutionLoad(9));
                             }
                         });
         assertThat(requestSlotMatches).hasSize(2);
@@ -108,7 +108,7 @@ class TasksBalancedRequestSlotMatchingStrategyTest {
         return PendingRequest.createNormalRequest(
                 new SlotRequestId(),
                 requestProfile,
-                new DefaultLoadingWeight(loading),
+                new DefaultTaskExecutionLoad(loading),
                 Collections.emptyList());
     }
 }

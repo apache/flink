@@ -32,6 +32,7 @@
         <th [nzSortFn]="sortHeartBeatFn" [nzWidth]="'160px'">Last Heartbeat</th>
         <th [nzSortFn]="sortSlotsNumberFn" [nzWidth]="'90px'">All Slots</th>
         <th [nzSortFn]="sortFreeSlotsFn" [nzWidth]="'100px'">Free Slots</th>
+        <th [nzSortFn]="sortAssignedTasksFn" [nzWidth]="'100px'">Assigned Tasks</th>
         <th [nzSortFn]="sortCpuCoresFn" [nzWidth]="'110px'">CPU Cores</th>
         <th [nzSortFn]="sortPhysicalMemoryFn" [nzWidth]="'120px'">Physical MEM</th>
         <th [nzSortFn]="sortFreeMemoryFn" [nzWidth]="'130px'">JVM Heap Size</th>
@@ -53,6 +54,7 @@
           <td>{{ manager.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
           <td>{{ manager.slotsNumber }}</td>
           <td>{{ manager.freeSlots }}</td>
+          <td>{{ manager.assignedTasks }}</td>
           <td>{{ manager.hardware.cpuCores }}</td>
           <td [attr.title]="manager.hardware.physicalMemory + ' bytes'">
             {{ manager.hardware.physicalMemory | humanizeBytes }}

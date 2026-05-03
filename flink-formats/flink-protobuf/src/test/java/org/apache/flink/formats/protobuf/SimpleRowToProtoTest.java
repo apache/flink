@@ -24,16 +24,14 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of flink internal primitive data to proto data. */
-public class SimpleRowToProtoTest {
+class SimpleRowToProtoTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         RowData row =
                 GenericRowData.of(
                         1,
@@ -50,21 +48,21 @@ public class SimpleRowToProtoTest {
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class);
         SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
-        assertTrue(simpleTestMulti.hasA());
-        assertEquals(1, simpleTestMulti.getA());
-        assertEquals(2L, simpleTestMulti.getB());
-        assertFalse(simpleTestMulti.getC());
-        assertEquals(Float.valueOf(0.1f), Float.valueOf(simpleTestMulti.getD()));
-        assertEquals(Double.valueOf(0.01d), Double.valueOf(simpleTestMulti.getE()));
-        assertEquals("hello", simpleTestMulti.getF());
-        assertEquals(1, simpleTestMulti.getG().byteAt(0));
-        assertEquals(SimpleTestMulti.Corpus.IMAGES, simpleTestMulti.getH());
-        assertEquals(Status.FINISHED, simpleTestMulti.getI());
-        assertEquals(1, simpleTestMulti.getFAbc7D());
+        assertThat(simpleTestMulti.hasA()).isTrue();
+        assertThat(simpleTestMulti.getA()).isEqualTo(1);
+        assertThat(simpleTestMulti.getB()).isEqualTo(2L);
+        assertThat(simpleTestMulti.getC()).isFalse();
+        assertThat(simpleTestMulti.getD()).isEqualTo(0.1f);
+        assertThat(simpleTestMulti.getE()).isEqualTo(0.01d);
+        assertThat(simpleTestMulti.getF()).isEqualTo("hello");
+        assertThat(simpleTestMulti.getG().byteAt(0)).isEqualTo((byte) 1);
+        assertThat(simpleTestMulti.getH()).isEqualTo(SimpleTestMulti.Corpus.IMAGES);
+        assertThat(simpleTestMulti.getI()).isEqualTo(Status.FINISHED);
+        assertThat(simpleTestMulti.getFAbc7D()).isEqualTo(1);
     }
 
     @Test
-    public void testNull() throws Exception {
+    void testNull() throws Exception {
         RowData row =
                 GenericRowData.of(
                         null,
@@ -81,14 +79,14 @@ public class SimpleRowToProtoTest {
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class);
         SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
-        assertFalse(simpleTestMulti.hasA());
-        assertFalse(simpleTestMulti.hasG());
-        assertFalse(simpleTestMulti.hasH());
-        assertFalse(simpleTestMulti.hasI());
+        assertThat(simpleTestMulti.hasA()).isFalse();
+        assertThat(simpleTestMulti.hasG()).isFalse();
+        assertThat(simpleTestMulti.hasH()).isFalse();
+        assertThat(simpleTestMulti.hasI()).isFalse();
     }
 
     @Test
-    public void testEnumAsInt() throws Exception {
+    void testEnumAsInt() throws Exception {
         RowData row =
                 GenericRowData.of(
                         null, null, null, null, null, null, null, 2, // CORPUS: IMAGE
@@ -97,7 +95,7 @@ public class SimpleRowToProtoTest {
 
         byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTestMulti.class, true);
         SimpleTestMulti simpleTestMulti = SimpleTestMulti.parseFrom(bytes);
-        assertEquals(SimpleTestMulti.Corpus.IMAGES, simpleTestMulti.getH());
-        assertEquals(Status.STARTED, simpleTestMulti.getI());
+        assertThat(simpleTestMulti.getH()).isEqualTo(SimpleTestMulti.Corpus.IMAGES);
+        assertThat(simpleTestMulti.getI()).isEqualTo(Status.STARTED);
     }
 }

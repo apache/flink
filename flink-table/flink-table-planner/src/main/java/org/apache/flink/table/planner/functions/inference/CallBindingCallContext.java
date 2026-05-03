@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StaticArgument;
@@ -49,7 +50,9 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import javax.annotation.Nullable;
 
 import java.util.AbstractList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -114,9 +117,10 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     @Override
     public boolean isArgumentLiteral(int pos) {
         final SqlNode sqlNode = adaptedArguments.get(pos);
-        // Semantically a descriptor can be considered a literal,
-        // however, Calcite represents them as a call
-        return SqlUtil.isLiteral(sqlNode, false) || sqlNode.getKind() == SqlKind.DESCRIPTOR;
+        // Calcite represents DESCRIPTOR and MAP constructors as calls, not literals
+        return SqlUtil.isLiteral(sqlNode, false)
+                || sqlNode.getKind() == SqlKind.DESCRIPTOR
+                || isLiteralMap(sqlNode);
     }
 
     @Override
@@ -136,6 +140,8 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         }
         try {
             final SqlNode sqlNode = adaptedArguments.get(pos);
+            // Calcite represents DESCRIPTOR and MAP constructors as SqlCall, not SqlLiteral.
+            // Handle them explicitly by extracting values from the call operands.
             if (sqlNode.getKind() == SqlKind.DESCRIPTOR && clazz == ColumnList.class) {
                 final List<SqlNode> columns = ((SqlCall) sqlNode).getOperandList();
                 if (columns.stream()
@@ -146,6 +152,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     return Optional.empty();
                 }
                 return Optional.of((T) convertColumnList(columns));
+            }
+            if (sqlNode.getKind() == SqlKind.MAP_VALUE_CONSTRUCTOR && clazz == Map.class) {
+                return Optional.ofNullable((T) convertMap((SqlCall) sqlNode));
             }
             final SqlLiteral literal = SqlLiteral.unchain(sqlNode);
             return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
@@ -204,23 +213,20 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
         private final DataType dataType;
         private final int[] partitionByColumns;
+        private final int[] orderByColumns;
+        private final SortDirection[] orderByDirections;
 
         public static CallBindingTableSemantics create(
                 DataType tableDataType, StaticArgument staticArg, SqlNode sqlNode) {
-            checkNoOrderBy(sqlNode);
+            final SqlNodeList orderByList = getSemanticsComponent(sqlNode, 2);
+            final RexTableArgCall.OrderByInfo orderByInfo =
+                    RexTableArgCall.extractOrderByInfo(
+                            DataType.getFieldNames(tableDataType), orderByList);
             return new CallBindingTableSemantics(
                     createDataType(tableDataType, staticArg),
-                    createPartitionByColumns(tableDataType, sqlNode));
-        }
-
-        private static void checkNoOrderBy(SqlNode sqlNode) {
-            final SqlNodeList orderByList = getSemanticsComponent(sqlNode, 2);
-            if (orderByList == null) {
-                return;
-            }
-            if (!orderByList.isEmpty()) {
-                throw new ValidationException("ORDER BY clause is currently not supported.");
-            }
+                    createPartitionByColumns(tableDataType, sqlNode),
+                    orderByInfo.columns,
+                    RexTableArgCall.toSortDirections(orderByInfo.order));
         }
 
         private static @Nullable SqlNodeList getSemanticsComponent(SqlNode sqlNode, int pos) {
@@ -266,9 +272,15 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     .toArray();
         }
 
-        private CallBindingTableSemantics(DataType dataType, int[] partitionByColumns) {
+        private CallBindingTableSemantics(
+                DataType dataType,
+                int[] partitionByColumns,
+                int[] orderByColumns,
+                SortDirection[] orderByDirections) {
             this.dataType = dataType;
             this.partitionByColumns = partitionByColumns;
+            this.orderByColumns = orderByColumns;
+            this.orderByDirections = orderByDirections;
         }
 
         @Override
@@ -283,7 +295,12 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
         @Override
         public int[] orderByColumns() {
-            return new int[0];
+            return orderByColumns;
+        }
+
+        @Override
+        public SortDirection[] orderByDirections() {
+            return orderByDirections;
         }
 
         @Override
@@ -353,5 +370,63 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                         .map(operand -> ((SqlIdentifier) operand).getSimple())
                         .collect(Collectors.toList());
         return ColumnList.of(names);
+    }
+
+    private static @Nullable Map<String, String> convertMap(SqlCall mapCall) {
+        final List<SqlNode> operands = mapCall.getOperandList();
+        final Map<String, String> map = new LinkedHashMap<>();
+        try {
+            for (int i = 0; i < operands.size(); i += 2) {
+                final String key =
+                        SqlLiteral.unchain(unwrapCast(operands.get(i))).getValueAs(String.class);
+                final String value =
+                        SqlLiteral.unchain(unwrapCast(operands.get(i + 1)))
+                                .getValueAs(String.class);
+                map.put(key, value);
+            }
+        } catch (Exception e) {
+            // Not all children are literals
+            return null;
+        }
+        return map;
+    }
+
+    /** Unwraps implicit CHAR-type CASTs added by Calcite for length normalization. */
+    private static SqlNode unwrapCast(final SqlNode node) {
+        if (node.getKind() == SqlKind.CAST && node instanceof SqlCall) {
+            final SqlNode inner = ((SqlCall) node).operand(0);
+            if (inner instanceof SqlLiteral
+                    && SqlTypeName.CHAR_TYPES.contains(((SqlLiteral) inner).getTypeName())) {
+                return inner;
+            }
+        }
+        return node;
+    }
+
+    /** A MAP constructor is a string literal if all its key-value children are string literals. */
+    private static boolean isLiteralMap(SqlNode sqlNode) {
+        if (sqlNode.getKind() != SqlKind.MAP_VALUE_CONSTRUCTOR) {
+            return false;
+        }
+        return ((SqlCall) sqlNode)
+                .getOperandList().stream().allMatch(CallBindingCallContext::isStringLiteral);
+    }
+
+    /**
+     * Checks if a node is a string literal. Also handles implicit CASTs because Calcite
+     * automatically wraps string literals in MAP constructors when values have different lengths
+     * (e.g. MAP['INSERT', 'I', 'UPDATE_AFTER', 'U'] coerces 'INSERT' to CAST('INSERT' AS
+     * VARCHAR(12))).
+     */
+    private static boolean isStringLiteral(final SqlNode node) {
+        if (node instanceof SqlLiteral) {
+            return SqlTypeName.CHAR_TYPES.contains(((SqlLiteral) node).getTypeName());
+        }
+        if (node.getKind() == SqlKind.CAST && node instanceof SqlCall) {
+            final SqlNode inner = ((SqlCall) node).operand(0);
+            return inner instanceof SqlLiteral
+                    && SqlTypeName.CHAR_TYPES.contains(((SqlLiteral) inner).getTypeName());
+        }
+        return false;
     }
 }

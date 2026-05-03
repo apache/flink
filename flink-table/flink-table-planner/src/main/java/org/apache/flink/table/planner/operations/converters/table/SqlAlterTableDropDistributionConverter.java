@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableDropDistribution;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -37,7 +37,7 @@ public class SqlAlterTableDropDistributionConverter
             SqlAlterTableDropDistribution sqlAlterTable,
             ResolvedCatalogTable resolvedCatalogTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
         if (resolvedCatalogTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(

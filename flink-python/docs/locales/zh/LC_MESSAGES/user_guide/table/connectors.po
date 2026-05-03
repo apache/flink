@@ -1,0 +1,153 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/table/connectors.rst:21
+msgid "Connectors"
+msgstr "连接器"
+
+#: ../../user_guide/table/connectors.rst:23
+msgid ""
+"This page describes how to use connectors in PyFlink and highlights the "
+"details to be aware of when using Flink connectors in Python programs."
+msgstr ""
+"本篇描述了如何在 PyFlink 中使用连接器，并着重介绍了在 Python 程序中"
+"使用 Flink 连接器时需要注意的细节。"
+
+#: ../../user_guide/table/connectors.rst:27
+msgid ""
+"For general connector information and common configuration, please refer "
+"to the corresponding :flinkdoc:`Java/Scala documentation "
+"<docs/connectors/table/overview/>`."
+msgstr ""
+"想要了解常见的连接器信息和通用配置，请查阅相关的 "
+":flinkdoc:`Java/Scala 文档 "
+"<docs/connectors/table/overview/>` 。"
+
+#: ../../user_guide/table/connectors.rst:31
+msgid "Download connector and format jars"
+msgstr "下载连接器（connector）和格式（format）jar 包"
+
+#: ../../user_guide/table/connectors.rst:33
+msgid ""
+"Since Flink is a Java/Scala-based project, for both connectors and "
+"formats, implementations are available as jars that need to be specified "
+"as job dependencies (see :doc:`../dependency_management`)."
+msgstr ""
+"由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）"
+"的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的"
+"依赖（参见 :doc:`../dependency_management`）。"
+
+#: ../../user_guide/table/connectors.rst:41
+msgid "How to use connectors"
+msgstr "如何使用连接器"
+
+#: ../../user_guide/table/connectors.rst:43
+msgid ""
+"In PyFlink's Table API, DDL is the recommended way to define sources and "
+"sinks, executed via the ``execute_sql()`` method on the "
+"``TableEnvironment``. This makes the table available for use by the "
+"application."
+msgstr ""
+"在 PyFlink Table API 中，DDL 是定义 source 和 sink 比较推荐的方式，"
+"这可以通过 ``TableEnvironment`` 中的 ``execute_sql()`` 方法来完成，"
+"然后就可以在作业中使用这张表了。"
+
+#: ../../user_guide/table/connectors.rst:80
+msgid ""
+"Below is a complete example of how to use a Kafka source/sink and the "
+"JSON format in PyFlink."
+msgstr ""
+"下面是如何在 PyFlink 中使用 Kafka source/sink 和 JSON 格式的完整示例。"
+
+#: ../../user_guide/table/connectors.rst:128
+msgid "Predefined Sources and Sinks"
+msgstr "内置的 Sources 和 Sinks"
+
+#: ../../user_guide/table/connectors.rst:130
+msgid ""
+"Some data sources and sinks are built into Flink and are available out-"
+"of-the-box. These predefined data sources include reading from Pandas "
+"DataFrame, or ingesting data from collections. The predefined data sinks "
+"support writing to Pandas DataFrame."
+msgstr ""
+"有些 source 和 sink 被内置在 Flink 中，可以直接使用。"
+"这些内置的 source 包括将 Pandas DataFrame 作为数据源，"
+"或者将一个元素集合作为数据源。内置的 sink 包括将数据转换为 Pandas DataFrame。"
+
+#: ../../user_guide/table/connectors.rst:135
+msgid "from/to Pandas"
+msgstr "和 Pandas 之间互转"
+
+#: ../../user_guide/table/connectors.rst:137
+msgid "PyFlink Tables support conversion to and from Pandas DataFrame."
+msgstr "PyFlink 表支持与 Pandas DataFrame 之间互相转换。"
+
+#: ../../user_guide/table/connectors.rst:154
+msgid "from_elements()"
+msgstr "from_elements()"
+
+#: ../../user_guide/table/connectors.rst:156
+msgid ""
+"``from_elements()`` is used to create a table from a collection of "
+"elements. The element types must be acceptable atomic types or acceptable"
+" composite types."
+msgstr ""
+"``from_elements()`` 用于从一个元素集合中创建一张表。"
+"元素类型必须是可支持的原子类型或者复杂类型。"
+
+#: ../../user_guide/table/connectors.rst:173
+msgid "The above query returns a Table like:"
+msgstr "以上查询返回的表如下:"
+
+#: ../../user_guide/table/connectors.rst:186
+msgid "User-defined sources & sinks"
+msgstr "用户自定义的 source 和 sink"
+
+#: ../../user_guide/table/connectors.rst:188
+msgid ""
+"In some cases, you may want to define custom sources and sinks. "
+"Currently, sources and sinks must be implemented in Java/Scala, but you "
+"can define a ``TableFactory`` to support their use via DDL. More details "
+"can be found in the :flinkdoc:`Java/Scala documentation "
+"<docs/dev/table/sourcessinks/>`."
+msgstr ""
+"在某些情况下，你可能想要自定义 source 或 sink。目前，source 和 sink "
+"必须使用 Java/Scala 实现，你可以定义一个 ``TableFactory`` ，"
+"然后通过 DDL 在 PyFlink 作业中来使用它们。更多详情，可查阅 "
+":flinkdoc:`Java/Scala 文档 "
+"<docs/dev/table/sourcessinks/>` 。"

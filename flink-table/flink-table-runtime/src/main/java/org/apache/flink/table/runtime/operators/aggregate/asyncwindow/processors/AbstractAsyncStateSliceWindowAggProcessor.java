@@ -41,7 +41,7 @@ import java.util.List;
 
 import static org.apache.flink.table.runtime.util.AsyncStateUtils.REUSABLE_TRUE_STATE_FUTURE;
 import static org.apache.flink.table.runtime.util.AsyncStateUtils.REUSABLE_VOID_STATE_FUTURE;
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermarkWithOffset;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** A base implementation of {@link AsyncStateSlicingWindowProcessor} for window aggregate. */
@@ -168,8 +168,12 @@ public abstract class AbstractAsyncStateSliceWindowAggProcessor
                 // they will register small timers and normal watermark will flush the buffer
                 advanceFuture = windowBuffer.advanceProgress(currentKey, currentProgress);
                 nextTriggerProgress =
-                        getNextTriggerWatermark(
-                                currentProgress, windowInterval, shiftTimeZone, useDayLightSaving);
+                        getNextTriggerWatermarkWithOffset(
+                                currentProgress,
+                                windowInterval,
+                                sliceAssigner.getWindowOffset(),
+                                shiftTimeZone,
+                                useDayLightSaving);
             }
         }
         return advanceFuture;

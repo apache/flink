@@ -622,7 +622,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 multisetData,
                                 "Test".getBytes(StandardCharsets.UTF_8),
                                 "Test".getBytes(StandardCharsets.UTF_8),
-                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                                Row.of(Collections.singletonList(Row.of(1, 2))),
+                                "{\"key\":\"value\"}")
                         .andDataTypes(
                                 STRING().notNull(),
                                 BOOLEAN().notNull(),
@@ -637,7 +638,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 MAP(STRING(), INT()).notNull(),
                                 BINARY(4).notNull(),
                                 VARBINARY(4).notNull(),
-                                ROW(ARRAY(ROW(INT(), INT()))).notNull())
+                                ROW(ARRAY(ROW(INT(), INT()))).notNull(),
+                                STRING().notNull())
                         .testResult(
                                 jsonString($("f0")), "JSON_STRING(f0)", "\"V\"", STRING().notNull())
                         .testResult(
@@ -691,6 +693,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f13")),
                                 "JSON_STRING(f13)",
                                 "{\"f0\":[{\"f0\":1,\"f1\":2}]}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString(call("PARSE_JSON", $("f14"))),
+                                "JSON_STRING(PARSE_JSON('{\"key\":\"value\"}'))",
+                                "{\"key\":\"value\"}",
                                 STRING().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
                         .onFieldsWithData(Row.of("val1", "val2", "val3", "val4", "val5"))

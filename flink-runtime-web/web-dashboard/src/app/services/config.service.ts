@@ -33,7 +33,8 @@ export type ColorKey =
   | 'COMPLETED'
   | 'RESTARTING'
   | 'PENDING'
-  | 'INITIALIZING';
+  | 'INITIALIZING'
+  | 'IGNORED';
 
 @Injectable({
   providedIn: 'root'
@@ -56,7 +57,8 @@ export class ConfigService {
     COMPLETED: '#1890ff',
     RESTARTING: '#13c2c2',
     INITIALIZING: '#738df8',
-    PENDING: '#95a5a6'
+    PENDING: '#95a5a6',
+    IGNORED: '#faad14'
   };
 
   LONG_MIN_VALUE = -9223372036854776000;

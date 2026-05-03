@@ -305,7 +305,7 @@ which allows you to fine-tune the memory settings, garbage collection behavior, 
 
 This is a new feature in Apache Flink 1.19 that enhances the flexibility and user experience when
 managing SQL state time-to-live (TTL) settings. Users can now specify custom TTL values for regular
-joins and group aggregations directly within their queries by [utilizing the STATE_TTL hint](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/sql/queries/hints/#state-ttl-hints).
+joins and group aggregations directly within their queries by [utilizing the STATE_TTL hint](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/sql/reference/queries/hints/#state-ttl-hints).
 This improvement means that you no longer need to alter your compiled plan to set specific TTLs for
 these operators. With the introduction of `STATE_TTL` hints, you can streamline your workflow and
 dynamically adjust the TTL based on your operational requirements.
@@ -336,7 +336,7 @@ nodes such as a CDC connector.
 
 ##### [FLINK-24024](https://issues.apache.org/jira/browse/FLINK-24024)
 
-Users can use SESSION Window TVF in streaming mode. More details can be found at [session window-tvf](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/dev/table/sql/queries/window-tvf/#session).
+Users can use SESSION Window TVF in streaming mode. More details can be found at [session window-tvf](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/sql/reference/queries/window-tvf/#session).
 
 ### Connectors
 

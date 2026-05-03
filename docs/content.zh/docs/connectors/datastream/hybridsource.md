@@ -25,7 +25,7 @@ under the License.
 
 # Hybrid Source
 
-`HybridSource` is a source that contains a list of concrete [sources]({{< ref "docs/dev/datastream/sources" >}}).
+`HybridSource` is a source that contains a list of concrete [sources]({{< ref "docs/internals/sources" >}}).
 It solves the problem of sequentially reading input from heterogeneous sources to produce a single input stream.
 
 For example, a bootstrap use case may need to read several days worth of bounded input from S3 before continuing with the latest unbounded input from Kafka.

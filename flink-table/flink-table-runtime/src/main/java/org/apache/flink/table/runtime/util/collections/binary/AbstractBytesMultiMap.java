@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.runtime.util.collections.binary;
 
+import org.apache.flink.core.memory.AbstractPagedInputView;
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.RandomAccessInputView;
+import org.apache.flink.core.memory.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;

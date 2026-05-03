@@ -76,18 +76,18 @@ class OpenApiSpecGeneratorTest {
                                 "This REST API should also not appear in the generated documentation.")),
                 RuntimeRestAPIVersion.V0,
                 file);
-        final String actual = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+        final String actual = Files.readString(file);
 
-        assertThat(actual).contains("/test/empty1");
-        assertThat(actual).contains("This is a testing REST API.");
-        assertThat(actual).contains("/test/empty2");
-        assertThat(actual).contains("This is another testing REST API.");
-        assertThat(actual).doesNotContain("/test/exclude1");
         assertThat(actual)
-                .doesNotContain("This REST API should not appear in the generated documentation.");
-        assertThat(actual).doesNotContain("/test/exclude2");
-        assertThat(actual)
+                .contains(
+                        "/test/empty1",
+                        "This is a testing REST API.",
+                        "/test/empty2",
+                        "This is another testing REST API.")
                 .doesNotContain(
+                        "/test/exclude1",
+                        "This REST API should not appear in the generated documentation.",
+                        "/test/exclude2",
                         "This REST API should also not appear in the generated documentation.");
     }
 

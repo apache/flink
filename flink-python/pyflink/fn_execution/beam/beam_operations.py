@@ -35,6 +35,7 @@ from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOpera
 
 import pyflink.fn_execution.datastream.operations as datastream_operations
 from pyflink.fn_execution.datastream.process import operations
+import pyflink.fn_execution.table.async_function.operations as async_table_operations
 import pyflink.fn_execution.table.operations as table_operations
 
 # ----------------- UDF --------------------
@@ -47,6 +48,15 @@ def create_scalar_function(factory, transform_id, transform_proto, parameter, co
         factory, transform_proto, consumers, parameter,
         beam_operations.StatelessFunctionOperation,
         table_operations.ScalarFunctionOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    async_table_operations.ASYNC_SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+def create_async_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatelessFunctionOperation,
+        async_table_operations.AsyncScalarFunctionOperation)
 
 
 # ----------------- UDTF --------------------

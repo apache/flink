@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import javax.annotation.Nullable;
@@ -107,6 +108,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
  * | MAP / MULTISET                 | {@link MapData}                         |
  * +--------------------------------+-----------------------------------------+
  * | RAW                            | {@link RawValueData}                    |
+ * +--------------------------------+-----------------------------------------+
+ * | BITMAP                         | {@link Bitmap}                          |
  * +--------------------------------+-----------------------------------------+
  * </pre>
  *
@@ -205,6 +208,12 @@ public interface RowData {
     /** Returns the variant value at the given position. */
     Variant getVariant(int pos);
 
+    /** Returns the bitmap value at the given position. */
+    default Bitmap getBitmap(int pos) {
+        throw new UnsupportedOperationException(
+                "This RowData implementation does not support Bitmap type.");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Access Utilities
     // ------------------------------------------------------------------------------------------
@@ -286,6 +295,9 @@ public interface RowData {
                 break;
             case VARIANT:
                 fieldGetter = row -> row.getVariant(fieldPos);
+                break;
+            case BITMAP:
+                fieldGetter = row -> row.getBitmap(fieldPos);
                 break;
             case NULL:
             case SYMBOL:

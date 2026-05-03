@@ -48,7 +48,14 @@ public enum JoinStrategy {
     NEST_LOOP("NEST_LOOP"),
 
     /** Instructs the optimizer to use lookup join strategy. Only accept key-value hint options. */
-    LOOKUP("LOOKUP");
+    LOOKUP("LOOKUP"),
+
+    /**
+     * Instructs the optimizer to use multi-way join strategy for streaming queries. This hint
+     * allows specifying multiple tables to be joined together in a single {@link
+     * org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator}.
+     */
+    MULTI_JOIN("MULTI_JOIN");
 
     private final String joinHintName;
 
@@ -83,6 +90,8 @@ public enum JoinStrategy {
                 return options.size() > 0;
             case LOOKUP:
                 return null == options || options.size() == 0;
+            case MULTI_JOIN:
+                return options.size() > 0;
         }
         return false;
     }

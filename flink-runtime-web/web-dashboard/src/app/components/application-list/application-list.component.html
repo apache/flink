@@ -1,0 +1,59 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-card [nzBordered]="false" [nzTitle]="title" [nzLoading]="isLoading">
+  <nz-table
+    #table
+    class="no-border"
+    [nzSize]="'small'"
+    [nzData]="listOfApplication"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+  >
+    <thead>
+      <tr>
+        <th [nzSortFn]="sortApplicationNameFn" nzWidth="40%">Application Name</th>
+        <th [nzSortFn]="sortStartTimeFn" [nzSortOrder]="completed ? null : 'descend'">
+          Start Time
+        </th>
+        <th [nzSortFn]="sortDurationFn">Duration</th>
+        <th [nzSortFn]="sortEndTimeFn" [nzSortOrder]="completed ? 'descend' : null">End Time</th>
+        <th>Jobs</th>
+        <th [nzSortFn]="sortStateFn">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        *ngFor="let application of table.data; trackBy: trackApplicationBy"
+        (click)="navigateToApplication(application)"
+        class="clickable"
+      >
+        <td>{{ application.name }}</td>
+        <td>{{ application['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+        <td>{{ application.duration | humanizeDuration }}</td>
+        <td>{{ application['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+        <td>
+          <flink-jobs-badge [jobs]="application.jobs"></flink-jobs-badge>
+        </td>
+        <td>
+          <flink-application-badge [status]="application.status"></flink-application-badge>
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>

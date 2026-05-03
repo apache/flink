@@ -253,7 +253,8 @@ class ResolvedSchemaAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkT
     @classmethod
     def excluded_methods(cls):
         # getIndexes are not needed in Python API as they are used internally
-        return {'getIndexes'}
+        # TODO FLINK-39319 add immutable column constraint in Python API
+        return {'getIndexes', 'getImmutableColumns', 'getImmutableColumnIndexes'}
 
 
 if __name__ == '__main__':

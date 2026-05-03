@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.operators.lifecycle;
 
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.WatermarkReceivedEvent;
@@ -31,16 +32,17 @@ import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -96,32 +98,31 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  *   <li>taking a savepoint on a partially completed graph (a separate IT case)
  * </ul>
  */
-@RunWith(Parameterized.class)
-public class StopWithSavepointITCase extends AbstractTestBaseJUnit4 {
+@ExtendWith(ParameterizedTestExtension.class)
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
+class StopWithSavepointITCase extends AbstractTestBase {
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.MINUTES);
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Parameter(0)
-    public boolean withDrain;
+    @Parameter private boolean withDrain;
 
     @Parameter(1)
-    public TestingGraphBuilder graphBuilder;
+    private TestingGraphBuilder graphBuilder;
 
-    @Test
-    public void test() throws Exception {
+    @TestTemplate
+    void test(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         TestJobWithDescription testJob =
                 graphBuilder.build(
                         sharedObjects,
                         cfg -> {},
                         env ->
                                 CheckpointStorageUtils.configureFileSystemCheckpointStorage(
-                                        env, TEMPORARY_FOLDER.newFolder().toURI()));
+                                        env, temporaryFolder.toURI().toString()));
 
-        TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
+        TestJobExecutor.execute(testJob, miniCluster)
                 .waitForEvent(WatermarkReceivedEvent.class)
-                .stopWithSavepoint(temporaryFolder, withDrain);
+                .stopWithSavepoint(temporaryFolder.toURI().toString(), withDrain);
 
         SameCheckpointValidator sameCheckpointValidator =
                 // note: using highest checkpoint will not work with partially finishing tasks
@@ -142,8 +143,8 @@ public class StopWithSavepointITCase extends AbstractTestBaseJUnit4 {
         checkDataFlow(testJob, withDrain);
     }
 
-    @Parameterized.Parameters(name = "withDrain: {0}, {1}")
-    public static Object[] parameters() {
+    @Parameters(name = "withDrain: {0}, {1}")
+    private static Object[] parameters() {
         return new Object[][] {
             new Object[] {true, SIMPLE_GRAPH_BUILDER}, new Object[] {false, SIMPLE_GRAPH_BUILDER},
             new Object[] {true, COMPLEX_GRAPH_BUILDER}, new Object[] {false, COMPLEX_GRAPH_BUILDER},

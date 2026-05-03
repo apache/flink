@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
@@ -27,7 +28,6 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +47,7 @@ public class SqlAlterTableAddPartitionConverter implements SqlNodeConverter<SqlA
         for (int i = 0; i < sqlAddPartitions.getPartSpecs().size(); i++) {
             specs.add(new CatalogPartitionSpec(sqlAddPartitions.getPartitionKVs(i)));
             Map<String, String> props =
-                    OperationConverterUtils.getProperties(sqlAddPartitions.getPartProps().get(i));
+                    SqlParseUtils.extractMap(sqlAddPartitions.getPartProps().get(i));
             partitions.add(new CatalogPartitionImpl(props, null));
         }
         return new AddPartitionsOperation(

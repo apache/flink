@@ -1,0 +1,142 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../getting_started/quickstart.rst:20
+msgid "Quickstart"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:22
+msgid ""
+"This quickstart guide will help you get up and running with PyFlink in "
+"just a few minutes. You'll learn how to:"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:24
+msgid "Set up a PyFlink environment"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:25
+msgid "Create a simple streaming job"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:26
+msgid "Run your first PyFlink application"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:29
+msgid "Prerequisites"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:31
+msgid "Before you begin, make sure you have:"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:33
+msgid "Python 3.9, 3.10, 3.11, or 3.12 installed"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:34
+msgid "PyFlink installed (see :doc:`installation`)"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:37
+msgid "Your First PyFlink Application"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:39
+msgid ""
+"Let's create a simple streaming application that reads from a socket and "
+"counts words in real-time."
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:41
+msgid "Create a file named ``word_count.py`` with the following content:"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:93
+msgid "Running the Application"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:95
+msgid "**Start a socket server** (in a separate terminal):"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:101
+msgid "**Run your PyFlink application**:"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:107
+msgid "**Send some text** to the socket (in the nc terminal):"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:115
+msgid ""
+"You should see the word count results printed in your PyFlink application"
+" output."
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:118
+msgid "What's Next?"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:120
+msgid "Now that you've run your first PyFlink application, you can explore:"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:122
+msgid ":doc:`../user_guide/datastream_tutorial` - Learn about the DataStream API"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:123
+msgid ":doc:`../user_guide/table_api_tutorial` - Learn about the Table API & SQL"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:124
+msgid ":doc:`../examples/index` - Browse complete examples"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:125
+msgid ":doc:`../cookbook/index` - Find practical recipes for common tasks"
+msgstr ""
+
+#: ../../getting_started/quickstart.rst:127
+msgid ""
+"For more complex examples and tutorials, check out the "
+":doc:`../examples/index` section."
+msgstr ""
+

@@ -28,7 +28,7 @@ This enables users to implement their own flink lineage reporter to send lineage
 
 The job status changed listeners are triggered every time status change happened for the application. The data lineage info is included in the JobCreatedEvent.
 
-### Implement a plugin for your custom enricher
+### Implement a plugin for Job status changed listener
 
 To implement a custom JobStatusChangedListener plugin, you need to:
 
@@ -79,3 +79,5 @@ Flink components loads JobStatusChangedListener plugins at startup. To make sure
 ```
     execution.job-status-changed-listeners = org.apache.flink.test.execution.TestingJobStatusChangedListenerFactory
 ```
+
+{{< top >}}

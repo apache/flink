@@ -17,30 +17,24 @@
  */
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.sql.parser.dql.SqlRichExplain
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.{appendPartitionAndNullsProjects, notSupported}
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.schema.{CatalogSourceTable, FlinkPreparingTableBase, LegacyCatalogSourceTable}
-import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
-import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlTableRef, SqlUtil}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlLiteral, SqlNode, SqlNodeList, SqlTableRef, SqlUtil}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
 import org.apache.calcite.sql.validate.{SqlValidatorException, SqlValidatorTable, SqlValidatorUtil}
 import org.apache.calcite.util.Static.RESOURCE
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -153,11 +147,7 @@ object PreValidateReWriter {
       val value = sqlProperty.getValue.asInstanceOf[SqlLiteral]
       assignedFields.put(
         targetField.getIndex,
-        rewriterUtils.maybeCast(
-          value,
-          value.createSqlType(typeFactory),
-          targetField.getType,
-          typeFactory))
+        validator.maybeCast(value, value.createSqlType(typeFactory), targetField.getType))
     }
 
     // validate partial insert columns.
@@ -205,11 +195,11 @@ object PreValidateReWriter {
             validateField(idx => !assignedFields.contains(idx), id, targetField)
             assignedFields.put(
               targetField.getIndex,
-              rewriterUtils.maybeCast(
+              validator.maybeCast(
                 SqlLiteral.createNull(SqlParserPos.ZERO),
                 typeFactory.createUnknownType(),
-                targetField.getType,
-                typeFactory)
+                targetField.getType
+              )
             )
           } else {
             // handle reorder

@@ -27,17 +27,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-public class SqlShowToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
+class SqlShowToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @BeforeEach
-    public void before() throws TableAlreadyExistException, DatabaseNotExistException {
+    void before() throws TableAlreadyExistException, DatabaseNotExistException {
         // Do nothing
         // No need to create schema, tables and etc. since the test executes for unset catalog and
         // database
     }
 
     @AfterEach
-    public void after() throws TableNotExistException {
+    void after() throws TableNotExistException {
         // Do nothing
     }
 

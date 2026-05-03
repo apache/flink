@@ -26,6 +26,11 @@ import {
   CheckpointConfig,
   CheckpointDetail,
   CheckpointSubTask,
+  RescalesOverview,
+  RescalesSummary,
+  RescalesHistory,
+  JobRescaleDetails,
+  JobRescaleConfigInfo,
   JobAccumulators,
   JobBackpressure,
   JobConfig,
@@ -176,6 +181,28 @@ export class JobService {
     return this.httpClient.get<CheckpointSubTask>(
       `${this.configService.BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
+  }
+
+  public loadRescalesOverview(jobId: string): Observable<RescalesOverview> {
+    return this.httpClient.get<RescalesOverview>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/overview`);
+  }
+
+  public loadRescalesSummary(jobId: string): Observable<RescalesSummary> {
+    return this.httpClient.get<RescalesSummary>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/summary`);
+  }
+
+  public loadRescalesHistory(jobId: string): Observable<RescalesHistory> {
+    return this.httpClient.get<RescalesHistory>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/history`);
+  }
+
+  public loadRescaleDetail(jobId: string, rescaleUuid: string): Observable<JobRescaleDetails> {
+    return this.httpClient.get<JobRescaleDetails>(
+      `${this.configService.BASE_URL}/jobs/${jobId}/rescales/details/${rescaleUuid}`
+    );
+  }
+
+  public loadRescalesConfig(jobId: string): Observable<JobRescaleConfigInfo> {
+    return this.httpClient.get<JobRescaleConfigInfo>(`${this.configService.BASE_URL}/jobs/${jobId}/rescales/config`);
   }
 
   public loadJobResourceRequirements(jobId: string): Observable<JobResourceRequirements> {

@@ -74,5 +74,6 @@ for the one that is not currently active
   {{ .Language.LanguageName }}
 </a>
 {{ end }}{{ end }}{{ end }}
-<script src="{{.Site.BaseURL}}/js/track-search-terms.js"></script>
+{{- $basePath := (urls.Parse .Site.BaseURL).Path -}}
+<script src="{{ $basePath }}/js/track-search-terms.js"></script>
 

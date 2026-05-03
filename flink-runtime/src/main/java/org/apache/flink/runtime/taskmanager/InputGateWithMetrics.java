@@ -121,6 +121,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+        return inputGate.getBufferFilteringCompleteFuture();
+    }
+
+    @Override
     public void requestPartitions() throws IOException {
         inputGate.requestPartitions();
     }
@@ -158,6 +163,16 @@ public class InputGateWithMetrics extends IndexedInputGate {
     @Override
     public void finishReadRecoveredState() throws IOException {
         inputGate.finishReadRecoveredState();
+    }
+
+    @Override
+    public void setCheckpointingDuringRecoveryEnabled(boolean enabled) {
+        inputGate.setCheckpointingDuringRecoveryEnabled(enabled);
+    }
+
+    @Override
+    public boolean isCheckpointingDuringRecoveryEnabled() {
+        return inputGate.isCheckpointingDuringRecoveryEnabled();
     }
 
     private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {

@@ -31,7 +31,7 @@ performance.
 
 Depending on the requirements of a table program, it might be necessary to adjust
 certain parameters for optimization. For example, unbounded streaming programs may need to ensure
-that the required state size is capped (see [streaming concepts]({{< ref "docs/dev/table/concepts/overview" >}})).
+that the required state size is capped (see [streaming concepts]({{< ref "docs/concepts/sql-table-concepts/overview" >}})).
 
 ### Overview
 

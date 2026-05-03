@@ -79,10 +79,10 @@ public class KubernetesTestBase {
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
         flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, flinkConfDir.toString());
         flinkConfig.set(
-                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY,
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DELAY,
                 Duration.ofMillis(10));
         flinkConfig.set(
-                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY,
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DELAY,
                 Duration.ofMillis(10));
         flinkConfig.set(KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES, 2);
     }

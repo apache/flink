@@ -37,6 +37,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.BitmapTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
@@ -50,6 +51,7 @@ import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.LambdaExecutable;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -1975,6 +1977,11 @@ public class TypeExtractor {
         // check for Variant
         if (Variant.class.isAssignableFrom(clazz)) {
             return (TypeInformation<OUT>) VariantTypeInfo.INSTANCE;
+        }
+
+        // check for Bitmap
+        if (Bitmap.class.isAssignableFrom(clazz)) {
+            return (TypeInformation<OUT>) BitmapTypeInfo.INSTANCE;
         }
 
         // check for parameterized Collections, requirement:

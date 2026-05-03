@@ -1,7 +1,7 @@
 ---
-title: Table API & SQL
+title: Table API
 bookCollapseSection: true
-weight: 3
+weight: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

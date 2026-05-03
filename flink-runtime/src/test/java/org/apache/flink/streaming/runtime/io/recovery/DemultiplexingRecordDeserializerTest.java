@@ -95,7 +95,7 @@ class DemultiplexingRecordDeserializerTest {
                         unused ->
                                 new SpillingAdaptiveSpanningRecordDeserializer<>(
                                         ioManager.getSpillingDirectoriesPaths()),
-                        unused -> RecordFilter.all());
+                        unused -> RecordFilter.acceptAll());
 
         assertThat(deserializer.getVirtualChannelSelectors())
                 .containsOnly(
@@ -136,7 +136,9 @@ class DemultiplexingRecordDeserializerTest {
                         unused ->
                                 new SpillingAdaptiveSpanningRecordDeserializer<>(
                                         ioManager.getSpillingDirectoriesPaths()),
-                        unused -> new RecordFilter(new ModSelector(2), LongSerializer.INSTANCE, 1));
+                        unused ->
+                                new PartitionerRecordFilter<>(
+                                        new ModSelector(2), LongSerializer.INSTANCE, 1));
 
         assertThat(deserializer.getVirtualChannelSelectors())
                 .containsOnly(
@@ -179,7 +181,7 @@ class DemultiplexingRecordDeserializerTest {
                         unused ->
                                 new SpillingAdaptiveSpanningRecordDeserializer<>(
                                         ioManager.getSpillingDirectoriesPaths()),
-                        unused -> RecordFilter.all());
+                        unused -> RecordFilter.acceptAll());
 
         assertThat(deserializer.getVirtualChannelSelectors()).hasSize(4);
 

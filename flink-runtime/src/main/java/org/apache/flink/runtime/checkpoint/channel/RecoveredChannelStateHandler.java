@@ -17,6 +17,9 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
@@ -25,19 +28,24 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateByteBuffer.wrap;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
     class BufferWithContext<Context> {
@@ -62,7 +70,7 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
      * case of an error.
      */
     void recover(Info info, int oldSubtaskIndex, BufferWithContext<Context> bufferWithContext)
-            throws IOException;
+            throws IOException, InterruptedException;
 }
 
 class InputChannelRecoveredStateHandler
@@ -71,23 +79,101 @@ class InputChannelRecoveredStateHandler
 
     private final InflightDataRescalingDescriptor channelMapping;
 
-    private final Map<InputChannelInfo, List<RecoveredInputChannel>> rescaledChannels =
-            new HashMap<>();
+    private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
+    /**
+     * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
+     * performed during recovery in the channel-state-unspilling thread.
+     */
+    @Nullable private final ChannelStateFilteringHandler filteringHandler;
+
+    /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
+    private final int memorySegmentSize;
+
+    /**
+     * Reusable heap memory segment backing the pre-filter buffer in filtering mode. Lazily
+     * allocated on the first {@link #getPreFilterBuffer} call, reused for every subsequent call,
+     * and freed in {@link #close()}.
+     *
+     * <p>Reuse is safe because at most one pre-filter buffer is in flight per task at any moment.
+     * This invariant is enforced at runtime by {@link #preFilterBufferInUse}.
+     */
+    @Nullable private MemorySegment preFilterSegment;
+
+    /**
+     * Tracks whether {@link #preFilterSegment} is currently wrapped by a live {@link Buffer} that
+     * has not yet been recycled. Flipped to {@code true} when a new buffer is issued, and flipped
+     * back to {@code false} by the custom {@link BufferRecycler} when the buffer is recycled.
+     */
+    private boolean preFilterBufferInUse;
+
     InputChannelRecoveredStateHandler(
-            InputGate[] inputGates, InflightDataRescalingDescriptor channelMapping) {
+            InputGate[] inputGates,
+            InflightDataRescalingDescriptor channelMapping,
+            @Nullable ChannelStateFilteringHandler filteringHandler,
+            int memorySegmentSize) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
+        this.filteringHandler = filteringHandler;
+        checkArgument(
+                memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
+        this.memorySegmentSize = memorySegmentSize;
     }
 
     @Override
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
-        // request the buffer from any mapped channel as they all will receive the same buffer
-        RecoveredInputChannel channel = getMappedChannels(channelInfo).get(0);
+        if (filteringHandler != null) {
+            return getPreFilterBuffer();
+        }
+        // Non-filtering mode: use existing network buffer pool allocation.
+        RecoveredInputChannel channel = getMappedChannels(channelInfo);
         Buffer buffer = channel.requestBufferBlocking();
         return new BufferWithContext<>(wrap(buffer), buffer);
+    }
+
+    /**
+     * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
+     * Pool) in filtering mode.
+     *
+     * <p>Memory management: a single {@link MemorySegment} per task is lazily allocated on first
+     * invocation and reused across every subsequent call. The custom {@link BufferRecycler} does
+     * not free the segment — it only flips {@link #preFilterBufferInUse} back to {@code false} so
+     * the next call can reuse it. The segment itself is freed in {@link #close()}.
+     *
+     * <p>Runtime invariant check: the one-at-a-time invariant on pre-filter buffers is guaranteed
+     * by Flink's serial recovery loop and the deserializer's ownership contract. This method
+     * asserts the invariant before issuing a buffer: if a previously issued buffer has not yet been
+     * recycled, it throws {@link IllegalStateException} so any future regression fails loudly
+     * instead of silently corrupting memory.
+     */
+    private BufferWithContext<Buffer> getPreFilterBuffer() {
+        checkState(
+                !preFilterBufferInUse,
+                "Previous pre-filter buffer has not been recycled. This violates the "
+                        + "one-buffer-at-a-time invariant of pre-filter buffers.");
+
+        if (preFilterSegment == null) {
+            preFilterSegment = MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize);
+        }
+        preFilterBufferInUse = true;
+
+        // The recycler keeps the segment alive for reuse; only flips the in-use flag.
+        BufferRecycler recycler = segment -> preFilterBufferInUse = false;
+        Buffer buffer = new NetworkBuffer(preFilterSegment, recycler);
+        return new BufferWithContext<>(wrap(buffer), buffer);
+    }
+
+    @VisibleForTesting
+    boolean isPreFilterBufferInUse() {
+        return preFilterBufferInUse;
+    }
+
+    @VisibleForTesting
+    @Nullable
+    MemorySegment getPreFilterSegmentForTesting() {
+        return preFilterSegment;
     }
 
     @Override
@@ -95,11 +181,16 @@ class InputChannelRecoveredStateHandler
             InputChannelInfo channelInfo,
             int oldSubtaskIndex,
             BufferWithContext<Buffer> bufferWithContext)
-            throws IOException {
+            throws IOException, InterruptedException {
         Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
-                for (final RecoveredInputChannel channel : getMappedChannels(channelInfo)) {
+                RecoveredInputChannel channel = getMappedChannels(channelInfo);
+
+                if (filteringHandler != null) {
+                    recoverWithFiltering(
+                            channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
+                } else {
                     channel.onRecoveredStateBuffer(
                             EventSerializer.toBuffer(
                                     new SubtaskConnectionDescriptor(
@@ -113,11 +204,44 @@ class InputChannelRecoveredStateHandler
         }
     }
 
+    private void recoverWithFiltering(
+            RecoveredInputChannel channel,
+            InputChannelInfo channelInfo,
+            int oldSubtaskIndex,
+            Buffer retainedBuffer)
+            throws IOException, InterruptedException {
+        checkState(filteringHandler != null, "filtering handler not set.");
+        List<Buffer> filteredBuffers =
+                filteringHandler.filterAndRewrite(
+                        channelInfo.getGateIdx(),
+                        oldSubtaskIndex,
+                        channelInfo.getInputChannelIdx(),
+                        retainedBuffer,
+                        channel::requestBufferBlocking);
+
+        int i = 0;
+        try {
+            for (; i < filteredBuffers.size(); i++) {
+                channel.onRecoveredStateBuffer(filteredBuffers.get(i));
+            }
+        } catch (Throwable t) {
+            for (int j = i; j < filteredBuffers.size(); j++) {
+                filteredBuffers.get(j).recycleBuffer();
+            }
+            throw t;
+        }
+    }
+
     @Override
     public void close() throws IOException {
         // note that we need to finish all RecoveredInputChannels, not just those with state
         for (final InputGate inputGate : inputGates) {
             inputGate.finishReadRecoveredState();
+        }
+        if (preFilterSegment != null) {
+            preFilterSegment.free();
+            preFilterSegment = null;
+            preFilterBufferInUse = false;
         }
     }
 
@@ -130,26 +254,21 @@ class InputChannelRecoveredStateHandler
         return (RecoveredInputChannel) inputChannel;
     }
 
-    private List<RecoveredInputChannel> getMappedChannels(InputChannelInfo channelInfo) {
+    private RecoveredInputChannel getMappedChannels(InputChannelInfo channelInfo) {
         return rescaledChannels.computeIfAbsent(channelInfo, this::calculateMapping);
     }
 
-    private List<RecoveredInputChannel> calculateMapping(InputChannelInfo info) {
+    @Nonnull
+    private RecoveredInputChannel calculateMapping(InputChannelInfo info) {
         final RescaleMappings oldToNewMapping =
                 oldToNewMappings.computeIfAbsent(
                         info.getGateIdx(), idx -> channelMapping.getChannelMapping(idx).invert());
-        final List<RecoveredInputChannel> channels =
-                Arrays.stream(oldToNewMapping.getMappedIndexes(info.getInputChannelIdx()))
-                        .mapToObj(newChannelIndex -> getChannel(info.getGateIdx(), newChannelIndex))
-                        .collect(Collectors.toList());
-        if (channels.isEmpty()) {
-            throw new IllegalStateException(
-                    "Recovered a buffer from old "
-                            + info
-                            + " that has no mapping in "
-                            + channelMapping.getChannelMapping(info.getGateIdx()));
-        }
-        return channels;
+        int[] mappedIndexes = oldToNewMapping.getMappedIndexes(info.getInputChannelIdx());
+        checkState(
+                mappedIndexes.length == 1,
+                "One buffer is only distributed to one target InputChannel since "
+                        + "one buffer is expected to be processed once by the same task.");
+        return getChannel(info.getGateIdx(), mappedIndexes[0]);
     }
 }
 
@@ -158,19 +277,27 @@ class ResultSubpartitionRecoveredStateHandler
 
     private final ResultPartitionWriter[] writers;
     private final boolean notifyAndBlockOnCompletion;
-
-    private final InflightDataRescalingDescriptor channelMapping;
-
-    private final Map<ResultSubpartitionInfo, List<ResultSubpartitionInfo>> rescaledChannels =
-            new HashMap<>();
-    private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
+    private final ResultSubpartitionDistributor resultSubpartitionDistributor;
 
     ResultSubpartitionRecoveredStateHandler(
             ResultPartitionWriter[] writers,
             boolean notifyAndBlockOnCompletion,
             InflightDataRescalingDescriptor channelMapping) {
         this.writers = writers;
-        this.channelMapping = channelMapping;
+        this.resultSubpartitionDistributor =
+                new ResultSubpartitionDistributor(channelMapping) {
+                    /**
+                     * Override the getSubpartitionInfo to perform type checking on the
+                     * ResultPartitionWriter.
+                     */
+                    @Override
+                    ResultSubpartitionInfo getSubpartitionInfo(
+                            int partitionIndex, int subPartitionIdx) {
+                        CheckpointedResultPartition writer =
+                                getCheckpointedResultPartition(partitionIndex);
+                        return writer.getCheckpointedSubpartitionInfo(subPartitionIdx);
+                    }
+                };
         this.notifyAndBlockOnCompletion = notifyAndBlockOnCompletion;
     }
 
@@ -189,7 +316,7 @@ class ResultSubpartitionRecoveredStateHandler
             ResultSubpartitionInfo subpartitionInfo,
             int oldSubtaskIndex,
             BufferWithContext<BufferBuilder> bufferWithContext)
-            throws IOException {
+            throws IOException, InterruptedException {
         try (BufferBuilder bufferBuilder = bufferWithContext.context;
                 BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning()) {
             bufferBuilder.finish();
@@ -197,7 +324,7 @@ class ResultSubpartitionRecoveredStateHandler
                 return;
             }
             final List<ResultSubpartitionInfo> mappedSubpartitions =
-                    getMappedSubpartitions(subpartitionInfo);
+                    resultSubpartitionDistributor.getMappedSubpartitions(subpartitionInfo);
             CheckpointedResultPartition checkpointedResultPartition =
                     getCheckpointedResultPartition(subpartitionInfo.getPartitionIdx());
             for (final ResultSubpartitionInfo mappedSubpartition : mappedSubpartitions) {
@@ -215,11 +342,6 @@ class ResultSubpartitionRecoveredStateHandler
         }
     }
 
-    private ResultSubpartitionInfo getSubpartitionInfo(int partitionIndex, int subPartitionIdx) {
-        CheckpointedResultPartition writer = getCheckpointedResultPartition(partitionIndex);
-        return writer.getCheckpointedSubpartitionInfo(subPartitionIdx);
-    }
-
     private CheckpointedResultPartition getCheckpointedResultPartition(int partitionIndex) {
         ResultPartitionWriter writer = writers[partitionIndex];
         if (!(writer instanceof CheckpointedResultPartition)) {
@@ -227,32 +349,6 @@ class ResultSubpartitionRecoveredStateHandler
                     "Cannot restore state to a non-checkpointable partition type: " + writer);
         }
         return (CheckpointedResultPartition) writer;
-    }
-
-    private List<ResultSubpartitionInfo> getMappedSubpartitions(
-            ResultSubpartitionInfo subpartitionInfo) {
-        return rescaledChannels.computeIfAbsent(subpartitionInfo, this::calculateMapping);
-    }
-
-    private List<ResultSubpartitionInfo> calculateMapping(ResultSubpartitionInfo info) {
-        final RescaleMappings oldToNewMapping =
-                oldToNewMappings.computeIfAbsent(
-                        info.getPartitionIdx(),
-                        idx -> channelMapping.getChannelMapping(idx).invert());
-        final List<ResultSubpartitionInfo> subpartitions =
-                Arrays.stream(oldToNewMapping.getMappedIndexes(info.getSubPartitionIdx()))
-                        .mapToObj(
-                                newIndexes ->
-                                        getSubpartitionInfo(info.getPartitionIdx(), newIndexes))
-                        .collect(Collectors.toList());
-        if (subpartitions.isEmpty()) {
-            throw new IllegalStateException(
-                    "Recovered a buffer from old "
-                            + info
-                            + " that has no mapping in "
-                            + channelMapping.getChannelMapping(info.getPartitionIdx()));
-        }
-        return subpartitions;
     }
 
     @Override

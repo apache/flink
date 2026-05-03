@@ -164,6 +164,11 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         return env.addSource(function, operatorName, outputTypeInfo).getTransformation();
     }
 
+    @Override
+    protected final boolean legacyUidsEnabled() {
+        return false;
+    }
+
     public BatchExecTableSourceScan copyAndRemoveInputs() {
         BatchExecTableSourceScan tableSourceScan =
                 new BatchExecTableSourceScan(

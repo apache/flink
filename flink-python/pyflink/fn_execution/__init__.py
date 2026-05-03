@@ -16,10 +16,15 @@
 # limitations under the License.
 ################################################################################
 
+import logging
 import os
+
+_LOG = logging.getLogger(__name__)
 
 if 'PYFLINK_CYTHON_ENABLED' in os.environ:
     PYFLINK_CYTHON_ENABLED = bool(os.environ['PYFLINK_CYTHON_ENABLED'])
+    if not PYFLINK_CYTHON_ENABLED:
+        _LOG.info("PYFLINK_CYTHON_ENABLED is set to False via environment variable.")
 else:
     PYFLINK_CYTHON_ENABLED = True
 
@@ -31,8 +36,10 @@ else:
 # Check whether beam could be fast and force PyFlink to be slow if beam is slow
 try:
     from apache_beam.coders import stream # noqa # pylint: disable=unused-import
-except:
+except Exception as e:
     PYFLINK_CYTHON_ENABLED = False
+    _LOG.info("PYFLINK_CYTHON_ENABLED is set to False because of "
+              "apache_beam.coders.stream import error: %s", str(e))
 
 
 # Check whether PyFlink could be fast
@@ -44,5 +51,9 @@ try:
         # noqa # pylint: disable=unused-import
     from pyflink.fn_execution.table import window_aggregate_fast, aggregate_fast \
         # noqa # pylint: disable=unused-import
-except:
+except Exception as e:
     PYFLINK_CYTHON_ENABLED = False
+    _LOG.info("PYFLINK_CYTHON_ENABLED is set to False because of "
+              "pyflink cython extensions import error: %s", str(e))
+
+_LOG.info("PYFLINK_CYTHON_ENABLED: %s", PYFLINK_CYTHON_ENABLED)

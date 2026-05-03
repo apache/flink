@@ -38,9 +38,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * For each input, checks that the {@link Watermark#MAX_WATERMARK} was received and then the input
@@ -90,28 +88,30 @@ public class DrainingValidator implements TestOperatorLifecycleValidator {
             if (ev instanceof WatermarkReceivedEvent) {
                 WatermarkReceivedEvent w = (WatermarkReceivedEvent) ev;
                 if (w.ts == Watermark.MAX_WATERMARK.getTimestamp()) {
-                    assertFalse(
-                            String.format(
-                                    "Max Watermark received twice by %s/%d/%d",
-                                    w.operatorId, w.subtaskIndex, w.inputId),
-                            inputsWithMaxWatermark.get(w.inputId));
+                    assertThat(inputsWithMaxWatermark.get(w.inputId))
+                            .as(
+                                    String.format(
+                                            "Max Watermark received twice by %s/%d/%d",
+                                            w.operatorId, w.subtaskIndex, w.inputId))
+                            .isFalse();
+
                     inputsWithMaxWatermark.set(w.inputId);
                 }
             } else if (ev instanceof InputEndedEvent) {
                 InputEndedEvent w = (InputEndedEvent) ev;
-                assertTrue(
-                        format(
-                                "Input %d ended before receiving max watermark by %s[%d]#%d",
-                                w.inputId, operatorId, subtaskIndex, w.attemptNumber),
-                        inputsWithMaxWatermark.get(w.inputId));
-                assertFalse(endedInputs.get(w.inputId));
+                assertThat(inputsWithMaxWatermark.get(w.inputId))
+                        .as(
+                                format(
+                                        "Input %d ended before receiving max watermark by %s[%d]#%d",
+                                        w.inputId, operatorId, subtaskIndex, w.attemptNumber))
+                        .isTrue();
+                assertThat(endedInputs.get(w.inputId)).isFalse();
                 endedInputs.set(w.inputId);
             }
         }
-        assertEquals(
-                format("Incorrect number of ended inputs for %s[%d]", operatorId, subtaskIndex),
-                getNumInputs(job, operatorId),
-                endedInputs.cardinality());
+        assertThat(endedInputs.cardinality())
+                .as(format("Incorrect number of ended inputs for %s[%d]", operatorId, subtaskIndex))
+                .isEqualTo(getNumInputs(job, operatorId));
     }
 
     private boolean isFinishAck(TestEvent ev) {

@@ -22,19 +22,37 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableAddDistributionConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableAsQueryConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropDistributionConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableDropConstraintConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableDropPrimaryKeyConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableDropWatermarkConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableSchemaDropColumnConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableModifyDistributionConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableRefreshConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableResumeConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableAddSchemaConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableModifySchemaConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSuspendConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlCreateOrAlterMaterializedTableConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlDropMaterializedTableConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddPartitionConverter;
-import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropColumnConverter;
-import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropConstraintConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropPartitionConverter;
-import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropPrimaryKeyConverter;
-import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropWatermarkConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableModifyDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableOptionsConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableRenameColumnConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableRenameConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableResetConverter;
-import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaAddConverter;
-import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaModifyConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaAddConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaDropColumnConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaDropConstraintConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaDropPrimaryKeyConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaDropWatermarkConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaModifyConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAnalyzeTableConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableAsConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableLikeConverter;
@@ -57,61 +75,94 @@ public class SqlNodeConverters {
 
     static {
         // register all the converters here
-        register(new SqlCreateCatalogConverter());
-        register(new SqlAlterCatalogOptionsConverter());
-        register(new SqlAlterCatalogResetConverter());
-        register(new SqlAlterCatalogCommentConverter());
-        register(new SqlCreateViewConverter());
-        register(new SqlAlterViewRenameConverter());
-        register(new SqlAlterViewPropertiesConverter());
-        register(new SqlAlterViewAsConverter());
-        register(new SqlAlterTableAddPartitionConverter());
-        register(new SqlAlterTableDropPartitionConverter());
-        register(new SqlQueryConverter());
-        register(new SqlShowPartitionsConverter());
-        register(new SqlTruncateTableConverter());
-        register(new SqlShowFunctionsConverter());
-        register(new SqlShowModelsConverter());
-        register(new SqlShowCreateModelConverter());
-        register(new SqlShowProcedureConverter());
-        register(new SqlReplaceTableAsConverter());
-        register(new SqlProcedureCallConverter());
-        register(new SqlShowDatabasesConverter());
-        register(new SqlShowCreateCatalogConverter());
-        register(new SqlDescribeCatalogConverter());
-        register(new SqlDescribeJobConverter());
-        register(new SqlCreateMaterializedTableConverter());
-        register(new SqlCreateModelConverter());
-        register(new SqlAlterMaterializedTableRefreshConverter());
-        register(new SqlAlterMaterializedTableSuspendConverter());
-        register(new SqlAlterMaterializedTableResumeConverter());
-        register(new SqlAlterMaterializedTableAsQueryConverter());
-        register(new SqlAlterMaterializedTableAddDistributionConverter());
-        register(new SqlAlterMaterializedTableModifyDistributionConverter());
-        register(new SqlAlterMaterializedTableDropDistributionConverter());
-        register(new SqlAlterModelRenameConverter());
-        register(new SqlAlterModelResetConverter());
-        register(new SqlAlterModelSetConverter());
-        register(new SqlDropMaterializedTableConverter());
-        register(new SqlDropModelConverter());
-        register(new SqlShowTablesConverter());
-        register(new SqlShowCatalogsConverter());
         register(new SqlDescribeFunctionConverter());
-        register(new SqlDescribeModelConverter());
+        register(new SqlAlterFunctionConverter());
+        register(new SqlCreateFunctionConverter());
+        register(new SqlDropFunctionConverter());
+        register(new SqlDescribeJobConverter());
+        register(new SqlProcedureCallConverter());
+        register(new SqlQueryConverter());
+        register(new SqlShowDatabasesConverter());
+        register(new SqlShowFunctionsConverter());
+        register(new SqlShowPartitionsConverter());
+        register(new SqlShowProcedureConverter());
+
+        registerCatalogConverters();
+        registerMaterializedTableConverters();
+        registerModelConverters();
+        registerTableConverters();
+        registerViewConverters();
+    }
+
+    private static void registerTableConverters() {
+        register(new SqlAnalyzeTableConverter());
+        register(new SqlAlterTableAddDistributionConverter());
+        register(new SqlAlterTableAddPartitionConverter());
+        register(new SqlAlterTableSchemaDropColumnConverter());
+        register(new SqlAlterTableDropDistributionConverter());
+        register(new SqlAlterTableDropPartitionConverter());
+        register(new SqlAlterTableModifyDistributionConverter());
+        register(new SqlAlterTableOptionsConverter());
+        register(new SqlAlterTableRenameColumnConverter());
+        register(new SqlAlterTableRenameConverter());
+        register(new SqlAlterTableResetConverter());
+        register(new SqlAlterTableSchemaAddConverter());
+        register(new SqlAlterTableSchemaDropConstraintConverter());
+        register(new SqlAlterTableSchemaDropPrimaryKeyConverter());
+        register(new SqlAlterTableSchemaDropWatermarkConverter());
+        register(new SqlAlterTableSchemaModifyConverter());
         register(new SqlCreateTableAsConverter());
         register(new SqlCreateTableConverter());
         register(new SqlCreateTableLikeConverter());
-        register(new SqlAlterTableDropPrimaryKeyConverter());
-        register(new SqlAlterTableDropColumnConverter());
-        register(new SqlAlterTableDropConstraintConverter());
-        register(new SqlAlterTableDropWatermarkConverter());
-        register(new SqlAlterTableDropDistributionConverter());
-        register(new SqlAlterTableRenameColumnConverter());
-        register(new SqlAlterTableResetConverter());
-        register(new SqlAlterTableOptionsConverter());
-        register(new SqlAlterTableSchemaModifyConverter());
-        register(new SqlAlterTableSchemaAddConverter());
-        register(new SqlAlterTableRenameConverter());
+        register(new SqlReplaceTableAsConverter());
+        register(new SqlShowTablesConverter());
+        register(new SqlTruncateTableConverter());
+    }
+
+    private static void registerViewConverters() {
+        register(new SqlAlterViewAsConverter());
+        register(new SqlAlterViewPropertiesConverter());
+        register(new SqlAlterViewRenameConverter());
+        register(new SqlCreateViewConverter());
+    }
+
+    private static void registerCatalogConverters() {
+        register(new SqlAlterCatalogCommentConverter());
+        register(new SqlAlterCatalogOptionsConverter());
+        register(new SqlAlterCatalogResetConverter());
+        register(new SqlCreateCatalogConverter());
+        register(new SqlDescribeCatalogConverter());
+        register(new SqlShowCatalogsConverter());
+        register(new SqlShowCreateCatalogConverter());
+    }
+
+    private static void registerMaterializedTableConverters() {
+        register(new SqlAlterMaterializedTableAddDistributionConverter());
+        register(new SqlAlterMaterializedTableAddSchemaConverter());
+        register(new SqlAlterMaterializedTableAsQueryConverter());
+        register(new SqlAlterMaterializedTableDropDistributionConverter());
+        register(new SqlAlterMaterializedTableModifyDistributionConverter());
+        register(new SqlAlterMaterializedTableDropPrimaryKeyConverter());
+        register(new SqlAlterMaterializedTableDropConstraintConverter());
+        register(new SqlAlterMaterializedTableSchemaDropColumnConverter());
+        register(new SqlAlterMaterializedTableDropWatermarkConverter());
+        register(new SqlAlterMaterializedTableModifySchemaConverter());
+        register(new SqlAlterMaterializedTableRefreshConverter());
+        register(new SqlAlterMaterializedTableResumeConverter());
+        register(new SqlAlterMaterializedTableSuspendConverter());
+        register(new SqlCreateOrAlterMaterializedTableConverter());
+        register(new SqlDropMaterializedTableConverter());
+    }
+
+    private static void registerModelConverters() {
+        register(new SqlAlterModelRenameConverter());
+        register(new SqlAlterModelResetConverter());
+        register(new SqlAlterModelSetConverter());
+        register(new SqlCreateModelConverter());
+        register(new SqlDescribeModelConverter());
+        register(new SqlDropModelConverter());
+        register(new SqlShowCreateModelConverter());
+        register(new SqlShowModelsConverter());
     }
 
     /**

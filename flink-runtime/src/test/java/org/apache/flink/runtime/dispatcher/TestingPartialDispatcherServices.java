@@ -55,7 +55,7 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
             BlobServer blobServer,
             HeartbeatServices heartbeatServices,
             JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
-            ExecutionGraphInfoStore executionGraphInfoStore,
+            ArchivedApplicationStore archivedApplicationStore,
             FatalErrorHandler fatalErrorHandler,
             HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
@@ -69,7 +69,7 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
                 blobServer,
                 heartbeatServices,
                 jobManagerMetricGroupFactory,
-                executionGraphInfoStore,
+                archivedApplicationStore,
                 fatalErrorHandler,
                 historyServerArchivist,
                 metricQueryServiceAddress,
@@ -93,8 +93,8 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
         private HeartbeatServices heartbeatServices = new TestingHeartbeatServices();
         private JobManagerMetricGroupFactory jobManagerMetricGroupFactory =
                 UnregisteredMetricGroups::createUnregisteredJobManagerMetricGroup;
-        private ExecutionGraphInfoStore executionGraphInfoStore =
-                new MemoryExecutionGraphInfoStore();
+        private ArchivedApplicationStore archivedApplicationStore =
+                new MemoryArchivedApplicationStore();
         private FatalErrorHandler fatalErrorHandler = NoOpFatalErrorHandler.INSTANCE;
         private HistoryServerArchivist historyServerArchivist = VoidHistoryServerArchivist.INSTANCE;
         @Nullable private String metricQueryServiceAddress = null;
@@ -131,9 +131,9 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
             return this;
         }
 
-        public Builder withExecutionGraphInfoStore(
-                ExecutionGraphInfoStore executionGraphInfoStore) {
-            this.executionGraphInfoStore = executionGraphInfoStore;
+        public Builder withArchivedApplicationStore(
+                ArchivedApplicationStore archivedApplicationStore) {
+            this.archivedApplicationStore = archivedApplicationStore;
             return this;
         }
 
@@ -178,7 +178,7 @@ public class TestingPartialDispatcherServices extends PartialDispatcherServices 
                     blobServer,
                     heartbeatServices,
                     jobManagerMetricGroupFactory,
-                    executionGraphInfoStore,
+                    archivedApplicationStore,
                     fatalErrorHandler,
                     historyServerArchivist,
                     metricQueryServiceAddress,

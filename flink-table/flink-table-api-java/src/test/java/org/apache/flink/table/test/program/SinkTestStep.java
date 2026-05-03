@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,6 +43,7 @@ public final class SinkTestStep extends TableTestStep {
     public final @Nullable List<Row> expectedMaterializedRows;
     public final @Nullable List<String> expectedMaterializedStrings;
     public final boolean testChangelogData;
+    public final @Nullable int[] deduplicatedFieldIndices;
 
     SinkTestStep(
             String name,
@@ -55,17 +57,16 @@ public final class SinkTestStep extends TableTestStep {
             @Nullable List<String> expectedAfterRestoreStrings,
             @Nullable List<Row> expectedMaterializedRows,
             @Nullable List<String> expectedMaterializedStrings,
-            boolean testChangelogData) {
-        super(name, schemaComponents, distribution, partitionKeys, options);
-        boolean hasRowsSet =
-                expectedBeforeRestore != null
-                        || expectedAfterRestore != null
-                        || expectedMaterializedRows != null;
-        boolean hasStringsSet =
-                expectedBeforeRestoreStrings != null
-                        || expectedAfterRestoreStrings != null
-                        || expectedMaterializedStrings != null;
-        if (hasRowsSet && hasStringsSet) {
+            boolean testChangelogData,
+            @Nullable int[] deduplicatedFieldIndices) {
+        super(
+                name,
+                schemaComponents,
+                distribution,
+                partitionKeys,
+                options,
+                Collections.emptyList());
+        if (hasRowsSet() && hasStringsSet()) {
             throw new IllegalArgumentException(
                     "You can not mix Row/String representations in restore data.");
         }
@@ -76,6 +77,12 @@ public final class SinkTestStep extends TableTestStep {
         this.expectedMaterializedRows = expectedMaterializedRows;
         this.expectedMaterializedStrings = expectedMaterializedStrings;
         this.testChangelogData = testChangelogData;
+        this.deduplicatedFieldIndices = deduplicatedFieldIndices;
+
+        if (deduplicatedFieldIndices != null && !hasRowsSet()) {
+            throw new IllegalArgumentException(
+                    "DeduplicatedFieldIndices can only be used for Row representations in restore data.");
+        }
     }
 
     /** Builder for creating a {@link SinkTestStep}. */
@@ -108,9 +115,31 @@ public final class SinkTestStep extends TableTestStep {
     }
 
     public List<String> getExpectedAsStrings() {
-        final List<String> data = new ArrayList<>(getExpectedBeforeRestoreAsStrings());
-        data.addAll(getExpectedAfterRestoreAsStrings());
-        return data;
+        if (hasStringsSet() || deduplicatedFieldIndices == null) {
+            final List<String> data = new ArrayList<>(getExpectedBeforeRestoreAsStrings());
+            data.addAll(getExpectedAfterRestoreAsStrings());
+            return data;
+        }
+        if (!hasRowsSet()) {
+            return Collections.emptyList();
+        }
+        final List<Row> data = new ArrayList<>();
+        if (expectedBeforeRestore != null) {
+            data.addAll(expectedBeforeRestore);
+        }
+        if (expectedAfterRestore != null) {
+            data.addAll(expectedAfterRestore);
+        }
+
+        Map<List<Object>, Row> deduplicatedMap = new HashMap<>();
+        for (Row row : data) {
+            List<Object> key = new ArrayList<>(deduplicatedFieldIndices.length);
+            for (int deduplicatedFieldIndex : deduplicatedFieldIndices) {
+                key.add(row.getField(deduplicatedFieldIndex));
+            }
+            deduplicatedMap.put(key, row);
+        }
+        return deduplicatedMap.values().stream().map(Row::toString).collect(Collectors.toList());
     }
 
     public List<String> getExpectedMaterializedResultsAsStrings() {
@@ -118,6 +147,10 @@ public final class SinkTestStep extends TableTestStep {
             return expectedMaterializedStrings;
         }
         if (expectedMaterializedRows != null) {
+            if (deduplicatedFieldIndices != null) {
+                throw new UnsupportedOperationException(
+                        "Unsupported to deduplicate data for materialized rows");
+            }
             return expectedMaterializedRows.stream()
                     .map(Row::toString)
                     .collect(Collectors.toList());
@@ -138,6 +171,18 @@ public final class SinkTestStep extends TableTestStep {
         return testChangelogData;
     }
 
+    private boolean hasRowsSet() {
+        return expectedBeforeRestore != null
+                || expectedAfterRestore != null
+                || expectedMaterializedRows != null;
+    }
+
+    private boolean hasStringsSet() {
+        return expectedBeforeRestoreStrings != null
+                || expectedAfterRestoreStrings != null
+                || expectedMaterializedStrings != null;
+    }
+
     /** Builder pattern for {@link SinkTestStep}. */
     public static final class Builder extends AbstractBuilder<Builder> {
 
@@ -150,6 +195,8 @@ public final class SinkTestStep extends TableTestStep {
         private List<String> expectedAfterRestoreStrings;
 
         private boolean testChangelogData = true;
+
+        private @Nullable int[] deduplicatedFieldIndices;
 
         private Builder(String name) {
             super(name);
@@ -203,6 +250,14 @@ public final class SinkTestStep extends TableTestStep {
             return this;
         }
 
+        public Builder deduplicatedFieldIndices(int[] deduplicatedFieldIndices) {
+            // TODO FLINK-38518 use pk to deduplicate data rather than specific fields.
+            //  This task requires refactoring the current `AbstractBuilder` to separate the
+            //  declaration of the primary key from the `List<String> schemaComponents`.
+            this.deduplicatedFieldIndices = deduplicatedFieldIndices;
+            return this;
+        }
+
         public SinkTestStep build() {
             return new SinkTestStep(
                     name,
@@ -216,7 +271,8 @@ public final class SinkTestStep extends TableTestStep {
                     expectedAfterRestoreStrings,
                     expectedMaterializedBeforeRows,
                     expectedMaterializedBeforeStrings,
-                    testChangelogData);
+                    testChangelogData,
+                    deduplicatedFieldIndices);
         }
     }
 }

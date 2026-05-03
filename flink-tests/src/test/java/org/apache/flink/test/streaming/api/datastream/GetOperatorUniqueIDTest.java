@@ -23,23 +23,24 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the uid translation to {@link org.apache.flink.runtime.jobgraph.OperatorID}. */
-@SuppressWarnings("serial")
-public class GetOperatorUniqueIDTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class GetOperatorUniqueIDTest {
 
     /**
      * If expected values ever change double check that the change is not braking the contract of
      * {@link StreamingRuntimeContext#getOperatorUniqueID()} being stable between job submissions.
      */
     @Test
-    public void testGetOperatorUniqueID() throws Exception {
+    void testGetOperatorUniqueID() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
         env.fromData(1, 2, 3)
@@ -65,9 +66,8 @@ public class GetOperatorUniqueIDTest extends TestLogger {
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
 
-            assertEquals(
-                    expectedOperatorUniqueID,
-                    ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID());
+            assertThat(((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID())
+                    .isEqualTo(expectedOperatorUniqueID);
         }
 
         @Override

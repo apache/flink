@@ -101,7 +101,8 @@ fi
 OPENSSL_LINKAGE=$(if (( RANDOM % 2 )) ; then echo "dynamic"; else echo "static"; fi)
 echo "Executing test with ${OPENSSL_LINKAGE} openSSL linkage (random selection between 'dynamic' and 'static')"
 
-set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
+# Temporarily disable SSL in test_file_sink (see FLINK-39002 )
+#set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
 # set_conf_ssl moves netty libraries into FLINK_DIR which we want to rollback at the end of the test run
 on_exit rollback_openssl_lib
 

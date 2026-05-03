@@ -175,6 +175,29 @@ class RawFormatFactoryTest {
                 .hasMessage("The 'raw' format doesn't supports 'MAP<INT, STRING>' as column type.");
     }
 
+    @Test
+    void testLineDelimiterOption() {
+        final Map<String, String> tableOptions =
+                getModifiedOptions(
+                        options -> {
+                            options.put("raw.line-delimiter", "\n");
+                        });
+
+        // test deserialization schema contains line delimiter
+        final RawFormatDeserializationSchema expectedDeser =
+                new RawFormatDeserializationSchema(
+                        ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-8", true, "\n");
+        DeserializationSchema<RowData> actualDeser =
+                createDeserializationSchema(SCHEMA, tableOptions);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
+
+        // test serialization schema contains line delimiter
+        final RawFormatSerializationSchema expectedSer =
+                new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-8", true, "\n");
+        SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
+        assertThat(actualSer).isEqualTo(expectedSer);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -438,5 +439,10 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     @Override
     public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
         return Optional.ofNullable(executions.get(attemptId));
+    }
+
+    @Override
+    public Optional<ApplicationID> getApplicationId() {
+        return Optional.empty();
     }
 }

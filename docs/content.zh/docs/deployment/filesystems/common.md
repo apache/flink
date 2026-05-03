@@ -63,4 +63,24 @@ fs.<scheme>.limit.stream-timeout: (毫秒，0 表示无穷)
 
 连接数是按每个 TaskManager/文件系统来进行限制的。因为文件系统的创建是按照 scheme 和 authority 进行的，所以不同的 authority 具有独立的连接池，例如 `hdfs://myhdfs:50010/` 和 `hdfs://anotherhdfs:4399/` 会有单独的连接池。
 
+## File System Factory Priority
+
+When multiple `FileSystemFactory` implementations are available for the same URI scheme (for example, during a migration between file system backends), Flink resolves the conflict using a priority mechanism. The factory with the highest priority is selected.
+
+Each factory declares a default priority via its `getPriority()` method (default `0`). You can override the priority for any factory through configuration:
+
+```yaml
+fs.<scheme>.priority.<factoryClassName>: <integer>
+```
+
+Higher values indicate higher priority. When the configuration key is not set, the factory's declared priority is used.
+
+If two factories end up with the same priority, the winner depends on classloading order, which is non-deterministic. Flink logs a warning in this case. Set explicit priorities to ensure deterministic behavior.
+
+**Example:** Suppose two S3 factory implementations are on the classpath. To select the Hadoop-based factory over the Presto-based one (default priority is zero):
+
+```yaml
+fs.s3.priority.org.apache.flink.fs.s3.hadoop.S3FileSystemFactory: 1
+```
+
 {{< top >}}

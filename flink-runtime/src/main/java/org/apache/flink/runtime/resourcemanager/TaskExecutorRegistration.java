@@ -64,6 +64,9 @@ public class TaskExecutorRegistration implements Serializable {
      */
     private final String nodeId;
 
+    /** Number of slots in static slot allocation. */
+    private final int numberSlots;
+
     public TaskExecutorRegistration(
             final String taskExecutorAddress,
             final ResourceID resourceId,
@@ -73,7 +76,8 @@ public class TaskExecutorRegistration implements Serializable {
             final TaskExecutorMemoryConfiguration memoryConfiguration,
             final ResourceProfile defaultSlotResourceProfile,
             final ResourceProfile totalResourceProfile,
-            final String nodeId) {
+            final String nodeId,
+            final int numberSlots) {
         this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
         this.resourceId = checkNotNull(resourceId);
         this.dataPort = dataPort;
@@ -83,6 +87,7 @@ public class TaskExecutorRegistration implements Serializable {
         this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
         this.totalResourceProfile = checkNotNull(totalResourceProfile);
         this.nodeId = checkNotNull(nodeId);
+        this.numberSlots = numberSlots;
     }
 
     public String getTaskExecutorAddress() {
@@ -119,5 +124,9 @@ public class TaskExecutorRegistration implements Serializable {
 
     public String getNodeId() {
         return nodeId;
+    }
+
+    public int getNumberSlots() {
+        return numberSlots;
     }
 }

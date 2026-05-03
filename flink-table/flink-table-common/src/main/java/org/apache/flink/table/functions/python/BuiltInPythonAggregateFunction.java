@@ -49,7 +49,8 @@ public enum BuiltInPythonAggregateFunction implements PythonFunction {
     FLOAT_SUM0("FloatSum0AggFunction"),
     DECIMAL_SUM0("DecimalSum0AggFunction"),
     SUM("SumAggFunction"),
-    SUM_RETRACT("SumWithRetractAggFunction");
+    SUM_RETRACT("SumWithRetractAggFunction"),
+    WELFORD_M2("WelfordM2AggFunction");
 
     private final byte[] payload;
 

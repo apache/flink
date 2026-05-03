@@ -24,6 +24,9 @@ import org.apache.flink.runtime.instance.InstanceID;
 /** Provides statistics of cluster resources. */
 public interface ClusterResourceStatisticsProvider {
 
+    /** Get total number of tasks assigned to the current instance. slots. */
+    int getAssignedTasks(InstanceID instanceId);
+
     /** Get total number of registered slots. */
     int getNumberRegisteredSlots();
 

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -492,9 +492,11 @@ class OverAggregateTest extends TableTestBase {
         |FROM MyTable
       """.stripMargin
 
-    assertThatThrownBy(() => util.verifyExecPlan(sql))
-      .hasRootCauseMessage("CHARACTER type is not allowed for window boundary")
-      .hasRootCauseInstanceOf(classOf[ValidationException])
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
+      .havingRootCause()
+      .withMessage("CHARACTER type is not allowed for window boundary")
+      .isExactlyInstanceOf(classOf[ValidationException])
   }
 
   @ParameterizedTest
@@ -511,6 +513,7 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
+  @Test
   def testTemporalJoinWithWatermarks(): Unit = {
     util.addTable(s"""
                      |CREATE TABLE orders (

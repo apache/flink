@@ -26,6 +26,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Base class for OpenTelemetry reporter protocol configuration tests. */
 @ExtendWith(TestLoggerExtension.class)
 public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenTelemetryTestBase {
@@ -74,6 +76,35 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
         MetricConfig config = createConfig("grpc");
         setupAndReport(config);
         assertReported();
+    }
+
+    @Test
+    public void testGzipCompressionGrpc() throws Exception {
+        MetricConfig config = createConfig("grpc");
+        config.setProperty(
+                OpenTelemetryReporterOptions.EXPORTER_COMPRESSION.key(),
+                OpenTelemetryReporterOptions.COMPRESSION_GZIP);
+        setupAndReport(config);
+        assertReported();
+    }
+
+    @Test
+    public void testGzipCompressionHttp() throws Exception {
+        MetricConfig config = createConfig("http");
+        config.setProperty(
+                OpenTelemetryReporterOptions.EXPORTER_COMPRESSION.key(),
+                OpenTelemetryReporterOptions.COMPRESSION_GZIP);
+        setupAndReport(config);
+        assertReported();
+    }
+
+    @Test
+    public void testInvalidCompressionMethodThrows() {
+        MetricConfig config = createConfig("grpc");
+        config.setProperty(OpenTelemetryReporterOptions.EXPORTER_COMPRESSION.key(), "invalid");
+        assertThatThrownBy(() -> setupAndReport(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported compression method");
     }
 
     protected MetricConfig createConfig(String protocol) {

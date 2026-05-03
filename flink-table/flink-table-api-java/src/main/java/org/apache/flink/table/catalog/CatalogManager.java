@@ -31,6 +31,7 @@ import org.apache.flink.table.api.config.MaterializedTableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -86,6 +87,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_DEFAULT_START_MODE;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -287,8 +289,18 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                             .MATERIALIZED_TABLE_DEFAULT_FRESHNESS_FULL);
             final Duration freshnessThreshold =
                     catalogStoreHolder.config().get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD);
+            final StartModeKind startModeKind =
+                    catalogStoreHolder.config().get(MATERIALIZED_TABLE_DEFAULT_START_MODE);
+            if (StartMode.requiresParameters(startModeKind)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid default start mode '%s'. "
+                                        + "Only parameterless start modes are supported as defaults."));
+            }
+
+            final StartMode startMode = StartMode.of(startModeKind);
             return DefaultMaterializedTableEnricher.create(
-                    defaultDurationContinuous, defaultDurationFull, freshnessThreshold);
+                    defaultDurationContinuous, defaultDurationFull, freshnessThreshold, startMode);
         }
     }
 
@@ -1912,6 +1924,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 this.materializedTableEnricher.enrich(table);
         IntervalFreshness freshness = enrichmentResult.getFreshness();
         RefreshMode resolvedRefreshMode = enrichmentResult.getRefreshMode();
+        StartMode startMode = enrichmentResult.getStartMode();
 
         // Validate partition keys are included in physical columns
         final List<String> physicalColumns =
@@ -1933,7 +1946,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                         });
 
         return new ResolvedCatalogMaterializedTable(
-                table, resolvedSchema, resolvedRefreshMode, freshness);
+                table, resolvedSchema, resolvedRefreshMode, freshness, startMode);
     }
 
     /** Resolves a {@link CatalogView} to a validated {@link ResolvedCatalogView}. */
@@ -1984,7 +1997,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                     .collect(Collectors.toList()),
                             resolvedSchema.getWatermarkSpecs(),
                             resolvedSchema.getPrimaryKey().orElse(null),
-                            resolvedSchema.getIndexes());
+                            resolvedSchema.getIndexes(),
+                            resolvedSchema.getImmutableColumns().orElse(null));
             return new ResolvedCatalogView(
                     // pass a view that has the query parsed and
                     // validated already

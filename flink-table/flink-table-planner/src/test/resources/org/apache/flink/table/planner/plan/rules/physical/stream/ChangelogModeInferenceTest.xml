@@ -16,6 +16,130 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testFilterNotContainedByAnyUpsertKey">
+    <Resource name="sql">
+      <![CDATA[
+select * from src where name <> 'Tom' and score > 90
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(score=[$0], note=[$1], name=[$2], id=[$3])
++- LogicalFilter(condition=[AND(<>($2, _UTF-16LE'Tom'), >($0, 90))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[score, note, name, id], where=[AND(<>(name, 'Tom'), >(score, 90))], changelogMode=[I,UB,UA])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[score, note, name, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOnNonUpsertKeyColOnly">
+    <Resource name="sql">
+      <![CDATA[
+select * from src where name <> 'Tom'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], score=[$1], id=[$2])
++- LogicalFilter(condition=[<>($0, _UTF-16LE'Tom')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[name, score, id], where=[<>(name, 'Tom')], changelogMode=[I,UB,UA])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[name, score, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOnPrimaryKeyOnly">
+    <Resource name="sql">
+      <![CDATA[
+select * from src where id > 5
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], score=[$1], id=[$2])
++- LogicalFilter(condition=[>($2, 5)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[name, score, id], where=[>(id, 5)], changelogMode=[I,UA])
++- DropUpdateBefore(changelogMode=[I,UA])
+   +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[name, score, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOneEntireUpsertKey">
+    <Resource name="sql">
+      <![CDATA[
+select * from src where score > 90 and name = 'Tom' and id > 0
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(score=[$0], note=[$1], name=[$2], id=[$3])
++- LogicalFilter(condition=[AND(>($0, 90), =($2, _UTF-16LE'Tom'), >($3, 0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[score, note, 'Tom' AS name, id], where=[AND(>(score, 90), =(name, 'Tom'), >(id, 0))], changelogMode=[I,UA])
++- DropUpdateBefore(changelogMode=[I,UA])
+   +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[score, note, name, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterSubsetOfUpsertKey">
+    <Resource name="sql">
+      <![CDATA[
+select * from src where name <> 'Tom'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], score=[$1], id=[$2])
++- LogicalFilter(condition=[<>($0, _UTF-16LE'Tom')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[name, score, id], where=[<>(name, 'Tom')], changelogMode=[I,UA])
++- DropUpdateBefore(changelogMode=[I,UA])
+   +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[name, score, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterSubsetOfUpsertKey2">
+    <Resource name="sql">
+      <![CDATA[
+select * from src where name <> 'Tom' and score > 90
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(score=[$0], note=[$1], name=[$2], id=[$3])
++- LogicalFilter(condition=[AND(<>($2, _UTF-16LE'Tom'), >($0, 90))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[score, note, name, id], where=[AND(<>(name, 'Tom'), >(score, 90))], changelogMode=[I,UA])
++- DropUpdateBefore(changelogMode=[I,UA])
+   +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[score, note, name, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupByWithUnion">
     <Resource name="sql">
       <![CDATA[
@@ -157,6 +281,37 @@ LogicalProject(word=[$0], number=[$1])
     <Resource name="optimized rel plan">
       <![CDATA[
 LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSinkPkCoveredByUpsertKeyAndImmutableCols">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id])
++- LogicalProject(name=[$0], score=[$1], detail=[$2], id=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id], changelogMode=[NONE])
++- DropUpdateBefore(changelogMode=[I,UA])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, score, detail, id], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSinkPkNotCoveredByUpsertKeyAndImmutableCols">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id])
++- LogicalProject(name=[$0], score=[$1], detail=[$2], id=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, score, detail, id], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, score, detail, id], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>
@@ -398,6 +553,21 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS freq
                +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpsertKeyExceedsSinkPk">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, score, id])
++- LogicalProject(name=[$0], score=[$1], id=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, score, id], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[name, score, id], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>

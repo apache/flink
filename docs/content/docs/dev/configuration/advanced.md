@@ -57,12 +57,12 @@ Different Scala versions are not binary compatible with one another. All Flink d
 If you are only using Flink's Java APIs, you can use any Scala version. If you are using Flink's Scala APIs, 
 you need to pick the Scala version that matches the application's Scala version.
 
-Please refer to the [build guide]({{< ref "docs/flinkDev/building" >}}#scala-versions) for details 
+Please refer to the [build guide]({{< github_repo >}}#building-apache-flink-from-source) for details
 on how to build Flink for a specific Scala version.
 
 Scala versions after 2.12.8 are not binary compatible with previous 2.12.x versions. This prevents
 the Flink project from upgrading its 2.12.x builds beyond 2.12.8. You can build Flink locally for
-later Scala versions by following the [build guide]({{< ref "docs/flinkDev/building" >}}#scala-versions).
+later Scala versions by following the [build guide]({{< github_repo >}}#building-apache-flink-from-source).
 For this to work, you will need to add `-Djapicmp.skip` to skip binary compatibility checks when building.
 
 See the [Scala 2.12.8 release notes](https://github.com/scala/scala/releases/tag/v2.12.8) for more details.

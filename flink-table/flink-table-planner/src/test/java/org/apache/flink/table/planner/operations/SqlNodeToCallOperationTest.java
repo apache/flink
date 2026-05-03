@@ -42,10 +42,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test cases for the call statements for {@link SqlNodeToOperationConversion}. */
-public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTestBase {
+class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTestBase {
 
     @BeforeEach
-    public void before() {
+    void before() {
         CatalogWithBuiltInProcedure procedureCatalog =
                 new CatalogWithBuiltInProcedure("procedure_catalog");
         catalogManager.registerCatalog("p1", procedureCatalog);

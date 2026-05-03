@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.docs.util.ConfigurationOptionLocator;
 import org.apache.flink.docs.util.OptionWithMetaInfo;
+import org.apache.flink.docs.util.Utils;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -64,7 +65,9 @@ class ConfigOptionsDocsCompletenessITCase {
             new HashSet<>(
                     Arrays.asList(
                             "org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions",
-                            "org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions"));
+                            "org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions",
+                            "org.apache.flink.model.openai.OpenAIOptions",
+                            "org.apache.flink.model.triton.TritonOptions"));
 
     @Test
     void testCompleteness() throws Exception {
@@ -230,7 +233,7 @@ class ConfigOptionsDocsCompletenessITCase {
     }
 
     private static Map<String, List<DocumentedOption>> parseDocumentedOptions() throws IOException {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+        final String rootDir = Utils.getProjectRootDir();
 
         Path includeFolder =
                 Paths.get(rootDir, "docs", "layouts", "shortcodes", "generated").toAbsolutePath();
@@ -282,7 +285,7 @@ class ConfigOptionsDocsCompletenessITCase {
 
     private static Map<String, List<ExistingOption>> findExistingOptions(
             Predicate<OptionWithMetaInfo> predicate) throws Exception {
-        final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
+        final String rootDir = Utils.getProjectRootDir();
 
         final Collection<ExistingOption> existingOptions = new ArrayList<>();
         new ConfigurationOptionLocator()

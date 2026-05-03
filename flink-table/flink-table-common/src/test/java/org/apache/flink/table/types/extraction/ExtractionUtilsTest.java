@@ -30,6 +30,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
@@ -240,5 +241,27 @@ public class ExtractionUtilsTest {
                 CompletableFuture<Long> genericFuture,
                 List<CompletableFuture<Long>> listOfGenericFuture,
                 Long[] array) {}
+    }
+
+    /**
+     * Verifies that {@link ExtractionUtils#extractExecutableNames} returns correct parameter names
+     * when a method contains a lambda that captures its own parameters, producing a synthetic
+     * method with the same bytecode descriptor.
+     */
+    @Test
+    void testExtractExecutableNamesWithLambdaCapture() {
+        Method method = ExtractionUtils.collectMethods(LambdaCaptureClass.class, "eval").get(0);
+        assertThat(ExtractionUtils.extractExecutableNames(method))
+                .isEqualTo(ImmutableList.of("id", "field"));
+    }
+
+    /** A single-method class where the lambda captures all parameters of the enclosing method. */
+    public static class LambdaCaptureClass {
+
+        @SuppressWarnings("unused")
+        public String eval(Long id, String field) {
+            Supplier<String> supplier = () -> String.valueOf(id) + field;
+            return supplier.get();
+        }
     }
 }

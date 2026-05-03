@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
 
@@ -34,10 +33,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-import static java.util.function.Function.identity;
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.checkMinimumRequiredSlots;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.getSlotsPerTaskExecutor;
 
 /**
  * Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. Specifically,
@@ -91,7 +89,7 @@ public class DefaultSlotAssigner implements SlotAssigner {
                 && minimalTaskManagerPreferred
                 // To avoid the sort-work loading.
                 && freeSlots.size() > requestExecutionSlotSharingGroups) {
-            final Map<TaskManagerLocation, Set<PhysicalSlot>> slotsPerTaskExecutor =
+            final Map<ResourceID, Set<PhysicalSlot>> slotsPerTaskExecutor =
                     getSlotsPerTaskExecutor(freeSlots);
             pickedSlots =
                     pickSlotsInMinimalTaskExecutors(
@@ -108,13 +106,13 @@ public class DefaultSlotAssigner implements SlotAssigner {
      * @param slotsPerTaskExecutor The slots per task manager.
      * @return The ordered task manager that orders by the number of free slots descending.
      */
-    private Iterator<TaskManagerLocation> getSortedTaskExecutors(
-            Map<TaskManagerLocation, Set<PhysicalSlot>> slotsPerTaskExecutor) {
-        final Comparator<TaskManagerLocation> taskExecutorComparator =
-                (leftTml, rightTml) ->
+    private Iterator<ResourceID> getSortedTaskExecutors(
+            Map<ResourceID, Set<PhysicalSlot>> slotsPerTaskExecutor) {
+        final Comparator<ResourceID> taskExecutorComparator =
+                (leftTm, rightTm) ->
                         Integer.compare(
-                                slotsPerTaskExecutor.get(rightTml).size(),
-                                slotsPerTaskExecutor.get(leftTml).size());
+                                slotsPerTaskExecutor.get(rightTm).size(),
+                                slotsPerTaskExecutor.get(leftTm).size());
         return slotsPerTaskExecutor.keySet().stream().sorted(taskExecutorComparator).iterator();
     }
 
@@ -126,23 +124,14 @@ public class DefaultSlotAssigner implements SlotAssigner {
      * @return the target slots that are distributed on the minimal task executors.
      */
     private Collection<PhysicalSlot> pickSlotsInMinimalTaskExecutors(
-            Map<TaskManagerLocation, Set<PhysicalSlot>> slotsByTaskExecutor, int requestedGroups) {
+            Map<ResourceID, Set<PhysicalSlot>> slotsByTaskExecutor, int requestedGroups) {
         final List<PhysicalSlot> pickedSlots = new ArrayList<>();
-        final Iterator<TaskManagerLocation> sortedTaskExecutors =
+        final Iterator<ResourceID> sortedTaskExecutors =
                 getSortedTaskExecutors(slotsByTaskExecutor);
         while (pickedSlots.size() < requestedGroups) {
             Set<PhysicalSlot> slotInfos = slotsByTaskExecutor.get(sortedTaskExecutors.next());
             pickedSlots.addAll(slotInfos);
         }
         return pickedSlots;
-    }
-
-    private Map<TaskManagerLocation, Set<PhysicalSlot>> getSlotsPerTaskExecutor(
-            Collection<PhysicalSlot> slots) {
-        return slots.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                SlotInfo::getTaskManagerLocation,
-                                Collectors.mapping(identity(), Collectors.toSet())));
     }
 }

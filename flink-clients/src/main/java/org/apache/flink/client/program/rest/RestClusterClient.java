@@ -38,7 +38,6 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilityServicesFactory;
@@ -1027,7 +1026,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         })
                 .thenApply(
                         jobResult -> {
-                            if (jobResult.getApplicationStatus() == ApplicationStatus.UNKNOWN) {
+                            if (jobResult.getJobStatus().isEmpty()) {
                                 throw new JobStateUnknownException(
                                         String.format("Result for Job %s is UNKNOWN", jobId));
                             }

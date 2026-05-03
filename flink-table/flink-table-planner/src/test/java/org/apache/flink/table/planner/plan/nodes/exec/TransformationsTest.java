@@ -20,7 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
@@ -35,8 +38,14 @@ import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
+import org.apache.flink.table.connector.ProviderContext;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.factories.TableFactoryHarness;
+import org.apache.flink.table.planner.factories.TableFactoryHarness.ScanSourceBase;
 import org.apache.flink.table.planner.lineage.TableSourceLineageVertex;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
+import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
@@ -45,6 +54,7 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -67,7 +77,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 class TransformationsTest {
 
     @Test
-    public void testLegacyBatchSource() {
+    void testLegacyBatchSource() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -97,7 +107,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testLegacyStreamSource() {
+    void testLegacyStreamSource() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -127,7 +137,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testLegacyBatchValues() {
+    void testLegacyBatchValues() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -142,20 +152,136 @@ class TransformationsTest {
     }
 
     @Test
-    public void testUidGeneration() {
-        checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
-        checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
-        checkUids(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
+    void testUidGeneration() {
+        testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
+        testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
+        testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
     }
 
-    private static void checkUids(
+    @Test
+    void testUidDefaults() throws IOException {
+        assertTransformations(
+                config -> {},
+                json -> {},
+                env -> planFromCurrentFlinkValues(env).asJsonString(),
+                "\\d+_sink",
+                "\\d+_constraint-validator",
+                "\\d+_values");
+    }
+
+    @Test
+    void testUidFlink1_15() throws IOException {
+        assertTransformations(
+                config ->
+                        config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
+                json -> {},
+                env -> planFromFlink1_15Values(env).asJsonString(),
+                "\\d+_stream-exec-sink_1_sink",
+                "\\d+_stream-exec-sink_1_constraint-validator",
+                "\\d+_stream-exec-values_1_values");
+    }
+
+    @Test
+    void testUidFlink1_18() throws IOException {
+        assertTransformations(
+                config ->
+                        config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
+                json -> {},
+                env -> planFromCurrentFlinkValues(env).asJsonString(),
+                "\\d+_stream-exec-sink_2_sink",
+                "\\d+_stream-exec-sink_2_constraint-validator",
+                "\\d+_stream-exec-values_1_values");
+    }
+
+    @Test
+    void testPerNodeCustomUid() throws IOException {
+        assertTransformations(
+                config -> {},
+                json ->
+                        JsonTestUtils.setExecNodeConfig(
+                                json,
+                                "stream-exec-sink_2",
+                                TABLE_EXEC_UID_FORMAT.key(),
+                                "my_custom_<transformation>_<id>"),
+                env -> planFromCurrentFlinkValues(env).asJsonString(),
+                "my_custom_sink_\\d+",
+                "my_custom_constraint-validator_\\d+",
+                "\\d+_values");
+    }
+
+    @Test
+    void testMultiTransformSources() throws IOException {
+        assertTransformations(
+                config -> {},
+                json -> {},
+                env -> planFromCurrentFlinkMultiTransformSource(env).asJsonString(),
+                TransformationSummary.of(
+                        "\\d+_sink",
+                        ".*anonymous_blackhole.*",
+                        ".*Sink\\(table=\\[.*anonymous_blackhole.*\\], fields=\\[i\\]\\)"),
+                // In StreamTableScan v2, the uid, name, and description of the intermediate
+                // transformation are implementation-specific.
+                TransformationSummary.of("\\d+_my-transform", "MyTransform", "MyDescription"),
+                // In StreamTableScan v2, the uid, name, and description of the leaf
+                // transformation are implementation-specific.
+                TransformationSummary.of(
+                        "\\d+_my-source",
+                        "T\\[\\d+\\]",
+                        "\\[\\d+\\]\\:TableSourceScan\\(table=\\[\\[default_catalog, default_database, T\\]\\], fields=\\[i\\]\\)"));
+    }
+
+    @Test
+    void testMultiTransformSourcesV1() throws IOException {
+        assertTransformations(
+                config -> {},
+                json -> {},
+                env -> planFromFlink2_2MultiTransformSource(env).asJsonString(),
+                TransformationSummary.of(
+                        "\\d+_sink",
+                        ".*anonymous_blackhole.*",
+                        ".*Sink\\(table=\\[.*anonymous_blackhole.*\\], fields=\\[i\\]\\)"),
+                // In StreamTableScan v1, the uid, name, and description of the intermediate
+                // transformation are set by the planner.
+                TransformationSummary.of(
+                        "\\d+_source",
+                        "T\\[\\d+\\]",
+                        "\\[\\d+\\]\\:TableSourceScan\\(table=\\[\\[default_catalog, default_database, T\\]\\], fields=\\[i\\]\\)"),
+                // In StreamTableScan v1, the uid, name, and description of the leaf
+                // transformation are implementation-specific.
+                TransformationSummary.of(
+                        "\\d+_my-source",
+                        "T\\[\\d+\\]",
+                        "\\[\\d+\\]\\:TableSourceScan\\(table=\\[\\[default_catalog, default_database, T\\]\\], fields=\\[i\\]\\)"));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
+    // --------------------------------------------------------------------------------------------
+
+    private static class TransformationSummary {
+        public final String uid;
+        public final String name;
+        public final String description;
+
+        static TransformationSummary of(String uid, String name, String description) {
+            return new TransformationSummary(uid, name, description);
+        }
+
+        private TransformationSummary(String uid, String name, String description) {
+            this.uid = uid;
+            this.name = name;
+            this.description = description;
+        }
+    }
+
+    private static void testUidGeneration(
             Consumer<TableConfig> config,
             boolean expectUidWithCompilation,
             boolean expectUidWithoutCompilation) {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
-                        EnvironmentSettings.newInstance().inStreamingMode().build());
+                        EnvironmentSettings.inStreamingMode());
         config.accept(env.getConfig());
 
         env.createTemporaryTable(
@@ -219,93 +345,145 @@ class TransformationsTest {
         }
     }
 
-    @Test
-    public void testUidDefaults() throws IOException {
-        checkUidModification(
-                config -> {},
-                json -> {},
-                env -> planFromCurrentFlinkVersion(env).asJsonString(),
-                "\\d+_sink",
-                "\\d+_constraint-validator",
-                "\\d+_values");
-    }
-
-    @Test
-    public void testUidFlink1_15() throws IOException {
-        checkUidModification(
-                config ->
-                        config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
-                json -> {},
-                env -> planFromFlink1_15(env).asJsonString(),
-                "\\d+_stream-exec-sink_1_sink",
-                "\\d+_stream-exec-sink_1_constraint-validator",
-                "\\d+_stream-exec-values_1_values");
-    }
-
-    @Test
-    public void testUidFlink1_18() throws IOException {
-        checkUidModification(
-                config ->
-                        config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
-                json -> {},
-                env -> planFromCurrentFlinkVersion(env).asJsonString(),
-                "\\d+_stream-exec-sink_1_sink",
-                "\\d+_stream-exec-sink_1_constraint-validator",
-                "\\d+_stream-exec-values_1_values");
-    }
-
-    @Test
-    public void testPerNodeCustomUid() throws IOException {
-        checkUidModification(
-                config -> {},
-                json ->
-                        JsonTestUtils.setExecNodeConfig(
-                                json,
-                                "stream-exec-sink_1",
-                                TABLE_EXEC_UID_FORMAT.key(),
-                                "my_custom_<transformation>_<id>"),
-                env -> planFromCurrentFlinkVersion(env).asJsonString(),
-                "my_custom_sink_\\d+",
-                "my_custom_constraint-validator_\\d+",
-                "\\d+_values");
-    }
-
-    private static void checkUidModification(
+    private static void assertTransformations(
             Consumer<TableConfig> configModifier,
             Consumer<JsonNode> jsonModifier,
             Function<TableEnvironment, String> planGenerator,
-            String... expectedUidPatterns)
+            String... expectedUids)
+            throws IOException {
+        assertTransformations(
+                configModifier,
+                jsonModifier,
+                planGenerator,
+                Arrays.stream(expectedUids)
+                        .map(uid -> TransformationSummary.of(uid, null, null))
+                        .toArray(TransformationSummary[]::new));
+    }
+
+    private static void assertTransformations(
+            Consumer<TableConfig> configModifier,
+            Consumer<JsonNode> jsonModifier,
+            Function<TableEnvironment, String> planGenerator,
+            TransformationSummary... expectedTransformations)
             throws IOException {
         final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         configModifier.accept(env.getConfig());
         final JsonNode json = JsonTestUtils.readFromString(planGenerator.apply(env));
         jsonModifier.accept(json);
-        final List<String> planUids =
+        final List<TransformationSummary> actualTransformations =
                 CompiledPlanUtils.toTransformations(
                                 env, env.loadPlan(PlanReference.fromJsonString(json.toString())))
                         .get(0)
                         .getTransitivePredecessors()
                         .stream()
-                        .map(Transformation::getUid)
+                        .map(
+                                t ->
+                                        TransformationSummary.of(
+                                                t.getUid(), t.getName(), t.getDescription()))
                         .collect(Collectors.toList());
-        assertThat(planUids).hasSize(expectedUidPatterns.length);
-        IntStream.range(0, expectedUidPatterns.length)
-                .forEach(i -> assertThat(planUids.get(i)).matches(expectedUidPatterns[i]));
+        assertThat(actualTransformations).hasSize(expectedTransformations.length);
+        IntStream.range(0, expectedTransformations.length)
+                .forEach(
+                        i -> {
+                            final TransformationSummary expected = expectedTransformations[i];
+                            final TransformationSummary actual = actualTransformations.get(i);
+                            if (expected.uid != null) {
+                                assertThat(actual.uid).as("uid").matches(expected.uid);
+                            }
+                            if (expected.name != null) {
+                                assertThat(actual.name).as("name").matches(expected.name);
+                            }
+                            if (expected.description != null) {
+                                assertThat(actual.description)
+                                        .as("description")
+                                        .matches(expected.description);
+                            }
+                        });
     }
 
-    // --------------------------------------------------------------------------------------------
-    // Helper methods
-    // --------------------------------------------------------------------------------------------
-
-    private static CompiledPlan planFromCurrentFlinkVersion(TableEnvironment env) {
+    private static CompiledPlan planFromCurrentFlinkValues(TableEnvironment env) {
         return env.fromValues(1, 2, 3)
                 .insertInto(TableDescriptor.forConnector("blackhole").build())
                 .compilePlan();
     }
 
-    private static CompiledPlan planFromFlink1_15(TableEnvironment env) {
+    private static CompiledPlan planFromFlink1_15Values(TableEnvironment env) {
         // plan content is compiled using release-1.15 with exec node version 1
         return env.loadPlan(PlanReference.fromResource("/jsonplan/testUidFlink1_15.out"));
+    }
+
+    private static CompiledPlan planFromFlink2_2MultiTransformSource(TableEnvironment env) {
+        createMultiTransformSource(env, "stream-exec-table-source-scan_1");
+        // plan content is compiled from
+        // planFromCurrentFlinkMultiTransformSource() using Flink release-2.2
+        return env.loadPlan(
+                PlanReference.fromResource("/jsonplan/testMultiTransformSourceUidsFlink2_2.out"));
+    }
+
+    private static CompiledPlan planFromCurrentFlinkMultiTransformSource(TableEnvironment env) {
+        createMultiTransformSource(env, "stream-exec-table-source-scan_2");
+        return env.from("T")
+                .insertInto(TableDescriptor.forConnector("blackhole").build())
+                .compilePlan();
+    }
+
+    private static void createMultiTransformSource(
+            TableEnvironment env, String expectedSourceExecNode) {
+        final DataStreamScanProvider scanProvider =
+                new DataStreamScanProvider() {
+                    @Override
+                    public boolean isBounded() {
+                        return false;
+                    }
+
+                    @Override
+                    public DataStream<RowData> produceDataStream(
+                            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+
+                        assertThat(providerContext.getContainerNodeType())
+                                .isEqualTo(expectedSourceExecNode);
+
+                        // UID 1
+                        final SingleOutputStreamOperator<Integer> ints = execEnv.fromData(1, 2, 3);
+                        providerContext.generateUid("my-source").ifPresent(ints::uid);
+                        ints.name(providerContext.getName());
+                        ints.setDescription(providerContext.getDescription());
+
+                        // UID 2
+                        final SingleOutputStreamOperator<RowData> rows =
+                                ints.process(
+                                        new ProcessFunction<>() {
+                                            @Override
+                                            public void processElement(
+                                                    Integer value,
+                                                    Context ctx,
+                                                    Collector<RowData> out) {
+                                                throw new IllegalStateException(
+                                                        "Should not be called.");
+                                            }
+                                        });
+                        providerContext.generateUid("my-transform").ifPresent(rows::uid);
+                        rows.name("MyTransform");
+                        rows.setDescription("MyDescription");
+
+                        return rows;
+                    }
+                };
+
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(dummySchema())
+                        .source(
+                                new ScanSourceBase() {
+                                    @Override
+                                    public ScanRuntimeProvider getScanRuntimeProvider(
+                                            ScanContext runtimeProviderContext) {
+                                        return scanProvider;
+                                    }
+                                })
+                        .build();
+
+        env.createTemporaryTable("T", sourceDescriptor);
     }
 
     private static LegacySourceTransformation<?> toLegacySourceTransformation(

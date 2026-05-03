@@ -21,18 +21,17 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.testproto.OneofTest;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of proto one_of data to flink internal data. */
-public class OneofProtoToRowTest {
+class OneofProtoToRowTest {
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         OneofTest oneofTest = OneofTest.newBuilder().setA(1).setB(2).build();
         RowData row = ProtobufTestHelper.pbBytesToRow(OneofTest.class, oneofTest.toByteArray());
-        assertTrue(row.isNullAt(0));
-        assertEquals(2, row.getInt(1));
+        assertThat(row.isNullAt(0)).isTrue();
+        assertThat(row.getInt(1)).isEqualTo(2);
     }
 }

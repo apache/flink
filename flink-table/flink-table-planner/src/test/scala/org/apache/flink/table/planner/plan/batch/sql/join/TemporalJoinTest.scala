@@ -24,9 +24,11 @@ import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
- * Test temporal join in batch mode.
+ * Tests that temporal joins on non-lookup tables are rejected in batch mode with a clear error.
  *
- * <p> Flink only supports lookup join in batch mode, the others Temporal join is not supported yet.
+ * <p>Batch mode only supports lookup joins. General temporal joins (event-time or processing-time
+ * on non-lookup sources) are caught by [[RejectTemporalJoinInBatchRule]] during the
+ * TEMPORAL_JOIN_REWRITE phase.
  */
 class TemporalJoinTest extends TableTestBase {
 
@@ -105,6 +107,10 @@ class TemporalJoinTest extends TableTestBase {
         "GROUP BY currency ")
   }
 
+  private val expectedMessage =
+    "Temporal joins (FOR SYSTEM_TIME AS OF) on regular tables are not supported in " +
+      "batch mode. Use a lookup join or switch to streaming mode."
+
   @Test
   def testSimpleJoin(): Unit = {
     val sqlQuery = "SELECT " +
@@ -115,6 +121,7 @@ class TemporalJoinTest extends TableTestBase {
 
     assertThatExceptionOfType(classOf[TableException])
       .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage(expectedMessage)
   }
 
   @Test
@@ -128,6 +135,7 @@ class TemporalJoinTest extends TableTestBase {
 
     assertThatExceptionOfType(classOf[TableException])
       .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage(expectedMessage)
   }
 
   @Test
@@ -141,11 +149,21 @@ class TemporalJoinTest extends TableTestBase {
 
     assertThatExceptionOfType(classOf[TableException])
       .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage(expectedMessage)
+  }
+
+  @Test
+  def testSimpleJoinOnTrue(): Unit = {
+    val sqlQuery = "SELECT o_amount FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.o_rowtime AS r ON TRUE"
+
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage(expectedMessage)
   }
 
   @Test
   def testSimpleViewProcTimeJoin(): Unit = {
-
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
@@ -155,5 +173,6 @@ class TemporalJoinTest extends TableTestBase {
 
     assertThatExceptionOfType(classOf[TableException])
       .isThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .withMessage(expectedMessage)
   }
 }

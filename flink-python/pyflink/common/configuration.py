@@ -27,6 +27,18 @@ class Configuration:
     """
     Lightweight configuration object which stores key/value pairs.
     """
+    @classmethod
+    def from_dict(cls, map: dict[str, str]):
+        """
+        Create a new configuration from the dict.
+
+        :param map: The dict to construct Configuration object.
+        """
+        gateway = get_gateway()
+        java_map = gateway.jvm.java.util.HashMap(map)
+        j_configuration_cls = gateway.jvm.org.apache.flink.configuration.Configuration
+        return Configuration(
+            j_configuration=j_configuration_cls.fromMap(java_map))
 
     def __init__(self, other: 'Configuration' = None, j_configuration: JavaObject = None):
         """

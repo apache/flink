@@ -98,4 +98,25 @@ public class PrometheusPushGatewayReporterOptions {
                                                     "https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels",
                                                     "Prometheus requirements"))
                                     .build());
+
+    public static final ConfigOption<String> USERNAME =
+            ConfigOptions.key("username")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "(Optional) The username for HTTP Basic Authentication with the PushGateway.");
+
+    public static final ConfigOption<String> PASSWORD =
+            ConfigOptions.key("password")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "(Optional) The password for HTTP Basic Authentication with the PushGateway.");
+
+    public static final ConfigOption<String> ALLOW_LIST =
+            ConfigOptions.key("allowList")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The allow-list of metric name. The default is to report all metrics");
 }

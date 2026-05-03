@@ -34,8 +34,10 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -112,6 +114,10 @@ public final class ApiExpressionUtils {
             return convertArray(expression);
         } else if (expression instanceof List) {
             return convertJavaList((List<?>) expression);
+        } else if (expression instanceof Bitmap) {
+            return unresolvedCall(
+                    BuiltInFunctionDefinitions.BITMAP_FROM_BYTES,
+                    new ValueLiteralExpression(((Bitmap) expression).toBytes()));
         } else {
             return convertScala(expression).orElseGet(() -> valueLiteral(expression));
         }
@@ -263,6 +269,11 @@ public final class ApiExpressionUtils {
 
     public static TypeLiteralExpression typeLiteral(DataType dataType) {
         return new TypeLiteralExpression(dataType);
+    }
+
+    public static UnresolvedTypeLiteralExpression unresolvedType(
+            UnresolvedDataType unresolvedDataType) {
+        return new UnresolvedTypeLiteralExpression(unresolvedDataType);
     }
 
     public static UnresolvedReferenceExpression unresolvedRef(String name) {

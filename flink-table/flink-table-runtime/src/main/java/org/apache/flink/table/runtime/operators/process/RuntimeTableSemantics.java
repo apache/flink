@@ -38,6 +38,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     private final int inputIndex;
     private final DataType dataType;
     private final int[] partitionByColumns;
+    private final int[] orderByColumns;
+    private final SortDirection[] orderByDirections;
     private final RuntimeChangelogMode consumedChangelogMode;
     private final boolean passColumnsThrough;
     private final boolean hasSetSemantics;
@@ -50,6 +52,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
             int inputIndex,
             DataType dataType,
             int[] partitionByColumns,
+            int[] orderByColumns,
+            SortDirection[] orderByDirections,
             RuntimeChangelogMode consumedChangelogMode,
             boolean passColumnsThrough,
             boolean hasSetSemantics,
@@ -58,6 +62,8 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
         this.inputIndex = inputIndex;
         this.dataType = dataType;
         this.partitionByColumns = partitionByColumns;
+        this.orderByColumns = orderByColumns;
+        this.orderByDirections = orderByDirections;
         this.consumedChangelogMode = consumedChangelogMode;
         this.passColumnsThrough = passColumnsThrough;
         this.hasSetSemantics = hasSetSemantics;
@@ -99,7 +105,12 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     @Override
     public int[] orderByColumns() {
-        return new int[0];
+        return orderByColumns;
+    }
+
+    @Override
+    public SortDirection[] orderByDirections() {
+        return orderByDirections;
     }
 
     @Override

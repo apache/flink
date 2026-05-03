@@ -384,10 +384,9 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
       <![CDATA[
 FlinkLogicalCalc(select=[a4, c4, s, EXPR$3])
 +- FlinkLogicalAggregate(group=[{0, 2}], c4=[AUXILIARY_GROUP($1)], EXPR$3=[COUNT($3)])
-   +- FlinkLogicalCalc(select=[a4, c4, w$start AS s, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4) AS INTEGER) AS b4])
-      +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($1)], agg#1=[SUM($4)], agg#2=[SUM($3)], agg#3=[COUNT($3)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
-         +- FlinkLogicalCalc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
-            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+   +- FlinkLogicalCalc(select=[a4, c4, w$start AS s, CAST(/($f2, $f3) AS INTEGER) AS b4])
+      +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($2)], agg#1=[$WELFORD_M2$1($1)], agg#2=[COUNT($1)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
+         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
     </Resource>
   </TestCase>
@@ -409,10 +408,9 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT($3)])
       <![CDATA[
 FlinkLogicalCalc(select=[a4, c4, e, EXPR$3])
 +- FlinkLogicalAggregate(group=[{0, 2}], c4=[AUXILIARY_GROUP($1)], EXPR$3=[COUNT($3)])
-   +- FlinkLogicalCalc(select=[a4, c4, w$end AS e, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4) AS INTEGER) AS b4])
-      +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($1)], agg#1=[SUM($4)], agg#2=[SUM($3)], agg#3=[COUNT($3)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
-         +- FlinkLogicalCalc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
-            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+   +- FlinkLogicalCalc(select=[a4, c4, w$end AS e, CAST(/($f2, $f3) AS INTEGER) AS b4])
+      +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($2)], agg#1=[$WELFORD_M2$1($1)], agg#2=[COUNT($1)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
+         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
     </Resource>
   </TestCase>
@@ -433,10 +431,9 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalAggregate(group=[{0, 1}], c4=[AUXILIARY_GROUP($2)], EXPR$3=[COUNT()])
-+- FlinkLogicalCalc(select=[a4, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4) AS INTEGER) AS b4, c4])
-   +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($1)], agg#1=[SUM($4)], agg#2=[SUM($3)], agg#3=[COUNT($3)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
-      +- FlinkLogicalCalc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
-         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
++- FlinkLogicalCalc(select=[a4, CAST(/($f2, $f3) AS INTEGER) AS b4, c4])
+   +- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($2)], agg#1=[$WELFORD_M2$1($1)], agg#2=[COUNT($1)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
     </Resource>
   </TestCase>
@@ -572,6 +569,27 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
 FlinkLogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
 +- FlinkLogicalCalc(select=[a3, b3, c3])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testImperativeAggWithAuxiliaryGrouping">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, c4, COUNT(b4) FROM (SELECT a4, c4, ARRAY_AGG(b4) AS b4 FROM T4 GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a4=[$0], c4=[$1], b4=[$3])
+   +- LogicalAggregate(group=[{0, 1, 2}], b4=[ARRAY_AGG($3)])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalAggregate(group=[{0}], c4=[AUXILIARY_GROUP($1)], EXPR$2=[COUNT($2)])
++- FlinkLogicalWindowAggregate(group=[{0}], c4=[AUXILIARY_GROUP($2)], b4=[ARRAY_AGG($1)], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
     </Resource>
   </TestCase>

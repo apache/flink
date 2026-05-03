@@ -21,6 +21,12 @@
             <td>The default freshness interval for full refresh mode when the FRESHNESS clause is omitted in a materialized table definition.</td>
         </tr>
         <tr>
+            <td><h5>materialized-table.default-start-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">FROM_BEGINNING</td>
+            <td><p>Enum</p></td>
+            <td>The default start mode for materialized tables.Supported values: FROM_BEGINNING, FROM_NOW, RESUME_OR_FROM_BEGINNING, RESUME_OR_FROM_NOW.<br /><br />Possible values:<ul><li>"FROM_BEGINNING"</li><li>"FROM_NOW"</li><li>"FROM_TIMESTAMP"</li><li>"RESUME_OR_FROM_BEGINNING"</li><li>"RESUME_OR_FROM_NOW"</li><li>"RESUME_OR_FROM_TIMESTAMP"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>materialized-table.refresh-mode.freshness-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">30 min</td>
             <td>Duration</td>

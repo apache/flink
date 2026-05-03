@@ -42,17 +42,20 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -68,11 +71,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test for checkpointing and restoring a job with a {@link MapState} that contains null
  * user values.
  */
-@RunWith(Parameterized.class)
-public class MapStateNullValueCheckpointingITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class MapStateNullValueCheckpointingITCase {
 
-    @Parameterized.Parameters(name = "stateBackend : {0}, snapshotType : {1}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "stateBackend : {0}, snapshotType : {1}")
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {"rocksdb", Either.Left(CheckpointType.FULL)},
@@ -89,17 +92,17 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
                 });
     }
 
-    @Parameterized.Parameter public String stateBackend;
+    @Parameter private String stateBackend;
 
-    @Parameterized.Parameter(1)
-    public Either<CheckpointType, SavepointFormatType> snapshotType;
+    @Parameter(1)
+    private Either<CheckpointType, SavepointFormatType> snapshotType;
 
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @TempDir private Path tmpFolder;
 
-    private static MiniClusterWithClientResource cluster;
+    private MiniClusterWithClientResource cluster;
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -113,16 +116,16 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
         StatefulMapper.secondRunFuture = new CompletableFuture<>();
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
         }
     }
 
-    @Test
-    public void testMapStateWithNullValueCheckpointingAndRestore() throws Exception {
+    @TestTemplate
+    void testMapStateWithNullValueCheckpointingAndRestore() throws Exception {
         final String savepointPath = runJobAndTakeSnapshot();
         assertThat(savepointPath).isNotEmpty();
         restoreAndVerify(savepointPath);
@@ -132,10 +135,11 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
         Configuration conf = new Configuration();
         conf.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                tmpFolder.newFolder().toURI().toString());
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION, RETAIN_ON_CANCELLATION);
         conf.set(
-                CheckpointingOptions.SAVEPOINT_DIRECTORY, tmpFolder.newFolder().toURI().toString());
+                CheckpointingOptions.SAVEPOINT_DIRECTORY,
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
 
@@ -163,10 +167,9 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
             String checkpointPath =
                     CommonTestUtils.getLatestCompletedCheckpointPath(jobID, miniCluster)
                             .<NoSuchElementException>orElseThrow(
-                                    () -> {
-                                        throw new NoSuchElementException(
-                                                "No checkpoint was created yet");
-                                    });
+                                    () ->
+                                            new NoSuchElementException(
+                                                    "No checkpoint was created yet"));
             cluster.getClusterClient().cancel(jobID);
             return checkpointPath;
         } else {
@@ -189,9 +192,10 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
         Configuration conf = new Configuration();
         conf.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                tmpFolder.newFolder().toURI().toString());
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(
-                CheckpointingOptions.SAVEPOINT_DIRECTORY, tmpFolder.newFolder().toURI().toString());
+                CheckpointingOptions.SAVEPOINT_DIRECTORY,
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(1);
@@ -211,7 +215,7 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
 
         assertThat(restoredState.get("key")).isEqualTo("value");
         assertThat(restoredState.get("null-key")).isNull();
-        assertThat(restoredState.containsKey("null-key")).isTrue();
+        assertThat(restoredState).containsKey("null-key");
     }
 
     private static class StatefulMapper extends RichMapFunction<Long, Long> {

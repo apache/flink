@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterModelRename;
+import org.apache.flink.sql.parser.ddl.model.SqlAlterModelRename;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelRenameOperation;
 
-/** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelRename}. */
+/** A converter for {@link SqlAlterModelRename}. */
 public class SqlAlterModelRenameConverter
         extends AbstractSqlAlterModelConverter<SqlAlterModelRename> {
 
@@ -34,7 +34,7 @@ public class SqlAlterModelRenameConverter
             SqlAlterModelRename sqlAlterModelRename, ConvertContext context) {
         // Mainly to check model existence
         getExistingModel(
-                context, sqlAlterModelRename.fullModelName(), sqlAlterModelRename.ifModelExists());
+                context, sqlAlterModelRename.getFullName(), sqlAlterModelRename.ifModelExists());
 
         UnresolvedIdentifier newUnresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterModelRename.fullNewModelName());
@@ -43,7 +43,7 @@ public class SqlAlterModelRenameConverter
         ObjectIdentifier oldModelIdentifier =
                 context.getCatalogManager()
                         .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelRename.fullModelName()));
+                                UnresolvedIdentifier.of(sqlAlterModelRename.getFullName()));
 
         if (!newModelIdentifier.getCatalogName().equals(oldModelIdentifier.getCatalogName())) {
             throw new ValidationException(

@@ -101,7 +101,8 @@ class StreamContextEnvironmentTest {
                         clusterConfig,
                         jobConfig,
                         classLoader,
-                        true,
+                        1,
+                        1,
                         true,
                         false,
                         Collections.emptyList());
@@ -190,7 +191,8 @@ class StreamContextEnvironmentTest {
                 clusterConfig,
                 clusterConfig,
                 classLoader,
-                true,
+                1,
+                1,
                 true,
                 false,
                 programConfigWildcards);

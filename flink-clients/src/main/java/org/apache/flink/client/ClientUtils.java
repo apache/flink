@@ -18,9 +18,12 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ClientOptions;
+import org.apache.flink.client.program.JarInfo;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StreamContextEnvironment;
@@ -42,10 +45,13 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -80,6 +86,29 @@ public enum ClientUtils {
             boolean enforceSingleJobExecution,
             boolean suppressSysout)
             throws ProgramInvocationException {
+        executeProgram(
+                executorServiceLoader,
+                configuration,
+                program,
+                enforceSingleJobExecution ? 1 : Integer.MAX_VALUE,
+                enforceSingleJobExecution ? 1 : Integer.MAX_VALUE,
+                suppressSysout,
+                null,
+                null,
+                Collections.emptyList());
+    }
+
+    public static void executeProgram(
+            PipelineExecutorServiceLoader executorServiceLoader,
+            Configuration configuration,
+            PackagedProgram program,
+            int jobCountLimit,
+            int streamingJobCountLimit,
+            boolean suppressSysout,
+            @Nullable ApplicationID applicationId,
+            @Nullable JarInfo userJarInfo,
+            Collection<JobInfo> allRecoveredJobInfos)
+            throws ProgramInvocationException {
         checkNotNull(executorServiceLoader);
         final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
         final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
@@ -94,8 +123,12 @@ public enum ClientUtils {
                     executorServiceLoader,
                     configuration,
                     userCodeClassLoader,
-                    enforceSingleJobExecution,
-                    suppressSysout);
+                    jobCountLimit,
+                    streamingJobCountLimit,
+                    suppressSysout,
+                    applicationId,
+                    userJarInfo,
+                    allRecoveredJobInfos);
 
             // For DataStream v2.
             ExecutionContextEnvironment.setAsContext(

@@ -82,15 +82,20 @@ import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.SingleSplitEnumerator;
 import org.apache.flink.test.util.source.TestSourceReader;
 import org.apache.flink.test.util.source.TestSplit;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -102,39 +107,40 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integrated tests to verify the logic to notify checkpoint aborted via RPC message. */
-@RunWith(Parameterized.class)
-public class NotifyCheckpointAbortedITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+class NotifyCheckpointAbortedITCase {
+    private static final Logger LOG = LoggerFactory.getLogger(NotifyCheckpointAbortedITCase.class);
 
     private static final long DECLINE_CHECKPOINT_ID = 2L;
     private static final OneShotLatch DECLINE_CHECKPOINT_WAIT_LATCH = new OneShotLatch();
-    private static final long TEST_TIMEOUT = 100000;
     private static final String DECLINE_SINK_NAME = "DeclineSink";
     private static MiniClusterWithClientResource cluster;
 
     private static Path checkpointPath;
 
-    @Parameterized.Parameter public boolean unalignedCheckpointEnabled;
+    @Parameter private boolean unalignedCheckpointEnabled;
 
-    @Parameterized.Parameters(name = "unalignedCheckpointEnabled ={0}")
-    public static Collection<Boolean> parameter() {
+    @Parameters(name = "unalignedCheckpointEnabled ={0}")
+    private static Collection<Boolean> parameter() {
         return Arrays.asList(true, false);
     }
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(StateRecoveryOptions.LOCAL_RECOVERY, true);
         configuration.set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
-        checkpointPath = new Path(TEMPORARY_FOLDER.newFolder().toURI());
+        checkpointPath = new Path(TempDirUtils.newFolder(temporaryFolder).toURI());
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -150,8 +156,8 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         TestingCompletedCheckpointStore.reset();
     }
 
-    @After
-    public void shutdown() {
+    @AfterEach
+    void shutdown() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -167,8 +173,9 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
      *
      * <p>The job graph looks like: NormalSource --> keyBy --> NormalMap --> DeclineSink
      */
-    @Test(timeout = TEST_TIMEOUT)
-    public void testNotifyCheckpointAborted() throws Exception {
+    @TestTemplate
+    @Timeout(value = 2, unit = TimeUnit.MINUTES)
+    void testNotifyCheckpointAborted() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().enableUnalignedCheckpoints(unalignedCheckpointEnabled);
@@ -193,23 +200,23 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         clusterClient.submitJob(jobGraph).get();
 
         TestingCompletedCheckpointStore.addCheckpointLatch.await();
-        log.info("The checkpoint to abort is ready to add to checkpoint store.");
+        LOG.info("The checkpoint to abort is ready to add to checkpoint store.");
         TestingCompletedCheckpointStore.abortCheckpointLatch.trigger();
 
-        log.info("Verifying whether all operators have been notified of checkpoint-1 aborted.");
+        LOG.info("Verifying whether all operators have been notified of checkpoint-1 aborted.");
         verifyAllOperatorsNotifyAborted();
-        log.info("Verified that all operators have been notified of checkpoint-1 aborted.");
+        LOG.info("Verified that all operators have been notified of checkpoint-1 aborted.");
         resetAllOperatorsNotifyAbortedLatches();
         verifyAllOperatorsNotifyAbortedTimes(1);
 
         DECLINE_CHECKPOINT_WAIT_LATCH.trigger();
-        log.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
+        LOG.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
         verifyAllOperatorsNotifyAborted();
-        log.info("Verified that all operators have been notified of checkpoint-2 aborted.");
+        LOG.info("Verified that all operators have been notified of checkpoint-2 aborted.");
         verifyAllOperatorsNotifyAbortedTimes(2);
 
         clusterClient.cancel(jobID).get();
-        log.info("Test is verified successfully as expected.");
+        LOG.info("Test is verified successfully as expected.");
     }
 
     private void verifyAllOperatorsNotifyAborted() throws InterruptedException {
@@ -223,8 +230,8 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
     }
 
     private void verifyAllOperatorsNotifyAbortedTimes(int expectedTimes) {
-        assertEquals(expectedTimes, NormalMap.notifiedAbortedTimes.get());
-        assertEquals(expectedTimes, DeclineSink.notifiedAbortedTimes.get());
+        assertThat(NormalMap.notifiedAbortedTimes).hasValue(expectedTimes);
+        assertThat(DeclineSink.notifiedAbortedTimes).hasValue(expectedTimes);
     }
 
     /** Source V2 implementation using AbstractTestSource that replaces the legacy NormalSource. */

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 
 /** Utility class to encapsulate the logic of building a {@link RecordWriter} instance. */
@@ -28,6 +29,11 @@ public class RecordWriterBuilder<T extends IOReadableWritable> {
     private long timeout = -1;
 
     private String taskName = "test";
+
+    private boolean enabledAdaptivePartitioner = false;
+
+    private int maxTraverseSize =
+            NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE.defaultValue();
 
     public RecordWriterBuilder<T> setChannelSelector(ChannelSelector<T> selector) {
         this.selector = selector;
@@ -44,11 +50,24 @@ public class RecordWriterBuilder<T extends IOReadableWritable> {
         return this;
     }
 
+    public RecordWriterBuilder<T> setEnabledAdaptivePartitioner(
+            boolean enabledAdaptivePartitioner) {
+        this.enabledAdaptivePartitioner = enabledAdaptivePartitioner;
+        return this;
+    }
+
+    public RecordWriterBuilder<T> setMaxTraverseSize(int maxTraverseSize) {
+        this.maxTraverseSize = maxTraverseSize;
+        return this;
+    }
+
     public RecordWriter<T> build(ResultPartitionWriter writer) {
         if (selector.isBroadcast()) {
             return new BroadcastRecordWriter<>(writer, timeout, taskName);
-        } else {
-            return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
         }
+        if (enabledAdaptivePartitioner) {
+            return new AdaptiveLoadBasedRecordWriter<>(writer, timeout, taskName, maxTraverseSize);
+        }
+        return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
     }
 }

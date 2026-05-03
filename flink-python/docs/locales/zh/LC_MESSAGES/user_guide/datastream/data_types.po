@@ -1,0 +1,532 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/datastream/data_types.rst:21
+msgid "Data Types"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:23
+msgid ""
+"In Apache Flink's Python DataStream API, a data type describes the type "
+"of a value in the DataStream ecosystem. It can be used to declare input "
+"and output types of operations and informs the system how to serialize "
+"elements."
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:29
+msgid "Pickle Serialization"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:31
+msgid ""
+"If the type has not been declared, data would be serialized or "
+"deserialized using Pickle. For example, the program below specifies no "
+"data types."
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:52
+msgid "However, types need to be specified when:"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:54
+msgid "Passing Python records to Java operations."
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:55
+msgid "Improve serialization and deserialization performance."
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:58
+msgid "Passing Python records to Java operations"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:60
+msgid ""
+"Since Java operators or functions can not identify Python data, types "
+"need to be provided to help to convert Python types to Java types for "
+"processing. For example, types need to be provided if you want to output "
+"data using the FileSink which is implemented in Java."
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:88
+msgid "Improve serialization and deserialization performance"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:90
+msgid ""
+"Even though data can be serialized and deserialized through Pickle, "
+"performance will be better if types are provided. Explicit types allow "
+"PyFlink to use efficient serializers when moving records through the "
+"pipeline."
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:94
+msgid "Supported Data Types"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:96
+msgid ""
+"You can use ``pyflink.common.typeinfo.Types`` to define types in Python "
+"DataStream API. The table below shows the types supported now and how to "
+"define them:"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:103
+msgid "PyFlink Type"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:104
+#: ../../user_guide/datastream/data_types.rst:177
+msgid "Python Type"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:105
+#: ../../user_guide/datastream/data_types.rst:178
+msgid "Java Type"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:106
+msgid "``Types.BOOLEAN()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:107
+msgid "``bool``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:108
+msgid "``java.lang.Boolean``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:109
+msgid "``Types.BYTE()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:110
+#: ../../user_guide/datastream/data_types.rst:113
+#: ../../user_guide/datastream/data_types.rst:116
+#: ../../user_guide/datastream/data_types.rst:119
+#: ../../user_guide/datastream/data_types.rst:134
+msgid "``int``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:111
+msgid "``java.lang.Byte``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:112
+msgid "``Types.SHORT()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:114
+msgid "``java.lang.Short``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:115
+msgid "``Types.INT()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:117
+msgid "``java.lang.Integer``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:118
+msgid "``Types.LONG()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:120
+msgid "``java.lang.Long``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:121
+msgid "``Types.FLOAT()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:122
+#: ../../user_guide/datastream/data_types.rst:125
+msgid "``float``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:123
+msgid "``java.lang.Float``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:124
+msgid "``Types.DOUBLE()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:126
+msgid "``java.lang.Double``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:127
+msgid "``Types.CHAR()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:128
+#: ../../user_guide/datastream/data_types.rst:131
+msgid "``str``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:129
+msgid "``java.lang.Character``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:130
+msgid "``Types.STRING()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:132
+msgid "``java.lang.String``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:133
+msgid "``Types.BIG_INT()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:135
+msgid "``java.math.BigInteger``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:136
+msgid "``Types.BIG_DEC()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:137
+msgid "``decimal.Decimal``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:138
+msgid "``java.math.BigDecimal``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:139
+msgid "``Types.INSTANT()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:140
+msgid "``pyflink.common.time.Instant``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:141
+msgid "``java.time.Instant``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:142
+msgid "``Types.TUPLE()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:143
+msgid "``tuple``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:144
+msgid "``org.apache.flink.api.java.tuple.Tuple0`` ~ ``Tuple25``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:145
+msgid "``Types.ROW()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:146
+#: ../../user_guide/datastream/data_types.rst:149
+msgid "``pyflink.common.Row``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:147
+#: ../../user_guide/datastream/data_types.rst:150
+msgid "``org.apache.flink.types.Row``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:148
+msgid "``Types.ROW_NAMED()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:151
+msgid "``Types.MAP()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:152
+msgid "``dict``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:153
+msgid "``java.util.Map``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:154
+msgid "``Types.PICKLED_BYTE_ARRAY()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:155
+msgid "The actual unpickled Python object"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:156
+#: ../../user_guide/datastream/data_types.rst:181
+msgid "``byte[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:157
+msgid "``Types.SQL_DATE()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:158
+msgid "``datetime.date``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:159
+msgid "``java.sql.Date``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:160
+msgid "``Types.SQL_TIME()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:161
+msgid "``datetime.time``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:162
+msgid "``java.sql.Time``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:163
+msgid "``Types.SQL_TIMESTAMP()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:164
+msgid "``datetime.datetime``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:165
+msgid "``java.sql.Timestamp``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:166
+msgid "``Types.LIST()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:167
+#: ../../user_guide/datastream/data_types.rst:231
+msgid "list of Python object"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:168
+msgid "``java.util.List``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:170
+msgid "The table below shows the array types supported:"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:176
+msgid "PyFlink Array Type"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:179
+msgid "``Types.PRIMITIVE_ARRAY(Types.BYTE())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:180
+msgid "``bytes``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:182
+msgid "``Types.PRIMITIVE_ARRAY(Types.BOOLEAN())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:183
+#: ../../user_guide/datastream/data_types.rst:207
+msgid "list of bool"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:184
+msgid "``boolean[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:185
+msgid "``Types.PRIMITIVE_ARRAY(Types.SHORT())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:186
+#: ../../user_guide/datastream/data_types.rst:189
+#: ../../user_guide/datastream/data_types.rst:192
+#: ../../user_guide/datastream/data_types.rst:204
+#: ../../user_guide/datastream/data_types.rst:210
+#: ../../user_guide/datastream/data_types.rst:213
+#: ../../user_guide/datastream/data_types.rst:216
+msgid "list of int"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:187
+msgid "``short[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:188
+msgid "``Types.PRIMITIVE_ARRAY(Types.INT())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:190
+msgid "``int[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:191
+msgid "``Types.PRIMITIVE_ARRAY(Types.LONG())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:193
+msgid "``long[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:194
+msgid "``Types.PRIMITIVE_ARRAY(Types.FLOAT())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:195
+#: ../../user_guide/datastream/data_types.rst:198
+#: ../../user_guide/datastream/data_types.rst:219
+#: ../../user_guide/datastream/data_types.rst:222
+msgid "list of float"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:196
+msgid "``float[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:197
+msgid "``Types.PRIMITIVE_ARRAY(Types.DOUBLE())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:199
+msgid "``double[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:200
+msgid "``Types.PRIMITIVE_ARRAY(Types.CHAR())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:201
+#: ../../user_guide/datastream/data_types.rst:225
+#: ../../user_guide/datastream/data_types.rst:228
+msgid "list of str"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:202
+msgid "``char[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:203
+msgid "``Types.BASIC_ARRAY(Types.BYTE())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:205
+msgid "``java.lang.Byte[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:206
+msgid "``Types.BASIC_ARRAY(Types.BOOLEAN())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:208
+msgid "``java.lang.Boolean[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:209
+msgid "``Types.BASIC_ARRAY(Types.SHORT())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:211
+msgid "``java.lang.Short[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:212
+msgid "``Types.BASIC_ARRAY(Types.INT())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:214
+msgid "``java.lang.Integer[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:215
+msgid "``Types.BASIC_ARRAY(Types.LONG())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:217
+msgid "``java.lang.Long[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:218
+msgid "``Types.BASIC_ARRAY(Types.FLOAT())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:220
+msgid "``java.lang.Float[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:221
+msgid "``Types.BASIC_ARRAY(Types.DOUBLE())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:223
+msgid "``java.lang.Double[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:224
+msgid "``Types.BASIC_ARRAY(Types.CHAR())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:226
+msgid "``java.lang.Character[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:227
+msgid "``Types.BASIC_ARRAY(Types.STRING())``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:229
+msgid "``java.lang.String[]``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:230
+msgid "``Types.OBJECT_ARRAY()``"
+msgstr ""
+
+#: ../../user_guide/datastream/data_types.rst:232
+msgid "``Array``"
+msgstr ""
+

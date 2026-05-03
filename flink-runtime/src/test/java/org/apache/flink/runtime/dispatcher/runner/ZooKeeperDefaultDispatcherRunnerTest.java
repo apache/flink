@@ -18,21 +18,24 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
+import org.apache.flink.runtime.highavailability.ApplicationResultStore;
+import org.apache.flink.runtime.highavailability.EmbeddedApplicationResultStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -42,8 +45,10 @@ import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithU
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
-import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.PersistenceComponentFactory;
+import org.apache.flink.runtime.jobmanager.StandaloneApplicationStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
@@ -174,7 +179,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                             blobServer,
                             new TestingHeartbeatServices(),
                             UnregisteredMetricGroups::createUnregisteredJobManagerMetricGroup,
-                            new MemoryExecutionGraphInfoStore(),
+                            new MemoryArchivedApplicationStore(),
                             fatalErrorHandler,
                             VoidHistoryServerArchivist.INSTANCE,
                             null,
@@ -190,7 +195,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                     createDispatcherRunner(
                             rpcService,
                             dispatcherLeaderElection,
-                            new JobPersistenceComponentFactory() {
+                            new PersistenceComponentFactory() {
                                 @Override
                                 public ExecutionPlanStore createExecutionPlanStore() {
                                     return createZooKeeperExecutionPlanStore(
@@ -201,6 +206,16 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                                 public JobResultStore createJobResultStore() {
                                     return new EmbeddedJobResultStore();
                                 }
+
+                                @Override
+                                public ApplicationStore createApplicationStore() {
+                                    return new StandaloneApplicationStore();
+                                }
+
+                                @Override
+                                public ApplicationResultStore createApplicationResultStore() {
+                                    return new EmbeddedApplicationResultStore();
+                                }
                             },
                             partialDispatcherServices,
                             defaultDispatcherRunnerFactory)) {
@@ -210,7 +225,9 @@ class ZooKeeperDefaultDispatcherRunnerTest {
 
                 final JobGraph jobGraph = createJobGraphWithBlobs();
                 LOG.info("Initial job submission {}.", jobGraph.getJobID());
-                dispatcherGateway.submitJob(jobGraph, TESTING_TIMEOUT).get();
+                dispatcherGateway
+                        .submitApplication(new SingleJobApplication(jobGraph), TESTING_TIMEOUT)
+                        .get();
 
                 dispatcherLeaderElection.notLeader();
 
@@ -227,7 +244,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                 // a successful cancellation should eventually remove all job information
                 final JobResult jobResult = jobResultFuture.get();
 
-                assertThat(jobResult.getApplicationStatus()).isEqualTo(ApplicationStatus.CANCELED);
+                assertThat(jobResult.getJobStatus().orElse(null)).isEqualTo(JobStatus.CANCELED);
 
                 dispatcherLeaderElection.notLeader();
 
@@ -248,14 +265,14 @@ class ZooKeeperDefaultDispatcherRunnerTest {
     private DispatcherRunner createDispatcherRunner(
             TestingRpcService rpcService,
             LeaderElection dispatcherLeaderElection,
-            JobPersistenceComponentFactory jobPersistenceComponentFactory,
+            PersistenceComponentFactory persistenceComponentFactory,
             PartialDispatcherServices partialDispatcherServices,
             DispatcherRunnerFactory dispatcherRunnerFactory)
             throws Exception {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElection,
                 fatalErrorHandler,
-                jobPersistenceComponentFactory,
+                persistenceComponentFactory,
                 EXECUTOR_EXTENSION.getExecutor(),
                 rpcService,
                 partialDispatcherServices);

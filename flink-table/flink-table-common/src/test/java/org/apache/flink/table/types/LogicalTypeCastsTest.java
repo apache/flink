@@ -26,7 +26,10 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -38,10 +41,13 @@ import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
+import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import org.junit.jupiter.api.parallel.Execution;
@@ -272,5 +278,246 @@ class LogicalTypeCastsTest {
         assertThat(LogicalTypeCasts.supportsExplicitCast(sourceType, targetType))
                 .as("Supports explicit casting")
                 .isEqualTo(supportsExplicit);
+    }
+
+    /**
+     * Test data for injective cast tests. Each argument contains: (sourceType, targetType,
+     * expectedInjective).
+     */
+    private static Stream<Arguments> injectiveCastTestData() {
+        return Stream.of(
+                // Integer widenings are injective
+                Arguments.of(new SmallIntType(), new BigIntType(), true),
+                Arguments.of(new IntType(), new BigIntType(), true),
+                Arguments.of(new TinyIntType(), new IntType(), true),
+                Arguments.of(new TinyIntType(), new SmallIntType(), true),
+
+                // Explicit casts to STRING from integer types are injective
+                Arguments.of(new TinyIntType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new SmallIntType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new IntType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new BigIntType(), VarCharType.STRING_TYPE, true),
+
+                // FLOAT/DOUBLE to STRING are injective
+                Arguments.of(new FloatType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new DoubleType(), VarCharType.STRING_TYPE, true),
+
+                // Explicit casts to STRING from boolean are injective
+                Arguments.of(new BooleanType(), VarCharType.STRING_TYPE, true),
+
+                // Explicit casts to STRING from date/time types are injective
+                Arguments.of(new DateType(), VarCharType.STRING_TYPE, true),
+                Arguments.of(new TimeType(3), VarCharType.STRING_TYPE, true),
+                Arguments.of(new TimestampType(3), VarCharType.STRING_TYPE, true),
+                Arguments.of(new TimestampType(9), VarCharType.STRING_TYPE, true),
+                Arguments.of(new LocalZonedTimestampType(3), VarCharType.STRING_TYPE, true),
+
+                // Casts to CHAR are injective if the target length is sufficient
+                Arguments.of(new IntType(), new CharType(100), true),
+                Arguments.of(new BigIntType(), new CharType(100), true),
+                Arguments.of(new IntType(), new CharType(11), true), // exact minimum
+                Arguments.of(new IntType(), new CharType(3), false), // too short for "-2147483648"
+                Arguments.of(new BigIntType(), new CharType(20), true), // exact minimum
+                Arguments.of(new BigIntType(), new CharType(19), false), // too short
+                Arguments.of(new BooleanType(), new CharType(5), true), // exact minimum for "false"
+                Arguments.of(new BooleanType(), new CharType(4), false), // too short
+
+                // CHAR → VARCHAR widening is injective
+                Arguments.of(new CharType(10), VarCharType.STRING_TYPE, true),
+
+                // BINARY → VARBINARY widening is injective
+                Arguments.of(new BinaryType(10), new VarBinaryType(100), true),
+
+                // Narrowing casts are NOT injective (lossy)
+                Arguments.of(VarCharType.STRING_TYPE, new IntType(), false),
+                Arguments.of(new BigIntType(), new IntType(), false),
+                Arguments.of(new DoubleType(), new FloatType(), false),
+
+                // TIMESTAMP → DATE is NOT injective (loses time-of-day information)
+                // even though it is an implicit cast
+                Arguments.of(new TimestampType(3), new DateType(), false),
+
+                // DECIMAL to STRING is NOT considered injective
+                Arguments.of(new DecimalType(10, 2), VarCharType.STRING_TYPE, false),
+
+                // BYTES to STRING is NOT injective (invalid UTF-8 sequences collapse)
+                Arguments.of(new VarBinaryType(100), VarCharType.STRING_TYPE, false),
+                Arguments.of(new BinaryType(100), VarCharType.STRING_TYPE, false),
+
+                // TIMESTAMP_WITH_TIME_ZONE to STRING is NOT injective
+                // (theory: two timestamps with different zones could produce same string
+                // depending on the implementation)
+                Arguments.of(new ZonedTimestampType(3), VarCharType.STRING_TYPE, false),
+
+                // INT → FLOAT/DOUBLE are theoretically injective
+                // However, we decided not to support decimal, float and double
+                // injective conversions at first since it's not a practical use case
+                Arguments.of(new IntType(), new FloatType(), false),
+                Arguments.of(new IntType(), new DoubleType(), false),
+
+                // STRING → BOOLEAN is NOT injective
+                Arguments.of(VarCharType.STRING_TYPE, new BooleanType(), false),
+
+                // DOUBLE → INT is NOT injective
+                Arguments.of(new DoubleType(), new IntType(), false),
+
+                // DECIMAL → DECIMAL: only identity casts are injective
+                // (changing precision/scale can lose data in various ways)
+                Arguments.of(new DecimalType(10, 2), new DecimalType(10, 2), true), // identity
+                Arguments.of(new DecimalType(10, 2), new DecimalType(20, 4), false), // not identity
+                Arguments.of(
+                        new DecimalType(10, 2), new DecimalType(15, 2), false), // precision change
+                Arguments.of(new DecimalType(10, 2), new DecimalType(10, 4), false), // scale change
+                Arguments.of(new DecimalType(20, 4), new DecimalType(10, 2), false), // narrowing
+                Arguments.of(
+                        new DecimalType(10, 4), new DecimalType(10, 2), false), // scale narrowing
+
+                // Timestamp conversions between variants are injective
+                Arguments.of(new TimestampType(3), new LocalZonedTimestampType(3), true),
+                Arguments.of(new LocalZonedTimestampType(3), new TimestampType(3), true),
+
+                // ROW types with injective field casts
+                Arguments.of(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("name", VarCharType.STRING_TYPE))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new BigIntType()),
+                                        new RowField("name", VarCharType.STRING_TYPE))),
+                        true),
+
+                // ROW types with non-injective field cast (TIMESTAMP → DATE)
+                Arguments.of(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("ts", new TimestampType(3)))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("ts", new DateType()))),
+                        false),
+
+                // ROW types with mixed casts (one injective, one not)
+                Arguments.of(
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", new IntType()),
+                                        new RowField("val", new DoubleType()))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("id", VarCharType.STRING_TYPE),
+                                        new RowField("val", new IntType()))),
+                        false),
+
+                // ---- Parameter-aware injective cast checks ----
+
+                // CHAR length checks
+                Arguments.of(new CharType(10), new CharType(10), true), // identity
+                Arguments.of(new CharType(10), new CharType(20), true), // widening
+                Arguments.of(new CharType(20), new CharType(10), false), // truncation
+
+                // VARCHAR length checks
+                Arguments.of(new VarCharType(10), new VarCharType(100), true), // widening
+                Arguments.of(new VarCharType(100), new VarCharType(10), false), // truncation
+
+                // CHAR → VARCHAR length checks
+                Arguments.of(new CharType(10), new VarCharType(20), true), // widening
+                Arguments.of(new CharType(20), new VarCharType(10), false), // truncation
+
+                // BINARY length checks
+                Arguments.of(new BinaryType(10), new BinaryType(10), true), // identity
+                Arguments.of(new BinaryType(10), new BinaryType(20), true), // widening
+                Arguments.of(new BinaryType(20), new BinaryType(10), false), // truncation
+
+                // VARBINARY length checks
+                Arguments.of(new VarBinaryType(10), new VarBinaryType(100), true), // widening
+                Arguments.of(new VarBinaryType(100), new VarBinaryType(10), false), // truncation
+
+                // BINARY → VARBINARY length checks
+                Arguments.of(new BinaryType(10), new VarBinaryType(20), true), // widening
+                Arguments.of(new BinaryType(20), new VarBinaryType(10), false), // truncation
+
+                // TIMESTAMP precision checks (identity only)
+                Arguments.of(new TimestampType(3), new TimestampType(3), true), // identity
+                Arguments.of(
+                        new TimestampType(3), new TimestampType(6), false), // widening rejected
+                Arguments.of(
+                        new TimestampType(6), new TimestampType(3), false), // narrowing rejected
+
+                // TIMESTAMP ↔ TIMESTAMP_LTZ precision checks (identity only)
+                Arguments.of(
+                        new TimestampType(3), new LocalZonedTimestampType(6), false), // rejected
+                Arguments.of(
+                        new LocalZonedTimestampType(6), new TimestampType(3), false), // rejected
+
+                // TIMESTAMP_LTZ precision checks (identity only)
+                Arguments.of(
+                        new LocalZonedTimestampType(3),
+                        new LocalZonedTimestampType(3),
+                        true), // identity
+                Arguments.of(
+                        new LocalZonedTimestampType(3),
+                        new LocalZonedTimestampType(6),
+                        false), // rejected
+
+                // TIMESTAMP_TZ precision checks (identity only)
+                Arguments.of(
+                        new ZonedTimestampType(3), new ZonedTimestampType(3), true), // identity
+                Arguments.of(
+                        new ZonedTimestampType(3), new ZonedTimestampType(6), false), // rejected
+
+                // TIME precision checks (identity only)
+                Arguments.of(new TimeType(0), new TimeType(0), true), // identity
+                Arguments.of(new TimeType(0), new TimeType(3), false), // widening rejected
+                Arguments.of(new TimeType(3), new TimeType(0), false), // narrowing rejected
+
+                // Cross-family casts to VARCHAR with insufficient length
+                Arguments.of(new IntType(), new VarCharType(3), false), // too short
+                Arguments.of(new TimestampType(3), new VarCharType(5), false), // too short
+
+                // DOUBLE identity
+                Arguments.of(new DoubleType(), new DoubleType(), true),
+
+                // ---- String to binary injective casts (UTF-8: up to 4 bytes per char) ----
+
+                // VARCHAR(MAX) → VARBINARY(MAX): both unbounded
+                Arguments.of(
+                        VarCharType.STRING_TYPE, new VarBinaryType(VarBinaryType.MAX_LENGTH), true),
+                // CHAR(MAX) → VARBINARY(MAX): both unbounded
+                Arguments.of(
+                        new CharType(CharType.MAX_LENGTH),
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH),
+                        true),
+                // VARCHAR(10) → VARBINARY(40): exact fit (10 * 4 = 40)
+                Arguments.of(new VarCharType(10), new VarBinaryType(40), true),
+                // VARCHAR(10) → VARBINARY(39): one byte short
+                Arguments.of(new VarCharType(10), new VarBinaryType(39), false),
+                // VARCHAR(10) → VARBINARY(MAX): target unbounded
+                Arguments.of(
+                        new VarCharType(10), new VarBinaryType(VarBinaryType.MAX_LENGTH), true),
+                // VARCHAR(MAX) → VARBINARY(100): source unbounded, target bounded
+                Arguments.of(VarCharType.STRING_TYPE, new VarBinaryType(100), false),
+                // CHAR(5) → BINARY(20): exact fit (5 * 4 = 20)
+                Arguments.of(new CharType(5), new BinaryType(20), true),
+                // CHAR(5) → BINARY(19): one byte short
+                Arguments.of(new CharType(5), new BinaryType(19), false),
+                // CHAR(10) → VARBINARY(40): fixed char to var binary
+                Arguments.of(new CharType(10), new VarBinaryType(40), true),
+                // VARCHAR(10) → BINARY(40): var char to fixed binary
+                Arguments.of(new VarCharType(10), new BinaryType(40), true));
+    }
+
+    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Injective: {2}]")
+    @MethodSource("injectiveCastTestData")
+    void testInjectiveCast(
+            LogicalType sourceType, LogicalType targetType, boolean expectedInjective) {
+        assertThat(LogicalTypeCasts.supportsInjectiveCast(sourceType, targetType))
+                .as(
+                        "Cast from %s to %s should %s injective",
+                        sourceType, targetType, expectedInjective ? "be" : "not be")
+                .isEqualTo(expectedInjective);
     }
 }

@@ -405,7 +405,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       ChangelogMode.upsert(),
       List("c"))
 
-    t.executeInsert("testSink").await()
+    t.executeInsert("testSink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List("+I[A, 1]", "+I[B, 2]", "+I[C, 3]")
     assertThat(
@@ -605,5 +605,75 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         assertThat(actual(j + 1).toDouble).isCloseTo(expected(i)(j), ERROR_RATE)
       }
     }
+  }
+
+  @TestTemplate
+  def testBitmapBuildAgg(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, String)]
+    for (i <- 0 until 5) {
+      data.+=((i, -i, "a"))
+      data.+=((i * 2, -i * 2, "b"))
+    }
+
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('c)
+      .select(
+        'c,
+        'a.bitmapBuildAgg().cast(DataTypes.STRING()),
+        'b.bitmapBuildAgg().cast(DataTypes.STRING()))
+
+    val sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      s"a,{0,1,2,3,4},{0,${Integer.toUnsignedLong(-4)},${Integer.toUnsignedLong(-3)},${Integer
+          .toUnsignedLong(-2)},${Integer.toUnsignedLong(-1)}}",
+      s"b,{0,2,4,6,8},{0,${Integer.toUnsignedLong(-8)},${Integer.toUnsignedLong(-6)},${Integer
+          .toUnsignedLong(-4)},${Integer.toUnsignedLong(-2)}}"
+    )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testBitmapLogicalOpsAgg(): Unit = {
+    val data = new mutable.MutableList[(Int, Int, Int, String)]
+    data.+=((-3, 5, 0, "a"))
+    data.+=((7, 2, 5, "b"))
+    data.+=((-3, 8, -8, "c"))
+    data.+=((2, 1, 7, "b"))
+    data.+=((2, 9, 0, "a"))
+    data.+=((8, 3, -3, "c"))
+    data.+=((7, 6, 2, "b"))
+    data.+=((0, 4, 5, "a"))
+    data.+=((-3, 7, 8, "c"))
+    data.+=((5, 0, 2, "b"))
+    data.+=((0, 10, 5, "a"))
+    data.+=((2, 5, 0, "a"))
+
+    val t = failingDataSource(data)
+      .toTable(tEnv, 'a, 'b, 'c, 'd)
+      .groupBy('d)
+      .select(
+        'd,
+        array('a, 'b, 'c).bitmapBuild().bitmapAndAgg().cast(DataTypes.STRING()),
+        array('a, 'b, 'c).bitmapBuild().bitmapOrAgg().cast(DataTypes.STRING()),
+        array('a, 'b, 'c).bitmapBuild().bitmapXorAgg().cast(DataTypes.STRING())
+      )
+
+    val sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected =
+      List(
+        s"a,{0},{0,2,4,5,9,10,${Integer.toUnsignedLong(-3)}},{0,4,9,10,${Integer.toUnsignedLong(-3)}}",
+        "b,{2},{0,1,2,5,6,7},{0,1,6,7}",
+        s"c,{8,${Integer.toUnsignedLong(-3)}},{3,7,8,${Integer.toUnsignedLong(-8)},${Integer
+            .toUnsignedLong(-3)}},{3,7,8,${Integer.toUnsignedLong(-8)},${Integer
+            .toUnsignedLong(-3)}}"
+      )
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

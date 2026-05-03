@@ -100,7 +100,9 @@ class StreamPhysicalSinkRule(config: Config) extends ConverterRule(config) {
       sink.contextResolvedTable,
       sink.tableSink,
       sink.targetColumns,
-      abilitySpecs.toArray
+      abilitySpecs.toArray,
+      false, // upsertMaterialize
+      sink.conflictStrategy
     )
   }
 }

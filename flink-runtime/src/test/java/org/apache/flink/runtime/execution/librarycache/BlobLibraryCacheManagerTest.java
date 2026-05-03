@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -49,6 +51,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForApplication;
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForJob;
 import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.hamcrest.Matchers.not;
@@ -72,6 +75,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
     }
 
     @Parameterized.Parameter public boolean wrapsSystemClassLoader;
+
+    private final ApplicationID applicationId = new ApplicationID();
 
     /**
      * Tests that the {@link BlobLibraryCacheManager} cleans up after the class loader leases for
@@ -110,8 +115,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             keys2.add(server.putPermanent(jobId2, buf));
 
             libCache = createBlobLibraryCacheManager(cache);
-            cache.registerJob(jobId1);
-            cache.registerJob(jobId2);
+            cache.registerJob(jobId1, applicationId);
+            cache.registerJob(jobId2, applicationId);
 
             assertEquals(0, libCache.getNumberOfManagedJobs());
             assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
@@ -121,7 +126,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             checkFileCountForJob(0, jobId2, cache);
 
             final LibraryCacheManager.ClassLoaderLease classLoaderLeaseJob1 =
-                    libCache.registerClassLoaderLease(jobId1);
+                    libCache.registerClassLoaderLease(jobId1, applicationId);
             final UserCodeClassLoader classLoader1 =
                     classLoaderLeaseJob1.getOrResolveClassLoader(keys1, Collections.emptyList());
 
@@ -136,7 +141,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             checkFileCountForJob(0, jobId2, cache);
 
             final LibraryCacheManager.ClassLoaderLease classLoaderLeaseJob2 =
-                    libCache.registerClassLoaderLease(jobId2);
+                    libCache.registerClassLoaderLease(jobId2, applicationId);
             final UserCodeClassLoader classLoader2 =
                     classLoaderLeaseJob2.getOrResolveClassLoader(keys2, Collections.emptyList());
             assertThat(classLoader1, not(sameInstance(classLoader2)));
@@ -242,7 +247,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             keys.add(server.putPermanent(jobId, buf));
 
             libCache = createBlobLibraryCacheManager(cache);
-            cache.registerJob(jobId);
+            cache.registerJob(jobId, applicationId);
 
             assertEquals(0, libCache.getNumberOfManagedJobs());
             assertEquals(0, libCache.getNumberOfReferenceHolders(jobId));
@@ -250,7 +255,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             checkFileCountForJob(0, jobId, cache);
 
             final LibraryCacheManager.ClassLoaderLease classLoaderLease1 =
-                    libCache.registerClassLoaderLease(jobId);
+                    libCache.registerClassLoaderLease(jobId, applicationId);
             UserCodeClassLoader classLoader1 =
                     classLoaderLease1.getOrResolveClassLoader(keys, Collections.emptyList());
 
@@ -261,7 +266,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             checkFileCountForJob(2, jobId, cache);
 
             final LibraryCacheManager.ClassLoaderLease classLoaderLease2 =
-                    libCache.registerClassLoaderLease(jobId);
+                    libCache.registerClassLoaderLease(jobId, applicationId);
             final UserCodeClassLoader classLoader2 =
                     classLoaderLease2.getOrResolveClassLoader(keys, Collections.emptyList());
             assertThat(classLoader1, sameInstance(classLoader2));
@@ -364,9 +369,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             {
                 Collection<PermanentBlobKey> keys = Collections.singleton(dataKey1);
 
-                cache.registerJob(jobId);
+                cache.registerJob(jobId, applicationId);
                 final LibraryCacheManager.ClassLoaderLease classLoaderLease1 =
-                        libCache.registerClassLoaderLease(jobId);
+                        libCache.registerClassLoaderLease(jobId, applicationId);
                 final UserCodeClassLoader classLoader1 =
                         classLoaderLease1.getOrResolveClassLoader(keys, Collections.emptyList());
                 assertEquals(1, libCache.getNumberOfManagedJobs());
@@ -376,7 +381,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                 checkFileCountForJob(1, jobId, cache);
 
                 final LibraryCacheManager.ClassLoaderLease classLoaderLease2 =
-                        libCache.registerClassLoaderLease(jobId);
+                        libCache.registerClassLoaderLease(jobId, applicationId);
                 final UserCodeClassLoader classLoader2 =
                         classLoaderLease2.getOrResolveClassLoader(keys, Collections.emptyList());
                 assertThat(classLoader1, sameInstance(classLoader2));
@@ -403,7 +408,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                 checkFileCountForJob(2, jobId, server);
                 checkFileCountForJob(1, jobId, cache);
 
-                cache.releaseJob(jobId);
+                cache.releaseJob(jobId, applicationId);
 
                 // library is still cached (but not associated with job any more)
                 checkFileCountForJob(2, jobId, server);
@@ -422,15 +427,15 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
             // since we cannot download this library any more, this call should fail
             try {
-                cache.registerJob(jobId);
+                cache.registerJob(jobId, applicationId);
                 final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                        libCache.registerClassLoaderLease(jobId);
+                        libCache.registerClassLoaderLease(jobId, applicationId);
                 classLoaderLease.getOrResolveClassLoader(
                         Collections.singleton(dataKey2), Collections.emptyList());
                 fail("This should fail with an IOException");
             } catch (IOException e) {
                 // splendid!
-                cache.releaseJob(jobId);
+                cache.releaseJob(jobId, applicationId);
             }
         } finally {
             if (cacheDir != null) {
@@ -457,7 +462,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                libraryCacheManager.registerClassLoaderLease(new JobID(), applicationId);
 
         classLoaderLease.getOrResolveClassLoader(
                 Collections.singletonList(missingKey), Collections.emptyList());
@@ -468,7 +473,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                libraryCacheManager.registerClassLoaderLease(new JobID(), applicationId);
 
         classLoaderLease.release();
 
@@ -485,9 +490,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         final JobID jobId = new JobID();
         final LibraryCacheManager.ClassLoaderLease classLoaderLease1 =
-                libraryCacheManager.registerClassLoaderLease(jobId);
+                libraryCacheManager.registerClassLoaderLease(jobId, applicationId);
         final LibraryCacheManager.ClassLoaderLease classLoaderLease2 =
-                libraryCacheManager.registerClassLoaderLease(jobId);
+                libraryCacheManager.registerClassLoaderLease(jobId, applicationId);
 
         UserCodeClassLoader userCodeClassLoader =
                 classLoaderLease1.getOrResolveClassLoader(
@@ -513,9 +518,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         final JobID jobId = new JobID();
         final LibraryCacheManager.ClassLoaderLease classLoaderLease1 =
-                libraryCacheManager.registerClassLoaderLease(jobId);
+                libraryCacheManager.registerClassLoaderLease(jobId, applicationId);
         final LibraryCacheManager.ClassLoaderLease classLoaderLease2 =
-                libraryCacheManager.registerClassLoaderLease(jobId);
+                libraryCacheManager.registerClassLoaderLease(jobId, applicationId);
 
         final UserCodeClassLoader classLoader1 =
                 classLoaderLease1.getOrResolveClassLoader(
@@ -532,7 +537,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                libraryCacheManager.registerClassLoaderLease(new JobID(), applicationId);
 
         libraryCacheManager.shutdown();
 
@@ -548,7 +553,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                         .build();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                libraryCacheManager.registerClassLoaderLease(new JobID(), applicationId);
         UserCodeClassLoader userCodeClassLoader =
                 classLoaderLease.getOrResolveClassLoader(
                         Collections.emptyList(), Collections.emptyList());
@@ -570,7 +575,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                 new TestingBlobLibraryCacheManagerBuilder().build();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                libraryCacheManager.registerClassLoaderLease(new JobID(), applicationId);
         final UserCodeClassLoader userCodeClassLoader =
                 classLoaderLease.getOrResolveClassLoader(
                         Collections.emptyList(), Collections.emptyList());
@@ -591,7 +596,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
                 new TestingBlobLibraryCacheManagerBuilder().build();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                libraryCacheManager.registerClassLoaderLease(new JobID(), applicationId);
         final UserCodeClassLoader userCodeClassLoader =
                 classLoaderLease.getOrResolveClassLoader(
                         Collections.emptyList(), Collections.emptyList());
@@ -656,6 +661,210 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
             return new BlobLibraryCacheManager(
                     permanentBlobCache, classLoaderFactory, wrapsSystemClassLoader);
         }
+    }
+
+    /** Tests that jobs with the same ApplicationID share the same jar. */
+    @Test
+    public void testApplicationLevelJarSharing() throws Exception {
+        JobID jobId1 = new JobID();
+        JobID jobId2 = new JobID();
+        List<PermanentBlobKey> keys = new ArrayList<>();
+        BlobServer server = null;
+        PermanentBlobCache cache = null;
+        BlobLibraryCacheManager libCache = null;
+
+        final byte[] buf = new byte[128];
+
+        try {
+            Configuration config = new Configuration();
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server.start();
+
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            new InetSocketAddress("localhost", server.getPort()));
+
+            keys.add(server.putPermanent(applicationId, buf));
+
+            libCache = createBlobLibraryCacheManager(cache);
+            cache.registerJob(jobId1, applicationId);
+            cache.registerJob(jobId2, applicationId);
+
+            assertEquals(0, libCache.getNumberOfManagedJobs());
+            assertEquals(0, libCache.getNumberOfReferenceHolders(jobId1));
+            assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
+            checkFileCountForJob(0, jobId1, server);
+            checkFileCountForJob(0, jobId1, cache);
+            checkFileCountForJob(0, jobId2, server);
+            checkFileCountForJob(0, jobId2, cache);
+            checkFileCountForApplication(1, applicationId, server);
+            checkFileCountForApplication(0, applicationId, cache);
+
+            final LibraryCacheManager.ClassLoaderLease classLoaderLeaseJob1 =
+                    libCache.registerClassLoaderLease(jobId1, applicationId);
+            final UserCodeClassLoader classLoader1 =
+                    classLoaderLeaseJob1.getOrResolveClassLoader(keys, Collections.emptyList());
+
+            assertEquals(1, libCache.getNumberOfManagedJobs());
+            assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
+            assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
+            checkFileCountForJob(0, jobId1, server);
+            checkFileCountForJob(0, jobId1, cache);
+            checkFileCountForJob(0, jobId2, server);
+            checkFileCountForJob(0, jobId2, cache);
+            checkFileCountForApplication(1, applicationId, server);
+            checkFileCountForApplication(1, applicationId, cache);
+
+            final LibraryCacheManager.ClassLoaderLease classLoaderLeaseJob2 =
+                    libCache.registerClassLoaderLease(jobId2, applicationId);
+            final UserCodeClassLoader classLoader2 =
+                    classLoaderLeaseJob2.getOrResolveClassLoader(keys, Collections.emptyList());
+
+            // Classloaders are not the same
+            assertThat(classLoader1, not(sameInstance(classLoader2)));
+
+            classLoaderLeaseJob1.release();
+            classLoaderLeaseJob2.release();
+            cache.releaseJob(jobId1, applicationId);
+            cache.releaseJob(jobId2, applicationId);
+
+            verifyApplicationCleanup(cache, applicationId, keys);
+        } finally {
+            if (libCache != null) {
+                libCache.shutdown();
+            }
+            if (cache != null) {
+                cache.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+        }
+    }
+
+    /** Tests that jobs with different ApplicationIDs do not share the same classloader. */
+    @Test
+    public void testDifferentApplicationsNotSharing() throws Exception {
+        JobID jobId1 = new JobID();
+        JobID jobId2 = new JobID();
+        ApplicationID applicationId1 = new ApplicationID();
+        ApplicationID applicationId2 = new ApplicationID();
+        List<PermanentBlobKey> keys1 = new ArrayList<>();
+        List<PermanentBlobKey> keys2 = new ArrayList<>();
+        BlobServer server = null;
+        PermanentBlobCache cache = null;
+        BlobLibraryCacheManager libCache = null;
+
+        final byte[] buf = new byte[128];
+
+        try {
+            Configuration config = new Configuration();
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+
+            server = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+            server.start();
+
+            cache =
+                    new PermanentBlobCache(
+                            config,
+                            temporaryFolder.newFolder(),
+                            new VoidBlobStore(),
+                            new InetSocketAddress("localhost", server.getPort()));
+
+            keys1.add(server.putPermanent(applicationId1, buf));
+            buf[0] += 1;
+            keys1.add(server.putPermanent(applicationId1, buf));
+            keys2.add(server.putPermanent(applicationId2, buf));
+
+            libCache = createBlobLibraryCacheManager(cache);
+            cache.registerJob(jobId1, applicationId1);
+            cache.registerJob(jobId2, applicationId2);
+
+            checkFileCountForApplication(2, applicationId1, server);
+            checkFileCountForApplication(0, applicationId1, cache);
+            checkFileCountForApplication(1, applicationId2, server);
+            checkFileCountForApplication(0, applicationId2, cache);
+
+            final LibraryCacheManager.ClassLoaderLease classLoaderLeaseJob1 =
+                    libCache.registerClassLoaderLease(jobId1, applicationId1);
+            final UserCodeClassLoader classLoader1 =
+                    classLoaderLeaseJob1.getOrResolveClassLoader(keys1, Collections.emptyList());
+
+            assertEquals(1, libCache.getNumberOfManagedJobs());
+            assertEquals(1, libCache.getNumberOfReferenceHolders(jobId1));
+            assertEquals(0, libCache.getNumberOfReferenceHolders(jobId2));
+            checkFileCountForApplication(2, applicationId1, server);
+            checkFileCountForApplication(2, applicationId1, cache);
+            checkFileCountForApplication(1, applicationId2, server);
+            checkFileCountForApplication(0, applicationId2, cache);
+
+            final LibraryCacheManager.ClassLoaderLease classLoaderLeaseJob2 =
+                    libCache.registerClassLoaderLease(jobId2, applicationId2);
+            final UserCodeClassLoader classLoader2 =
+                    classLoaderLeaseJob2.getOrResolveClassLoader(keys2, Collections.emptyList());
+            assertThat(classLoader1, not(sameInstance(classLoader2)));
+
+            checkFileCountForApplication(1, applicationId2, server);
+            checkFileCountForApplication(1, applicationId2, cache);
+
+            try {
+                classLoaderLeaseJob2.getOrResolveClassLoader(keys1, Collections.<URL>emptyList());
+                fail("Should fail with an IllegalStateException");
+            } catch (IllegalStateException e) {
+                // that's what we want
+            }
+
+            classLoaderLeaseJob1.release();
+            classLoaderLeaseJob2.release();
+            cache.releaseJob(jobId1, applicationId1);
+            cache.releaseJob(jobId2, applicationId2);
+
+            verifyApplicationCleanup(cache, applicationId1, keys1);
+            verifyApplicationCleanup(cache, applicationId2, keys2);
+        } finally {
+            if (libCache != null) {
+                libCache.shutdown();
+            }
+            if (cache != null) {
+                cache.close();
+            }
+            if (server != null) {
+                server.close();
+            }
+        }
+    }
+
+    /**
+     * Checks that BLOBs for the given <tt>applicationId</tt> are cleaned up eventually (after
+     * calling {@link PermanentBlobCache#releaseJob(JobID, ApplicationID)}, which is not done by
+     * this method!) (waits at most 30s).
+     *
+     * @param cache BLOB server
+     * @param applicationId application ID
+     * @param keys keys identifying BLOBs which were previously registered for the
+     *     <tt>applicationId</tt>
+     */
+    private static void verifyApplicationCleanup(
+            PermanentBlobCache cache, ApplicationID applicationId, List<? extends BlobKey> keys)
+            throws InterruptedException, IOException {
+        // because we cannot guarantee that there are not thread races in the build system, we
+        // loop for a certain while until the references disappear
+        {
+            long deadline = System.currentTimeMillis() + 30_000L;
+            do {
+                Thread.sleep(100);
+            } while (checkFilesExist(applicationId, keys, cache, false) != 0
+                    && System.currentTimeMillis() < deadline);
+        }
+
+        // the blob cache should no longer contain the files
+        // this fails if we exited via a timeout
+        checkFileCountForApplication(0, applicationId, cache);
     }
 
     private static final class TestingClassLoader extends URLClassLoader {

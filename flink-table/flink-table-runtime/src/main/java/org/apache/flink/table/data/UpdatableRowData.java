@@ -20,6 +20,7 @@ package org.apache.flink.table.data;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.binary.TypedSetters;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.util.BitSet;
@@ -134,6 +135,11 @@ public final class UpdatableRowData implements RowData, TypedSetters {
     @Override
     public Variant getVariant(int pos) {
         return updated.get(pos) ? (Variant) fields[pos] : row.getVariant(pos);
+    }
+
+    @Override
+    public Bitmap getBitmap(int pos) {
+        return updated.get(pos) ? (Bitmap) fields[pos] : row.getBitmap(pos);
     }
 
     @Override

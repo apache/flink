@@ -32,6 +32,10 @@ public class DefaultLineageVertex implements LineageVertex {
         this.lineageDatasets = new ArrayList<>();
     }
 
+    public DefaultLineageVertex(List<LineageDataset> lineageDatasets) {
+        this.lineageDatasets = lineageDatasets;
+    }
+
     public void addLineageDataset(LineageDataset lineageDataset) {
         this.lineageDatasets.add(lineageDataset);
     }

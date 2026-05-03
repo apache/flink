@@ -27,54 +27,56 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for fault tolerant streaming programs. */
-@RunWith(Parameterized.class)
-public abstract class StreamFaultToleranceTestBase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+abstract class StreamFaultToleranceTestBase {
 
-    @Parameterized.Parameters(name = "FailoverStrategy: {0}")
-    public static Collection<FailoverStrategy> parameters() {
+    @Parameters(name = "FailoverStrategy: {0}")
+    private static Collection<FailoverStrategy> parameters() {
         return Arrays.asList(
                 FailoverStrategy.RestartAllFailoverStrategy,
                 FailoverStrategy.RestartPipelinedRegionFailoverStrategy);
     }
 
     /** The failover strategy to use. */
-    public enum FailoverStrategy {
+    protected enum FailoverStrategy {
         RestartAllFailoverStrategy,
         RestartPipelinedRegionFailoverStrategy
     }
 
-    @Parameterized.Parameter public FailoverStrategy failoverStrategy;
+    @Parameter protected FailoverStrategy failoverStrategy;
 
     protected static final int NUM_TASK_MANAGERS = 3;
     protected static final int NUM_TASK_SLOTS = 4;
     protected static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
-    private static MiniClusterWithClientResource cluster;
+    private MiniClusterWithClientResource cluster;
 
-    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private static File tempFolder;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    void setup() throws Exception {
         Configuration configuration = new Configuration();
         switch (failoverStrategy) {
             case RestartPipelinedRegionFailoverStrategy:
@@ -89,7 +91,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
         // Doing it on cluster level unconditionally as randomization currently happens on the job
         // level (environment); while this factory can only be set on the cluster level.
         FsStateChangelogStorageFactory.configure(
-                configuration, tempFolder.newFolder(), Duration.ofMinutes(1), 10);
+                configuration, tempFolder, Duration.ofMinutes(1), 10);
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -100,8 +102,8 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
         cluster.before();
     }
 
-    @After
-    public void shutDownExistingCluster() {
+    @AfterEach
+    void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
             cluster = null;
@@ -121,8 +123,8 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
      * Runs the following program the test program defined in {@link
      * #testProgram(StreamExecutionEnvironment)} followed by the checks in {@link #postSubmit}.
      */
-    @Test
-    public void runCheckpointedProgram() throws Exception {
+    @TestTemplate
+    void runCheckpointedProgram() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(500);
@@ -135,7 +137,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
             submitJobAndWaitForResult(
                     cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
         } catch (Exception e) {
-            Assert.assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
+            assertThat(ExceptionUtils.findThrowable(e, SuccessException.class)).isPresent();
         }
 
         postSubmit();

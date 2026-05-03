@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -72,10 +73,12 @@ class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetailsInfo>
 
         return new JobDetailsInfo(
                 new JobID(),
+                new ApplicationID(),
                 "foobar",
                 true,
                 JobStatus.values()[random.nextInt(JobStatus.values().length)],
                 JobType.STREAMING,
+                null,
                 1L,
                 2L,
                 1L,

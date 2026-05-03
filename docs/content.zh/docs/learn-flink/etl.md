@@ -1,7 +1,9 @@
 ---
 title: 数据管道 & ETL
-weight: 4
+weight: 3
 type: docs
+aliases:
+  - /zh/docs/learn-flink/etl/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

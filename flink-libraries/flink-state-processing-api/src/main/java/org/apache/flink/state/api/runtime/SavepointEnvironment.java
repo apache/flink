@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
@@ -69,6 +70,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.concurrent.Executors;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -118,6 +121,8 @@ public class SavepointEnvironment implements Environment {
     private final UserCodeClassLoader userCodeClassLoader;
 
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
+    @Nullable private ChannelStateWriter channelStateWriter;
 
     private SavepointEnvironment(
             RuntimeContext ctx,
@@ -439,5 +444,16 @@ public class SavepointEnvironment implements Environment {
                 OperatorID operator, SerializedValue<CoordinationRequest> request) {
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        this.channelStateWriter = channelStateWriter;
+    }
+
+    @Override
+    @Nullable
+    public ChannelStateWriter getChannelStateWriter() {
+        return this.channelStateWriter;
     }
 }

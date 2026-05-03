@@ -31,6 +31,7 @@ import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
+import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
@@ -62,6 +63,8 @@ import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.bitmap.RoaringBitmapData;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 
@@ -610,6 +613,20 @@ public class LogicalTypesTest {
                 .supportsOutputConversion(BinaryVariant.class)
                 .supportsInputConversion(Variant.class)
                 .supportsInputConversion(BinaryVariant.class);
+    }
+
+    @Test
+    void testBitmapType() {
+        assertThat(new BitmapType())
+                .isJavaSerializable()
+                .satisfies(
+                        baseAssertions(
+                                "BITMAP",
+                                "BITMAP",
+                                new Class[] {Bitmap.class, RoaringBitmapData.class},
+                                new Class[] {Bitmap.class, RoaringBitmapData.class},
+                                new LogicalType[] {},
+                                new BitmapType(false)));
     }
 
     @Test

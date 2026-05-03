@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -45,6 +46,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -111,17 +113,11 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 new ResourceManager(settings.getConfiguration(), userClassLoader);
         final ModuleManager moduleManager = new ModuleManager();
 
-        final CatalogStoreFactory catalogStoreFactory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(
-                        settings.getConfiguration(), userClassLoader);
-        final CatalogStoreFactory.Context catalogStoreFactoryContext =
-                TableFactoryUtil.buildCatalogStoreFactoryContext(
-                        settings.getConfiguration(), userClassLoader);
-        catalogStoreFactory.open(catalogStoreFactoryContext);
-        final CatalogStore catalogStore =
-                settings.getCatalogStore() != null
-                        ? settings.getCatalogStore()
-                        : catalogStoreFactory.createCatalogStore();
+        final ApiFactoryUtil.CatalogStoreResult catalogStoreResult =
+                ApiFactoryUtil.getOrCreateCatalogStore(
+                        settings.getCatalogStore(), settings.getConfiguration(), userClassLoader);
+        final CatalogStore catalogStore = catalogStoreResult.getCatalogStore();
+        final CatalogStoreFactory catalogStoreFactory = catalogStoreResult.getCatalogStoreFactory();
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
@@ -263,7 +259,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         table.getResolvedSchema(),
                         targetDataType);
 
-        return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly());
+        return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly(), null);
     }
 
     @Override
@@ -273,7 +269,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), null);
 
-        return toStreamInternal(table, schemaTranslationResult, null);
+        return toStreamInternal(table, schemaTranslationResult, null, null);
     }
 
     @Override
@@ -284,12 +280,21 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-        return toStreamInternal(table, schemaTranslationResult, null);
+        return toStreamInternal(table, schemaTranslationResult, null, null);
     }
 
     @Override
     public DataStream<Row> toChangelogStream(
             Table table, Schema targetSchema, ChangelogMode changelogMode) {
+        return toChangelogStream(table, targetSchema, changelogMode, null);
+    }
+
+    @Override
+    public DataStream<Row> toChangelogStream(
+            Table table,
+            Schema targetSchema,
+            ChangelogMode changelogMode,
+            InsertConflictStrategy conflictStrategy) {
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
@@ -297,7 +302,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-        return toStreamInternal(table, schemaTranslationResult, changelogMode);
+        return toStreamInternal(table, schemaTranslationResult, changelogMode, conflictStrategy);
     }
 
     @Override

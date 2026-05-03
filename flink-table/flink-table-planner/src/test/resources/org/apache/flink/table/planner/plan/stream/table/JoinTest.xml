@@ -30,7 +30,7 @@ LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
       <![CDATA[
 Join(joinType=[InnerJoin], where=[(((a = 1) AND (d = 1)) OR ((b = 2) AND (d = 5)))], select=[a, b, d, e], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
-:  +- Calc(select=[a, b], where=[((1 = a) OR (2 = b))])
+:  +- Calc(select=[a, b], where=[((a = 1) OR (b = 2))])
 :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
 +- Exchange(distribution=[single])
    +- Calc(select=[d, e], where=[SEARCH(d, Sarg[1, 5])])
@@ -56,7 +56,7 @@ Calc(select=[a, b, d, e])
    :  +- Calc(select=[a, b], where=[SEARCH(a, Sarg[0, 1])])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
    +- Exchange(distribution=[single])
-      +- Calc(select=[d, e, f], where=[(f IS NULL OR (3 = d))])
+      +- Calc(select=[d, e, f], where=[(f IS NULL OR (d = 3))])
          +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f])
 ]]>
     </Resource>

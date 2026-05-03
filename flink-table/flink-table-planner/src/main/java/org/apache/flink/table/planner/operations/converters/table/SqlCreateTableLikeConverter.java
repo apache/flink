@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
-import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTableLike;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -33,7 +33,7 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.operations.converters.MergeTableLikeUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -110,8 +110,7 @@ public class SqlCreateTableLikeConverter extends AbstractCreateTableConverter<Sq
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                final Map<String, String> derivedTableOptions =
-                        OperationConverterUtils.getProperties(sqlCreateTableLike.getPropertyList());
+                final Map<String, String> derivedTableOptions = sqlCreateTableLike.getProperties();
                 return mergeTableLikeUtil.mergeOptions(
                         mergingStrategies.get(SqlTableLike.FeatureOption.OPTIONS),
                         table.getOptions(),
@@ -123,8 +122,7 @@ public class SqlCreateTableLikeConverter extends AbstractCreateTableConverter<Sq
                 return mergeTableLikeUtil.mergePartitions(
                         mergingStrategies.get(SqlTableLike.FeatureOption.PARTITIONS),
                         table.getPartitionKeys(),
-                        SqlCreateTableLikeConverter.this.getDerivedPartitionKeys(
-                                sqlCreateTableLike));
+                        sqlCreateTableLike.getPartitionKeyList());
             }
 
             @Override

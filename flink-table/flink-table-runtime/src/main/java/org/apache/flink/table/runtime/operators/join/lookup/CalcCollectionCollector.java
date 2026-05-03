@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Collector;
@@ -51,4 +52,9 @@ public class CalcCollectionCollector implements Collector<RowData> {
 
     @Override
     public void close() {}
+
+    @VisibleForTesting
+    public RowDataSerializer getLookupResultRowSerializer() {
+        return lookupResultRowSerializer;
+    }
 }

@@ -141,6 +141,10 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
         return tasks.isEmpty();
     }
 
+    public int getAssignedTasks() {
+        return tasks.size();
+    }
+
     public boolean isActive(JobID activeJobId, AllocationID activeAllocationId) {
         Preconditions.checkNotNull(activeJobId);
         Preconditions.checkNotNull(activeAllocationId);

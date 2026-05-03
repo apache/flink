@@ -27,6 +27,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -76,7 +77,13 @@ class AlignedWatermarksITCase {
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
-                            .setConfiguration(reporter.addToConfiguration(new Configuration()))
+                            .setConfiguration(
+                                    reporter.addToConfiguration(
+                                            new Configuration()
+                                                    .set(
+                                                            PipelineOptions
+                                                                    .WATERMARK_ALIGNMENT_BUFFER_SIZE,
+                                                            0)))
                             .build());
 
     @Test

@@ -30,6 +30,30 @@
           <span>Overview</span>
         </span>
       </li>
+      <li nz-submenu [nzOpen]="true" nzTitle="Applications" nzIcon="bars">
+        <ul>
+          <li
+            nz-menu-item
+            routerLinkActive="ant-menu-item-selected"
+            [routerLink]="['/application/running']"
+          >
+            <span>
+              <i nz-icon nzType="play-circle"></i>
+              <span>Running Applications</span>
+            </span>
+          </li>
+          <li
+            nz-menu-item
+            routerLinkActive="ant-menu-item-selected"
+            [routerLink]="['/application/completed']"
+          >
+            <span>
+              <i nz-icon nzType="check-circle"></i>
+              <span>Completed Applications</span>
+            </span>
+          </li>
+        </ul>
+      </li>
       <li nz-submenu [nzOpen]="true" nzTitle="Jobs" nzIcon="bars">
         <ul>
           <li

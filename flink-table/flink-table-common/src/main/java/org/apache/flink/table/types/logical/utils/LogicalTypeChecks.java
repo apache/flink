@@ -151,6 +151,10 @@ public final class LogicalTypeChecks {
         return getLength(logicalType) == length;
     }
 
+    public static boolean hasMaxLength(LogicalType logicalType) {
+        return getLength(logicalType) == Integer.MAX_VALUE;
+    }
+
     /** Returns the precision of all types that define a precision implicitly or explicitly. */
     public static int getPrecision(LogicalType logicalType) {
         return logicalType.accept(PRECISION_EXTRACTOR);

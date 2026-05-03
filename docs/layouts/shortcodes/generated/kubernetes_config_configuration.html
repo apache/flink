@@ -213,6 +213,18 @@
             <td>The namespace that will be used for running the jobmanager and taskmanager pods.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.persistent-volume-claim-read-only</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to mount PersistentVolumeClaims (PVCs) as read-only. When set to true, all PVCs configured via 'kubernetes.persistent-volume-claims' will be mounted as read-only. This is useful for shared data that should not be modified by Flink, such as reference datasets or pre-trained models. Note: This setting applies globally to all configured PVCs.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.persistent-volume-claims</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes/">PersistentVolumeClaims (PVCs)</a> that will be mounted into Flink containers. The value should be in the form of <code class="highlighter-rouge">pvc-name:/mount/path</code>. Multiple PVCs can be specified, for example: <code class="highlighter-rouge">checkpoint-pvc:/opt/flink/checkpoints,data-pvc:/opt/flink/data</code>. The PVCs must exist in the same namespace as the Flink cluster before deployment. For HA setups with multiple JobManagers or TaskManagers accessing the same storage, use PVCs with ReadWriteMany (RWX) or ReadOnlyMany (ROX) access modes.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.pod-template-file.default</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

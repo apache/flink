@@ -32,6 +32,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.SqlNodeToOperationConversion;
+import org.apache.flink.table.planner.operations.converters.MergeTableAsUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -106,12 +107,12 @@ public class SqlReplaceTableAsConverter extends AbstractCreateTableConverter<Sql
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                return SqlReplaceTableAsConverter.this.getDerivedTableOptions(sqlReplaceTableAs);
+                return sqlReplaceTableAs.getProperties();
             }
 
             @Override
             public List<String> getMergedPartitionKeys() {
-                return SqlReplaceTableAsConverter.this.getDerivedPartitionKeys(sqlReplaceTableAs);
+                return sqlReplaceTableAs.getPartitionKeyList();
             }
 
             @Override

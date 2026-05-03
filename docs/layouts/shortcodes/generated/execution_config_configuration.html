@@ -267,6 +267,12 @@ By default no operator is disabled.</td>
             <td>Determines how Flink enforces NOT NULL column constraints when inserting null values.<br /><br />Possible values:<ul><li>"ERROR": Throw a runtime exception when writing null values into NOT NULL column.</li><li>"DROP": Drop records silently if a null value would have to be inserted into a NOT NULL column.</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.require-on-conflict</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When enabled, an error is thrown if the query's upsert key differs from the sink table's primary key and no ON CONFLICT clause is specified. This can lead to non-deterministic results when multiple records with different upsert keys map to the same primary key.<br /><br />Set this to false to restore the old behavior where no ON CONFLICT clause was required. Note that disabling this check may lead to non-deterministic results in certain streaming scenarios.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sink.rowtime-inserter</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ENABLED</td>
             <td><p>Enum</p></td>

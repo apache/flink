@@ -17,6 +17,7 @@
 package org.apache.calcite.sql.fun;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.schema.BitmapRelDataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import com.google.common.collect.ImmutableSetMultimap;
@@ -258,6 +259,10 @@ public class SqlCastFunction extends SqlFunction {
         // Cast to Variant is not support at the moment.
         // TODO: Support cast to variant (FLINK-37925，FLINK-37926)
         if (toType.getSqlTypeName() == SqlTypeName.VARIANT) {
+            return false;
+        }
+        // Cast to BITMAP is not supported at the moment.
+        if (toType instanceof BitmapRelDataType) {
             return false;
         }
         switch (fromTypeName) {

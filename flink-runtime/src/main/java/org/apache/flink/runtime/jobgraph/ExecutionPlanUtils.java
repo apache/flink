@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -32,6 +31,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /** Utilities for generating {@link org.apache.flink.streaming.api.graph.ExecutionPlan}. */
 public enum ExecutionPlanUtils {
@@ -40,13 +40,13 @@ public enum ExecutionPlanUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutionPlanUtils.class);
 
     public static Map<String, DistributedCache.DistributedCacheEntry> prepareUserArtifactEntries(
-            Map<String, DistributedCache.DistributedCacheEntry> userArtifacts, JobID jobId) {
+            Map<String, DistributedCache.DistributedCacheEntry> userArtifacts) {
         final Map<String, DistributedCache.DistributedCacheEntry> result = new HashMap<>();
 
         if (userArtifacts != null && !userArtifacts.isEmpty()) {
             try {
                 java.nio.file.Path tmpDir =
-                        Files.createTempDirectory("flink-distributed-cache-" + jobId);
+                        Files.createTempDirectory("flink-distributed-cache-" + UUID.randomUUID());
                 for (Map.Entry<String, DistributedCache.DistributedCacheEntry> originalEntry :
                         userArtifacts.entrySet()) {
                     Path filePath = new Path(originalEntry.getValue().filePath);

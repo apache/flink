@@ -21,15 +21,15 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.testproto.TestSameOuterClassNameOuterClass;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test conversion of proto same outer class name data to flink internal data. */
-public class SameOuterClassNameProtoToRowTest {
+class SameOuterClassNameProtoToRowTest {
 
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         TestSameOuterClassNameOuterClass.TestSameOuterClassName testSameOuterClassName =
                 TestSameOuterClassNameOuterClass.TestSameOuterClassName.newBuilder()
                         .setA(1)
@@ -40,12 +40,12 @@ public class SameOuterClassNameProtoToRowTest {
                         TestSameOuterClassNameOuterClass.TestSameOuterClassName.class,
                         testSameOuterClassName.toByteArray());
 
-        assertEquals(1, row.getInt(0));
-        assertEquals("BAR", row.getString(1).toString());
+        assertThat(row.getInt(0)).isEqualTo(1);
+        assertThat(row.getString(1).toString()).isEqualTo("BAR");
     }
 
     @Test
-    public void testIntEnum() throws Exception {
+    void testIntEnum() throws Exception {
         TestSameOuterClassNameOuterClass.TestSameOuterClassName testSameOuterClassName =
                 TestSameOuterClassNameOuterClass.TestSameOuterClassName.newBuilder()
                         .setB(TestSameOuterClassNameOuterClass.FooBar.BAR)
@@ -56,6 +56,6 @@ public class SameOuterClassNameProtoToRowTest {
                         TestSameOuterClassNameOuterClass.TestSameOuterClassName.class,
                         testSameOuterClassName.toByteArray(),
                         true);
-        assertEquals(1, row.getInt(1));
+        assertThat(row.getInt(1)).isEqualTo(1);
     }
 }

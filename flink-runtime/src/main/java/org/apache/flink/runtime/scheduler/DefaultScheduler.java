@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -237,6 +238,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         getSchedulingTopology()
                 .getVertices()
                 .forEach(ev -> cancelAllPendingSlotRequestsForVertex(ev.getId()));
+    }
+
+    @Override
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return JobManagerOptions.SchedulerType.Default;
     }
 
     @Override

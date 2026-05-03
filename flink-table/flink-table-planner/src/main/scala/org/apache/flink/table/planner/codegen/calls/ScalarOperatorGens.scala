@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableRuntimeException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.binary.{BinaryArrayData, BinaryStringData}
 import org.apache.flink.table.data.util.MapDataUtil
@@ -40,7 +40,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
-import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
+import org.apache.flink.table.utils.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER_SECOND}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.ColumnList
 import org.apache.flink.util.Preconditions.checkArgument
@@ -182,14 +182,22 @@ object ScalarOperatorGens {
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_DAY_TIME) =>
-        generateOperatorIfNotNull(ctx, new TimeType(), left, right) {
+        generateOperatorIfNotNull(
+          ctx,
+          new TimeType(LogicalTypeChecks.getPrecision(left.resultType)),
+          left,
+          right) {
           (l, r) =>
             s"java.lang.Math.toIntExact((($l + ${MILLIS_PER_DAY}L) $op (" +
               s"java.lang.Math.toIntExact($r % ${MILLIS_PER_DAY}L))) % ${MILLIS_PER_DAY}L)"
         }
 
       case (TIME_WITHOUT_TIME_ZONE, INTERVAL_YEAR_MONTH) =>
-        generateOperatorIfNotNull(ctx, new TimeType(), left, right)((l, r) => s"$l")
+        generateOperatorIfNotNull(
+          ctx,
+          new TimeType(LogicalTypeChecks.getPrecision(left.resultType)),
+          left,
+          right)((l, r) => s"$l")
 
       case (TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE, INTERVAL_DAY_TIME) =>
         generateOperatorIfNotNull(ctx, left.resultType, left, right) {
@@ -263,6 +271,8 @@ object ScalarOperatorGens {
                   case (DATE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                     val rightTerm = s"$rr.getMillisecond()"
                     s"($ll * ${MILLIS_PER_DAY}L) $op $rightTerm"
+                  case (TIME_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
+                    s"($ll $op $rr)"
                 }
             }
         }
@@ -610,9 +620,11 @@ object ScalarOperatorGens {
           }
       }
       // both sides are numeric
-      else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
-      }
+      else if (
+        isNumeric(left.resultType) && isNumeric(right.resultType)
+        || isTime(left.resultType) &&
+        isTime(right.resultType)
+      ) { (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm" }
 
       // both sides are timestamp
       else if (isTimestamp(left.resultType) && isTimestamp(right.resultType)) {
@@ -1667,6 +1679,101 @@ object ScalarOperatorGens {
       map: GeneratedExpression,
       resultType: LogicalType): GeneratedExpression = {
     generateUnaryOperatorIfNotNull(ctx, resultType, map)(_ => s"${map.resultTerm}.size()")
+  }
+
+  def generateVariantGet(
+      ctx: CodeGeneratorContext,
+      variant: GeneratedExpression,
+      key: GeneratedExpression): GeneratedExpression = {
+    val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
+    val tmpValue = newName(ctx, "tmpValue")
+
+    val variantType = variant.resultType.asInstanceOf[VariantType]
+    val variantTerm = variant.resultTerm
+    val variantTypeTerm = primitiveTypeTermForType(variantType)
+    val variantDefaultTerm = primitiveDefaultValue(variantType)
+
+    val keyTerm = key.resultTerm
+    val keyType = key.resultType
+
+    val accessCode = if (isIntegerNumeric(keyType)) {
+      generateIntegerKeyAccess(
+        variantTerm,
+        variantTypeTerm,
+        keyTerm,
+        resultTerm,
+        nullTerm,
+        tmpValue
+      )
+    } else if (isCharacterString(keyType)) {
+      val fieldName = key.literalValue.get.toString
+      generateCharacterStringKeyAccess(
+        variantTerm,
+        variantTypeTerm,
+        fieldName,
+        resultTerm,
+        nullTerm,
+        tmpValue
+      )
+    } else {
+      throw new CodeGenException(s"Unsupported key type for variant: $keyType")
+    }
+
+    val finalCode =
+      s"""
+         |${variant.code}
+         |${key.code}
+         |boolean $nullTerm = (${variant.nullTerm} || ${key.nullTerm});
+         |$variantTypeTerm $resultTerm = $variantDefaultTerm;
+         |if (!$nullTerm) {
+         |  $accessCode
+         |}
+      """.stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, finalCode, variantType)
+  }
+
+  private def generateCharacterStringKeyAccess(
+      variantTerm: String,
+      variantTypeTerm: String,
+      fieldName: String,
+      resultTerm: String,
+      nullTerm: String,
+      tmpValue: String): String = {
+    val escapedFieldName = EncodingUtils.escapeJava(fieldName)
+    s"""
+       |  if ($variantTerm.isObject()){
+       |    $variantTypeTerm $tmpValue = $variantTerm.getField("$escapedFieldName");
+       |    if ($tmpValue == null) {
+       |      $nullTerm = true;
+       |    } else {
+       |      $resultTerm = $tmpValue;
+       |    }
+       |  } else {
+       |    throw new ${className[TableRuntimeException]}("String key access on variant requires an object variant, but a non-object variant was provided.");
+       |  }
+    """.stripMargin
+  }
+
+  private def generateIntegerKeyAccess(
+      variantTerm: String,
+      variantTypeTerm: String,
+      keyTerm: String,
+      resultTerm: String,
+      nullTerm: String,
+      tmpValue: String): String = {
+    s"""
+       |  if ($variantTerm.isArray()){
+       |    $variantTypeTerm $tmpValue = $variantTerm.getElement((int) $keyTerm - 1);
+       |    if ($tmpValue == null) {
+       |      $nullTerm = true;
+       |    } else {
+       |      $resultTerm = $tmpValue;
+       |    }
+       |  } else {
+       |    throw new org.apache.flink.table.api.TableRuntimeException("Integer index access on variant requires an array variant, but a non-array variant was provided.");
+       |  }
+    """.stripMargin
   }
 
   // ----------------------------------------------------------------------------------------

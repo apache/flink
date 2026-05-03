@@ -428,6 +428,8 @@ public class SSLUtils {
                 KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
                 sslContextBuilder.keyManager(kmf);
             }
+            sslContextBuilder.endpointIdentificationAlgorithm(
+                    config.get(SecurityOptions.SSL_REST_VERIFY_HOSTNAME) ? "HTTPS" : null);
         } else {
             KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
             sslContextBuilder = SslContextBuilder.forServer(kmf);

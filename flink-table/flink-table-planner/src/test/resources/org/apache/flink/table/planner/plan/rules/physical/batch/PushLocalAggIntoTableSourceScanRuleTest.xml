@@ -167,7 +167,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, inventory, aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
+   +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
 ]]>
     </Resource>
   </TestCase>
@@ -185,7 +185,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, inventory, aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
+   +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
 ]]>
     </Resource>
   </TestCase>
@@ -203,7 +203,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, inventory, aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
+   +- TableSourceScan(table=[[default_catalog, default_database, inventory, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
 ]]>
     </Resource>
   </TestCase>

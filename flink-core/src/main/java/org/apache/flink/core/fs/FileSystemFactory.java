@@ -47,4 +47,13 @@ public interface FileSystemFactory extends Plugin {
      * @throws IOException Thrown if the file system could not be instantiated.
      */
     FileSystem create(URI fsUri) throws IOException;
+
+    /**
+     * Returns the default priority of this factory when multiple factories compete for the same
+     * scheme. Higher priority wins. Can be overridden via config key {@code
+     * fs.<scheme>.priority.<factoryClassName>}.
+     */
+    default int getPriority() {
+        return 0;
+    }
 }

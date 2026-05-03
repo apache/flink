@@ -28,21 +28,22 @@ import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils.AccumulatorCountingSink;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests latency marker. */
-public class LatencyMarkerITCase {
+class LatencyMarkerITCase {
     /**
      * FLINK-17780: Tests that streams are not corrupted/records lost when using latency markers
      * with broadcast.
      */
     @Test
-    public void testBroadcast() throws Exception {
+    void testBroadcast() throws Exception {
         int inputCount = 100000;
         int parallelism = 4;
 
@@ -96,6 +97,6 @@ public class LatencyMarkerITCase {
         Integer count =
                 executionResult.getAccumulatorResult(
                         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR);
-        Assert.assertEquals(inputCount * parallelism, count.intValue());
+        assertThat(count.intValue()).isEqualTo(inputCount * parallelism);
     }
 }

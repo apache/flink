@@ -17,7 +17,7 @@
 
 package org.apache.flink.api.connector.source.util.ratelimit;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.io.Serializable;
@@ -29,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * @param <SplitT> The type of the source splits.
  */
-@Experimental
+@PublicEvolving
 public interface RateLimiterStrategy<SplitT extends SourceSplit> extends Serializable {
 
     /**

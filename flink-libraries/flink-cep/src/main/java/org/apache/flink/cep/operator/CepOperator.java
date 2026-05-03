@@ -42,6 +42,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -161,7 +162,7 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @Override
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return true;
     }
 

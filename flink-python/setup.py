@@ -296,6 +296,7 @@ try:
                 'pyflink.fn_execution.metrics.embedded',
                 'pyflink.fn_execution.metrics.process',
                 'pyflink.fn_execution.table',
+                'pyflink.fn_execution.table.async_function',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
                 'pyflink.conf',

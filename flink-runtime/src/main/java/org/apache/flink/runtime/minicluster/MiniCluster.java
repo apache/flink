@@ -20,6 +20,8 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -30,10 +32,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.ArchivedApplication;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -44,7 +50,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -65,6 +71,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipCont
 import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -561,7 +568,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         heartbeatServices,
                         delegationTokenManager,
                         metricRegistry,
-                        new MemoryExecutionGraphInfoStore(),
+                        new MemoryArchivedApplicationStore(),
                         metricQueryServiceRetriever,
                         Collections.emptySet(),
                         fatalErrorHandler);
@@ -845,6 +852,25 @@ public class MiniCluster implements AutoCloseableAsync {
                                 .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph));
     }
 
+    public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfo(JobID jobId) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.requestExecutionGraphInfo(jobId, rpcTimeout));
+    }
+
+    public CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobID jobId, JobResourceRequirements resourceRequirements) {
+        if (miniClusterConfiguration.getConfiguration().get(JobManagerOptions.SCHEDULER)
+                != JobManagerOptions.SchedulerType.Adaptive) {
+            throw new UnsupportedOperationException(
+                    "updateJobResourceRequirements is only supported for adaptive scheduler");
+        }
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.updateJobResourceRequirements(
+                                jobId, resourceRequirements));
+    }
+
     public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
         return runDispatcherCommand(
                 dispatcherGateway ->
@@ -1063,6 +1089,13 @@ public class MiniCluster implements AutoCloseableAsync {
         }
     }
 
+    public CompletableFuture<Acknowledge> submitApplication(AbstractApplication application) {
+        final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
+                getDispatcherGatewayFuture();
+        return dispatcherGatewayFuture.thenCompose(
+                dispatcherGateway -> dispatcherGateway.submitApplication(application, rpcTimeout));
+    }
+
     public CompletableFuture<JobSubmissionResult> submitJob(ExecutionPlan executionPlan) {
         if (executionPlan instanceof StreamGraph) {
             try {
@@ -1088,8 +1121,9 @@ public class MiniCluster implements AutoCloseableAsync {
                         .thenCombine(
                                 dispatcherGatewayFuture,
                                 (Void ack, DispatcherGateway dispatcherGateway) ->
-                                        dispatcherGateway.submitJob(
-                                                clonedExecutionPlan, rpcTimeout))
+                                        dispatcherGateway.submitApplication(
+                                                new SingleJobApplication(clonedExecutionPlan),
+                                                rpcTimeout))
                         .thenCompose(Function.identity());
         return acknowledgeCompletableFuture.thenApply(
                 (Acknowledge ignored) -> new JobSubmissionResult(clonedExecutionPlan.getJobID()));
@@ -1170,6 +1204,18 @@ public class MiniCluster implements AutoCloseableAsync {
                                                                 blobServerAddress.getHostName(),
                                                                 blobServerPort)))
                 .thenCompose(Function.identity());
+    }
+
+    // ------------------------------------------------------------------------
+    //  Accessing applications
+    // ------------------------------------------------------------------------
+
+    public CompletableFuture<ApplicationState> getApplicationStatus(ApplicationID applicationId) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway
+                                .requestApplication(applicationId, rpcTimeout)
+                                .thenApply(ArchivedApplication::getApplicationStatus));
     }
 
     // ------------------------------------------------------------------------

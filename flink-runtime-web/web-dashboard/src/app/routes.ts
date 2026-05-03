@@ -33,5 +33,6 @@ export const APP_ROUTES: Routes = [
     loadChildren: () => import('./pages/task-manager/routes').then(m => m.TASK_MANAGER_ROUTES)
   },
   { path: 'job', loadChildren: () => import('./pages/job/routes').then(m => m.JOB_ROUTES) },
+  { path: 'application', loadChildren: () => import('./pages/application/routes').then(m => m.APPLICATION_ROUTES) },
   { path: '**', redirectTo: 'overview', pathMatch: 'full' }
 ];

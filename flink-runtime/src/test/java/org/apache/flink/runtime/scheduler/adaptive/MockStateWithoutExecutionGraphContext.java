@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -63,6 +64,11 @@ class MockStateWithoutExecutionGraphContext
                 .setState(jobStatus)
                 .setFailureCause(cause == null ? null : new ErrorInfo(cause, 1337))
                 .build();
+    }
+
+    @Override
+    public RescaleTimeline getRescaleTimeline() {
+        return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
     }
 
     @Override

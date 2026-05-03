@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTable;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
         implements SqlNodeConverter<T> {
 
-    /** Context of create table converters while mering source and derived items. */
+    /** Context of create table converters while merging source and derived items. */
     protected interface MergeContext {
         Schema getMergedSchema(ResolvedSchema schemaToMerge);
 
@@ -63,18 +63,6 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
                 .map(OperationConverterUtils::getDistributionFromSqlDistribution);
     }
 
-    protected final List<String> getDerivedPartitionKeys(T sqlCreateTable) {
-        return OperationConverterUtils.getColumnNames(sqlCreateTable.getPartitionKeyList());
-    }
-
-    protected final Map<String, String> getDerivedTableOptions(T sqlCreateTable) {
-        return OperationConverterUtils.getProperties(sqlCreateTable.getPropertyList());
-    }
-
-    protected final String getComment(T sqlCreateTable) {
-        return OperationConverterUtils.getComment(sqlCreateTable.getComment());
-    }
-
     protected final ResolvedCatalogTable getResolvedCatalogTable(
             T sqlCreateTable, ConvertContext context, ResolvedSchema schemaToMerge) {
         final MergeContext mergeContext = getMergeContext(sqlCreateTable, context);
@@ -85,7 +73,7 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
         final Map<String, String> tableOptions = mergeContext.getMergedTableOptions();
         final TableDistribution distribution =
                 mergeContext.getMergedTableDistribution().orElse(null);
-        final String comment = getComment(sqlCreateTable);
+        final String comment = sqlCreateTable.getComment();
         final CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(schema)
@@ -98,7 +86,7 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
     }
 
     protected final ObjectIdentifier getIdentifier(SqlCreateTable node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }
 

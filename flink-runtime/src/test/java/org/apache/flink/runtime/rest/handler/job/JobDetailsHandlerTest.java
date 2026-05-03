@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.TestingUtils;
@@ -112,7 +114,9 @@ class JobDetailsHandlerTest {
     @Test
     void testGetJobDetailsWithStreamGraphJson() throws RestHandlerException {
         JobDetailsInfo jobDetailsInfo =
-                jobDetailsHandler.handleRequest(handlerRequest, archivedExecutionGraph);
+                jobDetailsHandler.handleRequest(
+                        handlerRequest,
+                        new ExecutionGraphInfo((ArchivedExecutionGraph) archivedExecutionGraph));
         assertThat(jobDetailsInfo.getStreamGraphJson())
                 .isEqualTo(new JobPlanInfo.RawJson(expectedStreamGraphJson).toString());
     }

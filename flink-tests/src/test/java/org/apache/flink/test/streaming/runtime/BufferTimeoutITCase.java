@@ -30,27 +30,30 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.SingleSplitEnumerator;
 import org.apache.flink.test.util.source.TestSourceReader;
 import org.apache.flink.test.util.source.TestSplit;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamExecutionEnvironment#setBufferTimeout(long)}. */
-public class BufferTimeoutITCase extends AbstractTestBaseJUnit4 {
+class BufferTimeoutITCase extends AbstractTestBase {
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     /**
      * The test verifies that it is possible to disable explicit buffer flushing. It checks that
@@ -58,7 +61,7 @@ public class BufferTimeoutITCase extends AbstractTestBaseJUnit4 {
      * guarantee that the unfinished buffers can not be flushed by another events.
      */
     @Test
-    public void testDisablingBufferTimeout() throws Exception {
+    void testDisablingBufferTimeout(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.setBufferTimeout(-1);
@@ -73,18 +76,16 @@ public class BufferTimeoutITCase extends AbstractTestBaseJUnit4 {
                 .slotSharingGroup("sink");
 
         final JobClient jobClient = env.executeAsync();
-        CommonTestUtils.waitForAllTaskRunning(
-                MINI_CLUSTER_RESOURCE.getMiniCluster(), jobClient.getJobID(), false);
+        CommonTestUtils.waitForAllTaskRunning(miniCluster, jobClient.getJobID(), false);
 
-        assertTrue(
-                RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is unexpectedly running",
-                Thread.getAllStackTraces().keySet().stream()
-                        .noneMatch(
-                                thread ->
-                                        thread.getName()
-                                                .startsWith(
-                                                        RecordWriter
-                                                                .DEFAULT_OUTPUT_FLUSH_THREAD_NAME)));
+        assertThat(Thread.getAllStackTraces().keySet())
+                .as(
+                        RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME
+                                + " thread is unexpectedly running")
+                .noneMatch(
+                        thread ->
+                                thread.getName()
+                                        .startsWith(RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME));
     }
 
     /** Sink V2 that collects results in shared reference. */

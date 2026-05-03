@@ -35,9 +35,9 @@ import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the savepoint metadata SQL reader. */
-public class SavepointMetadataDynamicTableSourceTest {
+class SavepointMetadataDynamicTableSourceTest {
     @Test
-    public void testReadMetadata() throws Exception {
+    void testReadMetadata() throws Exception {
         Configuration config = new Configuration();
         config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
@@ -53,9 +53,9 @@ public class SavepointMetadataDynamicTableSourceTest {
         Iterator<Row> it = result.iterator();
         assertThat(it.next().toString())
                 .isEqualTo(
-                        "+I[2, Source: broadcast-source, broadcast-source-uid, 3a6f51704798c4f418be51bfb6813b77, 1, 128, 0, 0, 0]");
+                        "+I[10, Source: broadcast-source, broadcast-source-uid, 3a6f51704798c4f418be51bfb6813b77, 1, 128, 0, 0, 0]");
         assertThat(it.next().toString())
                 .isEqualTo(
-                        "+I[2, keyed-broadcast-process, keyed-broadcast-process-uid, 413c1d6f88ee8627fe4b8bc533b4cf1b, 2, 128, 2, 0, 4548]");
+                        "+I[10, keyed-broadcast-process, keyed-broadcast-process-uid, 413c1d6f88ee8627fe4b8bc533b4cf1b, 2, 128, 2, 0, 4548]");
     }
 }

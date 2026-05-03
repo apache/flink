@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.io.disk;
 
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
+import org.apache.flink.core.memory.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.HeaderlessChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 
 import java.io.IOException;
 import java.util.ArrayList;

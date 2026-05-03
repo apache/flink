@@ -75,6 +75,8 @@ cp ./opt/flink-s3-fs-hadoop-{{< version >}}.jar ./plugins/s3-fs-hadoop/
   - 添加 Service Entry。创建文件 `META-INF/services/org.apache.flink.core.fs.FileSystemFactory`，文件中包含文件系统 Factory 类的类名。
   （更多细节请查看 [Java Service Loader docs](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html)）
 
+  - Optionally, override `getPriority()` in your factory to declare a relative priority. This is useful when multiple factories may be present for the same URI scheme (for example, during a migration between FS backends). The factory with the highest priority is selected. The default priority is `0`. See [Common Configurations]({{< ref "docs/deployment/filesystems/common" >}}#file-system-factory-priority) for details on overriding priority via configuration. For new experimental factories it is recommended to override: `getPriority()` to `return -1`. This way you provide production safe defaults for file system migrations.
+
 在插件检索时，文件系统 Factory 类会由一个专用的 Java 类加载器加载，从而避免与其他类或 Flink 组件冲突。在文件系统实例化和文件系统调用时，应使用该类加载器。
 
 <span class="label label-warning">警告</span> 实际上这表示您的实现应避免使用 `Thread.currentThread().getContextClassLoader()` 类加载器。

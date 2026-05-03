@@ -18,6 +18,8 @@
 
 package org.apache.flink.docs.util;
 
+import java.io.File;
+
 /** Contains various shared utility functions. */
 public enum Utils {
     ;
@@ -33,5 +35,16 @@ public enum Utils {
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")
                 .replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
+    }
+
+    public static String getProjectRootDir() {
+        final String dirFromProperty = System.getProperty("rootDir");
+        if (dirFromProperty != null) {
+            return dirFromProperty;
+        }
+
+        // to make this work in the IDE use a default fallback
+        final String currentDir = System.getProperty("user.dir");
+        return new File(currentDir).getParent();
     }
 }

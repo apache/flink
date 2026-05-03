@@ -1,0 +1,252 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/metrics.rst:21
+msgid "Metrics"
+msgstr "指标"
+
+#: ../../user_guide/metrics.rst:23
+msgid ""
+"PyFlink exposes a metric system that allows gathering and exposing "
+"metrics to external systems."
+msgstr ""
+"PyFlink 支持指标系统，该指标系统允许收集指标并将其暴露给外部系统。"
+
+#: ../../user_guide/metrics.rst:26
+msgid "Registering metrics"
+msgstr "注册指标"
+
+#: ../../user_guide/metrics.rst:28
+msgid ""
+"You can access the metric system from a :flinkdoc:`Python user-defined "
+"function <docs/dev/table/functions/python-udfs/>` by calling "
+"``function_context.get_metric_group()`` in the ``open`` method. The "
+"``get_metric_group()`` method returns a ``MetricGroup`` object on which "
+"you can create and register new metrics."
+msgstr ""
+"您可以通过在 :flinkdoc:`Python 用户自定义函数 "
+"<docs/dev/table/functions/python-udfs/>` 的 ``open`` 方法中调用 "
+"``function_context.get_metric_group()`` 来访问指标系统。"
+"``get_metric_group()`` 方法返回一个 ``MetricGroup`` 对象，"
+"您可以在该对象上创建和注册新指标。"
+
+#: ../../user_guide/metrics.rst:34
+msgid "Metric types"
+msgstr "指标类型"
+
+#: ../../user_guide/metrics.rst:36
+msgid ""
+"PyFlink supports ``Counters``, ``Gauges``, ``Distribution`` and "
+"``Meters``."
+msgstr ""
+"PyFlink 支持计数器 ``Counters``，量表 ``Gauges`` ，分布 ``Distribution`` "
+"和仪表 ``Meters``。"
+
+#: ../../user_guide/metrics.rst:39
+msgid "Counter"
+msgstr "计数器 Counter"
+
+#: ../../user_guide/metrics.rst:41
+msgid ""
+"A ``Counter`` is used to count something. The current value can be in- or"
+" decremented using ``inc()/inc(n: int)`` or ``dec()/dec(n: int)``. You "
+"can create and register a ``Counter`` by calling ``counter(name: str)`` "
+"on a ``MetricGroup``."
+msgstr ""
+"``Counter`` 用于计算某个东西的出现次数。可以通过 ``inc()/inc(n: int)`` 或 "
+"``dec()/dec(n: int)`` 增加或减少当前值。您可以通过在 ``MetricGroup`` 上调用 "
+"``counter(name: str)`` 来创建和注册 ``Counter``。"
+
+#: ../../user_guide/metrics.rst:61
+msgid "Gauge"
+msgstr "量表"
+
+#: ../../user_guide/metrics.rst:63
+msgid ""
+"A ``Gauge`` provides a value on demand. You can register a gauge by "
+"calling ``gauge(name: str, obj: Callable[[], int])`` on a MetricGroup. "
+"The Callable object will be used to report the values. Gauge metrics are "
+"restricted to integer-only values."
+msgstr ""
+"``Gauge`` 可按需返回数值。您可以通过在 ``MetricGroup`` 上调用 "
+"``gauge(name: str, obj: Callable[[], int])`` 来注册一个量表。"
+"Callable 对象将用于汇报数值。量表指标(Gauge metrics)只能用于汇报整数值。"
+
+#: ../../user_guide/metrics.rst:84
+msgid "Distribution"
+msgstr "分布（Distribution）"
+
+#: ../../user_guide/metrics.rst:86
+msgid ""
+"A metric that reports information (sum, count, min, max and mean) about "
+"the distribution of reported values. The value can be updated using "
+"``update(n: int)``. You can register a distribution by calling "
+"``distribution(name: str)`` on a MetricGroup. Distribution metrics are "
+"restricted to integer-only distributions."
+msgstr ""
+"``Distribution`` 用于报告关于所报告值分布的信息（总和，计数，最小，最大和平均值）"
+"的指标。可以通过 ``update(n: int)`` 来更新当前值。您可以通过在 ``MetricGroup`` "
+"上调用 ``distribution(name: str)`` 来注册该指标。"
+"分布指标(Distribution metrics)只能用于汇报整数指标。"
+
+#: ../../user_guide/metrics.rst:108
+msgid "Meter"
+msgstr "仪表"
+
+#: ../../user_guide/metrics.rst:110
+msgid ""
+"A Meter measures an average throughput. An occurrence of an event can be "
+"registered with the ``mark_event()`` method. The occurrence of multiple "
+"events at the same time can be registered with ``mark_event(n: int)`` "
+"method. You can register a meter by calling ``meter(self, name: str, "
+"time_span_in_seconds: int = 60)`` on a MetricGroup. The default value of "
+"time_span_in_seconds is 60."
+msgstr ""
+"仪表用于汇报平均吞吐量。可以使用 ``mark_event()`` 函数来注册事件的发生，"
+"使用 ``mark_event(n: int)`` 函数来注册同时发生的多个事件。您可以通过在 "
+"``MetricGroup`` 上调用 "
+"``meter(self, name: str, time_span_in_seconds: int = 60)`` "
+"来注册仪表。time_span_in_seconds的默认值为60。"
+
+#: ../../user_guide/metrics.rst:134
+msgid "Scope"
+msgstr "范围（Scope）"
+
+#: ../../user_guide/metrics.rst:136
+msgid ""
+"You can refer to the Java metric document for more details on "
+":flinkdoc:`Scope definition <docs/ops/metrics/#scope>`."
+msgstr ""
+"您可以参考 Java 指标文档以获取有关"
+":flinkdoc:`范围定义 <docs/ops/metrics/#scope>` 的更多详细信息。"
+
+#: ../../user_guide/metrics.rst:139
+msgid "User Scope"
+msgstr "用户范围（User Scope）"
+
+#: ../../user_guide/metrics.rst:141
+msgid ""
+"You can define a user scope by calling ``MetricGroup.add_group(key: str, "
+"value: str = None)``. If ``value`` is not ``None``, creates a new key-"
+"value MetricGroup pair. The key group is added to this group's sub-"
+"groups, while the value group is added to the key group's sub-groups. In "
+"this case, the value group will be returned, and a user variable will be "
+"defined."
+msgstr ""
+"您可以通过调用 ``MetricGroup.add_group(key: str, "
+"value: str = None)`` 来定义用户范围。如果 ``value`` 不为 ``None``，"
+"则创建一个新的键值 ``MetricGroup`` 对。其中，键组被添加到该组的子组中，"
+"而值组又被添加到键组的子组中。在这种情况下，值组将作为结果返回，"
+"与此同时，创建一个用户变量。"
+
+#: ../../user_guide/metrics.rst:159
+msgid "System Scope"
+msgstr "系统范围（System Scope）"
+
+#: ../../user_guide/metrics.rst:161
+msgid ""
+"You can refer to the Java metric document for more details on "
+":flinkdoc:`System Scope <docs/ops/metrics/#system-scope>`."
+msgstr ""
+"您可以参考 Java 指标文档以获取有关"
+":flinkdoc:`系统范围 <docs/ops/metrics/#system-scope>` 的更多详细信息。"
+
+#: ../../user_guide/metrics.rst:164
+msgid "List of all Variables"
+msgstr "所有变量列表"
+
+#: ../../user_guide/metrics.rst:166
+msgid ""
+"You can refer to the Java metric document for more details on "
+":flinkdoc:`List of all Variables <docs/ops/metrics/#list-of-all-"
+"variables>`."
+msgstr ""
+"您可以参考 Java 指标文档以获取有关"
+":flinkdoc:`\"所有变量列表\"的 <docs/ops/metrics/#list-of-all-"
+"variables>` 更多详细信息。"
+
+#: ../../user_guide/metrics.rst:169
+msgid "User Variables"
+msgstr "用户变量（User Variables）"
+
+#: ../../user_guide/metrics.rst:171
+msgid ""
+"You can define a user variable by calling ``MetricGroup.addGroup(key: "
+"str, value: str = None)`` and specifying the value parameter."
+msgstr ""
+"您可以通过调用 ``MetricGroup.addGroup(key: "
+"str, value: str = None)`` 并指定 value 参数来定义用户变量。"
+
+#: ../../user_guide/metrics.rst:174
+msgid "**Important:** User variables cannot be used in scope formats."
+msgstr "**重要提示：** 用户变量不能在以 scope format 中使用。"
+
+#: ../../user_guide/metrics.rst:184
+msgid "Common part between PyFlink and Flink"
+msgstr "PyFlink 和 Flink 的共通部分"
+
+#: ../../user_guide/metrics.rst:186
+msgid ""
+"You can refer to the Java metric document for more details on the "
+"following sections:"
+msgstr ""
+"您可以参考 Java 的指标文档，以获取关于以下部分的更多详细信息："
+
+#: ../../user_guide/metrics.rst:188
+msgid ":flinkdoc:`Reporter <docs/deployment/metric_reporters/>`."
+msgstr ":flinkdoc:`Reporter <docs/deployment/metric_reporters/>` 。"
+
+#: ../../user_guide/metrics.rst:189
+msgid ":flinkdoc:`System metrics <docs/ops/metrics/#system-metrics>`."
+msgstr ":flinkdoc:`系统指标 <docs/ops/metrics/#system-metrics>` 。"
+
+#: ../../user_guide/metrics.rst:190
+msgid ":flinkdoc:`Latency tracking <docs/ops/metrics/#latency-tracking>`."
+msgstr ":flinkdoc:`延迟跟踪 <docs/ops/metrics/#latency-tracking>` 。"
+
+#: ../../user_guide/metrics.rst:191
+msgid ":flinkdoc:`REST API integration <docs/ops/metrics/#rest-api-integration>`."
+msgstr ":flinkdoc:`REST API 集成 <docs/ops/metrics/#rest-api-integration>` 。"
+
+#: ../../user_guide/metrics.rst:192
+msgid ""
+":flinkdoc:`Dashboard integration <docs/ops/metrics/#dashboard-"
+"integration>`."
+msgstr ""
+":flinkdoc:`仪表板集成 <docs/ops/metrics/#dashboard-"
+"integration>` 。"

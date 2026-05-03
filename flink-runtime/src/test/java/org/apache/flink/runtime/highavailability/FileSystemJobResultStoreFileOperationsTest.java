@@ -255,8 +255,8 @@ public class FileSystemJobResultStoreFileOperationsTest {
                 .extracting(JobResult::getJobId)
                 .isEqualTo(DUMMY_JOB_RESULT_ENTRY.getJobId());
         assertThat(deserializedJobResult)
-                .extracting(JobResult::getApplicationStatus)
-                .isEqualTo(DUMMY_JOB_RESULT_ENTRY.getJobResult().getApplicationStatus());
+                .extracting(JobResult::getJobStatus)
+                .isEqualTo(DUMMY_JOB_RESULT_ENTRY.getJobResult().getJobStatus());
         assertThat(deserializedJobResult)
                 .extracting(JobResult::getNetRuntime)
                 .isEqualTo(DUMMY_JOB_RESULT_ENTRY.getJobResult().getNetRuntime());

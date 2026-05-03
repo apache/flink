@@ -815,6 +815,128 @@ public class ConstraintEnforcerTestPrograms {
                                     + " control this behaviour")
                     .build();
 
+    public static final String SCHEMA_CHAR_LENGTH_NULLABLE =
+            "a INT NOT NULL, b CHAR(8), c CHAR(6), d INT NOT NULL, e INT NOT NULL, f VARCHAR(6)";
+
+    static final TableTestProgram CHAR_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS =
+            TableTestProgram.of(
+                            "constraint-enforcer-char-length-trim-pad-nullable",
+                            "validates constraint enforcer handles null values in nullable"
+                                    + " CHAR/VARCHAR columns with TRIM_PAD enforcement")
+                    .setupConfig(TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER, TypeLengthEnforcer.TRIM_PAD)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(SCHEMA_CHAR_LENGTH_NULLABLE)
+                                    .producedValues(
+                                            Row.of(1, "Apache Flink", "SQL RuleZ", 11, 111, "SQL"),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SCHEMA_CHAR_LENGTH_NULLABLE)
+                                    .consumedValues(
+                                            Row.of(1, "Apache F", "SQL Ru", 11, 111, "SQL"),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * FROM source_t")
+                    .build();
+
+    public static final String SCHEMA_BINARY_LENGTH_NULLABLE =
+            "a INT NOT NULL, b BINARY(8), c BINARY(6), d INT NOT NULL, e INT NOT NULL, f VARBINARY(6)";
+
+    static final TableTestProgram BINARY_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS =
+            TableTestProgram.of(
+                            "constraint-enforcer-binary-length-trim-pad-nullable",
+                            "validates constraint enforcer handles null values in nullable"
+                                    + " BINARY/VARBINARY columns with TRIM_PAD enforcement")
+                    .setupConfig(TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER, TypeLengthEnforcer.TRIM_PAD)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(SCHEMA_BINARY_LENGTH_NULLABLE)
+                                    .producedValues(
+                                            Row.of(
+                                                    1,
+                                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+                                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                                    11,
+                                                    111,
+                                                    new byte[] {1, 2, 3}),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SCHEMA_BINARY_LENGTH_NULLABLE)
+                                    .consumedValues(
+                                            Row.of(
+                                                    1,
+                                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                                    11,
+                                                    111,
+                                                    new byte[] {1, 2, 3}),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * FROM source_t")
+                    .build();
+
+    static final TableTestProgram CHAR_LENGTH_ERROR_WITH_NULLABLE_COLUMNS =
+            TableTestProgram.of(
+                            "constraint-enforcer-char-length-error-nullable",
+                            "validates constraint enforcer handles null values in nullable"
+                                    + " CHAR/VARCHAR columns with ERROR enforcement")
+                    .setupConfig(TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER, TypeLengthEnforcer.ERROR)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(SCHEMA_CHAR_LENGTH_NULLABLE)
+                                    .producedValues(
+                                            Row.of(1, "ApacheFl", "SQL Ru", 11, 111, "SQL"),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SCHEMA_CHAR_LENGTH_NULLABLE)
+                                    .consumedValues(
+                                            Row.of(1, "ApacheFl", "SQL Ru", 11, 111, "SQL"),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * FROM source_t")
+                    .build();
+
+    static final TableTestProgram BINARY_LENGTH_ERROR_WITH_NULLABLE_COLUMNS =
+            TableTestProgram.of(
+                            "constraint-enforcer-binary-length-error-nullable",
+                            "validates constraint enforcer handles null values in nullable"
+                                    + " BINARY/VARBINARY columns with ERROR enforcement")
+                    .setupConfig(TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER, TypeLengthEnforcer.ERROR)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(SCHEMA_BINARY_LENGTH_NULLABLE)
+                                    .producedValues(
+                                            Row.of(
+                                                    1,
+                                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                                    11,
+                                                    111,
+                                                    new byte[] {1, 2, 3}),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SCHEMA_BINARY_LENGTH_NULLABLE)
+                                    .consumedValues(
+                                            Row.of(
+                                                    1,
+                                                    new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+                                                    new byte[] {1, 2, 3, 4, 5, 6},
+                                                    11,
+                                                    111,
+                                                    new byte[] {1, 2, 3}),
+                                            Row.of(2, null, null, 22, 222, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT * FROM source_t")
+                    .build();
+
     private static Map<Long, Long> mapOfNullable(@Nullable Long key, @Nullable Long value) {
         final Map<Long, Long> map = new HashMap<>();
         map.put(key, value);

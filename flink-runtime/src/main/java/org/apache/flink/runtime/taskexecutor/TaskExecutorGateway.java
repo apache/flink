@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
@@ -61,6 +62,7 @@ public interface TaskExecutorGateway
      *
      * @param slotId slot id for the request
      * @param jobId for which to request a slot
+     * @param applicationId to which the job belongs
      * @param allocationId id for the request
      * @param resourceProfile of requested slot, used only for dynamic slot allocation and will be
      *     ignored otherwise
@@ -72,6 +74,7 @@ public interface TaskExecutorGateway
     CompletableFuture<Acknowledge> requestSlot(
             SlotID slotId,
             JobID jobId,
+            ApplicationID applicationId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
             String targetAddress,

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.highavailability.KubernetesApplicationStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesCheckpointStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesExecutionPlanStoreUtil;
 import org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStore;
@@ -37,6 +38,9 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobmanager.ApplicationStore;
+import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
+import org.apache.flink.runtime.jobmanager.DefaultApplicationStore;
 import org.apache.flink.runtime.jobmanager.DefaultExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.NoOpExecutionPlanStoreWatcher;
@@ -83,6 +87,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.APPLICATION_STORE_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.CHECKPOINT_ID_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.COMPLETED_CHECKPOINT_FILE_SUFFIX;
 import static org.apache.flink.kubernetes.utils.Constants.DNS_POLICY_DEFAULT;
@@ -90,6 +95,7 @@ import static org.apache.flink.kubernetes.utils.Constants.DNS_POLICY_HOSTNETWORK
 import static org.apache.flink.kubernetes.utils.Constants.EXECUTION_PLAN_STORE_KEY_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.SUBMITTED_APPLICATION_FILE_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.SUBMITTED_EXECUTION_PLAN_FILE_PREFIX;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -232,6 +238,62 @@ public class KubernetesUtils {
             return LeaderInformation.empty();
         }
         return LeaderInformation.known(sessionID, leaderAddress);
+    }
+
+    /**
+     * Create a {@link DefaultApplicationStore}.
+     *
+     * @param configuration configuration to build a RetrievableStateStorageHelper
+     * @param flinkKubeClient flink kubernetes client
+     * @param configMapName ConfigMap name
+     * @param lockIdentity lock identity to check the leadership
+     * @return a {@link DefaultExecutionPlanStore}
+     * @throws Exception when create the storage helper
+     */
+    public static ApplicationStore createApplicationStore(
+            Configuration configuration,
+            FlinkKubeClient flinkKubeClient,
+            String configMapName,
+            String lockIdentity)
+            throws Exception {
+
+        final KubernetesStateHandleStore<ApplicationStoreEntry> stateHandleStore =
+                createApplicationStateHandleStore(
+                        configuration, flinkKubeClient, configMapName, lockIdentity);
+        return new DefaultApplicationStore<>(
+                stateHandleStore, KubernetesApplicationStoreUtil.INSTANCE);
+    }
+
+    /**
+     * Create a {@link KubernetesStateHandleStore} which storing {@link ApplicationStoreEntry}.
+     *
+     * @param configuration configuration to build a RetrievableStateStorageHelper
+     * @param flinkKubeClient flink kubernetes client
+     * @param configMapName ConfigMap name
+     * @param lockIdentity lock identity to check the leadership
+     * @return a {@link KubernetesStateHandleStore} which storing {@link ApplicationStoreEntry}.
+     * @throws Exception when create the storage helper
+     */
+    public static KubernetesStateHandleStore<ApplicationStoreEntry>
+            createApplicationStateHandleStore(
+                    Configuration configuration,
+                    FlinkKubeClient flinkKubeClient,
+                    String configMapName,
+                    String lockIdentity)
+                    throws Exception {
+
+        final RetrievableStateStorageHelper<ApplicationStoreEntry> stateStorage =
+                new FileSystemStateStorageHelper<>(
+                        HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(
+                                configuration),
+                        SUBMITTED_APPLICATION_FILE_PREFIX);
+
+        return new KubernetesStateHandleStore<>(
+                flinkKubeClient,
+                configMapName,
+                stateStorage,
+                k -> k.startsWith(APPLICATION_STORE_KEY_PREFIX),
+                lockIdentity);
     }
 
     /**

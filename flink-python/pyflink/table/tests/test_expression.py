@@ -184,6 +184,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("STARTSWITH(a, b)", str(expr1.starts_with(expr2)))
         self.assertEqual("ENDSWITH(a, b)", str(expr1.ends_with(expr2)))
 
+        # ip address functions
+        self.assertEqual("INET_ATON(a)", str(expr1.inet_aton()))
+        self.assertEqual("INET_NTOA(a)", str(expr1.inet_ntoa()))
+
         # regexp functions
         self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
         self.assertEqual("REGEXP_COUNT(a, b)", str(expr1.regexp_count(expr2)))
@@ -260,6 +264,27 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                          str(lit('{}').json_query('$.x', JsonQueryWrapper.WITHOUT_ARRAY,
                                                   JsonQueryOnEmptyOrError.NULL,
                                                   JsonQueryOnEmptyOrError.EMPTY_ARRAY)))
+
+        # bitmap functions
+        self.assertEqual("BITMAP_AND(a, b)", str(expr1.bitmap_and(expr2)))
+        self.assertEqual("BITMAP_ANDNOT(a, b)", str(expr1.bitmap_andnot(expr2)))
+        self.assertEqual("BITMAP_AND_AGG(a)", str(expr1.bitmap_and_agg()))
+        self.assertEqual("BITMAP_AND_CARDINALITY_AGG(a)", str(expr1.bitmap_and_cardinality_agg()))
+        self.assertEqual("BITMAP_BUILD(a)", str(expr1.bitmap_build()))
+        self.assertEqual("BITMAP_BUILD_AGG(a)", str(expr1.bitmap_build_agg()))
+        self.assertEqual("BITMAP_BUILD_CARDINALITY_AGG(a)",
+                         str(expr1.bitmap_build_cardinality_agg()))
+        self.assertEqual("BITMAP_CARDINALITY(a)", str(expr1.bitmap_cardinality()))
+        self.assertEqual("BITMAP_FROM_BYTES(a)", str(expr1.bitmap_from_bytes()))
+        self.assertEqual("BITMAP_OR(a, b)", str(expr1.bitmap_or(expr2)))
+        self.assertEqual("BITMAP_OR_AGG(a)", str(expr1.bitmap_or_agg()))
+        self.assertEqual("BITMAP_OR_CARDINALITY_AGG(a)", str(expr1.bitmap_or_cardinality_agg()))
+        self.assertEqual("BITMAP_TO_ARRAY(a)", str(expr1.bitmap_to_array()))
+        self.assertEqual("BITMAP_TO_BYTES(a)", str(expr1.bitmap_to_bytes()))
+        self.assertEqual("BITMAP_TO_STRING(a)", str(expr1.bitmap_to_string()))
+        self.assertEqual("BITMAP_XOR(a, b)", str(expr1.bitmap_xor(expr2)))
+        self.assertEqual("BITMAP_XOR_AGG(a)", str(expr1.bitmap_xor_agg()))
+        self.assertEqual("BITMAP_XOR_CARDINALITY_AGG(a)", str(expr1.bitmap_xor_cardinality_agg()))
 
     def test_expressions(self):
         expr1 = col('a')

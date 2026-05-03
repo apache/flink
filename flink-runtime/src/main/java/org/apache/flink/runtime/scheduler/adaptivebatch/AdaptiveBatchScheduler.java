@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.JobException;
@@ -249,6 +250,11 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         } else {
             return new DummySpeculativeExecutionHandler();
         }
+    }
+
+    @Override
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return JobManagerOptions.SchedulerType.AdaptiveBatch;
     }
 
     @Override

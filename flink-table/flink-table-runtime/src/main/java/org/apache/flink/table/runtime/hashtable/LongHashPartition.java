@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
+import org.apache.flink.core.memory.AbstractPagedInputView;
+import org.apache.flink.core.memory.AbstractPagedOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.SeekableDataInputView;
@@ -27,8 +29,6 @@ import org.apache.flink.runtime.io.disk.iomanager.BulkBlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.AbstractPagedInputView;
-import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;

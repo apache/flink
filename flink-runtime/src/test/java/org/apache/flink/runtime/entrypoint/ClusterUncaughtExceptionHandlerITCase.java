@@ -20,7 +20,7 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
@@ -97,7 +97,7 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
         }
 
         @Override
-        protected ExecutionGraphInfoStore createSerializableExecutionGraphStore(
+        protected ArchivedApplicationStore createArchivedApplicationStore(
                 Configuration configuration, ScheduledExecutor scheduledExecutor)
                 throws IOException {
             return null;

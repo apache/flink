@@ -37,7 +37,12 @@ class RowTypeStrategy implements TypeStrategy {
         List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
         DataTypes.Field[] fields =
                 IntStream.range(0, argumentDataTypes.size())
-                        .mapToObj(idx -> DataTypes.FIELD("f" + idx, argumentDataTypes.get(idx)))
+                        .mapToObj(
+                                idx -> {
+                                    String fieldName =
+                                            callContext.getArgumentName(idx).orElse("f" + idx);
+                                    return DataTypes.FIELD(fieldName, argumentDataTypes.get(idx));
+                                })
                         .toArray(DataTypes.Field[]::new);
 
         return Optional.of(DataTypes.ROW(fields).notNull());

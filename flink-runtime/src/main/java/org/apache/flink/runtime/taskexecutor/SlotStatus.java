@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -49,19 +50,33 @@ public class SlotStatus implements Serializable {
      */
     private final JobID jobID;
 
+    private final int assignedTasks;
+
+    @VisibleForTesting
     public SlotStatus(SlotID slotID, ResourceProfile resourceProfile) {
-        this(slotID, resourceProfile, null, null);
+        this(slotID, resourceProfile, null, null, 0);
+    }
+
+    @VisibleForTesting
+    public SlotStatus(
+            SlotID slotID,
+            ResourceProfile resourceProfile,
+            JobID jobID,
+            AllocationID allocationID) {
+        this(slotID, resourceProfile, jobID, allocationID, 0);
     }
 
     public SlotStatus(
             SlotID slotID,
             ResourceProfile resourceProfile,
             JobID jobID,
-            AllocationID allocationID) {
+            AllocationID allocationID,
+            int assignedTasks) {
         this.slotID = checkNotNull(slotID, "slotID cannot be null");
         this.resourceProfile = checkNotNull(resourceProfile, "profile cannot be null");
         this.allocationID = allocationID;
         this.jobID = jobID;
+        this.assignedTasks = assignedTasks;
     }
 
     /**
@@ -98,6 +113,10 @@ public class SlotStatus implements Serializable {
      */
     public JobID getJobID() {
         return jobID;
+    }
+
+    public int getAssignedTasks() {
+        return assignedTasks;
     }
 
     @Override
@@ -143,6 +162,8 @@ public class SlotStatus implements Serializable {
                 + allocationID
                 + ", jobID="
                 + jobID
+                + ", assignedTasks="
+                + assignedTasks
                 + ", resourceProfile="
                 + resourceProfile
                 + '}';

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -117,6 +118,8 @@ public class RuntimeEnvironment implements Environment {
     @Nullable private CheckpointStorageAccess checkpointStorageAccess;
 
     ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
+
+    @Nullable private ChannelStateWriter channelStateWriter;
 
     // ------------------------------------------------------------------------
 
@@ -407,5 +410,16 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        checkState(this.channelStateWriter == null, "Cannot set channelStateWriter twice!");
+        this.channelStateWriter = channelStateWriter;
+    }
+
+    @Override
+    @Nullable
+    public ChannelStateWriter getChannelStateWriter() {
+        return this.channelStateWriter;
     }
 }

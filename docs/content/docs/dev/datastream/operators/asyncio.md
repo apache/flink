@@ -46,7 +46,7 @@ makes up the vast majority of the function's time.
 
 Asynchronous interaction with the database means that a single parallel function instance can handle many requests concurrently and
 receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and
-receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cased to much higher
+receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cases to much higher
 streaming throughput.
 
 {{< img src="/fig/async_io.svg" width="50%" >}}
@@ -69,7 +69,7 @@ efficient than a proper asynchronous client.
 ## Async I/O API
 
 Flink's Async I/O API allows users to use asynchronous request clients with data streams. The API handles the integration with
-data streams, well as handling order, event time, fault tolerance, retry support, etc.
+data streams, as well as handling order, event time, fault tolerance, retry support, etc.
 
 Assuming one has an asynchronous client for the target database, three parts are needed to implement a stream transformation
 with asynchronous I/O against the database:
@@ -226,7 +226,7 @@ The following three parameters control the asynchronous operations:
     This duration may include multiple retry attempts (if retries are enabled) and determines when the operation is ultimately considered complete.
     This parameter guards against dead/failed requests.
 
-  - **Capacity**: This parameter defines how many asynchronous requests may be in progress at the same time.
+  - **Capacity**: This parameter defines how many asynchronous requests may be in progress per parallel instance (subtask) of the async operator at the same time.
     Even though the async I/O approach leads typically to much better throughput, the operator can still be the bottleneck in
     the streaming application. Limiting the number of concurrent requests ensures that the operator will not
     accumulate an ever-growing backlog of pending requests, but that it will trigger backpressure once the capacity

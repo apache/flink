@@ -1,0 +1,169 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/faq.rst:21
+msgid "FAQ"
+msgstr "常见问题"
+
+#: ../../user_guide/faq.rst:23
+msgid ""
+"This page describes the solutions to some common questions for PyFlink "
+"users."
+msgstr "本页介绍了针对PyFlink用户的一些常见问题的解决方案。"
+
+#: ../../user_guide/faq.rst:26
+msgid "Preparing Python Virtual Environment"
+msgstr "准备Python虚拟环境"
+
+#: ../../user_guide/faq.rst:28
+msgid ""
+"You can download a :flinkdoc:`convenience script <downloads/setup-"
+"pyflink-virtual-env.sh>` to prepare a Python virtual env zip which can be"
+" used on Mac OS and most Linux distributions. You can specify the PyFlink"
+" version to generate a Python virtual environment required for the "
+"corresponding PyFlink version, otherwise the most recent version will be "
+"installed."
+msgstr ""
+"您可以下载 :flinkdoc:`便捷脚本 <downloads/setup-pyflink-virtual-env.sh>` "
+"，以准备可在Mac OS和大多数Linux发行版上使用的Python虚拟环境包(virtual env "
+"zip)。您可以指定PyFlink的版本，来生成对应的PyFlink版本所需的Python虚拟环境"
+"，否则将安装最新版本的PyFlink所对应的Python虚拟环境。"
+
+#: ../../user_guide/faq.rst:36
+msgid "Execute PyFlink jobs with Python virtual environment"
+msgstr ""
+
+#: ../../user_guide/faq.rst:38
+msgid ""
+"After setting up a `python virtual environment <#preparing-python-"
+"virtual-environment>`_, as described in the previous section, you should "
+"activate the environment before executing the PyFlink job."
+msgstr ""
+
+#: ../../user_guide/faq.rst:41
+msgid "Local"
+msgstr ""
+
+#: ../../user_guide/faq.rst:50
+msgid "Cluster"
+msgstr "集群（Cluster）"
+
+#: ../../user_guide/faq.rst:59
+msgid ""
+"For details on the usage of ``add_python_archive`` and "
+"``set_python_executable``, you can refer to :doc:`dependency_management`."
+msgstr ""
+"如果需要了解 ``add_python_archive`` 和 ``set_python_executable`` 用法的"
+"详细信息，请参阅 :doc:`dependency_management`。"
+
+#: ../../user_guide/faq.rst:62
+msgid "Adding Jar Files"
+msgstr "添加Jar文件"
+
+#: ../../user_guide/faq.rst:64
+msgid ""
+"A PyFlink job may depend on jar files, i.e. connectors, Java UDFs, etc. "
+"You can specify the dependencies with the following Python Table APIs or "
+"through :flinkdoc:`command-line arguments <docs/deployment/cli/#usage>` "
+"directly when submitting the job."
+msgstr ""
+"PyFlink作业可能依赖jar文件，比如connector，Java UDF等。您可以在提交作业时"
+"使用以下Python Table API或通过 :flinkdoc:`命令行参数 <docs/deployment/cli"
+"/#usage>` 来指定依赖项。"
+
+#: ../../user_guide/faq.rst:75
+msgid ""
+"For details about the APIs of adding Java dependency, you can refer to "
+":doc:`dependency_management`."
+msgstr ""
+"有关添加Java依赖项的API的详细信息，请参阅 :doc:`dependency_management`。"
+
+#: ../../user_guide/faq.rst:78
+msgid "Adding Python Files"
+msgstr "添加Python文件"
+
+#: ../../user_guide/faq.rst:80
+msgid ""
+"You can use the command-line arguments ``pyfs`` or the API "
+"``add_python_file`` of ``TableEnvironment`` to add python file "
+"dependencies which could be python files, python packages or local "
+"directories. For example, if you have a directory named ``myDir`` which "
+"has the following hierarchy:"
+msgstr ""
+"您可以使用命令行参数 ``pyfs`` 或 ``TableEnvironment`` 的API "
+"``add_python_file`` 添加python文件依赖，这些依赖可以是python文件，python"
+"软件包或本地目录。例如，如果您有一个名为 ``myDir`` 的目录，该目录具有以下"
+"层次结构："
+
+#: ../../user_guide/faq.rst:90
+msgid "You can add the Python files of directory ``myDir`` as following:"
+msgstr "您可以将添加目录 ``myDir`` 添加到Python依赖中，如下所示："
+
+#: ../../user_guide/faq.rst:100
+msgid "Wait for jobs to finish when executing jobs in mini cluster"
+msgstr "当在 mini cluster 环境执行作业时，显式等待作业执行结束"
+
+#: ../../user_guide/faq.rst:102
+msgid ""
+"When executing jobs in mini cluster (e.g. when executing jobs in IDE) and"
+" using the following APIs in the jobs (e.g. "
+"``TableEnvironment.execute_sql``, ``StatementSet.execute``, etc in the "
+"Python Table API; ``StreamExecutionEnvironment.execute_async`` in the "
+"Python DataStream API), please remember to explicitly wait for the job "
+"execution to finish as these APIs are asynchronous. Otherwise you may "
+"could not find the execution results as the program will exit before the "
+"job execution finishes. Please refer to the following example on how to "
+"do that:"
+msgstr ""
+"当在 mini cluster 环境执行作业（比如，在IDE中执行作业）且在作业中使用了如下"
+"API（比如 Python Table API 的 ``TableEnvironment.execute_sql``, "
+"``StatementSet.execute`` 和 Python DataStream API 的 "
+"``StreamExecutionEnvironment.execute_async``）的时候，因为这些API是异步的"
+"，请记得显式地等待作业执行结束。否则程序会在已提交的作业执行结束之前退出，"
+"以致无法观测到已提交作业的执行结果。请参考如下示例代码，了解如何显式地等待"
+"作业执行结束："
+
+#: ../../user_guide/faq.rst:120
+msgid ""
+"There is no need to wait for the job execution to finish when executing "
+"jobs in remote cluster and so remember to remove these codes when "
+"executing jobs in remote cluster."
+msgstr ""
+"当往远程集群提交作业时，无需显式地等待作业执行结束，所以当往远程集群提交"
+"作业之前，请记得移除这些等待作业执行结束的代码逻辑。"
+

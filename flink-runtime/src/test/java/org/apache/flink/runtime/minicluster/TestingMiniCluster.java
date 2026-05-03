@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -175,7 +175,7 @@ public class TestingMiniCluster extends MiniCluster {
                             heartbeatServices,
                             delegationTokenManager,
                             metricRegistry,
-                            new MemoryExecutionGraphInfoStore(),
+                            new MemoryArchivedApplicationStore(),
                             metricQueryServiceRetriever,
                             Collections.emptySet(),
                             fatalErrorHandler);

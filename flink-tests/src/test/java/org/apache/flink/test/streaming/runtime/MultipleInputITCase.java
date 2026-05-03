@@ -38,34 +38,31 @@ import org.apache.flink.streaming.api.transformations.MultipleInputTransformatio
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for {@link MultipleInputStreamOperator}. */
-@SuppressWarnings("serial")
-public class MultipleInputITCase extends AbstractTestBaseJUnit4 {
+class MultipleInputITCase extends AbstractTestBase {
 
     @Test
-    public void testBasicProcessing() throws Exception {
+    void testBasicProcessing() throws Exception {
         testNonKeyed(false);
     }
 
     @Test
-    public void testUnion() throws Exception {
+    void testUnion() throws Exception {
         testNonKeyed(true);
     }
 
-    public void testNonKeyed(boolean withUnion) throws Exception {
+    private void testNonKeyed(boolean withUnion) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -106,11 +103,11 @@ public class MultipleInputITCase extends AbstractTestBaseJUnit4 {
         List<Long> result = resultSink.getResult();
         Collections.sort(result);
         long actualSum = result.get(result.size() - 1);
-        assertEquals(1 + 10 + 2 + 11 + 42 + 44, actualSum);
+        assertThat(actualSum).isEqualTo(1 + 10 + 2 + 11 + 42 + 44);
     }
 
     @Test
-    public void testKeyedState() throws Exception {
+    void testKeyedState() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
@@ -141,7 +138,7 @@ public class MultipleInputITCase extends AbstractTestBaseJUnit4 {
 
         List<Long> result = resultSink.getResult();
         Collections.sort(result);
-        assertThat(result, contains(0L, 3L, 13L, 13L + 16L, 101L, 101L + 104L));
+        assertThat(result).containsExactly(0L, 3L, 13L, 13L + 16L, 101L, 101L + 104L);
     }
 
     private static class KeyedSumMultipleInputOperator extends AbstractStreamOperatorV2<Long>
