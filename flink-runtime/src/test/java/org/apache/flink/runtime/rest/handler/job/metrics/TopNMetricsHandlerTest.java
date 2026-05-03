@@ -27,15 +27,20 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.job.metrics.TopNMetricsMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.TopNMetricsResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.TopNQueryParameter;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,7 +103,12 @@ class TopNMetricsHandlerTest {
 
         handler =
                 new TopNMetricsHandler(
-                        retriever, Duration.ofMillis(50), Collections.emptyMap(), fetcher);
+                        retriever,
+                        Duration.ofMillis(50),
+                        Collections.emptyMap(),
+                        fetcher,
+                        new DefaultExecutionGraphCache(TestingUtils.TIMEOUT, TestingUtils.TIMEOUT),
+                        Executors.directExecutor());
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -120,13 +130,13 @@ class TopNMetricsHandlerTest {
         assertThat(cpu.get(1).getTaskManagerId()).isEqualTo("tm-3");
         assertThat(cpu.get(2).getTaskManagerId()).isEqualTo("tm-1");
 
-        // CPU is TaskManager-scoped: subtask index is not applicable (-1) and operatorName is
-        // the literal "TaskManager" so the frontend can render it uniformly.
+        // CPU is TaskManager-scoped: subtaskId is null (not applicable) and operatorName
+        // carries the TaskManager id as its user-visible label.
         assertThat(cpu)
                 .allSatisfy(
                         info -> {
-                            assertThat(info.getSubtaskId()).isEqualTo(-1);
-                            assertThat(info.getOperatorName()).isEqualTo("TaskManager");
+                            assertThat(info.getSubtaskId()).isNull();
+                            assertThat(info.getOperatorName()).isEqualTo(info.getTaskManagerId());
                         });
     }
 
@@ -229,6 +239,105 @@ class TopNMetricsHandlerTest {
         assertThat(body.getTopCpuConsumers()).isEmpty();
         assertThat(body.getTopBackpressureOperators()).isEmpty();
         assertThat(body.getTopGcIntensiveTasks()).isEmpty();
+        assertThat(body.getTopBusyOperators()).isEmpty();
+        assertThat(body.getTopLaggingSources()).isEmpty();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Busy dimension
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    void testTopBusyOperatorsAreSubtaskScopedAndClampedToUnitRatio() throws Exception {
+        registerVertex(JOB_ID, VERTEX_ID, /* subtaskCount */ 3);
+        // 0 ms/s -> 0.0, 250 ms/s -> 0.25, 1000 ms/s -> 1.0
+        addSubtaskBusyTime(JOB_ID, VERTEX_ID, 0, 0.0);
+        addSubtaskBusyTime(JOB_ID, VERTEX_ID, 1, 250.0);
+        addSubtaskBusyTime(JOB_ID, VERTEX_ID, 2, 1000.0);
+
+        final TopNMetricsResponseBody body = invokeHandler();
+        final List<TopNMetricsResponseBody.BusyOperatorInfo> busy = body.getTopBusyOperators();
+
+        assertThat(busy).hasSize(3);
+        assertThat(busy.get(0).getSubtaskId()).isEqualTo(2);
+        assertThat(busy.get(0).getBusyRatio()).isEqualTo(1.0);
+        assertThat(busy.get(1).getSubtaskId()).isEqualTo(1);
+        assertThat(busy.get(1).getBusyRatio()).isEqualTo(0.25);
+        assertThat(busy.get(2).getSubtaskId()).isEqualTo(0);
+        assertThat(busy.get(2).getBusyRatio()).isEqualTo(0.0);
+    }
+
+    @Test
+    void testTopBusyOperatorsReturnsEmptyWhenJobHasNoMetricsYet() throws Exception {
+        final TopNMetricsResponseBody body = invokeHandler();
+        assertThat(body.getTopBusyOperators()).isEmpty();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Source lag dimension
+    // ---------------------------------------------------------------------------------------------
+
+    @Test
+    void testTopLaggingSourcesAggregatePendingRecordsAndRankDescending() throws Exception {
+        // Two source-like vertices. "src-fast" has lower backlog than "src-slow".
+        final String fast = "src-fast";
+        final String slow = "src-slow";
+        final Map<String, Integer> vertices = new HashMap<>();
+        vertices.put(fast, 2);
+        vertices.put(slow, 2);
+        registerVertices(JOB_ID, vertices);
+
+        addOperatorPendingRecords(JOB_ID, fast, 0, "Source__fast", 10.0);
+        addOperatorPendingRecords(JOB_ID, fast, 1, "Source__fast", 20.0); // sum 30
+
+        addOperatorPendingRecords(JOB_ID, slow, 0, "Source__slow", 500.0);
+        addOperatorPendingRecords(JOB_ID, slow, 1, "Source__slow", 500.0); // sum 1000
+
+        final TopNMetricsResponseBody body = invokeHandler();
+        final List<TopNMetricsResponseBody.SourceLagInfo> sources = body.getTopLaggingSources();
+
+        assertThat(sources).hasSize(2);
+        assertThat(sources.get(0).getVertexId()).isEqualTo(slow);
+        assertThat(sources.get(0).getPendingRecords()).isEqualTo(1000.0);
+        assertThat(sources.get(1).getVertexId()).isEqualTo(fast);
+        assertThat(sources.get(1).getPendingRecords()).isEqualTo(30.0);
+        // Lag metrics absent -> null (unavailable).
+        assertThat(sources.get(0).getMaxFetchEventTimeLagMs()).isNull();
+        assertThat(sources.get(0).getMaxEmitEventTimeLagMs()).isNull();
+    }
+
+    @Test
+    void testTopLaggingSourcesReportsMaxEventTimeLagAcrossSubtasks() throws Exception {
+        final String src = "src-lagged";
+        registerVertex(JOB_ID, src, /* subtaskCount */ 3);
+        // Different fetch lags across subtasks; we expect the max (9000).
+        addOperatorFetchEventTimeLag(JOB_ID, src, 0, "KafkaSource", 1000.0);
+        addOperatorFetchEventTimeLag(JOB_ID, src, 1, "KafkaSource", 9000.0);
+        addOperatorFetchEventTimeLag(JOB_ID, src, 2, "KafkaSource", 3000.0);
+        // Emit lag only on one subtask.
+        addOperatorEmitEventTimeLag(JOB_ID, src, 1, "KafkaSource", 2500.0);
+
+        final TopNMetricsResponseBody body = invokeHandler();
+        assertThat(body.getTopLaggingSources())
+                .singleElement()
+                .satisfies(
+                        info -> {
+                            assertThat(info.getVertexId()).isEqualTo(src);
+                            assertThat(info.getPendingRecords()).isNull();
+                            assertThat(info.getMaxFetchEventTimeLagMs()).isEqualTo(9000.0);
+                            assertThat(info.getMaxEmitEventTimeLagMs()).isEqualTo(2500.0);
+                        });
+    }
+
+    @Test
+    void testTopLaggingSourcesIgnoresVerticesWithNoSourceMetrics() throws Exception {
+        // Vertex with only back-pressure (not a source) must not appear in the lag list.
+        registerVertex(JOB_ID, VERTEX_ID, /* subtaskCount */ 2);
+        addSubtaskBackpressure(JOB_ID, VERTEX_ID, 0, 500.0);
+        addSubtaskBackpressure(JOB_ID, VERTEX_ID, 1, 500.0);
+
+        final TopNMetricsResponseBody body = invokeHandler();
+        assertThat(body.getTopLaggingSources()).isEmpty();
     }
 
     @Test
@@ -279,7 +388,16 @@ class TopNMetricsHandlerTest {
                         queryParameters,
                         Collections.emptyList());
 
-        return handler.handleRequest(request, new TestingDispatcherGateway()).get();
+        // The tests inject metrics directly into the MetricStore, so an empty
+        // ExecutionGraphInfo is sufficient; the handler falls back to the raw
+        // vertex id when no friendly name is available in the graph.
+        final ExecutionGraphInfo executionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(JobID.fromHexString(JOB_ID))
+                                .build());
+
+        return handler.handleRequest(request, executionGraphInfo);
     }
 
     private void addTaskManagerCpuLoad(String tmId, double load) {
@@ -311,20 +429,93 @@ class TopNMetricsHandlerTest {
                         Double.toString(bpMsPerSec)));
     }
 
+    private void addSubtaskBusyTime(
+            String jobId, String vertexId, int subtaskIndex, double busyMsPerSec) {
+        metricStore.add(
+                new MetricDump.GaugeDump(
+                        new QueryScopeInfo.TaskQueryScopeInfo(
+                                jobId, vertexId, subtaskIndex, /* attemptNumber */ 0, ""),
+                        MetricNames.TASK_BUSY_TIME,
+                        Double.toString(busyMsPerSec)));
+    }
+
+    private void addOperatorPendingRecords(
+            String jobId, String vertexId, int subtaskIndex, String operatorName, double pending) {
+        addOperatorMetric(
+                jobId, vertexId, subtaskIndex, operatorName, MetricNames.PENDING_RECORDS, pending);
+    }
+
+    private void addOperatorFetchEventTimeLag(
+            String jobId, String vertexId, int subtaskIndex, String operatorName, double lagMs) {
+        addOperatorMetric(
+                jobId,
+                vertexId,
+                subtaskIndex,
+                operatorName,
+                MetricNames.CURRENT_FETCH_EVENT_TIME_LAG,
+                lagMs);
+    }
+
+    private void addOperatorEmitEventTimeLag(
+            String jobId, String vertexId, int subtaskIndex, String operatorName, double lagMs) {
+        addOperatorMetric(
+                jobId,
+                vertexId,
+                subtaskIndex,
+                operatorName,
+                MetricNames.CURRENT_EMIT_EVENT_TIME_LAG,
+                lagMs);
+    }
+
+    /**
+     * Inject an operator-scoped gauge. The MetricStore keys it inside the SubtaskMetricStore as
+     * {@code <operatorName>.<metricName>}; the handler discovers it via suffix match.
+     */
+    private void addOperatorMetric(
+            String jobId,
+            String vertexId,
+            int subtaskIndex,
+            String operatorName,
+            String metricName,
+            double value) {
+        metricStore.add(
+                new MetricDump.GaugeDump(
+                        new QueryScopeInfo.OperatorQueryScopeInfo(
+                                jobId,
+                                vertexId,
+                                subtaskIndex,
+                                /* attemptNumber */ 0,
+                                operatorName,
+                                ""),
+                        metricName,
+                        Double.toString(value)));
+    }
+
     /**
      * Register a vertex with subtaskCount representative attempts for the given job. Necessary
      * because TopNMetricsHandler iterates over MetricStore#getRepresentativeAttempts() to discover
      * which vertices belong to the job; merely adding a TaskQueryScopeInfo dump is not enough.
      */
     private void registerVertex(String jobId, String vertexId, int subtaskCount) {
-        final Map<Integer, CurrentAttempts> subtaskAttempts = new HashMap<>();
-        for (int i = 0; i < subtaskCount; i++) {
-            final Set<Integer> currentAttempts = new HashSet<>();
-            currentAttempts.add(0);
-            subtaskAttempts.put(i, new CurrentAttempts(0, currentAttempts, false));
-        }
+        registerVertices(jobId, Collections.singletonMap(vertexId, subtaskCount));
+    }
+
+    /**
+     * Register multiple vertices for a job in a single {@code updateCurrentExecutionAttempts}
+     * invocation. Needed because each call to that method <b>replaces</b> the job's representative
+     * attempts map; registering vertices one-by-one would leave only the last vertex visible.
+     */
+    private void registerVertices(String jobId, Map<String, Integer> vertexToSubtaskCount) {
         final Map<String, Map<Integer, CurrentAttempts>> vertices = new HashMap<>();
-        vertices.put(vertexId, subtaskAttempts);
+        for (Map.Entry<String, Integer> vertex : vertexToSubtaskCount.entrySet()) {
+            final Map<Integer, CurrentAttempts> subtaskAttempts = new HashMap<>();
+            for (int i = 0; i < vertex.getValue(); i++) {
+                final Set<Integer> currentAttempts = new HashSet<>();
+                currentAttempts.add(0);
+                subtaskAttempts.put(i, new CurrentAttempts(0, currentAttempts, false));
+            }
+            vertices.put(vertex.getKey(), subtaskAttempts);
+        }
 
         final JobDetails job =
                 new JobDetails(

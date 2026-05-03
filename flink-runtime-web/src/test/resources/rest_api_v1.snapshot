@@ -2830,6 +2830,51 @@
               }
             }
           }
+        },
+        "topBusyOperators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:BusyOperatorInfo",
+            "properties" : {
+              "operatorId" : {
+                "type" : "string"
+              },
+              "operatorName" : {
+                "type" : "string"
+              },
+              "busyRatio" : {
+                "type" : "number"
+              },
+              "subtaskId" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "topLaggingSources" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:SourceLagInfo",
+            "properties" : {
+              "vertexId" : {
+                "type" : "string"
+              },
+              "vertexName" : {
+                "type" : "string"
+              },
+              "pendingRecords" : {
+                "type" : "number"
+              },
+              "maxFetchEventTimeLagMs" : {
+                "type" : "number"
+              },
+              "maxEmitEventTimeLagMs" : {
+                "type" : "number"
+              }
+            }
+          }
         }
       }
     }

@@ -70,7 +70,8 @@ public final class TopNMetricsHeaders
 
     @Override
     public String getDescription() {
-        return "Returns Top N metrics for a job including CPU consumers, "
-                + "backpressured operators, and GC-intensive tasks.";
+        return "Returns Top N metrics for a job across five dimensions: "
+                + "backpressured subtasks, busy subtasks, lagging sources, "
+                + "CPU consumers (TaskManager-scoped) and GC-intensive TaskManagers.";
     }
 }

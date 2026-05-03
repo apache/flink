@@ -900,8 +900,9 @@ paths:
                 $ref: "#/components/schemas/MetricCollectionResponseBody"
   /jobs/{jobid}/metrics/top-n:
     get:
-      description: "Returns Top N metrics for a job including CPU consumers, backpressured\
-        \ operators, and GC-intensive tasks."
+      description: "Returns Top N metrics for a job across five dimensions: backpressured\
+        \ subtasks, busy subtasks, lagging sources, CPU consumers (TaskManager-scoped)\
+        \ and GC-intensive TaskManagers."
       operationId: getTopNMetrics
       parameters:
       - name: jobid
@@ -2023,6 +2024,19 @@ components:
       type: object
       properties:
         backpressureRatio:
+          type: number
+          format: double
+        operatorId:
+          type: string
+        operatorName:
+          type: string
+        subtaskId:
+          type: integer
+          format: int32
+    BusyOperatorInfo:
+      type: object
+      properties:
+        busyRatio:
           type: number
           format: double
         operatorId:
@@ -3487,6 +3501,22 @@ components:
           $ref: "#/components/schemas/SlotSharingGroupId"
         slotSharingGroupName:
           type: string
+    SourceLagInfo:
+      type: object
+      properties:
+        maxEmitEventTimeLagMs:
+          type: number
+          format: double
+        maxFetchEventTimeLagMs:
+          type: number
+          format: double
+        pendingRecords:
+          type: number
+          format: double
+        vertexId:
+          type: string
+        vertexName:
+          type: string
     StatsSummaryDto:
       type: object
       properties:
@@ -3990,6 +4020,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BackpressureOperatorInfo"
+        topBusyOperators:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusyOperatorInfo"
         topCpuConsumers:
           type: array
           items:
@@ -3998,6 +4032,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GcTaskInfo"
+        topLaggingSources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceLagInfo"
     TriggerCause:
       type: string
       enum:

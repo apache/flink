@@ -37,11 +37,75 @@
     font-size: 16px;
   }
 
+  .topn-metrics-title {
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      color: #1890ff;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #1890ff;
+      outline-offset: 2px;
+    }
+  }
+
+  .topn-metrics-caret {
+    display: inline-block;
+    margin-right: 4px;
+    color: #8c8c8c;
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.15s ease-in-out;
+
+    &.collapsed {
+      transform: rotate(-90deg);
+    }
+  }
+
+  .topn-metrics-hint {
+    margin-bottom: 8px;
+    color: #8c8c8c;
+    font-size: 12px;
+  }
+
   .no-data {
     padding: 20px;
     color: #8c8c8c;
     font-style: italic;
     text-align: center;
+  }
+}
+
+// JVM diagnostics wrapper: visually demotes CPU / GC tables into an auxiliary
+// group that is clearly separate from the primary-triage signals above.
+.topn-metrics-section-jvm {
+  margin-top: 8px;
+  padding: 12px 16px 4px;
+  border-top: 1px dashed #e8e8e8;
+  border-radius: 4px;
+  background: #fafafa;
+
+  .topn-metrics-jvm-header {
+    margin-bottom: 12px;
+    color: #8c8c8c;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .topn-metrics-subsection {
+    margin-bottom: 16px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    h3 {
+      font-size: 14px;
+    }
   }
 }
 
@@ -52,6 +116,16 @@
 
 .high-backpressure {
   color: #d4380d;
+  font-weight: 600;
+}
+
+.high-busy {
+  color: #d4380d;
+  font-weight: 600;
+}
+
+.high-lag {
+  color: #d46b08;
   font-weight: 600;
 }
 

@@ -21,7 +21,13 @@ import { Subject } from 'rxjs';
 import { switchMap, takeUntil, withLatestFrom } from 'rxjs/operators';
 
 import { TopNMetricsComponent } from '@flink-runtime-web/components/topn-metrics/topn-metrics.component';
-import { BackpressureOperatorInfo, CpuConsumerInfo, GcTaskInfo } from '@flink-runtime-web/interfaces';
+import {
+  BackpressureOperatorInfo,
+  BusyOperatorInfo,
+  CpuConsumerInfo,
+  GcTaskInfo,
+  SourceLagInfo
+} from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { StatusService, TopNMetricsService } from '@flink-runtime-web/services';
 
@@ -33,8 +39,10 @@ import { StatusService, TopNMetricsService } from '@flink-runtime-web/services';
   imports: [TopNMetricsComponent]
 })
 export class JobTopnMetricComponent implements OnInit, OnDestroy {
-  public topCpuConsumers: CpuConsumerInfo[] = [];
   public topBackpressureOperators: BackpressureOperatorInfo[] = [];
+  public topBusyOperators: BusyOperatorInfo[] = [];
+  public topLaggingSources: SourceLagInfo[] = [];
+  public topCpuConsumers: CpuConsumerInfo[] = [];
   public topGcIntensiveTasks: GcTaskInfo[] = [];
 
   private readonly destroy$ = new Subject<void>();
@@ -55,8 +63,10 @@ export class JobTopnMetricComponent implements OnInit, OnDestroy {
         switchMap(([, job]) => this.topNMetricsService.loadTopNMetrics(job.jid))
       )
       .subscribe(metrics => {
-        this.topCpuConsumers = metrics.topCpuConsumers ?? [];
         this.topBackpressureOperators = metrics.topBackpressureOperators ?? [];
+        this.topBusyOperators = metrics.topBusyOperators ?? [];
+        this.topLaggingSources = metrics.topLaggingSources ?? [];
+        this.topCpuConsumers = metrics.topCpuConsumers ?? [];
         this.topGcIntensiveTasks = metrics.topGcIntensiveTasks ?? [];
         this.cdr.markForCheck();
       });

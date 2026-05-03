@@ -19,11 +19,19 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
-import { CpuConsumerInfo, BackpressureOperatorInfo, GcTaskInfo } from '@flink-runtime-web/interfaces';
+import {
+  BackpressureOperatorInfo,
+  BusyOperatorInfo,
+  CpuConsumerInfo,
+  GcTaskInfo,
+  SourceLagInfo
+} from '@flink-runtime-web/interfaces';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzTableModule } from 'ng-zorro-antd/table';
+
+type TopNSection = 'backpressure' | 'busy' | 'sourceLag' | 'cpu' | 'gc';
 
 @Component({
   selector: 'flink-topn-metrics',
@@ -34,11 +42,41 @@ import { NzTableModule } from 'ng-zorro-antd/table';
   imports: [CommonModule, NzCardModule, NzGridModule, NzTableModule, NzProgressModule]
 })
 export class TopNMetricsComponent {
-  @Input() topCpuConsumers: CpuConsumerInfo[] = [];
   @Input() topBackpressureOperators: BackpressureOperatorInfo[] = [];
+  @Input() topBusyOperators: BusyOperatorInfo[] = [];
+  @Input() topLaggingSources: SourceLagInfo[] = [];
+  @Input() topCpuConsumers: CpuConsumerInfo[] = [];
   @Input() topGcIntensiveTasks: GcTaskInfo[] = [];
+
+  /**
+   * Per-section collapse state. Primary-triage sections (backpressure / busy / source lag) are
+   * expanded by default because they are the first-line diagnostic signals; JVM-level sections
+   * (CPU load / GC time) are collapsed by default and shown as auxiliary diagnostics.
+   */
+  collapsed: Record<TopNSection, boolean> = {
+    backpressure: false,
+    busy: false,
+    sourceLag: false,
+    cpu: true,
+    gc: true
+  };
+
+  toggle(section: TopNSection): void {
+    this.collapsed[section] = !this.collapsed[section];
+  }
 
   formatPercentage(value: number): string {
     return `${value.toFixed(2)}%`;
+  }
+
+  /** Render a lag metric that may be unavailable (`null`). */
+  formatLag(value: number | null, unit: 'records' | 'ms'): string {
+    if (value == null) {
+      return 'n/a';
+    }
+    if (unit === 'records') {
+      return Math.round(value).toLocaleString();
+    }
+    return `${Math.round(value).toLocaleString()} ms`;
   }
 }

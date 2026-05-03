@@ -3461,7 +3461,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">Returns Top N metrics for a job including CPU consumers, backpressured operators, and GC-intensive tasks.</td>
+      <td colspan="2">Returns Top N metrics for a job across five dimensions: backpressured subtasks, busy subtasks, lagging sources, CPU consumers (TaskManager-scoped) and GC-intensive TaskManagers.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3522,6 +3522,27 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         }
       }
     },
+    "topBusyOperators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:BusyOperatorInfo",
+        "properties" : {
+          "busyRatio" : {
+            "type" : "number"
+          },
+          "operatorId" : {
+            "type" : "string"
+          },
+          "operatorName" : {
+            "type" : "string"
+          },
+          "subtaskId" : {
+            "type" : "integer"
+          }
+        }
+      }
+    },
     "topCpuConsumers" : {
       "type" : "array",
       "items" : {
@@ -3562,6 +3583,30 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "type" : "string"
           },
           "taskName" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "topLaggingSources" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:TopNMetricsResponseBody:SourceLagInfo",
+        "properties" : {
+          "maxEmitEventTimeLagMs" : {
+            "type" : "number"
+          },
+          "maxFetchEventTimeLagMs" : {
+            "type" : "number"
+          },
+          "pendingRecords" : {
+            "type" : "number"
+          },
+          "vertexId" : {
+            "type" : "string"
+          },
+          "vertexName" : {
             "type" : "string"
           }
         }

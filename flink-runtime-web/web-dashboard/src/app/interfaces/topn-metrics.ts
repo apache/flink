@@ -20,10 +20,16 @@ export interface TopNMetrics {
   topCpuConsumers: CpuConsumerInfo[];
   topBackpressureOperators: BackpressureOperatorInfo[];
   topGcIntensiveTasks: GcTaskInfo[];
+  topBusyOperators: BusyOperatorInfo[];
+  topLaggingSources: SourceLagInfo[];
 }
 
 export interface CpuConsumerInfo {
-  subtaskId: number;
+  /**
+   * `null` when the reading is TaskManager-scoped (e.g. JVM process CPU load). Otherwise the
+   * originating subtask index.
+   */
+  subtaskId: number | null;
   taskName: string;
   operatorName: string;
   cpuPercentage: number;
@@ -42,4 +48,24 @@ export interface GcTaskInfo {
   taskName: string;
   gcTimePercentage: number;
   taskManagerId: string;
+}
+
+export interface BusyOperatorInfo {
+  operatorId: string;
+  operatorName: string;
+  busyRatio: number;
+  subtaskId: number;
+}
+
+/**
+ * Lagging source vertex aggregates. Any of the three metric fields may be `null` when the
+ * source connector does not expose that metric (e.g. `pendingRecords` or event-time lags).
+ * `null` should be rendered as "n/a" in the UI and MUST NOT be conflated with a legitimate 0.
+ */
+export interface SourceLagInfo {
+  vertexId: string;
+  vertexName: string;
+  pendingRecords: number | null;
+  maxFetchEventTimeLagMs: number | null;
+  maxEmitEventTimeLagMs: number | null;
 }

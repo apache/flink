@@ -571,7 +571,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new JobMetricsHandler(leaderRetriever, timeout, responseHeaders, metricFetcher);
 
         final TopNMetricsHandler topNMetricsHandler =
-                new TopNMetricsHandler(leaderRetriever, timeout, responseHeaders, metricFetcher);
+                new TopNMetricsHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        metricFetcher,
+                        executionGraphCache,
+                        executor);
 
         final SubtaskMetricsHandler subtaskMetricsHandler =
                 new SubtaskMetricsHandler(leaderRetriever, timeout, responseHeaders, metricFetcher);
