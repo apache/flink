@@ -86,7 +86,7 @@ jobs:
             os_name: macos
     steps:
       - name: "Checkout the repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -97,7 +97,7 @@ jobs:
           value: ${{ github.workflow }}
       # Used to host cibuildwheel
       - name: "Setup Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - name: "Install cibuildwheel"
@@ -121,7 +121,7 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
           PIP_CONSTRAINT: /tmp/build-constraints.txt
       - name: "Upload python wheels"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wheel_${{ matrix.os_name }}_${{ steps.stringify_workflow.outputs.stringified_value }}-${{ github.run_number }}
           path: flink-python/dist/**
