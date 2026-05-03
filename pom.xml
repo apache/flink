@@ -134,7 +134,7 @@ under the License.
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<log4j.version>2.25.3</log4j.version>
+		<log4j.version>2.25.4</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -151,7 +151,7 @@ under the License.
 		<avro.version>1.11.5</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
 		<jackson.mapper.asl.version>1.9.14.jdk17-redhat-00001</jackson.mapper.asl.version>
-		<jackson-bom.version>2.20.1</jackson-bom.version>
+		<jackson-bom.version>2.21.3</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -159,7 +159,7 @@ under the License.
 		<archunit.version>1.4.1</archunit.version>
 		<mockito.version>5.19.0</mockito.version>
 		<hamcrest.version>1.3</hamcrest.version>
-		<assertj.version>3.27.3</assertj.version>
+		<assertj.version>3.27.7</assertj.version>
 		<py4j.version>0.10.9.7</py4j.version>
 		<beam.version>2.54.0</beam.version>
 		<protoc.version>4.32.1</protoc.version>
@@ -914,7 +914,7 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-bom</artifactId>
-				<version>4.2.6.Final</version>
+				<version>4.2.12.Final</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>

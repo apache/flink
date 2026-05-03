@@ -354,7 +354,7 @@ class GroupAggregateHarnessTest(
 
   private def createAggregation()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
-    val data = new mutable.MutableList[(String, String, Long)]
+    val data = new mutable.ListBuffer[(String, String, Long)]
     val t = StreamingEnvUtil
       .fromCollection(env, data)
       .toTable(tEnv, 'a, 'b, 'c)
@@ -385,7 +385,7 @@ class GroupAggregateHarnessTest(
       : (OneInputStreamOperatorTestHarness[RowData, RowData], KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     tEnv.getConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, AggregatePhaseStrategy.TWO_PHASE)
 
-    val data = new mutable.MutableList[(String, String, Long)]
+    val data = new mutable.ListBuffer[(String, String, Long)]
     val t = StreamingEnvUtil
       .fromCollection(env, data)
       .toTable(tEnv, 'a, 'b, 'c)
@@ -411,7 +411,7 @@ class GroupAggregateHarnessTest(
 
   private def createAggregationWithDistinct()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
-    val data = new mutable.MutableList[(String, String, Long)]
+    val data = new mutable.ListBuffer[(String, String, Long)]
     val t = StreamingEnvUtil
       .fromCollection(env, data)
       .toTable(tEnv, 'a, 'b, 'c)

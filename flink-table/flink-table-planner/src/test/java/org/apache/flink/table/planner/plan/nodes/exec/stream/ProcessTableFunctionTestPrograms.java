@@ -55,6 +55,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarBeforeRowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFullDeletesArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableOptionalPartitionFunction;
@@ -428,6 +429,25 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Alice, 42, {+I[Alice, 42], 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
+                    .build();
+
+    // Same as PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH but the table argument is at operand
+    // position 1
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH_AFTER_SCALAR =
+            TableTestProgram.of(
+                            "process-row-pass-through-after-scalar",
+                            "pass columns through with table after scalar argument")
+                    .setupTemporarySystemFunction(
+                            "f", ScalarBeforeRowSemanticTablePassThroughFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(PASS_THROUGH_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, 12, {+I[Bob, 12], 1}]",
+                                            "+I[Alice, 42, {+I[Alice, 42], 1}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(i => 1, r => TABLE t)")
                     .build();
 
     public static final TableTestProgram PROCESS_SET_SEMANTIC_TABLE_PASS_THROUGH =

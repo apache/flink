@@ -51,7 +51,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     this.tEnv = StreamTableEnvironmentImpl.create(env, setting)
   }
 
-  val data = new mutable.MutableList[(Int, Int)]
+  val data = new mutable.ListBuffer[(Int, Int)]
 
   @TestTemplate
   def testTableAggregate(): Unit = {

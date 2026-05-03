@@ -943,7 +943,7 @@ class OverAggregateITCase(mode: StateBackendMode, unboundedOverVersion: Int)
     tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       s"1,2,Hello,0,2,1,${2 / 1},2,2",
       s"1,3,Hello world,0,5,2,${5 / 2},3,2",
       s"1,1,Hi,0,6,3,${6 / 3},3,1",
@@ -1065,7 +1065,7 @@ class OverAggregateITCase(mode: StateBackendMode, unboundedOverVersion: Int)
     tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList(
+    val expected = mutable.ListBuffer(
       s"2,2,Hello,2,1,${2 / 1},2,2",
       s"3,5,Hello,7,2,${7 / 2},5,2",
       s"1,3,Hello,10,3,${10 / 3},5,2",
@@ -1412,7 +1412,7 @@ class OverAggregateITCase(mode: StateBackendMode, unboundedOverVersion: Int)
 
   @TestTemplate
   def testDecimalSum0(): Unit = {
-    val data = new mutable.MutableList[Row]
+    val data = new mutable.ListBuffer[Row]
     data.+=(Row.of(BigDecimal(1.11).bigDecimal))
     data.+=(Row.of(BigDecimal(2.22).bigDecimal))
     data.+=(Row.of(BigDecimal(3.33).bigDecimal))

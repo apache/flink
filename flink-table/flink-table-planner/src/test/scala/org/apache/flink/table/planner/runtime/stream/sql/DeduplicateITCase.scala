@@ -47,7 +47,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enable
   @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
     new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  lazy val rowtimeTestData = new mutable.MutableList[(Int, Long, String)]
+  lazy val rowtimeTestData = new mutable.ListBuffer[(Int, Long, String)]
   rowtimeTestData.+=((1, 1L, "Hi"))
   rowtimeTestData.+=((1, 3L, "Hello"))
   rowtimeTestData.+=((1, 2L, "Hello world"))

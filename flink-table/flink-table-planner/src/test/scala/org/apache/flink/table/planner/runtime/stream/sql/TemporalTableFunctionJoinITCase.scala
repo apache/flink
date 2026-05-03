@@ -60,14 +60,14 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |WHERE r.currency = o.currency
         |""".stripMargin
 
-    val ordersData = new mutable.MutableList[(Long, String)]
+    val ordersData = new mutable.ListBuffer[(Long, String)]
     ordersData.+=((2L, "Euro"))
     ordersData.+=((1L, "US Dollar"))
     ordersData.+=((50L, "Yen"))
     ordersData.+=((3L, "Euro"))
     ordersData.+=((5L, "US Dollar"))
 
-    val ratesHistoryData = new mutable.MutableList[(String, Long)]
+    val ratesHistoryData = new mutable.ListBuffer[(String, Long)]
     ratesHistoryData.+=(("US Dollar", 102L))
     ratesHistoryData.+=(("Euro", 114L))
     ratesHistoryData.+=(("Yen", 1L))
@@ -122,14 +122,14 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |WHERE r.currency = o.currency
         |""".stripMargin
 
-    val ordersData = new mutable.MutableList[(Long, String)]
+    val ordersData = new mutable.ListBuffer[(Long, String)]
     ordersData.+=((2L, "Euro"))
     ordersData.+=((1L, "US Dollar"))
     ordersData.+=((50L, "Yen"))
     ordersData.+=((3L, "Euro"))
     ordersData.+=((5L, "US Dollar"))
 
-    val ratesHistoryData = new mutable.MutableList[(String, Long)]
+    val ratesHistoryData = new mutable.ListBuffer[(String, Long)]
     ratesHistoryData.+=(("US Dollar", 102L))
     ratesHistoryData.+=(("Euro", 114L))
     ratesHistoryData.+=(("Yen", 1L))
@@ -177,13 +177,13 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |WHERE r.currency = o.currency
         |""".stripMargin
 
-    val ordersData = new mutable.MutableList[(Long, String, Timestamp)]
+    val ordersData = new mutable.ListBuffer[(Long, String, Timestamp)]
     ordersData.+=((2L, "Euro", new Timestamp(2L)))
     ordersData.+=((1L, "US Dollar", new Timestamp(3L)))
     ordersData.+=((50L, "Yen", new Timestamp(4L)))
     ordersData.+=((3L, "Euro", new Timestamp(5L)))
 
-    val ratesHistoryData = new mutable.MutableList[(String, Long, Timestamp)]
+    val ratesHistoryData = new mutable.ListBuffer[(String, Long, Timestamp)]
     ratesHistoryData.+=(("US Dollar", 102L, new Timestamp(1L)))
     ratesHistoryData.+=(("Euro", 114L, new Timestamp(1L)))
     ratesHistoryData.+=(("Yen", 1L, new Timestamp(1L)))
@@ -244,7 +244,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
         |  r.currency = p.currency
         |""".stripMargin
 
-    val ordersData = new mutable.MutableList[(Long, String, Long, Timestamp)]
+    val ordersData = new mutable.ListBuffer[(Long, String, Long, Timestamp)]
     ordersData.+=((1L, "A1", 2L, new Timestamp(2L)))
     ordersData.+=((2L, "A2", 1L, new Timestamp(3L)))
     ordersData.+=((3L, "A4", 50L, new Timestamp(4L)))
@@ -254,7 +254,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Long, Timestamp)]())
       .toTable(tEnv, 'orderId, 'productId, 'amount, 'rowtime.rowtime)
 
-    val ratesHistoryData = new mutable.MutableList[(String, Long, Timestamp)]
+    val ratesHistoryData = new mutable.ListBuffer[(String, Long, Timestamp)]
     ratesHistoryData.+=(("US Dollar", 102L, new Timestamp(1L)))
     ratesHistoryData.+=(("Euro", 114L, new Timestamp(1L)))
     ratesHistoryData.+=(("Yen", 1L, new Timestamp(1L)))
@@ -265,7 +265,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
-    val pricesHistoryData = new mutable.MutableList[(String, String, Double, Timestamp)]
+    val pricesHistoryData = new mutable.ListBuffer[(String, String, Double, Timestamp)]
     pricesHistoryData.+=(("A2", "US Dollar", 10.2d, new Timestamp(1L)))
     pricesHistoryData.+=(("A1", "Euro", 11.4d, new Timestamp(1L)))
     pricesHistoryData.+=(("A4", "Yen", 1d, new Timestamp(1L)))

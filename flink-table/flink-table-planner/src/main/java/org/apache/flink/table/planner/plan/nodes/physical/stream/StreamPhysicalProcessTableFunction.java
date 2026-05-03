@@ -418,7 +418,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                                         return 0;
                                     }
                                     final RexTableArgCall tableArg = (RexTableArgCall) operand.e;
-                                    final StaticArgument staticArg = staticArgs.get(0);
+                                    final StaticArgument staticArg = staticArgs.get(operand.i);
                                     if (staticArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                         return tableArg.getType().getFieldCount();
                                     } else {

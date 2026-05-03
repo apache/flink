@@ -60,6 +60,8 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_INTERVAL_YEAR_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_EMPTY_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH,
+                ProcessTableFunctionTestPrograms
+                        .PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH_AFTER_SCALAR,
                 ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_PASS_THROUGH,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_RETRACT,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_UPSERT,
