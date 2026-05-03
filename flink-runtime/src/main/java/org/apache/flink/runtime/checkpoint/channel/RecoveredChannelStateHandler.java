@@ -187,14 +187,16 @@ class InputChannelRecoveredStateHandler
                     recoverWithFiltering(
                             channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
                 } else {
-                    channel.getStore()
-                            .addBuffer(
-                                    EventSerializer.toBuffer(
-                                            new SubtaskConnectionDescriptor(
-                                                    oldSubtaskIndex,
-                                                    channelInfo.getInputChannelIdx()),
-                                            false));
-                    channel.getStore().addBuffer(buffer.retainBuffer());
+                    synchronized (channel.getStore().getGateLock()) {
+                        channel.getStore()
+                                .addBuffer(
+                                        EventSerializer.toBuffer(
+                                                new SubtaskConnectionDescriptor(
+                                                        oldSubtaskIndex,
+                                                        channelInfo.getInputChannelIdx()),
+                                                false));
+                        channel.getStore().addBuffer(buffer.retainBuffer());
+                    }
                 }
             }
         } finally {

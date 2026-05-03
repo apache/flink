@@ -103,9 +103,11 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
         bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
         this.networkBuffersPerChannel = networkBuffersPerChannel;
-        this.store = new RecoveredBufferStoreImpl(getChannelInfo());
-        synchronized (store) {
-            store.setDataAvailableListener(this::notifyChannelNonEmpty);
+        this.store = new RecoveredBufferStoreImpl(getChannelInfo(), inputGate.getGateLock());
+        synchronized (inputGate.getGateLock()) {
+            synchronized (store) {
+                store.setDataAvailableListener(this::notifyChannelNonEmpty);
+            }
         }
     }
 
@@ -161,31 +163,22 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         return stateConsumedFuture;
     }
 
+    /**
+     * Publishes the {@link EndOfInputChannelStateEvent} (deferred behind any pending spill) and
+     * completes {@link #bufferFilteringCompleteFuture}. Caller must hold the gate lock; floating
+     * buffers are released separately via {@link #releaseRecoveryFloatingBuffers()}.
+     */
     public void finishReadRecoveredState() throws IOException {
-        // addBufferAfterDisk preserves the EndOfInputChannelStateEvent contract ("everything
-        // before me has been delivered"): delivered immediately when no spill, otherwise held in
-        // deferredBuffers and promoted when pendingCount hits zero.
-        //
-        // The event-add and future-complete must be atomic under the store lock — otherwise:
-        // - event first: task thread consumes the event, completes stateConsumedFuture, then
-        //   triggers toInputChannel() before bufferFilteringCompleteFuture is done.
-        // - future first: toInputChannel() transfers the store before the event is added,
-        //   losing the EndOfInputChannelStateEvent.
-        //
-        // The listener fires outside the lock to avoid AB-BA with the task thread (gate → store
-        // lock vs store → gate lock).
-        RecoveredBufferStore.DataAvailableListener listenerToFire;
-        synchronized (store) {
-            listenerToFire =
-                    store.addBufferAfterDiskAndCaptureListener(
-                            EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
-            bufferFilteringCompleteFuture.complete(null);
-        }
-        if (listenerToFire != null) {
-            listenerToFire.onDataAvailable();
-        }
-        bufferManager.releaseFloatingBuffers();
+        assert Thread.holdsLock(inputGate.getGateLock());
+        store.addBufferAfterDisk(
+                EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
+        bufferFilteringCompleteFuture.complete(null);
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
+    }
+
+    /** Buffer pool release; intentionally invoked outside the gate lock. */
+    public void releaseRecoveryFloatingBuffers() throws IOException {
+        bufferManager.releaseFloatingBuffers();
     }
 
     @Nullable

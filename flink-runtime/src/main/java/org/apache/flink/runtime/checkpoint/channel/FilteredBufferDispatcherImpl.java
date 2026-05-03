@@ -19,7 +19,6 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStore;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStoreImpl;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
@@ -61,7 +60,7 @@ import static org.apache.flink.util.IOUtils.closeQuietly;
  * always be acquired in the order <b>SMALL → BIG</b>. Code holding BIG must never reach back to
  * any SMALL — neither directly nor through a callee — otherwise the AB-BA cycle returns. Forbidden
  * callees from inside a {@code synchronized(dispatcherLock)} block: {@link
- * RecoveredBufferStoreImpl#addBuffer}, {@link RecoveredBufferStoreImpl#addBufferAndCaptureListener},
+ * RecoveredBufferStoreImpl#addBuffer}, {@link RecoveredBufferStoreImpl#addBufferAfterDisk},
  * {@link RecoveredBufferStoreImpl#incrementPending}, any {@code synchronized(store)} block, and any
  * {@link org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersister} entrypoint.
  */
@@ -231,20 +230,14 @@ public class FilteredBufferDispatcherImpl
                 RecoveredBufferStoreImpl store =
                         Preconditions.checkNotNull(
                                 storesByChannel.get(ch), "No store for channel %s", ch);
-                RecoveredBufferStore.DataAvailableListener listener;
-                synchronized (store) {
+                synchronized (store.getGateLock()) {
                     reader.skipNextEntry();
                     writeChunkToBuffer(buffer, data, entryLength);
-                    listener = store.addBufferAndCaptureListener(buffer);
-                    // drainHead is the last write inside the lock so its volatile publication
-                    // signals "drainHead crossed e ⇒ e is in store_C.readyBuffers" to
-                    // cross-channel Step 1 readers.
+                    store.addBuffer(buffer);
+                    // drainHead's volatile write happens-after addBuffer's store-lock release —
+                    // preserves "drainHead crossed e ⇒ e is in store_C.readyBuffers" for
+                    // cross-channel readers.
                     drainHead = computeDrainHeadFrom(i);
-                }
-                // Listener is captured inside the lock and fired here so the gate → store
-                // wake-up does not run while we hold the store lock (would AB-BA the task).
-                if (listener != null) {
-                    listener.onDataAvailable();
                 }
             }
         }
@@ -481,7 +474,9 @@ public class FilteredBufferDispatcherImpl
                                 storesByChannel.get(channelInfo),
                                 "No store for channel %s",
                                 channelInfo);
-                store.addBuffer(buffer);
+                synchronized (store.getGateLock()) {
+                    store.addBuffer(buffer);
+                }
                 return;
             }
         }
@@ -539,7 +534,9 @@ public class FilteredBufferDispatcherImpl
                 RecoveredBufferStoreImpl store =
                         Preconditions.checkNotNull(
                                 storesByChannel.get(ch), "No store for channel %s", ch);
-                store.addBuffer(buffer);
+                synchronized (store.getGateLock()) {
+                    store.addBuffer(buffer);
+                }
             }
         }
     }

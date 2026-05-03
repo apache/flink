@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
@@ -159,6 +160,15 @@ public class SingleInputGate extends IndexedInputGate {
 
     /** Channels, which notified this input gate about available data. */
     private final PrioritizedDeque<InputChannel> inputChannelsWithData = new PrioritizedDeque<>();
+
+    /**
+     * Returns this gate's intrinsic monitor — see {@link RecoveredBufferStoreImpl} for the
+     * {@code gate → store} contract that uses it.
+     */
+    @Internal
+    public Object getGateLock() {
+        return inputChannelsWithData;
+    }
 
     /**
      * Field guaranteeing uniqueness for inputChannelsWithData queue. Both of those fields should be
@@ -407,22 +417,18 @@ public class SingleInputGate extends IndexedInputGate {
                     continue;
                 }
                 try {
-                    // Convert outside the lock so toInputChannel() can take the store lock
-                    // internally without violating the store-then-gate order.
+                    // toInputChannel + channels[i] swap must be atomic against producer add+fire
+                    // — see RecoveredBufferStoreImpl class javadoc. markStoreTransferred is fired
+                    // outside the gate lock so the (drainDone + storeTransferred) rendezvous's
+                    // BufferManager teardown stays off the gate lock's dependency graph.
                     //
-                    // Do NOT call inputChannel.releaseAllResources() here: the recovered store
-                    // has just been transferred to the physical channel and the BufferManager's
-                    // exclusive segments are still being consumed by the concurrent
-                    // drainPendingSpill. Both are released later — store by the physical
-                    // channel's releaseAllResources, BufferManager by
-                    // BufferRequester#releaseExclusiveBuffers from FilteredBufferDispatcher#close.
-                    InputChannel realInputChannel =
-                            ((RecoveredInputChannel) inputChannel).toInputChannel();
-
-                    // Read buffersInUseCount INSIDE the gate lock to close a TOCTOU window with
-                    // a concurrent producer add → enqueue would either be skipped (count == 0)
-                    // or doubled (count > 0 plus the listener-driven add).
+                    // The recovered store and its BufferManager are released later (the physical
+                    // channel takes ownership of the store; BufferManager segments are returned
+                    // by BufferRequester#releaseExclusiveBuffers from FilteredBufferDispatcher#close).
                     synchronized (inputChannelsWithData) {
+                        InputChannel realInputChannel =
+                                ((RecoveredInputChannel) inputChannel).toInputChannel();
+
                         int buffersInUseCount = realInputChannel.getBuffersInUseCount();
 
                         if (inputChannelsWithData.contains(inputChannel)) {
@@ -440,8 +446,6 @@ public class SingleInputGate extends IndexedInputGate {
                             enqueuedInputChannelsWithData.set(realInputChannel.getChannelIndex());
                         }
                     }
-                    // Signal the drainDone+converted rendezvous; BufferManager teardown fires
-                    // once drain also completes.
                     ((RecoveredInputChannel) inputChannel).markStoreTransferred();
                 } catch (Throwable t) {
                     inputChannel.setError(t);
@@ -473,10 +477,20 @@ public class SingleInputGate extends IndexedInputGate {
 
     @Override
     public void finishReadRecoveredState() throws IOException {
-        for (final InputChannel channel : channels) {
-            if (channel instanceof RecoveredInputChannel) {
-                ((RecoveredInputChannel) channel).finishReadRecoveredState();
+        // Pass 1 under the gate lock: EOICS publish + future completion. Pass 2 lock-free:
+        // floating-buffer release stays off the gate lock's dependency graph.
+        List<RecoveredInputChannel> recovered = new ArrayList<>();
+        synchronized (inputChannelsWithData) {
+            for (final InputChannel channel : channels) {
+                if (channel instanceof RecoveredInputChannel) {
+                    RecoveredInputChannel rc = (RecoveredInputChannel) channel;
+                    rc.finishReadRecoveredState();
+                    recovered.add(rc);
+                }
             }
+        }
+        for (RecoveredInputChannel rc : recovered) {
+            rc.releaseRecoveryFloatingBuffers();
         }
     }
 
