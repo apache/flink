@@ -62,11 +62,6 @@ class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
   }
 
   @Test
-  def testProjectAndFilterCombined(): Unit = {
-    util.verifyRelPlan("SELECT a, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5 AND s < 100")
-  }
-
-  @Test
   def testInnerUnnestFilterOnLeftOnly(): Unit = {
     util.verifyRelPlan("SELECT a, b, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5")
   }

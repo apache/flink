@@ -42,31 +42,6 @@ Calc(select=[a, f0 AS s])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRowtimeSelectedThroughUnnestIsPreserved">
-    <Resource name="sql">
-      <![CDATA[SELECT a, ts, s FROM T, UNNEST(d) AS f(s)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], ts=[$3], s=[$5])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
-   :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($3, 5000:INTERVAL SECOND)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-   +- LogicalProject(s=[$0])
-      +- Uncollect
-         +- LogicalProject(d=[$cor0.d])
-            +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a, ts, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,ts,d,f0], rowType=[RecordType(INTEGER a, TIMESTAMP(3) *ROWTIME* ts, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
-   +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 5000:INTERVAL SECOND)])
-      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, ts, d], metadata=[]]], fields=[a, ts, d])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRowtimeUsedByDownstreamWindowIsPreserved">
     <Resource name="sql">
       <![CDATA[

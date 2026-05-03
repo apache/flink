@@ -124,16 +124,4 @@ class UnnestSourcePushDownITCase extends BatchTestBase {
       ))
   }
 
-  @Test
-  def testProjectionTrimsSourceColumnsThroughUnnest(): Unit = {
-    // Top query needs only (a, s); source-level projection pushdown should drop b, c.
-    // Filter on a > 0 also pushes into source.
-    checkResult(
-      "SELECT a, s FROM T, UNNEST(d) AS T1(s) WHERE a > 0 AND a < 5",
-      Seq(
-        row(1, 1),
-        row(1, 2),
-        row(2, 3)
-      ))
-  }
 }

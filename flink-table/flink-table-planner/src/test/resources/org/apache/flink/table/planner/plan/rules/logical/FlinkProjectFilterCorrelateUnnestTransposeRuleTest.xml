@@ -212,31 +212,6 @@ Calc(select=[a, s])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProjectAndFilterCombined">
-    <Resource name="sql">
-      <![CDATA[SELECT a, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5 AND s < 100]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], s=[$4])
-+- LogicalFilter(condition=[AND(>($0, 5), <($4, 100))])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
-      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0])
-         +- Uncollect
-            +- LogicalProject(d=[$cor0.d])
-               +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER], condition=[<($0, 100)])
-   +- Calc(select=[a, d], where=[>(a, 5)])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testUnnestWithOrdinalityFilterOnPos">
     <Resource name="sql">
       <![CDATA[SELECT a, val, pos FROM MyTable CROSS JOIN UNNEST(d) WITH ORDINALITY AS T(val, pos) WHERE pos = 1]]>

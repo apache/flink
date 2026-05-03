@@ -62,21 +62,11 @@ class UnnestStreamTimeAttributeTest extends TableTestBase {
   }
 
   /**
-   * Selecting the rowtime column through UNNEST. Rule should preserve {@code ts} in the pruned
-   * left input (it's referenced by the top project) and prune unreferenced columns ({@code b},
-   * {@code c}).
-   */
-  @Test
-  def testRowtimeSelectedThroughUnnestIsPreserved(): Unit = {
-    util.verifyRelPlan("SELECT a, ts, s FROM T, UNNEST(d) AS f(s)")
-  }
-
-  /**
-   * Downstream window aggregation requires the rowtime. The inner SELECT does NOT explicitly list
-   * {@code ts}, but the outer GROUP BY references it through the inner alias. This is a parse-
-   * time error (can't window on a column not selected); included here to lock in current behavior.
-   * If this test starts producing a successful plan, it would mean Flink is silently propagating
-   * rowtime, and we should re-examine whether the rule's pruning interacts with that path.
+   * Downstream window aggregation requires the rowtime. The inner SELECT lists {@code ts} so it
+   * propagates through the UNNEST, and the outer GROUP BY tumbles on it. The rule should
+   * preserve {@code ts} (with the {@code *ROWTIME*} marker) in the pruned left while still
+   * dropping unreferenced columns ({@code b}, {@code c}). This is the realistic streaming case;
+   * a simpler "rowtime appears in plan" assertion is implied by it.
    */
   @Test
   def testRowtimeUsedByDownstreamWindowIsPreserved(): Unit = {
