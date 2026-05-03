@@ -58,8 +58,8 @@ Flink 内置了以下这些开箱即用的 state backends ：
 
 HashMapStateBackend 的适用场景：
 
-  - 有较大 state，较长 window 和较大 key/value 状态的 Job。
-  - 所有的高可用场景。
+  - 状态可以完全放入 TaskManager JVM 堆内存的 Job，需要快速的、基于内存的状态访问。
+  - 对延迟敏感、希望避免每次状态访问都进行序列化/反序列化开销的 Job。
 
 建议同时将 [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
