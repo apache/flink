@@ -91,21 +91,14 @@ class UnnestSourcePushDownTest extends TableTestBase {
 
   /**
    * Existing projection pushdown into source should still trim {@code b, c} from the scan when the
-   * top-level query only needs {@code a, s} — we don't push the Project through Correlate but the
-   * source-level rule sees the eventual Calc output and prunes the read columns.
+   * top-level query only needs {@code a, s}. The same query with {@code WHERE a > 5} would
+   * additionally push the filter into the source — that combined case is already covered by
+   * [[testFilterOnLeftOnlyPushesIntoSource]] above, whose golden plan shows both
+   * {@code filter=[>(a, 5)]} and {@code project=[a, d]} on the source scan.
    */
   @Test
   def testProjectionPushDownIntoSourceWithUnnest(): Unit = {
     util.verifyRelPlan("SELECT a, s FROM MyTable, UNNEST(d) AS T(s)")
-  }
-
-  /**
-   * Combination: filter pushed below Correlate AND into source, plus source-level projection
-   * pushdown trimming columns the query does not select.
-   */
-  @Test
-  def testFilterAndProjectionBothPushIntoSource(): Unit = {
-    util.verifyRelPlan("SELECT a, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5")
   }
 
   /**
