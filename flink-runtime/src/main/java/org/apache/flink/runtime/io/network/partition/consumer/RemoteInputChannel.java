@@ -87,9 +87,10 @@ public class RemoteInputChannel extends InputChannel {
     private final ConnectionManager connectionManager;
 
     /**
-     * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
-     * is consumed by the receiving task thread.
+     * Buffers enqueued by the network I/O thread and consumed by the task thread. Guarded by the
+     * {@link #recoveredStore} monitor (the unified channel-private lock).
      */
+    @GuardedBy("recoveredStore")
     private final PrioritizedDeque<SequenceBuffer> receivedBuffers = new PrioritizedDeque<>();
 
     /**
@@ -115,13 +116,24 @@ public class RemoteInputChannel extends InputChannel {
 
     private final BufferManager bufferManager;
 
-    @GuardedBy("receivedBuffers")
+    @GuardedBy("recoveredStore")
     private int lastBarrierSequenceNumber = NONE;
 
-    @GuardedBy("receivedBuffers")
+    @GuardedBy("recoveredStore")
     private long lastBarrierId = NONE;
 
     private final ChannelStatePersister channelStatePersister;
+
+    /** Always non-null: callers with no recovered data pass {@link RecoveredBufferStore#EMPTY}. */
+    private final RecoveredBufferStore recoveredStore;
+
+    /**
+     * Invariant under lock: {@code hasPendingPriorityEvent <=>
+     * receivedBuffers.getNumPriorityElements() > 0}. A priority element bypasses the FIFO
+     * recovery-first rule.
+     */
+    @GuardedBy("recoveredStore")
+    private boolean hasPendingPriorityEvent = false;
 
     private long totalQueueSizeInBytes;
 
@@ -139,7 +151,7 @@ public class RemoteInputChannel extends InputChannel {
             Counter numBytesIn,
             Counter numBuffersIn,
             ChannelStateWriter stateWriter,
-            ArrayDeque<Buffer> initialRecoveredBuffers) {
+            RecoveredBufferStore recoveredStore) {
 
         super(
                 inputGate,
@@ -157,29 +169,12 @@ public class RemoteInputChannel extends InputChannel {
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
         this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
-        this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
 
-        // Migrate recovered buffers from RecoveredInputChannel if provided.
-        // These buffers have been filtered but not yet consumed by the Task.
-        if (!initialRecoveredBuffers.isEmpty()) {
-            final int expectedCount = initialRecoveredBuffers.size();
-            // Sequence number starts at Integer.MIN_VALUE, consistent with RecoveredInputChannel.
-            int seqNum = Integer.MIN_VALUE;
-            for (Buffer buffer : initialRecoveredBuffers) {
-                // subpartitionId is set to 0 for recovered buffers. This is correct because:
-                // 1) For single-subpartition channels, the only valid subpartition is 0.
-                // 2) For multi-subpartition channels (consumedSubpartitionIndexSet.size() > 1),
-                //    RecoveryMetadata events embedded in the recovered buffer sequence track
-                //    the actual subpartition context for proper routing.
-                SequenceBuffer sequenceBuffer = new SequenceBuffer(buffer, seqNum++, 0);
-                receivedBuffers.add(sequenceBuffer);
-                totalQueueSizeInBytes += buffer.getSize();
-            }
-            checkState(
-                    receivedBuffers.size() == expectedCount,
-                    "Buffer migration failed: expected %s buffers but got %s",
-                    expectedCount,
-                    receivedBuffers.size());
+        this.recoveredStore = checkNotNull(recoveredStore);
+        this.channelStatePersister =
+                new ChannelStatePersister(stateWriter, getChannelInfo(), this.recoveredStore);
+        synchronized (this.recoveredStore) {
+            this.recoveredStore.setDataAvailableListener(this::notifyChannelNonEmpty);
         }
     }
 
@@ -263,8 +258,8 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     protected int peekNextBufferSubpartitionIdInternal() throws IOException {
-        synchronized (receivedBuffers) {
-            checkReadability();
+        synchronized (recoveredStore) {
+            checkPartitionRequestQueueInitialized();
 
             final SequenceBuffer next = receivedBuffers.peek();
 
@@ -278,24 +273,56 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
-        final SequenceBuffer next;
+        // Single critical section so "is recovery done", "is there a priority event", "what is
+        // the next data type" cannot be torn against the underlying queues. Splitting would let
+        // producers slip data into receivedBuffers (or drain the store) between segments and
+        // surface a stale moreAvailable that hides queued buffers from the gate.
+        final Buffer recoveredBuffer;
+        final SequenceBuffer fromReceivedBuffers;
         final DataType nextDataType;
 
-        synchronized (receivedBuffers) {
-            checkReadability();
-
-            next = receivedBuffers.poll();
-
-            if (next != null) {
-                totalQueueSizeInBytes -= next.buffer.getSize();
+        synchronized (recoveredStore) {
+            if (!recoveredStore.isEmpty()) {
+                if (hasPendingPriorityEvent) {
+                    fromReceivedBuffers = pollPendingPriorityEvent();
+                    if (fromReceivedBuffers == null) {
+                        // Invariant should keep the flag aligned with priority count; defensive
+                        // yield mirrors pre-refactor behavior.
+                        return Optional.empty();
+                    }
+                    nextDataType = peekNextDataType();
+                    recoveredBuffer = null;
+                } else {
+                    recoveredBuffer = recoveredStore.tryTake();
+                    if (recoveredBuffer == null) {
+                        // readyBuffers empty but pendingCount > 0: drain listener wakes us.
+                        return Optional.empty();
+                    }
+                    nextDataType = peekNextDataType();
+                    fromReceivedBuffers = null;
+                }
+            } else {
+                checkPartitionRequestQueueInitialized();
+                fromReceivedBuffers = receivedBuffers.poll();
+                if (fromReceivedBuffers != null) {
+                    totalQueueSizeInBytes -= fromReceivedBuffers.buffer.getSize();
+                    if (receivedBuffers.getNumPriorityElements() == 0) {
+                        hasPendingPriorityEvent = false;
+                    }
+                }
+                nextDataType = peekNextDataType();
+                recoveredBuffer = null;
             }
-            nextDataType =
-                    receivedBuffers.peek() != null
-                            ? receivedBuffers.peek().buffer.getDataType()
-                            : DataType.NONE;
         }
 
-        if (next == null) {
+        if (recoveredBuffer != null) {
+            numBytesIn.inc(recoveredBuffer.getSize());
+            numBuffersIn.inc();
+            return Optional.of(
+                    new BufferAndAvailability(recoveredBuffer, nextDataType, 0, Integer.MIN_VALUE));
+        }
+
+        if (fromReceivedBuffers == null) {
             if (isReleased.get()) {
                 throw new CancelTaskException(
                         "Queried for a buffer after channel has been released.");
@@ -305,15 +332,66 @@ public class RemoteInputChannel extends InputChannel {
 
         NetworkActionsLogger.traceInput(
                 "RemoteInputChannel#getNextBuffer",
-                next.buffer,
+                fromReceivedBuffers.buffer,
                 inputGate.getOwningTaskName(),
                 channelInfo,
                 channelStatePersister,
-                next.sequenceNumber);
-        numBytesIn.inc(next.buffer.getSize());
+                fromReceivedBuffers.sequenceNumber);
+        numBytesIn.inc(fromReceivedBuffers.buffer.getSize());
         numBuffersIn.inc();
         return Optional.of(
-                new BufferAndAvailability(next.buffer, nextDataType, 0, next.sequenceNumber));
+                new BufferAndAvailability(
+                        fromReceivedBuffers.buffer,
+                        nextDataType,
+                        0,
+                        fromReceivedBuffers.sequenceNumber));
+    }
+
+    /**
+     * Data type of the next buffer the consumer will see across {@link #recoveredStore} and {@link
+     * #receivedBuffers}, respecting the priority bypass. Caller MUST hold {@code recoveredStore}.
+     */
+    @GuardedBy("recoveredStore")
+    private DataType peekNextDataType() {
+        assert Thread.holdsLock(recoveredStore);
+        if (hasPendingPriorityEvent) {
+            SequenceBuffer peeked = receivedBuffers.peek();
+            return peeked != null ? peeked.buffer.getDataType() : DataType.NONE;
+        }
+        if (!recoveredStore.isEmpty()) {
+            // NONE while only pendingCount > 0; drain listener wakes the consumer when
+            // readyBuffers becomes non-empty.
+            return recoveredStore.peekNextDataType();
+        }
+        SequenceBuffer peeked = receivedBuffers.peek();
+        return peeked != null ? peeked.buffer.getDataType() : DataType.NONE;
+    }
+
+    /**
+     * Polls the priority head of {@link #receivedBuffers}, skipping {@link #recoveredStore} and
+     * clearing {@link #hasPendingPriorityEvent} when the last priority drains. Caller MUST hold
+     * {@code recoveredStore}.
+     */
+    @GuardedBy("recoveredStore")
+    @Nullable
+    private SequenceBuffer pollPendingPriorityEvent() throws IOException {
+        assert Thread.holdsLock(recoveredStore);
+        if (!hasPendingPriorityEvent) {
+            return null;
+        }
+        checkPartitionRequestQueueInitialized();
+
+        SequenceBuffer next = receivedBuffers.poll();
+        checkState(
+                next != null && next.buffer.getDataType().hasPriority(),
+                "Expected priority event, but got %s",
+                next == null ? "null" : next.buffer.getDataType());
+        totalQueueSizeInBytes -= next.buffer.getSize();
+
+        if (receivedBuffers.getNumPriorityElements() == 0) {
+            hasPendingPriorityEvent = false;
+        }
+        return next;
     }
 
     // ------------------------------------------------------------------------
@@ -344,8 +422,12 @@ public class RemoteInputChannel extends InputChannel {
     void releaseAllResources() throws IOException {
         if (isReleased.compareAndSet(false, true)) {
 
+            // EMPTY.releaseAll() is a no-op, so no null check needed.
+            recoveredStore.releaseAll();
+
             final ArrayDeque<Buffer> releasedBuffers;
-            synchronized (receivedBuffers) {
+            synchronized (recoveredStore) {
+                hasPendingPriorityEvent = false;
                 releasedBuffers =
                         receivedBuffers.stream()
                                 .map(sb -> sb.buffer)
@@ -366,7 +448,12 @@ public class RemoteInputChannel extends InputChannel {
 
     @Override
     int getBuffersInUseCount() {
-        return getNumberOfQueuedBuffers()
+        // Single snapshot under the shared monitor.
+        int channelBacklog;
+        synchronized (recoveredStore) {
+            channelBacklog = recoveredStore.size() + receivedBuffers.size();
+        }
+        return channelBacklog
                 + Math.max(0, bufferManager.getNumberOfRequiredBuffers() - initialCredit);
     }
 
@@ -430,7 +517,10 @@ public class RemoteInputChannel extends InputChannel {
 
     @VisibleForTesting
     public Buffer getNextReceivedBuffer() {
-        final SequenceBuffer sequenceBuffer = receivedBuffers.poll();
+        final SequenceBuffer sequenceBuffer;
+        synchronized (recoveredStore) {
+            sequenceBuffer = receivedBuffers.poll();
+        }
         return sequenceBuffer != null ? sequenceBuffer.buffer : null;
     }
 
@@ -521,14 +611,14 @@ public class RemoteInputChannel extends InputChannel {
      * @return Buffers queued for processing.
      */
     public int getNumberOfQueuedBuffers() {
-        synchronized (receivedBuffers) {
+        synchronized (recoveredStore) {
             return receivedBuffers.size();
         }
     }
 
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
-        return Math.max(0, receivedBuffers.size());
+        return recoveredStore.size() + Math.max(0, receivedBuffers.size());
     }
 
     @Override
@@ -577,9 +667,19 @@ public class RemoteInputChannel extends InputChannel {
      * is less than backlog + initialCredit, it will request floating buffers from the buffer
      * manager, and then notify unannounced credits to the producer.
      *
+     * <p>No-op while the recovered store is non-empty: credit is gated during recovery so upstream
+     * cannot send new data.
+     *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
     public void onSenderBacklog(int backlog) throws IOException {
+        final boolean stillRecovering;
+        synchronized (recoveredStore) {
+            stillRecovering = !recoveredStore.isEmpty();
+        }
+        if (stillRecovering) {
+            return;
+        }
         notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
     }
 
@@ -604,7 +704,7 @@ public class RemoteInputChannel extends InputChannel {
 
             final boolean wasEmpty;
             boolean firstPriorityEvent = false;
-            synchronized (receivedBuffers) {
+            synchronized (recoveredStore) {
                 NetworkActionsLogger.traceInput(
                         "RemoteInputChannel#onBuffer",
                         buffer,
@@ -633,6 +733,9 @@ public class RemoteInputChannel extends InputChannel {
                     if (dataType.requiresAnnouncement()) {
                         firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
                     }
+                }
+                if (firstPriorityEvent) {
+                    hasPendingPriorityEvent = true;
                 }
                 totalQueueSizeInBytes += buffer.getSize();
                 final OptionalLong barrierId =
@@ -708,34 +811,31 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     /**
-     * Spills all queued buffers on checkpoint start. If barrier has already been received (and
-     * reordered), spill only the overtaken buffers.
+     * Spills all queued buffers on checkpoint start. If the barrier has already been received (and
+     * reordered), spill only the overtaken buffers. The entire body runs under the store lock so
+     * {@code checkpointStatus} transitions inside {@code startPersisting} cannot tear against the
+     * network thread's {@code maybePersist}.
      */
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
-        synchronized (receivedBuffers) {
+        synchronized (recoveredStore) {
             if (barrier.getId() < lastBarrierId) {
                 throw new CheckpointException(
                         String.format(
                                 "Sequence number for checkpoint %d is not known (it was likely been overwritten by a newer checkpoint %d)",
                                 barrier.getId(), lastBarrierId),
-                        CheckpointFailureReason
-                                .CHECKPOINT_SUBSUMED); // currently, at most one active unaligned
-                // checkpoint is possible
+                        CheckpointFailureReason.CHECKPOINT_SUBSUMED);
             } else if (barrier.getId() > lastBarrierId) {
-                // This channel has received some obsolete barrier, older compared to the
-                // checkpointId
-                // which we are processing right now, and we should ignore that obsoleted checkpoint
-                // barrier sequence number.
+                // Older barrier already in flight — drop its sequence number; the newer
+                // checkpoint we just received takes over.
                 resetLastBarrier();
             }
-
             channelStatePersister.startPersisting(
                     barrier.getId(), getInflightBuffersUnsafe(barrier.getId()));
         }
     }
 
     public void checkpointStopped(long checkpointId) {
-        synchronized (receivedBuffers) {
+        synchronized (recoveredStore) {
             channelStatePersister.stopPersisting(checkpointId);
             if (lastBarrierId == checkpointId) {
                 resetLastBarrier();
@@ -745,7 +845,7 @@ public class RemoteInputChannel extends InputChannel {
 
     @VisibleForTesting
     List<Buffer> getInflightBuffers(long checkpointId) {
-        synchronized (receivedBuffers) {
+        synchronized (recoveredStore) {
             return getInflightBuffersUnsafe(checkpointId);
         }
     }
@@ -753,7 +853,7 @@ public class RemoteInputChannel extends InputChannel {
     @Override
     public void convertToPriorityEvent(int sequenceNumber) throws IOException {
         boolean firstPriorityEvent;
-        synchronized (receivedBuffers) {
+        synchronized (recoveredStore) {
             checkState(channelStatePersister.hasBarrierReceived());
             int numPriorityElementsBeforeRemoval = receivedBuffers.getNumPriorityElements();
             SequenceBuffer toPrioritize =
@@ -782,6 +882,9 @@ public class RemoteInputChannel extends InputChannel {
                     addPriorityBuffer(
                             toPrioritize); // note that only position of the element is changed
             // converting the event itself would require switching the controller sooner
+            if (firstPriorityEvent) {
+                hasPendingPriorityEvent = true;
+            }
         }
         if (firstPriorityEvent) {
             notifyPriorityEventForce(); // forcibly notify about the priority event
@@ -799,7 +902,7 @@ public class RemoteInputChannel extends InputChannel {
      * events.
      */
     private List<Buffer> getInflightBuffersUnsafe(long checkpointId) {
-        assert Thread.holdsLock(receivedBuffers);
+        assert Thread.holdsLock(recoveredStore);
 
         checkState(checkpointId == lastBarrierId || lastBarrierId == NONE);
 
@@ -879,7 +982,7 @@ public class RemoteInputChannel extends InputChannel {
     public void onEmptyBuffer(int sequenceNumber, int backlog) throws IOException {
         boolean success = false;
 
-        synchronized (receivedBuffers) {
+        synchronized (recoveredStore) {
             if (!isReleased.get()) {
                 if (expectedSequenceNumber == sequenceNumber) {
                     expectedSequenceNumber++;
@@ -901,20 +1004,6 @@ public class RemoteInputChannel extends InputChannel {
 
     public void onError(Throwable cause) {
         setError(cause);
-    }
-
-    /**
-     * When receivedBuffers contains migrated buffers from RecoveredInputChannel, they can be read
-     * before requestSubpartitions(). In that case only check for errors. Once migrated buffers are
-     * drained, require full client initialization check.
-     */
-    private void checkReadability() throws IOException {
-        assert Thread.holdsLock(receivedBuffers);
-        if (receivedBuffers.isEmpty()) {
-            checkPartitionRequestQueueInitialized();
-        } else {
-            checkError();
-        }
     }
 
     private void checkPartitionRequestQueueInitialized() throws IOException {

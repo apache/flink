@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStore;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
@@ -37,7 +38,6 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 
 /**
  * A benchmark-specific input gate factory which overrides the respective methods of creating {@link
@@ -130,7 +130,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     metrics.getNumBytesInLocalCounter(),
                     metrics.getNumBuffersInLocalCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    RecoveredBufferStore.EMPTY);
         }
 
         @Override
@@ -186,7 +186,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     metrics.getNumBytesInRemoteCounter(),
                     metrics.getNumBuffersInRemoteCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    RecoveredBufferStore.EMPTY);
         }
 
         @Override

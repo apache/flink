@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.TestingResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStore;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -44,7 +45,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -250,7 +250,7 @@ class PartitionRequestRegistrationTest {
                     new SimpleCounter(),
                     new SimpleCounter(),
                     ChannelStateWriter.NO_OP,
-                    new ArrayDeque<>());
+                    RecoveredBufferStore.EMPTY);
             this.latch = latch;
         }
 

@@ -300,12 +300,16 @@ class UnionInputGateTest extends InputGateTestBase {
         assertThat(union.getStateConsumedFuture()).isNotDone();
 
         // Complete buffer filtering on first gate only
-        channel1.finishReadRecoveredState();
+        synchronized (ig1.getGateLock()) {
+            channel1.finishReadRecoveredState();
+        }
         assertThat(ig1.getBufferFilteringCompleteFuture()).isDone();
         assertThat(union.getBufferFilteringCompleteFuture()).isNotDone();
 
         // Complete buffer filtering on second gate
-        channel2.finishReadRecoveredState();
+        synchronized (ig2.getGateLock()) {
+            channel2.finishReadRecoveredState();
+        }
         assertThat(ig2.getBufferFilteringCompleteFuture()).isDone();
         assertThat(union.getBufferFilteringCompleteFuture()).isDone();
 
@@ -325,9 +329,7 @@ class UnionInputGateTest extends InputGateTestBase {
                 new SimpleCounter(),
                 10) {
             @Override
-            protected InputChannel toInputChannelInternal(
-                    java.util.ArrayDeque<org.apache.flink.runtime.io.network.buffer.Buffer>
-                            remainingBuffers) {
+            protected InputChannel toInputChannelInternal(RecoveredBufferStoreImpl recoveredStore) {
                 throw new UnsupportedOperationException();
             }
         };

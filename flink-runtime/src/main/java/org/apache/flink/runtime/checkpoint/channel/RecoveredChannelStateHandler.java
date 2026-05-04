@@ -71,6 +71,14 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
      */
     void recover(Info info, int oldSubtaskIndex, BufferWithContext<Context> bufferWithContext)
             throws IOException, InterruptedException;
+
+    /**
+     * Triggers post-recovery actions: input channels complete the buffer-filtering future and
+     * publish {@code EndOfInputChannelStateEvent} via their store; output partitions call {@code
+     * finishReadRecoveredState} on every checkpointable partition. Idempotent. Must be invoked
+     * between {@code dispatcher.flush()} and {@code dispatcher.drainPendingSpill()}.
+     */
+    void finishRecovery() throws IOException;
 }
 
 class InputChannelRecoveredStateHandler
@@ -82,43 +90,43 @@ class InputChannelRecoveredStateHandler
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
-    /**
-     * Optional filtering handler for filtering recovered buffers. When non-null, filtering is
-     * performed during recovery in the channel-state-unspilling thread.
-     */
+    /** When non-null, filtering runs during recovery in the channel-state-unspilling thread. */
     @Nullable private final ChannelStateFilteringHandler filteringHandler;
 
-    /** Network buffer memory segment size in bytes. Used to size the reusable pre-filter buffer. */
+    /**
+     * When non-null (filtering mode), filtered records are written here instead of directly to
+     * InputChannel buffers.
+     */
+    @Nullable private final FilteredBufferDispatcher dispatcher;
+
     private final int memorySegmentSize;
 
     /**
-     * Reusable heap memory segment backing the pre-filter buffer in filtering mode. Lazily
-     * allocated on the first {@link #getPreFilterBuffer} call, reused for every subsequent call,
-     * and freed in {@link #close()}.
-     *
-     * <p>Reuse is safe because at most one pre-filter buffer is in flight per task at any moment.
-     * This invariant is enforced at runtime by {@link #preFilterBufferInUse}.
+     * Reusable heap segment backing the pre-filter buffer in filtering mode. Lazily allocated on
+     * first {@link #getPreFilterBuffer}, reused for subsequent calls, freed in {@link #close()}.
+     * Reuse is safe because at most one pre-filter buffer is in flight per task; the invariant is
+     * enforced at runtime by {@link #preFilterBufferInUse}.
      */
     @Nullable private MemorySegment preFilterSegment;
 
-    /**
-     * Tracks whether {@link #preFilterSegment} is currently wrapped by a live {@link Buffer} that
-     * has not yet been recycled. Flipped to {@code true} when a new buffer is issued, and flipped
-     * back to {@code false} by the custom {@link BufferRecycler} when the buffer is recycled.
-     */
+    /** True while {@link #preFilterSegment} is wrapped by a live, unreclaimed buffer. */
     private boolean preFilterBufferInUse;
+
+    private boolean recoveryFinished;
 
     InputChannelRecoveredStateHandler(
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
             @Nullable ChannelStateFilteringHandler filteringHandler,
-            int memorySegmentSize) {
+            int memorySegmentSize,
+            @Nullable FilteredBufferDispatcher dispatcher) {
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
         this.filteringHandler = filteringHandler;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
         this.memorySegmentSize = memorySegmentSize;
+        this.dispatcher = dispatcher;
     }
 
     @Override
@@ -127,7 +135,6 @@ class InputChannelRecoveredStateHandler
         if (filteringHandler != null) {
             return getPreFilterBuffer();
         }
-        // Non-filtering mode: use existing network buffer pool allocation.
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
         Buffer buffer = channel.requestBufferBlocking();
         return new BufferWithContext<>(wrap(buffer), buffer);
@@ -135,18 +142,8 @@ class InputChannelRecoveredStateHandler
 
     /**
      * Allocates a pre-filter buffer from a reusable heap segment (isolated from the Network Buffer
-     * Pool) in filtering mode.
-     *
-     * <p>Memory management: a single {@link MemorySegment} per task is lazily allocated on first
-     * invocation and reused across every subsequent call. The custom {@link BufferRecycler} does
-     * not free the segment — it only flips {@link #preFilterBufferInUse} back to {@code false} so
-     * the next call can reuse it. The segment itself is freed in {@link #close()}.
-     *
-     * <p>Runtime invariant check: the one-at-a-time invariant on pre-filter buffers is guaranteed
-     * by Flink's serial recovery loop and the deserializer's ownership contract. This method
-     * asserts the invariant before issuing a buffer: if a previously issued buffer has not yet been
-     * recycled, it throws {@link IllegalStateException} so any future regression fails loudly
-     * instead of silently corrupting memory.
+     * Pool). Flink's serial recovery loop guarantees at most one is in flight at a time; the
+     * runtime check fails loudly if that ever regresses.
      */
     private BufferWithContext<Buffer> getPreFilterBuffer() {
         checkState(
@@ -159,7 +156,6 @@ class InputChannelRecoveredStateHandler
         }
         preFilterBufferInUse = true;
 
-        // The recycler keeps the segment alive for reuse; only flips the in-use flag.
         BufferRecycler recycler = segment -> preFilterBufferInUse = false;
         Buffer buffer = new NetworkBuffer(preFilterSegment, recycler);
         return new BufferWithContext<>(wrap(buffer), buffer);
@@ -191,12 +187,16 @@ class InputChannelRecoveredStateHandler
                     recoverWithFiltering(
                             channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
                 } else {
-                    channel.onRecoveredStateBuffer(
-                            EventSerializer.toBuffer(
-                                    new SubtaskConnectionDescriptor(
-                                            oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                    false));
-                    channel.onRecoveredStateBuffer(buffer.retainBuffer());
+                    synchronized (channel.getStore().getGateLock()) {
+                        channel.getStore()
+                                .addBuffer(
+                                        EventSerializer.toBuffer(
+                                                new SubtaskConnectionDescriptor(
+                                                        oldSubtaskIndex,
+                                                        channelInfo.getInputChannelIdx()),
+                                                false));
+                        channel.getStore().addBuffer(buffer.retainBuffer());
+                    }
                 }
             }
         } finally {
@@ -211,33 +211,31 @@ class InputChannelRecoveredStateHandler
             Buffer retainedBuffer)
             throws IOException, InterruptedException {
         checkState(filteringHandler != null, "filtering handler not set.");
-        List<Buffer> filteredBuffers =
-                filteringHandler.filterAndRewrite(
-                        channelInfo.getGateIdx(),
-                        oldSubtaskIndex,
-                        channelInfo.getInputChannelIdx(),
-                        retainedBuffer,
-                        channel::requestBufferBlocking);
+        checkState(dispatcher != null, "dispatcher not set.");
+        InputChannelInfo targetChannelInfo = channel.getChannelInfo();
+        filteringHandler.filterAndRewrite(
+                channelInfo.getGateIdx(),
+                oldSubtaskIndex,
+                channelInfo.getInputChannelIdx(),
+                retainedBuffer,
+                dispatcher,
+                targetChannelInfo);
+    }
 
-        int i = 0;
-        try {
-            for (; i < filteredBuffers.size(); i++) {
-                channel.onRecoveredStateBuffer(filteredBuffers.get(i));
-            }
-        } catch (Throwable t) {
-            for (int j = i; j < filteredBuffers.size(); j++) {
-                filteredBuffers.get(j).recycleBuffer();
-            }
-            throw t;
+    @Override
+    public void finishRecovery() throws IOException {
+        if (recoveryFinished) {
+            return;
+        }
+        recoveryFinished = true;
+        // note that we need to finish all RecoveredInputChannels, not just those with state
+        for (final InputGate inputGate : inputGates) {
+            inputGate.finishReadRecoveredState();
         }
     }
 
     @Override
     public void close() throws IOException {
-        // note that we need to finish all RecoveredInputChannels, not just those with state
-        for (final InputGate inputGate : inputGates) {
-            inputGate.finishReadRecoveredState();
-        }
         if (preFilterSegment != null) {
             preFilterSegment.free();
             preFilterSegment = null;
@@ -279,6 +277,8 @@ class ResultSubpartitionRecoveredStateHandler
     private final boolean notifyAndBlockOnCompletion;
     private final ResultSubpartitionDistributor resultSubpartitionDistributor;
 
+    private boolean recoveryFinished;
+
     ResultSubpartitionRecoveredStateHandler(
             ResultPartitionWriter[] writers,
             boolean notifyAndBlockOnCompletion,
@@ -286,10 +286,7 @@ class ResultSubpartitionRecoveredStateHandler
         this.writers = writers;
         this.resultSubpartitionDistributor =
                 new ResultSubpartitionDistributor(channelMapping) {
-                    /**
-                     * Override the getSubpartitionInfo to perform type checking on the
-                     * ResultPartitionWriter.
-                     */
+                    /** Adds type-checking on the ResultPartitionWriter. */
                     @Override
                     ResultSubpartitionInfo getSubpartitionInfo(
                             int partitionIndex, int subPartitionIdx) {
@@ -352,7 +349,11 @@ class ResultSubpartitionRecoveredStateHandler
     }
 
     @Override
-    public void close() throws IOException {
+    public void finishRecovery() throws IOException {
+        if (recoveryFinished) {
+            return;
+        }
+        recoveryFinished = true;
         for (ResultPartitionWriter writer : writers) {
             if (writer instanceof CheckpointedResultPartition) {
                 ((CheckpointedResultPartition) writer)
@@ -360,4 +361,7 @@ class ResultSubpartitionRecoveredStateHandler
             }
         }
     }
+
+    @Override
+    public void close() throws IOException {}
 }

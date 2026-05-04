@@ -137,6 +137,9 @@ class ChannelStateChunkReaderTest {
         }
 
         @Override
+        public void finishRecovery() {}
+
+        @Override
         public void close() throws Exception {}
     }
 

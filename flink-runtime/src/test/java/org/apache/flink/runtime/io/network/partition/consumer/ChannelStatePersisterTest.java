@@ -41,46 +41,73 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** {@link ChannelStatePersister} test. */
 class ChannelStatePersisterTest {
 
+    /**
+     * Build a persister bound to a fresh {@link RecoveredBufferStore#EMPTY} so the test holds the
+     * same store monitor that the persister asserts on. Tests that need a non-empty store pass one
+     * explicitly to {@link #newPersister(ChannelStateWriter, InputChannelInfo,
+     * RecoveredBufferStore)}.
+     */
+    private static ChannelStatePersister newPersister(
+            ChannelStateWriter writer, InputChannelInfo channelInfo) {
+        return newPersister(writer, channelInfo, RecoveredBufferStore.EMPTY);
+    }
+
+    private static ChannelStatePersister newPersister(
+            ChannelStateWriter writer, InputChannelInfo channelInfo, RecoveredBufferStore store) {
+        return new ChannelStatePersister(writer, channelInfo, store);
+    }
+
     @Test
     void testNewBarrierNotOverwrittenByStopPersisting() throws Exception {
         RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
         InputChannelInfo channelInfo = new InputChannelInfo(0, 0);
-        ChannelStatePersister persister =
-                new ChannelStatePersister(channelStateWriter, channelInfo);
+        RecoveredBufferStore store = RecoveredBufferStore.EMPTY;
+        ChannelStatePersister persister = newPersister(channelStateWriter, channelInfo, store);
 
         long checkpointId = 1L;
         channelStateWriter.start(
                 checkpointId, CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault()));
 
-        persister.checkForBarrier(barrier(checkpointId));
-        persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
+        synchronized (store) {
+            persister.checkForBarrier(barrier(checkpointId));
+            persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
+        }
         assertThat(channelStateWriter.getAddedInput().get(channelInfo)).hasSize(1);
 
-        persister.maybePersist(buildSomeBuffer());
+        synchronized (store) {
+            persister.maybePersist(buildSomeBuffer());
+        }
         assertThat(channelStateWriter.getAddedInput().get(channelInfo)).hasSize(1);
 
         // meanwhile, checkpoint coordinator timed out the 1st checkpoint and started the 2nd
         // now task thread is picking up the barrier and aborts the 1st:
-        persister.checkForBarrier(barrier(checkpointId + 1));
-        persister.maybePersist(buildSomeBuffer());
-        persister.stopPersisting(checkpointId);
-        persister.maybePersist(buildSomeBuffer());
+        synchronized (store) {
+            persister.checkForBarrier(barrier(checkpointId + 1));
+            persister.maybePersist(buildSomeBuffer());
+            persister.stopPersisting(checkpointId);
+            persister.maybePersist(buildSomeBuffer());
+        }
         assertThat(channelStateWriter.getAddedInput().get(channelInfo)).hasSize(1);
 
-        assertThat(persister.hasBarrierReceived()).isTrue();
+        synchronized (store) {
+            assertThat(persister.hasBarrierReceived()).isTrue();
+        }
     }
 
     @Test
     void testNewBarrierNotOverwrittenByCheckForBarrier() throws Exception {
+        RecoveredBufferStore store = RecoveredBufferStore.EMPTY;
         ChannelStatePersister persister =
-                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+                newPersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0), store);
 
-        persister.startPersisting(1L, Collections.emptyList());
-        persister.startPersisting(2L, Collections.emptyList());
+        synchronized (store) {
+            persister.startPersisting(1L, Collections.emptyList());
+            persister.startPersisting(2L, Collections.emptyList());
 
-        assertThat(persister.checkForBarrier(barrier(1L))).isNotPresent();
+            assertThat(persister.checkForBarrier(barrier(1L))).isNotPresent();
 
-        assertThat(persister.hasBarrierReceived()).isFalse();
+            assertThat(persister.hasBarrierReceived()).isFalse();
+        }
     }
 
     @Test
@@ -103,41 +130,83 @@ class ChannelStatePersisterTest {
             throws Exception {
         RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
         InputChannelInfo channelInfo = new InputChannelInfo(0, 0);
+        RecoveredBufferStore store = RecoveredBufferStore.EMPTY;
 
-        ChannelStatePersister persister =
-                new ChannelStatePersister(channelStateWriter, channelInfo);
+        ChannelStatePersister persister = newPersister(channelStateWriter, channelInfo, store);
 
         long lateCheckpointId = 1L;
         long checkpointId = 2L;
-        if (startCheckpointOnLateBarrier) {
-            persister.startPersisting(lateCheckpointId, Collections.emptyList());
+        synchronized (store) {
+            if (startCheckpointOnLateBarrier) {
+                persister.startPersisting(lateCheckpointId, Collections.emptyList());
+            }
+            if (cancelCheckpointBeforeLateBarrier) {
+                persister.stopPersisting(lateCheckpointId);
+            }
+            persister.checkForBarrier(barrier(lateCheckpointId));
         }
-        if (cancelCheckpointBeforeLateBarrier) {
-            persister.stopPersisting(lateCheckpointId);
-        }
-        persister.checkForBarrier(barrier(lateCheckpointId));
         channelStateWriter.start(
                 checkpointId, CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault()));
-        persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
-        persister.maybePersist(buildSomeBuffer());
-        persister.checkForBarrier(barrier(checkpointId));
-        persister.maybePersist(buildSomeBuffer());
+        synchronized (store) {
+            persister.startPersisting(checkpointId, Arrays.asList(buildSomeBuffer()));
+            persister.maybePersist(buildSomeBuffer());
+            persister.checkForBarrier(barrier(checkpointId));
+            persister.maybePersist(buildSomeBuffer());
 
-        assertThat(persister.hasBarrierReceived()).isTrue();
+            assertThat(persister.hasBarrierReceived()).isTrue();
+        }
         assertThat(channelStateWriter.getAddedInput().get(channelInfo)).hasSize(2);
     }
 
     @Test
-    void testLateBarrierTriggeringCheckpoint() throws Exception {
+    void testStartPersistingRejectsNonEmptyStoreAndNonEmptyKnownBuffers() throws Exception {
+        // Invariant: store non-empty and knownBuffers non-empty must not coexist. This is
+        // guaranteed by UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM=true (upstream does not replay
+        // output state) combined with RemoteInputChannel#getNextBuffer draining the store before
+        // polling receivedBuffers. Violating this means one of those assumptions broke.
+        RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+        InputChannelInfo channelInfo = new InputChannelInfo(0, 0);
+
+        long checkpointId = 1L;
+        channelStateWriter.start(
+                checkpointId, CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault()));
+
+        RecoveredBufferStoreImpl nonEmptyStore = new RecoveredBufferStoreImpl(channelInfo);
+        synchronized (nonEmptyStore) {
+            nonEmptyStore.addBuffer(buildSomeBuffer());
+        }
         ChannelStatePersister persister =
-                new ChannelStatePersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0));
+                newPersister(channelStateWriter, channelInfo, nonEmptyStore);
+        assertThatThrownBy(
+                        () -> {
+                            synchronized (nonEmptyStore) {
+                                persister.startPersisting(
+                                        checkpointId, Arrays.asList(buildSomeBuffer()));
+                            }
+                        })
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Invariant violated");
+    }
+
+    @Test
+    void testLateBarrierTriggeringCheckpoint() throws Exception {
+        RecoveredBufferStore store = RecoveredBufferStore.EMPTY;
+        ChannelStatePersister persister =
+                newPersister(ChannelStateWriter.NO_OP, new InputChannelInfo(0, 0), store);
 
         long lateCheckpointId = 1L;
         long checkpointId = 2L;
 
-        persister.checkForBarrier(barrier(checkpointId));
+        synchronized (store) {
+            persister.checkForBarrier(barrier(checkpointId));
+        }
         assertThatThrownBy(
-                        () -> persister.startPersisting(lateCheckpointId, Collections.emptyList()))
+                        () -> {
+                            synchronized (store) {
+                                persister.startPersisting(
+                                        lateCheckpointId, Collections.emptyList());
+                            }
+                        })
                 .isInstanceOf(CheckpointException.class);
     }
 
