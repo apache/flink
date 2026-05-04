@@ -45,11 +45,13 @@ class S3EncryptionConfigTest {
 
     @Test
     void sseKms_withContext_contextStoredDefensively() {
-        Map<String, String> ctx = new HashMap<>(Map.of("dept", "finance"));
+        Map<String, String> ctx =
+                new HashMap<>(Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"));
         S3EncryptionConfig c = S3EncryptionConfig.sseKms("key-id", ctx);
         ctx.put("extra", "value");
 
-        assertThat(c.getEncryptionContext()).isEqualTo(Map.of("dept", "finance"));
+        assertThat(c.getEncryptionContext())
+                .isEqualTo(Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"));
         assertThat(c.hasEncryptionContext()).isTrue();
     }
 
@@ -62,7 +64,9 @@ class S3EncryptionConfigTest {
 
     @Test
     void sseKms_returnedContext_isUnmodifiable() {
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms("key-id", Map.of("dept", "finance"));
+        S3EncryptionConfig c =
+                S3EncryptionConfig.sseKms(
+                        "key-id", Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"));
 
         assertThatThrownBy(() -> c.getEncryptionContext().put("x", "y"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -124,10 +128,14 @@ class S3EncryptionConfigTest {
     @Test
     void fromConfig_sseKmsWithKeyAndContext_keyAndContextPreserved() {
         S3EncryptionConfig result =
-                S3EncryptionConfig.fromConfig("sse-kms", "my-key", Map.of("env", "prod"));
+                S3EncryptionConfig.fromConfig(
+                        "sse-kms",
+                        "my-key",
+                        Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"));
 
         assertThat(result.getKmsKeyId()).isEqualTo("my-key");
-        assertThat(result.getEncryptionContext()).isEqualTo(Map.of("env", "prod"));
+        assertThat(result.getEncryptionContext())
+                .isEqualTo(Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"));
     }
 
     @ParameterizedTest
@@ -146,7 +154,10 @@ class S3EncryptionConfigTest {
     @Test
     void fromConfig_sseKmsDefaultKeyWithContext_contextPreserved() {
         assertThat(
-                        S3EncryptionConfig.fromConfig("sse-kms", null, Map.of("env", "prod"))
+                        S3EncryptionConfig.fromConfig(
+                                        "sse-kms",
+                                        null,
+                                        Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"))
                                 .hasEncryptionContext())
                 .isTrue();
     }
@@ -154,7 +165,8 @@ class S3EncryptionConfigTest {
     @Test
     void fromConfig_sseS3WithContext_contextIgnored() {
         S3EncryptionConfig c =
-                S3EncryptionConfig.fromConfig("sse-s3", null, Map.of("dept", "finance"));
+                S3EncryptionConfig.fromConfig(
+                        "sse-s3", null, Map.of("aws:s3:arn", "arn:aws:s3:::my-bucket/my-file"));
 
         assertThat(c.getEncryptionType()).isEqualTo(SSE_S3);
         assertThat(c.getEncryptionContext()).isEmpty();
