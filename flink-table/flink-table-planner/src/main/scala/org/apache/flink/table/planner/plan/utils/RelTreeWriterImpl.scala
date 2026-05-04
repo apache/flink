@@ -211,7 +211,7 @@ class RelTreeWriterImpl(
       s.append(", rowType=[").append(rel.getRowType.toString).append("]")
     }
 
-    if (explainLevel == SqlExplainLevel.ALL_ATTRIBUTES || withRowCountAndCost) {
+    if (withRowCountAndCost) {
       val rowCount = mq.getRowCount(rel)
       val cost = mq.getCumulativeCost(rel)
 
