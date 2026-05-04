@@ -541,6 +541,21 @@ class RescaleTimelineITCase {
 
         waitForVertexParallelismReachedAndJobRunning(jobGraph, JOB_VERTEX_ID, PARALLELISM);
 
+        if (enabledRescaleHistory(configuration)) {
+            // The rescale-history bookkeeping (merging the still-open UPDATE_REQUIREMENT rescale
+            // with the new RECOVERABLE_FAILOVER one) is recorded asynchronously by the scheduler
+            // and is not synchronized with the parallelism/RUNNING signal we waited for above.
+            // Poll until the expected merged state is observed to avoid flakiness.
+            waitUntilConditionWithTimeout(
+                    () -> {
+                        List<Rescale> rescaleHistory = getRescaleHistory(miniCluster, jobGraph);
+                        return rescaleHistory.size() == 2
+                                && rescaleHistory.get(0).getTriggerCause()
+                                        == TriggerCause.RECOVERABLE_FAILOVER;
+                    },
+                    10000);
+        }
+
         final ExecutionGraphInfo executionGraphInfo =
                 miniCluster.getExecutionGraphInfo(jobGraph.getJobID()).join();
         runAdaptedParameterizedAssertion(
