@@ -88,7 +88,9 @@ class RecoveredInputChannelTest {
                 .hasMessageContaining("buffer filtering is not complete");
 
         // After finishReadRecoveredState(), bufferFilteringCompleteFuture should be done
-        channel.finishReadRecoveredState();
+        synchronized (channel.inputGate.getGateLock()) {
+            channel.finishReadRecoveredState();
+        }
         assertThat(channel.getBufferFilteringCompleteFuture()).isDone();
         assertThat(channel.getStateConsumedFuture()).isNotDone();
 
@@ -110,7 +112,9 @@ class RecoveredInputChannelTest {
 
         // After finishReadRecoveredState(), bufferFilteringCompleteFuture is done
         // but stateConsumedFuture is not
-        channel.finishReadRecoveredState();
+        synchronized (channel.inputGate.getGateLock()) {
+            channel.finishReadRecoveredState();
+        }
         assertThat(channel.getBufferFilteringCompleteFuture()).isDone();
         assertThat(channel.getStateConsumedFuture()).isNotDone();
 
@@ -120,7 +124,9 @@ class RecoveredInputChannelTest {
                 .hasMessageContaining("recovered state is not fully consumed");
 
         // Consume the EndOfInputChannelStateEvent to complete stateConsumedFuture
-        assertThat(channel.getNextBuffer()).isNotPresent();
+        synchronized (channel.inputGate.getGateLock()) {
+            assertThat(channel.getNextBuffer()).isNotPresent();
+        }
         assertThat(channel.getStateConsumedFuture()).isDone();
 
         // Now conversion should succeed
@@ -134,7 +140,9 @@ class RecoveredInputChannelTest {
         for (boolean configEnabled : new boolean[] {true, false}) {
             RecoveredInputChannel channel = buildChannel(configEnabled);
             assertThat(channel.getBufferFilteringCompleteFuture()).isNotDone();
-            channel.finishReadRecoveredState();
+            synchronized (channel.inputGate.getGateLock()) {
+                channel.finishReadRecoveredState();
+            }
             assertThat(channel.getBufferFilteringCompleteFuture()).isDone();
         }
     }
@@ -148,12 +156,16 @@ class RecoveredInputChannelTest {
 
             assertThat(channel.getStateConsumedFuture()).isNotDone();
 
-            channel.finishReadRecoveredState();
+            synchronized (channel.inputGate.getGateLock()) {
+                channel.finishReadRecoveredState();
+            }
             assertThat(channel.getStateConsumedFuture()).isNotDone();
 
             // Consuming the EndOfInputChannelStateEvent should complete the future.
             // getNextBuffer() returns empty when it encounters the event internally.
-            assertThat(channel.getNextBuffer()).isNotPresent();
+            synchronized (channel.inputGate.getGateLock()) {
+                assertThat(channel.getNextBuffer()).isNotPresent();
+            }
             assertThat(channel.getStateConsumedFuture()).isDone();
         }
     }
