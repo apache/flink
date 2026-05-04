@@ -35,21 +35,19 @@ import java.io.IOException;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * S3 input stream with configurable read-ahead buffer, range-based requests for seek operations,
- * automatic stream reopening on errors, and lazy initialization to minimize memory footprint.
+ * S3 input stream with configurable read-ahead buffer, lazy seek, and automatic stream reopening.
  *
- * <p><b>Thread Safety:</b> Internal state is guarded by a lock to ensure safe concurrent access and
- * resource cleanup.
+ * <p>{@link #seek(long)} only records the desired position without performing any I/O. All HTTP
+ * work is deferred to the next {@link #read()} call via {@link #lazySeek()}, so multiple seeks
+ * between reads coalesce. When the seek is forward and within {@code readBufferSize}, bytes are
+ * skipped in-buffer instead of reopening the HTTP connection.
  */
 class NativeS3InputStream extends FSDataInputStream {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3InputStream.class);
 
-    /** Default read-ahead buffer size: 256KB. */
+    /** Default read-ahead buffer size. */
     private static final int DEFAULT_READ_BUFFER_SIZE = 256 * 1024;
-
-    /** Maximum buffer size for very large sequential reads. */
-    private static final int MAX_READ_BUFFER_SIZE = 4 * 1024 * 1024; // 4MB
 
     private final ReentrantLock lock = new ReentrantLock();
 
@@ -65,8 +63,19 @@ class NativeS3InputStream extends FSDataInputStream {
     @GuardedBy("lock")
     private BufferedInputStream bufferedStream;
 
+    /**
+     * The position the caller expects to read from next. Updated by {@link #seek(long)}, {@link
+     * #skip(long)}, and after every successful {@link #read()}.
+     */
     @GuardedBy("lock")
-    private long position;
+    private long nextReadPos;
+
+    /**
+     * The actual byte offset of the underlying stream cursor, reconciled lazily via {@link
+     * #lazySeek()}.
+     */
+    @GuardedBy("lock")
+    private long streamPos;
 
     @GuardedBy("lock")
     private volatile boolean closed;
@@ -86,8 +95,9 @@ class NativeS3InputStream extends FSDataInputStream {
         this.bucketName = bucketName;
         this.key = key;
         this.contentLength = contentLength;
-        this.readBufferSize = Math.min(readBufferSize, MAX_READ_BUFFER_SIZE);
-        this.position = 0;
+        this.readBufferSize = readBufferSize;
+        this.nextReadPos = 0;
+        this.streamPos = 0;
         this.closed = false;
 
         LOG.debug(
@@ -98,39 +108,63 @@ class NativeS3InputStream extends FSDataInputStream {
                 this.readBufferSize / 1024);
     }
 
+    /** Reconciles {@link #nextReadPos} and {@link #streamPos} before reading bytes. */
     @GuardedBy("lock")
-    private void lazyInitialize() throws IOException {
-        assert lock.isHeldByCurrentThread() : "lazyInitialize() requires lock to be held";
+    private void lazySeek() throws IOException {
+        assert lock.isHeldByCurrentThread() : "lazySeek() requires lock to be held";
+        long targetPos = nextReadPos;
+
+        if (currentStream == null) {
+            streamPos = targetPos;
+            return;
+        }
+
+        if (targetPos == streamPos) {
+            return;
+        }
+
+        long diff = targetPos - streamPos;
+        streamPos = targetPos;
+
+        if (targetPos >= contentLength) {
+            releaseStreams();
+            return;
+        }
+
+        // BufferedInputStream does not expose how many bytes are in its local array, so
+        // readBufferSize is used as the skip threshold: at most readBufferSize bytes may be
+        // consumed from the live HTTP connection before a range request is preferred instead.
+        if (diff > 0 && diff <= (long) readBufferSize) {
+            skipBytesInBuffer(diff);
+            return;
+        }
+
+        openStreamAtCurrentPosition();
+    }
+
+    @GuardedBy("lock")
+    private void ensureStreamOpen() throws IOException {
+        assert lock.isHeldByCurrentThread() : "ensureStreamOpen() requires lock to be held";
         if (currentStream == null && !closed) {
             openStreamAtCurrentPosition();
         }
     }
 
-    /** At EOF, release instead of reopening: {@code bytes=contentLength-} returns S3 416. */
     @GuardedBy("lock")
-    private void repositionOpenStream() throws IOException {
-        assert lock.isHeldByCurrentThread() : "repositionOpenStream() requires lock to be held";
-        if (currentStream == null) {
-            return;
-        }
-        if (position >= contentLength) {
-            releaseStreams();
-        } else {
-            openStreamAtCurrentPosition();
+    private void skipBytesInBuffer(long n) throws IOException {
+        assert lock.isHeldByCurrentThread() : "skipBytesInBuffer() requires lock to be held";
+        long remaining = n;
+        while (remaining > 0) {
+            long skipped = bufferedStream.skip(remaining);
+            if (skipped <= 0) {
+                openStreamAtCurrentPosition();
+                return;
+            }
+            remaining -= skipped;
         }
     }
 
-    /**
-     * Opens (or reopens) the S3 stream at the current position.
-     *
-     * <p>This method:
-     *
-     * <ul>
-     *   <li>Closes any existing stream
-     *   <li>Opens a new stream starting at {@link #position}
-     *   <li>Uses HTTP range requests for non-zero positions
-     * </ul>
-     */
+    /** Opens (or reopens) the S3 stream at {@link #streamPos}. */
     private void openStreamAtCurrentPosition() throws IOException {
         lock.lock();
         try {
@@ -140,11 +174,11 @@ class NativeS3InputStream extends FSDataInputStream {
                 GetObjectRequest.Builder requestBuilder =
                         GetObjectRequest.builder().bucket(bucketName).key(key);
 
-                if (position > 0) {
-                    requestBuilder.range(String.format("bytes=%d-", position));
+                if (streamPos > 0) {
+                    requestBuilder.range(String.format("bytes=%d-", streamPos));
                     LOG.debug(
                             "Opening S3 stream with range: bytes={}-{}",
-                            position,
+                            streamPos,
                             contentLength - 1);
                 } else {
                     LOG.debug("Opening S3 stream for full object: {} bytes", contentLength);
@@ -160,12 +194,7 @@ class NativeS3InputStream extends FSDataInputStream {
         }
     }
 
-    /**
-     * Aborts the in-flight HTTP connection so that subsequent {@code close()} calls on the stream
-     * do not drain remaining bytes over the network.
-     *
-     * @see ResponseInputStream#abort()
-     */
+    /** Aborts the in-flight HTTP connection to avoid draining remaining bytes on close. */
     @GuardedBy("lock")
     private void abortCurrentStream() {
         assert lock.isHeldByCurrentThread() : "abortCurrentStream() requires lock to be held";
@@ -179,11 +208,10 @@ class NativeS3InputStream extends FSDataInputStream {
     }
 
     /**
-     * Aborts and closes both streams, nulling the references. The abort is called first to prevent
-     * {@link ResponseInputStream#close()} from draining remaining bytes over the network.
+     * Aborts and closes both streams, nulling the references.
      *
      * @return the first {@link IOException} encountered (with subsequent ones added as suppressed),
-     *     or {@code null} if cleanup succeeded without errors
+     *     or {@code null} if cleanup succeeded
      */
     @GuardedBy("lock")
     private IOException releaseStreams() {
@@ -236,10 +264,7 @@ class NativeS3InputStream extends FSDataInputStream {
                                 + contentLength);
             }
 
-            if (desired != position) {
-                position = desired;
-                repositionOpenStream();
-            }
+            nextReadPos = desired;
         } finally {
             lock.unlock();
         }
@@ -249,7 +274,7 @@ class NativeS3InputStream extends FSDataInputStream {
     public long getPos() throws IOException {
         lock();
         try {
-            return position;
+            return nextReadPos;
         } finally {
             lock.unlock();
         }
@@ -262,13 +287,15 @@ class NativeS3InputStream extends FSDataInputStream {
             if (closed) {
                 throw new IOException("Stream is closed");
             }
-            if (position >= contentLength) {
+            if (nextReadPos >= contentLength) {
                 return -1;
             }
-            lazyInitialize();
+            lazySeek();
+            ensureStreamOpen();
             int data = bufferedStream.read();
             if (data != -1) {
-                position++;
+                nextReadPos++;
+                streamPos++;
             }
             return data;
         } finally {
@@ -295,15 +322,17 @@ class NativeS3InputStream extends FSDataInputStream {
             if (closed) {
                 throw new IOException("Stream is closed");
             }
-            if (position >= contentLength) {
+            if (nextReadPos >= contentLength) {
                 return -1;
             }
-            lazyInitialize();
-            long remaining = contentLength - position;
+            lazySeek();
+            ensureStreamOpen();
+            long remaining = contentLength - nextReadPos;
             int toRead = (int) Math.min(len, remaining);
             int bytesRead = bufferedStream.read(b, off, toRead);
             if (bytesRead > 0) {
-                position += bytesRead;
+                nextReadPos += bytesRead;
+                streamPos += bytesRead;
             }
             return bytesRead;
         } finally {
@@ -336,7 +365,7 @@ class NativeS3InputStream extends FSDataInputStream {
                     "Closed S3 input stream - bucket: {}, key: {}, final position: {}/{}",
                     bucketName,
                     key,
-                    position,
+                    nextReadPos,
                     contentLength);
             if (exception != null) {
                 throw exception;
@@ -346,16 +375,6 @@ class NativeS3InputStream extends FSDataInputStream {
         }
     }
 
-    /**
-     * Returns an estimate of the number of bytes that can be read without blocking.
-     *
-     * <p>This implementation returns the remaining bytes in the object based on content length and
-     * current position. Note that actual reads may still block due to network I/O, but this
-     * indicates how much data is logically available.
-     *
-     * @return the number of remaining bytes (capped at Integer.MAX_VALUE)
-     * @throws IOException if the stream has been closed
-     */
     @Override
     public int available() throws IOException {
         lock();
@@ -363,7 +382,7 @@ class NativeS3InputStream extends FSDataInputStream {
             if (closed) {
                 throw new IOException("Stream is closed");
             }
-            long remaining = contentLength - position;
+            long remaining = contentLength - nextReadPos;
             return (int) Math.min(remaining, Integer.MAX_VALUE);
         } finally {
             lock.unlock();
@@ -380,12 +399,9 @@ class NativeS3InputStream extends FSDataInputStream {
             if (n <= 0) {
                 return 0;
             }
-            long newPos = Math.min(position + n, contentLength);
-            long skipped = newPos - position;
-            if (newPos != position) {
-                position = newPos;
-                repositionOpenStream();
-            }
+            long newPos = Math.min(nextReadPos + n, contentLength);
+            long skipped = newPos - nextReadPos;
+            nextReadPos = newPos;
             return skipped;
         } finally {
             lock.unlock();
