@@ -12,6 +12,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.21.3
 - com.google.flatbuffers:flatbuffers-java:25.2.10
 - joda-time:joda-time:2.5
+- io.opentelemetry:opentelemetry-api:1.51.0
+- io.opentelemetry:opentelemetry-context:1.51.0
 - org.apache.arrow:arrow-format:19.0.0
 - org.apache.arrow:arrow-memory-core:19.0.0
 - org.apache.arrow:arrow-memory-netty:19.0.0
