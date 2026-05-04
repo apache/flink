@@ -35,6 +35,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -90,13 +92,16 @@ class InputChannelRecoveredStateHandler
     private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
-    /** When non-null, filtering runs during recovery in the channel-state-unspilling thread. */
+    /**
+     * Routes recovery through {@link #dispatcher} instead of the per-channel BufferManager so the
+     * unspilling thread does not block on downstream consumption.
+     */
+    private final boolean checkpointingDuringRecoveryEnabled;
+
+    /** Set only when rescaling produced ambiguous channels needing per-record filtering. */
     @Nullable private final ChannelStateFilteringHandler filteringHandler;
 
-    /**
-     * When non-null (filtering mode), filtered records are written here instead of directly to
-     * InputChannel buffers.
-     */
+    /** Sink for both filtered records and raw passthrough buffers. */
     @Nullable private final FilteredBufferDispatcher dispatcher;
 
     private final int memorySegmentSize;
@@ -117,11 +122,21 @@ class InputChannelRecoveredStateHandler
     InputChannelRecoveredStateHandler(
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
+            boolean checkpointingDuringRecoveryEnabled,
             @Nullable ChannelStateFilteringHandler filteringHandler,
             int memorySegmentSize,
             @Nullable FilteredBufferDispatcher dispatcher) {
+        if (!checkpointingDuringRecoveryEnabled) {
+            checkArgument(
+                    filteringHandler == null && dispatcher == null,
+                    "Filtering and dispatching require checkpointingDuringRecoveryEnabled=true.");
+        }
+        if (filteringHandler != null) {
+            checkArgument(dispatcher != null, "filteringHandler requires a dispatcher.");
+        }
         this.inputGates = inputGates;
         this.channelMapping = channelMapping;
+        this.checkpointingDuringRecoveryEnabled = checkpointingDuringRecoveryEnabled;
         this.filteringHandler = filteringHandler;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
@@ -132,7 +147,7 @@ class InputChannelRecoveredStateHandler
     @Override
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
-        if (filteringHandler != null) {
+        if (checkpointingDuringRecoveryEnabled) {
             return getPreFilterBuffer();
         }
         RecoveredInputChannel channel = getMappedChannels(channelInfo);
@@ -182,11 +197,41 @@ class InputChannelRecoveredStateHandler
         try {
             if (buffer.readableBytes() > 0) {
                 RecoveredInputChannel channel = getMappedChannels(channelInfo);
+                InputChannelInfo targetChannelInfo = channel.getChannelInfo();
 
-                if (filteringHandler != null) {
-                    recoverWithFiltering(
-                            channel, channelInfo, oldSubtaskIndex, buffer.retainBuffer());
+                if (checkpointingDuringRecoveryEnabled) {
+                    checkState(
+                            dispatcher != null,
+                            "Dispatcher must be wired when checkpointingDuringRecoveryEnabled=true.");
+                    if (filteringHandler != null) {
+                        filteringHandler.filterAndRewrite(
+                                channelInfo.getGateIdx(),
+                                oldSubtaskIndex,
+                                channelInfo.getInputChannelIdx(),
+                                buffer.retainBuffer(),
+                                dispatcher,
+                                targetChannelInfo);
+                    } else {
+                        // No SubtaskConnectionDescriptor: under 1:1 mapping the descriptor
+                        // would carry the current subtask's own index — redundant.
+                        ByteBuf nettyBuf = buffer.asByteBuf();
+                        // Guard against future buffer sources (off-heap / slice / advanced
+                        // readerIndex) that would silently ship the wrong byte range.
+                        checkState(
+                                nettyBuf.hasArray()
+                                        && nettyBuf.arrayOffset() == 0
+                                        && nettyBuf.readerIndex() == 0,
+                                "Pre-filter buffer must start at array offset 0; "
+                                        + "hasArray=%s, arrayOffset=%s, readerIndex=%s",
+                                nettyBuf.hasArray(),
+                                nettyBuf.arrayOffset(),
+                                nettyBuf.readerIndex());
+                        dispatcher.write(
+                                nettyBuf.array(), nettyBuf.readableBytes(), targetChannelInfo);
+                    }
                 } else {
+                    // Prefix with SubtaskConnectionDescriptor so the downstream multiplexer can
+                    // attribute the buffer to its original (subtask, channel) tuple.
                     synchronized (channel.getStore().getGateLock()) {
                         channel.getStore()
                                 .addBuffer(
@@ -202,24 +247,6 @@ class InputChannelRecoveredStateHandler
         } finally {
             buffer.recycleBuffer();
         }
-    }
-
-    private void recoverWithFiltering(
-            RecoveredInputChannel channel,
-            InputChannelInfo channelInfo,
-            int oldSubtaskIndex,
-            Buffer retainedBuffer)
-            throws IOException, InterruptedException {
-        checkState(filteringHandler != null, "filtering handler not set.");
-        checkState(dispatcher != null, "dispatcher not set.");
-        InputChannelInfo targetChannelInfo = channel.getChannelInfo();
-        filteringHandler.filterAndRewrite(
-                channelInfo.getGateIdx(),
-                oldSubtaskIndex,
-                channelInfo.getInputChannelIdx(),
-                retainedBuffer,
-                dispatcher,
-                targetChannelInfo);
     }
 
     @Override

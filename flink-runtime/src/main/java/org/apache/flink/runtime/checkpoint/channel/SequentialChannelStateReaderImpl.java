@@ -69,13 +69,18 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
     public void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
             throws IOException, InterruptedException {
 
+        boolean checkpointingDuringRecoveryEnabled =
+                filterContext.isCheckpointingDuringRecoveryEnabled();
+
         ChannelStateFilteringHandler filteringHandler =
-                filterContext.isCheckpointingDuringRecoveryEnabled()
+                checkpointingDuringRecoveryEnabled
                         ? ChannelStateFilteringHandler.createFromContext(filterContext, inputGates)
                         : null;
 
+        // Dispatcher is needed whether or not filtering applies — raw passthrough also writes
+        // there.
         FilteredBufferDispatcher dispatcher = null;
-        if (filteringHandler != null) {
+        if (checkpointingDuringRecoveryEnabled) {
             Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel =
                     createPerChannelStores(inputGates);
             if (!storesByChannel.isEmpty()) {
@@ -90,6 +95,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         new InputChannelRecoveredStateHandler(
                                 inputGates,
                                 taskStateSnapshot.getInputRescalingDescriptor(),
+                                checkpointingDuringRecoveryEnabled,
                                 filteringHandler,
                                 filterContext.getMemorySegmentSize(),
                                 dispatcher)) {

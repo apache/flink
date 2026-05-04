@@ -33,7 +33,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
@@ -82,6 +85,7 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
                         }),
+                false,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE,
                 null);
@@ -111,18 +115,14 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.RESCALING)
                         }),
+                false,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE,
                 null);
     }
 
-    /** Builds a handler in filtering mode (non-null filtering handler, no-op stub). */
-    private InputChannelRecoveredStateHandler buildFilteringInputChannelStateHandler() {
-        // Empty GateFilterHandler array: filtering is "enabled" structurally, but no gate-level
-        // filter logic runs. Suitable for exercising getBuffer() routing only.
-        ChannelStateFilteringHandler stubFilteringHandler =
-                new ChannelStateFilteringHandler(
-                        new ChannelStateFilteringHandler.GateFilterHandler[0]);
+    /** Feature on, no filter — raw passthrough mode (heap-segment buffers). */
+    private InputChannelRecoveredStateHandler buildFeatureEnabledStateHandler() {
         return new InputChannelRecoveredStateHandler(
                 new InputGate[] {inputGate},
                 new InflightDataRescalingDescriptor(
@@ -137,7 +137,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
                         }),
-                stubFilteringHandler,
+                true,
+                null,
                 MemoryManager.DEFAULT_PAGE_SIZE,
                 null);
     }
@@ -190,12 +191,12 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterBufferIsolationFromNetworkBufferPool() throws Exception {
-        try (InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler()) {
+        try (InputChannelRecoveredStateHandler recoveredStateHandler =
+                buildFeatureEnabledStateHandler()) {
             int availableBefore = networkBufferPool.getNumberOfAvailableMemorySegments();
 
             RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
-                    filteringHandler.getBuffer(channelInfo);
+                    recoveredStateHandler.getBuffer(channelInfo);
             try {
                 Buffer buffer = bufferWithContext.context;
                 // Heap-backed: NetworkBuffer wrapping a heap (non off-heap) segment.
@@ -232,45 +233,45 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
     @Test
     void testPreFilterSegmentReusedAcrossCalls() throws Exception {
-        try (InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler()) {
+        try (InputChannelRecoveredStateHandler recoveredStateHandler =
+                buildFeatureEnabledStateHandler()) {
             // First getBuffer() lazily allocates the segment.
             RecoveredChannelStateHandler.BufferWithContext<Buffer> first =
-                    filteringHandler.getBuffer(channelInfo);
+                    recoveredStateHandler.getBuffer(channelInfo);
             MemorySegment segment1 = first.context.getMemorySegment();
             first.context.recycleBuffer();
 
             // Second getBuffer() must reuse the same segment instance.
             RecoveredChannelStateHandler.BufferWithContext<Buffer> second =
-                    filteringHandler.getBuffer(channelInfo);
+                    recoveredStateHandler.getBuffer(channelInfo);
             MemorySegment segment2 = second.context.getMemorySegment();
             second.context.recycleBuffer();
 
             assertThat(segment2).isSameAs(segment1);
             // Third call, same check.
             RecoveredChannelStateHandler.BufferWithContext<Buffer> third =
-                    filteringHandler.getBuffer(channelInfo);
+                    recoveredStateHandler.getBuffer(channelInfo);
             MemorySegment segment3 = third.context.getMemorySegment();
             third.context.recycleBuffer();
 
             assertThat(segment3).isSameAs(segment1);
 
             // Internal assertion: inUse flipped back to false after each recycle.
-            assertThat(filteringHandler.isPreFilterBufferInUse()).isFalse();
+            assertThat(recoveredStateHandler.isPreFilterBufferInUse()).isFalse();
         }
     }
 
     @Test
     void testGetBufferThrowsWhenPriorBufferNotRecycled() throws Exception {
-        try (InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler()) {
+        try (InputChannelRecoveredStateHandler recoveredStateHandler =
+                buildFeatureEnabledStateHandler()) {
             RecoveredChannelStateHandler.BufferWithContext<Buffer> first =
-                    filteringHandler.getBuffer(channelInfo);
+                    recoveredStateHandler.getBuffer(channelInfo);
             try {
-                assertThat(filteringHandler.isPreFilterBufferInUse()).isTrue();
+                assertThat(recoveredStateHandler.isPreFilterBufferInUse()).isTrue();
 
                 // Without recycling, requesting another buffer must fail.
-                assertThatThrownBy(() -> filteringHandler.getBuffer(channelInfo))
+                assertThatThrownBy(() -> recoveredStateHandler.getBuffer(channelInfo))
                         .isInstanceOf(IllegalStateException.class)
                         .hasMessageContaining("Previous pre-filter buffer has not been recycled");
             } finally {
@@ -279,27 +280,26 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
             // After recycling, a new getBuffer() succeeds.
             RecoveredChannelStateHandler.BufferWithContext<Buffer> second =
-                    filteringHandler.getBuffer(channelInfo);
+                    recoveredStateHandler.getBuffer(channelInfo);
             second.context.recycleBuffer();
         }
     }
 
     @Test
     void testPreFilterSegmentFreedOnClose() throws Exception {
-        InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler();
+        InputChannelRecoveredStateHandler recoveredStateHandler = buildFeatureEnabledStateHandler();
         RecoveredChannelStateHandler.BufferWithContext<Buffer> bufferWithContext =
-                filteringHandler.getBuffer(channelInfo);
+                recoveredStateHandler.getBuffer(channelInfo);
         bufferWithContext.context.recycleBuffer();
 
-        MemorySegment segment = filteringHandler.getPreFilterSegmentForTesting();
+        MemorySegment segment = recoveredStateHandler.getPreFilterSegmentForTesting();
         assertThat(segment).isNotNull();
         assertThat(segment.isFreed()).isFalse();
 
-        filteringHandler.close();
+        recoveredStateHandler.close();
 
         assertThat(segment.isFreed()).isTrue();
-        assertThat(filteringHandler.getPreFilterSegmentForTesting()).isNull();
+        assertThat(recoveredStateHandler.getPreFilterSegmentForTesting()).isNull();
     }
 
     /**
@@ -312,33 +312,32 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
      */
     @Test
     void testFinishRecoveryTriggersConversion() throws Exception {
-        InputChannelRecoveredStateHandler filteringHandler =
-                buildFilteringInputChannelStateHandler();
+        InputChannelRecoveredStateHandler recoveredStateHandler = buildFeatureEnabledStateHandler();
 
         // Allocate and recycle a pre-filter buffer so preFilterSegment is live before close().
         RecoveredChannelStateHandler.BufferWithContext<Buffer> buf =
-                filteringHandler.getBuffer(channelInfo);
+                recoveredStateHandler.getBuffer(channelInfo);
         buf.context.recycleBuffer();
-        MemorySegment segmentBeforeFinish = filteringHandler.getPreFilterSegmentForTesting();
+        MemorySegment segmentBeforeFinish = recoveredStateHandler.getPreFilterSegmentForTesting();
         assertThat(segmentBeforeFinish).isNotNull();
 
         // Before finishRecovery(): recoveryFinished == false.
-        assertThat(getRecoveryFinishedFlag(filteringHandler)).isFalse();
+        assertThat(getRecoveryFinishedFlag(recoveredStateHandler)).isFalse();
 
         // finishRecovery() must complete without error and flip the guard.
-        filteringHandler.finishRecovery();
-        assertThat(getRecoveryFinishedFlag(filteringHandler)).isTrue();
+        recoveredStateHandler.finishRecovery();
+        assertThat(getRecoveryFinishedFlag(recoveredStateHandler)).isTrue();
 
         // Idempotency: second call keeps the guard at true and does not re-invoke the gate loop.
-        filteringHandler.finishRecovery();
-        assertThat(getRecoveryFinishedFlag(filteringHandler)).isTrue();
+        recoveredStateHandler.finishRecovery();
+        assertThat(getRecoveryFinishedFlag(recoveredStateHandler)).isTrue();
 
         // close() is pure resource release: segment freed, guard unchanged (still true).
-        filteringHandler.close();
-        assertThat(getRecoveryFinishedFlag(filteringHandler))
+        recoveredStateHandler.close();
+        assertThat(getRecoveryFinishedFlag(recoveredStateHandler))
                 .as("close() must not alter the recoveryFinished flag")
                 .isTrue();
-        assertThat(filteringHandler.getPreFilterSegmentForTesting())
+        assertThat(recoveredStateHandler.getPreFilterSegmentForTesting())
                 .as("close() must null-out the preFilterSegment reference")
                 .isNull();
         assertThat(segmentBeforeFinish.isFreed())
@@ -353,5 +352,104 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                 InputChannelRecoveredStateHandler.class.getDeclaredField("recoveryFinished");
         field.setAccessible(true);
         return (boolean) field.get(handler);
+    }
+
+    /** Raw passthrough forwards source bytes verbatim to the mapped target channel. */
+    @Test
+    void testRecoverRawPassthroughForwardsBufferBytesToDispatcher() throws Exception {
+        RecordingDispatcher dispatcher = new RecordingDispatcher();
+        try (InputChannelRecoveredStateHandler handler =
+                buildHandler(true, null, dispatcher, inputGate)) {
+            byte[] payload = new byte[] {7, 11, 13, 17, 19};
+            RecoveredChannelStateHandler.BufferWithContext<Buffer> ctx =
+                    handler.getBuffer(channelInfo);
+            ctx.context.asByteBuf().writeBytes(payload);
+
+            handler.recover(channelInfo, 0, ctx);
+
+            assertThat(dispatcher.writes).hasSize(1);
+            RecordingDispatcher.Write w = dispatcher.writes.get(0);
+            assertThat(w.length).isEqualTo(payload.length);
+            assertThat(w.channelInfo)
+                    .as("dispatcher receives the mapped target channel info")
+                    .isEqualTo(new InputChannelInfo(0, 0));
+            assertThat(Arrays.copyOf(w.data, w.length)).containsExactly(payload);
+        }
+    }
+
+    /** Filtering needs a sink — fail at construction rather than NPE deep in recovery. */
+    @Test
+    void testConstructorRejectsFilteringHandlerWithoutDispatcher() {
+        ChannelStateFilteringHandler filteringHandler =
+                new ChannelStateFilteringHandler(
+                        new ChannelStateFilteringHandler.GateFilterHandler[0]);
+        assertThatThrownBy(() -> buildHandler(true, filteringHandler, null, inputGate))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("filteringHandler requires a dispatcher");
+    }
+
+    /** Feature off: extra handlers would be silently ignored — reject at construction. */
+    @Test
+    void testConstructorRejectsHandlersWhenFeatureDisabled() {
+        RecordingDispatcher dispatcher = new RecordingDispatcher();
+        assertThatThrownBy(() -> buildHandler(false, null, dispatcher, inputGate))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("checkpointingDuringRecoveryEnabled=true");
+    }
+
+    private static InputChannelRecoveredStateHandler buildHandler(
+            boolean checkpointingDuringRecoveryEnabled,
+            ChannelStateFilteringHandler filteringHandler,
+            FilteredBufferDispatcher dispatcher,
+            SingleInputGate gate) {
+        return new InputChannelRecoveredStateHandler(
+                new InputGate[] {gate},
+                new InflightDataRescalingDescriptor(
+                        new InflightDataRescalingDescriptor
+                                        .InflightDataGateOrPartitionRescalingDescriptor[] {
+                            new InflightDataRescalingDescriptor
+                                    .InflightDataGateOrPartitionRescalingDescriptor(
+                                    new int[] {1},
+                                    RescaleMappings.identity(1, 1),
+                                    new HashSet<>(),
+                                    InflightDataRescalingDescriptor
+                                            .InflightDataGateOrPartitionRescalingDescriptor
+                                            .MappingType.IDENTITY)
+                        }),
+                checkpointingDuringRecoveryEnabled,
+                filteringHandler,
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                dispatcher);
+    }
+
+    /** Records each {@code write} for assertions; copies bytes so the source may be recycled. */
+    private static final class RecordingDispatcher implements FilteredBufferDispatcher {
+        final List<Write> writes = new ArrayList<>();
+
+        @Override
+        public void write(byte[] data, int length, InputChannelInfo channelInfo) {
+            writes.add(new Write(Arrays.copyOf(data, length), length, channelInfo));
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void drainPendingSpill() {}
+
+        @Override
+        public void close() {}
+
+        static final class Write {
+            final byte[] data;
+            final int length;
+            final InputChannelInfo channelInfo;
+
+            Write(byte[] data, int length, InputChannelInfo channelInfo) {
+                this.data = data;
+                this.length = length;
+                this.channelInfo = channelInfo;
+            }
+        }
     }
 }
