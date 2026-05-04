@@ -204,6 +204,13 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
                 executionGraph.getJobVertex(jobVertex2.getID()).getTaskVertices()[2];
         ev23.getCurrentExecutionAttempt().markFinished();
 
+        // Ensure that the still-running tasks have accumulated a strictly larger execution time
+        // than the just-finished baseline tasks before invoking the detector. Without this wait,
+        // on fast machines all of {start, markFinished, findSlowTasks} can happen within the
+        // same millisecond, leaving the running tasks with execution time <= baseline and
+        // making the test flaky.
+        Thread.sleep(10);
+
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
 
