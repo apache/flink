@@ -489,6 +489,26 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.InetNtoaFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition IS_VALID_UTF8 =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("IS_VALID_UTF8")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.BINARY_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.IsValidUtf8Function")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAKE_VALID_UTF8 =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAKE_VALID_UTF8")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.BINARY_STRING)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MakeValidUtf8Function")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")

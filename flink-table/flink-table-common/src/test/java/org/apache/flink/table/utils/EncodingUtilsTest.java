@@ -21,9 +21,11 @@ package org.apache.flink.table.utils;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link org.apache.flink.table.utils.EncodingUtils}. */
 class EncodingUtilsTest {
@@ -59,6 +61,80 @@ class EncodingUtilsTest {
     @Test
     void testRepetition() {
         assertThat(EncodingUtils.repeat("we", 3)).isEqualTo("wewewe");
+    }
+
+    @Test
+    void testIsValidUtf8() {
+        // ASCII fast-path
+        assertThat(EncodingUtils.isValidUtf8(new byte[0])).isTrue();
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {0x00})).isTrue();
+        assertThat(EncodingUtils.isValidUtf8("Hello, world!".getBytes(StandardCharsets.UTF_8)))
+                .isTrue();
+
+        // Multi-byte sequences: 2-byte (é), 3-byte (€), 4-byte (😀)
+        assertThat(EncodingUtils.isValidUtf8("é€😀".getBytes(StandardCharsets.UTF_8))).isTrue();
+
+        // Code-point boundaries at each width (smallest + largest)
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xC2, (byte) 0x80}))
+                .isTrue(); // U+0080
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xDF, (byte) 0xBF}))
+                .isTrue(); // U+07FF
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xE0, (byte) 0xA0, (byte) 0x80}))
+                .isTrue(); // U+0800
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xEF, (byte) 0xBF, (byte) 0xBF}))
+                .isTrue(); // U+FFFF
+        assertThat(
+                        EncodingUtils.isValidUtf8(
+                                new byte[] {(byte) 0xF0, (byte) 0x90, (byte) 0x80, (byte) 0x80}))
+                .isTrue(); // U+10000
+        assertThat(
+                        EncodingUtils.isValidUtf8(
+                                new byte[] {(byte) 0xF4, (byte) 0x8F, (byte) 0xBF, (byte) 0xBF}))
+                .isTrue(); // U+10FFFF (largest valid)
+
+        // Above U+10FFFF and forbidden lead bytes (RFC 3629)
+        assertThat(
+                        EncodingUtils.isValidUtf8(
+                                new byte[] {(byte) 0xF4, (byte) 0x90, (byte) 0x80, (byte) 0x80}))
+                .isFalse(); // U+110000
+
+        // Stray continuation byte without a lead
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0x80})).isFalse();
+
+        // Truncated multi-byte sequences
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xE2, (byte) 0x82})).isFalse();
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xF0})).isFalse();
+
+        // Overlong forms of '/' at every width
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xC0, (byte) 0xAF})).isFalse();
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xE0, (byte) 0x80, (byte) 0xAF}))
+                .isFalse();
+        assertThat(
+                        EncodingUtils.isValidUtf8(
+                                new byte[] {(byte) 0xF0, (byte) 0x80, (byte) 0x80, (byte) 0xAF}))
+                .isFalse();
+
+        // UTF-16 surrogates (high + low, smallest + largest)
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xED, (byte) 0xA0, (byte) 0x80}))
+                .isFalse(); // U+D800
+        assertThat(EncodingUtils.isValidUtf8(new byte[] {(byte) 0xED, (byte) 0xBF, (byte) 0xBF}))
+                .isFalse(); // U+DFFF
+
+        // Offset/length variant: only the inner range is validated
+        final byte[] padded = {(byte) 0x80, 'O', 'K', (byte) 0x80};
+        assertThat(EncodingUtils.isValidUtf8(padded, 1, 2)).isTrue();
+        assertThat(EncodingUtils.isValidUtf8(padded, 0, 4)).isFalse();
+        assertThat(EncodingUtils.isValidUtf8(padded, padded.length, 0)).isTrue();
+
+        // null input -> false (Guava Strings.isNullOrEmpty convention)
+        assertThat(EncodingUtils.isValidUtf8((byte[]) null)).isFalse();
+        assertThat(EncodingUtils.isValidUtf8(null, 0, 0)).isFalse();
+
+        // Bad bounds -> IllegalArgumentException
+        assertThatThrownBy(() -> EncodingUtils.isValidUtf8(new byte[3], 0, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> EncodingUtils.isValidUtf8(new byte[3], 1, 3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

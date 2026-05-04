@@ -935,6 +935,22 @@ conversion:
       返回输入表达式的数据类型的字符串表示。默认情况下返回的字符串是一个摘要字符串，可能会为了可读性而省略某些细节。
       如果 force_serializable 设置为 TRUE，则字符串表示可以持久化保存在 catalog 中的完整数据类型。
       请注意，特别是匿名的内联数据类型没有可序列化的字符串表示。在这种情况下返回 `NULL`。
+  - sql: IS_VALID_UTF8(bytes)
+    table: BYTES.isValidUtf8()
+    description: |
+      Returns `TRUE` if the input is well-formed UTF-8, `FALSE` otherwise. Specifically rejects: truncated multi-byte sequences (missing continuation bytes), "overlong" encodings (using more bytes than necessary for the code point), code points above the Unicode maximum U+10FFFF, and UTF-16 surrogate values U+D800-U+DFFF (which have no UTF-8 representation). Returns `NULL` if the input is `NULL`.
+
+      Useful for routing records with invalid UTF-8 to a dead-letter sink: `WHERE IS_VALID_UTF8(payload)` keeps clean rows; `WHERE NOT IS_VALID_UTF8(payload)` selects the rejects.
+
+      E.g., `IS_VALID_UTF8(x'48656C6C6F')` returns `TRUE`; `IS_VALID_UTF8(x'80')` returns `FALSE`.
+  - sql: MAKE_VALID_UTF8(bytes)
+    table: BYTES.makeValidUtf8()
+    description: |
+      Decodes the input as UTF-8, replacing each invalid sequence with the Unicode replacement character `U+FFFD` (rendered as `�`). The substitution is lossy and irreversible. Returns `NULL` if the input is `NULL`.
+
+      If you want to explicitly have the behavior of silently substituting invalid bytes with `U+FFFD` when doing a `CAST(bytes AS STRING)`, replace the cast with `MAKE_VALID_UTF8(bytes)`.
+
+      E.g., `MAKE_VALID_UTF8(x'48656C6C6F')` returns `'Hello'`; `MAKE_VALID_UTF8(x'80')` returns `'�'` (the `U+FFFD` replacement character).
 
 collection:
   - sql: CARDINALITY(array)
