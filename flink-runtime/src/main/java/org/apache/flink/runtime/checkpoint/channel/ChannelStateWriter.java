@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.IOUtils;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -125,6 +126,13 @@ public interface ChannelStateWriter extends Closeable {
             CloseableIterator<Buffer> data);
 
     /**
+     * Drains spill-file chunks into the checkpoint. Called by the dispatcher once all ready buffers
+     * are snapshotted and the wait-set is empty. The implementation closes the iterator.
+     */
+    void addInputDataFromSpill(
+            long checkpointId, CloseableIterator<FilteredSpillFile.Chunk> chunks);
+
+    /**
      * Add in-flight buffers from the {@link
      * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}. Must be
      * called after {@link #start} and before {@link #finishOutput(long)}. Buffers are recycled
@@ -203,6 +211,12 @@ public interface ChannelStateWriter extends Closeable {
                 InputChannelInfo info,
                 int startSeqNum,
                 CloseableIterator<Buffer> data) {}
+
+        @Override
+        public void addInputDataFromSpill(
+                long checkpointId, CloseableIterator<FilteredSpillFile.Chunk> chunks) {
+            IOUtils.closeQuietly(chunks);
+        }
 
         @Override
         public void addOutputData(

@@ -234,6 +234,20 @@ abstract class ChannelStateWriteRequest {
                 throwable -> iterator.close());
     }
 
+    static ChannelStateWriteRequest buildSpillWriteRequest(
+            JobVertexID jobVertexID,
+            int subtaskIndex,
+            long checkpointId,
+            CloseableIterator<FilteredSpillFile.Chunk> chunks) {
+        return new CheckpointInProgressRequest(
+                "writeInputFromSpill",
+                jobVertexID,
+                subtaskIndex,
+                checkpointId,
+                writer -> writer.writeInputFromSpill(jobVertexID, subtaskIndex, chunks),
+                throwable -> chunks.close());
+    }
+
     static void checkBufferIsBuffer(Buffer buffer) {
         try {
             checkArgument(buffer.isBuffer());

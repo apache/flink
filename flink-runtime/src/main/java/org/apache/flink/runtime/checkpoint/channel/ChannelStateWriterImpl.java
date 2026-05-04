@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.buildSpillWriteRequest;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeInput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeOutput;
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.write;
@@ -192,6 +193,13 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 info,
                 startSeqNum);
         enqueue(write(jobVertexID, subtaskIndex, checkpointId, info, iterator), false);
+    }
+
+    @Override
+    public void addInputDataFromSpill(
+            long checkpointId, CloseableIterator<FilteredSpillFile.Chunk> chunks) {
+        LOG.trace("{} adding spill input data, checkpoint {}", taskName, checkpointId);
+        enqueue(buildSpillWriteRequest(jobVertexID, subtaskIndex, checkpointId, chunks), false);
     }
 
     @Override
