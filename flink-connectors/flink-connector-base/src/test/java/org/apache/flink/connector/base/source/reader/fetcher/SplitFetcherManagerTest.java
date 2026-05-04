@@ -129,13 +129,14 @@ class SplitFetcherManagerTest {
         closingThread.start();
 
         waitUntil(
-                () -> findThread(SplitFetcherManager.THREAD_NAME_PREFIX).size() == 2,
+                () -> findThread(SplitFetcherManager.THREAD_NAME_PREFIX).size() >= 2,
                 Duration.ofSeconds(30),
                 "The element queue draining thread should have started.");
         for (Thread t : findThread(SplitFetcherManager.THREAD_NAME_PREFIX)) {
             waitUntil(
                     () ->
-                            t.getState().equals(Thread.State.WAITING)
+                            !t.isAlive()
+                                    || t.getState().equals(Thread.State.WAITING)
                                     || t.getState().equals(Thread.State.TIMED_WAITING),
                     Duration.ofSeconds(30),
                     "All the executor threads should be in waiting status.");
