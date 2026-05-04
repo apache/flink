@@ -74,13 +74,37 @@ runs:
         echo "JAVA_HOME=$JAVA_HOME_${{ inputs.jdk_version }}_X64" >> "${GITHUB_ENV}"
         echo "PATH=$JAVA_HOME_${{ inputs.jdk_version }}_X64/bin:$PATH" >> "${GITHUB_ENV}"
 
+    - name: "Determine cache namespace (PR base | branch | tag)"
+      id: cache-ns
+      shell: bash
+      run: |
+        # For PR runs use the target branch so PRs share a cache pool with the branch they merge into.
+        # For push / workflow_dispatch / tag pushes, use the ref name itself.
+        if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "pull_request_target" ]; then
+          ns="${{ github.base_ref }}"
+        else
+          ns="${{ github.ref_name }}"
+        fi
+        # Map release tags (release-X.Y.Z, release-X.Y.Z-rcN) back to their parent branch
+        # (release-X.Y) so tag builds reuse the branch's warm cache.
+        case "${ns}" in
+          release-[0-9]*.[0-9]*.[0-9]*) ns="$(printf '%s' "${ns}" | sed 's/^\(release-[0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/')" ;;
+        esac
+        # Sanitize for use in a cache key (no slashes, spaces, etc.).
+        ns="$(printf '%s' "${ns}" | tr -c '[:alnum:]._-' '-')"
+        echo "namespace=${ns}" >> "${GITHUB_OUTPUT}"
+        echo "Cache namespace: ${ns}"
+
     - name: "Setup Maven package cache"
       if: ${{ inputs.maven_repo_folder != '' }}
       uses: actions/cache@v4
       with:
         path: ${{ inputs.maven_repo_folder }}
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-maven
+        key: ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-${{ hashFiles('**/pom.xml') }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-${{ hashFiles('**/pom.xml') }}-
+          ${{ runner.os }}-ns-${{ steps.cache-ns.outputs.namespace }}-maven-
+          ${{ runner.os }}-maven-
 
     - name: "Moves checkout content from ${{ inputs.source_directory }} to ${{ inputs.target_directory }}."
       if: ${{ inputs.source_directory != '' && inputs.target_directory != '' }}
