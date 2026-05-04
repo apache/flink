@@ -20,6 +20,11 @@ name: "Flink CI (beta)"
 
 on:
   push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.gitignore'
+      - '.gitattributes'
   workflow_dispatch:
 
 permissions: read-all
