@@ -54,6 +54,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,7 +75,7 @@ class S3ClientProvider implements AutoCloseableAsync {
     private final S3Client s3Client;
     private final S3TransferManager transferManager;
     private final S3EncryptionConfig encryptionConfig;
-    @Nullable private final AwsCredentialsProvider credentialsProvider;
+    private final AwsCredentialsProvider credentialsProvider;
     @Nullable private final StsClient stsClient;
     private final Duration clientCloseTimeout;
     private final Duration connectionTimeout;
@@ -90,8 +91,8 @@ class S3ClientProvider implements AutoCloseableAsync {
     private S3ClientProvider(
             S3Client s3Client,
             S3TransferManager transferManager,
-            S3EncryptionConfig encryptionConfig,
-            @Nullable AwsCredentialsProvider credentialsProvider,
+            @Nullable S3EncryptionConfig encryptionConfig,
+            AwsCredentialsProvider credentialsProvider,
             @Nullable StsClient stsClient,
             Duration clientCloseTimeout,
             Duration connectionTimeout,
@@ -102,16 +103,23 @@ class S3ClientProvider implements AutoCloseableAsync {
             boolean checksumValidation,
             int maxConnections,
             int maxRetries) {
-        this.s3Client = s3Client;
-        this.transferManager = transferManager;
+        this.s3Client = Objects.requireNonNull(s3Client, "s3Client must not be null");
+        this.transferManager =
+                Objects.requireNonNull(transferManager, "transferManager must not be null");
         this.encryptionConfig =
                 encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
-        this.credentialsProvider = credentialsProvider;
+        this.credentialsProvider =
+                Objects.requireNonNull(credentialsProvider, "credentialsProvider must not be null");
         this.stsClient = stsClient;
-        this.clientCloseTimeout = clientCloseTimeout;
-        this.connectionTimeout = connectionTimeout;
-        this.socketTimeout = socketTimeout;
-        this.connectionMaxIdleTime = connectionMaxIdleTime;
+        this.clientCloseTimeout =
+                Objects.requireNonNull(clientCloseTimeout, "clientCloseTimeout must not be null");
+        this.connectionTimeout =
+                Objects.requireNonNull(connectionTimeout, "connectionTimeout must not be null");
+        this.socketTimeout =
+                Objects.requireNonNull(socketTimeout, "socketTimeout must not be null");
+        this.connectionMaxIdleTime =
+                Objects.requireNonNull(
+                        connectionMaxIdleTime, "connectionMaxIdleTime must not be null");
         this.pathStyleAccess = pathStyleAccess;
         this.chunkedEncoding = chunkedEncoding;
         this.checksumValidation = checksumValidation;
@@ -135,7 +143,6 @@ class S3ClientProvider implements AutoCloseableAsync {
     }
 
     @VisibleForTesting
-    @Nullable
     AwsCredentialsProvider getCredentialsProvider() {
         return credentialsProvider;
     }

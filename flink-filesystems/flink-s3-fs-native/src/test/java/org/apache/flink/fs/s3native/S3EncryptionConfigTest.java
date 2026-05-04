@@ -180,8 +180,7 @@ class S3EncryptionConfigTest {
 
     @ParameterizedTest
     @MethodSource
-    void isEnabled_encryptionType_returnsCorrectState(
-            S3EncryptionConfig config, boolean expected) {
+    void isEnabled_encryptionType_returnsCorrectState(S3EncryptionConfig config, boolean expected) {
         assertThat(config.isEnabled()).isEqualTo(expected);
     }
 

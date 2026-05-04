@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Configuration for S3 server-side encryption (SSE).
@@ -79,8 +80,9 @@ public class S3EncryptionConfig implements Serializable {
     private S3EncryptionConfig(
             EncryptionType encryptionType,
             @Nullable String kmsKeyId,
-            Map<String, String> encryptionContext) {
-        this.encryptionType = encryptionType;
+            @Nullable Map<String, String> encryptionContext) {
+        this.encryptionType =
+                Objects.requireNonNull(encryptionType, "encryptionType must not be null");
         this.kmsKeyId = kmsKeyId;
         this.encryptionContext =
                 encryptionContext != null
