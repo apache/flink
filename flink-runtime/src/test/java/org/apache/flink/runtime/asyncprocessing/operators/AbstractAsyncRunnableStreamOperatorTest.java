@@ -502,7 +502,7 @@ public class AbstractAsyncRunnableStreamOperatorTest {
         }
 
         @Override
-        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer){
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) {
             assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(
                     new StreamRecord<>(
