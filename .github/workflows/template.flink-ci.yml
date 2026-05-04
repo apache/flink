@@ -106,7 +106,7 @@ jobs:
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         with:
           working_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
-          maven-parameters: "test-compile -Dflink.markBundledAsOptional=false -Dfast"
+          maven-parameters: "-T 1C test-compile -Dflink.markBundledAsOptional=false -Dfast"
           env: "${{ inputs.environment }}"
 
       - name: "Collect build artifacts"
@@ -388,7 +388,7 @@ jobs:
       - name: "Build Flink"
         uses: "./.github/actions/run_mvn"
         with:
-          maven-parameters: "install -DskipTests -Dfast $PROFILE -Pskip-webui-build"
+          maven-parameters: "install -DskipTests -Dfast $PROFILE -Pskip-webui-build -T1C"
           env: "${{ inputs.environment }}"
 
       - name: "Run E2E Tests"
