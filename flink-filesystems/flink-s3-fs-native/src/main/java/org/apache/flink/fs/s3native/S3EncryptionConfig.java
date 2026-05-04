@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -215,7 +216,7 @@ public class S3EncryptionConfig implements Serializable {
             first = false;
         }
         json.append("}");
-        return Base64.getEncoder().encodeToString(json.toString().getBytes());
+        return Base64.getEncoder().encodeToString(json.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     private String escapeJson(String value) {
