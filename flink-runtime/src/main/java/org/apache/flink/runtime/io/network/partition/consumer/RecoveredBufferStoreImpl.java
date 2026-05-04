@@ -54,10 +54,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <ul>
  *   <li><b>Producer mutators</b> ({@link #addBuffer}, {@link #addBufferAfterDisk}): caller holds
- *       the gate lock; the store self-manages its own monitor and fires the data-available
- *       listener inline. Firing inside the store monitor is safe because the gate lock is held by
- *       the caller, so {@code queueChannel} re-acquires it as a recursive intrinsic-monitor entry
- *       — no AB-BA cycle.
+ *       the gate lock; the store self-manages its own monitor and fires the data-available listener
+ *       inline. Firing inside the store monitor is safe because the gate lock is held by the
+ *       caller, so {@code queueChannel} re-acquires it as a recursive intrinsic-monitor entry — no
+ *       AB-BA cycle.
  *   <li><b>Race-path readers / setter</b> ({@link #tryTake}, {@link #peekNextDataType}, {@link
  *       #setDataAvailableListener}): {@code @GuardedBy("this")} — caller wraps the call in {@code
  *       synchronized(store)} so compound operations such as {@code tryTake() + peekNextDataType()}
@@ -69,9 +69,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *       not held; {@link #setCoordinator} / {@link #incrementPending} run before the recovery
  *       flush, off the race path.
  *   <li><b>Lifecycle / coordinator</b> ({@link #checkpoint}, {@link #releaseAll}, {@link
- *       #notifyCheckpointStopped}): self-manage the store monitor and fire any captured
- *       coordinator callback after exiting the lock. Independent of the producer/consumer hot
- *       path.
+ *       #notifyCheckpointStopped}): self-manage the store monitor and fire any captured coordinator
+ *       callback after exiting the lock. Independent of the producer/consumer hot path.
  *   <li>{@link #size()} is a deliberate lock-free best-effort read.
  * </ul>
  */
@@ -89,9 +88,9 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
     private int pendingCount = 0;
 
     /**
-     * Holds buffers whose contract is "everything before me has been delivered" (e.g.
-     * {@link EndOfInputChannelStateEvent}) until {@link #pendingCount} reaches zero, then promotes
-     * them into {@link #readyBuffers}. Excluded from {@link #size()} / {@link #isEmpty()}: while
+     * Holds buffers whose contract is "everything before me has been delivered" (e.g. {@link
+     * EndOfInputChannelStateEvent}) until {@link #pendingCount} reaches zero, then promotes them
+     * into {@link #readyBuffers}. Excluded from {@link #size()} / {@link #isEmpty()}: while
      * something is deferred, {@code pendingCount > 0} already keeps the store non-empty.
      */
     @GuardedBy("this")
@@ -110,7 +109,10 @@ public class RecoveredBufferStoreImpl implements RecoveredBufferStore {
         this.gateLock = checkNotNull(gateLock);
     }
 
-    /** Test-only: ties {@code gateLock} to the store itself so {@code synchronized(store)} alone satisfies both preconditions. */
+    /**
+     * Test-only: ties {@code gateLock} to the store itself so {@code synchronized(store)} alone
+     * satisfies both preconditions.
+     */
     @VisibleForTesting
     public RecoveredBufferStoreImpl(InputChannelInfo channelInfo) {
         this.channelInfo = checkNotNull(channelInfo);

@@ -57,12 +57,12 @@ import static org.apache.flink.util.IOUtils.closeQuietly;
  *
  * <p>Two locks meet on the recovery → checkpoint hand-off: each per-channel store's intrinsic
  * monitor (<i>SMALL</i>) and this dispatcher's {@link #dispatcherLock} (<i>BIG</i>). They must
- * always be acquired in the order <b>SMALL → BIG</b>. Code holding BIG must never reach back to
- * any SMALL — neither directly nor through a callee — otherwise the AB-BA cycle returns. Forbidden
+ * always be acquired in the order <b>SMALL → BIG</b>. Code holding BIG must never reach back to any
+ * SMALL — neither directly nor through a callee — otherwise the AB-BA cycle returns. Forbidden
  * callees from inside a {@code synchronized(dispatcherLock)} block: {@link
- * RecoveredBufferStoreImpl#addBuffer}, {@link RecoveredBufferStoreImpl#addBufferAfterDisk},
- * {@link RecoveredBufferStoreImpl#incrementPending}, any {@code synchronized(store)} block, and any
- * {@link org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersister} entrypoint.
+ * RecoveredBufferStoreImpl#addBuffer}, {@link RecoveredBufferStoreImpl#addBufferAfterDisk}, {@link
+ * RecoveredBufferStoreImpl#incrementPending}, any {@code synchronized(store)} block, and any {@link
+ * org.apache.flink.runtime.io.network.partition.consumer.ChannelStatePersister} entrypoint.
  */
 @Internal
 public class FilteredBufferDispatcherImpl
@@ -81,8 +81,8 @@ public class FilteredBufferDispatcherImpl
     private final BufferRequester bufferRequester;
 
     /**
-     * Explicit lock object instead of {@code synchronized} methods so every callsite that takes
-     * BIG is grep-visible.
+     * Explicit lock object instead of {@code synchronized} methods so every callsite that takes BIG
+     * is grep-visible.
      */
     private final Object dispatcherLock = new Object();
 
@@ -113,9 +113,9 @@ public class FilteredBufferDispatcherImpl
     private List<FilteredSpillFile.Reader> checkpointSnapshots;
 
     /**
-     * Per-channel drain-head captured atomically with each channel's Step 1 ready snapshot.
-     * Phase-2 skips entries strictly below {@code startPos[X]} for channel X (already covered by
-     * Step 1) and writes entries at or after as that channel's checkpoint state.
+     * Per-channel drain-head captured atomically with each channel's Step 1 ready snapshot. Phase-2
+     * skips entries strictly below {@code startPos[X]} for channel X (already covered by Step 1)
+     * and writes entries at or after as that channel's checkpoint state.
      */
     @GuardedBy("dispatcherLock")
     private Map<InputChannelInfo, EntryPosition> checkpointStartPos;
@@ -284,8 +284,8 @@ public class FilteredBufferDispatcherImpl
 
     /**
      * On the first callback for a checkpoint id, pins an immutable phase-2 view of every frozen
-     * Reader and seeds the wait-set with their pending channels. Subsequent callbacks remove
-     * their channel; the empty wait-set triggers {@link #drainSpillEntriesToCheckpoint}.
+     * Reader and seeds the wait-set with their pending channels. Subsequent callbacks remove their
+     * channel; the empty wait-set triggers {@link #drainSpillEntriesToCheckpoint}.
      *
      * <p>{@code startPos} is the per-channel drain-head captured atomically with the ready-buffer
      * snapshot; phase-2 uses it to skip entries already covered by that channel's Step 1.
@@ -450,8 +450,8 @@ public class FilteredBufferDispatcherImpl
     }
 
     /**
-     * Commits the cache via P1 (direct buffer) or P2 (spill). P1 requires the spill writer idle
-     * AND a non-blocking buffer available; otherwise spill, which preserves FIFO ordering — once
+     * Commits the cache via P1 (direct buffer) or P2 (spill). P1 requires the spill writer idle AND
+     * a non-blocking buffer available; otherwise spill, which preserves FIFO ordering — once
      * anything has been spilled, all subsequent data must also spill.
      */
     private void flushCache() throws IOException {
@@ -546,9 +546,9 @@ public class FilteredBufferDispatcherImpl
     }
 
     /**
-     * Iterates chunks from snapshot Readers, skipping entries below each channel's recorded
-     * {@code startPos} cutoff (those are covered by Step 1). Each Reader is closed eagerly when
-     * exhausted; {@link #close()} closes whatever Readers remain.
+     * Iterates chunks from snapshot Readers, skipping entries below each channel's recorded {@code
+     * startPos} cutoff (those are covered by Step 1). Each Reader is closed eagerly when exhausted;
+     * {@link #close()} closes whatever Readers remain.
      */
     private static final class FilteringDrainChunkIterator
             implements CloseableIterator<FilteredSpillFile.Chunk> {

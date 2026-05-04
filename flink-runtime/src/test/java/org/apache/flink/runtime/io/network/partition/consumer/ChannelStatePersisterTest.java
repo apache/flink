@@ -43,8 +43,8 @@ class ChannelStatePersisterTest {
 
     /**
      * Build a persister bound to a fresh {@link RecoveredBufferStore#EMPTY} so the test holds the
-     * same store monitor that the persister asserts on. Tests that need a non-empty store pass
-     * one explicitly to {@link #newPersister(ChannelStateWriter, InputChannelInfo,
+     * same store monitor that the persister asserts on. Tests that need a non-empty store pass one
+     * explicitly to {@link #newPersister(ChannelStateWriter, InputChannelInfo,
      * RecoveredBufferStore)}.
      */
     private static ChannelStatePersister newPersister(
@@ -172,7 +172,9 @@ class ChannelStatePersisterTest {
                 checkpointId, CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, getDefault()));
 
         RecoveredBufferStoreImpl nonEmptyStore = new RecoveredBufferStoreImpl(channelInfo);
-        synchronized (nonEmptyStore) { nonEmptyStore.addBuffer(buildSomeBuffer()); }
+        synchronized (nonEmptyStore) {
+            nonEmptyStore.addBuffer(buildSomeBuffer());
+        }
         ChannelStatePersister persister =
                 newPersister(channelStateWriter, channelInfo, nonEmptyStore);
         assertThatThrownBy(

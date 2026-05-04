@@ -680,9 +680,15 @@ class LocalInputChannelTest {
 
         // Create 3 recovered buffers in a store
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(32)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(32)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(32)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(32));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(32));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(32));
+        }
 
         final LocalInputChannel localChannel =
                 new LocalInputChannel(
@@ -719,8 +725,12 @@ class LocalInputChannelTest {
         SingleInputGate inputGate = createSingleInputGate(1);
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(10)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(20)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(10));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(20));
+        }
 
         LocalInputChannel channel =
                 new LocalInputChannel(
@@ -756,9 +766,15 @@ class LocalInputChannelTest {
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(10)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(20)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(30)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(10));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(20));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(30));
+        }
 
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
 
@@ -800,9 +816,15 @@ class LocalInputChannelTest {
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(10)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(20)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(30)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(10));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(20));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(30));
+        }
 
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
 
@@ -869,7 +891,9 @@ class LocalInputChannelTest {
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(10)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(10));
+        }
 
         LocalInputChannel channel =
                 new LocalInputChannel(
@@ -1076,7 +1100,9 @@ class LocalInputChannelTest {
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
         for (int size : recoveredBufferSizes) {
-            synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(size)); }
+            synchronized (store) {
+                store.addBuffer(TestBufferFactory.createBuffer(size));
+            }
         }
 
         LocalInputChannel channel =

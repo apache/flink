@@ -162,8 +162,8 @@ public class SingleInputGate extends IndexedInputGate {
     private final PrioritizedDeque<InputChannel> inputChannelsWithData = new PrioritizedDeque<>();
 
     /**
-     * Returns this gate's intrinsic monitor — see {@link RecoveredBufferStoreImpl} for the
-     * {@code gate → store} contract that uses it.
+     * Returns this gate's intrinsic monitor — see {@link RecoveredBufferStoreImpl} for the {@code
+     * gate → store} contract that uses it.
      */
     @Internal
     public Object getGateLock() {
@@ -424,7 +424,8 @@ public class SingleInputGate extends IndexedInputGate {
                     //
                     // The recovered store and its BufferManager are released later (the physical
                     // channel takes ownership of the store; BufferManager segments are returned
-                    // by BufferRequester#releaseExclusiveBuffers from FilteredBufferDispatcher#close).
+                    // by BufferRequester#releaseExclusiveBuffers from
+                    // FilteredBufferDispatcher#close).
                     synchronized (inputChannelsWithData) {
                         InputChannel realInputChannel =
                                 ((RecoveredInputChannel) inputChannel).toInputChannel();

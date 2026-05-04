@@ -213,14 +213,13 @@ public class FilteredSpillFile implements Closeable {
     }
 
     /**
-     * Reads entries from a single spill file. The original Reader is mutated by the recovery
-     * thread (write path, replay drain) and concurrently by task threads via {@link
-     * #removeEntriesForChannel} on channel release. To avoid undefined behavior on the entry
-     * deque, the backing storage is a {@link ConcurrentLinkedDeque} — its weakly consistent
-     * iterator and atomic poll/peek tolerate the writer-vs-release race that the post-iter_6
-     * dispatcher no longer wraps in any monitor. The internal byte buffer is reused across
-     * {@link #readNext()} calls; callers must consume each {@link Chunk} before calling readNext
-     * again.
+     * Reads entries from a single spill file. The original Reader is mutated by the recovery thread
+     * (write path, replay drain) and concurrently by task threads via {@link
+     * #removeEntriesForChannel} on channel release. To avoid undefined behavior on the entry deque,
+     * the backing storage is a {@link ConcurrentLinkedDeque} — its weakly consistent iterator and
+     * atomic poll/peek tolerate the writer-vs-release race that the post-iter_6 dispatcher no
+     * longer wraps in any monitor. The internal byte buffer is reused across {@link #readNext()}
+     * calls; callers must consume each {@link Chunk} before calling readNext again.
      */
     public static class Reader implements Closeable {
 

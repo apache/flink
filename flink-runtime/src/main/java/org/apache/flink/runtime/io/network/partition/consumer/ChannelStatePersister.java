@@ -80,9 +80,9 @@ public final class ChannelStatePersister {
     }
 
     /**
-     * Snapshots the recovered store when present, otherwise writes the network inflight buffers
-     * via {@link ChannelStateWriter#addInputData}. Asserts that the two are mutually exclusive
-     * ({@code store.isEmpty() || knownBuffers.isEmpty()}).
+     * Snapshots the recovered store when present, otherwise writes the network inflight buffers via
+     * {@link ChannelStateWriter#addInputData}. Asserts that the two are mutually exclusive ({@code
+     * store.isEmpty() || knownBuffers.isEmpty()}).
      *
      * @param knownBuffers network inflight buffers (empty for LocalInputChannel)
      */
@@ -136,9 +136,9 @@ public final class ChannelStatePersister {
     }
 
     /**
-     * Marks {@code id} concluded on this channel and notifies the store. Without the
-     * notification an aborted checkpoint's wait-set could linger and a later release / late
-     * callback would trigger a phase-2 drain into a concluded checkpoint.
+     * Marks {@code id} concluded on this channel and notifies the store. Without the notification
+     * an aborted checkpoint's wait-set could linger and a later release / late callback would
+     * trigger a phase-2 drain into a concluded checkpoint.
      */
     @GuardedBy("store")
     protected void stopPersisting(long id) {

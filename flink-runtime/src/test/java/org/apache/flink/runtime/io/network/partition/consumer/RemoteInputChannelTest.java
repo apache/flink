@@ -2204,8 +2204,12 @@ class RemoteInputChannelTest {
         SingleInputGate inputGate = createSingleInputGate(1);
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(10)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(20)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(10));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(20));
+        }
 
         ConnectionID connectionId =
                 new ConnectionID(
@@ -2255,8 +2259,12 @@ class RemoteInputChannelTest {
         SingleInputGate inputGate = createSingleInputGate(1);
 
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(new InputChannelInfo(0, 0));
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(10)); }
-        synchronized (store) { store.addBuffer(TestBufferFactory.createBuffer(20)); }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(10));
+        }
+        synchronized (store) {
+            store.addBuffer(TestBufferFactory.createBuffer(20));
+        }
 
         ConnectionID connectionId =
                 new ConnectionID(

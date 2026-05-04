@@ -811,10 +811,10 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     /**
-     * Spills all queued buffers on checkpoint start. If the barrier has already been received
-     * (and reordered), spill only the overtaken buffers. The entire body runs under the store
-     * lock so {@code checkpointStatus} transitions inside {@code startPersisting} cannot tear
-     * against the network thread's {@code maybePersist}.
+     * Spills all queued buffers on checkpoint start. If the barrier has already been received (and
+     * reordered), spill only the overtaken buffers. The entire body runs under the store lock so
+     * {@code checkpointStatus} transitions inside {@code startPersisting} cannot tear against the
+     * network thread's {@code maybePersist}.
      */
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         synchronized (recoveredStore) {

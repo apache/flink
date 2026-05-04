@@ -54,7 +54,9 @@ class RecoveredBufferStoreTest {
         }
 
         NetworkBuffer buffer1 = createBuffer(new byte[] {1, 2, 3, 4});
-        synchronized (store) { store.addBuffer(buffer1); }
+        synchronized (store) {
+            store.addBuffer(buffer1);
+        }
 
         Buffer taken;
         synchronized (store) {
@@ -84,7 +86,9 @@ class RecoveredBufferStoreTest {
 
         byte[] data = new byte[] {10, 20, 30, 40};
         NetworkBuffer buffer = createBuffer(data);
-        synchronized (store) { store.addBuffer(buffer); }
+        synchronized (store) {
+            store.addBuffer(buffer);
+        }
 
         RecordingChannelStateWriter writer = new RecordingChannelStateWriter();
         long checkpointId = 1L;
@@ -120,7 +124,9 @@ class RecoveredBufferStoreTest {
                                 barrier.await();
                                 for (int i = 0; i < numBuffers; i++) {
                                     NetworkBuffer buf = createBuffer(new byte[] {(byte) i});
-                                    synchronized (store) { store.addBuffer(buf); }
+                                    synchronized (store) {
+                                        store.addBuffer(buf);
+                                    }
                                 }
                             } catch (Throwable t) {
                                 error.set(t);
@@ -174,9 +180,15 @@ class RecoveredBufferStoreTest {
         NetworkBuffer buf1 = createBuffer(new byte[] {1, 2});
         NetworkBuffer buf2 = createBuffer(new byte[] {3, 4});
         NetworkBuffer buf3 = createBuffer(new byte[] {5, 6});
-        synchronized (store) { store.addBuffer(buf1); }
-        synchronized (store) { store.addBuffer(buf2); }
-        synchronized (store) { store.addBuffer(buf3); }
+        synchronized (store) {
+            store.addBuffer(buf1);
+        }
+        synchronized (store) {
+            store.addBuffer(buf2);
+        }
+        synchronized (store) {
+            store.addBuffer(buf3);
+        }
 
         // Simulate partial consumption before conversion
         Buffer taken1;
@@ -211,8 +223,12 @@ class RecoveredBufferStoreTest {
 
         NetworkBuffer buf1 = createBuffer(new byte[] {1});
         NetworkBuffer buf2 = createBuffer(new byte[] {2});
-        synchronized (store) { store.addBuffer(buf1); }
-        synchronized (store) { store.addBuffer(buf2); }
+        synchronized (store) {
+            store.addBuffer(buf1);
+        }
+        synchronized (store) {
+            store.addBuffer(buf2);
+        }
 
         store.releaseAll();
 
@@ -236,7 +252,9 @@ class RecoveredBufferStoreTest {
         }
 
         // Add some in-memory and on-disk bookkeeping to make the release meaningful.
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {1}));
+        }
         synchronized (store) {
             store.incrementPending();
         }
@@ -260,11 +278,15 @@ class RecoveredBufferStoreTest {
         }
 
         // Add first buffer: should trigger listener (store was empty)
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {1}));
+        }
         assertThat(callbackCount[0]).isEqualTo(1);
 
         // Add second buffer: should NOT trigger listener (store was not empty)
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {2})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {2}));
+        }
         assertThat(callbackCount[0]).isEqualTo(1);
 
         // Drain both buffers
@@ -274,7 +296,9 @@ class RecoveredBufferStoreTest {
         }
 
         // Add buffer again to empty store: should trigger listener
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {3})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {3}));
+        }
         assertThat(callbackCount[0]).isEqualTo(2);
 
         store.releaseAll();
@@ -296,7 +320,9 @@ class RecoveredBufferStoreTest {
 
         // Drain the pending entry by handing back a buffer; addBuffer folds in the matching
         // pending decrement.
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {1}));
+        }
         synchronized (store) {
             // pending consumed, buffer became ready — still size 1 but now in readyBuffers
             assertThat(store.size()).isEqualTo(1);
@@ -311,7 +337,9 @@ class RecoveredBufferStoreTest {
     void testSizeAggregatesReadyAndPending() {
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
 
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {1}));
+        }
         synchronized (store) {
             store.incrementPending();
             store.incrementPending();
@@ -323,8 +351,12 @@ class RecoveredBufferStoreTest {
         }
 
         // Drain both pending entries by handing back buffers; each addBuffer consumes one pending.
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {2})); }
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {3})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {2}));
+        }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {3}));
+        }
         synchronized (store) {
             assertThat(store.size()).isEqualTo(2);
         }
@@ -347,7 +379,9 @@ class RecoveredBufferStoreTest {
             store.setCoordinator(coordinator);
         }
 
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1, 2})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {1, 2}));
+        }
 
         RecordingChannelStateWriter writer = new RecordingChannelStateWriter();
         long checkpointId = 42L;
@@ -388,7 +422,9 @@ class RecoveredBufferStoreTest {
     @Test
     void testCheckpointWithNoCoordinatorSetDoesNotThrow() throws Exception {
         RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(DEFAULT_CHANNEL_INFO);
-        synchronized (store) { store.addBuffer(createBuffer(new byte[] {1})); }
+        synchronized (store) {
+            store.addBuffer(createBuffer(new byte[] {1}));
+        }
 
         RecordingChannelStateWriter writer = new RecordingChannelStateWriter();
         writer.start(1L, null);
@@ -549,7 +585,9 @@ class RecoveredBufferStoreTest {
                             try {
                                 startBarrier.await();
                                 for (int i = 0; i < numBuffers; i++) {
-                                    synchronized (store) { store.addBuffer(createBuffer(new byte[] {(byte) i})); }
+                                    synchronized (store) {
+                                        store.addBuffer(createBuffer(new byte[] {(byte) i}));
+                                    }
                                 }
                             } catch (Throwable t) {
                                 error.set(t);
