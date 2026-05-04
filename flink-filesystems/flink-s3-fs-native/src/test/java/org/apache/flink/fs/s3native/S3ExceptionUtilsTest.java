@@ -22,6 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.IOException;
@@ -113,32 +114,24 @@ class S3ExceptionUtilsTest {
         assertThat(S3ExceptionUtils.errorCode(e)).isEqualTo(expected);
     }
 
-    private static S3Exception s3Exception(int statusCode, AwsErrorDetails details) {
-        S3Exception.Builder b = S3Exception.builder();
-        b.statusCode(statusCode);
-        b.awsErrorDetails(details);
-        return (S3Exception) b.build();
+    private static AwsServiceException s3Exception(int statusCode, AwsErrorDetails details) {
+        return S3Exception.builder().statusCode(statusCode).awsErrorDetails(details).build();
     }
 
-    private static S3Exception s3Exception(int statusCode, String message) {
-        S3Exception.Builder b = S3Exception.builder();
-        b.statusCode(statusCode);
-        b.message(message);
-        return (S3Exception) b.build();
+    private static AwsServiceException s3Exception(int statusCode, String message) {
+        return S3Exception.builder().statusCode(statusCode).message(message).build();
     }
 
-    private static S3Exception s3ExceptionWithMessageAndDetails(
+    private static AwsServiceException s3ExceptionWithMessageAndDetails(
             int statusCode, String message, AwsErrorDetails details) {
-        S3Exception.Builder b = S3Exception.builder();
-        b.statusCode(statusCode);
-        b.message(message);
-        b.awsErrorDetails(details);
-        return (S3Exception) b.build();
+        return S3Exception.builder()
+                .statusCode(statusCode)
+                .message(message)
+                .awsErrorDetails(details)
+                .build();
     }
 
-    private static S3Exception s3ExceptionStatusOnly(int statusCode) {
-        S3Exception.Builder b = S3Exception.builder();
-        b.statusCode(statusCode);
-        return (S3Exception) b.build();
+    private static AwsServiceException s3ExceptionStatusOnly(int statusCode) {
+        return S3Exception.builder().statusCode(statusCode).build();
     }
 }
