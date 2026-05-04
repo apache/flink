@@ -128,17 +128,18 @@ class RelTreeWriterImpl(
           // Field entries have field names as keys, and values like "[$index]" or RexNode expressions
           // LogicalProject also adds "exprs" and "inputs" in DIGEST_ATTRIBUTES level
           val fieldNames = outputFieldNames.toSet
-          val extraEntriesToRemove = Set("exprs", "inputs")
+          val extraEntriesToRemove = Set("exprs", "inputs", "fields")
           val iterator = printValues.iterator()
           while (iterator.hasNext()) {
             val pair = iterator.next()
-            // Remove field entries and extra LogicalProject entries
-            if (fieldNames.contains(pair.left) || extraEntriesToRemove.contains(pair.left)) {
+            val key = pair.left
+            // Remove field entries (matching output field names) and extra LogicalProject entries
+            if (fieldNames.contains(key) || extraEntriesToRemove.contains(key)) {
               iterator.remove()
             }
           }
-          // Add the new "select" entry
-          printValues.add(Pair.of("select", projectStr.asInstanceOf[AnyRef]))
+          // Add the new "select" entry at the beginning for consistent formatting
+          printValues.add(0, Pair.of("select", projectStr.asInstanceOf[AnyRef]))
         case _ => // ignore
       }
     }
