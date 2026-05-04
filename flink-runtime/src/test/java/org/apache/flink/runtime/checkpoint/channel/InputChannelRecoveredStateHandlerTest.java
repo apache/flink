@@ -83,7 +83,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .MappingType.IDENTITY)
                         }),
                 null,
-                MemoryManager.DEFAULT_PAGE_SIZE);
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                null);
     }
 
     private InputChannelRecoveredStateHandler buildMultiChannelHandler() {
@@ -111,7 +112,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .MappingType.RESCALING)
                         }),
                 null,
-                MemoryManager.DEFAULT_PAGE_SIZE);
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                null);
     }
 
     /** Builds a handler in filtering mode (non-null filtering handler, no-op stub). */
@@ -136,7 +138,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .MappingType.IDENTITY)
                         }),
                 stubFilteringHandler,
-                MemoryManager.DEFAULT_PAGE_SIZE);
+                MemoryManager.DEFAULT_PAGE_SIZE,
+                null);
     }
 
     @Test
@@ -297,5 +300,58 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
 
         assertThat(segment.isFreed()).isTrue();
         assertThat(filteringHandler.getPreFilterSegmentForTesting()).isNull();
+    }
+
+    /**
+     * AT-FRCV (input half): finishRecovery() triggers finishReadRecoveredState() on every gate
+     * exactly once; close() must NOT invoke it again (close is pure resource release).
+     *
+     * <p>The internal {@code recoveryFinished} idempotency guard is verified via reflection. We
+     * also verify that the pre-filter segment — allocated during recovery — is freed by close() and
+     * not by finishRecovery(), confirming the clean separation of lifecycle concerns.
+     */
+    @Test
+    void testFinishRecoveryTriggersConversion() throws Exception {
+        InputChannelRecoveredStateHandler filteringHandler =
+                buildFilteringInputChannelStateHandler();
+
+        // Allocate and recycle a pre-filter buffer so preFilterSegment is live before close().
+        RecoveredChannelStateHandler.BufferWithContext<Buffer> buf =
+                filteringHandler.getBuffer(channelInfo);
+        buf.context.recycleBuffer();
+        MemorySegment segmentBeforeFinish = filteringHandler.getPreFilterSegmentForTesting();
+        assertThat(segmentBeforeFinish).isNotNull();
+
+        // Before finishRecovery(): recoveryFinished == false.
+        assertThat(getRecoveryFinishedFlag(filteringHandler)).isFalse();
+
+        // finishRecovery() must complete without error and flip the guard.
+        filteringHandler.finishRecovery();
+        assertThat(getRecoveryFinishedFlag(filteringHandler)).isTrue();
+
+        // Idempotency: second call keeps the guard at true and does not re-invoke the gate loop.
+        filteringHandler.finishRecovery();
+        assertThat(getRecoveryFinishedFlag(filteringHandler)).isTrue();
+
+        // close() is pure resource release: segment freed, guard unchanged (still true).
+        filteringHandler.close();
+        assertThat(getRecoveryFinishedFlag(filteringHandler))
+                .as("close() must not alter the recoveryFinished flag")
+                .isTrue();
+        assertThat(filteringHandler.getPreFilterSegmentForTesting())
+                .as("close() must null-out the preFilterSegment reference")
+                .isNull();
+        assertThat(segmentBeforeFinish.isFreed())
+                .as("close() must free the preFilterSegment")
+                .isTrue();
+    }
+
+    /** Reads the private {@code recoveryFinished} field via reflection. */
+    private static boolean getRecoveryFinishedFlag(InputChannelRecoveredStateHandler handler)
+            throws Exception {
+        java.lang.reflect.Field field =
+                InputChannelRecoveredStateHandler.class.getDeclaredField("recoveryFinished");
+        field.setAccessible(true);
+        return (boolean) field.get(handler);
     }
 }

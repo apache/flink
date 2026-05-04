@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpa
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStoreImpl;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilter;
 import org.apache.flink.streaming.runtime.io.recovery.VirtualChannel;
@@ -35,12 +36,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,6 +54,9 @@ class GateFilterHandlerBufferOwnershipTest {
 
     private static final int BUFFER_SIZE = 1024;
     private static final SubtaskConnectionDescriptor KEY = new SubtaskConnectionDescriptor(0, 0);
+    private static final InputChannelInfo TARGET_CHANNEL = new InputChannelInfo(0, 0);
+
+    @TempDir private Path temporaryFolder;
 
     @Test
     void testSourceBufferRecycledOnSuccess() throws Exception {
@@ -60,13 +64,14 @@ class GateFilterHandlerBufferOwnershipTest {
                 createHandler(RecordFilter.acceptAll());
 
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter();
+        handler.filterAndRewrite(0, 0, sourceBuffer, outputWriter, TARGET_CHANNEL);
 
         // sourceBuffer should be recycled by the deserializer after consumption
         assertThat(sourceBuffer.isRecycled()).isTrue();
 
-        // Clean up result buffers
-        result.forEach(Buffer::recycleBuffer);
+        outputWriter.flush();
+        outputWriter.close();
     }
 
     @Test
@@ -75,79 +80,44 @@ class GateFilterHandlerBufferOwnershipTest {
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler = createHandler(rejectAll);
 
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L);
-        List<Buffer> result = handler.filterAndRewrite(0, 0, sourceBuffer, this::createEmptyBuffer);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter();
+        handler.filterAndRewrite(0, 0, sourceBuffer, outputWriter, TARGET_CHANNEL);
 
-        assertThat(result).isEmpty();
         // sourceBuffer should still be recycled even though no output was produced
         assertThat(sourceBuffer.isRecycled()).isTrue();
+
+        outputWriter.flush();
+        outputWriter.close();
     }
 
     @Test
-    void testSourceBufferRecycledOnInvalidVirtualChannel() {
+    void testSourceBufferRecycledOnInvalidVirtualChannel() throws Exception {
         // Create handler with KEY=(0,0) but call with (1,1) to trigger IllegalStateException
         ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
                 createHandler(RecordFilter.acceptAll());
 
         Buffer sourceBuffer = createBufferWithRecords(1L);
+        FilteredBufferDispatcher outputWriter = createTestOutputWriter();
 
         assertThatThrownBy(
-                        () -> handler.filterAndRewrite(1, 1, sourceBuffer, this::createEmptyBuffer))
+                        () ->
+                                handler.filterAndRewrite(
+                                        1, 1, sourceBuffer, outputWriter, TARGET_CHANNEL))
                 .isInstanceOf(IllegalStateException.class);
 
         // sourceBuffer must be recycled even when lookup fails before setNextBuffer
         assertThat(sourceBuffer.isRecycled()).isTrue();
-    }
 
-    @Test
-    void testResultBuffersAndCurrentBufferRecycledOnSerializationError() throws Exception {
-        // Use a small buffer so that records span multiple buffers. The supplier fails on the
-        // second request, after the first output buffer has been filled and added to resultBuffers.
-        AtomicInteger bufferRequestCount = new AtomicInteger(0);
-        ChannelStateFilteringHandler.BufferSupplier failingSupplier =
-                () -> {
-                    if (bufferRequestCount.incrementAndGet() > 1) {
-                        throw new IOException("Simulated buffer allocation failure");
-                    }
-                    return createEmptyBuffer(13);
-                };
-
-        ChannelStateFilteringHandler.GateFilterHandler<Long> handler =
-                createHandler(RecordFilter.acceptAll());
-
-        Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L, 4L, 5L);
-
-        // The exception should propagate; no buffer leak (no IllegalReferenceCountException
-        // from double-recycle).
-        assertThatThrownBy(() -> handler.filterAndRewrite(0, 0, sourceBuffer, failingSupplier))
-                .isInstanceOf(IOException.class)
-                .hasMessage("Simulated buffer allocation failure");
-
-        // sourceBuffer ownership was transferred to the deserializer via setNextBuffer().
-        // The deserializer may still hold it if it hasn't fully consumed the buffer before the
-        // error. Calling clear() triggers the cleanup chain:
-        // GateFilterHandler#clear() -> VirtualChannel#clear() -> deserializer.clear()
-        handler.clear();
-        assertThat(sourceBuffer.isRecycled()).isTrue();
+        outputWriter.close();
     }
 
     /**
-     * Tests the production cleanup path: when filterAndRewrite throws mid-processing, the
-     * deserializer may still hold sourceBuffer. In production, ChannelStateFilteringHandler is used
-     * in a try-with-resources block (see {@code SequentialChannelStateReaderImpl#readInputData}),
-     * so its close() is guaranteed to be called, which triggers clear() on all GateFilterHandlers
-     * and their deserializers. This test simulates that exact pattern.
+     * Tests that the production cleanup path works: when ChannelStateFilteringHandler is used in a
+     * try-with-resources block, its close() clears all GateFilterHandlers and their deserializers,
+     * ensuring buffers held by the deserializer are recycled.
      */
     @Test
     void testCloseRecyclesDeserializerHeldBufferAfterError() throws Exception {
-        AtomicInteger bufferRequestCount = new AtomicInteger(0);
-        ChannelStateFilteringHandler.BufferSupplier failingSupplier =
-                () -> {
-                    if (bufferRequestCount.incrementAndGet() > 1) {
-                        throw new IOException("Simulated buffer allocation failure");
-                    }
-                    return createEmptyBuffer(13);
-                };
-
         ChannelStateFilteringHandler.GateFilterHandler<Long> gateHandler =
                 createHandler(RecordFilter.acceptAll());
         // Wrap in ChannelStateFilteringHandler, the production-level owner
@@ -155,28 +125,28 @@ class GateFilterHandlerBufferOwnershipTest {
                 new ChannelStateFilteringHandler(
                         new ChannelStateFilteringHandler.GateFilterHandler<?>[] {gateHandler});
 
+        // Create a large buffer that will require multiple writes
         Buffer sourceBuffer = createBufferWithRecords(1L, 2L, 3L, 4L, 5L);
+
+        // Create a dispatcher that throws on the second write call
+        FilteredBufferDispatcher failingWriter = new FailingOutputWriter();
 
         // Simulate the production try-with-resources pattern
         assertThatThrownBy(
                         () -> {
                             try (ChannelStateFilteringHandler ignored = filteringHandler) {
                                 filteringHandler.filterAndRewrite(
-                                        0, 0, 0, sourceBuffer, failingSupplier);
+                                        0, 0, 0, sourceBuffer, failingWriter, TARGET_CHANNEL);
                             }
                         })
                 .isInstanceOf(IOException.class)
-                .hasMessage("Simulated buffer allocation failure");
+                .hasMessage("Simulated write failure");
 
         // After close(), the entire cleanup chain has fired:
         // ChannelStateFilteringHandler.close() -> GateFilterHandler.clear()
         //   -> VirtualChannel.clear() -> deserializer.clear() -> sourceBuffer.recycleBuffer()
         assertThat(sourceBuffer.isRecycled()).isTrue();
     }
-
-    // -------------------------------------------------------------------------------------------
-    // Helper methods
-    // -------------------------------------------------------------------------------------------
 
     private ChannelStateFilteringHandler.GateFilterHandler<Long> createHandler(
             RecordFilter<Long> filter) {
@@ -191,6 +161,35 @@ class GateFilterHandlerBufferOwnershipTest {
         StreamElementSerializer<Long> serializer =
                 new StreamElementSerializer<>(LongSerializer.INSTANCE);
         return new ChannelStateFilteringHandler.GateFilterHandler<>(channels, serializer);
+    }
+
+    private FilteredBufferDispatcher createTestOutputWriter() throws IOException {
+        RecoveredBufferStoreImpl store = new RecoveredBufferStoreImpl(TARGET_CHANNEL);
+        Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel = new HashMap<>();
+        storesByChannel.put(TARGET_CHANNEL, store);
+
+        String[] spillDirs = new String[] {temporaryFolder.toString()};
+        BufferRequester newBufferPerRequest =
+                new BufferRequester() {
+                    @Override
+                    public Buffer requestBuffer(InputChannelInfo channelInfo) {
+                        return createEmptyBuffer();
+                    }
+
+                    @Override
+                    public Buffer requestBufferBlocking(InputChannelInfo channelInfo) {
+                        return createEmptyBuffer();
+                    }
+
+                    @Override
+                    public void releaseExclusiveBuffers() {}
+                };
+        return new FilteredBufferDispatcherImpl(
+                storesByChannel,
+                ChannelStateWriter.NO_OP,
+                spillDirs,
+                BUFFER_SIZE,
+                newBufferPerRequest);
     }
 
     private Buffer createBufferWithRecords(Long... values) {
@@ -220,11 +219,33 @@ class GateFilterHandlerBufferOwnershipTest {
     }
 
     private Buffer createEmptyBuffer() {
-        return createEmptyBuffer(BUFFER_SIZE);
+        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE);
+        return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
     }
 
-    private Buffer createEmptyBuffer(int size) {
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
-        return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
+    /**
+     * A dispatcher that fails on the second write call. Used to test cleanup paths when
+     * filterAndRewrite encounters an error during serialization output.
+     */
+    private static class FailingOutputWriter implements FilteredBufferDispatcher {
+        private int writeCount = 0;
+
+        @Override
+        public void write(byte[] data, int length, InputChannelInfo channelInfo)
+                throws IOException {
+            writeCount++;
+            if (writeCount > 1) {
+                throw new IOException("Simulated write failure");
+            }
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void drainPendingSpill() {}
+
+        @Override
+        public void close() {}
     }
 }

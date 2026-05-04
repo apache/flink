@@ -23,8 +23,12 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredBufferStoreImpl;
+import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.runtime.state.ChannelStateHelper;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -32,7 +36,9 @@ import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,19 +69,30 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
     public void readInputData(InputGate[] inputGates, RecordFilterContext filterContext)
             throws IOException, InterruptedException {
 
-        // Create filtering handler if filtering is needed
         ChannelStateFilteringHandler filteringHandler =
                 filterContext.isCheckpointingDuringRecoveryEnabled()
                         ? ChannelStateFilteringHandler.createFromContext(filterContext, inputGates)
                         : null;
 
+        FilteredBufferDispatcher dispatcher = null;
+        if (filteringHandler != null) {
+            Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel =
+                    createPerChannelStores(inputGates);
+            if (!storesByChannel.isEmpty()) {
+                dispatcher =
+                        createFilteredBufferDispatcher(inputGates, storesByChannel, filterContext);
+            }
+        }
+
         try (ChannelStateFilteringHandler ignored = filteringHandler;
+                FilteredBufferDispatcher d = dispatcher;
                 InputChannelRecoveredStateHandler stateHandler =
                         new InputChannelRecoveredStateHandler(
                                 inputGates,
                                 taskStateSnapshot.getInputRescalingDescriptor(),
                                 filteringHandler,
-                                filterContext.getMemorySegmentSize())) {
+                                filterContext.getMemorySegmentSize(),
+                                dispatcher)) {
             read(
                     stateHandler,
                     groupByDelegate(
@@ -91,6 +108,25 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                 checkState(
                         !filteringHandler.hasPartialData(),
                         "Not all data has been fully consumed during filtering");
+            }
+
+            if (d != null) {
+                // flush() seals Readers; finishRecovery() triggers channel conversion;
+                // drainPendingSpill() blocks without holding the dispatcher monitor.
+                d.flush();
+                stateHandler.finishRecovery();
+                d.drainPendingSpill();
+            } else {
+                // Snapshot recovered channel references BEFORE finishRecovery, because
+                // finishRecovery completes bufferFilteringCompleteFuture which can race a
+                // mailbox-driven conversion. Once conversion replaces channels[i] with a
+                // physical channel, looking up RecoveredInputChannels via inputGates would
+                // miss the converted ones, and their BufferManager rendezvous would leak.
+                List<RecoveredInputChannel> recovered = collectRecoveredChannels(inputGates);
+                stateHandler.finishRecovery();
+                for (RecoveredInputChannel ch : recovered) {
+                    ch.markDrainDone();
+                }
             }
         }
     }
@@ -108,6 +144,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                     groupByDelegate(
                             streamSubtaskStates(),
                             ChannelStateHelper::extractUnmergedOutputHandles));
+            stateHandler.finishRecovery();
         }
     }
 
@@ -139,6 +176,112 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         offsetAndChannelInfo.oldSubtaskIndex);
             }
         }
+    }
+
+    private List<RecoveredInputChannel> collectRecoveredChannels(InputGate[] inputGates) {
+        List<RecoveredInputChannel> recovered = new ArrayList<>();
+        for (InputGate gate : inputGates) {
+            for (int i = 0; i < gate.getNumberOfInputChannels(); i++) {
+                InputChannel ch = gate.getChannel(i);
+                if (ch instanceof RecoveredInputChannel) {
+                    recovered.add((RecoveredInputChannel) ch);
+                }
+            }
+        }
+        return recovered;
+    }
+
+    private Map<InputChannelInfo, RecoveredBufferStoreImpl> createPerChannelStores(
+            InputGate[] inputGates) {
+        Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel = new HashMap<>();
+        for (InputGate gate : inputGates) {
+            for (int i = 0; i < gate.getNumberOfInputChannels(); i++) {
+                InputChannel ch = gate.getChannel(i);
+                if (ch instanceof RecoveredInputChannel) {
+                    RecoveredInputChannel recoveredCh = (RecoveredInputChannel) ch;
+                    InputChannelInfo info = recoveredCh.getChannelInfo();
+                    // Reuse the channel's own store so filtering and non-filtering paths deliver
+                    // to the same instance.
+                    RecoveredBufferStoreImpl store = recoveredCh.getStore();
+                    storesByChannel.put(info, store);
+                }
+            }
+        }
+        return storesByChannel;
+    }
+
+    private FilteredBufferDispatcher createFilteredBufferDispatcher(
+            InputGate[] inputGates,
+            Map<InputChannelInfo, RecoveredBufferStoreImpl> storesByChannel,
+            RecordFilterContext filterContext)
+            throws IOException {
+        Map<InputChannelInfo, RecoveredInputChannel> channelMap = buildChannelMap(inputGates);
+        String[] spillDirs = filterContext.getTmpDirectories();
+        int memorySegmentSize = filterContext.getMemorySegmentSize();
+
+        // All channels share the same writer.
+        RecoveredInputChannel anyChannel = channelMap.values().iterator().next();
+
+        return new FilteredBufferDispatcherImpl(
+                storesByChannel,
+                anyChannel.getChannelStateWriter(),
+                spillDirs,
+                memorySegmentSize,
+                new RecoveredChannelBufferRequester(channelMap));
+    }
+
+    /** {@link BufferRequester} routing each channel's request to its own exclusive pool. */
+    private static final class RecoveredChannelBufferRequester implements BufferRequester {
+
+        private final Map<InputChannelInfo, RecoveredInputChannel> channelMap;
+
+        RecoveredChannelBufferRequester(Map<InputChannelInfo, RecoveredInputChannel> channelMap) {
+            this.channelMap = channelMap;
+        }
+
+        @Override
+        public Buffer requestBuffer(InputChannelInfo channelInfo) throws IOException {
+            return lookup(channelInfo).requestBuffer();
+        }
+
+        @Override
+        public Buffer requestBufferBlocking(InputChannelInfo channelInfo)
+                throws InterruptedException, IOException {
+            return lookup(channelInfo).requestBufferBlocking();
+        }
+
+        @Override
+        public void releaseExclusiveBuffers() throws IOException {
+            // Two-flag rendezvous (drainDone + converted): releasing here directly would race
+            // mailbox-driven convertRecoveredInputChannels and cause pollNext on the not-yet-
+            // replaced gate slot to hit the released-channel checkState.
+            for (RecoveredInputChannel ch : channelMap.values()) {
+                ch.markDrainDone();
+            }
+        }
+
+        private RecoveredInputChannel lookup(InputChannelInfo channelInfo) {
+            RecoveredInputChannel ch = channelMap.get(channelInfo);
+            if (ch == null) {
+                throw new IllegalArgumentException(
+                        "No RecoveredInputChannel for channelInfo: " + channelInfo);
+            }
+            return ch;
+        }
+    }
+
+    private Map<InputChannelInfo, RecoveredInputChannel> buildChannelMap(InputGate[] inputGates) {
+        Map<InputChannelInfo, RecoveredInputChannel> channelMap = new HashMap<>();
+        for (InputGate gate : inputGates) {
+            for (int i = 0; i < gate.getNumberOfInputChannels(); i++) {
+                InputChannel ch = gate.getChannel(i);
+                if (ch instanceof RecoveredInputChannel) {
+                    RecoveredInputChannel recoveredCh = (RecoveredInputChannel) ch;
+                    channelMap.put(recoveredCh.getChannelInfo(), recoveredCh);
+                }
+            }
+        }
+        return channelMap;
     }
 
     private Stream<OperatorSubtaskState> streamSubtaskStates() {
