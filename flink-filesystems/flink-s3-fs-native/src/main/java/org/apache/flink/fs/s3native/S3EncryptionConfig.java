@@ -99,53 +99,20 @@ public class S3EncryptionConfig implements Serializable {
     }
 
     /**
-     * Creates a config for SSE-KMS encryption with the default KMS key.
+     * Creates a config for SSE-KMS encryption.
      *
-     * <p>Uses the AWS-managed KMS key (aws/s3) for the S3 bucket.
-     */
-    public static S3EncryptionConfig sseKms() {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, null);
-    }
-
-    /**
-     * Creates a config for SSE-KMS encryption with the default KMS key and an encryption context.
-     *
-     * @param encryptionContext The encryption context key-value pairs
-     */
-    public static S3EncryptionConfig sseKms(Map<String, String> encryptionContext) {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, null, encryptionContext);
-    }
-
-    /**
-     * @param kmsKeyId The KMS key ID, ARN, or alias (e.g., "arn:aws:kms:region:account:key/key-id"
-     *     or "alias/my-key")
-     */
-    public static S3EncryptionConfig sseKms(String kmsKeyId) {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, kmsKeyId);
-    }
-
-    /**
-     * Creates a config for SSE-KMS encryption with a specific KMS key and encryption context.
-     *
-     * <p>The encryption context is a set of key-value pairs that:
-     *
-     * <ul>
-     *   <li>Provides additional authenticated data (AAD) for encryption
-     *   <li>Can be used in IAM policy conditions for fine-grained access control
-     *   <li>Is logged in AWS CloudTrail for auditing
-     * </ul>
-     *
-     * <p>Example: You might include context like {"department": "finance", "project": "budget"} to
-     * restrict which principals can encrypt/decrypt based on these values.
-     *
-     * @param kmsKeyId The KMS key ID, ARN, or alias
-     * @param encryptionContext The encryption context key-value pairs
+     * @param kmsKeyId The KMS key ID, ARN, or alias; null uses the AWS-managed default key
+     * @param encryptionContext Optional key-value pairs for IAM policy conditions and CloudTrail
+     *     auditing; null or empty means no context
      * @see <a href="https://docs.aws.amazon.com/kms/latest/developerguide/encrypt_context.html">AWS
      *     KMS Encryption Context</a>
      */
     public static S3EncryptionConfig sseKms(
-            String kmsKeyId, Map<String, String> encryptionContext) {
-        return new S3EncryptionConfig(EncryptionType.SSE_KMS, kmsKeyId, encryptionContext);
+            @Nullable String kmsKeyId, @Nullable Map<String, String> encryptionContext) {
+        return new S3EncryptionConfig(
+                EncryptionType.SSE_KMS,
+                StringUtils.isNullOrWhitespaceOnly(kmsKeyId) ? null : kmsKeyId,
+                encryptionContext);
     }
 
     /**
@@ -174,9 +141,7 @@ public class S3EncryptionConfig implements Serializable {
                 return sseS3();
             case "sse-kms":
             case "aws:kms":
-                return kmsKeyId != null && !kmsKeyId.isEmpty()
-                        ? sseKms(kmsKeyId, encryptionContext)
-                        : sseKms(encryptionContext);
+                return sseKms(kmsKeyId, encryptionContext);
             default:
                 throw new IllegalArgumentException(
                         "Unknown encryption type: "

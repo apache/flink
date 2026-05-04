@@ -54,34 +54,31 @@ class S3EncryptionConfigTest {
     }
 
     @Test
-    void sseKms_nullContext_contextIsEmpty() {
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms("key-id", null);
+    void sseKms_nullKeyId_keyIdIsNull() {
+        S3EncryptionConfig c = S3EncryptionConfig.sseKms(null, Collections.emptyMap());
 
-        assertThat(c.getEncryptionContext()).isEmpty();
-        assertThat(c.hasEncryptionContext()).isFalse();
+        assertThat(c.getKmsKeyId()).isNull();
+    }
+
+    @Test
+    void sseKms_returnedContext_isUnmodifiable() {
+        S3EncryptionConfig c = S3EncryptionConfig.sseKms("key-id", Map.of("dept", "finance"));
+
+        assertThatThrownBy(() -> c.getEncryptionContext().put("x", "y"))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @ParameterizedTest
     @MethodSource
-    void sseKms_contextOnlyFactory_absentContext_hasEncryptionContextFalse(
-            Map<String, String> context) {
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms(context);
+    void sseKms_contextAbsent_contextIsEmpty(Map<String, String> context) {
+        S3EncryptionConfig c = S3EncryptionConfig.sseKms("key-id", context);
 
         assertThat(c.getEncryptionContext()).isEmpty();
         assertThat(c.hasEncryptionContext()).isFalse();
     }
 
-    static Stream<Arguments> sseKms_contextOnlyFactory_absentContext_hasEncryptionContextFalse() {
-        return Stream.of(Arguments.of(Collections.emptyMap()), Arguments.of((Object) null));
-    }
-
-    @Test
-    void sseKms_contextOnlyFactory_contextMutatedAfterCreation_contextUnchanged() {
-        Map<String, String> ctx = new HashMap<>(Map.of("dept", "finance"));
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms(ctx);
-        ctx.put("extra", "value");
-
-        assertThat(c.getEncryptionContext()).isEqualTo(Map.of("dept", "finance"));
+    static Stream<Arguments> sseKms_contextAbsent_contextIsEmpty() {
+        return Stream.of(Arguments.of((Object) null), Arguments.of(Collections.emptyMap()));
     }
 
     @ParameterizedTest
@@ -164,6 +161,14 @@ class S3EncryptionConfigTest {
     }
 
     @Test
+    void fromConfig_sseS3_kmsKeyIdIgnored() {
+        S3EncryptionConfig c =
+                S3EncryptionConfig.fromConfig("sse-s3", "some-key", Collections.emptyMap());
+
+        assertThat(c.getKmsKeyId()).isNull();
+    }
+
+    @Test
     void fromConfig_unknownType_throwsIllegalArgument() {
         assertThatThrownBy(
                         () ->
@@ -175,9 +180,28 @@ class S3EncryptionConfigTest {
 
     @ParameterizedTest
     @MethodSource
+    void isEnabled_encryptionType_returnsCorrectState(
+            S3EncryptionConfig config, boolean expected) {
+        assertThat(config.isEnabled()).isEqualTo(expected);
+    }
+
+    static Stream<Arguments> isEnabled_encryptionType_returnsCorrectState() {
+        return Stream.of(
+                Arguments.of(
+                        S3EncryptionConfig.fromConfig(null, null, Collections.emptyMap()), false),
+                Arguments.of(
+                        S3EncryptionConfig.fromConfig("sse-s3", null, Collections.emptyMap()),
+                        true),
+                Arguments.of(
+                        S3EncryptionConfig.fromConfig("sse-kms", null, Collections.emptyMap()),
+                        true));
+    }
+
+    @ParameterizedTest
+    @MethodSource
     void serializeEncryptionContext_exactOutput_correctBase64Json(
             Map<String, String> context, String expectedDecoded) {
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms(context);
+        S3EncryptionConfig c = S3EncryptionConfig.sseKms(null, context);
         String decoded = new String(Base64.getDecoder().decode(c.serializeEncryptionContext()));
 
         assertThat(decoded).isEqualTo(expectedDecoded);
@@ -191,7 +215,7 @@ class S3EncryptionConfigTest {
 
     @Test
     void serializeEncryptionContext_multipleEntries_allEntriesPresent() {
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms(Map.of("k1", "v1", "k2", "v2"));
+        S3EncryptionConfig c = S3EncryptionConfig.sseKms(null, Map.of("k1", "v1", "k2", "v2"));
         String decoded = new String(Base64.getDecoder().decode(c.serializeEncryptionContext()));
 
         assertThat(decoded).contains("\"k1\":\"v1\"", "\"k2\":\"v2\"");
@@ -201,7 +225,7 @@ class S3EncryptionConfigTest {
     @MethodSource
     void serializeEncryptionContext_jsonSpecialChars_escapedCorrectly(
             String key, String value, String expectedFragment) {
-        S3EncryptionConfig c = S3EncryptionConfig.sseKms(Map.of(key, value));
+        S3EncryptionConfig c = S3EncryptionConfig.sseKms(null, Map.of(key, value));
         String decoded = new String(Base64.getDecoder().decode(c.serializeEncryptionContext()));
 
         assertThat(decoded).contains(expectedFragment);
@@ -211,7 +235,9 @@ class S3EncryptionConfigTest {
         return Stream.of(
                 Arguments.of("k", "val\"ue", "\"k\":\"val\\\"ue\""),
                 Arguments.of("k", "val\\ue", "\"k\":\"val\\\\ue\""),
-                Arguments.of("k\"ey", "v", "\"k\\\"ey\":\"v\""));
+                Arguments.of("k\"ey", "v", "\"k\\\"ey\":\"v\""),
+                Arguments.of("k\\ey", "v", "\"k\\\\ey\":\"v\""),
+                Arguments.of("k", "\\\"", "\"k\":\"\\\\\\\"\""));
     }
 
     @ParameterizedTest
@@ -234,6 +260,6 @@ class S3EncryptionConfigTest {
                 Arguments.of(S3EncryptionConfig.sseKms("key-id", Map.of("k", "v"))),
                 Arguments.of(S3EncryptionConfig.none()),
                 Arguments.of(S3EncryptionConfig.sseS3()),
-                Arguments.of(S3EncryptionConfig.sseKms()));
+                Arguments.of(S3EncryptionConfig.sseKms(null, null)));
     }
 }
