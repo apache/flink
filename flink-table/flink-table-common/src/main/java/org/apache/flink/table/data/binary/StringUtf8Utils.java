@@ -19,7 +19,6 @@ package org.apache.flink.table.data.binary;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.util.Preconditions;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -185,21 +184,13 @@ public final class StringUtf8Utils {
      * absence of an expected continuation byte. Same byte-level checks as {@link
      * #decodeUTF8Strict(byte[], int, int, char[])} but without the char-buffer write side effect.
      *
-     * @throws NullPointerException if {@code bytes} is null
-     * @throws IllegalArgumentException if the offset/length range is out-of-bounds
+     * <p>This is a hot per-record path; it trusts its inputs and does not validate them. A non-null
+     * {@code bytes} with non-negative {@code offset} / {@code numBytes} that fits within the array
+     * is required; misuse may throw {@link NullPointerException} or {@link
+     * ArrayIndexOutOfBoundsException}.
      */
     public static int firstInvalidUtf8ByteIndex(
             final byte[] bytes, final int offset, final int numBytes) {
-        Preconditions.checkNotNull(bytes, "bytes must not be null");
-        Preconditions.checkArgument(offset >= 0, "offset must be >= 0, was %s", offset);
-        Preconditions.checkArgument(numBytes >= 0, "numBytes must be >= 0, was %s", numBytes);
-        Preconditions.checkArgument(
-                offset <= bytes.length - numBytes,
-                "offset (%s) + numBytes (%s) exceeds array length (%s)",
-                offset,
-                numBytes,
-                bytes.length);
-
         int sp = offset;
         final int sl = sp + numBytes;
 

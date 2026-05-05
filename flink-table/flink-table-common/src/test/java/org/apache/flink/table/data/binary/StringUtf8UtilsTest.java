@@ -21,7 +21,6 @@ package org.apache.flink.table.data.binary;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.StringData;
 
-import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -67,37 +66,6 @@ class StringUtf8UtilsTest {
                 // Offset/length variant validates only the inner range.
                 Arguments.of("inner range valid", bytes(0x80, 'O', 'K', 0x80), 1, 2, -1),
                 Arguments.of("outer bytes invalid", bytes(0x80, 'O', 'K', 0x80), 0, 4, 0));
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("badArgumentCases")
-    void testFirstInvalidUtf8ByteIndexBadArgs(
-            String name, ThrowingCallable call, Class<? extends Throwable> expected) {
-        assertThatThrownBy(call).isInstanceOf(expected);
-    }
-
-    static Stream<Arguments> badArgumentCases() {
-        return Stream.of(
-                Arguments.of(
-                        "null bytes",
-                        (ThrowingCallable)
-                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(null, 0, 0),
-                        NullPointerException.class),
-                Arguments.of(
-                        "negative offset",
-                        (ThrowingCallable)
-                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], -1, 1),
-                        IllegalArgumentException.class),
-                Arguments.of(
-                        "negative numBytes",
-                        (ThrowingCallable)
-                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], 0, -1),
-                        IllegalArgumentException.class),
-                Arguments.of(
-                        "range past array end",
-                        (ThrowingCallable)
-                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], 1, 3),
-                        IllegalArgumentException.class));
     }
 
     @Test
