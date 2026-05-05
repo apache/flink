@@ -131,6 +131,27 @@ public class ShowCreateUtil {
             boolean createOrAlter,
             ZoneId timeZoneId,
             SqlFactory sqlFactory) {
+        return buildShowCreateMaterializedTableRow(
+                table,
+                tableIdentifier,
+                isTemporary,
+                createOrAlter,
+                timeZoneId,
+                sqlFactory,
+                true,
+                true);
+    }
+
+    /** Show create materialized table statement only for materialized tables. */
+    public static String buildShowCreateMaterializedTableRow(
+            ResolvedCatalogMaterializedTable table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary,
+            boolean createOrAlter,
+            ZoneId timeZoneId,
+            SqlFactory sqlFactory,
+            boolean includeFreshness,
+            boolean includeRefreshMode) {
         validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
         StringBuilder sb =
                 new StringBuilder()
@@ -156,10 +177,12 @@ public class ShowCreateUtil {
         extractFormattedOptions(table.getOptions(), PRINT_INDENT)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         sb.append(extractStartMode(table, timeZoneId)).append("\n");
-        sb.append(extractFreshness(table))
-                .append("\n")
-                .append(extractRefreshMode(table))
-                .append("\n");
+        if (includeFreshness) {
+            sb.append(extractFreshness(table)).append("\n");
+        }
+        if (includeRefreshMode) {
+            sb.append(extractRefreshMode(table)).append("\n");
+        }
         sb.append("AS ").append(table.getExpandedQuery()).append('\n');
         return sb.toString();
     }

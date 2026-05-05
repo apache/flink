@@ -47,6 +47,7 @@ import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Instant;
@@ -144,6 +145,50 @@ class ShowCreateUtilTest {
                 setFixedTimestamp(createMaterializedTableString, fixedTimestamp);
         final String normalizedExpected = setFixedTimestamp(expected, fixedTimestamp);
         assertThat(normalizedMTString).isEqualTo(normalizedExpected);
+    }
+
+    @ParameterizedTest(name = "includeFreshness={0}, includeRefreshMode={1}")
+    @CsvSource({"true, true", "true, false", "false, true", "false, false"})
+    void showCreateMaterializedTableWithFlags(
+            final boolean includeFreshness, final boolean includeRefreshMode) {
+        final ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedMaterialized(
+                        ONE_COLUMN_SCHEMA,
+                        null,
+                        List.of(),
+                        null,
+                        StartMode.of(StartModeKind.FROM_BEGINNING),
+                        IntervalFreshness.ofMinute(2),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1",
+                        "SELECT 1");
+        final String result =
+                ShowCreateUtil.buildShowCreateMaterializedTableRow(
+                        materializedTable,
+                        MATERIALIZED_TABLE_IDENTIFIER,
+                        false,
+                        false,
+                        ZoneOffset.UTC,
+                        DefaultSqlFactory.INSTANCE,
+                        includeFreshness,
+                        includeRefreshMode);
+
+        final StringBuilder expected =
+                new StringBuilder()
+                        .append(
+                                "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n")
+                        .append("  `id` INT\n")
+                        .append(")\n")
+                        .append("START_MODE = FROM_BEGINNING\n");
+        if (includeFreshness) {
+            expected.append("FRESHNESS = INTERVAL '2' MINUTE\n");
+        }
+        if (includeRefreshMode) {
+            expected.append("REFRESH_MODE = CONTINUOUS\n");
+        }
+        expected.append("AS SELECT 1\n");
+
+        assertThat(result).isEqualTo(expected.toString());
     }
 
     @ParameterizedTest(name = "{index}: {1}")
