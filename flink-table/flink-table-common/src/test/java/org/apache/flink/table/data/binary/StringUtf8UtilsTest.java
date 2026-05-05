@@ -20,8 +20,6 @@ package org.apache.flink.table.data.binary;
 
 import org.junit.jupiter.api.Test;
 
-import java.nio.charset.StandardCharsets;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -30,23 +28,16 @@ class StringUtf8UtilsTest {
 
     @Test
     void testFirstInvalidUtf8ByteIndex() {
-        // Valid input -> -1, including ASCII fast-path and multi-byte sequences.
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                "Hello".getBytes(StandardCharsets.UTF_8), 0, 5))
-                .isEqualTo(-1);
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                "é€😀".getBytes(StandardCharsets.UTF_8),
-                                0,
-                                "é€😀".getBytes(StandardCharsets.UTF_8).length))
-                .isEqualTo(-1);
-
-        // Code-point boundaries at each width - hits every DFA-equivalent transition.
+        // Code-point boundaries hit every DFA-equivalent transition: smallest 2-byte,
+        // smallest 3-byte, largest valid 4-byte. The mixed bad case below also covers ASCII.
         assertThat(
                         StringUtf8Utils.firstInvalidUtf8ByteIndex(
                                 new byte[] {(byte) 0xC2, (byte) 0x80}, 0, 2))
                 .isEqualTo(-1); // U+0080
+        assertThat(
+                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
+                                new byte[] {(byte) 0xE0, (byte) 0xA0, (byte) 0x80}, 0, 3))
+                .isEqualTo(-1); // U+0800
         assertThat(
                         StringUtf8Utils.firstInvalidUtf8ByteIndex(
                                 new byte[] {(byte) 0xF4, (byte) 0x8F, (byte) 0xBF, (byte) 0xBF},

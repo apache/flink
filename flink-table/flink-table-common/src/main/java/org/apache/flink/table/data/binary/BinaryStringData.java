@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.StringData;
 
 import javax.annotation.Nonnull;
@@ -103,9 +104,9 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
     /**
      * Creates a {@link BinaryStringData} instance from the given UTF-8 bytes, walking the input
      * once in O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code
-     * null}. Throws {@link IllegalArgumentException} on invalid UTF-8. Use {@link
-     * #fromBytes(byte[])} when the bytes are already known to be valid and the O(n) check can be
-     * skipped.
+     * null}. Throws {@link TableRuntimeException} on invalid UTF-8. Use {@link #fromBytes(byte[])}
+     * when the bytes are already known to be valid and the O(n) check can be skipped; otherwise
+     * invalid UTF-8 propagates and is later silently substituted with {@code U+FFFD}.
      *
      * @see StringData#fromUtf8Bytes(byte[])
      */
@@ -116,7 +117,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
     /**
      * Creates a {@link BinaryStringData} instance from the given UTF-8 byte range, walking it once
      * in O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code null}.
-     * Throws {@link IllegalArgumentException} on invalid UTF-8.
+     * Throws {@link TableRuntimeException} on invalid UTF-8.
      *
      * @see StringData#fromUtf8Bytes(byte[], int, int)
      */
@@ -127,7 +128,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
         }
         final int badIndex = StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, offset, numBytes);
         if (badIndex >= 0) {
-            throw new IllegalArgumentException(
+            throw new TableRuntimeException(
                     String.format(
                             "Invalid UTF-8 byte at index %d of %d.", badIndex - offset, numBytes));
         }

@@ -67,7 +67,7 @@ public interface StringData extends Comparable<StringData> {
     /**
      * Creates an instance of {@link StringData} from the given UTF-8 byte array, walking the input
      * once in O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code
-     * null}. Throws {@link IllegalArgumentException} on invalid UTF-8.
+     * null}. Throws {@link org.apache.flink.table.api.TableRuntimeException} on invalid UTF-8.
      *
      * <p>Connector authors should prefer this method over {@link #fromBytes(byte[])} when ingesting
      * data from external systems whose UTF-8 conformance is not guaranteed: the strict variant
@@ -82,7 +82,7 @@ public interface StringData extends Comparable<StringData> {
     /**
      * Creates an instance of {@link StringData} from the given UTF-8 byte range, walking it once in
      * O(n) to verify it is well-formed UTF-8. Returns {@code null} if the input is {@code null}.
-     * Throws {@link IllegalArgumentException} on invalid UTF-8.
+     * Throws {@link org.apache.flink.table.api.TableRuntimeException} on invalid UTF-8.
      *
      * @see #fromUtf8Bytes(byte[])
      */
