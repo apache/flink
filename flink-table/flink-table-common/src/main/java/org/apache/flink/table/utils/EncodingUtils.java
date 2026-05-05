@@ -197,7 +197,7 @@ public abstract class EncodingUtils {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Returns {@code true} if the given bytes form a well-formed UTF-8 sequence. Returns {@code
+     * Returns {@code true} if the given bytes are a well-formed UTF-8 sequence. Returns {@code
      * false} for {@code null} input (null is not a valid byte sequence).
      *
      * <p>Specifically rejects: truncated multi-byte sequences (missing continuation bytes),

@@ -1496,7 +1496,7 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns {@code true} if the input bytes form a well-formed UTF-8 sequence, {@code false}
+     * Returns {@code true} if the input bytes are a well-formed UTF-8 sequence, {@code false}
      * otherwise. Returns {@code null} if the input is {@code null}.
      *
      * <p>Specifically rejects: truncated multi-byte sequences (missing continuation bytes),

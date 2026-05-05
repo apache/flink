@@ -940,15 +940,13 @@ conversion:
     description: |
       Returns `TRUE` if the input is well-formed UTF-8, `FALSE` otherwise. Specifically rejects: truncated multi-byte sequences (missing continuation bytes), "overlong" encodings (using more bytes than necessary for the code point), code points above the Unicode maximum U+10FFFF, and UTF-16 surrogate values U+D800-U+DFFF (which have no UTF-8 representation). Returns `NULL` if the input is `NULL`.
 
-      Useful for routing records with invalid UTF-8 to a dead-letter sink: `WHERE IS_VALID_UTF8(payload)` keeps clean rows; `WHERE NOT IS_VALID_UTF8(payload)` selects the rejects.
+      Useful for filtering records with invalid UTF-8: `WHERE IS_VALID_UTF8(payload)` keeps clean rows; `WHERE NOT IS_VALID_UTF8(payload)` selects the rejects.
 
       E.g., `IS_VALID_UTF8(x'48656C6C6F')` returns `TRUE`; `IS_VALID_UTF8(x'80')` returns `FALSE`.
   - sql: MAKE_VALID_UTF8(bytes)
     table: BYTES.makeValidUtf8()
     description: |
       Decodes the input as UTF-8, replacing each invalid sequence with the Unicode replacement character `U+FFFD` (rendered as `�`). The substitution is lossy and irreversible. Returns `NULL` if the input is `NULL`.
-
-      If you want to explicitly have the behavior of silently substituting invalid bytes with `U+FFFD` when doing a `CAST(bytes AS STRING)`, replace the cast with `MAKE_VALID_UTF8(bytes)`.
 
       E.g., `MAKE_VALID_UTF8(x'48656C6C6F')` returns `'Hello'`; `MAKE_VALID_UTF8(x'80')` returns `'�'` (the `U+FFFD` replacement character).
 
