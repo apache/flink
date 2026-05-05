@@ -21,6 +21,10 @@ under the License.
 
 Contains classes required by TaskManagers for execution of table programs. Implements runtime operators, built-in functions, and code generation support. Bundles janino (Java compiler for code generation) and flink-shaded-jsonpath.
 
+## Keep it short
+
+Short, easy to read code always. Runtime code is on the hot path - match the surrounding style, no speculative abstractions, no comments restating the code. Cut detailed information, specific information not relevant for future readers and anything visible in the diff.
+
 ## Key Directory Structure
 
 - `functions/scalar/` — Scalar function implementations (47+)

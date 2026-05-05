@@ -252,6 +252,7 @@ This section maps common types of Flink changes to the modules they touch and th
 
 ## Coding Standards
 
+- **Keep it short.** Short, easy to read code always. Match the surrounding style: no speculative abstractions, no comments restating the code. Same goes for prose - PR descriptions, commit messages, and updates. Cut detailed information, specific information not relevant for future readers and anything visible in the diff.
 - **Format Java files with Spotless immediately after editing:** `./mvnw spotless:apply`. Uses google-java-format with AOSP style.
 - **Scala formatting:** Spotless + scalafmt (config at `.scalafmt.conf`, maxColumn 100).
 - **Checkstyle:** `tools/maven/checkstyle.xml` (version defined in root `pom.xml` as `checkstyle.version`). Some modules (flink-core, flink-optimizer, flink-runtime) are not covered by checkstyle enforcement, but conventions should still be followed.

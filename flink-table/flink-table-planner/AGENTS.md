@@ -21,6 +21,10 @@ under the License.
 
 Translates and optimizes SQL/Table API programs into executable plans using Apache Calcite. Bridges the Table/SQL API and the runtime by generating code and execution plans. The planner is loaded in a separate classloader (`flink-table-planner-loader`) to isolate Calcite dependencies.
 
+## Keep it short
+
+Short, easy to read code always. Match the surrounding planner/rule style: no speculative abstractions, no comments restating the code. Cut detailed information, specific information not relevant for future readers and anything visible in the diff.
+
 See also [README.md](README.md) for Immutables rule config conventions and JSON plan test regeneration.
 
 ## Build Commands
