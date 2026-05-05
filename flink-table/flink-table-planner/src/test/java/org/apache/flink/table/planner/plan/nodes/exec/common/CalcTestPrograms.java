@@ -30,6 +30,7 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -299,5 +300,45 @@ public class CalcTestPrograms {
                                     + "SELECT CAST(COALESCE(b.r.order_id, a.order_id) AS STRING) AS order_id_str "
                                     + "FROM orders a LEFT JOIN order_details_row b "
                                     + "ON a.order_id = b.r.order_id")
+                    .build();
+
+    public static final TableTestProgram COALESCE =
+            TableTestProgram.of("calc-coalesce", "validates coalesce node")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "a DECIMAL(2, 1)",
+                                            "b DECIMAL(4, 2)",
+                                            "c TIMESTAMP(0)",
+                                            "d TIMESTAMP(3)")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    null,
+                                                    new BigDecimal("11.22"),
+                                                    null,
+                                                    LocalDateTime.of(
+                                                            1970, 1, 1, 0, 0, 0, 123_000_000)))
+                                    .producedAfterRestore(
+                                            Row.of(
+                                                    new BigDecimal("5.3"),
+                                                    null,
+                                                    LocalDateTime.of(2000, 2, 2, 2, 2, 2),
+                                                    null))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("x DECIMAL(4, 2)", "y TIMESTAMP(3)")
+                                    .consumedBeforeRestore(
+                                            Row.of(
+                                                    new BigDecimal("11.22"),
+                                                    LocalDateTime.of(
+                                                            1970, 1, 1, 0, 0, 0, 123_000_000)))
+                                    .consumedAfterRestore(
+                                            Row.of(
+                                                    new BigDecimal("5.30"),
+                                                    LocalDateTime.of(2000, 2, 2, 2, 2, 2)))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT COALESCE(a, b) AS x, COALESCE(c, d) AS y FROM t")
                     .build();
 }
