@@ -163,7 +163,7 @@ class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
     /**
      * Verifies the LEAST_RESTRICTIVE return-type inference combined with LEAST_NULLABLE: mixing
      * compatible operand types yields the widest type, and nullability is dropped if any operand is
-     * NOT NULL.
+     * NOT NULL. Also for reference look at {@link LogicalTypeMerging}.
      */
     private static List<TestSetSpec> typePromotion() {
         return List.of(
@@ -223,9 +223,15 @@ class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
                                 new BigDecimal("1.23"),
                                 DECIMAL(10, 2).notNull()),
 
-                // DECIMAL precision and scale widening: DECIMAL(5,2) < DECIMAL(10,4)
-                //   → declared DECIMAL(10, 4) (Calcite widening rule:
-                //     d = max(p1-s1, p2-s2) = max(3, 6) = 6, scale = max(2,4) = 4, precision = 10).
+                // Based on LogicalTypeMerging#createCommonExactNumericType
+                // d = max(p1 - s1, p2 - s2)
+                // s <= max(s1, s2)
+                // p = s + d
+                // EXAMPLE: DECIMAL precision and scale widening: DECIMAL(5,2) < DECIMAL(10,4)
+                //   d = max(p1-s1, p2-s2) = max(3, 6) = 6,
+                //   scale = max(2, 4) = 4,
+                //   p = 10.
+                // Thus DECIMAL(10, 4).
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.COALESCE,
                                 "DECIMAL(5,2) and DECIMAL(10,4) (different scale)")

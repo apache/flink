@@ -86,7 +86,7 @@ TableSourceScan(table=[[default_catalog, default_database, orders, project=[orde
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(order_id_str=[CAST($3.order_id):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
+LogicalProject(order_id_str=[CAST(COALESCE($3.order_id, $0)):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
 +- LogicalProject(order_id=[$0], user_id=[$1], amount=[$2], r=[$3], detail=[$4])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, orders]])
