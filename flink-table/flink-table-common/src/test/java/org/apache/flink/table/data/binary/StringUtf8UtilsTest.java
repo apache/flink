@@ -18,81 +18,111 @@
 
 package org.apache.flink.table.data.binary;
 
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.data.StringData;
+
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link StringUtf8Utils#firstInvalidUtf8ByteIndex(byte[], int, int)}. */
+/**
+ * Tests for the UTF-8 validator and the connector-facing {@link BinaryStringData#fromUtf8Bytes}
+ * factory that delegates to it.
+ */
 class StringUtf8UtilsTest {
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("utf8Inputs")
+    void testFirstInvalidUtf8ByteIndex(
+            String name, byte[] bytes, int offset, int numBytes, int expected) {
+        assertThat(StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, offset, numBytes))
+                .isEqualTo(expected);
+    }
+
+    static Stream<Arguments> utf8Inputs() {
+        return Stream.of(
+                // Valid - one boundary per width hits each DFA-equivalent transition.
+                Arguments.of("U+0080 smallest 2-byte", bytes(0xC2, 0x80), 0, 2, -1),
+                Arguments.of("U+0800 smallest 3-byte", bytes(0xE0, 0xA0, 0x80), 0, 3, -1),
+                Arguments.of("U+10FFFF largest valid", bytes(0xF4, 0x8F, 0xBF, 0xBF), 0, 4, -1),
+                // Invalid - one per malformed class.
+                Arguments.of("stray continuation", bytes(0x80), 0, 1, 0),
+                Arguments.of("ASCII run then bad byte", bytes('A', 'B', 'C', 0x80), 0, 4, 3),
+                Arguments.of("U+110000 above max", bytes(0xF4, 0x90, 0x80, 0x80), 0, 4, 0),
+                // F5 is a forbidden lead per RFC 3629; padded with continuations so the
+                // shortest-form check fires (a bare F5 reports as truncation at index 1).
+                Arguments.of("F5 forbidden lead (padded)", bytes(0xF5, 0x80, 0x80, 0x80), 0, 4, 0),
+                Arguments.of("U+D800 surrogate", bytes(0xED, 0xA0, 0x80), 0, 3, 0),
+                Arguments.of("overlong '/'", bytes(0xC0, 0xAF), 0, 2, 0),
+                // Truncated -> index points one past the input.
+                Arguments.of("truncated 3-byte", bytes(0xE2), 0, 1, 1),
+                // Offset/length variant validates only the inner range.
+                Arguments.of("inner range valid", bytes(0x80, 'O', 'K', 0x80), 1, 2, -1),
+                Arguments.of("outer bytes invalid", bytes(0x80, 'O', 'K', 0x80), 0, 4, 0));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("badArgumentCases")
+    void testFirstInvalidUtf8ByteIndexBadArgs(
+            String name, ThrowingCallable call, Class<? extends Throwable> expected) {
+        assertThatThrownBy(call).isInstanceOf(expected);
+    }
+
+    static Stream<Arguments> badArgumentCases() {
+        return Stream.of(
+                Arguments.of(
+                        "null bytes",
+                        (ThrowingCallable)
+                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(null, 0, 0),
+                        NullPointerException.class),
+                Arguments.of(
+                        "negative offset",
+                        (ThrowingCallable)
+                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], -1, 1),
+                        IllegalArgumentException.class),
+                Arguments.of(
+                        "negative numBytes",
+                        (ThrowingCallable)
+                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], 0, -1),
+                        IllegalArgumentException.class),
+                Arguments.of(
+                        "range past array end",
+                        (ThrowingCallable)
+                                () -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], 1, 3),
+                        IllegalArgumentException.class));
+    }
+
     @Test
-    void testFirstInvalidUtf8ByteIndex() {
-        // Code-point boundaries hit every DFA-equivalent transition: smallest 2-byte,
-        // smallest 3-byte, largest valid 4-byte. The mixed bad case below also covers ASCII.
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xC2, (byte) 0x80}, 0, 2))
-                .isEqualTo(-1); // U+0080
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xE0, (byte) 0xA0, (byte) 0x80}, 0, 3))
-                .isEqualTo(-1); // U+0800
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xF4, (byte) 0x8F, (byte) 0xBF, (byte) 0xBF},
-                                0,
-                                4))
-                .isEqualTo(-1); // U+10FFFF (largest valid)
+    void testFromUtf8Bytes() {
+        final byte[] hello = "Hello".getBytes(StandardCharsets.UTF_8);
 
-        // Failure index lands at the first bad byte after an ASCII run.
-        final byte[] mixedBad = {'A', 'B', 'C', (byte) 0x80};
-        assertThat(StringUtf8Utils.firstInvalidUtf8ByteIndex(mixedBad, 0, mixedBad.length))
-                .isEqualTo(3);
+        // Valid input wraps the bytes.
+        assertThat(BinaryStringData.fromUtf8Bytes(hello))
+                .isEqualTo(BinaryStringData.fromBytes(hello));
 
-        // Above U+10FFFF, surrogate, overlong, and forbidden-lead - all reported.
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xF4, (byte) 0x90, (byte) 0x80, (byte) 0x80},
-                                0,
-                                4))
-                .isEqualTo(0); // U+110000
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xED, (byte) 0xA0, (byte) 0x80}, 0, 3))
-                .isEqualTo(0); // U+D800 surrogate
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xC0, (byte) 0xAF}, 0, 2))
-                .isEqualTo(0); // overlong '/'
-        // F5 is a forbidden lead per RFC 3629 because any 4-byte sequence starting with F5+
-        // decodes above U+10FFFF; pad with continuation bytes so the shortest-form check fires
-        // (a bare F5 would be reported as truncation at index 1 instead).
-        assertThat(
-                        StringUtf8Utils.firstInvalidUtf8ByteIndex(
-                                new byte[] {(byte) 0xF5, (byte) 0x80, (byte) 0x80, (byte) 0x80},
-                                0,
-                                4))
-                .isEqualTo(0);
+        // null in -> null out, mirroring fromString.
+        assertThat(BinaryStringData.fromUtf8Bytes((byte[]) null)).isNull();
+        assertThat(StringData.fromUtf8Bytes((byte[]) null)).isNull();
 
-        // Truncated sequence: index points one past the input (the missing continuation).
-        assertThat(StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[] {(byte) 0xE2}, 0, 1))
-                .isEqualTo(1);
+        // Invalid UTF-8 throws TableRuntimeException with the relative byte index.
+        assertThatThrownBy(() -> BinaryStringData.fromUtf8Bytes(bytes('A', 'B', 0x80)))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageContaining("Invalid UTF-8 byte at index 2 of 3");
+    }
 
-        // Offset/length variant: only the inner range is validated.
-        final byte[] padded = {(byte) 0x80, 'O', 'K', (byte) 0x80};
-        assertThat(StringUtf8Utils.firstInvalidUtf8ByteIndex(padded, 1, 2)).isEqualTo(-1);
-        assertThat(StringUtf8Utils.firstInvalidUtf8ByteIndex(padded, 0, 4)).isEqualTo(0);
-
-        // Strict on bad arguments - no int return value can unambiguously mean "null" or
-        // "out-of-range", so report loudly.
-        assertThatThrownBy(() -> StringUtf8Utils.firstInvalidUtf8ByteIndex(null, 0, 0))
-                .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], -1, 1))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], 0, -1))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> StringUtf8Utils.firstInvalidUtf8ByteIndex(new byte[3], 1, 3))
-                .isInstanceOf(IllegalArgumentException.class);
+    private static byte[] bytes(int... values) {
+        final byte[] result = new byte[values.length];
+        for (int i = 0; i < values.length; i++) {
+            result[i] = (byte) values[i];
+        }
+        return result;
     }
 }
