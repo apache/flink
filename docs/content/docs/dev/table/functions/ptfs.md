@@ -1007,7 +1007,7 @@ class TimerFunction extends ProcessTableFunction<String> {
     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
       if (memory.seen == null) {
         memory.seen = input.getField(0).toString();
-        timeCtx.registerOnTimer("timeout", timeCtx.time().plusSeconds(60));
+        timeCtx.registerOnTime("timeout", timeCtx.time().plusSeconds(60));
       } else {
         collect("Second event arrived for: " + memory.seen);
         ctx.clearAll();
