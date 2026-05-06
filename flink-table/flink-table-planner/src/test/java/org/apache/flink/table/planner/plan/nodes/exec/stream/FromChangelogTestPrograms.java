@@ -35,10 +35,8 @@ public class FromChangelogTestPrograms {
     // SQL tests
     // --------------------------------------------------------------------------------------------
 
-    public static final TableTestProgram DEFAULT_OP_MAPPING =
-            TableTestProgram.of(
-                            "from-changelog-default-op-mapping",
-                            "default mapping with standard op names")
+    public static final TableTestProgram RETRACT =
+            TableTestProgram.of("from-changelog-retract", "retract changelog with default mapping")
                     .setupTableSource(
                             SourceTestStep.newBuilder("cdc_stream")
                                     .addSchema(SIMPLE_CDC_SCHEMA)
