@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 
@@ -37,7 +36,7 @@ public final class ChangelogTypeStrategyUtils {
      * partition key columns (the PTF framework prepends them when the input has set semantics).
      */
     public static int[] computeOutputIndices(final TableSemantics tableSemantics) {
-        final int inputFieldCount = DataType.getFields(tableSemantics.dataType()).size();
+        final int inputFieldCount = DataType.getFieldNames(tableSemantics.dataType()).size();
         final Set<Integer> excluded = collectPartitionKeyIndices(tableSemantics);
         return filterIndices(inputFieldCount, excluded);
     }
@@ -48,15 +47,13 @@ public final class ChangelogTypeStrategyUtils {
      */
     public static int[] computeOutputIndices(
             final TableSemantics tableSemantics, final String opColumnName) {
-        final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
+        final List<String> inputFieldNames = DataType.getFieldNames(tableSemantics.dataType());
         final Set<Integer> excluded = collectPartitionKeyIndices(tableSemantics);
-        for (int i = 0; i < inputFields.size(); i++) {
-            if (inputFields.get(i).getName().equals(opColumnName)) {
-                excluded.add(i);
-                break;
-            }
+        final int opIndex = inputFieldNames.indexOf(opColumnName);
+        if (opIndex >= 0) {
+            excluded.add(opIndex);
         }
-        return filterIndices(inputFields.size(), excluded);
+        return filterIndices(inputFieldNames.size(), excluded);
     }
 
     private static Set<Integer> collectPartitionKeyIndices(final TableSemantics tableSemantics) {
