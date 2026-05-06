@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.ErrorHandlingMode;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.ColumnList;
@@ -44,8 +45,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_ERROR_HANDLING;
 import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_OP_MAPPING;
 import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_TABLE;
-import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.computeOutputIndices;
-import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.resolveOpColumnName;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}.
@@ -87,9 +86,10 @@ public class FromChangelogFunction extends BuiltInProcessTableFunction<RowData> 
                         .orElseThrow(() -> new IllegalStateException("Table argument expected."));
 
         final RowType inputType = (RowType) tableSemantics.dataType().getLogicalType();
-        final String opColumnName = resolveOpColumnName(callContext);
+        final String opColumnName = ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
         this.opColumnIndex = inputType.getFieldNames().indexOf(opColumnName);
-        this.outputIndices = computeOutputIndices(tableSemantics, opColumnName);
+        this.outputIndices =
+                ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics, opColumnName);
 
         this.rawOpMap = buildOpMap(callContext);
 

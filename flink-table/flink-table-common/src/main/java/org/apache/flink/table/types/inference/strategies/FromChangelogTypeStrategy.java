@@ -54,8 +54,6 @@ public final class FromChangelogTypeStrategy {
     public static final int ARG_OP_MAPPING = 2;
     public static final int ARG_ERROR_HANDLING = 3;
 
-    private static final String DEFAULT_OP_COLUMN_NAME = "op";
-
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
 
@@ -90,7 +88,8 @@ public final class FromChangelogTypeStrategy {
                                                 new ValidationException(
                                                         "First argument must be a table for FROM_CHANGELOG."));
 
-                final String opColumnName = resolveOpColumnName(callContext);
+                final String opColumnName =
+                        ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
 
                 final List<Field> outputFields = buildOutputFields(tableSemantics, opColumnName);
 
@@ -159,7 +158,7 @@ public final class FromChangelogTypeStrategy {
             final CallContext callContext, final boolean throwOnFailure) {
 
         final TableSemantics tableSemantics = callContext.getTableSemantics(ARG_TABLE).get();
-        final String opColumnName = resolveOpColumnName(callContext);
+        final String opColumnName = ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
         final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
         final OptionalInt opIndex = resolveOpColumnIndex(inputFields, opColumnName);
         if (opIndex.isEmpty()) {
@@ -277,41 +276,12 @@ public final class FromChangelogTypeStrategy {
         return Optional.empty();
     }
 
-    /**
-     * Resolves the op column name from the {@code op} descriptor argument, falling back to {@link
-     * #DEFAULT_OP_COLUMN_NAME} when the argument is omitted or empty.
-     */
-    public static String resolveOpColumnName(final CallContext callContext) {
-        return callContext
-                .getArgumentValue(ARG_OP, ColumnList.class)
-                .filter(cl -> !cl.getNames().isEmpty())
-                .map(cl -> cl.getNames().get(0))
-                .orElse(DEFAULT_OP_COLUMN_NAME);
-    }
-
-    /**
-     * Computes the indices of input columns that pass through to the function's output. Excludes
-     * the op column (becomes RowKind) and partition key columns, if present (which the framework
-     * prepends automatically when the input has set semantics).
-     *
-     * <p>Used by both the output type strategy and the runtime function so that the declared output
-     * schema and the actual emitted rows stay in sync.
-     */
-    public static int[] computeOutputIndices(
-            final TableSemantics tableSemantics, final String opColumnName) {
-        final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-        final Set<Integer> excluded = new HashSet<>();
-        for (final int idx : tableSemantics.partitionByColumns()) {
-            excluded.add(idx);
-        }
-        resolveOpColumnIndex(inputFields, opColumnName).ifPresent(excluded::add);
-        return IntStream.range(0, inputFields.size()).filter(i -> !excluded.contains(i)).toArray();
-    }
-
     private static List<Field> buildOutputFields(
             final TableSemantics tableSemantics, final String opColumnName) {
         final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-        return Arrays.stream(computeOutputIndices(tableSemantics, opColumnName))
+        return Arrays.stream(
+                        ChangelogTypeStrategyUtils.computeOutputIndices(
+                                tableSemantics, opColumnName))
                 .mapToObj(inputFields::get)
                 .collect(Collectors.toList());
     }

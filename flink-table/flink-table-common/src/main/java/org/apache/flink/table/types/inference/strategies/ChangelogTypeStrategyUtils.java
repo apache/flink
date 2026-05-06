@@ -21,16 +21,32 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.types.ColumnList;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy.ARG_OP;
+
 /** Shared helpers for changelog-style PTFs ({@code TO_CHANGELOG}, {@code FROM_CHANGELOG}). */
 @Internal
 public final class ChangelogTypeStrategyUtils {
+    private static final String DEFAULT_OP_COLUMN_NAME = "op";
+
+    /**
+     * Resolves the op column name from the {@code op} descriptor argument, falling back to {@link
+     * #DEFAULT_OP_COLUMN_NAME} when the argument is omitted or empty.
+     */
+    public static String resolveOpColumnName(final CallContext callContext) {
+        return callContext
+                .getArgumentValue(ARG_OP, ColumnList.class)
+                .filter(cl -> !cl.getNames().isEmpty())
+                .map(cl -> cl.getNames().get(0))
+                .orElse(DEFAULT_OP_COLUMN_NAME);
+    }
 
     /**
      * Returns the input column indices that pass through to the function's output, excluding the
@@ -61,10 +77,9 @@ public final class ChangelogTypeStrategyUtils {
     }
 
     private static Set<Integer> collectPartitionKeyIndices(final TableSemantics tableSemantics) {
-        return new HashSet<>(
-                Arrays.stream(tableSemantics.partitionByColumns())
+        return Arrays.stream(tableSemantics.partitionByColumns())
                         .boxed()
-                        .collect(Collectors.toSet()));
+                        .collect(Collectors.toSet());
     }
 
     private ChangelogTypeStrategyUtils() {}
