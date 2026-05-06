@@ -33,20 +33,23 @@ planning to upgrade your Flink version to 2.3.
 
 ##### [FLINK-39258](https://issues.apache.org/jira/browse/FLINK-39258) (FLIP-564)
 
-Flink 2.3 introduces two new built-in Process Table Functions for converting between append-only
-streams that encode change operations and dynamic tables with full changelog semantics:
+The DataStream API has long offered `toChangelogStream()` and `fromChangelogStream()` for working
+with changelog streams; Flink 2.3 brings equivalent functionality to SQL via two new built-in
+Process Table Functions:
 
 - `FROM_CHANGELOG` converts an append-only stream that carries an operation column (and optional
   before/after row descriptors) into a dynamic table. A configurable `op_mapping` makes it
-  straightforward to plug in custom CDC formats, and `invalid_op_handling` (`FAIL`/`LOG`/`SKIP`)
-  controls how rows with unmapped operation codes are treated.
+  straightforward to plug in custom CDC formats (e.g. Debezium-style `c`/`u`/`d` codes), and
+  `invalid_op_handling` (`FAIL`/`LOG`/`SKIP`) controls how rows with unmapped operation codes
+  are treated.
 - `TO_CHANGELOG` is the inverse: it materializes a dynamic table back into an append-only
-  changelog stream. This is the first SQL-level operator that lets users convert upsert/retract
-  streams into append-only form, which is useful for archival, audit and writing to append-only
-  sinks. `produces_full_deletes` controls whether `-D` records carry the full row.
+  changelog stream. This is the first SQL-level operator that lets users convert
+  retract/upsert streams into append form, which is useful for archival, audit and writing to
+  append-only sinks. `produces_full_deletes` controls whether `-D` records carry the full row.
 
-Both PTFs support `PARTITION BY` for parallel execution and `uid` for query evolution, and they
-expose a `state_ttl` parameter for state retention.
+The two PTFs are designed to be symmetric, so `FROM_CHANGELOG(TO_CHANGELOG(table))` round-trips
+correctly. Both support `PARTITION BY` for parallel execution and `uid` for query evolution, and
+they expose a `state_ttl` parameter for state retention.
 
 #### CREATE/ALTER for MATERIALIZED TABLE aligned with TABLE
 
@@ -147,9 +150,13 @@ for setup details.
 
 ##### [FLINK-31655](https://issues.apache.org/jira/browse/FLINK-31655) (FLIP-339)
 
-`StreamPartitioner` gains an adaptive, load-aware partition-selection mode that routes records
-to the least-loaded downstream channel. This mitigates backpressure caused by skewed downstream
-processing and, in benchmarks, delivers up to ~3x throughput improvement under such conditions.
+When upstream and downstream parallelism differ, Flink uses `RebalancePartitioner`, which selects
+target channels round-robin. For jobs that interact with external RPC services (Redis, HBase,
+LLM serving, etc.) round-robin selection causes severe backpressure as soon as a single
+downstream subtask slows down — the partitioner keeps feeding it new data even though it is
+already overloaded. Flink 2.3 adds an adaptive, load-aware partition-selection mode for
+`StreamPartitioner` that routes records to the least-loaded downstream channel instead. In
+benchmarks, this delivers up to ~3x throughput improvement under skewed downstream processing.
 The feature is opt-in via two new options:
 
 - `taskmanager.network.adaptive-partitioner.enabled` (default: `false`)
@@ -192,11 +199,14 @@ for details.
 
 ##### [FLINK-35761](https://issues.apache.org/jira/browse/FLINK-35761) (FLIP-547)
 
-Recovering from large unaligned checkpoints can stall a job for a long time, blocking upstream
-systems and increasing the cost of subsequent failures. Flink 2.3 enables checkpointing during
-the recovery phase: filtered records are re-organized into new buffers, output buffers are
-restored on the downstream task, and the task lifecycle allows the checkpoint coordinator to
-trigger checkpoints earlier. Two opt-in options are introduced:
+When restoring from an unaligned checkpoint, a task previously stayed in `INITIALIZING` until
+*all* recovered input buffers had been processed before transitioning to `RUNNING`. For
+high-parallelism jobs with large numbers of in-flight buffers, this could leave the task unable
+to checkpoint for tens of minutes (30+ minutes in real cases), so any subsequent failure had to
+restart from the original checkpoint. Flink 2.3 fixes this by transitioning to `RUNNING` as
+soon as all input buffers have been added to `RecoveredInputChannel` and by allowing the
+recovered input channels to be snapshotted, so a new unaligned checkpoint can be taken during
+recovery. Two opt-in options are introduced:
 
 - `execution.checkpointing.unaligned.recover-output-on-downstream.enabled` (default: `false`)
 - `execution.checkpointing.unaligned.during-recovery.enabled` (default: `false`; requires the
@@ -265,9 +275,13 @@ log links, and a new exceptions subpage.
 
 ##### [FLINK-38603](https://issues.apache.org/jira/browse/FLINK-38603) (FLIP-553)
 
-Large Flink jobs can produce metric payloads that exceed the size limits of common OTel gRPC
-backends, causing data loss. Flink 2.3 adds three opt-in robustness features to the OTel
-exporter (all backward compatible):
+Jobs with large numbers of tasks and operators can produce metric payloads big enough for the
+OTel gRPC backend to reject them, causing exported metric data to be dropped in production. The
+existing exporter had three concrete limitations: gzip compression was not exposed in Flink
+configuration, all data points went out in a single gRPC call without pagination, and metric
+attributes such as `task_name` could grow to contain hundreds of operator names and bloat the
+payload further. Flink 2.3 adds three opt-in robustness features to address these (all backward
+compatible):
 
 - `metrics.reporter.otel.exporter.compression` — `gzip` or `none` (default).
 - `metrics.reporter.otel.batch.size` — split a single export into multiple gRPC calls; default
