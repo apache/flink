@@ -99,6 +99,14 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String authToken;
     private final Map<String, String> customHeaders;
 
+    // Connection pool configuration
+    private final int connectionPoolMaxIdle;
+    private final long connectionPoolKeepAliveMs;
+    private final int connectionPoolMaxTotal;
+    private final long connectionTimeoutMs;
+    private final boolean connectionReuseEnabled;
+    private final boolean connectionPoolMonitoringEnabled;
+
     // Health check and circuit breaker configuration
     private final boolean healthCheckEnabled;
     private final Duration healthCheckInterval;
@@ -123,6 +131,19 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
 
+        // Connection pool configuration
+        this.connectionPoolMaxIdle = config.get(TritonOptions.CONNECTION_POOL_MAX_IDLE);
+        this.connectionPoolKeepAliveMs =
+                config.get(TritonOptions.CONNECTION_POOL_KEEP_ALIVE).toMillis();
+        this.connectionPoolMaxTotal = config.get(TritonOptions.CONNECTION_POOL_MAX_TOTAL);
+        this.connectionTimeoutMs = config.get(TritonOptions.CONNECTION_TIMEOUT).toMillis();
+        this.connectionReuseEnabled = config.get(TritonOptions.CONNECTION_REUSE_ENABLED);
+        this.connectionPoolMonitoringEnabled =
+                config.get(TritonOptions.CONNECTION_POOL_MONITORING_ENABLED);
+
+        // Validate connection pool configuration
+        validateConnectionPoolConfig();
+
         // Health check and circuit breaker configuration
         this.healthCheckEnabled = config.get(TritonOptions.HEALTH_CHECK_ENABLED);
         this.healthCheckInterval = config.get(TritonOptions.HEALTH_CHECK_INTERVAL);
@@ -140,8 +161,29 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        LOG.debug("Creating Triton HTTP client.");
-        this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+        LOG.debug("Creating Triton HTTP client with connection pool configuration.");
+
+        ConnectionPoolConfig poolConfig =
+                new ConnectionPoolConfig(
+                        connectionPoolMaxIdle,
+                        connectionPoolKeepAliveMs,
+                        connectionPoolMaxTotal,
+                        connectionTimeoutMs,
+                        connectionReuseEnabled,
+                        connectionPoolMonitoringEnabled);
+
+        this.httpClient = TritonUtils.createHttpClient(timeout.toMillis(), poolConfig);
+
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Triton HTTP client created - Connection pool: maxIdle={}, keepAlive={}ms, maxTotal={}, timeout={}ms, reuseEnabled={}, monitoringEnabled={}",
+                    connectionPoolMaxIdle,
+                    connectionPoolKeepAliveMs,
+                    connectionPoolMaxTotal,
+                    connectionTimeoutMs,
+                    connectionReuseEnabled,
+                    connectionPoolMonitoringEnabled);
+        }
 
         // Initialize circuit breaker if enabled
         if (circuitBreakerEnabled) {
@@ -196,6 +238,48 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             // Start periodic health checking. The scheduler uses an initial delay equal to
             // checkInterval so it does not duplicate the eager checkNow() above.
             healthChecker.start();
+        }
+    }
+
+    /**
+     * Validates connection pool configuration parameters.
+     *
+     * @throws IllegalArgumentException if configuration is invalid
+     */
+    private void validateConnectionPoolConfig() {
+        Preconditions.checkArgument(
+                connectionPoolMaxIdle > 0,
+                "connection-pool-max-idle must be positive, but was: %s",
+                connectionPoolMaxIdle);
+
+        Preconditions.checkArgument(
+                connectionPoolMaxTotal > 0,
+                "connection-pool-max-total must be positive, but was: %s",
+                connectionPoolMaxTotal);
+
+        Preconditions.checkArgument(
+                connectionPoolMaxTotal >= connectionPoolMaxIdle,
+                "connection-pool-max-total (%s) must be >= connection-pool-max-idle (%s)",
+                connectionPoolMaxTotal,
+                connectionPoolMaxIdle);
+
+        Preconditions.checkArgument(
+                connectionPoolKeepAliveMs > 0,
+                "connection-pool-keep-alive must be positive, but was: %sms",
+                connectionPoolKeepAliveMs);
+
+        Preconditions.checkArgument(
+                connectionTimeoutMs > 0,
+                "connection-timeout must be positive, but was: %sms",
+                connectionTimeoutMs);
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Connection pool config validated - maxIdle={}, maxTotal={}, keepAlive={}ms, connTimeout={}ms",
+                    connectionPoolMaxIdle,
+                    connectionPoolMaxTotal,
+                    connectionPoolKeepAliveMs,
+                    connectionTimeoutMs);
         }
     }
 
