@@ -77,7 +77,7 @@ public class ToChangelogTest extends TableTestBase {
     }
 
     @Test
-    void testInsertOnlySource() {
+    void testInsertSource() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE insert_only_source ("
@@ -89,7 +89,7 @@ public class ToChangelogTest extends TableTestBase {
     }
 
     @Test
-    void testSetSemanticsWithPartitionBy() {
+    void testRetractPartitionBy() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE retract_source ("

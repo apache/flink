@@ -42,7 +42,7 @@ public class ToChangelogTestPrograms {
     // SQL tests
     // --------------------------------------------------------------------------------------------
 
-    public static final TableTestProgram INSERT_ONLY_INPUT =
+    public static final TableTestProgram INSERT =
             TableTestProgram.of("to-changelog-insert-only", "insert-only input produces op=INSERT")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
@@ -60,7 +60,7 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
-    public static final TableTestProgram UPDATING_INPUT =
+    public static final TableTestProgram RETRACT =
             TableTestProgram.of(
                             "to-changelog-updating-input",
                             "retract input produces all op codes including UPDATE_BEFORE")
@@ -121,7 +121,38 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
-    public static final TableTestProgram UPSERT_INPUT =
+    /** Partitions by a non-leading column ({@code id}, the middle column of three). */
+    public static final TableTestProgram RETRACT_PARTITION_BY =
+            TableTestProgram.of(
+                            "to-changelog-retract-partition-by-middle-column",
+                            "PARTITION BY a non-leading column drops it from the function output "
+                                    + "without disturbing the order of the remaining columns")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "id STRING",
+                                            "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", "EU", 10L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", "EU", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", "EU", 30L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "id STRING", "op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[EU, INSERT, Alice, 10]",
+                                            "+I[EU, UPDATE_BEFORE, Alice, 10]",
+                                            "+I[EU, UPDATE_AFTER, Alice, 30]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t PARTITION BY id)")
+                    .build();
+
+    public static final TableTestProgram UPSERT =
             TableTestProgram.of(
                             "to-changelog-upsert-input",
                             "upsert input gets ChangelogNormalize for UPDATE_BEFORE and full deletes")

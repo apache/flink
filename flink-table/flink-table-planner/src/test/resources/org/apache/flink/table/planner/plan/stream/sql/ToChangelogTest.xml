@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testInsertOnlySource">
+  <TestCase name="testInsertSource">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE insert_only_source)]]>
     </Resource>
@@ -32,6 +32,26 @@ LogicalProject(op=[$0], id=[$1], name=[$2])
       <![CDATA[
 ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,id,name], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
 +- TableSourceScan(table=[[default_catalog, default_database, insert_only_source]], fields=[id, name], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRetractPartitionBy">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], op=[$1], name=[$2])
++- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)])
+   +- LogicalProject(id=[$0], name=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, VARCHAR(2147483647) name)], changelogMode=[I])
++- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
+   +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -51,26 +71,6 @@ LogicalProject(op=[$0], id=[$1], name=[$2])
       <![CDATA[
 ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[null], select=[op,id,name], rowType=[RecordType(VARCHAR(2147483647) op, INTEGER id, VARCHAR(2147483647) name)], changelogMode=[I])
 +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSetSemanticsWithPartitionBy">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], op=[$1], id0=[$2], name=[$3])
-+- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, INTEGER id0, VARCHAR(2147483647) name)])
-   +- LogicalProject(id=[$0], name=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, retract_source]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,id0,name], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) op, INTEGER id0, VARCHAR(2147483647) name)], changelogMode=[I])
-+- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
-   +- TableSourceScan(table=[[default_catalog, default_database, retract_source]], fields=[id, name], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>

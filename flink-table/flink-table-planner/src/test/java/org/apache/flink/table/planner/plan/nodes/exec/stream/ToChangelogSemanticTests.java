@@ -39,9 +39,10 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                ToChangelogTestPrograms.INSERT_ONLY_INPUT,
-                ToChangelogTestPrograms.UPDATING_INPUT,
-                ToChangelogTestPrograms.UPSERT_INPUT,
+                ToChangelogTestPrograms.INSERT,
+                ToChangelogTestPrograms.RETRACT,
+                ToChangelogTestPrograms.UPSERT,
+                ToChangelogTestPrograms.RETRACT_PARTITION_BY,
                 ToChangelogTestPrograms.CUSTOM_OP_MAPPING,
                 ToChangelogTestPrograms.CUSTOM_OP_NAME,
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
