@@ -39,6 +39,8 @@ public class CorrelateBatchRestoreTest extends BatchRestoreTestBase {
                 CorrelateTestPrograms.CORRELATE_SYSTEM_FUNC,
                 CorrelateTestPrograms.CORRELATE_JOIN_FILTER,
                 CorrelateTestPrograms.CORRELATE_LEFT_JOIN,
-                CorrelateTestPrograms.CORRELATE_CROSS_JOIN_UNNEST);
+                CorrelateTestPrograms.CORRELATE_CROSS_JOIN_UNNEST,
+                CorrelateTestPrograms.CORRELATE_CROSS_JOIN_UNNEST_PRIMITIVE_ARRAY,
+                CorrelateTestPrograms.CORRELATE_CROSS_JOIN_UNNEST_MAP);
     }
 }
