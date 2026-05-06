@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
-import org.apache.flink.table.utils.EncodingUtils;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +37,6 @@ public final class IsValidUtf8Function extends BuiltInScalarFunction {
         if (bytes == null) {
             return null;
         }
-        return EncodingUtils.isValidUtf8(bytes);
+        return StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, 0, bytes.length) < 0;
     }
 }
