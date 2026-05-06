@@ -71,18 +71,13 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     public ToChangelogFunction(final SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TO_CHANGELOG, context);
         final CallContext callContext = context.getCallContext();
+        // Table argument is guaranteed by the type strategy's validation phase.
+        final TableSemantics tableSemantics = callContext.getTableSemantics(0).get();
 
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(2, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
-
-        // Drop partition keys when set semantics: the framework prepends them automatically.
-        // For row semantics, partitionByColumns is empty and this is a no-op identity projection.
-        final TableSemantics tableSemantics =
-                callContext
-                        .getTableSemantics(0)
-                        .orElseThrow(() -> new IllegalStateException("Table argument expected."));
-        this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics, null);
+        this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
     }
 
     @Override

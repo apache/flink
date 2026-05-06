@@ -97,10 +97,8 @@ public final class ToChangelogTypeStrategy {
 
                 final String opColumnName = resolveOpColumnName(callContext);
                 final List<Field> inputFields = DataType.getFields(semantics.dataType());
-                // Excludes partition keys when set semantics; the framework prepends them so
-                // including them again here would duplicate the columns.
                 final int[] outputIndices =
-                        ChangelogTypeStrategyUtils.computeOutputIndices(semantics, null);
+                        ChangelogTypeStrategyUtils.computeOutputIndices(semantics);
 
                 final List<Field> outputFields = new ArrayList<>();
                 outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));

@@ -23,8 +23,6 @@ import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 
-import javax.annotation.Nullable;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,26 +33,42 @@ import java.util.stream.IntStream;
 public final class ChangelogTypeStrategyUtils {
 
     /**
-     * Returns the input column indices that pass through to the function's output, excluding: -
-     * Partition keys, if present (the PTF framework prepends them when the input has set semantics)
-     * - The operation column {@code opColumnName} when non-null and present.
+     * Returns the input column indices that pass through to the function's output, excluding the
+     * partition key columns (the PTF framework prepends them when the input has set semantics).
+     */
+    public static int[] computeOutputIndices(final TableSemantics tableSemantics) {
+        final int inputFieldCount = DataType.getFields(tableSemantics.dataType()).size();
+        final Set<Integer> excluded = collectPartitionKeyIndices(tableSemantics);
+        return filterIndices(inputFieldCount, excluded);
+    }
+
+    /**
+     * Returns the input column indices that pass through to the function's output, excluding the
+     * partition key columns and the operation column matching {@code opColumnName}.
      */
     public static int[] computeOutputIndices(
-            final TableSemantics tableSemantics, final @Nullable String opColumnName) {
+            final TableSemantics tableSemantics, final String opColumnName) {
         final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-        final Set<Integer> excluded = new HashSet<>();
-        for (final int idx : tableSemantics.partitionByColumns()) {
-            excluded.add(idx);
-        }
-        if (opColumnName != null) {
-            for (int i = 0; i < inputFields.size(); i++) {
-                if (inputFields.get(i).getName().equals(opColumnName)) {
-                    excluded.add(i);
-                    break;
-                }
+        final Set<Integer> excluded = collectPartitionKeyIndices(tableSemantics);
+        for (int i = 0; i < inputFields.size(); i++) {
+            if (inputFields.get(i).getName().equals(opColumnName)) {
+                excluded.add(i);
+                break;
             }
         }
-        return IntStream.range(0, inputFields.size()).filter(i -> !excluded.contains(i)).toArray();
+        return filterIndices(inputFields.size(), excluded);
+    }
+
+    private static Set<Integer> collectPartitionKeyIndices(final TableSemantics tableSemantics) {
+        final Set<Integer> indices = new HashSet<>();
+        for (final int idx : tableSemantics.partitionByColumns()) {
+            indices.add(idx);
+        }
+        return indices;
+    }
+
+    private static int[] filterIndices(final int total, final Set<Integer> excluded) {
+        return IntStream.range(0, total).filter(i -> !excluded.contains(i)).toArray();
     }
 
     private ChangelogTypeStrategyUtils() {}
