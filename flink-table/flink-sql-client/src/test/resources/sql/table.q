@@ -1031,7 +1031,7 @@ CREATE TABLE IF NOT EXISTS daily_orders (
  PRIMARY KEY(dt, `user`) NOT ENFORCED
 ) PARTITIONED BY (dt) WITH (
  'connector' = 'filesystem',
- 'path' = '/var/folders/hh/kby1w5q92h34hc76_2jbntrh0000gn/T/junit-10269433974092078821/cbfbbe71-3c0b-48db-9550-c9b4687887bb2667139526066467859',
+ 'path' = '$VAR_BATCH_PATH',
  'format' = 'csv'
 );
 [INFO] Execute statement succeeded.
