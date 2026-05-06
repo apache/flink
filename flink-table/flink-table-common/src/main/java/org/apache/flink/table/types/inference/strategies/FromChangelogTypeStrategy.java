@@ -27,6 +27,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.RowKind;
@@ -36,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -159,21 +161,22 @@ public final class FromChangelogTypeStrategy {
         final TableSemantics tableSemantics = callContext.getTableSemantics(ARG_TABLE).get();
         final String opColumnName = resolveOpColumnName(callContext);
         final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-        final Integer opIndex = buildFieldNameToIndex(inputFields).get(opColumnName);
-        if (opIndex == null) {
+        final OptionalInt opIndex = resolveOpColumnIndex(inputFields, opColumnName);
+        if (opIndex.isEmpty()) {
             return callContext.fail(
                     throwOnFailure,
                     String.format(
                             "The op column '%s' does not exist in the input schema.",
                             opColumnName));
         }
-        final Field opField = inputFields.get(opIndex);
-        if (!opField.getDataType().getLogicalType().is(LogicalTypeFamily.CHARACTER_STRING)) {
+        final Field opField = inputFields.get(opIndex.getAsInt());
+        final LogicalType opFieldType = opField.getDataType().getLogicalType();
+        if (!opFieldType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             return callContext.fail(
                     throwOnFailure,
                     String.format(
                             "The op column '%s' must be of STRING type, but was '%s'.",
-                            opColumnName, opField.getDataType().getLogicalType()));
+                            opColumnName, opFieldType));
         }
         return Optional.empty();
     }
@@ -288,8 +291,8 @@ public final class FromChangelogTypeStrategy {
 
     /**
      * Computes the indices of input columns that pass through to the function's output. Excludes
-     * the op column (becomes RowKind) and partition key columns (which the framework prepends
-     * automatically when the input has set semantics).
+     * the op column (becomes RowKind) and partition key columns, if present (which the framework
+     * prepends automatically when the input has set semantics).
      *
      * <p>Used by both the output type strategy and the runtime function so that the declared output
      * schema and the actual emitted rows stay in sync.
@@ -301,10 +304,7 @@ public final class FromChangelogTypeStrategy {
         for (final int idx : tableSemantics.partitionByColumns()) {
             excluded.add(idx);
         }
-        final Integer opIndex = buildFieldNameToIndex(inputFields).get(opColumnName);
-        if (opIndex != null) {
-            excluded.add(opIndex);
-        }
+        resolveOpColumnIndex(inputFields, opColumnName).ifPresent(excluded::add);
         return IntStream.range(0, inputFields.size()).filter(i -> !excluded.contains(i)).toArray();
     }
 
@@ -316,11 +316,15 @@ public final class FromChangelogTypeStrategy {
                 .collect(Collectors.toList());
     }
 
-    /** Builds a field-name → index lookup map for the given input fields. */
-    private static Map<String, Integer> buildFieldNameToIndex(final List<Field> fields) {
-        return IntStream.range(0, fields.size())
-                .boxed()
-                .collect(Collectors.toMap(i -> fields.get(i).getName(), i -> i));
+    /**
+     * Returns the index of the column matching {@code opColumnName} within the given input fields,
+     * or empty if no field matches.
+     */
+    private static OptionalInt resolveOpColumnIndex(
+            final List<Field> inputFields, final String opColumnName) {
+        return IntStream.range(0, inputFields.size())
+                .filter(i -> inputFields.get(i).getName().equals(opColumnName))
+                .findFirst();
     }
 
     private FromChangelogTypeStrategy() {}

@@ -146,7 +146,6 @@ public class FromChangelogTestPrograms {
                                     + "error_handling => 'SKIP')")
                     .build();
 
-    /** Custom op column name via DESCRIPTOR. */
     public static final TableTestProgram CUSTOM_OP_NAME =
             TableTestProgram.of(
                             "from-changelog-custom-op-name", "custom op column name via DESCRIPTOR")
@@ -172,28 +171,19 @@ public class FromChangelogTestPrograms {
                                     + "op => DESCRIPTOR(operation))")
                     .build();
 
-    // --------------------------------------------------------------------------------------------
-    // Set semantics with PARTITION BY
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * Verifies that {@code FROM_CHANGELOG(TABLE t PARTITION BY id)} produces the same logical
-     * output as the row-semantic call. The conditional {@code SET_SEMANTIC_TABLE} trait switches
-     * the execution to a co-located parallel mode but must not change row-level semantics.
-     */
-    public static final TableTestProgram SET_SEMANTICS_PARTITION_BY =
+    public static final TableTestProgram RETRACT_PARTITION_BY =
             TableTestProgram.of(
-                            "from-changelog-set-semantics-partition-by",
-                            "PARTITION BY enables set semantics without altering output rows")
+                            "from-changelog-retract-partition-by",
+                            "retract changelog with PARTITION BY")
                     .setupTableSource(
                             SourceTestStep.newBuilder("cdc_stream")
-                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .addSchema("name STRING", "id INT", "op STRING")
                                     .producedValues(
-                                            Row.of(1, "INSERT", "Alice"),
-                                            Row.of(2, "INSERT", "Bob"),
-                                            Row.of(1, "UPDATE_BEFORE", "Alice"),
-                                            Row.of(1, "UPDATE_AFTER", "Alice2"),
-                                            Row.of(2, "DELETE", "Bob"))
+                                            Row.of("Alice", 1, "INSERT"),
+                                            Row.of("Bob", 2, "INSERT"),
+                                            Row.of("Alice", 1, "UPDATE_BEFORE"),
+                                            Row.of("Alice2", 1, "UPDATE_AFTER"),
+                                            Row.of("Bob", 2, "DELETE"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
