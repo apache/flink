@@ -133,13 +133,18 @@ class SplitFetcherManagerTest {
                 Duration.ofSeconds(30),
                 "The element queue draining thread should have started.");
         for (Thread t : findThread(SplitFetcherManager.THREAD_NAME_PREFIX)) {
+            // The intent of this check is to ensure no executor thread is tight-looping while
+            // close() is in progress. A terminated thread is also acceptable: it has finished
+            // its work and is no longer consuming CPU. If a thread is still RUNNABLE or BLOCKED
+            // after 30 seconds, waitUntil will fail the test, surfacing the regression we want
+            // to catch.
             waitUntil(
                     () ->
                             !t.isAlive()
                                     || t.getState().equals(Thread.State.WAITING)
                                     || t.getState().equals(Thread.State.TIMED_WAITING),
                     Duration.ofSeconds(30),
-                    "All the executor threads should be in waiting status.");
+                    "Each executor thread should be terminated or in a (timed) waiting state.");
         }
 
         assertThat(fetcherManager.getQueue().getAvailabilityFuture().getNumberOfDependents())

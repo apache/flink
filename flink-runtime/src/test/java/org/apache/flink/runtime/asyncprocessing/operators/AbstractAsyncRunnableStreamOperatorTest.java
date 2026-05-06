@@ -151,9 +151,8 @@ public class AbstractAsyncRunnableStreamOperatorTest {
         TestOperatorWithAsyncProcessWithKey testOperator =
                 new TestOperatorWithAsyncProcessWithKey(
                         new TestKeySelector(), ElementOrder.RECORD_ORDER);
-        AsyncOneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
-                AsyncOneInputStreamOperatorTestHarness.create(testOperator, 128, 1, 0);
-        try (testHarness) {
+        try (AsyncOneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
+                AsyncOneInputStreamOperatorTestHarness.create(testOperator, 128, 1, 0)) {
             testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
             testHarness.open();
             CompletableFuture<Void> future =
@@ -181,9 +180,8 @@ public class AbstractAsyncRunnableStreamOperatorTest {
         TestOperatorWithDirectAsyncProcess testOperator =
                 new TestOperatorWithDirectAsyncProcess(
                         new TestKeySelector(), ElementOrder.RECORD_ORDER);
-        AsyncOneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
-                AsyncOneInputStreamOperatorTestHarness.create(testOperator, 128, 1, 0);
-        try (testHarness) {
+        try (AsyncOneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
+                AsyncOneInputStreamOperatorTestHarness.create(testOperator, 128, 1, 0)) {
             testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
             testHarness.open();
             testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
@@ -202,9 +200,8 @@ public class AbstractAsyncRunnableStreamOperatorTest {
         TestOperatorWithMultipleDirectAsyncProcess testOperator =
                 new TestOperatorWithMultipleDirectAsyncProcess(
                         new TestKeySelector(), ElementOrder.RECORD_ORDER, requests);
-        AsyncOneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
-                AsyncOneInputStreamOperatorTestHarness.create(testOperator, 128, 1, 0);
-        try (testHarness) {
+        try (AsyncOneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
+                AsyncOneInputStreamOperatorTestHarness.create(testOperator, 128, 1, 0)) {
             testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
             testHarness.open();
 

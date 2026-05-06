@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler.slowtaskdetector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SlowTaskDetectorOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -204,17 +205,25 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
                 executionGraph.getJobVertex(jobVertex2.getID()).getTaskVertices()[2];
         ev23.getCurrentExecutionAttempt().markFinished();
 
-        // Ensure that the still-running tasks have accumulated a strictly larger execution time
-        // than the just-finished baseline tasks before invoking the detector. Without this wait,
-        // on fast machines all of {start, markFinished, findSlowTasks} can happen within the
-        // same millisecond, leaving the running tasks with execution time <= baseline and
-        // making the test flaky.
-        Thread.sleep(10);
+        // Pin the FINISHED timestamp of each baseline task to its DEPLOYING timestamp so that
+        // the resulting baseline execution time is 0. With a baseline of 0 and a lower bound of
+        // 0, every still-running task is unconditionally classified as slow. Without this, on
+        // fast machines the deploy/finish/detect calls can land in the same millisecond and
+        // leave the running tasks with execution time <= baseline, making the test flaky.
+        zeroOutFinishedExecutionTime(ev13);
+        zeroOutFinishedExecutionTime(ev23);
 
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
 
         assertThat(slowTasks).hasSize(4);
+    }
+
+    private static void zeroOutFinishedExecutionTime(ExecutionVertex executionVertex) {
+        final long[] stateTimestamps =
+                executionVertex.getCurrentExecutionAttempt().getStateTimestamps();
+        stateTimestamps[ExecutionState.FINISHED.ordinal()] =
+                stateTimestamps[ExecutionState.DEPLOYING.ordinal()];
     }
 
     @Test
