@@ -31,7 +31,7 @@ planning to upgrade your Flink version to 2.3.
 
 #### FROM_CHANGELOG and TO_CHANGELOG built-in PTFs
 
-##### [FLINK-39261](https://issues.apache.org/jira/browse/FLINK-39261), [FLINK-39419](https://issues.apache.org/jira/browse/FLINK-39419) (FLIP-564)
+##### [FLINK-39258](https://issues.apache.org/jira/browse/FLINK-39258) (FLIP-564)
 
 Flink 2.3 introduces two new built-in Process Table Functions for converting between append-only
 streams that encode change operations and dynamic tables with full changelog semantics:
@@ -50,7 +50,7 @@ expose a `state_ttl` parameter for state retention.
 
 #### CREATE/ALTER for MATERIALIZED TABLE aligned with TABLE
 
-##### [FLINK-39303](https://issues.apache.org/jira/browse/FLINK-39303) (FLIP-550)
+##### [FLINK-38673](https://issues.apache.org/jira/browse/FLINK-38673) (FLIP-550)
 
 The DDL surface of `MATERIALIZED TABLE` is brought to parity with regular tables. `CREATE
 MATERIALIZED TABLE` now accepts an explicit column list (including watermarks and primary keys)
@@ -60,7 +60,7 @@ evolve through the same workflow already used for regular Flink tables.
 
 #### Granular control over data reprocessing during materialized table evolution
 
-##### [FLINK-39460](https://issues.apache.org/jira/browse/FLINK-39460) (FLIP-557)
+##### [FLINK-39301](https://issues.apache.org/jira/browse/FLINK-39301) (FLIP-557)
 
 When a materialized table's defining query is changed, Flink would previously always reprocess
 historical data from the beginning. Flink 2.3 introduces an optional `START_MODE` clause on
@@ -71,7 +71,7 @@ The default remains `FROM_BEGINNING` for backward compatibility.
 
 #### ARTIFACT keyword in CREATE FUNCTION
 
-##### [FLINK-39462](https://issues.apache.org/jira/browse/FLINK-39462) (FLIP-559)
+##### [FLINK-39081](https://issues.apache.org/jira/browse/FLINK-39081) (FLIP-559)
 
 The `USING` clause of `CREATE FUNCTION` accepts a new `ARTIFACT` keyword as an alternative to
 `JAR`. `ARTIFACT` is intentionally generic so that future ecosystem assets (Python wheels, etc.)
@@ -85,7 +85,7 @@ CREATE FUNCTION my_func AS 'com.example.MyUdf'
 
 #### SinkUpsertMaterializer improvements and changelog disorder handling
 
-##### [FLINK-39461](https://issues.apache.org/jira/browse/FLINK-39461) (FLIP-558)
+##### [FLINK-38926](https://issues.apache.org/jira/browse/FLINK-38926) (FLIP-558)
 
 Flink 2.3 reworks how `SinkUpsertMaterializer` handles the case where a query's upsert key
 differs from the sink's primary key. Previously this required maintaining the full history of
@@ -103,7 +103,7 @@ records and could blow up state. Two changes address this:
 
 #### Process Table Function enhancements
 
-##### [FLINK-39256](https://issues.apache.org/jira/browse/FLINK-39256), [FLINK-39392](https://issues.apache.org/jira/browse/FLINK-39392), [FLINK-39436](https://issues.apache.org/jira/browse/FLINK-39436), [FLINK-39437](https://issues.apache.org/jira/browse/FLINK-39437), [FLINK-37599](https://issues.apache.org/jira/browse/FLINK-37599) (FLIP-565)
+##### [FLINK-39254](https://issues.apache.org/jira/browse/FLINK-39254) (FLIP-565)
 
 Process Table Functions (PTFs), introduced in Flink 2.1, gain several capabilities aligning them
 with the DataStream API:
@@ -118,48 +118,12 @@ with the DataStream API:
   `@ArgumentHint(ArgumentTrait.BROADCAST_SEMANTIC_TABLE)` and `@StateHint(StateKind.BROADCAST)`
   annotations, plus `@ArgumentHint(ArgumentTrait.NOTIFY_STATEFUL_SETS)` for re-evaluating keys
   when broadcast state changes.
-- **Conditional traits and `on_time` column expansion**: planner can use traits that depend on
-  argument values, and `on_time` columns participate in `SELECT *` expansion.
-- **Interruptible timers**: long timer-driven work yields to checkpoints and other timers.
-
-#### Metadata filter push-down for table sources
-
-##### [FLINK-39421](https://issues.apache.org/jira/browse/FLINK-39421)
-
-Filters that apply only to metadata columns (for example, Kafka headers, partition or offset)
-can now be pushed down into the source. This reduces the amount of data read from external
-systems for queries that filter primarily on metadata.
-
-#### New built-in functions and string utilities
-
-##### [FLINK-39601](https://issues.apache.org/jira/browse/FLINK-39601), [FLINK-39602](https://issues.apache.org/jira/browse/FLINK-39602)
-
-Flink 2.3 adds the built-in functions `IS_VALID_UTF8` and `MAKE_VALID_UTF8` for validating and
-sanitizing string data, along with corresponding `StringData.fromUtf8Bytes` connector APIs.
-
-#### Other SQL improvements
-
-- [FLINK-39253](https://issues.apache.org/jira/browse/FLINK-39253): The `ROW` function now
-  preserves field names from `AS` aliases.
-- [FLINK-39424](https://issues.apache.org/jira/browse/FLINK-39424): `LIKE` correctly supports
-  the default escape character.
-- [FLINK-39293](https://issues.apache.org/jira/browse/FLINK-39293): `MATCH_RECOGNIZE` no longer
-  fails with `SqlParserException` when used inside views.
-- [FLINK-39504](https://issues.apache.org/jira/browse/FLINK-39504): Special characters in
-  `VARIANT` `ITEM` calls are handled correctly.
-- [FLINK-39420](https://issues.apache.org/jira/browse/FLINK-39420): Temporal joins are rejected
-  in batch mode with a clear error message instead of producing incorrect results.
-- [FLINK-39458](https://issues.apache.org/jira/browse/FLINK-39458): Table type converters and
-  serializers were moved into a new `flink-table-type-utils` module to enable reuse outside the
-  table planner.
-- [FLINK-39606](https://issues.apache.org/jira/browse/FLINK-39606): `SHOW CREATE MATERIALIZED
-  TABLE` exposes flags to control whether `FRESHNESS`/`REFRESH MODE` clauses are included.
 
 ### Connectors
 
 #### Flink Native S3 FileSystem
 
-##### [FLINK-39465](https://issues.apache.org/jira/browse/FLINK-39465) (FLIP-555)
+##### [FLINK-38592](https://issues.apache.org/jira/browse/FLINK-38592) (FLIP-555)
 
 Flink 2.3 introduces a new native S3 file system plugin (`flink-s3-fs-native`) implemented
 directly on top of the AWS SDK v2, removing the Hadoop and Presto dependencies of the previous
@@ -181,7 +145,7 @@ for setup details.
 
 #### Adaptive Partition Selection for StreamPartitioner
 
-##### [FLINK-39466](https://issues.apache.org/jira/browse/FLINK-39466) (FLIP-339)
+##### [FLINK-31655](https://issues.apache.org/jira/browse/FLINK-31655) (FLIP-339)
 
 `StreamPartitioner` gains an adaptive, load-aware partition-selection mode that routes records
 to the least-loaded downstream channel. This mitigates backpressure caused by skewed downstream
@@ -192,37 +156,41 @@ The feature is opt-in via two new options:
 - `taskmanager.network.adaptive-partitioner.max-traverse-size` (default: `4`) — number of
   channels examined when selecting the idlest target.
 
-#### AdaptiveScheduler rescale history and Web UI
+#### AdaptiveScheduler rescale history
 
-##### [FLINK-39467](https://issues.apache.org/jira/browse/FLINK-39467), [FLINK-39468](https://issues.apache.org/jira/browse/FLINK-39468), [FLINK-38893](https://issues.apache.org/jira/browse/FLINK-38893), [FLINK-38896](https://issues.apache.org/jira/browse/FLINK-38896), [FLINK-38898](https://issues.apache.org/jira/browse/FLINK-38898), [FLINK-38900](https://issues.apache.org/jira/browse/FLINK-38900), [FLINK-38902](https://issues.apache.org/jira/browse/FLINK-38902) (FLIP-487, FLIP-495)
+##### [FLINK-38333](https://issues.apache.org/jira/browse/FLINK-38333) (FLIP-495)
 
 Streaming jobs running with the adaptive scheduler now record a history of rescale events,
-including job-vertex parallelisms, slot allocations, scheduler-state transitions and
-termination reasons. Events are kept in memory and on disk following the existing
-`ExecutionGraphInfoStore` pattern.
-
-A new "Rescales" tab in the Web UI exposes this information through subpages for overview,
-history, summary and per-event details. The same data is available through new REST endpoints:
+including job-vertex parallelisms, slot allocations, scheduler-state transitions and termination
+reasons. Events are kept in memory and on disk following the existing `ExecutionGraphInfoStore`
+pattern. The same data is available through new REST endpoints:
 
 - `/jobs/:jobid/rescales/overview`
 - `/jobs/:jobid/rescales/history`
 - `/jobs/:jobid/rescales/details/:rescaleuuid`
 - `/jobs/:jobid/rescales/summary`
 
-The existing `/jobs/overview` endpoint is extended with `schedulerType` and `jobType` fields so
-the UI can render adaptive-scheduler-specific information.
-
-The feature is controlled by a new option:
+The feature is controlled by:
 
 - `web.adaptive-scheduler.rescale-history.size` (default: `0`) — maximum number of rescale
   records retained per job. Setting `0` disables the feature.
+
+#### Web UI for AdaptiveScheduler rescale history
+
+##### [FLINK-22258](https://issues.apache.org/jira/browse/FLINK-22258) (FLIP-487)
+
+Building on FLIP-495, the Flink Web UI gains a new "Rescales" tab for streaming jobs running
+with the adaptive scheduler. Subpages expose rescale counts, the latest events, a historical
+timeline, duration statistics with percentiles, per-event details, and the adaptive scheduler
+configuration in effect. The existing `/jobs/overview` endpoint is extended with `schedulerType`
+and `jobType` fields so the UI can render adaptive-scheduler-specific information.
 
 See the [Elastic Scaling documentation](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/deployment/elastic_scaling/)
 for details.
 
 #### Checkpointing during recovery
 
-##### [FLINK-39469](https://issues.apache.org/jira/browse/FLINK-39469), [FLINK-38541](https://issues.apache.org/jira/browse/FLINK-38541) (FLIP-547)
+##### [FLINK-35761](https://issues.apache.org/jira/browse/FLINK-35761) (FLIP-547)
 
 Recovering from large unaligned checkpoints can stall a job for a long time, blocking upstream
 systems and increasing the cost of subsequent failures. Flink 2.3 enables checkpointing during
@@ -236,7 +204,7 @@ trigger checkpoints earlier. Two opt-in options are introduced:
 
 #### Application Management
 
-##### [FLINK-39470](https://issues.apache.org/jira/browse/FLINK-39470), [FLINK-39264](https://issues.apache.org/jira/browse/FLINK-39264) (FLIP-549)
+##### [FLINK-38755](https://issues.apache.org/jira/browse/FLINK-38755) (FLIP-549)
 
 Flink 2.3 introduces a first-class **application** concept that sits above jobs and unifies the
 behavior of user code across deployment modes. The cluster-job model is replaced by a
@@ -265,7 +233,7 @@ for details.
 
 #### Application Capability Enhancement
 
-##### [FLINK-39473](https://issues.apache.org/jira/browse/FLINK-39473) (FLIP-560)
+##### [FLINK-38972](https://issues.apache.org/jira/browse/FLINK-38972) (FLIP-560)
 
 Building on FLIP-549, FLIP-560 hardens the application layer for high availability and improves
 error visibility:
@@ -295,7 +263,7 @@ log links, and a new exceptions subpage.
 
 #### Robust OTel gRPC metric exporter
 
-##### [FLINK-39471](https://issues.apache.org/jira/browse/FLINK-39471), [FLINK-39127](https://issues.apache.org/jira/browse/FLINK-39127) (FLIP-553)
+##### [FLINK-38603](https://issues.apache.org/jira/browse/FLINK-38603) (FLIP-553)
 
 Large Flink jobs can produce metric payloads that exceed the size limits of common OTel gRPC
 backends, causing data loss. Flink 2.3 adds three opt-in robustness features to the OTel
@@ -307,36 +275,11 @@ exporter (all backward compatible):
 - `metrics.reporter.otel.transform.attribute-value-length-limits.<attribute_name>` — per-attribute
   truncation; `*` applies a global default.
 
-#### Watermark alignment improvements
-
-##### [FLINK-39474](https://issues.apache.org/jira/browse/FLINK-39474) ([FLINK-37399](https://issues.apache.org/jira/browse/FLINK-37399))
-
-Watermark alignment now makes better use of source resources, avoiding unnecessary stalls when
-one source partition is far ahead of others.
-
-#### MiniBatchGroupAggFunction correctness fix
-
-##### [FLINK-39475](https://issues.apache.org/jira/browse/FLINK-39475) ([FLINK-35661](https://issues.apache.org/jira/browse/FLINK-35661))
-
-A correctness bug in `MiniBatchGroupAggFunction` that could produce incorrect aggregation
-results in certain mini-batch scenarios has been fixed. Users running streaming aggregations
-with mini-batch enabled are encouraged to upgrade.
-
-### Python
-
-#### Python Table API: fromChangelog / toChangelog / descriptor
-
-##### [FLINK-39479](https://issues.apache.org/jira/browse/FLINK-39479), [FLINK-39442](https://issues.apache.org/jira/browse/FLINK-39442)
-
-The Python Table API gains parity with the Java Table API for the new changelog PTFs introduced
-in this release. `fromChangelog()`, `toChangelog()` and `descriptor()` are now available from
-PyFlink, allowing Python users to express the same changelog conversions as Java/SQL users.
-
 ### Documentation
 
 #### Documentation restructure
 
-##### [FLINK-39476](https://issues.apache.org/jira/browse/FLINK-39476) (FLIP-561)
+##### [FLINK-38945](https://issues.apache.org/jira/browse/FLINK-38945) (FLIP-561)
 
 The Flink documentation has been reorganized to make navigation easier. Highlights:
 
@@ -349,41 +292,3 @@ The Flink documentation has been reorganized to make navigation easier. Highligh
 
 Existing URLs continue to work via redirects. The top-level structure is documented on the
 [docs landing page](https://nightlies.apache.org/flink/flink-docs-release-2.3/).
-
-### Core / Security
-
-#### Set security.ssl.algorithms default value to modern cipher suite
-
-##### [FLINK-39022](https://issues.apache.org/jira/browse/FLINK-39022)
-
-A JDK update (affecting JDK 11.0.30+, 17.0.18+, 21.0.10+, and 24+) disabled `TLS_RSA_*` cipher suites.
-This was done to support forward-secrecy (RFC 9325) and comply with the IETF Draft on *Deprecating Obsolete Key Exchange Methods in TLS*.
-
-To support these and future JDK versions, the default value for the Flink configuration option `security.ssl.algorithms` has been changed to a modern, widely available cipher suite:
-
-`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
-
-This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements.
-If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
-
-#### Sensitive key redaction extended
-
-##### [FLINK-39561](https://issues.apache.org/jira/browse/FLINK-39561)
-
-The set of configuration keys whose values are redacted from logs and the Web UI has been
-extended to cover additional access-key patterns. Users can also contribute their own
-additional patterns through configuration.
-
-### Dependency upgrades
-
-- [FLINK-39580](https://issues.apache.org/jira/browse/FLINK-39580): Bump Flink-controlled Java
-  dependencies (log4j, jackson, assertj, netty).
-- [FLINK-39542](https://issues.apache.org/jira/browse/FLINK-39542): Upgrade Avro to 1.11.5.
-- [FLINK-39528](https://issues.apache.org/jira/browse/FLINK-39528): Update `apache-arrow` to
-  19.0.0.
-- [FLINK-39598](https://issues.apache.org/jira/browse/FLINK-39598),
-  [FLINK-31070](https://issues.apache.org/jira/browse/FLINK-31070): Bump `jline` to 3.30.12.
-- [FLINK-39534](https://issues.apache.org/jira/browse/FLINK-39534): Bump `pemja` to 0.5.7.
-- [FLINK-39427](https://issues.apache.org/jira/browse/FLINK-39427): Use Apache Parent POM 35.
-- [FLINK-39483](https://issues.apache.org/jira/browse/FLINK-39483): Bump dependency-check Maven
-  plugin to 12.2.1.
