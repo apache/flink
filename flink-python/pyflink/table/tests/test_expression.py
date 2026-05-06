@@ -188,6 +188,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("INET_ATON(a)", str(expr1.inet_aton()))
         self.assertEqual("INET_NTOA(a)", str(expr1.inet_ntoa()))
 
+        # utf-8 validation functions
+        self.assertEqual("IS_VALID_UTF8(a)", str(expr1.is_valid_utf8))
+        self.assertEqual("MAKE_VALID_UTF8(a)", str(expr1.make_valid_utf8))
+
         # regexp functions
         self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
         self.assertEqual("REGEXP_COUNT(a, b)", str(expr1.regexp_count(expr2)))
