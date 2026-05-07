@@ -27,8 +27,8 @@ import org.junit.jupiter.api.{BeforeEach, Test}
  * [[FlinkFilterCorrelateUnnestTransposeRule]]. Both rules are wired into
  * [[org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets.PROJECT_RULES]] /
  * [[org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets.FILTER_RULES]] (and the stream
- * equivalents), so the standard batch optimization chain exercises them after
- * [[LogicalUnnestRule]] runs.
+ * equivalents), so the standard batch optimization chain exercises them after [[LogicalUnnestRule]]
+ * runs.
  */
 class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
 
@@ -53,8 +53,8 @@ class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
   /**
    * UNNEST of an ARRAY of ROWs. The table has only two columns ({@code a} selected by the project,
    * {@code b} required by the correlation), so there is nothing to prune from the left input — the
-   * rule correctly no-ops. The test still locks in the post-rule plan shape for ARRAY&lt;ROW&gt; so a
-   * future regression in correlation handling for that shape would surface as a plan diff.
+   * rule correctly no-ops. The test still locks in the post-rule plan shape for ARRAY&lt;ROW&gt; so
+   * a future regression in correlation handling for that shape would surface as a plan diff.
    */
   @Test
   def testInnerUnnestArrayOfRowsAllLeftColumnsUsed(): Unit = {

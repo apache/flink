@@ -26,8 +26,8 @@ import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
  * End-to-end correctness tests for [[FlinkFilterCorrelateUnnestTransposeRule]] combined with
- * source-level filter and projection pushdown. Uses {@code TestValuesTableFactory} with
- * filterable fields so the planner can drive predicates all the way into the source scan.
+ * source-level filter and projection pushdown. Uses {@code TestValuesTableFactory} with filterable
+ * fields so the planner can drive predicates all the way into the source scan.
  */
 class UnnestSourcePushDownITCase extends BatchTestBase {
 
@@ -43,19 +43,18 @@ class UnnestSourcePushDownITCase extends BatchTestBase {
   override def before(): Unit = {
     super.before()
     val dataId = TestValuesTableFactory.registerData(rows)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE T (
-         |  a INT,
-         |  b BIGINT,
-         |  c STRING,
-         |  d ARRAY<INT>
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId',
-         |  'filterable-fields' = 'a;b',
-         |  'bounded' = 'true'
-         |)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  a INT,
+                       |  b BIGINT,
+                       |  c STRING,
+                       |  d ARRAY<INT>
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'filterable-fields' = 'a;b',
+                       |  'bounded' = 'true'
+                       |)
        """.stripMargin)
   }
 

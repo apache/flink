@@ -22,22 +22,19 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
- * Stream-mode plan tests that verify [[FlinkProjectCorrelateUnnestTransposeRule]] preserves
- * rowtime / watermark attributes when they are referenced downstream of UNNEST.
+ * Stream-mode plan tests that verify [[FlinkProjectCorrelateUnnestTransposeRule]] preserves rowtime
+ * / watermark attributes when they are referenced downstream of UNNEST.
  *
  * <p>The concern: pruning a left-side column the user "didn't ask for" could break watermark
  * propagation if some downstream operator needs the rowtime. The test confirms that:
  *
- * <ol>
- *   <li>When the rowtime column is referenced (directly or by a downstream window function), the
- *       rule preserves it in the pruned left input.
- *   <li>Pruning of unrelated columns still happens around the time attribute.
- * </ol>
+ * <ol> <li>When the rowtime column is referenced (directly or by a downstream window function), the
+ * rule preserves it in the pruned left input. <li>Pruning of unrelated columns still happens around
+ * the time attribute. </ol>
  *
  * <p>Note: when a user explicitly does not select the rowtime through UNNEST, that's a deliberate
  * projection — the resulting view loses its time attribute, just as it would for any other
- * projection. That is consistent with normal Flink projection semantics and not the rule's
- * concern.
+ * projection. That is consistent with normal Flink projection semantics and not the rule's concern.
  */
 class UnnestStreamTimeAttributeTest extends TableTestBase {
 
@@ -45,42 +42,40 @@ class UnnestStreamTimeAttributeTest extends TableTestBase {
 
   @BeforeEach
   def setup(): Unit = {
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE T (
-        |  a INT,
-        |  b BIGINT,
-        |  c STRING,
-        |  ts TIMESTAMP(3),
-        |  d ARRAY<INT>,
-        |  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
-        |) WITH (
-        |  'connector' = 'values',
-        |  'bounded' = 'false'
-        |)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE T (
+                               |  a INT,
+                               |  b BIGINT,
+                               |  c STRING,
+                               |  ts TIMESTAMP(3),
+                               |  d ARRAY<INT>,
+                               |  WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'bounded' = 'false'
+                               |)
       """.stripMargin)
   }
 
   /**
    * Downstream window aggregation requires the rowtime. The inner SELECT lists {@code ts} so it
-   * propagates through the UNNEST, and the outer GROUP BY tumbles on it. The rule should
-   * preserve {@code ts} (with the {@code *ROWTIME*} marker) in the pruned left while still
-   * dropping unreferenced columns ({@code b}, {@code c}). This is the realistic streaming case;
-   * a simpler "rowtime appears in plan" assertion is implied by it.
+   * propagates through the UNNEST, and the outer GROUP BY tumbles on it. The rule should preserve
+   * {@code ts} (with the {@code *ROWTIME*} marker) in the pruned left while still dropping
+   * unreferenced columns ({@code b}, {@code c}). This is the realistic streaming case; a simpler
+   * "rowtime appears in plan" assertion is implied by it.
    */
   @Test
   def testRowtimeUsedByDownstreamWindowIsPreserved(): Unit = {
-    util.verifyRelPlan(
-      """
-        |SELECT a, TUMBLE_END(ts, INTERVAL '1' HOUR) AS w_end, COUNT(*) AS cnt
-        |FROM (SELECT a, ts, s FROM T, UNNEST(d) AS f(s))
-        |GROUP BY a, TUMBLE(ts, INTERVAL '1' HOUR)
+    util.verifyRelPlan("""
+                         |SELECT a, TUMBLE_END(ts, INTERVAL '1' HOUR) AS w_end, COUNT(*) AS cnt
+                         |FROM (SELECT a, ts, s FROM T, UNNEST(d) AS f(s))
+                         |GROUP BY a, TUMBLE(ts, INTERVAL '1' HOUR)
       """.stripMargin)
   }
 
   /**
-   * User explicitly does not select rowtime through UNNEST. Normal projection semantics: rowtime
-   * is dropped. The rule additionally prunes {@code b}, {@code c} from the source scan. This test
+   * User explicitly does not select rowtime through UNNEST. Normal projection semantics: rowtime is
+   * dropped. The rule additionally prunes {@code b}, {@code c} from the source scan. This test
    * confirms behavior is consistent with non-UNNEST projection — losing the time attribute is the
    * user's choice, not a side effect of the rule.
    */

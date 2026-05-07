@@ -22,14 +22,14 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
- * End-to-end plan tests that exercise [[FlinkFilterCorrelateUnnestTransposeRule]] together with
- * the existing source-pushdown rules ([[PushFilterIntoTableSourceScanRule]],
+ * End-to-end plan tests that exercise [[FlinkFilterCorrelateUnnestTransposeRule]] together with the
+ * existing source-pushdown rules ([[PushFilterIntoTableSourceScanRule]],
  * [[PushProjectIntoTableSourceScanRule]]). The goal is to confirm that:
  *
- *   - Filters that this rule pushes onto the left input of a Correlate continue down into the
- *     table source when the source supports [[SupportsFilterPushDown]].
- *   - Existing projection pushdown into the table source still works alongside UNNEST (the
- *     planner trims columns from the scan even though we don't yet push Project through Correlate).
+ *   - Filters that this rule pushes onto the left input of a Correlate continue down into the table
+ *     source when the source supports [[SupportsFilterPushDown]].
+ *   - Existing projection pushdown into the table source still works alongside UNNEST (the planner
+ *     trims columns from the scan even though we don't yet push Project through Correlate).
  *
  * Stream + batch both go through the same FILTER_RULES set; batch coverage is sufficient to
  * exercise the rule wiring end-to-end.
@@ -40,18 +40,17 @@ class UnnestSourcePushDownTest extends TableTestBase {
 
   @BeforeEach
   def setup(): Unit = {
-    util.tableEnv.executeSql(
-      """
-        |CREATE TABLE MyTable (
-        |  a INT,
-        |  b BIGINT,
-        |  c STRING,
-        |  d ARRAY<INT>
-        |) WITH (
-        |  'connector' = 'values',
-        |  'filterable-fields' = 'a;b',
-        |  'bounded' = 'true'
-        |)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE MyTable (
+                               |  a INT,
+                               |  b BIGINT,
+                               |  c STRING,
+                               |  d ARRAY<INT>
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'filterable-fields' = 'a;b',
+                               |  'bounded' = 'true'
+                               |)
       """.stripMargin)
   }
 
@@ -93,8 +92,8 @@ class UnnestSourcePushDownTest extends TableTestBase {
    * Existing projection pushdown into source should still trim {@code b, c} from the scan when the
    * top-level query only needs {@code a, s}. The same query with {@code WHERE a > 5} would
    * additionally push the filter into the source — that combined case is already covered by
-   * [[testFilterOnLeftOnlyPushesIntoSource]] above, whose golden plan shows both
-   * {@code filter=[>(a, 5)]} and {@code project=[a, d]} on the source scan.
+   * [[testFilterOnLeftOnlyPushesIntoSource]] above, whose golden plan shows both {@code
+   * filter=[>(a, 5)]} and {@code project=[a, d]} on the source scan.
    */
   @Test
   def testProjectionPushDownIntoSourceWithUnnest(): Unit = {

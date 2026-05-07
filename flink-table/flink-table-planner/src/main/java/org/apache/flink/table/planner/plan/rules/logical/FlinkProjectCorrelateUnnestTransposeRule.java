@@ -57,17 +57,17 @@ import java.util.stream.Collectors;
  *       visitChildren(scan)} — it never applies the {@link RexShuttle} to the scan's {@code
  *       rexCall}, and {@code LogicalTableFunctionScan} doesn't override {@code accept(RelShuttle)},
  *       so dispatch routes through {@code visit(RelNode)} instead. The result: {@code
- *       RexFieldAccess($cor0.X)} indices inside the unnest call are never re-numbered when the
- *       left input is pruned, and runtime codegen reads from a stale field index. We fix this here
- *       by walking the right tree explicitly and applying our shuttle to every {@code
+ *       RexFieldAccess($cor0.X)} indices inside the unnest call are never re-numbered when the left
+ *       input is pruned, and runtime codegen reads from a stale field index. We fix this here by
+ *       walking the right tree explicitly and applying our shuttle to every {@code
  *       TableFunctionScan} we find.
- *   <li><b>Bug 2.</b> Calcite's {@code PushProjector} mishandles renumbering when the right side
- *       is {@code LogicalProject(named_fields...) over LogicalTableFunctionScan} and the wrapper
+ *   <li><b>Bug 2.</b> Calcite's {@code PushProjector} mishandles renumbering when the right side is
+ *       {@code LogicalProject(named_fields...) over LogicalTableFunctionScan} and the wrapper
  *       Project has more than one output field — pruning produces a plan whose remaining wrapper
  *       output silently resolves to the wrong source field (e.g. {@code UNNEST(MAP)} returns keys
  *       where values were expected). We sidestep this entirely by NOT pruning the right side at
- *       all. Only the left input is pruned; the right side (TFS plus any wrapper Project) is
- *       passed through unchanged except for the {@code $cor0.X} index rewrite from Bug 1.
+ *       all. Only the left input is pruned; the right side (TFS plus any wrapper Project) is passed
+ *       through unchanged except for the {@code $cor0.X} index rewrite from Bug 1.
  * </ol>
  *
  * <p>The trade-off vs. a fully-general project pushdown: when a query reads only a subset of an
@@ -165,7 +165,8 @@ public class FlinkProjectCorrelateUnnestTransposeRule
 
         // Rewrite the top Project's input refs:
         //   left side  ([0, leftFieldCount))            -> via leftMapping
-        //   right side ([leftFieldCount, total))        -> shifted by (newLeftFieldCount - leftFieldCount)
+        //   right side ([leftFieldCount, total))        -> shifted by (newLeftFieldCount -
+        // leftFieldCount)
         // Right-side row width is unchanged, so a uniform shift is sufficient.
         final InputRefRemapper remapper =
                 new InputRefRemapper(leftMapping, leftFieldCount, newLeftFieldCount);
@@ -208,8 +209,7 @@ public class FlinkProjectCorrelateUnnestTransposeRule
                 changed = true;
             }
         }
-        RelNode current =
-                changed ? unwrapped.copy(unwrapped.getTraitSet(), newInputs) : unwrapped;
+        RelNode current = changed ? unwrapped.copy(unwrapped.getTraitSet(), newInputs) : unwrapped;
         return current.accept(rexShuttle);
     }
 
@@ -277,9 +277,7 @@ public class FlinkProjectCorrelateUnnestTransposeRule
         private final int newLeftFieldCount;
 
         InputRefRemapper(
-                Map<Integer, Integer> leftMapping,
-                int oldLeftFieldCount,
-                int newLeftFieldCount) {
+                Map<Integer, Integer> leftMapping, int oldLeftFieldCount, int newLeftFieldCount) {
             this.leftMapping = leftMapping;
             this.oldLeftFieldCount = oldLeftFieldCount;
             this.newLeftFieldCount = newLeftFieldCount;
