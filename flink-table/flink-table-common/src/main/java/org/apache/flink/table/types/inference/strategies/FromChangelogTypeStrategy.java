@@ -40,7 +40,6 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /** Type strategies for the {@code FROM_CHANGELOG} process table function. */
 @Internal
@@ -159,8 +158,8 @@ public final class FromChangelogTypeStrategy {
 
         final TableSemantics tableSemantics = callContext.getTableSemantics(ARG_TABLE).get();
         final String opColumnName = ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
-        final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-        final OptionalInt opIndex = resolveOpColumnIndex(inputFields, opColumnName);
+        final OptionalInt opIndex =
+                ChangelogTypeStrategyUtils.resolveOpColumnIndex(tableSemantics, opColumnName);
         if (opIndex.isEmpty()) {
             return callContext.fail(
                     throwOnFailure,
@@ -168,8 +167,10 @@ public final class FromChangelogTypeStrategy {
                             "The op column '%s' does not exist in the input schema.",
                             opColumnName));
         }
-        final Field opField = inputFields.get(opIndex.getAsInt());
-        final LogicalType opFieldType = opField.getDataType().getLogicalType();
+        final LogicalType opFieldType =
+                DataType.getFieldDataTypes(tableSemantics.dataType())
+                        .get(opIndex.getAsInt())
+                        .getLogicalType();
         if (!opFieldType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             return callContext.fail(
                     throwOnFailure,
@@ -284,17 +285,6 @@ public final class FromChangelogTypeStrategy {
                                 tableSemantics, opColumnName))
                 .mapToObj(inputFields::get)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Returns the index of the column matching {@code opColumnName} within the given input fields,
-     * or empty if no field matches.
-     */
-    private static OptionalInt resolveOpColumnIndex(
-            final List<Field> inputFields, final String opColumnName) {
-        return IntStream.range(0, inputFields.size())
-                .filter(i -> inputFields.get(i).getName().equals(opColumnName))
-                .findFirst();
     }
 
     private FromChangelogTypeStrategy() {}

@@ -129,15 +129,25 @@ SELECT * FROM FROM_CHANGELOG(
 
 #### Partitioning by a key
 
-Prefer row semantics. `PARTITION BY` is currently only necessary if your rows for the same key are spread across partitions. In this case, consider also using `ORDER BY` to fix the ordering within a key.
-
-If you are producing an upsert table — that is, you are emitting `UPDATE_AFTER` but no `UPDATE_BEFORE` from your CDC input stream — the partition key you select here will be considered both the primary key and the upsert key by the engine. Make sure the `PARTITION BY` key matches your primary key exactly.
-
 ```sql
+-- Input table 'cdc_stream' with columns (name, id, op, doc)
+-- Default output schema:           [name, id, doc]
+-- Output schema with PARTITION BY: [id, name, doc]
+
 SELECT * FROM FROM_CHANGELOG(
   input => TABLE cdc_stream PARTITION BY id
 )
 ```
+
+When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns (excluding the op column). The order becomes:
+
+```
+[partition_keys, non_partition_input_columns_excluding_op]
+```
+
+Prefer row semantics, when possible. `PARTITION BY` is only necessary when downstream operators are keyed on that column and you want to co-locate rows for the same key in the same parallel operator instance.
+
+If you are producing an upsert table — that is, you are emitting `UPDATE_AFTER` but no `UPDATE_BEFORE` from your CDC input stream — the partition key you select here will be considered both the primary key and the upsert key by the engine. Make sure the `PARTITION BY` key matches your primary key exactly.
 
 #### Invalid operation code handling
 
