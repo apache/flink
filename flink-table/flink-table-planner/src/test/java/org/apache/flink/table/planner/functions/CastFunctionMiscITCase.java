@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Objects;
@@ -344,7 +345,23 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 $("f1").tryCast(MAP(INT(), ARRAY(INT()))),
                                 "TRY_CAST(f1 AS MAP<INT, ARRAY<INT>>)",
                                 null,
-                                MAP(INT(), ARRAY(INT())).nullable()));
+                                MAP(INT(), ARRAY(INT())).nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST,
+                                "try cast from BYTES with invalid UTF-8 to STRING returns NULL")
+                        .onFieldsWithData(
+                                new byte[] {(byte) 0x80}, "Hello".getBytes(StandardCharsets.UTF_8))
+                        .andDataTypes(BYTES(), BYTES())
+                        .testResult(
+                                $("f0").tryCast(STRING()),
+                                "TRY_CAST(f0 AS STRING)",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").tryCast(STRING()),
+                                "TRY_CAST(f1 AS STRING)",
+                                "Hello",
+                                STRING().nullable()));
     }
 
     // --------------------------------------------------------------------------------------------

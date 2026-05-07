@@ -731,6 +731,18 @@ public class ExecutionConfigOptions {
                             "Determines whether CAST will operate following the legacy behaviour "
                                     + "or the new one that introduces various fixes and improvements.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_LEGACY_BYTES_TO_STRING_CAST =
+            key("table.exec.legacy-bytes-to-string-cast")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When true, CAST(bytes AS STRING) for BINARY/VARBINARY/BYTES inputs "
+                                    + "silently substitutes the Unicode replacement character "
+                                    + "U+FFFD for invalid UTF-8 sequences. When false (the default), "
+                                    + "invalid input fails the job; use MAKE_VALID_UTF8 or TRY_CAST to handle "
+                                    + "malformed bytes.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_RANK_TOPN_CACHE_SIZE =
             ConfigOptions.key("table.exec.rank.topn-cache-size")

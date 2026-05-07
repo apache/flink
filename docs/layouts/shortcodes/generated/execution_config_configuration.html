@@ -183,6 +183,12 @@ By default no operator is disabled.</td>
             <td>Specifies a minimum time interval for how long cleanup unmatched records in the interval join operator. Before Flink 1.18, the default value of this param was the half of interval duration. Note: Set this option greater than 0 will cause unmatched records in outer joins to be output later than watermark, leading to possible discarding of these records by downstream watermark-dependent operators, such as window operators. The default value is 0, which means it will clean up unmatched records immediately.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.legacy-bytes-to-string-cast</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When true, CAST(bytes AS STRING) for BINARY/VARBINARY/BYTES inputs silently substitutes the Unicode replacement character U+FFFD for invalid UTF-8 sequences. When false (the default), invalid input fails the job; use MAKE_VALID_UTF8 or TRY_CAST to handle malformed bytes.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.legacy-cast-behaviour</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">DISABLED</td>
             <td><p>Enum</p></td>

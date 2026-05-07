@@ -514,6 +514,9 @@ object BuiltInMethods {
   val BINARY_STRING_DATA_FROM_STRING =
     Types.lookupMethod(classOf[BinaryStringData], "fromString", classOf[String])
 
+  val BINARY_STRING_DATA_FROM_UTF8_BYTES =
+    Types.lookupMethod(classOf[BinaryStringData], "fromUtf8Bytes", classOf[Array[Byte]])
+
   val STRING_DATA_TO_BOOLEAN =
     Types.lookupMethod(classOf[BinaryStringDataUtil], "toBoolean", classOf[BinaryStringData])
 
