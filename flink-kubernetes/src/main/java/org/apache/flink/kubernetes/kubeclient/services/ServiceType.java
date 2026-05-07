@@ -109,18 +109,25 @@ public abstract class ServiceType {
     public abstract String getType();
 
     /**
-     * Get rest port from the external Service. The rest Service is built with a single port (whose
-     * name is configurable via {@link KubernetesConfigOptions#REST_SERVICE_PORT_NAME}), so the
-     * lookup does not depend on the port name.
+     * Get rest port from the external Service. The rest Service is built with exactly one port
+     * (whose name is configurable via {@link KubernetesConfigOptions#REST_SERVICE_PORT_NAME}), so
+     * the lookup does not depend on the port name. If the Service has zero or more than one port,
+     * this method throws — the invariant comes from {@link #buildUpExternalRestService}.
      */
     public int getRestPortFromExternalService(Service externalService) {
         final List<ServicePort> ports = externalService.getSpec().getPorts();
+        final String serviceName = externalService.getMetadata().getName();
 
         if (ports == null || ports.isEmpty()) {
             throw new RuntimeException(
-                    "Failed to find any port in Service \""
-                            + externalService.getMetadata().getName()
-                            + "\"");
+                    "Failed to find any port in Service \"" + serviceName + "\"");
+        }
+        if (ports.size() > 1) {
+            throw new RuntimeException(
+                    "Expected exactly one port in Service \""
+                            + serviceName
+                            + "\" but found "
+                            + ports.size());
         }
 
         return getRestPort(ports.get(0));

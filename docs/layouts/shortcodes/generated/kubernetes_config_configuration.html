@@ -270,7 +270,7 @@
             <td><h5>kubernetes.rest-service.port-name</h5></td>
             <td style="word-wrap: break-word;">"rest"</td>
             <td>String</td>
-            <td>The name assigned to the rest port on the JobManager rest Service. Some environments enforce port-naming policies (for example, service meshes that route by port name); this option lets operators align Flink's rest port name with such policies. Must be a valid IANA service name (lowercase alphanumeric and '-', starting and ending alphanumeric, max 15 characters). Defaults to 'rest' to preserve backward compatibility.</td>
+            <td>The name assigned to the JobManager's rest port on both the Kubernetes Service and the JobManager container. Some environments enforce port-naming policies (for example, service meshes that route by port name); this option lets operators align Flink's rest port name with such policies. Must be a valid IANA service name (lowercase alphanumeric and '-', starting and ending alphanumeric, max 15 characters). Defaults to 'rest' to preserve backward compatibility.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.secrets</h5></td>

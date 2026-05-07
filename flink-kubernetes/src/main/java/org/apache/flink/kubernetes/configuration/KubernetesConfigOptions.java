@@ -390,7 +390,8 @@ public class KubernetesConfigOptions {
                     .stringType()
                     .defaultValue(Constants.REST_PORT_NAME)
                     .withDescription(
-                            "The name assigned to the rest port on the JobManager rest Service. "
+                            "The name assigned to the JobManager's rest port on both the "
+                                    + "Kubernetes Service and the JobManager container. "
                                     + "Some environments enforce port-naming policies (for example, "
                                     + "service meshes that route by port name); this option lets operators "
                                     + "align Flink's rest port name with such policies. "

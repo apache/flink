@@ -90,4 +90,33 @@ class ServiceTypeTest extends KubernetesClientTestBase {
                 .hasMessageContaining("Failed to find any port")
                 .hasMessageContaining("flink-cluster-rest");
     }
+
+    @Test
+    void testGetRestPortFromExternalServiceFailsWhenMultiplePorts() {
+        final Service service =
+                new ServiceBuilder()
+                        .withNewMetadata()
+                        .withName("flink-cluster-rest")
+                        .endMetadata()
+                        .withNewSpec()
+                        .withType(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name())
+                        .addNewPort()
+                        .withName("rest")
+                        .withPort(REST_PORT)
+                        .withNewTargetPort(REST_PORT)
+                        .endPort()
+                        .addNewPort()
+                        .withName("extra")
+                        .withPort(REST_PORT + 1)
+                        .withNewTargetPort(REST_PORT + 1)
+                        .endPort()
+                        .endSpec()
+                        .build();
+
+        assertThatThrownBy(() -> ClusterIPService.INSTANCE.getRestPortFromExternalService(service))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Expected exactly one port")
+                .hasMessageContaining("flink-cluster-rest")
+                .hasMessageContaining("but found 2");
+    }
 }
