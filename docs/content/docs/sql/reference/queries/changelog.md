@@ -268,6 +268,25 @@ SELECT * FROM TO_CHANGELOG(
 -- UPDATE_BEFORE is dropped (not in the mapping)
 ```
 
+#### Partitioning by a key
+
+```sql
+-- Input table 'my_aggregation' with columns (name, id, cnt)
+-- Default output schema:           [op, name, id, cnt]
+-- Output schema with PARTITION BY: [id, op, name, cnt]
+
+SELECT * FROM TO_CHANGELOG(
+  input => TABLE my_aggregation PARTITION BY id
+)
+```
+When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns. The order becomes:
+
+```
+[partition_keys, op_column, non_partition_input_columns]
+```
+
+Prefer row semantics, when possible. `PARTITION BY` is only necessary when downstream operators are keyed on that column and you want to co-locate rows for the same key in the same parallel operator instance.
+
 #### Table API
 
 ```java
