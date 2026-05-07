@@ -44,7 +44,7 @@ import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSou
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ConfluentRegistryAvroVariantFormatFactoryTest {
+class RegistryAvroVariantFormatFactoryTest {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(Column.physical("data", DataTypes.VARIANT()));
@@ -145,7 +145,7 @@ class ConfluentRegistryAvroVariantFormatFactoryTest {
         options.put("target", "MyTarget");
         options.put("buffer-size", "1000");
 
-        options.put("format", ConfluentRegistryAvroVariantFormatFactory.IDENTIFIER);
+        options.put("format", RegistryAvroVariantFormatFactory.IDENTIFIER);
         options.put("avro-variant-confluent.url", REGISTRY_URL);
         return options;
     }

@@ -49,7 +49,7 @@ import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentForm
  * Variant {@link DeserializationSchema}. Deserialization only — no serialization support.
  */
 @Internal
-public class ConfluentRegistryAvroVariantFormatFactory implements DeserializationFormatFactory {
+public class RegistryAvroVariantFormatFactory implements DeserializationFormatFactory {
 
     public static final String IDENTIFIER = "avro-variant-confluent";
 
