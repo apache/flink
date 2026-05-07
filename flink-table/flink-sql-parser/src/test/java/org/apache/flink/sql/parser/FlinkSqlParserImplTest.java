@@ -4018,6 +4018,150 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("(?s).*Encountered \"\\)\" at .*");
     }
 
+    /**
+     * Overrides the parent {@link org.apache.calcite.sql.parser.SqlParserTest#testLateral()}
+     * because Flink makes the {@code TABLE} keyword optional inside {@code LATERAL}. With this
+     * change, {@code LATERAL <identifier>} is the start of an implicit table-function call; the
+     * parser expects an argument list next, so the error position shifts.
+     */
+    @Test
+    void testLateral() {
+        // This is the only test case that differs from Calcite's SqlParserTest.testLateral().
+        // LATERAL <identifier> is now interpreted as an implicit table function
+        // call; the error moves to where the argument list (LPAREN) is missing.
+        sql("select * from lateral em^p^").fails("(?s)Encountered \"<EOF>\" at .*");
+
+        // All other test cases are identical to Calcite's SqlParserTest.testLateral().
+        // LATERAL TABLE <identifier> still fails at the identifier (no LPAREN).
+        sql("select * from lateral table ^emp^ as e").fails("(?s)Encountered \"emp\" at .*");
+        sql("select * from lateral table ^scott^.emp").fails("(?s)Encountered \"scott\" at .*");
+
+        final String expected = "SELECT *\n" + "FROM LATERAL TABLE(`RAMP`(1))";
+
+        // Good: LATERAL TABLE function(arg, arg)
+        sql("select * from lateral table(ramp(1))").ok(expected);
+        sql("select * from lateral table(ramp(1)) as t").ok(expected + " AS `T`");
+        sql("select * from lateral table(ramp(1)) as t(x)").ok(expected + " AS `T` (`X`)");
+        // Bad: Parentheses make it look like a sub-query
+        sql("select * from lateral (^table (ramp(1))^)").fails("Expected query or join");
+
+        // Good: LATERAL (subQuery)
+        final String expected2 = "SELECT *\n" + "FROM LATERAL (SELECT *\n" + "FROM `EMP`)";
+        sql("select * from lateral (select * from emp)").ok(expected2);
+        sql("select * from lateral (select * from emp) as t").ok(expected2 + " AS `T`");
+        sql("select * from lateral (select * from emp) as t(x)").ok(expected2 + " AS `T` (`X`)");
+    }
+
+    /**
+     * Overrides the parent {@link org.apache.calcite.sql.parser.SqlParserTest#testTemporalTable()}
+     * for the same reason as {@link #testLateral()}: with the implicit table-function call form,
+     * {@code LATERAL products_temporal} now parses successfully and the error shifts to the next
+     * unexpected token ({@code for}).
+     */
+    @Test
+    void testTemporalTable() {
+        // This test case is identical to Calcite's SqlParserTest.testTemporalTable().
+        final String sql0 =
+                "select stream * from orders, products\n"
+                        + "for system_time as of TIMESTAMP '2011-01-02 00:00:00'";
+        final String expected0 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`,\n"
+                        + "`PRODUCTS` FOR SYSTEM_TIME AS OF TIMESTAMP '2011-01-02 00:00:00'";
+        sql(sql0).ok(expected0);
+
+        // This is the only test case that differs from Calcite's SqlParserTest.testTemporalTable().
+        // Cannot use explicit LATERAL keyword. Error now points to "for"
+        // (the token after the implicit-table-function-call name).
+        final String sql1 =
+                "select stream * from orders, LATERAL products_temporal\n"
+                        + "^for^ system_time as of TIMESTAMP '2011-01-02 00:00:00'";
+        sql(sql1).fails("(?s)Encountered \"for\" at line .*");
+
+        // All following test cases are identical to Calcite's SqlParserTest.testTemporalTable().
+        // Inner join with a specific timestamp
+        final String sql2 =
+                "select stream * from orders join products_temporal\n"
+                        + "for system_time as of timestamp '2011-01-02 00:00:00'\n"
+                        + "on orders.productid = products_temporal.productid";
+        final String expected2 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`\n"
+                        + "INNER JOIN `PRODUCTS_TEMPORAL` "
+                        + "FOR SYSTEM_TIME AS OF TIMESTAMP '2011-01-02 00:00:00' "
+                        + "ON (`ORDERS`.`PRODUCTID` = `PRODUCTS_TEMPORAL`.`PRODUCTID`)";
+        sql(sql2).ok(expected2);
+
+        // Left join with a timestamp field
+        final String sql3 =
+                "select stream * from orders left join products_temporal\n"
+                        + "for system_time as of orders.rowtime "
+                        + "on orders.productid = products_temporal.productid";
+        final String expected3 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`\n"
+                        + "LEFT JOIN `PRODUCTS_TEMPORAL` "
+                        + "FOR SYSTEM_TIME AS OF `ORDERS`.`ROWTIME` "
+                        + "ON (`ORDERS`.`PRODUCTID` = `PRODUCTS_TEMPORAL`.`PRODUCTID`)";
+        sql(sql3).ok(expected3);
+
+        // Left join with a timestamp expression
+        final String sql4 =
+                "select stream * from orders left join products_temporal\n"
+                        + "for system_time as of orders.rowtime - INTERVAL '3' DAY "
+                        + "on orders.productid = products_temporal.productid";
+        final String expected4 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`\n"
+                        + "LEFT JOIN `PRODUCTS_TEMPORAL` "
+                        + "FOR SYSTEM_TIME AS OF (`ORDERS`.`ROWTIME` - INTERVAL '3' DAY) "
+                        + "ON (`ORDERS`.`PRODUCTID` = `PRODUCTS_TEMPORAL`.`PRODUCTID`)";
+        sql(sql4).ok(expected4);
+    }
+
+    @Test
+    void testLateralImplicitTableFunction() {
+        // LATERAL allows the implicit table-function-call form (no outer
+        // TABLE(...) wrapper). The non-LATERAL form was already backported
+        // in FLINK-36824.
+        sql("select * from t, lateral ramp(t.x)")
+                .ok("SELECT *\n" + "FROM `T`,\n" + "LATERAL TABLE(`RAMP`(`T`.`X`))");
+
+        // Backward-compatible: explicit TABLE wrapper still works.
+        sql("select * from t, lateral table(ramp(t.x))")
+                .ok("SELECT *\n" + "FROM `T`,\n" + "LATERAL TABLE(`RAMP`(`T`.`X`))");
+
+        // CROSS JOIN form.
+        sql("select * from t cross join lateral ramp(t.x) on true")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM `T`\n"
+                                + "CROSS JOIN LATERAL TABLE(`RAMP`(`T`.`X`)) ON TRUE");
+
+        // LEFT JOIN form with ON condition.
+        sql("select * from t left join lateral ramp(t.x) on t.a = 1")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM `T`\n"
+                                + "LEFT JOIN LATERAL TABLE(`RAMP`(`T`.`X`)) ON (`T`.`A` = 1)");
+
+        // Named arguments and TABLE-typed arg passed to the function.
+        sql("select * from t, lateral snapshot("
+                        + "input => table s, "
+                        + "load_completed_condition => 'on_time')")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM `T`,\n"
+                                + "LATERAL TABLE(`SNAPSHOT`("
+                                + "`INPUT` => (TABLE `S`), "
+                                + "`LOAD_COMPLETED_CONDITION` => 'on_time'))");
+
+        // LATERAL fn(...) as the very first FROM entry (no preceding table). The function call
+        // doesn't reference any outer column but the LATERAL keyword is still permitted by the
+        // grammar.
+        sql("select * from lateral ramp(3)").ok("SELECT *\n" + "FROM LATERAL TABLE(`RAMP`(3))");
+    }
+
     @Test
     void testVariantType() {
         sql("CREATE TABLE t (\n" + "v variant" + "\n)")
