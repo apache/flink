@@ -112,6 +112,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
@@ -120,6 +121,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.TO_CHANGELOG_OUTPUT_TYPE_STRATEGY;
 
@@ -906,6 +908,45 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
+                    .build();
+
+    /**
+     * Built-in proxy function for the LATERAL SNAPSHOT temporal join.
+     *
+     * <p>The function itself has no runtime — it is a planner placeholder. A dedicated optimizer
+     * rule recognizes calls of this function inside a {@code LATERAL} context and rewrites the
+     * surrounding correlate/join into a specialized stream operator that joins probe-side records
+     * against an updating temporal build-side table.
+     */
+    public static final BuiltInFunctionDefinition SNAPSHOT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("SNAPSHOT")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.ROW_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.SUPPORT_UPDATES,
+                                            StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
+                                            StaticArgumentTrait.REQUIRE_FULL_DELETE)),
+                            StaticArgument.scalar(
+                                    "load_completed_condition", DataTypes.STRING(), true),
+                            StaticArgument.scalar(
+                                    "load_completed_time", DataTypes.TIMESTAMP(3), true),
+                            StaticArgument.scalar(
+                                    "load_completed_idle_timeout",
+                                    DataTypes.INTERVAL(DataTypes.SECOND()),
+                                    true),
+                            StaticArgument.scalar(
+                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true))
+                    .inputTypeStrategy(LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY)
+                    .runtimeProvided()
+                    .notDeterministic()
                     .build();
 
     public static final BuiltInFunctionDefinition GREATEST =
