@@ -36,6 +36,9 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +68,15 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     protected transient OkHttpClient httpClient;
     protected transient TritonCircuitBreaker circuitBreaker;
     protected transient TritonHealthChecker healthChecker;
+
+    /**
+     * Scheduler used to delay retry attempts with exponential backoff. Owned by this function so
+     * that pending retries are cancelled on {@link #close()} — relying on {@link
+     * java.util.concurrent.CompletableFuture#delayedExecutor(long, TimeUnit)} (which is backed by
+     * {@link java.util.concurrent.ForkJoinPool#commonPool()}) would leak scheduled tasks past the
+     * operator lifecycle and risk firing HTTP calls against an already-released client.
+     */
+    protected transient ScheduledExecutorService retryScheduler;
 
     private final String endpoint;
 
@@ -98,6 +110,10 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String compression;
     private final String authToken;
     private final Map<String, String> customHeaders;
+    private final int maxRetries;
+    private final Duration retryInitialBackoff;
+    private final Duration retryMaxBackoff;
+    private final String defaultValue;
 
     // Health check and circuit breaker configuration
     private final boolean healthCheckEnabled;
@@ -122,6 +138,42 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.compression = config.get(TritonOptions.COMPRESSION);
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
+        this.maxRetries = config.get(TritonOptions.MAX_RETRIES);
+        this.retryInitialBackoff = config.get(TritonOptions.RETRY_INITIAL_BACKOFF);
+        this.retryMaxBackoff = config.get(TritonOptions.RETRY_MAX_BACKOFF);
+        this.defaultValue = config.get(TritonOptions.DEFAULT_VALUE);
+
+        // Fail fast on invalid retry configuration. These are user-supplied values so we surface
+        // misconfiguration as IllegalArgumentException before the function is ever opened,
+        // instead of producing undefined behaviour (e.g. 1L << -1) at runtime.
+        Preconditions.checkArgument(
+                maxRetries >= 0,
+                "%s must be >= 0, got %s",
+                TritonOptions.MAX_RETRIES.key(),
+                maxRetries);
+        // Backoff durations only matter when retries are actually enabled. Validating them when
+        // maxRetries == 0 would reject configurations that are otherwise meaningless (a user who
+        // explicitly disables retries with max-retries=0 should not have to also keep the
+        // backoff durations in a valid range, since they will never be consulted).
+        if (maxRetries > 0) {
+            Preconditions.checkArgument(
+                    retryInitialBackoff != null
+                            && !retryInitialBackoff.isNegative()
+                            && !retryInitialBackoff.isZero(),
+                    "%s must be a positive duration, got %s",
+                    TritonOptions.RETRY_INITIAL_BACKOFF.key(),
+                    retryInitialBackoff);
+            Preconditions.checkArgument(
+                    retryMaxBackoff != null
+                            && !retryMaxBackoff.isNegative()
+                            && !retryMaxBackoff.isZero()
+                            && retryMaxBackoff.compareTo(retryInitialBackoff) >= 0,
+                    "%s must be a positive duration >= %s (%s), got %s",
+                    TritonOptions.RETRY_MAX_BACKOFF.key(),
+                    TritonOptions.RETRY_INITIAL_BACKOFF.key(),
+                    retryInitialBackoff,
+                    retryMaxBackoff);
+        }
 
         // Health check and circuit breaker configuration
         this.healthCheckEnabled = config.get(TritonOptions.HEALTH_CHECK_ENABLED);
@@ -142,6 +194,28 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+
+        // Provision a private single-thread scheduler for delayed retries so that retry tasks are
+        // bound to this operator's lifecycle. Previously CompletableFuture.delayedExecutor was
+        // used, but it schedules on the shared ForkJoinPool.commonPool() whose tasks are not
+        // cancellable from close() and would happily fire an HTTP call with an already-released
+        // client. Only allocate when retries are actually enabled to avoid idle threads.
+        if (maxRetries > 0) {
+            // Single-thread executor → the thread name does not need an index suffix; a fixed
+            // suffix would always be "-0" and carry no diagnostic value. The subtask index IS
+            // included so that thread dumps from a parallelism>1 deployment can be attributed
+            // to a specific subtask rather than aliasing every parallel instance under the same
+            // "triton-retry-scheduler-<model>" name.
+            final int subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
+            final String threadName = "triton-retry-scheduler-" + modelName + "-" + subtaskIndex;
+            this.retryScheduler =
+                    Executors.newSingleThreadScheduledExecutor(
+                            r -> {
+                                Thread t = new Thread(r, threadName);
+                                t.setDaemon(true);
+                                return t;
+                            });
+        }
 
         // Initialize circuit breaker if enabled
         if (circuitBreakerEnabled) {
@@ -231,6 +305,35 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
         // Release circuit breaker (no-op, just drop the reference).
         this.circuitBreaker = null;
+
+        // Shut down the retry scheduler before releasing the HTTP client so that any pending
+        // retry tasks are cancelled and cannot fire a request through a client that is about to
+        // be released back to the shared pool. shutdownNow() is safe here: a cancelled retry
+        // simply means the caller sees the original inference failure rather than a spurious
+        // post-close one.
+        if (this.retryScheduler != null) {
+            LOG.debug("Shutting down Triton retry scheduler for {}", loggedEndpoint);
+            try {
+                this.retryScheduler.shutdownNow();
+                // Best-effort await so in-flight retry tasks observe the interrupt before the
+                // client is closed. A short timeout is fine because retries only schedule a
+                // single short-lived Runnable.
+                if (!this.retryScheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    LOG.warn(
+                            "Triton retry scheduler did not terminate within 1s for {}",
+                            loggedEndpoint);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                if (firstFailure == null) {
+                    firstFailure = e;
+                } else {
+                    firstFailure.addSuppressed(e);
+                }
+            } finally {
+                this.retryScheduler = null;
+            }
+        }
 
         // Release HTTP client last so it's always attempted even if earlier steps threw.
         if (this.httpClient != null) {
@@ -366,12 +469,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     "%s column '%s' has nested array type: %s\n"
                             + "Multi-dimensional tensors (ARRAY<ARRAY<T>>) are not supported in v1.\n"
                             + "=== Supported Types ===\n"
-                            + "  • Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
-                            + "  • 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
+                            + "  - Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
+                            + "  - 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
                             + "=== Workarounds ===\n"
-                            + "  • Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
-                            + "  • Use JSON STRING encoding for complex structures\n"
-                            + "  • Wait for v2+ which will support ROW<...> types",
+                            + "  - Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
+                            + "  - Use JSON STRING encoding for complex structures\n"
+                            + "  - Wait for v2+ which will support ROW<...> types",
                     inputOrOutput,
                     columnName,
                     type);
@@ -540,5 +643,21 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      */
     protected boolean isCircuitBreakerEnabled() {
         return circuitBreakerEnabled;
+    }
+
+    protected int getMaxRetries() {
+        return maxRetries;
+    }
+
+    protected Duration getRetryInitialBackoff() {
+        return retryInitialBackoff;
+    }
+
+    protected Duration getRetryMaxBackoff() {
+        return retryMaxBackoff;
+    }
+
+    protected String getDefaultValue() {
+        return defaultValue;
     }
 }

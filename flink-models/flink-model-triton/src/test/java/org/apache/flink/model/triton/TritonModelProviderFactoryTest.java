@@ -42,7 +42,7 @@ class TritonModelProviderFactoryTest {
     void testOptionalOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
         assertThat(factory.optionalOptions())
-                .hasSize(10)
+                .hasSize(14)
                 .containsExactlyInAnyOrder(
                         TritonOptions.MODEL_VERSION,
                         TritonOptions.TIMEOUT,
@@ -53,6 +53,10 @@ class TritonModelProviderFactoryTest {
                         TritonOptions.SEQUENCE_END,
                         TritonOptions.COMPRESSION,
                         TritonOptions.AUTH_TOKEN,
-                        TritonOptions.CUSTOM_HEADERS);
+                        TritonOptions.CUSTOM_HEADERS,
+                        TritonOptions.MAX_RETRIES,
+                        TritonOptions.RETRY_INITIAL_BACKOFF,
+                        TritonOptions.RETRY_MAX_BACKOFF,
+                        TritonOptions.DEFAULT_VALUE);
     }
 }

@@ -51,6 +51,12 @@
             <td>Custom HTTP headers as key-value pairs. Example: <code class="highlighter-rouge">'X-Custom-Header:value,X-Another:value2'</code></td>
         </tr>
         <tr>
+            <td><h5>default-value</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Fallback value to return when all retry attempts fail (transient errors) or when the request fails with a non-retryable error (4xx). This allows downstream processing to distinguish between successful and failed predictions without propagating exceptions. Format depends on output type: for STRING use plain text (e.g. <code class="highlighter-rouge">'FAILED'</code>); for numeric types use string representation (e.g. <code class="highlighter-rouge">'-1'</code>); for ARRAY types use JSON array format (e.g. <code class="highlighter-rouge">'[0.0, 0.0]'</code>); for SQL NULL use the literal <code class="highlighter-rouge">'null'</code>. Note: the lower-case literal <code class="highlighter-rouge">'null'</code> is ALWAYS interpreted as SQL NULL and cannot be used as a STRING sentinel; if you need a string-typed sentinel indicating failure, use <code class="highlighter-rouge">'NULL'</code>, <code class="highlighter-rouge">'FAILED'</code> or <code class="highlighter-rouge">'&lt;null&gt;'</code> instead. The value is parsed once at operator initialization; an unparseable value fails the job at startup rather than at the first error. If not specified, exceptions are thrown on failure.</td>
+        </tr>
+        <tr>
             <td><h5>endpoint</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -75,6 +81,12 @@
             <td>Interval between health check requests. Shorter intervals provide faster failure detection but increase server load. Defaults to 30 seconds. Only effective when health-check-enabled is true.</td>
         </tr>
         <tr>
+            <td><h5>max-retries</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Maximum number of retries (additional attempts beyond the first) for failed inference requests. With max-retries=2 the request will be attempted up to 3 times in total (1 initial attempt + 2 retries). When set to 0 (default), no retry is performed. Only transient failures are retried: network errors and 5xx responses. Client-side 4xx errors, response parsing failures, and circuit breaker OPEN failures are never retried because they indicate a persistent condition. Must be &gt;= 0.</td>
+        </tr>
+        <tr>
             <td><h5>model-name</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -91,6 +103,18 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
             <td>Request priority level (0-255). Higher values indicate higher priority.</td>
+        </tr>
+        <tr>
+            <td><h5>retry-initial-backoff</h5></td>
+            <td style="word-wrap: break-word;">100 ms</td>
+            <td>Duration</td>
+            <td>Initial backoff duration between retry attempts. Uses exponential backoff with equal jitter: the nominal delay is initial-backoff * 2^attempt (first retry waits this duration, second retry waits 2x, third waits 4x, and so on), clamped to retry-max-backoff, then randomized in the range [delay/2, delay] to prevent a thundering herd of concurrent retries hitting the server at the exact same instant. Defaults to 100ms. Must be &gt; 0.</td>
+        </tr>
+        <tr>
+            <td><h5>retry-max-backoff</h5></td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>Upper bound on the delay between retry attempts. Exponential backoff computed from retry-initial-backoff is clamped to this value so that a misconfigured max-retries cannot produce hours-long sleeps or overflow the delay computation. Defaults to 30s. Must be &gt;= retry-initial-backoff.</td>
         </tr>
         <tr>
             <td><h5>sequence-end</h5></td>

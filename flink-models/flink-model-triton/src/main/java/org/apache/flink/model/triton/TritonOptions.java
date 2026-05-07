@@ -253,4 +253,89 @@ public class TritonOptions {
                             "Number of successful test requests required in HALF_OPEN state to close the circuit. "
                                     + "If any request fails in HALF_OPEN state, the circuit immediately reopens. "
                                     + "Defaults to 3 requests. Only effective when circuit-breaker-enabled is true.");
+
+    // ==================== Retry and Default Value Fallback Options ====================
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<Integer> MAX_RETRIES =
+            ConfigOptions.key("max-retries")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Maximum number of retries (additional attempts beyond the first) "
+                                    + "for failed inference requests. With max-retries=2 the "
+                                    + "request will be attempted up to 3 times in total "
+                                    + "(1 initial attempt + 2 retries). When set to 0 (default), "
+                                    + "no retry is performed. Only transient failures are "
+                                    + "retried: network errors and 5xx responses. Client-side "
+                                    + "4xx errors, response parsing failures, and circuit "
+                                    + "breaker OPEN failures are never retried because they "
+                                    + "indicate a persistent condition. Must be >= 0.");
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<Duration> RETRY_INITIAL_BACKOFF =
+            ConfigOptions.key("retry-initial-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription(
+                            "Initial backoff duration between retry attempts. Uses exponential "
+                                    + "backoff with equal jitter: the nominal delay is "
+                                    + "initial-backoff * 2^attempt (first retry waits this "
+                                    + "duration, second retry waits 2x, third waits 4x, and so "
+                                    + "on), clamped to retry-max-backoff, then randomized in "
+                                    + "the range [delay/2, delay] to prevent a thundering herd "
+                                    + "of concurrent retries hitting the server at the exact "
+                                    + "same instant. Defaults to 100ms. Must be > 0.");
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<Duration> RETRY_MAX_BACKOFF =
+            ConfigOptions.key("retry-max-backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
+                    .withDescription(
+                            "Upper bound on the delay between retry attempts. Exponential "
+                                    + "backoff computed from retry-initial-backoff is clamped "
+                                    + "to this value so that a misconfigured max-retries "
+                                    + "cannot produce hours-long sleeps or overflow the delay "
+                                    + "computation. Defaults to 30s. Must be >= "
+                                    + "retry-initial-backoff.");
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<String> DEFAULT_VALUE =
+            ConfigOptions.key("default-value")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Fallback value to return when all retry attempts "
+                                                    + "fail (transient errors) or when the request "
+                                                    + "fails with a non-retryable error (4xx). "
+                                                    + "This allows downstream processing to "
+                                                    + "distinguish between successful and failed "
+                                                    + "predictions without propagating exceptions. "
+                                                    + "Format depends on output type: for STRING "
+                                                    + "use plain text (e.g. %s); for numeric types "
+                                                    + "use string representation (e.g. %s); for "
+                                                    + "ARRAY types use JSON array format (e.g. %s); "
+                                                    + "for SQL NULL use the literal %s. "
+                                                    + "Note: the lower-case literal %s is ALWAYS "
+                                                    + "interpreted as SQL NULL and cannot be used "
+                                                    + "as a STRING sentinel; if you need a "
+                                                    + "string-typed sentinel indicating failure, "
+                                                    + "use %s, %s or %s instead. The value "
+                                                    + "is parsed once at operator initialization; "
+                                                    + "an unparseable value fails the job at "
+                                                    + "startup rather than at the first error. "
+                                                    + "If not specified, exceptions are thrown on "
+                                                    + "failure.",
+                                            code("'FAILED'"),
+                                            code("'-1'"),
+                                            code("'[0.0, 0.0]'"),
+                                            code("'null'"),
+                                            code("'null'"),
+                                            code("'NULL'"),
+                                            code("'FAILED'"),
+                                            code("'<null>'"))
+                                    .build());
 }
