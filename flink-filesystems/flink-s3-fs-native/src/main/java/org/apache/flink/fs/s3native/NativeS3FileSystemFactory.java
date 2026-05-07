@@ -31,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -292,7 +294,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                                     + "When not set, the default chain is used: delegation tokens -> "
                                     + "static credentials (if configured) -> DefaultCredentialsProvider.");
 
-    private Configuration flinkConfig;
+    @Nullable private Configuration flinkConfig;
 
     @Override
     public String getScheme() {

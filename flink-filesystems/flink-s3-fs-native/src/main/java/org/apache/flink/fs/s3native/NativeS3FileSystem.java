@@ -31,6 +31,7 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3ObjectOperations;
 import org.apache.flink.fs.s3native.writer.NativeS3RecoverableWriter;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -127,7 +128,8 @@ class NativeS3FileSystem extends FileSystem
             boolean useAsyncOperations,
             int readBufferSize,
             Duration fsCloseTimeout) {
-        this.clientProvider = clientProvider;
+        this.clientProvider =
+                Preconditions.checkNotNull(clientProvider, "clientProvider must not be null");
         this.uri = uri;
         this.bucketName = uri.getHost();
         this.entropyInjectionKey = entropyInjectionKey;
@@ -550,9 +552,8 @@ class NativeS3FileSystem extends FileSystem
                                                 "Native S3 FileSystem closed for bucket: {}",
                                                 bucketName))
                         .thenCompose(
-                                ignored -> {
-                                    if (clientProvider != null) {
-                                        return clientProvider
+                                ignored ->
+                                        clientProvider
                                                 .closeAsync()
                                                 .whenComplete(
                                                         (result, error) -> {
@@ -564,10 +565,7 @@ class NativeS3FileSystem extends FileSystem
                                                                 LOG.debug(
                                                                         "S3 client provider closed");
                                                             }
-                                                        });
-                                    }
-                                    return CompletableFuture.completedFuture(null);
-                                })
+                                                        }))
                         .orTimeout(fsCloseTimeout.toSeconds(), TimeUnit.SECONDS)
                         .whenComplete(
                                 (result, error) -> {

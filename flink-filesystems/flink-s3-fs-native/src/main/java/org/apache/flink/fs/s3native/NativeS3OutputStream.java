@@ -19,12 +19,11 @@
 package org.apache.flink.fs.s3native;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.util.Preconditions;
 
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-
-import javax.annotation.Nullable;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -63,7 +62,7 @@ class NativeS3OutputStream extends FSDataOutputStream {
     public NativeS3OutputStream(
             S3Client s3Client, String bucketName, String key, String localTmpDir)
             throws IOException {
-        this(s3Client, bucketName, key, localTmpDir, null);
+        this(s3Client, bucketName, key, localTmpDir, S3EncryptionConfig.none());
     }
 
     public NativeS3OutputStream(
@@ -71,13 +70,13 @@ class NativeS3OutputStream extends FSDataOutputStream {
             String bucketName,
             String key,
             String localTmpDir,
-            @Nullable S3EncryptionConfig encryptionConfig)
+            S3EncryptionConfig encryptionConfig)
             throws IOException {
         this.s3Client = s3Client;
         this.bucketName = bucketName;
         this.key = key;
         this.encryptionConfig =
-                encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
+                Preconditions.checkNotNull(encryptionConfig, "encryptionConfig must not be null");
 
         File tmpDir = new File(localTmpDir);
         if (!tmpDir.exists()) {

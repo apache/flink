@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3native.token.DynamicTemporaryAWSCredentialsProvider;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,7 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -54,7 +57,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -91,7 +93,7 @@ class S3ClientProvider implements AutoCloseableAsync {
     private S3ClientProvider(
             S3Client s3Client,
             S3TransferManager transferManager,
-            @Nullable S3EncryptionConfig encryptionConfig,
+            S3EncryptionConfig encryptionConfig,
             AwsCredentialsProvider credentialsProvider,
             @Nullable StsClient stsClient,
             Duration clientCloseTimeout,
@@ -103,22 +105,24 @@ class S3ClientProvider implements AutoCloseableAsync {
             boolean checksumValidation,
             int maxConnections,
             int maxRetries) {
-        this.s3Client = Objects.requireNonNull(s3Client, "s3Client must not be null");
+        this.s3Client = Preconditions.checkNotNull(s3Client, "s3Client must not be null");
         this.transferManager =
-                Objects.requireNonNull(transferManager, "transferManager must not be null");
+                Preconditions.checkNotNull(transferManager, "transferManager must not be null");
         this.encryptionConfig =
-                encryptionConfig != null ? encryptionConfig : S3EncryptionConfig.none();
+                Preconditions.checkNotNull(encryptionConfig, "encryptionConfig must not be null");
         this.credentialsProvider =
-                Objects.requireNonNull(credentialsProvider, "credentialsProvider must not be null");
+                Preconditions.checkNotNull(
+                        credentialsProvider, "credentialsProvider must not be null");
         this.stsClient = stsClient;
         this.clientCloseTimeout =
-                Objects.requireNonNull(clientCloseTimeout, "clientCloseTimeout must not be null");
+                Preconditions.checkNotNull(
+                        clientCloseTimeout, "clientCloseTimeout must not be null");
         this.connectionTimeout =
-                Objects.requireNonNull(connectionTimeout, "connectionTimeout must not be null");
+                Preconditions.checkNotNull(connectionTimeout, "connectionTimeout must not be null");
         this.socketTimeout =
-                Objects.requireNonNull(socketTimeout, "socketTimeout must not be null");
+                Preconditions.checkNotNull(socketTimeout, "socketTimeout must not be null");
         this.connectionMaxIdleTime =
-                Objects.requireNonNull(
+                Preconditions.checkNotNull(
                         connectionMaxIdleTime, "connectionMaxIdleTime must not be null");
         this.pathStyleAccess = pathStyleAccess;
         this.chunkedEncoding = chunkedEncoding;
@@ -199,19 +203,15 @@ class S3ClientProvider implements AutoCloseableAsync {
         }
         return CompletableFuture.runAsync(
                         () -> {
-                            if (transferManager != null) {
-                                try {
-                                    transferManager.close();
-                                } catch (Exception e) {
-                                    LOG.warn("Error closing S3 TransferManager", e);
-                                }
+                            try {
+                                transferManager.close();
+                            } catch (Exception e) {
+                                LOG.warn("Error closing S3 TransferManager", e);
                             }
-                            if (s3Client != null) {
-                                try {
-                                    s3Client.close();
-                                } catch (Exception e) {
-                                    LOG.warn("Error closing S3 sync client", e);
-                                }
+                            try {
+                                s3Client.close();
+                            } catch (Exception e) {
+                                LOG.warn("Error closing S3 sync client", e);
                             }
                             if (getCredentialsProvider() instanceof SdkAutoCloseable) {
                                 try {
@@ -268,7 +268,7 @@ class S3ClientProvider implements AutoCloseableAsync {
         private int assumeRoleSessionDurationSeconds = 3600;
 
         // Encryption configuration
-        private S3EncryptionConfig encryptionConfig;
+        private S3EncryptionConfig encryptionConfig = S3EncryptionConfig.none();
 
         // Custom credentials provider class names (comma-separated)
         @Nullable private String credentialsProviderClasses;
@@ -348,10 +348,8 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
-        public Builder assumeRoleSessionName(@Nullable String assumeRoleSessionName) {
-            if (assumeRoleSessionName != null) {
-                this.assumeRoleSessionName = assumeRoleSessionName;
-            }
+        public Builder assumeRoleSessionName(String assumeRoleSessionName) {
+            this.assumeRoleSessionName = assumeRoleSessionName;
             return this;
         }
 
@@ -360,8 +358,10 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
-        public Builder encryptionConfig(@Nullable S3EncryptionConfig encryptionConfig) {
-            this.encryptionConfig = encryptionConfig;
+        public Builder encryptionConfig(S3EncryptionConfig encryptionConfig) {
+            this.encryptionConfig =
+                    Preconditions.checkNotNull(
+                            encryptionConfig, "encryptionConfig must not be null");
             return this;
         }
 
@@ -386,7 +386,7 @@ class S3ClientProvider implements AutoCloseableAsync {
             AwsCredentialsProvider credentialsProvider;
 
             AwsCredentialsProvider baseProvider = buildBaseCredentialsProvider();
-            if (assumeRoleArn != null && !assumeRoleArn.isEmpty()) {
+            if (!StringUtils.isNullOrWhitespaceOnly(assumeRoleArn)) {
                 stsClient = buildStsClient(baseProvider, awsRegion);
                 credentialsProvider = buildAssumeRoleProvider(stsClient);
             } else {
@@ -424,24 +424,24 @@ class S3ClientProvider implements AutoCloseableAsync {
                 clientBuilder.endpointOverride(endpointUri);
             }
             S3Client s3Client = clientBuilder.build();
+
+            S3AsyncClientBuilder asyncClientBuilder =
+                    S3AsyncClient.builder()
+                            .credentialsProvider(credentialsProvider)
+                            .region(awsRegion)
+                            .serviceConfiguration(s3Config)
+                            .httpClientBuilder(
+                                    NettyNioAsyncHttpClient.builder()
+                                            .maxConcurrency(maxConnections)
+                                            .connectionTimeout(connectionTimeout)
+                                            .readTimeout(socketTimeout)
+                                            .connectionAcquisitionTimeout(connectionTimeout))
+                            .overrideConfiguration(overrideConfig);
+            if (endpointUri != null) {
+                asyncClientBuilder.endpointOverride(endpointUri);
+            }
             S3TransferManager transferManager =
-                    S3TransferManager.builder()
-                            .s3Client(
-                                    S3AsyncClient.builder()
-                                            .credentialsProvider(credentialsProvider)
-                                            .region(awsRegion)
-                                            .serviceConfiguration(s3Config)
-                                            .httpClientBuilder(
-                                                    NettyNioAsyncHttpClient.builder()
-                                                            .maxConcurrency(maxConnections)
-                                                            .connectionTimeout(connectionTimeout)
-                                                            .readTimeout(socketTimeout)
-                                                            .connectionAcquisitionTimeout(
-                                                                    connectionTimeout))
-                                            .overrideConfiguration(overrideConfig)
-                                            .endpointOverride(endpointUri)
-                                            .build())
-                            .build();
+                    S3TransferManager.builder().s3Client(asyncClientBuilder.build()).build();
 
             return new S3ClientProvider(
                     s3Client,
@@ -463,8 +463,7 @@ class S3ClientProvider implements AutoCloseableAsync {
         private AwsCredentialsProvider buildBaseCredentialsProvider() {
             List<AwsCredentialsProvider> chain = new ArrayList<>();
 
-            if (credentialsProviderClasses != null
-                    && !credentialsProviderClasses.trim().isEmpty()) {
+            if (!StringUtils.isNullOrWhitespaceOnly(credentialsProviderClasses)) {
                 for (String name : credentialsProviderClasses.split(",")) {
                     String trimmed = name.trim();
                     if (!trimmed.isEmpty()) {
@@ -547,7 +546,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                             .roleSessionName(assumeRoleSessionName)
                             .durationSeconds(assumeRoleSessionDurationSeconds);
 
-            if (assumeRoleExternalId != null && !assumeRoleExternalId.isEmpty()) {
+            if (!StringUtils.isNullOrWhitespaceOnly(assumeRoleExternalId)) {
                 requestBuilder.externalId(assumeRoleExternalId);
             }
 
@@ -558,7 +557,7 @@ class S3ClientProvider implements AutoCloseableAsync {
         }
 
         private Region resolveRegion(@Nullable String explicitRegion) {
-            if (explicitRegion != null && !explicitRegion.isEmpty()) {
+            if (!StringUtils.isNullOrWhitespaceOnly(explicitRegion)) {
                 LOG.info("Using configured AWS region: {}", explicitRegion);
                 return Region.of(explicitRegion);
             }
