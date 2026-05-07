@@ -947,10 +947,12 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             // Apply auto-increment strategy if enabled
             if (isSequenceIdAutoIncrement()) {
                 // Format: {base-sequence-id}-{subtask-index}-{counter}
-                // This ensures unique sequences across parallel instances and failovers
+                // This ensures unique sequences across parallel instances and failovers.
+                // Concatenation is preferred over String.format on this hot path: it avoids the
+                // formatter parsing overhead per record and produces identical output for the
+                // simple "%s-%d-%d" pattern.
                 long counter = sequenceCounter.getAndIncrement();
-                effectiveSequenceId =
-                        String.format("%s-%d-%d", getSequenceId(), subtaskIndex, counter);
+                effectiveSequenceId = getSequenceId() + "-" + subtaskIndex + "-" + counter;
 
                 if (LOG.isDebugEnabled()) {
                     LOG.debug(

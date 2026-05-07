@@ -209,6 +209,24 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                             + "Please provide a base sequence-id value.");
         }
 
+        // When auto-increment is enabled every record becomes its own one-shot sequence, so
+        // sequence_start AND sequence_end must both be true on every request — otherwise the
+        // Triton sequence batcher will keep the per-sequence state slot allocated indefinitely
+        // (since no `end` ever arrives) and eventually exhaust available sequence slots, while
+        // omitting `start` makes Triton route the request to a model state that was never
+        // initialized. Surfacing this as a configuration error avoids a silent server-side
+        // resource leak that would only manifest under load.
+        if (this.sequenceIdAutoIncrement && !(this.sequenceStart && this.sequenceEnd)) {
+            throw new IllegalArgumentException(
+                    "sequence-id-auto-increment requires both sequence-start=true and "
+                            + "sequence-end=true, because each generated sequence ID represents a "
+                            + "single one-shot stateful request. Got sequence-start="
+                            + this.sequenceStart
+                            + ", sequence-end="
+                            + this.sequenceEnd
+                            + ".");
+        }
+
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
     }
@@ -218,6 +236,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+
+        // Cache the subtask index once. It is consumed by both the retry scheduler thread name
+        // and the auto-increment sequence ID generator, and was previously fetched independently
+        // in each branch (with the auto-increment branch shadowing this very field via a local
+        // variable in the retry branch).
+        this.subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
 
         // Provision a private single-thread scheduler for delayed retries so that retry tasks are
         // bound to this operator's lifecycle. Previously CompletableFuture.delayedExecutor was
@@ -230,7 +254,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             // included so that thread dumps from a parallelism>1 deployment can be attributed
             // to a specific subtask rather than aliasing every parallel instance under the same
             // "triton-retry-scheduler-<model>" name.
-            final int subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
             final String threadName = "triton-retry-scheduler-" + modelName + "-" + subtaskIndex;
             this.retryScheduler =
                     Executors.newSingleThreadScheduledExecutor(
@@ -296,12 +319,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             healthChecker.start();
         }
 
-        // Initialize sequence counter and subtask index for auto-increment strategy.
-        // Done after healthChecker.start() so that failures in the subtask-info lookup cannot
-        // leave a half-initialized health checker behind.
+        // Initialize sequence counter for auto-increment strategy. The subtask index was already
+        // captured at the top of open(); we only need to allocate the counter here.
+        // Done after healthChecker.start() so that a failure in the (already-completed) subtask
+        // info lookup cannot leave a half-initialized health checker behind.
         if (sequenceIdAutoIncrement) {
             this.sequenceCounter = new AtomicLong(0);
-            this.subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
             LOG.info(
                     "Initialized sequence ID auto-increment for subtask {}: base={}",
                     subtaskIndex,

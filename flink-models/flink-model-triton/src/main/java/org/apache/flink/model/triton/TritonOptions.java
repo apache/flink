@@ -130,7 +130,10 @@ public class TritonOptions {
                                                     + "across Flink job restarts and failovers. This is particularly useful for non-reentrant "
                                                     + "models where duplicate inference requests must be avoided after failover. "
                                                     + "Format: {sequence-id}-{subtask-index}-{counter}. "
-                                                    + "Requires 'sequence-id' to be configured. Defaults to false.")
+                                                    + "Requires 'sequence-id' to be configured, and both 'sequence-start' and 'sequence-end' "
+                                                    + "to be set to true (each generated ID represents a one-shot stateful request, so the "
+                                                    + "Triton sequence batcher must open and close the slot on the same call). "
+                                                    + "Defaults to false.")
                                     .build());
 
     @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
