@@ -125,15 +125,14 @@ public class FlinkProjectCorrelateUnnestTransposeRule
         final RelBuilder builder = call.builder();
         final RexBuilder rexBuilder = builder.getRexBuilder();
 
-        // Build new left input as a Project that keeps only the used columns.
+        // Build new left input as a Project that keeps only the used columns. RelBuilder.project
+        // derives field names from the input refs.
         builder.push(left);
         final List<RexNode> leftRefs = new ArrayList<>();
-        final List<String> leftNames = new ArrayList<>();
         for (Integer oldIdx : usedLeftCols) {
-            leftRefs.add(rexBuilder.makeInputRef(left, oldIdx));
-            leftNames.add(left.getRowType().getFieldList().get(oldIdx).getName());
+            leftRefs.add(builder.field(oldIdx));
         }
-        final RelNode newLeft = builder.project(leftRefs, leftNames).build();
+        final RelNode newLeft = builder.project(leftRefs).build();
 
         // Allocate a fresh correlation id bound to the new left's narrower row type, and rewrite
         // every $cor0.X reference inside the right side using the index mapping. This is the
@@ -181,6 +180,21 @@ public class FlinkProjectCorrelateUnnestTransposeRule
                         .build();
 
         call.transformTo(result);
+    }
+
+    /**
+     * Looks up {@code oldIdx} in {@code mapping} and returns the new index, throwing a clear
+     * exception if the index is missing. Centralizes the consistency check used by both the
+     * correlation-variable rewrite and the top-project input-ref remap.
+     */
+    private static int requireMapped(
+            Map<Integer, Integer> mapping, int oldIdx, String description) {
+        Integer newIdx = mapping.get(oldIdx);
+        if (newIdx == null) {
+            throw new IllegalStateException(
+                    description + " " + oldIdx + " missing from mapping " + mapping);
+        }
+        return newIdx;
     }
 
     /**
@@ -251,15 +265,11 @@ public class FlinkProjectCorrelateUnnestTransposeRule
             // remains correct if Calcite ever interns/normalizes RexCorrelVariable instances.
             if (refExpr instanceof RexCorrelVariable
                     && ((RexCorrelVariable) refExpr).id.equals(newCorId)) {
-                int oldFieldIdx = fieldAccess.getField().getIndex();
-                Integer newFieldIdx = indexMapping.get(oldFieldIdx);
-                if (newFieldIdx == null) {
-                    throw new IllegalStateException(
-                            "Required column index "
-                                    + oldFieldIdx
-                                    + " missing from mapping "
-                                    + indexMapping);
-                }
+                int newFieldIdx =
+                        requireMapped(
+                                indexMapping,
+                                fieldAccess.getField().getIndex(),
+                                "Required column index");
                 return rexBuilder.makeFieldAccess(refExpr, newFieldIdx);
             }
             return super.visitFieldAccess(fieldAccess);
@@ -287,11 +297,9 @@ public class FlinkProjectCorrelateUnnestTransposeRule
         public RexNode visitInputRef(RexInputRef ref) {
             int oldIdx = ref.getIndex();
             if (oldIdx < oldLeftFieldCount) {
-                Integer newIdx = leftMapping.get(oldIdx);
-                if (newIdx == null) {
-                    throw new IllegalStateException(
-                            "Top project references pruned left column " + oldIdx);
-                }
+                int newIdx =
+                        requireMapped(
+                                leftMapping, oldIdx, "Top project references pruned left column");
                 return new RexInputRef(newIdx, ref.getType());
             }
             int rightOffset = oldIdx - oldLeftFieldCount;
