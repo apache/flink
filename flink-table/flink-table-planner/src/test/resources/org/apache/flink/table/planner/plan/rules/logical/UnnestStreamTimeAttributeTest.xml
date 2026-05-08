@@ -34,8 +34,8 @@ LogicalProject(a=[$0], s=[$5])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+Calc(select=[a, d0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,d,d0], rowType=[RecordType(INTEGER a, INTEGER ARRAY d, INTEGER d0)], joinType=[INNER])
    +- Calc(select=[a, d])
       +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 5000:INTERVAL SECOND)])
          +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, d, ts], metadata=[]]], fields=[a, d, ts])
@@ -71,7 +71,7 @@ Calc(select=[a, w$end AS w_end, cnt])
 +- GroupWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3600000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, COUNT(*) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, ts])
-         +- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,ts,d,f0], rowType=[RecordType(INTEGER a, TIMESTAMP(3) *ROWTIME* ts, INTEGER ARRAY d, INTEGER f0)], joinType=[INNER])
+         +- Correlate(invocation=[$UNNEST_ROWS$1($cor1.d)], correlate=[table($UNNEST_ROWS$1($cor1.d))], select=[a,ts,d,d0], rowType=[RecordType(INTEGER a, TIMESTAMP(3) *ROWTIME* ts, INTEGER ARRAY d, INTEGER d0)], joinType=[INNER])
             +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 5000:INTERVAL SECOND)])
                +- TableSourceScan(table=[[default_catalog, default_database, T, project=[a, ts, d], metadata=[]]], fields=[a, ts, d])
 ]]>
