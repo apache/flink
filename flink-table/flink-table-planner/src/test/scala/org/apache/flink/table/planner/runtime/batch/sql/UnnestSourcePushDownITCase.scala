@@ -31,12 +31,14 @@ import org.junit.jupiter.api.{BeforeEach, Test}
  */
 class UnnestSourcePushDownITCase extends BatchTestBase {
 
-  // (a, b, c, d) where d = ARRAY<INT>
+  // (a, b, c, d) where d = ARRAY<INT>. Row a=8 has an empty array so LEFT-join tests can
+  // exercise the null-padding path.
   private val rows: Seq[Row] = Seq(
     row(1, 10L, "x", Array[Integer](1, 2)),
     row(2, 20L, "y", Array[Integer](3)),
     row(6, 60L, "z", Array[Integer](50, 150)),
-    row(7, 70L, "w", Array[Integer](99))
+    row(7, 70L, "w", Array[Integer](99)),
+    row(8, 80L, "v", Array.empty[Integer])
   )
 
   @BeforeEach
@@ -97,14 +99,17 @@ class UnnestSourcePushDownITCase extends BatchTestBase {
 
   @Test
   def testLeftJoinFilterOnLeftPushed(): Unit = {
-    // LEFT JOIN: left filter still pushes safely. a > 5 selects rows with a in {6, 7}.
-    // Both rows have non-empty arrays, so no null-padded rows here.
+    // LEFT JOIN: left filter pushes safely AND null-padding is preserved for empty arrays.
+    // a > 5 selects rows {6, 7, 8}. Row a=8 has an empty array, so LEFT JOIN emits (8, NULL).
+    // The INNER counterpart (testFilterOnLeftPushedIntoSource) excludes a=8 entirely — that
+    // delta is what proves LEFT semantics survive the filter pushdown.
     checkResult(
       "SELECT a, s FROM T LEFT JOIN UNNEST(d) AS T1(s) ON TRUE WHERE a > 5",
       Seq(
         row(6, 50),
         row(6, 150),
-        row(7, 99)
+        row(7, 99),
+        row(8, null)
       ))
   }
 
