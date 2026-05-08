@@ -925,7 +925,7 @@ conversion:
 
       例如, CAST('42' AS INT) 返回 42; CAST(NULL AS STRING) 返回字符串类型的 `NULL`; CAST('non-number' AS INT) 抛出异常且作业失败。
 
-      Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character `U+FFFD` for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
+      Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character U+FFFD for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
     description: |

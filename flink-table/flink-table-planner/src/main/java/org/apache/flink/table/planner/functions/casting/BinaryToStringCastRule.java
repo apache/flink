@@ -67,15 +67,15 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
 
     --- Round-trip path: legacy mode (silent U+FFFD substitution) or strict UTF-8 mode + CHAR(n)/VARCHAR(n) (trim/pad).
     --- The decode line below is the legacy variant; in strict UTF-8 mode it becomes:
-    ---     resultString$435 = org.apache.flink.table.data.binary.BinaryStringData.fromUtf8Bytes(_myInput).toString();
+    ---     resultString$0 = org.apache.flink.table.data.binary.BinaryStringData.fromUtf8Bytes(_myInput).toString();
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        java.lang.String resultString$435;
-        resultString$435 = new java.lang.String(_myInput, java.nio.charset.StandardCharsets.UTF_8);
+        java.lang.String resultString$0;
+        resultString$0 = new java.lang.String(_myInput, java.nio.charset.StandardCharsets.UTF_8);
         java.lang.String resultPadOrTrim$538;
-        resultPadOrTrim$538 = resultString$435.toString();
-        if (resultString$435.length() > 12) {
-            resultPadOrTrim$538 = resultString$435.substring(0, java.lang.Math.min(resultString$435.length(), 12));
+        resultPadOrTrim$538 = resultString$0.toString();
+        if (resultString$0.length() > 12) {
+            resultPadOrTrim$538 = resultString$0.substring(0, java.lang.Math.min(resultString$0.length(), 12));
         } else {
             if (resultPadOrTrim$538.length() < 12) {
                 int padLength$539;
@@ -88,8 +88,8 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
                 resultPadOrTrim$538 = resultPadOrTrim$538 + sbPadding$540.toString();
             }
         }
-        resultString$435 = resultPadOrTrim$538;
-        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$435);
+        resultString$0 = resultPadOrTrim$538;
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$0);
         isNull$0 = result$1 == null;
     } else {
         result$1 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
