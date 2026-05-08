@@ -38,6 +38,9 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isSerializerCompatibleAfterNullabilityWidening;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isTypeCompatibleAfterNullabilityWidening;
+
 /**
  * A {@link TypeSerializer} for {@link MapData}. It should be noted that the header will not be
  * encoded. Currently Python doesn't support BinaryMapData natively, so we can't use
@@ -237,14 +240,18 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
             BaseMapSerializerSnapshot oldBaseMapDataSerializerSnapshot =
                     (BaseMapSerializerSnapshot) oldSerializerSnapshot;
-            if (!keyType.equals(oldBaseMapDataSerializerSnapshot.keyType)
-                    || !valueType.equals(oldBaseMapDataSerializerSnapshot.valueType)
-                    || !keySerializer.equals(oldBaseMapDataSerializerSnapshot.keySerializer)
-                    || !valueSerializer.equals(oldBaseMapDataSerializerSnapshot.valueSerializer)) {
+
+            if (!isTypeCompatibleAfterNullabilityWidening(
+                            keyType, oldBaseMapDataSerializerSnapshot.keyType)
+                    || !isTypeCompatibleAfterNullabilityWidening(
+                            valueType, oldBaseMapDataSerializerSnapshot.valueType)
+                    || !isSerializerCompatibleAfterNullabilityWidening(
+                            keySerializer, oldBaseMapDataSerializerSnapshot.keySerializer)
+                    || !isSerializerCompatibleAfterNullabilityWidening(
+                            valueSerializer, oldBaseMapDataSerializerSnapshot.valueSerializer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
-            } else {
-                return TypeSerializerSchemaCompatibility.compatibleAsIs();
             }
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
         }
     }
 }

@@ -19,6 +19,9 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
@@ -26,9 +29,13 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.StructuredType;
@@ -50,9 +57,57 @@ public final class LogicalTypeUtils {
     private static final String ATOMIC_FIELD_NAME = "f0";
 
     private static final TimeAttributeRemover TIME_ATTRIBUTE_REMOVER = new TimeAttributeRemover();
+    private static final NullabilityNormalizer NULLABILITY_NORMALIZER = new NullabilityNormalizer();
 
     public static LogicalType removeTimeAttributes(LogicalType logicalType) {
         return logicalType.accept(TIME_ATTRIBUTE_REMOVER);
+    }
+
+    public static LogicalType normalizeNullability(LogicalType logicalType) {
+        return logicalType.accept(NULLABILITY_NORMALIZER);
+    }
+
+    /**
+     * Returns true when new types are structurally equal to old types ignoring nullability, and no
+     * type narrows from nullable to non-nullable.
+     */
+    public static boolean areTypesCompatibleAfterNullabilityWidening(
+            LogicalType[] newTypes, LogicalType[] oldTypes) {
+        if (newTypes == oldTypes) {
+            return true;
+        }
+        if (newTypes == null || oldTypes == null || newTypes.length != oldTypes.length) {
+            return false;
+        }
+        for (int i = 0; i < newTypes.length; i++) {
+            if (!isTypeCompatibleAfterNullabilityWidening(newTypes[i], oldTypes[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isTypeCompatibleAfterNullabilityWidening(
+            LogicalType newType, LogicalType oldType) {
+        if (newType == oldType) {
+            return true;
+        }
+        if (newType == null || oldType == null) {
+            return false;
+        }
+        return normalizeNullability(newType).equals(normalizeNullability(oldType))
+                && !hasNullabilityNarrowing(newType, oldType);
+    }
+
+    public static boolean isSerializerCompatibleAfterNullabilityWidening(
+            TypeSerializer<?> serializer, TypeSerializer<?> previousSerializer) {
+        if (serializer.equals(previousSerializer)) {
+            return true;
+        }
+
+        TypeSerializerSchemaCompatibility<?> compatibility =
+                resolveSchemaCompatibility(serializer, previousSerializer);
+        return compatibility.isCompatibleAsIs();
     }
 
     /**
@@ -200,7 +255,86 @@ public final class LogicalTypeUtils {
         }
     }
 
-    private LogicalTypeUtils() {
-        // no instantiation
+    private static boolean hasNullabilityNarrowing(LogicalType newType, LogicalType oldType) {
+        // reject narrowing: nullable -> non-nullable
+        if (oldType.isNullable() && !newType.isNullable()) {
+            return true;
+        }
+
+        if (newType.is(LogicalTypeRoot.UNRESOLVED) || oldType.is(LogicalTypeRoot.UNRESOLVED)) {
+            return false;
+        }
+
+        if (newType instanceof StructuredType && oldType instanceof StructuredType) {
+            StructuredType newStructuredType = (StructuredType) newType;
+            StructuredType oldStructuredType = (StructuredType) oldType;
+            if (newStructuredType.getSuperType().isPresent()
+                    != oldStructuredType.getSuperType().isPresent()) {
+                return true;
+            }
+            if (newStructuredType.getSuperType().isPresent()
+                    && hasNullabilityNarrowing(
+                            newStructuredType.getSuperType().get(),
+                            oldStructuredType.getSuperType().get())) {
+                return true;
+            }
+        }
+
+        List<LogicalType> newChildren = newType.getChildren();
+        List<LogicalType> oldChildren = oldType.getChildren();
+        if (newChildren.size() != oldChildren.size()) {
+            return true;
+        }
+        for (int i = 0; i < newChildren.size(); i++) {
+            if (hasNullabilityNarrowing(newChildren.get(i), oldChildren.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static TypeSerializerSchemaCompatibility<?> resolveSchemaCompatibility(
+            TypeSerializer<?> serializer, TypeSerializer<?> previousSerializer) {
+        TypeSerializerSnapshot previousSnapshot = previousSerializer.snapshotConfiguration();
+        return serializer.snapshotConfiguration().resolveSchemaCompatibility(previousSnapshot);
+    }
+
+    private static class NullabilityNormalizer extends LogicalTypeDuplicator {
+
+        @Override
+        public LogicalType visit(ArrayType arrayType) {
+            return super.visit(arrayType).copy(true);
+        }
+
+        @Override
+        public LogicalType visit(MultisetType multisetType) {
+            return super.visit(multisetType).copy(true);
+        }
+
+        @Override
+        public LogicalType visit(MapType mapType) {
+            return super.visit(mapType).copy(true);
+        }
+
+        @Override
+        public LogicalType visit(RowType rowType) {
+            return super.visit(rowType).copy(true);
+        }
+
+        @Override
+        public LogicalType visit(DistinctType distinctType) {
+            return super.visit(distinctType).copy(true);
+        }
+
+        @Override
+        public LogicalType visit(StructuredType structuredType) {
+            return super.visit(structuredType).copy(true);
+        }
+
+        @Override
+        protected LogicalType defaultMethod(LogicalType logicalType) {
+            return logicalType.copy(true);
+        }
     }
 }

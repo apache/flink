@@ -35,6 +35,9 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isSerializerCompatibleAfterNullabilityWidening;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isTypeCompatibleAfterNullabilityWidening;
+
 /**
  * A {@link TypeSerializer} for {@link ArrayData}. It should be noted that the header will not be
  * encoded. Currently Python doesn't support BinaryArrayData natively, so we can't use
@@ -182,13 +185,15 @@ public class ArrayDataSerializer
 
             ArrayDataSerializerSnapshot oldArrayDataSerializerSnapshot =
                     (ArrayDataSerializerSnapshot) oldSerializerSnapshot;
-            if (!elementType.equals(oldArrayDataSerializerSnapshot.elementType)
-                    || !elementTypeSerializer.equals(
+
+            if (!isTypeCompatibleAfterNullabilityWidening(
+                            elementType, oldArrayDataSerializerSnapshot.elementType)
+                    || !isSerializerCompatibleAfterNullabilityWidening(
+                            elementTypeSerializer,
                             oldArrayDataSerializerSnapshot.elementTypeSerializer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
-            } else {
-                return TypeSerializerSchemaCompatibility.compatibleAsIs();
             }
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
         }
     }
 }

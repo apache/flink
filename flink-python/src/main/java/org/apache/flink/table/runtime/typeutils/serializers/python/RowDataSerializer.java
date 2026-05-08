@@ -39,6 +39,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.areTypesCompatibleAfterNullabilityWidening;
 
 /**
  * A {@link TypeSerializer} for {@link RowData}. It should be noted that the row kind will be
@@ -201,11 +202,11 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
             if (!(oldSerializerSnapshot instanceof RowDataSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
-
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
+
             // Allow NOT NULL -> NULL widening; reject NULL -> NOT NULL narrowing.
-            if (!typesAreCompatibleAfterNullabilityWidening(
+            if (!areTypesCompatibleAfterNullabilityWidening(
                     types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
@@ -225,33 +226,6 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
             }
 
             return intermediateResult.getFinalResult();
-        }
-
-        /**
-         * Returns true when new field types are structurally equal to old ones ignoring top-level
-         * nullability, and no field narrows from nullable to non-nullable.
-         */
-        private static boolean typesAreCompatibleAfterNullabilityWidening(
-                LogicalType[] newTypes, LogicalType[] oldTypes) {
-            if (newTypes == oldTypes) {
-                return true;
-            }
-            if (newTypes == null || oldTypes == null || newTypes.length != oldTypes.length) {
-                return false;
-            }
-            for (int i = 0; i < newTypes.length; i++) {
-                LogicalType newType = newTypes[i];
-                LogicalType oldType = oldTypes[i];
-                // structurally equal except (possibly) for top-level nullability
-                if (!newType.copy(true).equals(oldType.copy(true))) {
-                    return false;
-                }
-                // reject narrowing: nullable -> non-nullable
-                if (oldType.isNullable() && !newType.isNullable()) {
-                    return false;
-                }
-            }
-            return true;
         }
     }
 }

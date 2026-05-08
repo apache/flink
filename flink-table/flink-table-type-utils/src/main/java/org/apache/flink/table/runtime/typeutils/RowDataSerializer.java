@@ -44,6 +44,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.areTypesCompatibleAfterNullabilityWidening;
+
 /** Serializer for {@link RowData}. */
 @Internal
 public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
@@ -345,7 +347,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
             // Allow NOT NULL -> NULL widening; reject NULL -> NOT NULL narrowing.
-            if (!typesAreCompatibleAfterNullabilityWidening(
+            if (!areTypesCompatibleAfterNullabilityWidening(
                     types, oldRowDataSerializerSnapshot.types)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
@@ -365,33 +367,6 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
             }
 
             return intermediateResult.getFinalResult();
-        }
-
-        /**
-         * Returns true when new field types are structurally equal to old ones ignoring top-level
-         * nullability, and no field narrows from nullable to non-nullable.
-         */
-        private static boolean typesAreCompatibleAfterNullabilityWidening(
-                LogicalType[] newTypes, LogicalType[] oldTypes) {
-            if (newTypes == oldTypes) {
-                return true;
-            }
-            if (newTypes == null || oldTypes == null || newTypes.length != oldTypes.length) {
-                return false;
-            }
-            for (int i = 0; i < newTypes.length; i++) {
-                LogicalType newType = newTypes[i];
-                LogicalType oldType = oldTypes[i];
-                // structurally equal except (possibly) for top-level nullability
-                if (!newType.copy(true).equals(oldType.copy(true))) {
-                    return false;
-                }
-                // reject narrowing: nullable -> non-nullable
-                if (oldType.isNullable() && !newType.isNullable()) {
-                    return false;
-                }
-            }
-            return true;
         }
     }
 }

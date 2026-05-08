@@ -43,6 +43,9 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isSerializerCompatibleAfterNullabilityWidening;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isTypeCompatibleAfterNullabilityWidening;
+
 /** Serializer for {@link ArrayData}. */
 @Internal
 public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
@@ -333,12 +336,14 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 
             ArrayDataSerializerSnapshot oldArrayDataSerializerSnapshot =
                     (ArrayDataSerializerSnapshot) oldSerializerSnapshot;
-            if (!eleType.equals(oldArrayDataSerializerSnapshot.eleType)
-                    || !eleSer.equals(oldArrayDataSerializerSnapshot.eleSer)) {
+
+            if (!isTypeCompatibleAfterNullabilityWidening(
+                            eleType, oldArrayDataSerializerSnapshot.eleType)
+                    || !isSerializerCompatibleAfterNullabilityWidening(
+                            eleSer, oldArrayDataSerializerSnapshot.eleSer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
-            } else {
-                return TypeSerializerSchemaCompatibility.compatibleAsIs();
             }
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
         }
     }
 }
