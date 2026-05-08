@@ -48,10 +48,12 @@ final class UnnestRuleUtil {
     /**
      * Returns whether the right input of {@code correlate} is a Flink UNNEST table function. The
      * matcher looks through {@link LogicalProject} and {@link LogicalFilter} wrappers because
-     * {@link LogicalUnnestRule} keeps a wrapper Project for renaming/CAST and the filter rule may
-     * push a right-only predicate as a {@link LogicalFilter} above the {@link
-     * LogicalTableFunctionScan}. Earlier strict matching (direct TFS only) silently disabled this
-     * rule for LEFT correlate, {@code WITH ORDINALITY}, and right-side filter pushdown shapes.
+     * {@link LogicalUnnestRule} emits a renaming Project on top of the {@link
+     * LogicalTableFunctionScan} (e.g. for {@code AS T(alias)} and {@code WITH ORDINALITY}'s
+     * two-field output), and the filter rule may push a right-only predicate as a {@link
+     * LogicalFilter} above the TFS. Renaming Projects are not identity and therefore not stripped
+     * by {@code PROJECT_REMOVE}; strict matching (direct TFS only) would silently disable this rule
+     * for {@code WITH ORDINALITY} and right-side filter pushdown shapes.
      */
     static boolean isUnnestCorrelate(Correlate correlate) {
         return findUnnestTableFunctionScan(correlate.getRight()) != null;
