@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
@@ -38,6 +39,13 @@ class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
   def setup(): Unit = {
     util.addTableSource[(Int, Int, Long, Array[Int])]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Int, Array[(Int, String)])]("MyRowArrayTable", 'a, 'b)
+    util.addTableSource(
+      "MyMapTable",
+      Array[AbstractDataType[_]](
+        DataTypes.INT(),
+        DataTypes.INT(),
+        DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+      Array("a", "b", "m"))
   }
 
   @Test
@@ -93,5 +101,27 @@ class FlinkProjectFilterCorrelateUnnestTransposeRuleTest extends TableTestBase {
     util.verifyRelPlan(
       "SELECT a, val, pos FROM MyTable " +
         "CROSS JOIN UNNEST(d) WITH ORDINALITY AS T(val, pos) WHERE pos = 1")
+  }
+
+  /**
+   * UNNEST of a MAP column. {@code MyMapTable} has {@code (a, b, m)} where {@code b} is
+   * unreferenced so the rule should prune it from the left input. Confirms left-side pruning is
+   * type-agnostic (works for {@code MAP} the same as for {@code ARRAY}). The right side is {@code
+   * LogicalProject(KEY, VALUE) over LogicalTableFunctionScan(INTERNAL_UNNEST_ROWS)} — the wrapper
+   * Project is passed through unchanged.
+   */
+  @Test
+  def testInnerUnnestMapProjectionDropsLeftColumns(): Unit = {
+    util.verifyRelPlan("SELECT a, k, v FROM MyMapTable, UNNEST(m) AS T(k, v)")
+  }
+
+  /**
+   * UNNEST of a MAP column with a left-only filter. Verifies the filter rule pushes {@code a > 5}
+   * onto the left input below the Correlate even when the unnested column is a MAP, and the project
+   * rule still prunes {@code b}.
+   */
+  @Test
+  def testInnerUnnestMapFilterOnLeftOnly(): Unit = {
+    util.verifyRelPlan("SELECT a, v FROM MyMapTable, UNNEST(m) AS T(k, v) WHERE a > 5")
   }
 }

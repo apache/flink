@@ -114,6 +114,55 @@ Calc(select=[a, b, d0 AS s])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInnerUnnestMapFilterOnLeftOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT a, v FROM MyMapTable, UNNEST(m) AS T(k, v) WHERE a > 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], v=[$4])
++- LogicalFilter(condition=[>($0, 5)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyMapTable]])
+      +- LogicalProject(k=[$0], v=[$1])
+         +- Uncollect
+            +- LogicalProject(m=[$cor0.m])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, VALUE AS v])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.m)], correlate=[table($UNNEST_ROWS$1($cor1.m))], select=[a,m,KEY,VALUE], rowType=[RecordType(INTEGER a, (VARCHAR(2147483647), VARCHAR(2147483647)) MAP m, VARCHAR(2147483647) KEY, VARCHAR(2147483647) VALUE)], joinType=[INNER])
+   +- Calc(select=[a, m], where=[>(a, 5)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyMapTable]], fields=[a, b, m])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerUnnestMapProjectionDropsLeftColumns">
+    <Resource name="sql">
+      <![CDATA[SELECT a, k, v FROM MyMapTable, UNNEST(m) AS T(k, v)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], k=[$3], v=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyMapTable]])
+   +- LogicalProject(k=[$0], v=[$1])
+      +- Uncollect
+         +- LogicalProject(m=[$cor0.m])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, KEY AS k, VALUE AS v])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor1.m)], correlate=[table($UNNEST_ROWS$1($cor1.m))], select=[a,m,KEY,VALUE], rowType=[RecordType(INTEGER a, (VARCHAR(2147483647), VARCHAR(2147483647)) MAP m, VARCHAR(2147483647) KEY, VARCHAR(2147483647) VALUE)], joinType=[INNER])
+   +- Calc(select=[a, m])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyMapTable]], fields=[a, b, m])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInnerUnnestMixedPredicate">
     <Resource name="sql">
       <![CDATA[SELECT a, b, s FROM MyTable, UNNEST(d) AS T(s) WHERE a > 5 AND s < 100 AND a + s > 10]]>
