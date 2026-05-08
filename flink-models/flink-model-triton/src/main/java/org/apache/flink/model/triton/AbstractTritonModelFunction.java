@@ -121,6 +121,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String sequenceId;
 
     private final boolean sequenceIdAutoIncrement;
+    private final TritonOptions.SequenceIdCounterInitStrategy sequenceIdCounterInitStrategy;
     private final boolean sequenceStart;
     private final boolean sequenceEnd;
     private final String compression;
@@ -150,6 +151,8 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.priority = config.get(TritonOptions.PRIORITY);
         this.sequenceId = config.get(TritonOptions.SEQUENCE_ID);
         this.sequenceIdAutoIncrement = config.get(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT);
+        this.sequenceIdCounterInitStrategy =
+                config.get(TritonOptions.SEQUENCE_ID_COUNTER_INIT_STRATEGY);
         this.sequenceStart = config.get(TritonOptions.SEQUENCE_START);
         this.sequenceEnd = config.get(TritonOptions.SEQUENCE_END);
         this.compression = config.get(TritonOptions.COMPRESSION);
@@ -324,11 +327,31 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         // Done after healthChecker.start() so that a failure in the (already-completed) subtask
         // info lookup cannot leave a half-initialized health checker behind.
         if (sequenceIdAutoIncrement) {
-            this.sequenceCounter = new AtomicLong(0);
+            // Seed the counter according to the configured init strategy. ZERO is the legacy
+            // behaviour (compact IDs, but the numeric range repeats after every restart);
+            // NANO_TIME / EPOCH_MILLIS use the wall clock at open() time so a restart is
+            // guaranteed to pick a fresh, non-overlapping range — important when downstream
+            // systems may still be processing records from the previous run.
+            final long counterSeed;
+            switch (sequenceIdCounterInitStrategy) {
+                case NANO_TIME:
+                    counterSeed = System.nanoTime();
+                    break;
+                case EPOCH_MILLIS:
+                    counterSeed = System.currentTimeMillis();
+                    break;
+                case ZERO:
+                default:
+                    counterSeed = 0L;
+                    break;
+            }
+            this.sequenceCounter = new AtomicLong(counterSeed);
             LOG.info(
-                    "Initialized sequence ID auto-increment for subtask {}: base={}",
+                    "Initialized sequence ID auto-increment for subtask {}: base={}, strategy={}, seed={}",
                     subtaskIndex,
-                    sequenceId);
+                    sequenceId,
+                    sequenceIdCounterInitStrategy,
+                    counterSeed);
         }
     }
 
