@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
-import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata.MetadataFilterResult;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
@@ -31,6 +30,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import scala.Tuple2;
@@ -99,23 +99,31 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
         boolean supportsMetadataFilter = canPushdownMetadataFilter(tableSourceTable);
         int physicalColumnCount = getPhysicalColumnCount(tableSourceTable);
 
-        // Classify predicates: only separate metadata predicates when the source
-        // actually supports metadata filter push-down. Otherwise, all predicates
-        // go through the physical path to preserve the FilterPushDownSpec guard
-        // that prevents rule re-firing and maintains scan reuse invariants.
+        List<RexNode> allRemainingRexNodes = new ArrayList<>();
+        TableSourceTable currentTable = tableSourceTable;
+
+        // Unpushable metadata predicates stay as a runtime Calc, not the physical path —
+        // physical routing produces a FilterPushDownSpec that crashes compiled-plan restore
+        // once ProjectPushDownSpec narrows the scan row type.
         List<RexNode> physicalPredicates = new ArrayList<>();
         List<RexNode> metadataPredicates = new ArrayList<>();
         for (RexNode predicate : convertiblePredicates) {
-            if (supportsMetadataFilter
-                    && referencesOnlyMetadataColumns(predicate, physicalColumnCount)) {
-                metadataPredicates.add(predicate);
+            if (referencesOnlyMetadataColumns(predicate, physicalColumnCount)) {
+                if (supportsMetadataFilter) {
+                    metadataPredicates.add(predicate);
+                } else {
+                    allRemainingRexNodes.add(predicate);
+                }
             } else {
                 physicalPredicates.add(predicate);
             }
         }
 
-        List<RexNode> allRemainingRexNodes = new ArrayList<>();
-        TableSourceTable currentTable = tableSourceTable;
+        // Avoid re-firing on shapes we can't transform — saves wasted Hep iterations.
+        boolean nothingToPushPhysically = physicalPredicates.isEmpty() || !supportsPhysicalFilter;
+        if (nothingToPushPhysically && metadataPredicates.isEmpty()) {
+            return;
+        }
 
         if (!physicalPredicates.isEmpty() && supportsPhysicalFilter) {
             Tuple2<SupportsFilterPushDown.Result, TableSourceTable> physicalResult =
@@ -133,28 +141,14 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
         }
 
         if (!metadataPredicates.isEmpty()) {
-            Tuple2<MetadataFilterResult, TableSourceTable> metadataResult =
+            MetadataPushDownOutcome metadataResult =
                     resolveMetadataFiltersAndCreateTableSourceTable(
-                            metadataPredicates.toArray(new RexNode[0]),
-                            currentTable,
-                            scan,
-                            relBuilder);
-            currentTable = metadataResult._2;
-            // Remaining (rejected) metadata predicates stay as a LogicalFilter above
-            // the scan so they are still evaluated at runtime. We use the original
-            // RexNodes (suffix) because the remaining ResolvedExpressions use metadata
-            // key names, not SQL aliases needed by the Filter's row type. The
-            // validation in resolveMetadataFiltersAndCreateTableSourceTable ensures
-            // the partition invariant (accepted prefix + remaining suffix = input).
-            int acceptedCount = metadataResult._1.getAcceptedFilters().size();
-            for (int i = acceptedCount; i < metadataPredicates.size(); i++) {
-                allRemainingRexNodes.add(metadataPredicates.get(i));
-            }
+                            metadataPredicates.toArray(new RexNode[0]), currentTable, scan);
+            currentTable = metadataResult.newTableSourceTable;
+            allRemainingRexNodes.addAll(metadataResult.remainingInputRexNodes);
         }
 
-        for (RexNode unconverted : unconvertedPredicates) {
-            allRemainingRexNodes.add(unconverted);
-        }
+        allRemainingRexNodes.addAll(Arrays.asList(unconvertedPredicates));
 
         LogicalTableScan newScan =
                 LogicalTableScan.create(scan.getCluster(), currentTable, scan.getHints());

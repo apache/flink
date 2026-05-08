@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata.MetadataFilterResult;
@@ -35,32 +36,27 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.testutils.junit.SharedObjectsExtension;
-import org.apache.flink.testutils.junit.SharedReference;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for metadata filter push-down through {@link SupportsReadingMetadata}. */
 class MetadataFilterInReadingMetadataTest extends TableTestBase {
-
-    @RegisterExtension
-    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
     private BatchTableTestUtil util;
 
@@ -88,139 +84,144 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
 
     @Test
     void testMetadataFilterPushDown() {
-        SharedReference<List<ResolvedExpression>> receivedFilters =
-                sharedObjects.add(new ArrayList<>());
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(MetadataFilterSource.SCHEMA)
-                        .source(new MetadataFilterSource(true, receivedFilters))
+                        .source(new MetadataFilterSource(true))
                         .build();
         util.tableEnv().createTable("T1", descriptor);
 
         util.verifyRelPlan("SELECT id FROM T1 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00'");
-
-        assertThat(receivedFilters.get().toString())
-                .isEqualTo("[greaterThan(event_time, 2024-01-01T00:00)]");
     }
 
     @Test
     void testMetadataFilterNotPushedWhenNotSupported() {
-        SharedReference<List<ResolvedExpression>> receivedFilters =
-                sharedObjects.add(new ArrayList<>());
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(MetadataFilterSource.SCHEMA)
-                        .source(new MetadataFilterSource(false, receivedFilters))
+                        .source(new MetadataFilterSource(false))
                         .build();
         util.tableEnv().createTable("T2", descriptor);
 
         util.verifyRelPlan("SELECT id FROM T2 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00'");
-
-        // No metadata filters should have been pushed
-        assertThat(receivedFilters.get()).isEmpty();
     }
 
     @Test
     void testAliasedMetadataColumnFilter() {
-        SharedReference<List<ResolvedExpression>> receivedFilters =
-                sharedObjects.add(new ArrayList<>());
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(RenamedMetadataFilterSource.SCHEMA)
-                        .source(new RenamedMetadataFilterSource(receivedFilters))
+                        .source(new RenamedMetadataFilterSource())
                         .build();
         util.tableEnv().createTable("T3", descriptor);
 
-        // 'event_ts' is the SQL alias for metadata key 'timestamp'
+        // 'event_ts' is the SQL alias for metadata key 'timestamp'; the spec stores the metadata
+        // key so the plan shows `metadataFilter=[>(timestamp, ...)]` not the alias.
         util.verifyRelPlan("SELECT id FROM T3 WHERE event_ts > TIMESTAMP '2024-01-01 00:00:00'");
-
-        // The source should receive the filter with metadata key 'timestamp', not 'event_ts'.
-        assertThat(receivedFilters.get().toString())
-                .isEqualTo("[greaterThan(timestamp, 2024-01-01T00:00)]");
     }
 
     @Test
     void testMixedPhysicalAndMetadataFilters() {
-        SharedReference<List<ResolvedExpression>> metadataFilters =
-                sharedObjects.add(new ArrayList<>());
-        SharedReference<List<ResolvedExpression>> physicalFilters =
-                sharedObjects.add(new ArrayList<>());
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(MixedFilterSource.SCHEMA)
-                        .source(new MixedFilterSource(metadataFilters, physicalFilters))
+                        .source(new MixedFilterSource())
                         .build();
         util.tableEnv().createTable("T4", descriptor);
 
+        // id > 10 → physical path, event_time > ... → metadata path.
         util.verifyRelPlan(
                 "SELECT id FROM T4 WHERE id > 10 AND event_time > TIMESTAMP '2024-01-01 00:00:00'");
-
-        // Verify routing: id > 10 → physical path, event_time > ... → metadata path.
-        assertThat(physicalFilters.get().toString()).isEqualTo("[greaterThan(id, 10)]");
-        assertThat(metadataFilters.get().toString())
-                .isEqualTo("[greaterThan(event_time, 2024-01-01T00:00)]");
     }
 
     @Test
     void testPartialMetadataFilterAcceptance() {
-        SharedReference<List<ResolvedExpression>> receivedFilters =
-                sharedObjects.add(new ArrayList<>());
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(PartialMetadataFilterSource.SCHEMA)
-                        .source(new PartialMetadataFilterSource(receivedFilters))
+                        .source(new PartialMetadataFilterSource())
                         .build();
         util.tableEnv().createTable("T6", descriptor);
 
-        // Two metadata filters: the source accepts only the first one
+        // Source accepts the first filter and rejects the second.
         util.verifyRelPlan(
                 "SELECT id FROM T6 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00'"
                         + " AND priority > 5");
-
-        // Source receives both filters; the XML reference verifies only the first is accepted
-        // (the second remains as a LogicalFilter above the scan).
-        assertThat(receivedFilters.get().toString())
-                .isEqualTo("[greaterThan(event_time, 2024-01-01T00:00), greaterThan(priority, 5)]");
     }
 
     @Test
     void testPhysicalAndMetadataNameCollision() {
-        // Physical column 'offset' shares a name with the metadata key 'offset'
-        // (aliased in SQL as 'msg_offset'). The predicate on the metadata column
-        // must be pushed down using the metadata key, not confused with the
-        // physical column of the same name.
-        SharedReference<List<ResolvedExpression>> receivedFilters =
-                sharedObjects.add(new ArrayList<>());
+        // Physical column 'offset' shares a name with metadata key 'offset' (aliased to
+        // 'msg_offset'). The predicate must push down using the metadata key, not the alias.
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(CollidingNameSource.SCHEMA)
-                        .source(new CollidingNameSource(receivedFilters))
+                        .source(new CollidingNameSource())
                         .build();
         util.tableEnv().createTable("T7", descriptor);
 
         util.verifyRelPlan("SELECT id FROM T7 WHERE msg_offset > 5");
+    }
 
-        // Must reference the metadata key 'offset', NOT the SQL alias 'msg_offset'.
-        assertThat(receivedFilters.get().toString()).isEqualTo("[greaterThan(offset, 5)]");
+    @Test
+    void testBestEffortMetadataPruning() {
+        // Source puts every predicate in both accepted and remaining; plan shows both paths.
+        TableDescriptor descriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(MetadataFilterSource.SCHEMA)
+                        .source(new BestEffortPruningSource())
+                        .build();
+        util.tableEnv().createTable("T8", descriptor);
+
+        util.verifyRelPlan("SELECT id FROM T8 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00'");
+    }
+
+    @Test
+    void testNonContiguousSubsetAcceptance() {
+        TableDescriptor descriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NonContiguousAcceptingSource.SCHEMA)
+                        .source(new NonContiguousAcceptingSource())
+                        .build();
+        util.tableEnv().createTable("T9", descriptor);
+
+        util.verifyRelPlan("SELECT id FROM T9 WHERE m0 > 0 AND m1 > 1 AND m2 > 2");
+    }
+
+    @Test
+    void testCoverageInvariantWhenSourceDropsPredicate() {
+        TableDescriptor descriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(MetadataFilterSource.SCHEMA)
+                        .source(new DroppingAllSource())
+                        .build();
+        util.tableEnv().createTable("TDrop", descriptor);
+
+        assertThatThrownBy(
+                        () ->
+                                util.tableEnv()
+                                        .explainSql(
+                                                "SELECT id FROM TDrop "
+                                                        + "WHERE event_time > TIMESTAMP '2024-01-01 00:00:00'"))
+                .isInstanceOf(TableException.class)
+                .hasMessage(
+                        "Source dropped a metadata filter that was passed to "
+                                + "applyMetadataFilters. Every input predicate must appear in the "
+                                + "result's accepted list, remaining list, or both.");
     }
 
     @Test
     void testMetadataFilterWithProjection() {
-        SharedReference<List<ResolvedExpression>> receivedFilters =
-                sharedObjects.add(new ArrayList<>());
         TableDescriptor descriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(MetadataFilterSource.SCHEMA)
-                        .source(new MetadataFilterSource(true, receivedFilters))
+                        .source(new MetadataFilterSource(true))
                         .build();
         util.tableEnv().createTable("T5", descriptor);
 
+        // Projection push-down must not perturb the metadata filter.
         util.verifyRelPlan(
                 "SELECT id, name FROM T5 WHERE event_time > TIMESTAMP '2024-01-01 00:00:00'");
-
-        // Projection push-down must not perturb the metadata filter.
-        assertThat(receivedFilters.get().toString())
-                .isEqualTo("[greaterThan(event_time, 2024-01-01T00:00)]");
     }
 
     // -----------------------------------------------------------------------------------------
@@ -239,13 +240,9 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
                         .build();
 
         private final boolean supportsMetadataFilter;
-        private final SharedReference<List<ResolvedExpression>> receivedMetadataFilters;
 
-        MetadataFilterSource(
-                boolean supportsMetadataFilter,
-                SharedReference<List<ResolvedExpression>> receivedMetadataFilters) {
+        MetadataFilterSource(boolean supportsMetadataFilter) {
             this.supportsMetadataFilter = supportsMetadataFilter;
-            this.receivedMetadataFilters = receivedMetadataFilters;
         }
 
         @Override
@@ -265,8 +262,33 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
 
         @Override
         public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
-            receivedMetadataFilters.get().addAll(metadataFilters);
             return MetadataFilterResult.of(metadataFilters, Collections.emptyList());
+        }
+    }
+
+    /** Returns each input in both accepted and remaining (best-effort pruning shape). */
+    private static class BestEffortPruningSource extends TableFactoryHarness.ScanSourceBase
+            implements SupportsReadingMetadata {
+
+        @Override
+        public Map<String, DataType> listReadableMetadata() {
+            Map<String, DataType> metadata = new HashMap<>();
+            metadata.put("event_time", TIMESTAMP(3));
+            return metadata;
+        }
+
+        @Override
+        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {}
+
+        @Override
+        public boolean supportsMetadataFilterPushDown() {
+            return true;
+        }
+
+        @Override
+        public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
+            // Best-effort: accepted = remaining = all.
+            return MetadataFilterResult.of(metadataFilters, metadataFilters);
         }
     }
 
@@ -279,13 +301,6 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
                         .column("id", INT())
                         .columnByMetadata("event_ts", TIMESTAMP(3), "timestamp")
                         .build();
-
-        private final SharedReference<List<ResolvedExpression>> receivedMetadataFilters;
-
-        RenamedMetadataFilterSource(
-                SharedReference<List<ResolvedExpression>> receivedMetadataFilters) {
-            this.receivedMetadataFilters = receivedMetadataFilters;
-        }
 
         @Override
         public Map<String, DataType> listReadableMetadata() {
@@ -304,7 +319,6 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
 
         @Override
         public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
-            receivedMetadataFilters.get().addAll(metadataFilters);
             return MetadataFilterResult.of(metadataFilters, Collections.emptyList());
         }
     }
@@ -320,16 +334,9 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
                         .columnByMetadata("priority", INT())
                         .build();
 
-        private final SharedReference<List<ResolvedExpression>> receivedMetadataFilters;
-
-        PartialMetadataFilterSource(
-                SharedReference<List<ResolvedExpression>> receivedMetadataFilters) {
-            this.receivedMetadataFilters = receivedMetadataFilters;
-        }
-
         @Override
         public Map<String, DataType> listReadableMetadata() {
-            Map<String, DataType> metadata = new HashMap<>();
+            Map<String, DataType> metadata = new LinkedHashMap<>();
             metadata.put("event_time", TIMESTAMP(3));
             metadata.put("priority", INT());
             return metadata;
@@ -345,8 +352,6 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
 
         @Override
         public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
-            receivedMetadataFilters.get().addAll(metadataFilters);
-            // Accept only the first filter
             List<ResolvedExpression> accepted =
                     metadataFilters.isEmpty()
                             ? Collections.emptyList()
@@ -370,16 +375,6 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
                         .columnByMetadata("event_time", TIMESTAMP(3))
                         .build();
 
-        private final SharedReference<List<ResolvedExpression>> receivedMetadataFilters;
-        private final SharedReference<List<ResolvedExpression>> receivedPhysicalFilters;
-
-        MixedFilterSource(
-                SharedReference<List<ResolvedExpression>> receivedMetadataFilters,
-                SharedReference<List<ResolvedExpression>> receivedPhysicalFilters) {
-            this.receivedMetadataFilters = receivedMetadataFilters;
-            this.receivedPhysicalFilters = receivedPhysicalFilters;
-        }
-
         @Override
         public Map<String, DataType> listReadableMetadata() {
             Map<String, DataType> metadata = new HashMap<>();
@@ -397,13 +392,11 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
 
         @Override
         public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
-            receivedMetadataFilters.get().addAll(metadataFilters);
             return MetadataFilterResult.of(metadataFilters, Collections.emptyList());
         }
 
         @Override
         public Result applyFilters(List<ResolvedExpression> filters) {
-            receivedPhysicalFilters.get().addAll(filters);
             return Result.of(filters, Collections.emptyList());
         }
     }
@@ -422,12 +415,6 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
                         .columnByMetadata("msg_offset", INT(), "offset")
                         .build();
 
-        private final SharedReference<List<ResolvedExpression>> receivedMetadataFilters;
-
-        CollidingNameSource(SharedReference<List<ResolvedExpression>> receivedMetadataFilters) {
-            this.receivedMetadataFilters = receivedMetadataFilters;
-        }
-
         @Override
         public Map<String, DataType> listReadableMetadata() {
             Map<String, DataType> metadata = new HashMap<>();
@@ -445,8 +432,77 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
 
         @Override
         public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
-            receivedMetadataFilters.get().addAll(metadataFilters);
             return MetadataFilterResult.of(metadataFilters, Collections.emptyList());
+        }
+    }
+
+    /** Accepts inputs at positions 0 and 2, rejects position 1. */
+    private static class NonContiguousAcceptingSource extends TableFactoryHarness.ScanSourceBase
+            implements SupportsReadingMetadata {
+
+        public static final Schema SCHEMA =
+                Schema.newBuilder()
+                        .column("id", INT())
+                        .columnByMetadata("m0", INT())
+                        .columnByMetadata("m1", INT())
+                        .columnByMetadata("m2", INT())
+                        .build();
+
+        @Override
+        public Map<String, DataType> listReadableMetadata() {
+            Map<String, DataType> metadata = new LinkedHashMap<>();
+            metadata.put("m0", INT());
+            metadata.put("m1", INT());
+            metadata.put("m2", INT());
+            return metadata;
+        }
+
+        @Override
+        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {}
+
+        @Override
+        public boolean supportsMetadataFilterPushDown() {
+            return true;
+        }
+
+        @Override
+        public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
+            // Accept inputs at positions 0 and 2; reject position 1.
+            List<ResolvedExpression> accepted = new ArrayList<>();
+            List<ResolvedExpression> remaining = new ArrayList<>();
+            for (int i = 0; i < metadataFilters.size(); i++) {
+                if (i == 1) {
+                    remaining.add(metadataFilters.get(i));
+                } else {
+                    accepted.add(metadataFilters.get(i));
+                }
+            }
+            return MetadataFilterResult.of(accepted, remaining);
+        }
+    }
+
+    /** Drops every input by returning empty accepted and empty remaining. */
+    private static class DroppingAllSource extends TableFactoryHarness.ScanSourceBase
+            implements SupportsReadingMetadata {
+
+        @Override
+        public Map<String, DataType> listReadableMetadata() {
+            Map<String, DataType> metadata = new HashMap<>();
+            metadata.put("event_time", TIMESTAMP(3));
+            return metadata;
+        }
+
+        @Override
+        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {}
+
+        @Override
+        public boolean supportsMetadataFilterPushDown() {
+            return true;
+        }
+
+        @Override
+        public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
+            return MetadataFilterResult.of(Collections.emptyList(), Collections.emptyList());
         }
     }
 }

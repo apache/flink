@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -33,6 +34,9 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.TableScan;
@@ -47,6 +51,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import scala.Tuple2;
@@ -176,36 +181,78 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
         return mapping;
     }
 
+    /** Outcome of metadata filter push-down: updated table and runtime-Calc predicates. */
+    protected static final class MetadataPushDownOutcome {
+        final TableSourceTable newTableSourceTable;
+        final List<RexNode> remainingInputRexNodes;
+
+        MetadataPushDownOutcome(
+                TableSourceTable newTableSourceTable, List<RexNode> remainingInputRexNodes) {
+            this.newTableSourceTable = newTableSourceTable;
+            this.remainingInputRexNodes = remainingInputRexNodes;
+        }
+    }
+
     /** Resolves metadata filters and creates a new {@link TableSourceTable}. */
-    protected Tuple2<MetadataFilterResult, TableSourceTable>
-            resolveMetadataFiltersAndCreateTableSourceTable(
-                    RexNode[] metadataPredicates,
-                    TableSourceTable oldTableSourceTable,
-                    TableScan scan,
-                    RelBuilder relBuilder) {
+    protected MetadataPushDownOutcome resolveMetadataFiltersAndCreateTableSourceTable(
+            RexNode[] metadataPredicates, TableSourceTable oldTableSourceTable, TableScan scan) {
         DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
         SourceAbilityContext abilityContext = SourceAbilityContext.from(scan);
 
-        // Build a metadata-only row type (field names are metadata keys, not SQL aliases) and
-        // an old->new index mapping. Storing only metadata columns avoids name collisions with
-        // physical columns (e.g. `offset INT, msg_offset INT METADATA FROM 'offset'`).
+        // Field names are metadata keys, not SQL aliases, to avoid physical/metadata collisions
+        // (e.g. `offset INT, msg_offset INT METADATA FROM 'offset'`).
         MetadataRowInfo metadataRowInfo =
                 buildMetadataRowInfo(oldTableSourceTable, abilityContext.getSourceRowType());
         RexNode[] remappedPredicates =
                 remapPredicates(metadataPredicates, metadataRowInfo.oldIndexToNewIndex);
 
-        MetadataFilterResult result =
-                MetadataFilterPushDownSpec.applyMetadataFilters(
+        List<ResolvedExpression> resolved =
+                MetadataFilterPushDownSpec.resolvedExpressions(
                         Arrays.asList(remappedPredicates),
                         metadataRowInfo.metadataRowType,
                         newTableSource,
                         abilityContext);
+        MetadataFilterResult result =
+                MetadataFilterPushDownSpec.applyMetadataFiltersOnSource(newTableSource, resolved);
 
-        int acceptedCount = result.getAcceptedFilters().size();
-        List<RexNode> acceptedRemappedPredicates = new ArrayList<>();
-        for (int i = 0; i < acceptedCount; i++) {
-            acceptedRemappedPredicates.add(remappedPredicates[i]);
+        // Source must return back the same instances it received.
+        Set<ResolvedExpression> acceptedSet = Sets.newIdentityHashSet();
+        acceptedSet.addAll(result.getAcceptedFilters());
+        Set<ResolvedExpression> remainingSet = Sets.newIdentityHashSet();
+        remainingSet.addAll(result.getRemainingFilters());
+        Set<ResolvedExpression> inputSet = Sets.newIdentityHashSet();
+        inputSet.addAll(resolved);
+
+        for (ResolvedExpression r :
+                Iterables.concat(result.getAcceptedFilters(), result.getRemainingFilters())) {
+            if (!inputSet.contains(r)) {
+                throw new TableException(
+                        "Source returned a metadata filter not in the input list. Sources must "
+                                + "return back the same ResolvedExpression instances they "
+                                + "received from applyMetadataFilters.");
+            }
         }
+
+        List<RexNode> acceptedRemappedPredicates = new ArrayList<>();
+        List<RexNode> remainingInputRexNodes = new ArrayList<>();
+        for (int i = 0; i < resolved.size(); i++) {
+            ResolvedExpression r = resolved.get(i);
+            boolean inAccepted = acceptedSet.contains(r);
+            boolean inRemaining = remainingSet.contains(r);
+            if (!inAccepted && !inRemaining) {
+                throw new TableException(
+                        "Source dropped a metadata filter that was passed to "
+                                + "applyMetadataFilters. Every input predicate must appear in the "
+                                + "result's accepted list, remaining list, or both.");
+            }
+            if (inAccepted) {
+                acceptedRemappedPredicates.add(remappedPredicates[i]);
+            }
+            if (inRemaining) {
+                remainingInputRexNodes.add(metadataPredicates[i]);
+            }
+        }
+
         MetadataFilterPushDownSpec metadataSpec =
                 new MetadataFilterPushDownSpec(
                         acceptedRemappedPredicates, metadataRowInfo.metadataRowType);
@@ -216,7 +263,7 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                         oldTableSourceTable.getStatistic(),
                         new SourceAbilitySpec[] {metadataSpec});
 
-        return new Tuple2<>(result, newTableSourceTable);
+        return new MetadataPushDownOutcome(newTableSourceTable, remainingInputRexNodes);
     }
 
     /**
@@ -253,7 +300,7 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                     public RexNode visitInputRef(RexInputRef inputRef) {
                         Integer newIdx = oldIndexToNewIndex.get(inputRef.getIndex());
                         if (newIdx == null) {
-                            throw new IllegalStateException(
+                            throw new TableException(
                                     "Metadata predicate references non-metadata column index "
                                             + inputRef.getIndex());
                         }

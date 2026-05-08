@@ -63,7 +63,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     /**
      * A flag which indicates all predicates are retained in the outer Filter operator.
      *
-     * <p>This flog is only used for optimization phase, and should not be serialized.
+     * <p>This flag is only used for optimization phase, and should not be serialized.
      */
     @JsonIgnore private final boolean allPredicatesRetained;
 
@@ -111,8 +111,9 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     }
 
     /**
-     * Converts {@link RexNode} predicates to {@link ResolvedExpression}s using the given row type.
-     * Shared between physical and metadata filter push-down paths.
+     * Converts {@link RexNode} predicates to {@link ResolvedExpression}s, preserving 1:1 input
+     * order so callers can correlate by position. Shared between physical and metadata filter
+     * push-down paths.
      */
     static List<ResolvedExpression> resolvePredicates(
             List<RexNode> predicates,
@@ -137,9 +138,9 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                                         throw new TableException(
                                                 String.format(
                                                         "%s can not be converted to Expression, please make sure %s can accept %s.",
-                                                        p.toString(),
+                                                        p,
                                                         tableSource.getClass().getSimpleName(),
-                                                        p.toString()));
+                                                        p));
                                     }
                                 })
                         .collect(Collectors.toList());
@@ -160,7 +161,15 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                                             "SQL expression parsing is not supported at this location.");
                                 })
                         .build();
-        return resolver.resolve(filters);
+        List<ResolvedExpression> resolved = resolver.resolve(filters);
+        if (resolved.size() != predicates.size()) {
+            throw new TableException(
+                    String.format(
+                            "Internal error: ExpressionResolver returned %d resolved expressions "
+                                    + "for %d input predicates.",
+                            resolved.size(), predicates.size()));
+        }
+        return resolved;
     }
 
     @Override
