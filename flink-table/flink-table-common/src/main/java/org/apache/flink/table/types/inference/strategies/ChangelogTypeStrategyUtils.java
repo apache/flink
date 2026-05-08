@@ -25,6 +25,8 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.types.ColumnList;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -46,6 +48,18 @@ public final class ChangelogTypeStrategyUtils {
                 .filter(cl -> !cl.getNames().isEmpty())
                 .map(cl -> cl.getNames().get(0))
                 .orElse(DEFAULT_OP_COLUMN_NAME);
+    }
+
+    /**
+     * Returns the index of the column matching {@code opColumnName} within the input schema, or
+     * empty if no field matches.
+     */
+    public static OptionalInt resolveOpColumnIndex(
+            final TableSemantics tableSemantics, final String opColumnName) {
+        final List<String> fieldNames = DataType.getFieldNames(tableSemantics.dataType());
+        return IntStream.range(0, fieldNames.size())
+                .filter(i -> fieldNames.get(i).equals(opColumnName))
+                .findFirst();
     }
 
     /**
@@ -78,8 +92,8 @@ public final class ChangelogTypeStrategyUtils {
 
     private static Set<Integer> collectPartitionKeyIndices(final TableSemantics tableSemantics) {
         return Arrays.stream(tableSemantics.partitionByColumns())
-                        .boxed()
-                        .collect(Collectors.toSet());
+                .boxed()
+                .collect(Collectors.toSet());
     }
 
     private ChangelogTypeStrategyUtils() {}
