@@ -28,6 +28,8 @@ import org.apache.flink.types.RowKind;
 
 import java.time.Instant;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
 
@@ -255,6 +257,34 @@ public class ToChangelogTestPrograms {
                                     .consumedValues("+I[INSERT, 1, Alice]", "+I[INSERT, 2, Bob]")
                                     .build())
                     .runTableApi(env -> env.from("t").toChangelog(), "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_RETRACT_PARTITION_BY =
+            TableTestProgram.of(
+                            "to-changelog-table-api-retract-partition-by",
+                            "PartitionedTable.toChangelog() convenience method")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED",
+                                            "id STRING",
+                                            "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", "EU", 10L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", "EU", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", "EU", 30L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "id STRING", "op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[EU, INSERT, Alice, 10]",
+                                            "+I[EU, UPDATE_BEFORE, Alice, 10]",
+                                            "+I[EU, UPDATE_AFTER, Alice, 30]")
+                                    .build())
+                    .runTableApi(env -> env.from("t").partitionBy($("id")).toChangelog(), "sink")
                     .build();
 
     // --------------------------------------------------------------------------------------------

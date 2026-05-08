@@ -26,6 +26,8 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /** {@link TableTestProgram} definitions for testing the built-in FROM_CHANGELOG PTF. */
 public class FromChangelogTestPrograms {
 
@@ -248,6 +250,35 @@ public class FromChangelogTestPrograms {
                                             Row.ofKind(RowKind.INSERT, 2, "Bob"))
                                     .build())
                     .runTableApi(env -> env.from("cdc_stream").fromChangelog(), "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_RETRACT_PARTITION_BY =
+            TableTestProgram.of(
+                            "from-changelog-table-api-retract-partition-by",
+                            "PartitionedTable.fromChangelog() convenience method")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(
+                                            Row.of(1, "INSERT", "Alice"),
+                                            Row.of(2, "INSERT", "Bob"),
+                                            Row.of(1, "UPDATE_BEFORE", "Alice"),
+                                            Row.of(1, "UPDATE_AFTER", "Alice2"),
+                                            Row.of(2, "DELETE", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, "Alice"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runTableApi(
+                            env -> env.from("cdc_stream").partitionBy($("id")).fromChangelog(),
+                            "sink")
                     .build();
 
     // --------------------------------------------------------------------------------------------

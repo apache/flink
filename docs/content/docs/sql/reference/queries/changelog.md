@@ -187,6 +187,10 @@ Table result = cdcStream.fromChangelog(
         "ua", "UPDATE_AFTER",
         "d", "DELETE").asArgument("op_mapping")
 );
+
+// Set semantics: co-locate rows with the same key in the same parallel operator instance.
+// Equivalent to PARTITION BY in SQL. The partition keys are prepended to the output columns.
+Table result = cdcStream.partitionBy($("id")).fromChangelog();
 ```
 
 ## TO_CHANGELOG
@@ -326,6 +330,10 @@ Table result = myTable.toChangelog(
     descriptor("deleted").asArgument("op"),
     map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
 );
+
+// Set semantics: co-locate rows with the same key in the same parallel operator instance.
+// Equivalent to PARTITION BY in SQL. The partition keys are prepended to the output columns.
+Table result = myTable.partitionBy($("id")).toChangelog();
 ```
 
 {{< top >}}
