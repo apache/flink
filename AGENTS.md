@@ -196,6 +196,7 @@ Every module from the root pom.xml, organized by function. Flink provides three 
 Key separations:
 
 - **Planner vs Runtime:** The table planner generates code and execution plans; the runtime executes them. Changes to planning logic live in `flink-table-planner`; changes to runtime operators live in `flink-table-runtime` or `flink-streaming-java`.
+- **Codegen vs hand-written operators:** Per-record expression logic (casts, projections, filters, function calls) is generated at planning time by cast rules in `flink-table-planner/.../functions/casting/` and call generators in `flink-table-planner/.../codegen/calls/`, then compiled by Janino into the surrounding operator class. Operators with fixed structure (joins, aggregations, source/sink runtime) are hand-written Java in `flink-table-runtime` or `flink-streaming-java`. New scalar functions usually only need a `BuiltInFunctionDefinitions` entry plus a `BuiltInScalarFunction` subclass - the planner wires up codegen automatically. New cast behaviour or a custom call shape needs a cast rule or call generator.
 - **API vs Implementation:** Public API surfaces (`flink-core-api`, `flink-datastream-api`, `flink-table-api-java`) are separate from implementation modules. API stability annotations control what users can depend on.
 - **ArchUnit enforcement:** `flink-architecture-tests/` contains ArchUnit tests that enforce module boundaries. New violations should be avoided; if unavoidable, follow the freeze procedure in `flink-architecture-tests/README.md`.
 
@@ -294,6 +295,7 @@ This section maps common types of Flink changes to the modules they touch and th
 - Ensure `./mvnw clean verify` passes before opening a PR
 - Always push to your fork, not directly to `apache/flink`
 - Rebase onto the latest target branch before submitting
+- For user-visible behaviour changes, breaking changes, new SQL features, or new config options: fill in the **Release Notes** field on the JIRA ticket. The release manager consolidates these when cutting a release. The next version's `docs/content/release-notes/flink-X.Y.md` will be generated based of the jira tickets, so make sure to fill them in properly.
 
 ### AI-assisted contributions
 
