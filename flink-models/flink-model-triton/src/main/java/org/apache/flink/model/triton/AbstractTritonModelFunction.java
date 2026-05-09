@@ -88,8 +88,13 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     protected transient AtomicLong sequenceCounter;
 
     /**
-     * Index of this parallel subtask. Used together with {@link #sequenceCounter} to build unique
-     * auto-incremented sequence IDs in the form {@code {base}-{subtask}-{counter}}.
+     * Index of this parallel subtask. Captured unconditionally in {@link #open(FunctionContext)}
+     * and consumed by two independent code paths: (1) the retry scheduler thread name — {@code
+     * triton-retry-scheduler-<model>-<subtask>} — so thread dumps from a parallelism&gt;1
+     * deployment can be attributed to a specific subtask instead of aliasing every instance under
+     * the same name; and (2) the auto-increment sequence ID generator, where it is combined with
+     * {@link #sequenceCounter} to produce unique IDs of the form {@code {base}-{subtask}-{counter}}
+     * across parallel instances.
      */
     protected transient int subtaskIndex;
 
