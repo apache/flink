@@ -67,6 +67,8 @@ public class TritonModelProviderFactory implements ModelProviderFactory {
         set.add(TritonOptions.SEQUENCE_ID);
         set.add(TritonOptions.SEQUENCE_START);
         set.add(TritonOptions.SEQUENCE_END);
+        set.add(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT);
+        set.add(TritonOptions.SEQUENCE_ID_COUNTER_INIT_STRATEGY);
         set.add(TritonOptions.COMPRESSION);
         set.add(TritonOptions.AUTH_TOKEN);
         set.add(TritonOptions.CUSTOM_HEADERS);

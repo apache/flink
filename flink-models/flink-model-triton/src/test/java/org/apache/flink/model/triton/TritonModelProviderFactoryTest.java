@@ -17,12 +17,27 @@
 
 package org.apache.flink.model.triton;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.factories.utils.FactoryMocks;
+import org.apache.flink.table.ml.ModelProvider;
+
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TritonModelProviderFactory}. */
 class TritonModelProviderFactoryTest {
+
+    private static final ResolvedSchema INPUT_SCHEMA =
+            ResolvedSchema.of(Column.physical("input", DataTypes.STRING()));
+
+    private static final ResolvedSchema OUTPUT_SCHEMA =
+            ResolvedSchema.of(Column.physical("output", DataTypes.STRING()));
 
     @Test
     void testFactoryIdentifier() {
@@ -42,7 +57,7 @@ class TritonModelProviderFactoryTest {
     void testOptionalOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
         assertThat(factory.optionalOptions())
-                .hasSize(14)
+                .hasSize(16)
                 .containsExactlyInAnyOrder(
                         TritonOptions.MODEL_VERSION,
                         TritonOptions.TIMEOUT,
@@ -51,6 +66,8 @@ class TritonModelProviderFactoryTest {
                         TritonOptions.SEQUENCE_ID,
                         TritonOptions.SEQUENCE_START,
                         TritonOptions.SEQUENCE_END,
+                        TritonOptions.SEQUENCE_ID_AUTO_INCREMENT,
+                        TritonOptions.SEQUENCE_ID_COUNTER_INIT_STRATEGY,
                         TritonOptions.COMPRESSION,
                         TritonOptions.AUTH_TOKEN,
                         TritonOptions.CUSTOM_HEADERS,
@@ -58,5 +75,39 @@ class TritonModelProviderFactoryTest {
                         TritonOptions.RETRY_INITIAL_BACKOFF,
                         TritonOptions.RETRY_MAX_BACKOFF,
                         TritonOptions.DEFAULT_VALUE);
+    }
+
+    /**
+     * End-to-end regression guard for the sequence-id auto-increment options being exposed through
+     * the factory's {@code optionalOptions()} set.
+     *
+     * <p>Background: {@link TritonModelProviderFactory#createModelProvider} calls {@code
+     * helper.validate()}, which rejects any option key not listed in {@link
+     * TritonModelProviderFactory#requiredOptions()} or {@link
+     * TritonModelProviderFactory#optionalOptions()} as "Unsupported options". Earlier rounds of
+     * this feature added {@code sequence-id-auto-increment} and {@code
+     * sequence-id-counter-init-strategy} to {@link TritonOptions} and consumed them inside {@link
+     * TritonInferenceModelFunction}, but forgot to register them with the factory — making the
+     * feature unreachable via SQL {@code CREATE MODEL ... WITH (...)} even though the unit tests
+     * that construct the function directly (bypassing factory validation) passed green. This test
+     * goes through {@link FactoryMocks#createModelProvider} which invokes the full factory chain,
+     * so any future un-registration of these options will fail here.
+     */
+    @Test
+    void testSequenceIdAutoIncrementOptionsPassFactoryValidation() {
+        Map<String, String> options = new HashMap<>();
+        options.put("provider", TritonModelProviderFactory.IDENTIFIER);
+        options.put(TritonOptions.ENDPOINT.key(), "http://localhost:8000");
+        options.put(TritonOptions.MODEL_NAME.key(), "test-model");
+        // The two options that were previously missing from optionalOptions().
+        options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
+        options.put(TritonOptions.SEQUENCE_START.key(), "true");
+        options.put(TritonOptions.SEQUENCE_END.key(), "true");
+        options.put(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT.key(), "true");
+        options.put(TritonOptions.SEQUENCE_ID_COUNTER_INIT_STRATEGY.key(), "NANO_TIME");
+
+        ModelProvider provider =
+                FactoryMocks.createModelProvider(INPUT_SCHEMA, OUTPUT_SCHEMA, options);
+        assertThat(provider).isNotNull();
     }
 }
