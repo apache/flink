@@ -21,6 +21,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.utils.FactoryMocks;
+import org.apache.flink.table.functions.AsyncPredictFunction;
+import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.ModelProvider;
 
 import org.junit.jupiter.api.Test;
@@ -92,6 +94,11 @@ class TritonModelProviderFactoryTest {
      * that construct the function directly (bypassing factory validation) passed green. This test
      * goes through {@link FactoryMocks#createModelProvider} which invokes the full factory chain,
      * so any future un-registration of these options will fail here.
+     *
+     * <p>Beyond validation, we also extract the underlying {@link TritonInferenceModelFunction} and
+     * assert that the auto-increment flag was actually plumbed through to the function's internal
+     * state — guarding against a regression where the factory validates the keys but the function
+     * silently ignores them.
      */
     @Test
     void testSequenceIdAutoIncrementOptionsPassFactoryValidation() {
@@ -108,6 +115,19 @@ class TritonModelProviderFactoryTest {
 
         ModelProvider provider =
                 FactoryMocks.createModelProvider(INPUT_SCHEMA, OUTPUT_SCHEMA, options);
-        assertThat(provider).isNotNull();
+        assertThat(provider).isNotNull().isInstanceOf(AsyncPredictRuntimeProvider.class);
+
+        // Pass null because TritonModelProviderFactory.Provider#createAsyncPredictFunction ignores
+        // its Context argument and returns the pre-built function captured at factory time.
+        AsyncPredictFunction function =
+                ((AsyncPredictRuntimeProvider) provider).createAsyncPredictFunction(null);
+        assertThat(function).isInstanceOf(TritonInferenceModelFunction.class);
+
+        // Guard R5-2: if a future refactor removes the options from the constructor but still
+        // keeps them in optionalOptions(), this assertion catches the silent drop. We use the
+        // protected getSequenceId() / isSequenceIdAutoIncrement() accessors (same package).
+        TritonInferenceModelFunction tritonFn = (TritonInferenceModelFunction) function;
+        assertThat(tritonFn.isSequenceIdAutoIncrement()).isTrue();
+        assertThat(tritonFn.getSequenceId()).isEqualTo("job-123");
     }
 }
