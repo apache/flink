@@ -651,8 +651,13 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
      *
      * <p>Callers should capture the returned value in a local variable at the entry point of the
      * predict call and thread it through all retry attempts unchanged.
+     *
+     * <p>Marked {@code final} so subclasses cannot accidentally weaken the call-once contract by
+     * overriding with a memoizing or call-counting variant; the side-effect semantics are part of
+     * the API and any future per-subclass customization should happen via the existing protected
+     * fields ({@link #sequenceId}, {@link #sequenceCounter}, {@link #subtaskIndex}) instead.
      */
-    protected String nextEffectiveSequenceId() {
+    protected final String nextEffectiveSequenceId() {
         if (sequenceId == null) {
             return null;
         }
