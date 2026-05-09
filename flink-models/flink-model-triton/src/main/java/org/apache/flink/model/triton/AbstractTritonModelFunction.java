@@ -631,6 +631,33 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         return sequenceIdAutoIncrement;
     }
 
+    /**
+     * Returns the sequence ID to include in a single inference request. When auto-increment is
+     * enabled, this returns {@code {base}-{subtask}-{counter}} with a freshly incremented counter;
+     * otherwise it returns the configured base sequence ID verbatim (possibly {@code null}).
+     *
+     * <p><b>Important:</b> this method has a side effect (counter increment) and must be called
+     * <b>exactly once per logical record</b>. In particular it MUST NOT be called again on a retry
+     * attempt — every call consumes a new ID, and with {@code sequence-start=true &
+     * sequence-end=true} each ID corresponds to a distinct server-side sequence slot on Triton.
+     * Calling it per retry would open N slots per record but only ever close the last one,
+     * producing a slow slot leak that exhausts the Triton sequence batcher under sustained failures
+     * — the exact failure mode the constructor validations were introduced to prevent.
+     *
+     * <p>Callers should capture the returned value in a local variable at the entry point of the
+     * predict call and thread it through all retry attempts unchanged.
+     */
+    protected String nextEffectiveSequenceId() {
+        if (sequenceId == null) {
+            return null;
+        }
+        if (!sequenceIdAutoIncrement) {
+            return sequenceId;
+        }
+        final long counter = sequenceCounter.getAndIncrement();
+        return sequenceId + "-" + subtaskIndex + "-" + counter;
+    }
+
     protected boolean isSequenceStart() {
         return sequenceStart;
     }

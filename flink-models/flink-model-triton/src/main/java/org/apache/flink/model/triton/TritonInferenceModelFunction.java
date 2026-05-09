@@ -17,6 +17,7 @@
 
 package org.apache.flink.model.triton;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.model.triton.exception.TritonCircuitBreakerOpenException;
 import org.apache.flink.model.triton.exception.TritonClientException;
@@ -195,7 +196,14 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     @Override
     public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
         CompletableFuture<Collection<RowData>> future = new CompletableFuture<>();
-        asyncPredictWithRetry(rowData, future, 0);
+        // Generate the effective sequence ID exactly once per record, BEFORE retries can fire.
+        // Under auto-increment the counter advance has a visible side effect on Triton (each ID
+        // allocates its own server-side sequence slot with sequence-start=true, which will later
+        // be closed with sequence-end=true). If we regenerated on every retry we would open N
+        // slots per record and only close the last one, leaking the rest — see the javadoc on
+        // nextEffectiveSequenceId() for the full argument.
+        String effectiveSequenceId = nextEffectiveSequenceId();
+        asyncPredictWithRetry(rowData, effectiveSequenceId, future, 0);
         return future;
     }
 
@@ -203,11 +211,17 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
      * Executes inference request with retry logic and default value fallback.
      *
      * @param rowData Input data for inference
+     * @param effectiveSequenceId The sequence ID to embed in every attempt for this record. Held
+     *     constant across retries so that a single logical record corresponds to a single
+     *     server-side Triton sequence slot.
      * @param future The future to complete with result or exception
      * @param attemptNumber Current attempt number (0-indexed)
      */
     private void asyncPredictWithRetry(
-            RowData rowData, CompletableFuture<Collection<RowData>> future, int attemptNumber) {
+            RowData rowData,
+            String effectiveSequenceId,
+            CompletableFuture<Collection<RowData>> future,
+            int attemptNumber) {
 
         // If the operator is tearing down, do not schedule/execute further retry attempts.
         // `attemptNumber > 0` means we are on a retry path (a scheduled continuation); dropping
@@ -227,7 +241,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             // Check circuit breaker before making request
             checkCircuitBreaker();
 
-            String requestBody = buildInferenceRequest(rowData);
+            String requestBody = buildInferenceRequest(rowData, effectiveSequenceId);
             String url =
                     TritonUtils.buildInferenceUrl(getEndpoint(), getModelName(), getModelVersion());
             // Sanitized URL used exclusively for log lines and exception messages so that an
@@ -305,6 +319,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
 
                                     handleFailureWithRetry(
                                             rowData,
+                                            effectiveSequenceId,
                                             future,
                                             attemptNumber,
                                             networkException,
@@ -333,7 +348,11 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                             // persistent config error to force-open it and deny
                                             // traffic to an otherwise healthy server.
                                             handleErrorResponseWithRetry(
-                                                    response, rowData, future, attemptNumber);
+                                                    response,
+                                                    rowData,
+                                                    effectiveSequenceId,
+                                                    future,
+                                                    attemptNumber);
                                             return;
                                         }
 
@@ -354,6 +373,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                             // exhaustion.
                                             handleFailureWithRetry(
                                                     rowData,
+                                                    effectiveSequenceId,
                                                     future,
                                                     attemptNumber,
                                                     new TritonClientException(
@@ -390,6 +410,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                             bodyReadFailure);
                                             handleFailureWithRetry(
                                                     rowData,
+                                                    effectiveSequenceId,
                                                     future,
                                                     attemptNumber,
                                                     wrapped,
@@ -418,6 +439,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                         400);
                                         handleFailureWithRetry(
                                                 rowData,
+                                                effectiveSequenceId,
                                                 future,
                                                 attemptNumber,
                                                 parseException,
@@ -430,6 +452,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         // signal. Also not retryable (deterministic).
                                         handleFailureWithRetry(
                                                 rowData,
+                                                effectiveSequenceId,
                                                 future,
                                                 attemptNumber,
                                                 e,
@@ -483,6 +506,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             LOG.error("Unexpected error dispatching Triton request", e);
             handleFailureWithRetry(
                     rowData,
+                    effectiveSequenceId,
                     future,
                     attemptNumber,
                     e,
@@ -512,6 +536,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
      */
     private void handleFailureWithRetry(
             RowData rowData,
+            String effectiveSequenceId,
             CompletableFuture<Collection<RowData>> future,
             int attemptNumber,
             Throwable error,
@@ -549,7 +574,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             }
             try {
                 retryScheduler.schedule(
-                        () -> asyncPredictWithRetry(rowData, future, attemptNumber + 1),
+                        () ->
+                                asyncPredictWithRetry(
+                                        rowData, effectiveSequenceId, future, attemptNumber + 1),
                         delayMs,
                         TimeUnit.MILLISECONDS);
             } catch (RejectedExecutionException rejected) {
@@ -727,6 +754,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     private void handleErrorResponseWithRetry(
             Response response,
             RowData rowData,
+            String effectiveSequenceId,
             CompletableFuture<Collection<RowData>> future,
             int attemptNumber) {
 
@@ -872,6 +900,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             // 5xx is a genuine backend-health signal: count against the breaker and retry.
             handleFailureWithRetry(
                     rowData,
+                    effectiveSequenceId,
                     future,
                     attemptNumber,
                     exception,
@@ -889,6 +918,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             // not conflate with backend health (the real Triton server never produced it).
             handleFailureWithRetry(
                     rowData,
+                    effectiveSequenceId,
                     future,
                     attemptNumber,
                     exception,
@@ -937,33 +967,18 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         return TritonTypeMapper.deserializeFromJson(jsonNode, outputType);
     }
 
-    private String buildInferenceRequest(RowData rowData) throws JsonProcessingException {
+    @VisibleForTesting
+    String buildInferenceRequest(RowData rowData, String effectiveSequenceId)
+            throws JsonProcessingException {
         ObjectNode requestNode = objectMapper.createObjectNode();
 
-        // Generate and add request ID with optional auto-increment strategy
-        if (getSequenceId() != null) {
-            String effectiveSequenceId = getSequenceId();
-
-            // Apply auto-increment strategy if enabled
-            if (isSequenceIdAutoIncrement()) {
-                // Format: {base-sequence-id}-{subtask-index}-{counter}
-                // This ensures unique sequences across parallel instances and failovers.
-                // Concatenation is preferred over String.format on this hot path: it avoids the
-                // formatter parsing overhead per record and produces identical output for the
-                // simple "%s-%d-%d" pattern.
-                long counter = sequenceCounter.getAndIncrement();
-                effectiveSequenceId = getSequenceId() + "-" + subtaskIndex + "-" + counter;
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Generated auto-increment sequence ID: {} (base: {}, subtask: {}, counter: {})",
-                            effectiveSequenceId,
-                            getSequenceId(),
-                            subtaskIndex,
-                            counter);
-                }
-            }
-
+        // The effective sequence ID is computed once per logical record by the caller (see
+        // AbstractTritonModelFunction#nextEffectiveSequenceId and the asyncPredict entry point)
+        // and passed in here unchanged. This method must NOT allocate a new sequence ID on its
+        // own — it is invoked on every retry attempt, and generating a fresh ID per attempt
+        // would open N Triton sequence slots per logical record while only closing the last
+        // one (leaking the first N-1 slots on a long-running job). See R3-1 in PR #27562.
+        if (effectiveSequenceId != null) {
             requestNode.put("id", effectiveSequenceId);
         }
 
