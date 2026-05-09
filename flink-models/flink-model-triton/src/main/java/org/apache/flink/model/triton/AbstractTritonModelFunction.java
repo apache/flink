@@ -210,20 +210,15 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.circuitBreakerHalfOpenRequests =
                 config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
 
-        // Validate sequence-id-auto-increment requires sequence-id
         if (this.sequenceIdAutoIncrement && this.sequenceId == null) {
             throw new IllegalArgumentException(
                     "sequence-id-auto-increment requires sequence-id to be configured. "
                             + "Please provide a base sequence-id value.");
         }
 
-        // When auto-increment is enabled every record becomes its own one-shot sequence, so
-        // sequence_start AND sequence_end must both be true on every request — otherwise the
-        // Triton sequence batcher will keep the per-sequence state slot allocated indefinitely
-        // (since no `end` ever arrives) and eventually exhaust available sequence slots, while
-        // omitting `start` makes Triton route the request to a model state that was never
-        // initialized. Surfacing this as a configuration error avoids a silent server-side
-        // resource leak that would only manifest under load.
+        // Auto-increment turns every record into a one-shot sequence, so both flags must be true:
+        // a missing `end` leaks the per-sequence slot on Triton's batcher (no close ever arrives),
+        // and a missing `start` routes the request to uninitialized model state.
         if (this.sequenceIdAutoIncrement && !(this.sequenceStart && this.sequenceEnd)) {
             throw new IllegalArgumentException(
                     "sequence-id-auto-increment requires both sequence-start=true and "
@@ -245,10 +240,8 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
 
-        // Cache the subtask index once. It is consumed by both the retry scheduler thread name
-        // and the auto-increment sequence ID generator, and was previously fetched independently
-        // in each branch (with the auto-increment branch shadowing this very field via a local
-        // variable in the retry branch).
+        // Cache subtask index — used by both the retry scheduler thread name and the
+        // auto-increment ID generator. See field javadoc.
         this.subtaskIndex = context.getTaskInfo().getIndexOfThisSubtask();
 
         // Provision a private single-thread scheduler for delayed retries so that retry tasks are
@@ -327,16 +320,10 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             healthChecker.start();
         }
 
-        // Initialize sequence counter for auto-increment strategy. The subtask index was already
-        // captured at the top of open(); we only need to allocate the counter here.
-        // Done after healthChecker.start() so that a failure in the (already-completed) subtask
-        // info lookup cannot leave a half-initialized health checker behind.
+        // Allocate the auto-increment counter last so a failure in the (already-completed) health
+        // checker startup cannot leave it half-initialized. See SequenceIdCounterInitStrategy for
+        // the seeding trade-offs.
         if (sequenceIdAutoIncrement) {
-            // Seed the counter according to the configured init strategy. ZERO is the legacy
-            // behaviour (compact IDs, but the numeric range repeats after every restart);
-            // NANO_TIME / EPOCH_MILLIS use the wall clock at open() time so a restart is
-            // guaranteed to pick a fresh, non-overlapping range — important when downstream
-            // systems may still be processing records from the previous run.
             final long counterSeed;
             switch (sequenceIdCounterInitStrategy) {
                 case NANO_TIME:
@@ -637,25 +624,20 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     }
 
     /**
-     * Returns the sequence ID to include in a single inference request. When auto-increment is
-     * enabled, this returns {@code {base}-{subtask}-{counter}} with a freshly incremented counter;
-     * otherwise it returns the configured base sequence ID verbatim (possibly {@code null}).
+     * Returns the sequence ID to embed in a single inference request: under auto-increment, {@code
+     * {base}-{subtask}-{counter}} with a freshly incremented counter; otherwise the configured base
+     * sequence ID verbatim (possibly {@code null}).
      *
-     * <p><b>Important:</b> this method has a side effect (counter increment) and must be called
-     * <b>exactly once per logical record</b>. In particular it MUST NOT be called again on a retry
-     * attempt — every call consumes a new ID, and with {@code sequence-start=true &
-     * sequence-end=true} each ID corresponds to a distinct server-side sequence slot on Triton.
-     * Calling it per retry would open N slots per record but only ever close the last one,
-     * producing a slow slot leak that exhausts the Triton sequence batcher under sustained failures
-     * — the exact failure mode the constructor validations were introduced to prevent.
+     * <p><b>Call exactly once per logical record</b>, at the entry point of the predict call —
+     * never again on a retry. Each call consumes a new ID, and with {@code sequence-start=true &
+     * sequence-end=true} every ID owns a distinct server-side slot on Triton's sequence batcher.
+     * Regenerating per retry would open N slots while only ever closing the last one, leaking the
+     * other N&minus;1.
      *
-     * <p>Callers should capture the returned value in a local variable at the entry point of the
-     * predict call and thread it through all retry attempts unchanged.
-     *
-     * <p>Marked {@code final} so subclasses cannot accidentally weaken the call-once contract by
-     * overriding with a memoizing or call-counting variant; the side-effect semantics are part of
-     * the API and any future per-subclass customization should happen via the existing protected
-     * fields ({@link #sequenceId}, {@link #sequenceCounter}, {@link #subtaskIndex}) instead.
+     * <p>{@code final} to keep this contract enforceable: a memoizing or call-counting override
+     * would silently weaken it. Subclasses needing different ID composition should read the
+     * underlying fields ({@link #sequenceId}, {@link #sequenceCounter}, {@link #subtaskIndex})
+     * directly.
      */
     protected final String nextEffectiveSequenceId() {
         if (sequenceId == null) {

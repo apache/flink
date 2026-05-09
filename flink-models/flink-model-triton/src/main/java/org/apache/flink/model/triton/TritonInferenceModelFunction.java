@@ -196,12 +196,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     @Override
     public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
         CompletableFuture<Collection<RowData>> future = new CompletableFuture<>();
-        // Generate the effective sequence ID exactly once per record, BEFORE retries can fire.
-        // Under auto-increment the counter advance has a visible side effect on Triton (each ID
-        // allocates its own server-side sequence slot with sequence-start=true, which will later
-        // be closed with sequence-end=true). If we regenerated on every retry we would open N
-        // slots per record and only close the last one, leaking the rest — see the javadoc on
-        // nextEffectiveSequenceId() for the full argument.
+        // Generate once and thread through retries — see nextEffectiveSequenceId() for why.
         String effectiveSequenceId = nextEffectiveSequenceId();
         asyncPredictWithRetry(rowData, effectiveSequenceId, future, 0);
         return future;
@@ -972,12 +967,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             throws JsonProcessingException {
         ObjectNode requestNode = objectMapper.createObjectNode();
 
-        // The effective sequence ID is computed once per logical record by the caller (see
-        // AbstractTritonModelFunction#nextEffectiveSequenceId and the asyncPredict entry point)
-        // and passed in here unchanged. This method must NOT allocate a new sequence ID on its
-        // own — it is invoked on every retry attempt, and generating a fresh ID per attempt
-        // would open N Triton sequence slots per logical record while only closing the last
-        // one (leaking the first N-1 slots on a long-running job). See R3-1 in PR #27562.
+        // Caller passes a sequence ID generated once per record; do NOT allocate one here, since
+        // this method runs on every retry. See nextEffectiveSequenceId() for the slot-leak why.
         if (effectiveSequenceId != null) {
             requestNode.put("id", effectiveSequenceId);
         }
