@@ -80,25 +80,10 @@ class TritonModelProviderFactoryTest {
     }
 
     /**
-     * End-to-end regression guard for the sequence-id auto-increment options being exposed through
-     * the factory's {@code optionalOptions()} set.
-     *
-     * <p>Background: {@link TritonModelProviderFactory#createModelProvider} calls {@code
-     * helper.validate()}, which rejects any option key not listed in {@link
-     * TritonModelProviderFactory#requiredOptions()} or {@link
-     * TritonModelProviderFactory#optionalOptions()} as "Unsupported options". Earlier rounds of
-     * this feature added {@code sequence-id-auto-increment} and {@code
-     * sequence-id-counter-init-strategy} to {@link TritonOptions} and consumed them inside {@link
-     * TritonInferenceModelFunction}, but forgot to register them with the factory — making the
-     * feature unreachable via SQL {@code CREATE MODEL ... WITH (...)} even though the unit tests
-     * that construct the function directly (bypassing factory validation) passed green. This test
-     * goes through {@link FactoryMocks#createModelProvider} which invokes the full factory chain,
-     * so any future un-registration of these options will fail here.
-     *
-     * <p>Beyond validation, we also extract the underlying {@link TritonInferenceModelFunction} and
-     * assert that the auto-increment flag was actually plumbed through to the function's internal
-     * state — guarding against a regression where the factory validates the keys but the function
-     * silently ignores them.
+     * End-to-end guard that the auto-increment options pass {@code helper.validate()} and reach the
+     * function. Going through {@link FactoryMocks#createModelProvider} exercises the full SPI +
+     * factory chain — the unit tests that construct the function directly would not catch a missing
+     * entry in {@link TritonModelProviderFactory#optionalOptions()}.
      */
     @Test
     void testSequenceIdAutoIncrementOptionsPassFactoryValidation() {
@@ -106,7 +91,6 @@ class TritonModelProviderFactoryTest {
         options.put("provider", TritonModelProviderFactory.IDENTIFIER);
         options.put(TritonOptions.ENDPOINT.key(), "http://localhost:8000");
         options.put(TritonOptions.MODEL_NAME.key(), "test-model");
-        // The two options that were previously missing from optionalOptions().
         options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
         options.put(TritonOptions.SEQUENCE_START.key(), "true");
         options.put(TritonOptions.SEQUENCE_END.key(), "true");
@@ -117,15 +101,12 @@ class TritonModelProviderFactoryTest {
                 FactoryMocks.createModelProvider(INPUT_SCHEMA, OUTPUT_SCHEMA, options);
         assertThat(provider).isNotNull().isInstanceOf(AsyncPredictRuntimeProvider.class);
 
-        // Pass null because TritonModelProviderFactory.Provider#createAsyncPredictFunction ignores
-        // its Context argument and returns the pre-built function captured at factory time.
+        // Provider#createAsyncPredictFunction ignores its Context argument.
         AsyncPredictFunction function =
                 ((AsyncPredictRuntimeProvider) provider).createAsyncPredictFunction(null);
         assertThat(function).isInstanceOf(TritonInferenceModelFunction.class);
 
-        // Guard R5-2: if a future refactor removes the options from the constructor but still
-        // keeps them in optionalOptions(), this assertion catches the silent drop. We use the
-        // protected getSequenceId() / isSequenceIdAutoIncrement() accessors (same package).
+        // Catches a silent drop where keys validate but the constructor never reads them.
         TritonInferenceModelFunction tritonFn = (TritonInferenceModelFunction) function;
         assertThat(tritonFn.isSequenceIdAutoIncrement()).isTrue();
         assertThat(tritonFn.getSequenceId()).isEqualTo("job-123");

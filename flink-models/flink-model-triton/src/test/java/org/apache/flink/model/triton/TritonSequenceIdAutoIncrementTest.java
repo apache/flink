@@ -41,24 +41,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Validates the constructor-time validation that {@link AbstractTritonModelFunction} performs for
- * the {@link TritonOptions#SEQUENCE_ID_AUTO_INCREMENT} feature.
- *
- * <p>Two invariants are guarded:
- *
- * <ol>
- *   <li>{@code sequence-id-auto-increment=true} is only meaningful with a base {@code sequence-id}
- *       — without it there is nothing to suffix.
- *   <li>Every generated ID is a one-shot stateful sequence, so both {@code sequence-start} and
- *       {@code sequence-end} must be true. Otherwise the Triton server-side sequence batcher would
- *       either receive uninitialized state (no start) or leak per-sequence slots (no end), neither
- *       of which is recoverable from the Flink side.
- * </ol>
- *
- * <p>Failing fast in the constructor — instead of at the first inference call — surfaces the
- * misconfiguration during job submission, where the user can still react. The validations are
- * narrow and worth testing because both error paths produce server-side resource exhaustion
- * symptoms that are extremely hard to diagnose from Flink logs.
+ * Tests {@link AbstractTritonModelFunction}'s constructor-time validation and runtime behaviour for
+ * {@link TritonOptions#SEQUENCE_ID_AUTO_INCREMENT}. Failing fast at job submission is preferred
+ * over failing at the first inference call because the underlying error modes (unknown sequence
+ * state, leaked Triton slots) surface as opaque server-side resource exhaustion in production.
  */
 class TritonSequenceIdAutoIncrementTest {
 
@@ -70,12 +56,11 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testAutoIncrementWithoutSequenceIdIsRejected() {
-        // sequence-id is the prefix that auto-increment appends to. Without it, the generated
-        // ID would be "-{subtask}-{counter}" — a leading dash that confuses log parsers and is
-        // almost certainly user error rather than intent.
+        // No base sequence-id → generated ID would start with a leading dash; almost certainly a
+        // user error rather than intent.
         Map<String, String> options = baseOptions();
         options.put(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT.key(), "true");
-        // Both start/end true so we isolate the missing-sequence-id failure mode.
+        // start/end true so we isolate the missing-sequence-id failure mode.
         options.put(TritonOptions.SEQUENCE_START.key(), "true");
         options.put(TritonOptions.SEQUENCE_END.key(), "true");
 
@@ -89,9 +74,7 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testAutoIncrementRequiresSequenceStart() {
-        // sequence-start=false would make Triton route the request to model state that was
-        // never initialized for this fresh sequence ID; the inference result would either be
-        // garbage or an explicit error from the sequence batcher.
+        // sequence-start=false routes to uninitialized server-side state for a fresh ID.
         Map<String, String> options = baseOptions();
         options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
         options.put(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT.key(), "true");
@@ -108,10 +91,7 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testAutoIncrementRequiresSequenceEnd() {
-        // The flip side of the test above. Without sequence-end the per-sequence state slot on
-        // the Triton server is never released, so a long-running job will eventually exhaust
-        // the configured max sequence count and start failing requests — a slow leak that
-        // would only show up in production load.
+        // sequence-end=false leaks per-sequence slots — slow leak only visible under prod load.
         Map<String, String> options = baseOptions();
         options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
         options.put(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT.key(), "true");
@@ -128,8 +108,7 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testAutoIncrementHappyPath() {
-        // The combination the documentation actually recommends. Construction must succeed so
-        // that the validations above cannot regress into rejecting a legitimate configuration.
+        // Guards against the validations above regressing into rejecting a legitimate config.
         Map<String, String> options = baseOptions();
         options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
         options.put(TritonOptions.SEQUENCE_ID_AUTO_INCREMENT.key(), "true");
@@ -146,10 +125,8 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testAutoIncrementDisabledDoesNotEnforceStartEnd() {
-        // Regression guard: the start/end requirement must apply ONLY when auto-increment is
-        // enabled. When auto-increment is off, the user retains full control over sequence
-        // semantics and may legitimately use sequence-start/end=false (e.g. all records share
-        // a single long-lived sequence whose start/end is signalled out-of-band).
+        // start/end requirement applies ONLY when auto-increment is on; otherwise the user
+        // retains full control (e.g. one long-lived sequence signalled out-of-band).
         Map<String, String> options = baseOptions();
         options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
         // SEQUENCE_ID_AUTO_INCREMENT defaults to false.
@@ -166,9 +143,7 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testCounterInitStrategyDefaultsToZero() {
-        // Default-value contract: if the user does not configure
-        // sequence-id-counter-init-strategy, ZERO must be selected to preserve the original
-        // (pre-strategy) behaviour for existing configurations.
+        // Default ZERO preserves pre-strategy behaviour for existing configurations.
         SequenceIdCounterInitStrategy defaultStrategy =
                 TritonOptions.SEQUENCE_ID_COUNTER_INIT_STRATEGY.defaultValue();
         assertThat(defaultStrategy).isEqualTo(SequenceIdCounterInitStrategy.ZERO);
@@ -176,9 +151,7 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testCounterInitStrategyAcceptsAllEnumValues() {
-        // The strategy is only validated by the enum codec itself, but we still verify that
-        // none of the enum constants accidentally trip the constructor (e.g. by interacting
-        // with another validation rule).
+        // Verify no enum constant accidentally trips another constructor validation.
         for (SequenceIdCounterInitStrategy strategy : SequenceIdCounterInitStrategy.values()) {
             Map<String, String> options = baseOptions();
             options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
@@ -199,10 +172,8 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testNextEffectiveSequenceIdAdvancesOnEachCall() throws Exception {
-        // Contract: each call to nextEffectiveSequenceId() consumes one counter slot, so the
-        // IDs returned by successive calls must be distinct and strictly monotonic in the
-        // counter suffix. This is the guarantee that lets the caller pre-generate an ID at the
-        // top of asyncPredict and thread it unchanged through retries.
+        // Each call consumes one counter slot, yielding strictly monotonic IDs. This is what
+        // lets the caller pre-generate once at the top of asyncPredict and thread through retries.
         TritonInferenceModelFunction function = newAutoIncrementFunction();
         seedAutoIncrementState(function, /* startCounter */ 0L, /* subtask */ 0);
 
@@ -217,9 +188,7 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testNextEffectiveSequenceIdWithoutAutoIncrementIsStable() {
-        // When auto-increment is disabled, the method must return the base sequence ID verbatim
-        // on every call (no counter, no side effects). This is the fast path for users who
-        // configure sequence-id but don't opt into auto-increment.
+        // Auto-increment off → return base ID verbatim, no counter, no side effects.
         Map<String, String> options = baseOptions();
         options.put(TritonOptions.SEQUENCE_ID.key(), "job-123");
         ModelProviderFactory.Context context =
@@ -233,16 +202,9 @@ class TritonSequenceIdAutoIncrementTest {
 
     @Test
     void testBuildInferenceRequestDoesNotAdvanceCounter() throws Exception {
-        // Regression guard for R3-1: buildInferenceRequest is invoked on every retry attempt.
-        // It must NOT call the counter itself — the effective sequence ID is computed ONCE at
-        // the asyncPredict entry point and threaded through retries as a parameter. If
-        // buildInferenceRequest started generating a fresh ID per call, every retry would open
-        // a new Triton sequence slot (because sequence-start/end=true are enforced) while only
-        // the last one would ever be closed, leaking the rest — the exact failure mode the
-        // constructor validations were introduced to prevent. Here we simulate the caller
-        // handing the same ID into two successive buildInferenceRequest invocations (as the
-        // retry path does) and assert both serialized requests carry the identical "id"
-        // field, AND that the counter state has not moved.
+        // Regression guard: buildInferenceRequest runs on every retry attempt and must reuse the
+        // caller-supplied ID — generating fresh IDs here would leak Triton sequence slots. See
+        // nextEffectiveSequenceId() javadoc for the full slot-leak rationale.
         TritonInferenceModelFunction function = newAutoIncrementFunction();
         AtomicLong counter = seedAutoIncrementState(function, 7L, 0);
 
@@ -279,13 +241,9 @@ class TritonSequenceIdAutoIncrementTest {
     }
 
     /**
-     * Installs the transient state that {@link AbstractTritonModelFunction#open} would otherwise
-     * populate. We avoid calling {@code open()} directly to keep this test module free of the
-     * flink-streaming-java test-jar dependency (the only place {@code MockStreamingRuntimeContext}
-     * lives). The two fields we touch — {@code sequenceCounter} and {@code subtaskIndex} — are the
-     * only inputs the counter path reads at runtime, and they are declared on the abstract base
-     * class specifically so the auto-increment code can reach them; reflecting into them here
-     * mirrors the real {@code open()} contract exactly.
+     * Seeds the transient state {@link AbstractTritonModelFunction#open} would populate. Reflection
+     * (rather than calling {@code open()}) avoids depending on {@code MockStreamingRuntimeContext}
+     * from the flink-streaming-java test-jar.
      */
     private static AtomicLong seedAutoIncrementState(
             TritonInferenceModelFunction function, long startCounter, int subtask)
