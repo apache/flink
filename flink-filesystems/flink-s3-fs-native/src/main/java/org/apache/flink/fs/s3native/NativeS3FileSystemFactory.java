@@ -356,17 +356,17 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
         // Validate part size: S3 requires minimum 5MB and maximum 5GB per part
         Preconditions.checkArgument(
                 s3minPartSize >= S3_MULTIPART_MIN_PART_SIZE,
-                "%s must be at least 5MB (5242880 bytes), but was %d bytes",
+                "%s must be at least 5MB (5242880 bytes), but was %s bytes",
                 PART_UPLOAD_MIN_SIZE.key(),
                 s3minPartSize);
         Preconditions.checkArgument(
                 s3minPartSize <= 5L * 1024 * 1024 * 1024,
-                "%s must not exceed 5GB (5368709120 bytes), but was %d bytes",
+                "%s must not exceed 5GB (5368709120 bytes), but was %s bytes",
                 PART_UPLOAD_MIN_SIZE.key(),
                 s3minPartSize);
         Preconditions.checkArgument(
                 maxConcurrentUploads > 0,
-                "%s must be positive, but was %d",
+                "%s must be positive, but was %s",
                 MAX_CONCURRENT_UPLOADS.key(),
                 maxConcurrentUploads);
 

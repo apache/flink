@@ -220,7 +220,8 @@ class NativeS3FileSystemFactoryTest {
         config.set(NativeS3FileSystemFactory.PART_UPLOAD_MIN_SIZE, 1024L);
         assertThatThrownBy(() -> createFs(config))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must be at least");
+                .hasMessage(
+                        "s3.upload.min.part.size must be at least 5MB (5242880 bytes), but was 1024 bytes");
     }
 
     @Test
@@ -229,7 +230,8 @@ class NativeS3FileSystemFactoryTest {
         config.set(NativeS3FileSystemFactory.PART_UPLOAD_MIN_SIZE, 6L * 1024 * 1024 * 1024);
         assertThatThrownBy(() -> createFs(config))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must not exceed 5GB");
+                .hasMessage(
+                        "s3.upload.min.part.size must not exceed 5GB (5368709120 bytes), but was 6442450944 bytes");
     }
 
     // --- Max concurrent uploads ---
@@ -240,7 +242,7 @@ class NativeS3FileSystemFactoryTest {
         config.set(NativeS3FileSystemFactory.MAX_CONCURRENT_UPLOADS, 0);
         assertThatThrownBy(() -> createFs(config))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("must be positive");
+                .hasMessage("s3.upload.max.concurrent.uploads must be positive, but was 0");
     }
 
     // --- Entropy injection ---
