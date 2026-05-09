@@ -63,7 +63,6 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   urlLoading = true;
   readonly listOfNavigation: RouterTab[];
   private readonly checkpointIndexOfNavigation: number;
-  private readonly rescalesIndexOfNavigation: number;
 
   webCancelEnabled = this.statusService.configuration.features['web-cancel'];
   isHistoryServer = this.statusService.configuration.features['web-history'];
@@ -82,7 +81,6 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     // Create a copy to avoid mutating the shared config
     this.listOfNavigation = [...(moduleConfig.routerTabs || JOB_MODULE_DEFAULT_CONFIG.routerTabs)];
     this.checkpointIndexOfNavigation = this.checkpointIndexOfNav();
-    this.rescalesIndexOfNavigation = this.rescalesIndexOfNav();
   }
 
   ngOnInit(): void {
@@ -133,6 +131,11 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     return this.listOfNavigation.findIndex(item => item.path === 'rescales');
   }
 
+  private getRescalesTabIndexAfter(path: string): number {
+    const index = this.listOfNavigation.findIndex(item => item.path === path);
+    return index >= 0 ? index + 1 : this.listOfNavigation.length;
+  }
+
   private handleJobDetailChanged(data: JobDetailCorrect): void {
     this.jobDetail = data;
     const checkpointNavIndex = this.checkpointIndexOfNav();
@@ -150,7 +153,9 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     if (!shouldShowRescales && rescalesNavIndex > -1) {
       this.listOfNavigation.splice(rescalesNavIndex, 1);
     } else if (shouldShowRescales && rescalesNavIndex == -1) {
-      this.listOfNavigation.splice(this.rescalesIndexOfNavigation, 0, {
+      // Insert deterministically after configuration to avoid stale index issues across job transitions.
+      const insertIndex = this.getRescalesTabIndexAfter('configuration');
+      this.listOfNavigation.splice(insertIndex, 0, {
         path: 'rescales',
         title: 'Rescales'
       });
