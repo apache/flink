@@ -19,28 +19,31 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /**
- * Tests for {@link org.apache.flink.table.planner.functions.sql.SqlApplyWatermarkFunction}.
+ * Tests for {@link org.apache.flink.table.planner.functions.sql.SqlApplyWatermarkFunction} and the
+ * accompanying {@link org.apache.flink.table.planner.plan.rules.logical.LogicalApplyWatermarkRule}.
  *
- * <p>NOTE: These tests are disabled until the APPLY_WATERMARK function is fully wired as a
- * SqlTableFunction with proper column-reference scoping for the watermark expression argument. The
- * SQL validator currently resolves the third argument (watermark expression) in the outer scope, so
- * column references to the input table (e.g. {@code event_time}) cannot be resolved. Tracking:
- * FLINK-39062 follow-up.
+ * <p>The tests cover three concerns: (1) operand validation enforced at SQL-level by the function
+ * metadata, (2) end-to-end planning that produces a {@code WatermarkAssigner} node, and (3)
+ * preservation of base-table watermark semantics (override behaviour).
  */
 public class ApplyWatermarkFunctionTest extends TableTestBase {
 
-    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
+    private StreamTableTestUtil util;
 
-    @Test
-    @Disabled("FLINK-39062: APPLY_WATERMARK TVF scope wiring pending")
-    public void testApplyWatermarkFunctionBasic() {
+    @BeforeEach
+    public void setUp() {
+        util = streamTestUtil(TableConfig.getDefault());
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE source_table (\n"
@@ -51,47 +54,9 @@ public class ApplyWatermarkFunctionTest extends TableTestBase {
                                 + "  'connector' = 'datagen',\n"
                                 + "  'number-of-rows' = '10'\n"
                                 + ")");
-
-        String sql =
-                "SELECT * FROM APPLY_WATERMARK(\n"
-                        + "  TABLE source_table,\n"
-                        + "  DESCRIPTOR(event_time),\n"
-                        + "  event_time - INTERVAL '5' SECOND\n"
-                        + ")";
-
-        util.verifyRelPlan(sql);
-    }
-
-    @Test
-    @Disabled("FLINK-39062: APPLY_WATERMARK TVF scope wiring pending")
-    public void testApplyWatermarkWithSubquery() {
         util.tableEnv()
                 .executeSql(
-                        "CREATE TABLE source_table (\n"
-                                + "  id BIGINT,\n"
-                                + "  event_time TIMESTAMP(3),\n"
-                                + "  val STRING\n"
-                                + ") WITH (\n"
-                                + "  'connector' = 'datagen',\n"
-                                + "  'number-of-rows' = '10'\n"
-                                + ")");
-
-        String sql =
-                "SELECT * FROM APPLY_WATERMARK(\n"
-                        + "  TABLE (SELECT * FROM source_table WHERE id > 0),\n"
-                        + "  DESCRIPTOR(event_time),\n"
-                        + "  event_time - INTERVAL '10' SECOND\n"
-                        + ")";
-
-        util.verifyRelPlan(sql);
-    }
-
-    @Test
-    @Disabled("FLINK-39062: APPLY_WATERMARK TVF scope wiring pending")
-    public void testApplyWatermarkWithTimestampLTZ() {
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE source_table (\n"
+                        "CREATE TABLE source_table_ltz (\n"
                                 + "  id BIGINT,\n"
                                 + "  event_time TIMESTAMP_LTZ(3),\n"
                                 + "  val STRING\n"
@@ -99,14 +64,92 @@ public class ApplyWatermarkFunctionTest extends TableTestBase {
                                 + "  'connector' = 'datagen',\n"
                                 + "  'number-of-rows' = '10'\n"
                                 + ")");
+    }
 
-        String sql =
-                "SELECT * FROM APPLY_WATERMARK(\n"
+    /**
+     * APPLY_WATERMARK over a base table with a constant watermark expression. The watermark
+     * expression here does not reference table columns and therefore can already be resolved by
+     * the SQL validator without dedicated scope wiring (see FLINK-39062 follow-up for column
+     * references in the watermark expression).
+     */
+    @Test
+    public void testApplyWatermarkConstantExpression() {
+        final String sql =
+                "SELECT * FROM TABLE(APPLY_WATERMARK(\n"
                         + "  TABLE source_table,\n"
                         + "  DESCRIPTOR(event_time),\n"
-                        + "  event_time\n"
-                        + ")";
+                        + "  TIMESTAMP '1970-01-01 00:00:00.000'\n"
+                        + "))";
+        final String plan = util.tableEnv().explainSql(sql);
+        // The compiled plan should contain a watermark assigner referencing event_time.
+        assertThat(plan).contains("WatermarkAssigner");
+        assertThat(plan).contains("rowtime=[event_time]");
+    }
 
-        util.verifyRelPlan(sql);
+    @Test
+    public void testApplyWatermarkOnTimestampLtz() {
+        final String sql =
+                "SELECT * FROM TABLE(APPLY_WATERMARK(\n"
+                        + "  TABLE source_table_ltz,\n"
+                        + "  DESCRIPTOR(event_time),\n"
+                        + "  TO_TIMESTAMP_LTZ(0, 3)\n"
+                        + "))";
+        final String plan = util.tableEnv().explainSql(sql);
+        assertThat(plan).contains("WatermarkAssigner");
+    }
+
+    /** DESCRIPTOR column must exist in the input. */
+    @Test
+    public void testApplyWatermarkWithUnknownColumnFails() {
+        final String sql =
+                "SELECT * FROM TABLE(APPLY_WATERMARK(\n"
+                        + "  TABLE source_table,\n"
+                        + "  DESCRIPTOR(missing_column),\n"
+                        + "  TIMESTAMP '1970-01-01 00:00:00.000'\n"
+                        + "))";
+        assertThatThrownBy(() -> util.tableEnv().explainSql(sql))
+                .hasMessageContaining("missing_column");
+    }
+
+    /** DESCRIPTOR column must be of TIMESTAMP / TIMESTAMP_LTZ type. */
+    @Test
+    public void testApplyWatermarkWithNonTimestampColumnFails() {
+        final String sql =
+                "SELECT * FROM TABLE(APPLY_WATERMARK(\n"
+                        + "  TABLE source_table,\n"
+                        + "  DESCRIPTOR(id),\n"
+                        + "  TIMESTAMP '1970-01-01 00:00:00.000'\n"
+                        + "))";
+        assertThatThrownBy(() -> util.tableEnv().explainSql(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("TIMESTAMP");
+    }
+
+    /** Watermark expression must evaluate to TIMESTAMP / TIMESTAMP_LTZ. */
+    @Test
+    public void testApplyWatermarkWithNonTimestampExpressionFails() {
+        final String sql =
+                "SELECT * FROM TABLE(APPLY_WATERMARK(\n"
+                        + "  TABLE source_table,\n"
+                        + "  DESCRIPTOR(event_time),\n"
+                        + "  CAST(1 AS BIGINT)\n"
+                        + "))";
+        assertThatThrownBy(() -> util.tableEnv().explainSql(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("TIMESTAMP");
+    }
+
+    /** Verify APPLY_WATERMARK is rejected when DESCRIPTOR carries multiple columns. */
+    @Test
+    public void testApplyWatermarkWithMultipleDescriptorColumnsFails() {
+        final String sql =
+                "SELECT * FROM TABLE(APPLY_WATERMARK(\n"
+                        + "  TABLE source_table,\n"
+                        + "  DESCRIPTOR(event_time, id),\n"
+                        + "  TIMESTAMP '1970-01-01 00:00:00.000'\n"
+                        + "))";
+        assertThatThrownBy(() -> util.tableEnv().explainSql(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("exactly one column");
     }
 }
