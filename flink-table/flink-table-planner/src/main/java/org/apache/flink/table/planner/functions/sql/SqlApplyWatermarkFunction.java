@@ -92,9 +92,9 @@ import java.util.Optional;
  * <p>Implementation note: this function is registered as a {@link SqlTableFunction} so the
  * validator treats the first operand as a table expression. The watermark expression in the third
  * operand is currently scoped at the call site (outer scope). Resolving column references against
- * the table operand's row type requires a follow-up that introduces a dedicated
- * {@link org.apache.calcite.sql.validate.SqlValidatorScope} for the function call (tracked as a
- * follow-up of FLINK-39062).
+ * the table operand's row type requires a follow-up that introduces a dedicated {@link
+ * org.apache.calcite.sql.validate.SqlValidatorScope} for the function call (tracked as a follow-up
+ * of FLINK-39062).
  */
 public class SqlApplyWatermarkFunction extends SqlFunction implements SqlTableFunction {
 
@@ -117,9 +117,8 @@ public class SqlApplyWatermarkFunction extends SqlFunction implements SqlTableFu
      * the {@code DESCRIPTOR} operand is promoted to a rowtime time-indicator type. This keeps the
      * row type produced by the {@link org.apache.calcite.rel.logical.LogicalTableFunctionScan} in
      * sync with the row type produced by {@link
-     * org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner}, so the rule
-     * that rewrites the former into the latter does not run into a Calcite type-equivalence
-     * assertion.
+     * org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner}, so the rule that
+     * rewrites the former into the latter does not run into a Calcite type-equivalence assertion.
      */
     @Override
     public SqlReturnTypeInference getRowTypeInference() {
@@ -128,13 +127,9 @@ public class SqlApplyWatermarkFunction extends SqlFunction implements SqlTableFu
             String rowtimeColumn = null;
             if (opBinding instanceof SqlCallBinding) {
                 final SqlCallBinding callBinding = (SqlCallBinding) opBinding;
-                inputType =
-                        callBinding
-                                .getValidator()
-                                .getValidatedNodeType(callBinding.operand(0));
+                inputType = callBinding.getValidator().getValidatedNodeType(callBinding.operand(0));
                 final SqlNode descriptor = callBinding.operand(1);
-                if (descriptor instanceof SqlCall
-                        && descriptor.getKind() == SqlKind.DESCRIPTOR) {
+                if (descriptor instanceof SqlCall && descriptor.getKind() == SqlKind.DESCRIPTOR) {
                     final List<SqlNode> cols = ((SqlCall) descriptor).getOperandList();
                     if (!cols.isEmpty() && cols.get(0) instanceof SqlIdentifier) {
                         final SqlIdentifier id = (SqlIdentifier) cols.get(0);
@@ -199,15 +194,14 @@ public class SqlApplyWatermarkFunction extends SqlFunction implements SqlTableFu
 
     /**
      * Custom validation that mirrors the behaviour of {@code SqlMLTableFunction}: skip the
-     * DESCRIPTOR operand (its identifiers are validated against the input table inside
-     * {@link OperandMetadataImpl}, not against the outer query scope) and validate every other
-     * operand against the outer scope.
+     * DESCRIPTOR operand (its identifiers are validated against the input table inside {@link
+     * OperandMetadataImpl}, not against the outer query scope) and validate every other operand
+     * against the outer scope.
      *
      * <p>Note: the watermark expression (operand 2) is currently validated in the outer scope. To
-     * support column references against the input table (e.g.
-     * {@code event_time - INTERVAL '5' SECOND}), a dedicated {@link SqlValidatorScope} that
-     * exposes the input row type must be introduced. This is tracked as a follow-up of
-     * FLINK-39062.
+     * support column references against the input table (e.g. {@code event_time - INTERVAL '5'
+     * SECOND}), a dedicated {@link SqlValidatorScope} that exposes the input row type must be
+     * introduced. This is tracked as a follow-up of FLINK-39062.
      */
     @Override
     public void validateCall(

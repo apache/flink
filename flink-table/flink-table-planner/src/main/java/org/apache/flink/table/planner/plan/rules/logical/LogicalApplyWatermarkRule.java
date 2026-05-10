@@ -30,19 +30,17 @@ import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 
 /**
- * Planner rule that converts a {@link LogicalTableFunctionScan} produced by the
- * {@code APPLY_WATERMARK} built-in table function into a concrete
- * {@link LogicalWatermarkAssigner}.
+ * Planner rule that converts a {@link LogicalTableFunctionScan} produced by the {@code
+ * APPLY_WATERMARK} built-in table function into a concrete {@link LogicalWatermarkAssigner}.
  *
  * <p>The rule expects the function call to have the structure:
  *
- * <pre>{@code APPLY_WATERMARK(<table>, DESCRIPTOR(<column>), <watermark_expression>)}</pre>
+ * <pre>{@code APPLY_WATERMARK(tableRef, DESCRIPTOR(columnName), watermarkExpression)}</pre>
  *
  * <p>Resolution rules:
  *
@@ -120,8 +118,8 @@ public class LogicalApplyWatermarkRule extends RelOptRule {
      *       when the descriptor is captured as a SqlIdentifier wrapped in a literal).
      * </ul>
      *
-     * <p>Any other shape is treated as a validation error rather than silently defaulting to
-     * column {@code 0}, which previously could cause the wrong field to be marked as rowtime.
+     * <p>Any other shape is treated as a validation error rather than silently defaulting to column
+     * {@code 0}, which previously could cause the wrong field to be marked as rowtime.
      */
     private static int resolveDescriptorColumnIndex(RelNode input, RexNode descriptorOperand) {
         if (!(descriptorOperand instanceof RexCall)) {
@@ -130,8 +128,7 @@ public class LogicalApplyWatermarkRule extends RelOptRule {
         }
         final RexCall descriptor = (RexCall) descriptorOperand;
         if (descriptor.getOperands().isEmpty()) {
-            throw new ValidationException(
-                    "APPLY_WATERMARK DESCRIPTOR must specify a column name.");
+            throw new ValidationException("APPLY_WATERMARK DESCRIPTOR must specify a column name.");
         }
         final RexNode columnRef = descriptor.getOperands().get(0);
 

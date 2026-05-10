@@ -68,9 +68,9 @@ public class ApplyWatermarkFunctionTest extends TableTestBase {
 
     /**
      * APPLY_WATERMARK over a base table with a constant watermark expression. The watermark
-     * expression here does not reference table columns and therefore can already be resolved by
-     * the SQL validator without dedicated scope wiring (see FLINK-39062 follow-up for column
-     * references in the watermark expression).
+     * expression here does not reference table columns and therefore can already be resolved by the
+     * SQL validator without dedicated scope wiring (see FLINK-39062 follow-up for column references
+     * in the watermark expression).
      */
     @Test
     public void testApplyWatermarkConstantExpression() {
