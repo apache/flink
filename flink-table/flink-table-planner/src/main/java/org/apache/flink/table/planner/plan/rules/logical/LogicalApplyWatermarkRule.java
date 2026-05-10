@@ -18,25 +18,49 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.apache.calcite.util.NlsString;
+
+import java.util.List;
 
 /**
- * Planner rule that converts a {@link LogicalTableFunctionScan} with APPLY_WATERMARK function to a
- * {@link WatermarkAssigner}.
+ * Planner rule that converts a {@link LogicalTableFunctionScan} produced by the
+ * {@code APPLY_WATERMARK} built-in table function into a concrete
+ * {@link LogicalWatermarkAssigner}.
  *
- * <p>This rule recognizes calls to APPLY_WATERMARK(table, DESCRIPTOR(column), watermark_expr) and
- * transforms them into proper watermark assignment nodes in the relational plan.
+ * <p>The rule expects the function call to have the structure:
+ *
+ * <pre>{@code APPLY_WATERMARK(<table>, DESCRIPTOR(<column>), <watermark_expression>)}</pre>
+ *
+ * <p>Resolution rules:
+ *
+ * <ul>
+ *   <li>The first operand is the input table, propagated as the {@link RelNode} input of the
+ *       resulting {@link LogicalWatermarkAssigner} via {@code scan.getInputs()}.
+ *   <li>The descriptor column is resolved against the input row type using a case-insensitive name
+ *       matcher; failing to resolve raises a {@link ValidationException} (instead of silently
+ *       picking field {@code 0}).
+ *   <li>The watermark expression is forwarded as-is; constant folding is performed downstream by
+ *       {@link org.apache.flink.table.planner.plan.nodes.calcite.WatermarkUtils#simplify}.
+ * </ul>
  */
 public class LogicalApplyWatermarkRule extends RelOptRule {
 
     public static final LogicalApplyWatermarkRule INSTANCE = new LogicalApplyWatermarkRule();
+
+    private static final String FUNCTION_NAME = "APPLY_WATERMARK";
 
     private LogicalApplyWatermarkRule() {
         super(operand(LogicalTableFunctionScan.class, any()), "LogicalApplyWatermarkRule");
@@ -44,120 +68,109 @@ public class LogicalApplyWatermarkRule extends RelOptRule {
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        LogicalTableFunctionScan scan = call.rel(0);
-        RexNode rexCall = scan.getCall();
-
+        final LogicalTableFunctionScan scan = call.rel(0);
+        final RexNode rexCall = scan.getCall();
         if (!(rexCall instanceof RexCall)) {
             return false;
         }
-
-        RexCall call0 = (RexCall) rexCall;
-        String functionName = call0.getOperator().getName();
-
-        return functionName.equalsIgnoreCase("APPLY_WATERMARK");
+        return FUNCTION_NAME.equalsIgnoreCase(((RexCall) rexCall).getOperator().getName());
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        LogicalTableFunctionScan scan = call.rel(0);
-        RexCall applyWatermarkCall = (RexCall) scan.getCall();
-
-        // Extract operands from APPLY_WATERMARK(table, DESCRIPTOR(column), watermark_expr)
-        if (applyWatermarkCall.getOperands().size() != 3) {
-            return;
+        final LogicalTableFunctionScan scan = call.rel(0);
+        final RexCall applyWatermark = (RexCall) scan.getCall();
+        final List<RexNode> operands = applyWatermark.getOperands();
+        if (operands.size() != 3) {
+            // Defensive: SqlApplyWatermarkFunction.OperandMetadataImpl already enforces this,
+            // but the rule must remain robust against future signature changes.
+            throw new ValidationException(
+                    "APPLY_WATERMARK expects exactly 3 arguments, but got " + operands.size());
         }
 
-        // Operand 0: table expression (already converted to RelNode via scan.getInputs())
-        // Operand 1: DESCRIPTOR(column_name)
-        // Operand 2: watermark expression
-
-        RelNode inputRel = scan.getInputs().get(0);
-
-        // Extract column index from DESCRIPTOR
-        RexNode descriptorArg = applyWatermarkCall.getOperands().get(1);
-        int rowtimeFieldIndex = extractColumnIndex(inputRel, descriptorArg);
-
-        if (rowtimeFieldIndex < 0) {
-            return; // Column not found
+        if (scan.getInputs().isEmpty()) {
+            throw new ValidationException(
+                    "APPLY_WATERMARK first argument must be a TABLE expression.");
         }
+        final RelNode input = scan.getInputs().get(0);
 
-        // Extract watermark expression
-        RexNode watermarkExpr = applyWatermarkCall.getOperands().get(2);
+        final int rowtimeFieldIndex = resolveDescriptorColumnIndex(input, operands.get(1));
+        final RexNode watermarkExpr = operands.get(2);
 
-        // Create WatermarkAssigner node
-        WatermarkAssigner watermarkAssigner =
-                new WatermarkAssigner(
+        final LogicalWatermarkAssigner assigner =
+                LogicalWatermarkAssigner.create(
                         scan.getCluster(),
-                        scan.getTraitSet(),
-                        inputRel,
+                        input,
                         scan.getHints(),
                         rowtimeFieldIndex,
-                        watermarkExpr) {
-                    @Override
-                    public RelNode copy(
-                            org.apache.calcite.plan.RelTraitSet traitSet,
-                            RelNode input,
-                            java.util.List<org.apache.calcite.rel.hint.RelHint> hints,
-                            int rowtime,
-                            RexNode watermark) {
-                        return new WatermarkAssigner(
-                                getCluster(), traitSet, input, hints, rowtime, watermark) {
-                            @Override
-                            public RelNode copy(
-                                    org.apache.calcite.plan.RelTraitSet traitSet,
-                                    RelNode input,
-                                    java.util.List<org.apache.calcite.rel.hint.RelHint> hints,
-                                    int rowtime,
-                                    RexNode watermark) {
-                                return this;
-                            }
+                        watermarkExpr);
 
-                            @Override
-                            public RelNode withHints(
-                                    java.util.List<org.apache.calcite.rel.hint.RelHint> hintList) {
-                                return this;
-                            }
-                        };
-                    }
-
-                    @Override
-                    public RelNode withHints(
-                            java.util.List<org.apache.calcite.rel.hint.RelHint> hintList) {
-                        return this;
-                    }
-                };
-
-        call.transformTo(watermarkAssigner);
+        call.transformTo(assigner);
     }
 
-    private int extractColumnIndex(RelNode inputRel, RexNode descriptorArg) {
-        // DESCRIPTOR(column_name) is represented as a RexCall
-        if (!(descriptorArg instanceof RexCall)) {
-            return -1;
+    /**
+     * Resolves the column referenced by the {@code DESCRIPTOR(...)} operand of APPLY_WATERMARK to
+     * an index into the input row type. We tolerate three runtime representations because the
+     * Calcite SQL-to-Rel converter may yield any of them depending on validator state:
+     *
+     * <ul>
+     *   <li>{@link RexInputRef}: already resolved against the input scope.
+     *   <li>{@link RexFieldAccess}: a struct field reference with a known {@code field.index}.
+     *   <li>{@link RexLiteral} of CHAR/VARCHAR: the column name as a literal (the form produced
+     *       when the descriptor is captured as a SqlIdentifier wrapped in a literal).
+     * </ul>
+     *
+     * <p>Any other shape is treated as a validation error rather than silently defaulting to
+     * column {@code 0}, which previously could cause the wrong field to be marked as rowtime.
+     */
+    private static int resolveDescriptorColumnIndex(RelNode input, RexNode descriptorOperand) {
+        if (!(descriptorOperand instanceof RexCall)) {
+            throw new ValidationException(
+                    "APPLY_WATERMARK second argument must be DESCRIPTOR(column).");
+        }
+        final RexCall descriptor = (RexCall) descriptorOperand;
+        if (descriptor.getOperands().isEmpty()) {
+            throw new ValidationException(
+                    "APPLY_WATERMARK DESCRIPTOR must specify a column name.");
+        }
+        final RexNode columnRef = descriptor.getOperands().get(0);
+
+        if (columnRef instanceof RexInputRef) {
+            return ((RexInputRef) columnRef).getIndex();
+        }
+        if (columnRef instanceof RexFieldAccess) {
+            return ((RexFieldAccess) columnRef).getField().getIndex();
+        }
+        if (columnRef instanceof RexLiteral) {
+            final RexLiteral literal = (RexLiteral) columnRef;
+            final Object value = literal.getValue2();
+            final String columnName;
+            if (value instanceof NlsString) {
+                columnName = ((NlsString) value).getValue();
+            } else if (value instanceof String) {
+                columnName = (String) value;
+            } else {
+                columnName = null;
+            }
+            if (columnName != null) {
+                // Case-insensitive lookup against the input row type.
+                final List<String> fieldNames = input.getRowType().getFieldNames();
+                for (int i = 0; i < fieldNames.size(); i++) {
+                    if (fieldNames.get(i).equalsIgnoreCase(columnName)) {
+                        return i;
+                    }
+                }
+                throw new ValidationException(
+                        String.format(
+                                "APPLY_WATERMARK DESCRIPTOR column '%s' is not present in the "
+                                        + "input. Available columns: %s.",
+                                columnName, fieldNames));
+            }
         }
 
-        RexCall descriptorCall = (RexCall) descriptorArg;
-        if (descriptorCall.getOperands().isEmpty()) {
-            return -1;
-        }
-
-        // The column name is the first operand of DESCRIPTOR
-        RexNode columnRef = descriptorCall.getOperands().get(0);
-
-        // Extract column name
-        String columnName;
-        if (columnRef instanceof org.apache.calcite.rex.RexInputRef) {
-            org.apache.calcite.rex.RexInputRef inputRef =
-                    (org.apache.calcite.rex.RexInputRef) columnRef;
-            return inputRef.getIndex();
-        } else if (columnRef instanceof org.apache.calcite.rex.RexFieldAccess) {
-            org.apache.calcite.rex.RexFieldAccess fieldAccess =
-                    (org.apache.calcite.rex.RexFieldAccess) columnRef;
-            return fieldAccess.getField().getIndex();
-        } else {
-            // Try to extract column name from literal or identifier
-            // This is a simplified approach
-            return 0; // Default to first column if unable to determine
-        }
+        throw new ValidationException(
+                "APPLY_WATERMARK DESCRIPTOR could not be resolved to an input column. "
+                        + "Got rex node: "
+                        + columnRef);
     }
 }
