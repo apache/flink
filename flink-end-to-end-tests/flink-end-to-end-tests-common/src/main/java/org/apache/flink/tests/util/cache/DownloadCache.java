@@ -29,12 +29,15 @@ import java.nio.file.Path;
  *
  * <p>Whether, how, and for how long files are cached is implementation-dependent.
  */
-public interface DownloadCache {
+interface DownloadCache {
 
+    /** Initializes the cache before a test starts. */
     void before() throws Exception;
 
+    /** Cleans up cache resources after a test completed successfully. */
     void afterTestSuccess();
 
+    /** Cleans up cache resources after a test failed. */
     default void afterTestFailure() {
         afterTestSuccess();
     }

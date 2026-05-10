@@ -31,10 +31,13 @@ import java.util.stream.Stream;
 /** Generic interface for interacting with Flink. */
 public interface FlinkResource {
 
+    /** Initializes the resource before a test starts. */
     void before() throws Exception;
 
+    /** Cleans up the resource after a test completed successfully. */
     void afterTestSuccess();
 
+    /** Cleans up the resource after a test failed. */
     default void afterTestFailure() {
         afterTestSuccess();
     }

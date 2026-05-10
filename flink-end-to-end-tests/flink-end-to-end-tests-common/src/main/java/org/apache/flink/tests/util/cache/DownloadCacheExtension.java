@@ -30,7 +30,11 @@ public class DownloadCacheExtension implements BeforeEachCallback, AfterEachCall
 
     private final DownloadCache delegate;
 
-    public DownloadCacheExtension(DownloadCache delegate) {
+    public DownloadCacheExtension() {
+        this(DownloadCache.get());
+    }
+
+    DownloadCacheExtension(DownloadCache delegate) {
         this.delegate = delegate;
     }
 

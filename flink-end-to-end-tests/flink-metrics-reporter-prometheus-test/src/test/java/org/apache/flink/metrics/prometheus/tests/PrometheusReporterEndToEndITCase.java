@@ -23,7 +23,6 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.prometheus.PrometheusReporterFactory;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.CommandLineWrapper;
-import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.cache.DownloadCacheExtension;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResourceExtension;
@@ -155,8 +154,7 @@ class PrometheusReporterEndToEndITCase {
     @TempDir private Path tmp;
 
     @RegisterExtension
-    private final DownloadCacheExtension downloadCache =
-            new DownloadCacheExtension(DownloadCache.get());
+    private final DownloadCacheExtension downloadCacheExtension = new DownloadCacheExtension();
 
     private static Configuration getFlinkConfig() {
         final Configuration config = new Configuration();
@@ -179,7 +177,7 @@ class PrometheusReporterEndToEndITCase {
         Files.createDirectory(tmpPrometheusDir);
 
         final Path prometheusArchive =
-                downloadCache.getOrDownload(
+                downloadCacheExtension.getOrDownload(
                         "https://github.com/prometheus/prometheus/releases/download/v"
                                 + PROMETHEUS_VERSION
                                 + '/'
