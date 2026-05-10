@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{WatermarkAssigner, WatermarkUtils}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner, WatermarkUtils}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -28,8 +28,6 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexNode
 
 import java.util
-
-import scala.collection.JavaConversions._
 
 /**
  * Sub-class of [[WatermarkAssigner]] that is a relational expression which generates watermarks in
@@ -68,7 +66,7 @@ class FlinkLogicalWatermarkAssigner(
 class FlinkLogicalWatermarkAssignerConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
-    val assigner = rel.asInstanceOf[WatermarkAssigner]
+    val assigner = rel.asInstanceOf[LogicalWatermarkAssigner]
     val newInput = RelOptRule.convert(assigner.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalWatermarkAssigner.create(
       newInput,
@@ -81,7 +79,7 @@ class FlinkLogicalWatermarkAssignerConverter(config: Config) extends ConverterRu
 object FlinkLogicalWatermarkAssigner {
   val CONVERTER: ConverterRule = new FlinkLogicalWatermarkAssignerConverter(
     Config.INSTANCE.withConversion(
-      classOf[WatermarkAssigner],
+      classOf[LogicalWatermarkAssigner],
       Convention.NONE,
       FlinkConventions.LOGICAL,
       "FlinkLogicalWatermarkAssignerConverter"))

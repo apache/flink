@@ -149,17 +149,23 @@ public class SqlApplyWatermarkFunction extends SqlFunction implements SqlTableFu
                 return inputType;
             }
             final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-            final SqlNameMatcher matcher =
-                    opBinding instanceof SqlCallBinding
-                            ? ((SqlCallBinding) opBinding)
-                                    .getValidator()
-                                    .getCatalogReader()
-                                    .nameMatcher()
-                            : null;
-            final int rowtimeIdx =
-                    matcher != null
-                            ? matcher.indexOf(inputType.getFieldNames(), rowtimeColumn)
-                            : inputType.getFieldNames().indexOf(rowtimeColumn);
+            // Prefer the validator's name matcher (case-insensitive in Flink's default
+            // configuration) for consistency with OperandMetadataImpl.checkOperandTypes.
+            // The matcher is only available during SQL validation; when the row type is
+            // re-inferred later (e.g. from a RexCallBinding), fall back to a case-insensitive
+            // linear search so that the rowtime column is still promoted to a time-indicator
+            // type and the row type stays aligned with LogicalWatermarkAssigner.
+            final int rowtimeIdx;
+            if (opBinding instanceof SqlCallBinding) {
+                final SqlNameMatcher matcher =
+                        ((SqlCallBinding) opBinding)
+                                .getValidator()
+                                .getCatalogReader()
+                                .nameMatcher();
+                rowtimeIdx = matcher.indexOf(inputType.getFieldNames(), rowtimeColumn);
+            } else {
+                rowtimeIdx = indexOfIgnoreCase(inputType.getFieldNames(), rowtimeColumn);
+            }
             if (rowtimeIdx < 0) {
                 return inputType;
             }
@@ -190,6 +196,19 @@ public class SqlApplyWatermarkFunction extends SqlFunction implements SqlTableFu
     @Override
     public boolean argumentMustBeScalar(int ordinal) {
         return ordinal != 0;
+    }
+
+    /**
+     * Case-insensitive lookup used as a fallback for row-type inference when no validator name
+     * matcher is available (e.g. when the row type is re-inferred from a {@code RexCallBinding}).
+     */
+    private static int indexOfIgnoreCase(List<String> fieldNames, String name) {
+        for (int i = 0; i < fieldNames.size(); i++) {
+            if (fieldNames.get(i).equalsIgnoreCase(name)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
