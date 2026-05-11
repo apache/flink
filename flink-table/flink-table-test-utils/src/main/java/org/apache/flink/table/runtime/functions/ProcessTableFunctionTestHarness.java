@@ -336,14 +336,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
-    /**
-     * Collector implementation that stores output in the harness.
-     *
-     * <p>For SET_SEMANTIC_TABLE arguments, automatically prepends partition key columns to the PTF
-     * output. If the argument has PASS_COLUMNS_THROUGH trait, prepends all input columns.
-     */
+    /** Collector implementation that stores output in the harness. */
     private class HarnessCollector implements Collector<OUT> {
-        // Context set before each eval() invocation
         private ArgumentInfo activeTableArg;
         private Row activeRow;
 
@@ -359,13 +353,16 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return;
             }
 
-            if (activeTableArg.hasPassColumnsThrough) {
-                output.add(prependAllColumns(record));
-            } else if (activeTableArg.isSetSemantic
-                    && activeTableArg.partitionColumnNames != null) {
-                output.add(prependPartitionKeys(record));
-            } else {
-                output.add(record);
+            switch (activeTableArg.prependStrategy) {
+                case ALL_COLUMNS:
+                    output.add(prependAllColumns(record));
+                    break;
+                case PARTITION_KEYS:
+                    output.add(prependPartitionKeys(record));
+                    break;
+                case NONE:
+                    output.add(record);
+                    break;
             }
         }
 
@@ -1131,6 +1128,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
+    private enum OutputPrependStrategy {
+        NONE,
+        PARTITION_KEYS,
+        ALL_COLUMNS
+    }
+
     /**
      * Metadata for a single argument extracted from type inference.
      *
@@ -1146,7 +1149,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         final boolean isScalar;
         final boolean isTableArgument;
         final boolean isSetSemantic;
-        final boolean hasPassColumnsThrough;
+        final OutputPrependStrategy prependStrategy;
 
         ArgumentInfo(
                 String name,
@@ -1160,7 +1163,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             this.isScalar = (primaryTrait == ArgumentTrait.SCALAR);
             this.isTableArgument = (primaryTrait != ArgumentTrait.SCALAR);
             this.isSetSemantic = (primaryTrait == ArgumentTrait.SET_SEMANTIC_TABLE);
-            this.hasPassColumnsThrough = hasPassColumnsThrough;
+            this.prependStrategy =
+                    hasPassColumnsThrough
+                            ? OutputPrependStrategy.ALL_COLUMNS
+                            : (this.isSetSemantic && partitionColumnNames != null)
+                                    ? OutputPrependStrategy.PARTITION_KEYS
+                                    : OutputPrependStrategy.NONE;
         }
     }
 
