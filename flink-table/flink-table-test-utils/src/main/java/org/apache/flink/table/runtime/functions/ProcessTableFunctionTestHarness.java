@@ -371,9 +371,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             Row ptfRow = (Row) ptfOutput;
 
-            // For multi-table PTFs, prepend partition keys from ALL SET_SEMANTIC_TABLE arguments
-            // Active table contributes actual partition key values, inactive tables contribute
-            // nulls
             int totalPartitionKeyCount = 0;
             for (ArgumentInfo arg : arguments) {
                 if (arg.isSetSemantic && arg.partitionColumnNames != null) {
@@ -386,19 +383,19 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             Row result = new Row(ptfRow.getKind(), totalArity);
 
-            // Prepend partition key values from all SET_SEMANTIC_TABLE arguments
+            // Extract partition key values from active row
+            Object[] partitionKeyValues = new Object[activeTableArg.partitionColumnNames.length];
+            for (int i = 0; i < activeTableArg.partitionColumnNames.length; i++) {
+                String columnName = activeTableArg.partitionColumnNames[i];
+                int columnIndex = getFieldIndex(activeTableArg.dataType, columnName);
+                partitionKeyValues[i] = activeRow.getField(columnIndex);
+            }
+
             int resultIndex = 0;
             for (ArgumentInfo arg : arguments) {
                 if (arg.isSetSemantic && arg.partitionColumnNames != null) {
-                    boolean isActive = arg.name.equals(activeTableArg.name);
-
-                    for (String columnName : arg.partitionColumnNames) {
-                        if (isActive) {
-                            int columnIndex = getFieldIndex(arg.dataType, columnName);
-                            result.setField(resultIndex++, activeRow.getField(columnIndex));
-                        } else {
-                            result.setField(resultIndex++, null);
-                        }
+                    for (int i = 0; i < arg.partitionColumnNames.length; i++) {
+                        result.setField(resultIndex++, partitionKeyValues[i]);
                     }
                 }
             }

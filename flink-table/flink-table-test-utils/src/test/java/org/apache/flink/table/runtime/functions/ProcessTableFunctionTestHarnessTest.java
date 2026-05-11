@@ -701,18 +701,18 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(output).hasSize(4);
 
             assertThat(output.get(0).getField(0)).isEqualTo("Alice");
-            assertThat(output.get(0).getField(1)).isNull();
+            assertThat(output.get(0).getField(1)).isEqualTo("Alice");
             assertThat(output.get(0).getField(2)).isEqualTo("LEFT: +I[Alice, 100]");
 
             assertThat(output.get(1).getField(0)).isEqualTo("Bob");
-            assertThat(output.get(1).getField(1)).isNull();
+            assertThat(output.get(1).getField(1)).isEqualTo("Bob");
             assertThat(output.get(1).getField(2)).isEqualTo("LEFT: +I[Bob, 200]");
 
-            assertThat(output.get(2).getField(0)).isNull();
+            assertThat(output.get(2).getField(0)).isEqualTo("Alice");
             assertThat(output.get(2).getField(1)).isEqualTo("Alice");
             assertThat(output.get(2).getField(2)).isEqualTo("RIGHT: +I[Alice, Berlin]");
 
-            assertThat(output.get(3).getField(0)).isNull();
+            assertThat(output.get(3).getField(0)).isEqualTo("Bob");
             assertThat(output.get(3).getField(1)).isEqualTo("Bob");
             assertThat(output.get(3).getField(2)).isEqualTo("RIGHT: +I[Bob, London]");
         }
@@ -878,18 +878,18 @@ class ProcessTableFunctionTestHarnessTest {
             assertThat(output).hasSize(4);
 
             assertThat(output.get(0).getField(0)).isEqualTo(1);
-            assertThat(output.get(0).getField(1)).isNull();
+            assertThat(output.get(0).getField(1)).isEqualTo(1);
             assertThat(output.get(0).getField(2)).asString().startsWith("LEFT:");
 
             assertThat(output.get(1).getField(0)).isEqualTo(2);
-            assertThat(output.get(1).getField(1)).isNull();
+            assertThat(output.get(1).getField(1)).isEqualTo(2);
             assertThat(output.get(1).getField(2)).asString().startsWith("LEFT:");
 
-            assertThat(output.get(2).getField(0)).isNull();
+            assertThat(output.get(2).getField(0)).isEqualTo(1);
             assertThat(output.get(2).getField(1)).isEqualTo(1);
             assertThat(output.get(2).getField(2)).asString().startsWith("RIGHT:");
 
-            assertThat(output.get(3).getField(0)).isNull();
+            assertThat(output.get(3).getField(0)).isEqualTo(2);
             assertThat(output.get(3).getField(1)).isEqualTo(2);
             assertThat(output.get(3).getField(2)).asString().startsWith("RIGHT:");
         }
