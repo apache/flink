@@ -236,9 +236,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             + "Use processElement() or processElementForTable() instead.");
         }
 
-        // Clear collector context since there's no active table argument
-        collector.setContext(null, null);
-
         Object[] args = arguments.stream().map(arg -> scalarArgumentValues.get(arg.name)).toArray();
 
         try {
