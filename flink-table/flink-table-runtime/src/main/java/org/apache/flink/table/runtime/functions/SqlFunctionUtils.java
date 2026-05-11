@@ -46,7 +46,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -444,26 +443,19 @@ public class SqlFunctionUtils {
 
     /**
      * Returns a string extracted with a specified regular expression and a regex match group index.
+     * Literal regexes are validated at planning time by the input type strategy.
      */
     public static String regexpExtract(String str, String regex, int extractIndex) {
-        if (str == null || regex == null) {
+        if (str == null || regex == null || extractIndex < 0) {
             return null;
         }
-
-        try {
-            Matcher m = Pattern.compile(regex).matcher(str);
-            if (m.find()) {
-                MatchResult mr = m.toMatchResult();
-                return mr.group(extractIndex);
-            }
-        } catch (Exception e) {
-            LOG.error(
-                    String.format(
-                            "Exception in regexpExtract('%s', '%s', '%d')",
-                            str, regex, extractIndex),
-                    e);
+        final Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
+        if (m.groupCount() < extractIndex) {
+            return null;
         }
-
+        if (m.find()) {
+            return m.group(extractIndex);
+        }
         return null;
     }
 
