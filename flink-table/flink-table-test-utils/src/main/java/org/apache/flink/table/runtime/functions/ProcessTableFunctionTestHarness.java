@@ -105,29 +105,46 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private ProcessTableFunctionTestHarness(
             ProcessTableFunction<OUT> function,
             FunctionContext functionContext,
-            String defaultTableArgument,
             Method evalMethod,
             List<ArgumentInfo> arguments,
-            Map<String, ArgumentInfo> argumentsByName,
-            boolean isSingleTableFunction,
             Map<String, Object> scalarArgumentValues,
             Map<String, DataStructureConverter<Object, Object>> inputConverters,
             Map<String, DataStructureConverter<Object, Object>> outputConverters)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
-        this.defaultTableArgument = defaultTableArgument;
         this.evalMethod = evalMethod;
         this.arguments = arguments;
-        this.argumentsByName = argumentsByName;
-        this.isSingleTableFunction = isSingleTableFunction;
         this.scalarArgumentValues = scalarArgumentValues;
-        this.hasTableArguments = arguments.stream().anyMatch(arg -> arg.isTableArgument);
         this.inputConverters = inputConverters;
         this.outputConverters = outputConverters;
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
         this.isOpen = false;
+
+        this.argumentsByName = new HashMap<>();
+        for (ArgumentInfo arg : arguments) {
+            if (arg.name != null) {
+                argumentsByName.put(arg.name, arg);
+            }
+        }
+
+        List<ArgumentInfo> tableArguments = new ArrayList<>();
+        for (ArgumentInfo arg : arguments) {
+            if (arg.isTableArgument) {
+                tableArguments.add(arg);
+            }
+        }
+
+        if (tableArguments.size() == 1) {
+            this.defaultTableArgument = tableArguments.get(0).name;
+            this.isSingleTableFunction = true;
+        } else {
+            this.defaultTableArgument = null;
+            this.isSingleTableFunction = false;
+        }
+
+        this.hasTableArguments = arguments.stream().anyMatch(arg -> arg.isTableArgument);
 
         openFunction();
     }
@@ -223,16 +240,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         // Clear collector context since there's no active table argument
         collector.setContext(null, null);
 
-        Object[] args = new Object[arguments.size()];
-        for (int i = 0; i < arguments.size(); i++) {
-            ArgumentInfo arg = arguments.get(i);
-            if (arg.isScalar) {
-                args[i] = scalarArgumentValues.get(arg.name);
-            } else {
-                throw new IllegalStateException(
-                        "Unexpected non-scalar argument at position " + i + ": " + arg.name);
-            }
-        }
+        Object[] args = arguments.stream().map(arg -> scalarArgumentValues.get(arg.name)).toArray();
+
         try {
             evalMethod.invoke(function, args);
         } catch (InvocationTargetException e) {
@@ -617,43 +626,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             validateEvalMethodSupported(evalMethod, arguments);
             validatePartitionConsistency(arguments);
 
-            // In cases where PTFs have only a single table argument, set it as a default
-            // and mark as a single table function so that processElement without specifying
-            // a table argument can be used.
-            String defaultTableArg = null;
-            boolean isSingleTableFunction = false;
-
-            List<ArgumentInfo> tableArguments = new ArrayList<>();
-            for (ArgumentInfo arg : arguments) {
-                if (arg.isTableArgument) {
-                    tableArguments.add(arg);
-                }
-            }
-
-            if (tableArguments.size() == 1) {
-                defaultTableArg = tableArguments.get(0).name;
-                isSingleTableFunction = true;
-            }
-
             Map<String, DataStructureConverter<Object, Object>> inputConverters = new HashMap<>();
             Map<String, DataStructureConverter<Object, Object>> outputConverters = new HashMap<>();
             createConverters(arguments, inputConverters, outputConverters);
 
-            Map<String, ArgumentInfo> argumentsByName = new HashMap<>();
-            for (ArgumentInfo arg : arguments) {
-                if (arg.name != null) {
-                    argumentsByName.put(arg.name, arg);
-                }
-            }
-
             return new ProcessTableFunctionTestHarness<>(
                     function,
                     functionContext,
-                    defaultTableArg,
                     evalMethod,
                     arguments,
-                    argumentsByName,
-                    isSingleTableFunction,
                     extractScalarValues(arguments),
                     inputConverters,
                     outputConverters);
