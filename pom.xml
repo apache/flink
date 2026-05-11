@@ -1245,6 +1245,12 @@ under the License.
 
 		<profile>
 			<id>java25-target</id>
+
+			<properties>
+				<target.java.version>25</target.java.version>
+				<spotless.skip>true</spotless.skip>
+			</properties>
+
 			<build>
 				<plugins>
 					<plugin>

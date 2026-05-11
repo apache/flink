@@ -174,7 +174,7 @@ under the License.
 		<profile>
 			<id>java21</id>
 			<activation>
-				<jdk>[21,)</jdk>
+				<jdk>[21,24)</jdk>
 			</activation>
 
 			<properties>
