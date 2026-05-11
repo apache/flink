@@ -449,12 +449,16 @@ public class SqlFunctionUtils {
         if (str == null || regex == null || extractIndex < 0) {
             return null;
         }
-        final Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
-        if (m.groupCount() < extractIndex) {
-            return null;
-        }
-        if (m.find()) {
-            return m.group(extractIndex);
+        try {
+            final Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
+            if (m.groupCount() < extractIndex) {
+                return null;
+            }
+            if (m.find()) {
+                return m.group(extractIndex);
+            }
+        } catch (PatternSyntaxException e) {
+            // non-literal invalid regex returns null.
         }
         return null;
     }

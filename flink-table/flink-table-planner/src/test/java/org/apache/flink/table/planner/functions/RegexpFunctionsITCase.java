@@ -121,7 +121,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
-                        .onFieldsWithData("22", "ABC")
+                        .onFieldsWithData("22", "ABC", "(")
                         .testResult(
                                 call("regexpExtract", $("f0"), "[A-Z]+"),
                                 "REGEXP_EXTRACT(f0,'[A-Z]+')",
@@ -131,6 +131,13 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 call("regexpExtract", $("f1"), "[A-Z]+"),
                                 "REGEXP_EXTRACT(f1, '[A-Z]+')",
                                 "ABC",
+                                DataTypes.STRING().nullable())
+                        // Non-literal invalid regex: plan-time validation does not apply,
+                        // and the runtime swallows PatternSyntaxException and returns null.
+                        .testResult(
+                                call("regexpExtract", $("f1"), $("f2")),
+                                "REGEXP_EXTRACT(f1, f2)",
+                                null,
                                 DataTypes.STRING().nullable()));
     }
 
