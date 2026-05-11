@@ -941,6 +941,9 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.JSON =>
             new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
 
+          case BuiltInFunctionDefinitions.REGEXP_EXTRACT =>
+            StringCallGen.generateRegexpExtract(ctx, operands, resultType)
+
           case _ =>
             new BridgingSqlFunctionCallGen(call, rexProgram).generate(ctx, operands, resultType)
         }

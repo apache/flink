@@ -79,8 +79,6 @@ object StringCallGen {
       case NOT_SIMILAR_TO =>
         generateNot(ctx, generateSimilarTo(ctx, operands, returnType), returnType)
 
-      case REGEXP_EXTRACT => generateRegexpExtract(ctx, operands, returnType)
-
       case REGEXP_REPLACE => generateRegexpReplace(ctx, operands, returnType)
 
       case IS_DECIMAL => generateIsDecimal(ctx, operands, returnType)
