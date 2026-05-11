@@ -129,7 +129,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
         }
 
-        List<ArgumentInfo> tableArguments = new ArrayList<>();
+        final List<ArgumentInfo> tableArguments = new ArrayList<>();
         for (ArgumentInfo arg : arguments) {
             if (arg.isTableArgument) {
                 tableArguments.add(arg);
@@ -520,9 +520,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         "Table argument already configured: " + argumentName);
             }
 
-            TableArgumentConfiguration config = new TableArgumentConfiguration();
-            config.explicitType = dataType;
-            tableArgs.put(argumentName, config);
+            tableArgs.put(argumentName, new TableArgumentConfiguration(dataType));
             return this;
         }
 
@@ -548,8 +546,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         "Table argument already configured: " + argumentName);
             }
 
-            TableArgumentConfiguration config = new TableArgumentConfiguration();
-            tableArgs.put(argumentName, config);
+            tableArgs.put(argumentName, new TableArgumentConfiguration(null));
             return this;
         }
 
@@ -781,7 +778,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
          * matching data types.
          */
         private void validatePartitionConsistency(List<ArgumentInfo> arguments) {
-            List<ArgumentInfo> partitionedTables = new ArrayList<>();
+            final List<ArgumentInfo> partitionedTables = new ArrayList<>();
             for (ArgumentInfo arg : arguments) {
                 if (arg.isSetSemantic && arg.partitionColumnNames != null) {
                     partitionedTables.add(arg);
@@ -792,8 +789,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return;
             }
 
-            ArgumentInfo first = partitionedTables.get(0);
-            int expectedPartitionColumnCount = first.partitionColumnNames.length;
+            final ArgumentInfo first = partitionedTables.get(0);
+            final int expectedPartitionColumnCount = first.partitionColumnNames.length;
 
             for (int i = 1; i < partitionedTables.size(); i++) {
                 ArgumentInfo current = partitionedTables.get(i);
@@ -1171,11 +1168,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     private static class TableArgumentConfiguration {
-        AbstractDataType<?> explicitType; // from withTableArgument
+        final AbstractDataType<?> explicitType;
+
+        TableArgumentConfiguration(AbstractDataType<?> explicitType) {
+            this.explicitType = explicitType;
+        }
     }
 
     private static class ScalarArgumentConfiguration {
-        Object value;
+        final Object value;
 
         ScalarArgumentConfiguration(Object value) {
             this.value = value;
