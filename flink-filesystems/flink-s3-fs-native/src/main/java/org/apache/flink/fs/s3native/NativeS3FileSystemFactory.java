@@ -371,15 +371,11 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
                 maxConcurrentUploads);
 
         boolean useAsyncOperations = config.get(USE_ASYNC_OPERATIONS);
-
-        // Validate and clamp read buffer size to sensible range [64KB, 4MB]
-        // We clip rather than throw to provide flexibility while preventing extreme values
         int configuredReadBufferSize = config.get(READ_BUFFER_SIZE);
-        int readBufferSize =
-                Math.max(64 * 1024, Math.min(configuredReadBufferSize, 4 * 1024 * 1024));
+        int readBufferSize = Math.max(256 * 1024, configuredReadBufferSize);
         if (readBufferSize != configuredReadBufferSize) {
             LOG.warn(
-                    "{} value {} was outside valid range [64KB, 4MB]. Using {} instead.",
+                    "{} value {} was below 64KB. Using {} instead.",
                     READ_BUFFER_SIZE.key(),
                     configuredReadBufferSize,
                     readBufferSize);
