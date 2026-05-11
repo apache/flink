@@ -50,7 +50,6 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -482,10 +481,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     public static class Builder<OUT> {
         private final Class<? extends ProcessTableFunction<OUT>> functionClass;
 
-        private final LinkedHashMap<String, ScalarArgumentConfiguration> scalarArgs =
-                new LinkedHashMap<>();
-        private final LinkedHashMap<String, TableArgumentConfiguration> tableArgs =
-                new LinkedHashMap<>();
+        private final Map<String, ScalarArgumentConfiguration> scalarArgs = new HashMap<>();
+        private final Map<String, TableArgumentConfiguration> tableArgs = new HashMap<>();
         private final Map<String, PartitionConfiguration> partitionConfigs = new HashMap<>();
 
         private Builder(Class<? extends ProcessTableFunction<OUT>> functionClass) {
