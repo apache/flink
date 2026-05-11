@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.concat;
 import static org.apache.flink.table.api.Expressions.lit;
 
 /** Test Regexp functions correct behaviour. */
@@ -131,11 +132,19 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_EXTRACT(f1, '[A-Z]+')",
                                 "ABC",
                                 DataTypes.STRING().nullable())
-                        // Non-literal invalid regex: plan-time validation does not apply,
-                        // and the runtime swallows PatternSyntaxException and returns null.
                         .testResult(
                                 $("f1").regexpExtract($("f2")),
                                 "REGEXP_EXTRACT(f1, f2)",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpExtract(concat("[A-", "Z]+")),
+                                "REGEXP_EXTRACT(f1, '[A-' || 'Z]+')",
+                                "ABC",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpExtract(concat("(", "")),
+                                "REGEXP_EXTRACT(f1, '(' || '')",
                                 null,
                                 DataTypes.STRING().nullable()),
                 TestSetSpec.forFunction(
