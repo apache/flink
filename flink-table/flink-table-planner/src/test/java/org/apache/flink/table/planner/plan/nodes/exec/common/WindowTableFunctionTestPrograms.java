@@ -77,13 +77,13 @@ public class WindowTableFunctionTestPrograms {
         "bid_time TIMESTAMP(3)",
         "price DECIMAL(10,2)",
         "item STRING",
-        "window_start TIMESTAMP_LTZ(3)",
-        "window_end TIMESTAMP_LTZ(3)",
-        "window_time TIMESTAMP_LTZ(3)"
+        "window_start TIMESTAMP(3)",
+        "window_end TIMESTAMP(3)",
+        "window_time TIMESTAMP(3)"
     };
 
     static final String[] SINK_TVF_AGG_SCHEMA = {
-        "window_start TIMESTAMP_LTZ(3)", "window_end TIMESTAMP_LTZ(3)", "price DECIMAL(10,2)"
+        "window_start TIMESTAMP(3)", "window_end TIMESTAMP(3)", "price DECIMAL(10,2)"
     };
 
     static final String[] SINK_TVF_AGG_PROC_TIME_SCHEMA = {"price DECIMAL(10,2)"};

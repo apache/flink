@@ -24,7 +24,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.concat;
 import static org.apache.flink.table.api.Expressions.lit;
 
 /** Test Regexp functions correct behaviour. */
@@ -121,17 +121,43 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
-                        .onFieldsWithData("22", "ABC")
+                        .onFieldsWithData("22", "ABC", "(")
                         .testResult(
-                                call("regexpExtract", $("f0"), "[A-Z]+"),
-                                "REGEXP_EXTRACT(f0,'[A-Z]+')",
+                                $("f0").regexpExtract("[A-Z]+"),
+                                "REGEXP_EXTRACT(f0, '[A-Z]+')",
                                 null,
                                 DataTypes.STRING().nullable())
                         .testResult(
-                                call("regexpExtract", $("f1"), "[A-Z]+"),
+                                $("f1").regexpExtract("[A-Z]+"),
                                 "REGEXP_EXTRACT(f1, '[A-Z]+')",
                                 "ABC",
-                                DataTypes.STRING().nullable()));
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpExtract($("f2")),
+                                "REGEXP_EXTRACT(f1, f2)",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpExtract(concat("[A-", "Z]+")),
+                                "REGEXP_EXTRACT(f1, '[A-' || 'Z]+')",
+                                "ABC",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").regexpExtract(concat("(", "")),
+                                "REGEXP_EXTRACT(f1, '(' || '')",
+                                null,
+                                DataTypes.STRING().nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP_EXTRACT,
+                                "Invalid literal regex fails at plan time")
+                        .onFieldsWithData("ABC")
+                        .andDataTypes(DataTypes.STRING())
+                        .testTableApiValidationError(
+                                $("f0").regexpExtract("("),
+                                "Invalid regular expression for REGEXP_EXTRACT:")
+                        .testSqlValidationError(
+                                "REGEXP_EXTRACT(f0, '(')",
+                                "Invalid regular expression for REGEXP_EXTRACT:"));
     }
 
     private Stream<TestSetSpec> regexpExtractAllTestCases() {

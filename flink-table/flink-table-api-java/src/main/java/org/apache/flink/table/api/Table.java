@@ -1431,6 +1431,17 @@ public interface Table extends Explainable<Table>, Executable {
      * INSERT-only row with a string {@code "op"} column indicating the original operation (INSERT,
      * UPDATE_AFTER, DELETE, etc.).
      *
+     * <p>By default, the input is processed with row semantics (each row independently). To
+     * co-locate rows with the same key in the same parallel operator instance, partition the input
+     * first via {@link #partitionBy(Expression...)} and invoke {@link
+     * PartitionedTable#toChangelog(Expression...)} with set semantics:
+     *
+     * <pre>{@code
+     * Table result = table
+     *     .partitionBy($("id"))
+     *     .toChangelog();
+     * }</pre>
+     *
      * <p>Optional arguments can be passed using named expressions:
      *
      * <pre>{@code
@@ -1469,13 +1480,13 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>By default, the input is processed with row semantics (each row independently). To
      * co-locate rows with the same key in the same parallel operator instance, partition the input
-     * first via {@link #partitionBy(Expression...)} and invoke the function via {@link
-     * PartitionedTable#process(String, Object...)}:
+     * first via {@link #partitionBy(Expression...)} and invoke {@link
+     * PartitionedTable#fromChangelog(Expression...)} with set semantics:
      *
      * <pre>{@code
      * Table result = cdcStream
      *     .partitionBy($("id"))
-     *     .process("FROM_CHANGELOG");
+     *     .fromChangelog();
      * }</pre>
      *
      * <p>Optional arguments can be passed using named expressions:

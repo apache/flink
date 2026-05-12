@@ -1387,19 +1387,11 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition REGEXP_EXTRACT =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("regexpExtract")
-                    .sqlName("REGEXP_EXTRACT")
+                    .name("REGEXP_EXTRACT")
                     .kind(SCALAR)
-                    .inputTypeStrategy(
-                            or(
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING)),
-                                    sequence(
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeFamily.CHARACTER_STRING),
-                                            logical(LogicalTypeRoot.INTEGER))))
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REGEXP_EXTRACT)
                     .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition REGEXP_EXTRACT_ALL =

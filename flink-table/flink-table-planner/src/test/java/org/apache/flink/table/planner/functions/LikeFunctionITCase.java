@@ -148,8 +148,22 @@ class LikeFunctionITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING(),
                                 DataTypes.STRING())
                         // Empty strings in pattern or escape
-                        .testSqlResult("f0 LIKE 'test\"end' ESCAPE ''", false, DataTypes.BOOLEAN())
                         .testSqlResult("f0 LIKE '' ESCAPE ''", false, DataTypes.BOOLEAN())
+                        .testSqlResult("f0 LIKE '' ESCAPE '!'", false, DataTypes.BOOLEAN())
+                        .testSqlResult("f0 LIKE 'test\"end' ESCAPE ''", false, DataTypes.BOOLEAN())
+                        // Escaped _ in quick path: startsWith (BEGIN_PATTERN)
+                        .testSqlResult("f2 LIKE 'te!_%' ESCAPE '!'", true, DataTypes.BOOLEAN())
+                        .testSqlResult("f0 LIKE 'te!_%' ESCAPE '!'", false, DataTypes.BOOLEAN())
+
+                        // Escaped _ in quick path: endsWith (END_PATTERN)
+                        .testSqlResult("f2 LIKE '%!_st' ESCAPE '!'", true, DataTypes.BOOLEAN())
+
+                        // Escaped _ in quick path: contains (MIDDLE_PATTERN)
+                        .testSqlResult("f2 LIKE '%!_s%' ESCAPE '!'", true, DataTypes.BOOLEAN())
+
+                        // Escaped _ in quick path: multi-segment (ChainChecker)
+                        .testSqlResult("f2 LIKE 'te!_%st' ESCAPE '!'", true, DataTypes.BOOLEAN())
+                        .testSqlResult("f0 LIKE 'te!_%st' ESCAPE '!'", false, DataTypes.BOOLEAN())
                         // Escaping with emoji
                         .testSqlResult("f0 LIKE 'test' ESCAPE '✅'", true, DataTypes.BOOLEAN())
                         .testSqlResult("f1 LIKE 'test✅%' ESCAPE '✅'", true, DataTypes.BOOLEAN())

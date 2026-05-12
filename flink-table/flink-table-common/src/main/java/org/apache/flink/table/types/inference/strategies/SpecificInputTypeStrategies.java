@@ -194,6 +194,9 @@ public final class SpecificInputTypeStrategies {
     /** Type strategy for {@link BuiltInFunctionDefinitions#TO_TIMESTAMP_LTZ}. */
     public static final InputTypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzInputTypeStrategy();
 
+    /** Type strategy for {@link BuiltInFunctionDefinitions#REGEXP_EXTRACT}. */
+    public static final InputTypeStrategy REGEXP_EXTRACT = new RegexpExtractInputTypeStrategy();
+
     private SpecificInputTypeStrategies() {
         // no instantiation
     }

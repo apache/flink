@@ -47,6 +47,7 @@ public class FromChangelogSemanticTests extends SemanticTestBase {
                 FromChangelogTestPrograms.SKIP_INVALID_OP_HANDLING,
                 FromChangelogTestPrograms.SKIP_NULL_OP_CODE,
                 FromChangelogTestPrograms.TABLE_API_DEFAULT,
+                FromChangelogTestPrograms.TABLE_API_RETRACT_PARTITION_BY,
                 FromChangelogTestPrograms.ROUND_TRIP,
                 FromChangelogTestPrograms.INVALID_OP_CODE,
                 FromChangelogTestPrograms.NULL_OP_CODE);
