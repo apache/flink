@@ -21,7 +21,6 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.factories.TestValuesModelFactory;
@@ -1059,11 +1058,6 @@ public class QueryOperationTestPrograms {
 
     public static final TableTestProgram PTF_ROW_SEMANTIC_TABLE =
             TableTestProgram.of("ptf-row-semantic-table", "table with row semantics")
-                    // TODO [FLINK-38233]: Remove this config when PTF support in
-                    //  StreamNonDeterministicUpdatePlanVisitor is added.
-                    .setupConfig(
-                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
                     .setupTemporarySystemFunction("f", RowSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
@@ -1089,11 +1083,6 @@ public class QueryOperationTestPrograms {
 
     static final TableTestProgram PTF_SET_SEMANTIC_TABLE =
             TableTestProgram.of("ptf-set-semantic-table", "verifies SQL serialization")
-                    // TODO [FLINK-38233]: Remove this config when PTF support in
-                    //  StreamNonDeterministicUpdatePlanVisitor is added.
-                    .setupConfig(
-                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
                     .setupTemporarySystemFunction("f1", ChainedSendingFunction.class)
                     .setupTemporarySystemFunction("f2", ChainedReceivingFunction.class)
                     .setupTableSource(TIMED_SOURCE)
@@ -1321,11 +1310,6 @@ public class QueryOperationTestPrograms {
 
     static final TableTestProgram PTF_ORDER_BY =
             TableTestProgram.of("ptf-order-by", "verifies SQL serialization with ORDER BY clause")
-                    // TODO [FLINK-38233]: Remove this config when PTF support in
-                    //  StreamNonDeterministicUpdatePlanVisitor is added.
-                    .setupConfig(
-                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
                     .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
                     .setupTableSource(TIMED_SOURCE)
                     .setupTableSink(

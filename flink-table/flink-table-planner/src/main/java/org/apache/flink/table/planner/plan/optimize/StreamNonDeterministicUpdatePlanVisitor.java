@@ -971,9 +971,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             final ImmutableBitSet requireDeterminism) {
         final RexCall call = ptf.getCall();
 
-  // Concern 1: PTF function itself is non-deterministic and downstream nodes                                                                                                                                                                
-  // require determinism. PTFs can have pass-through input columns, but they                                                                                                                                                                 
-  // are not considered specially for now.
+        // Concern 1: PTF function itself is non-deterministic and downstream nodes
+        // require determinism. PTFs can have pass-through input columns, but they
+        // are not considered specially for now.
         if (!requireDeterminism.isEmpty()) {
             final Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(call);
             if (ndCall.isPresent()) {
@@ -983,8 +983,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         }
 
         if (inputInsertOnly(ptf)) {
-            // No retracts arrive at the PTF input, so input-column determinism does                                                                                                                                                               
-           // not affect retract correctness
+            // No retracts arrive at the PTF input, so input-column determinism does
+            // not affect retract correctness
             return transmitDeterminismRequirement(ptf, NO_REQUIRED_DETERMINISM);
         }
 
@@ -993,12 +993,20 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         // (requireDeterminism) back through the PTF's internal computation to determine which
         // input columns need to be deterministic. requireDeterminism is therefore ignored here.
         //
-        // Instead, the check is derived per-argument from the argument's input traits:
-        //   - No REQUIRE_UPDATE_BEFORE: Retracts are routed by partition key, so only partition
-        //     key columns must be deterministic.
-        //   - Has REQUIRE_UPDATE_BEFORE: the PTF explicitly requests the old row as UPDATE_BEFORE
-        //     for correct state management; that row must exactly match the row previously
-        //     processed, so all input columns must be deterministic.
+        // Note: the physical changelog the PTF receives is not solely determined by the
+        // REQUIRE_UPDATE_BEFORE trait. Per the SUPPORT_UPDATES contract, the function receives
+        // {+I,+U,-D} only when the input is upserting on the same key as the partition key;
+        // otherwise it receives full retractions {+I,-U,+U,-D}, including UB messages, even
+        // without REQUIRE_UPDATE_BEFORE. UBs may therefore arrive regardless of the trait.
+        //
+        // What the trait controls is which messages the PTF is contractually allowed to
+        // consume for state management, and that is what drives the determinism requirement:
+        //   - No REQUIRE_UPDATE_BEFORE: the PTF does not consume UBs; retract handling is
+        //     keyed by partition key, so only partition key columns must be deterministic.
+        //     Any non-key columns on an incidentally-delivered UB are not used by the PTF.
+        //   - Has REQUIRE_UPDATE_BEFORE: the PTF explicitly opts in to consuming UB to
+        //     reconstruct the previously processed row; that row must match exactly, so all
+        //     input columns must be deterministic.
         final List<Ord<StaticArgument>> providedInputArgs =
                 StreamPhysicalProcessTableFunction.getProvidedInputArgs(call);
         final List<RexNode> operands = call.getOperands();
@@ -1011,18 +1019,19 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                     (RexTableArgCall) operands.get(providedInputArgs.get(i).i);
             final ImmutableBitSet inputReq;
             if (staticArg.is(StaticArgumentTrait.REQUIRE_UPDATE_BEFORE)) {
-                // UPDATE_BEFORE must exactly match the previously processed row — all columns
-                // must be deterministic.
+                // The PTF consumes UB to reconstruct the previously processed row, which must
+                // match exactly — all input columns must be deterministic.
                 inputReq = ImmutableBitSet.range(input.getRowType().getFieldCount());
             } else {
-                // Inserts, update and deletions are routed by partition key only — thus the partition key columns must be deterministic.
+                // The PTF does not consume UB; retract handling is keyed by partition key, so
+                // only partition key columns must be deterministic.
                 inputReq =
                         ImmutableBitSet.of(
                                 Arrays.stream(tableArgCall.getPartitionKeys())
                                         .boxed()
                                         .collect(Collectors.toList()));
             }
-            newInputs.add(visit(input, inputReq));
+            newInputs.add(visit(input, requireDeterminismExcludeUpsertKey(input, inputReq)));
         }
         return (StreamPhysicalRel) ptf.copy(ptf.getTraitSet(), newInputs);
     }
