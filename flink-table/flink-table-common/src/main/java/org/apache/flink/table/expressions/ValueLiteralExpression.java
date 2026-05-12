@@ -462,11 +462,19 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
     /**
      * Checks whether an {@link Instant} can be represented as a {@code long} epoch value at the
-     * given precision without overflow.
+     * given precision without overflow. Accounts for the sub-second nanos term that {@link
+     * DateTimeUtils#toEpochValue} adds on top of {@code epochSeconds * 10^precision}.
      */
     private static boolean canRepresentAsLong(Instant instant, int precision) {
-        long factor = (long) Math.pow(10, precision);
-        long epochSeconds = instant.getEpochSecond();
-        return factor == 0 || Math.abs(epochSeconds) <= Long.MAX_VALUE / factor;
+        final long factor = (long) Math.pow(10, precision);
+        final long nanoDivisor = (long) Math.pow(10, 9 - precision);
+        final long epochSeconds = instant.getEpochSecond();
+        final long nanoPart = instant.getNano() / nanoDivisor;
+        if (epochSeconds > Long.MAX_VALUE / factor || epochSeconds < Long.MIN_VALUE / factor) {
+            return false;
+        }
+        final long base = epochSeconds * factor;
+        // Negative base + non-negative nanoPart moves toward zero, can't overflow upward.
+        return base < 0 || nanoPart <= Long.MAX_VALUE - base;
     }
 }
