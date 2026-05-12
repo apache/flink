@@ -971,12 +971,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             final ImmutableBitSet requireDeterminism) {
         final RexCall call = ptf.getCall();
 
-        // Concern 1: PTF function itself is non-deterministic.
-        // requireDeterminism is the set of PTF output columns downstream requires to be
-        // deterministic (for correct retract matching). All PTF output columns are assumed to
-        // come from PTF's computation — there are pass-through input columns potentially, but
-        // they are not considered specially for now. If the PTF is non-deterministic and any of
-        // those columns are required, we cannot satisfy the requirement.
+  // Concern 1: PTF function itself is non-deterministic and downstream nodes                                                                                                                                                                
+  // require determinism. PTFs can have pass-through input columns, but they                                                                                                                                                                 
+  // are not considered specially for now.
         if (!requireDeterminism.isEmpty()) {
             final Optional<String> ndCall = FlinkRexUtil.getNonDeterministicCallName(call);
             if (ndCall.isPresent()) {
@@ -986,8 +983,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         }
 
         if (inputInsertOnly(ptf)) {
-            // Insert-only input: the PTF manages retract correctness internally via its own
-            // state, so no requirement is pushed to inputs.
+            // No retracts arrive at the PTF input, so input-column determinism does                                                                                                                                                               
+           // not affect retract correctness
             return transmitDeterminismRequirement(ptf, NO_REQUIRED_DETERMINISM);
         }
 
