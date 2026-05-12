@@ -68,14 +68,14 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
     }
 
     /**
-    * Retrieves the Datadog API key from environment variable or configuration.
-    *
-    * <p>The API key is resolved in the following order:
-    *
-    * <ol>
-    *   <li>Environment variable "DD_API_KEY"
-    *   <li>Configuration property "apikey"
-    * </ol>
+     * Retrieves the Datadog API key from environment variable or configuration.
+     *
+     * <p>The API key is resolved in the following order:
+     *
+     * <ol>
+     *   <li>Environment variable "DD_API_KEY"
+     *   <li>Configuration property "apikey"
+     * </ol>
      *
      * @param config the configuration properties
      * @return the Datadog API key, or null if not found in either location
