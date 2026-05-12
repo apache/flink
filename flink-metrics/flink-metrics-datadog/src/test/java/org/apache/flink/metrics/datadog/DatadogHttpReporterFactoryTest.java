@@ -22,6 +22,7 @@ import org.apache.flink.metrics.util.MetricReporterTestUtils;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
