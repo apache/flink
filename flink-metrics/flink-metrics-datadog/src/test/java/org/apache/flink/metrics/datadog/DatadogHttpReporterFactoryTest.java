@@ -124,9 +124,11 @@ class DatadogHttpReporterFactoryTest {
                 } else {
                     env.put(key, value);
                 }
-                java.lang.reflect.Field theCaseInsensitiveEnvironmentField = pe.getDeclaredField("theCaseInsensitiveEnvironment");
+                java.lang.reflect.Field theCaseInsensitiveEnvironmentField =
+                        pe.getDeclaredField("theCaseInsensitiveEnvironment");
                 theCaseInsensitiveEnvironmentField.setAccessible(true);
-                Map<String, String> cienv = (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+                Map<String, String> cienv =
+                        (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
                 if (value == null) {
                     cienv.remove(key);
                 } else {
