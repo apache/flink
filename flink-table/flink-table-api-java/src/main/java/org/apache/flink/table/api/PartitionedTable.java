@@ -207,7 +207,7 @@ public interface PartitionedTable {
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op} and {@code op_mapping}
-     * @return an append-only {@link Table} ordered as {@code [partition_keys, op,
+     * @return an append-only {@link Table} with output schema {@code [partition_keys, op,
      *     non_partition_input_columns]}
      * @see Table#toChangelog(Expression...)
      */
@@ -256,7 +256,7 @@ public interface PartitionedTable {
      *
      * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
      *     error_handling}
-     * @return a dynamic {@link Table} ordered as {@code [partition_keys,
+     * @return a dynamic {@link Table} with output schema {@code [partition_keys,
      *     non_partition_non_op_input_columns]}
      * @see Table#fromChangelog(Expression...)
      */

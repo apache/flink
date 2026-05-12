@@ -139,7 +139,7 @@ SELECT * FROM FROM_CHANGELOG(
 )
 ```
 
-When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns (excluding the op column). The order becomes:
+When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns (excluding the op column). The output schema becomes:
 
 ```
 [partition_keys, non_partition_input_columns_excluding_op]
@@ -230,7 +230,7 @@ When `op_mapping` is omitted, all four change operations are mapped to their sta
 
 ### Output Schema
 
-The output columns are ordered as:
+The output schema is:
 
 ```
 [op_column, all_input_columns]
@@ -305,7 +305,7 @@ SELECT * FROM TO_CHANGELOG(
   input => TABLE my_aggregation PARTITION BY id
 )
 ```
-When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns. The order becomes:
+When `PARTITION BY` is provided, **the output schema changes**. The partition key columns are moved to the front by the engine, and the function emits the remaining input columns. The output schema becomes:
 
 ```
 [partition_keys, op_column, non_partition_input_columns]
