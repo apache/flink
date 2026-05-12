@@ -1434,7 +1434,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>By default, the input is processed with row semantics (each row independently). To
      * co-locate rows with the same key in the same parallel operator instance, partition the input
      * first via {@link #partitionBy(Expression...)} and invoke {@link
-     * PartitionedTable#toChangelog(Expression...)}:
+     * PartitionedTable#toChangelog(Expression...)} with set semantics:
      *
      * <pre>{@code
      * Table result = table
@@ -1481,7 +1481,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>By default, the input is processed with row semantics (each row independently). To
      * co-locate rows with the same key in the same parallel operator instance, partition the input
      * first via {@link #partitionBy(Expression...)} and invoke {@link
-     * PartitionedTable#fromChangelog(Expression...)}:
+     * PartitionedTable#fromChangelog(Expression...)} with set semantics:
      *
      * <pre>{@code
      * Table result = cdcStream

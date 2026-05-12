@@ -183,20 +183,32 @@ public interface PartitionedTable {
      * <p>For row semantics (each row processed independently), use {@link Table#toChangelog} on the
      * unpartitioned table.
      *
-     * <p>Example:
+     * <p>Examples:
      *
      * <pre>{@code
+     * // Default: adds 'op' column and supports all changelog modes
+     * Table result = table.partitionBy($("id")).toChangelog();
+     *
+     * // Custom op column name and mapping
      * Table result = table
      *     .partitionBy($("id"))
      *     .toChangelog(
      *         descriptor("op_code").asArgument("op"),
      *         map("INSERT", "I", "UPDATE_AFTER", "U").asArgument("op_mapping")
      *     );
+     *
+     * // Deletion flag pattern: comma-separated keys map multiple change operations to the same code
+     * Table result = table
+     *     .partitionBy($("id"))
+     *     .toChangelog(
+     *         descriptor("deleted").asArgument("op"),
+     *         map("INSERT, UPDATE_AFTER", "false", "DELETE", "true").asArgument("op_mapping")
+     *     );
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op} and {@code op_mapping}
-     * @return an append-only {@link Table} with an {@code op} column and the partition keys
-     *     prepended to the input columns
+     * @return an append-only {@link Table} ordered as {@code [partition_keys, op,
+     *     non_partition_input_columns]}
      * @see Table#toChangelog(Expression...)
      */
     Table toChangelog(Expression... arguments);
@@ -214,9 +226,18 @@ public interface PartitionedTable {
      * <p>For row semantics (each row processed independently), use {@link Table#fromChangelog} on
      * the unpartitioned table.
      *
-     * <p>Example:
+     * <p>Examples:
      *
      * <pre>{@code
+     * // Default: reads 'op' column with standard change operation names
+     * Table result = cdcStream.partitionBy($("id")).fromChangelog();
+     *
+     * // With custom op column name
+     * Table result = cdcStream
+     *     .partitionBy($("id"))
+     *     .fromChangelog(descriptor("operation").asArgument("op"));
+     *
+     * // With custom op_mapping
      * Table result = cdcStream
      *     .partitionBy($("id"))
      *     .fromChangelog(
@@ -226,12 +247,17 @@ public interface PartitionedTable {
      *             "ua", "UPDATE_AFTER",
      *             "d", "DELETE").asArgument("op_mapping")
      *     );
+     *
+     * // Silently skip rows with NULL or unmapped op codes instead of failing
+     * Table result = cdcStream
+     *     .partitionBy($("id"))
+     *     .fromChangelog(lit("SKIP").asArgument("error_handling"));
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
      *     error_handling}
-     * @return a dynamic {@link Table} with the op column removed and the partition keys prepended
-     *     to the remaining input columns
+     * @return a dynamic {@link Table} ordered as {@code [partition_keys,
+     *     non_partition_non_op_input_columns]}
      * @see Table#fromChangelog(Expression...)
      */
     Table fromChangelog(Expression... arguments);
