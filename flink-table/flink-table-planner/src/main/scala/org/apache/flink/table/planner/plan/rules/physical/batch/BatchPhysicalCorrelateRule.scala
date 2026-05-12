@@ -20,21 +20,19 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCalc, BatchPhysicalCorrelate}
+import org.apache.flink.table.planner.plan.rules.physical.common.CorrelateProjectionUtils
 import org.apache.flink.table.planner.plan.utils.PythonUtil
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexNode, RexProgram, RexProgramBuilder, RexShuttle}
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 
 import java.util.Collections
-
-import scala.collection.JavaConverters._
 
 class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
 
@@ -105,7 +103,7 @@ class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
         combinedRowType,
         join.getJoinType)
 
-      val wrappingProgram = buildWrappingProgram(
+      val wrappingProgram = CorrelateProjectionUtils.buildWrappingProgram(
         calcOpt.get.getProgram,
         combinedRowType,
         join.getRowType,
@@ -145,50 +143,6 @@ class BatchPhysicalCorrelateRule(config: Config) extends ConverterRule(config) {
     }
   }
 
-  /**
-   * Builds a {@link RexProgram} that re-applies the Calc's original projection to the output of the
-   * physical Correlate (left ++ scan.rowType). Left fields are passed through unchanged; right-side
-   * projection expressions have their input references shifted by {@code leftFieldCount} so they
-   * index the combined input row.
-   */
-  private def buildWrappingProgram(
-      originalProgram: RexProgram,
-      combinedRowType: RelDataType,
-      outputRowType: RelDataType,
-      leftFieldCount: Int,
-      rexBuilder: RexBuilder): RexProgram = {
-
-    val shifter = new RexShuttle {
-      override def visitInputRef(inputRef: RexInputRef): RexNode =
-        new RexInputRef(inputRef.getIndex + leftFieldCount, inputRef.getType)
-    }
-
-    val builder = new RexProgramBuilder(combinedRowType, rexBuilder)
-
-    // Pass through the left fields by name and type from the combined row.
-    val combinedFields = combinedRowType.getFieldList
-    for (i <- 0 until leftFieldCount) {
-      val field = combinedFields.get(i)
-      builder.addProject(new RexInputRef(i, field.getType), field.getName)
-    }
-
-    // Append the original Calc's projection list, with input refs shifted to point at
-    // the right-hand portion of the combined row, and rename to match outputRowType.
-    val originalProjects = originalProgram.getProjectList.asScala
-    val outputFields = outputRowType.getFieldList
-    require(
-      leftFieldCount + originalProjects.size == outputFields.size,
-      s"output field count ${outputFields.size} != left ($leftFieldCount) + projection " +
-        s"(${originalProjects.size})"
-    )
-    for (i <- originalProjects.indices) {
-      val expanded = originalProgram.expandLocalRef(originalProjects(i)).accept(shifter)
-      val outputName = outputFields.get(leftFieldCount + i).getName
-      builder.addProject(expanded, outputName)
-    }
-
-    builder.getProgram
-  }
 }
 
 object BatchPhysicalCorrelateRule {
