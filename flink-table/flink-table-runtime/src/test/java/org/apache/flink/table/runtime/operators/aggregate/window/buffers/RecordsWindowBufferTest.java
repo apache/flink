@@ -102,6 +102,42 @@ class RecordsWindowBufferTest {
         return new String(chars);
     }
 
+    @Test
+    void testFlushUsesStableWindowKeys() throws Exception {
+        List<WindowKey> windowKeys = new ArrayList<>();
+        RecordsCombiner combiner =
+                new RecordsCombiner() {
+                    @Override
+                    public void combine(WindowKey windowKey, Iterator<RowData> records) {
+                        windowKeys.add(windowKey);
+                        while (records.hasNext()) {
+                            records.next();
+                        }
+                    }
+
+                    @Override
+                    public void close() {}
+                };
+
+        try (RecordsWindowBuffer buffer = createBuffer(combiner)) {
+            buffer.addElement(
+                    GenericRowData.of(1),
+                    1000L,
+                    GenericRowData.of(1, StringData.fromString("first")));
+            buffer.addElement(
+                    GenericRowData.of(2),
+                    1000L,
+                    GenericRowData.of(2, StringData.fromString("second")));
+
+            buffer.flush();
+
+            assertThat(windowKeys).hasSize(2);
+            assertThat(windowKeys)
+                    .extracting(windowKey -> windowKey.getKey().getInt(0))
+                    .containsExactlyInAnyOrder(1, 2);
+        }
+    }
+
     /**
      * Recoverable scenario: buffer has data (numKeys > 0), EOFException triggers flush, retry
      * succeeds.
